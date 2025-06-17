@@ -3942,23 +3942,73 @@ export const findBestMatchCategory2 = async (event: EventPlusType, possibleLabel
         const { summary, notes } = event
         const sentence = `${summary}${notes ? `: ${notes}` : ''}`
 
-        const res: ClassificationResponseBodyType = await got.post(
-            classificationUrl,
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Basic ${Buffer.from(`admin:${authApiToken}`).toString('base64')}`,
-                },
-                json: {
-                    sentence,
-                    labels: possibleLabels.map(a => a?.name),
-                },
+        const labelNames = possibleLabels.map(a => a?.name);
+
+        const systemPrompt = "You are an expert event categorizer. Given an event description and a list of possible categories, return a JSON array string containing only the names of the categories that directly apply to the event. Do not provide any explanation, only the JSON array string.";
+        const userPrompt = `Event: "${sentence}"
+Categories: ${JSON.stringify(labelNames)}`;
+
+        try {
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo', // Using string directly as openAIChatGPTModel is not available here
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.2,
+            });
+
+            const llmResponseString = completion.choices[0]?.message?.content;
+            let matchedLabels: string[] = [];
+
+            if (llmResponseString) {
+                try {
+                    matchedLabels = JSON.parse(llmResponseString);
+                    if (!Array.isArray(matchedLabels) || !matchedLabels.every(item => typeof item === 'string')) {
+                        console.error('LLM response is not a valid JSON array of strings:', llmResponseString);
+                        matchedLabels = []; // Fallback to empty if not a string array
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing LLM response:', parseError, llmResponseString);
+                    // Fallback: attempt to extract labels if it's a simple list not in JSON array format
+                    // This is a basic fallback, might need more robust parsing depending on LLM behavior
+                    if (typeof llmResponseString === 'string') {
+                        matchedLabels = labelNames.filter(label => llmResponseString.includes(label));
+                    } else {
+                        matchedLabels = [];
+                    }
+                }
+            } else {
+                console.error('LLM response content is null or undefined.');
+                matchedLabels = [];
             }
-        ).json()
-        console.log(res, event?.id, ' res, event?.id inside findBestMatchCategory2')
-        return res
+
+            const scores = labelNames.map(label => matchedLabels.includes(label) ? 0.9 : 0.1);
+
+            const result: ClassificationResponseBodyType = {
+                sequence: uuid(), // Added sequence property
+                labels: labelNames,
+                scores,
+            };
+            console.log(result, event?.id, ' result, event?.id inside findBestMatchCategory2 with OpenAI')
+            return result;
+
+        } catch (apiError) {
+            console.error('Error calling OpenAI API or processing its response:', apiError);
+            // Fallback to low scores for all categories in case of API error
+            const scores = labelNames.map(() => 0.1);
+            const errorResult: ClassificationResponseBodyType = {
+                sequence: uuid(), // Added sequence property
+                labels: labelNames,
+                scores,
+            };
+            return errorResult;
+        }
     } catch (e) {
-        console.log(e, ' unable to find categories')
+        // This outer catch block handles errors from the initial validation steps
+        console.log(e, ' initial error in findBestMatchCategory2');
+        // Optionally rethrow or return a specific error response
+        throw e; // Re-throwing the original error if it's from pre-API call logic
     }
 }
 
