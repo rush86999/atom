@@ -11,6 +11,7 @@ import {
 
 export async function handleMessage(message: string): Promise<string> {
   const lowerCaseMessage = message.toLowerCase();
+  const userId = "mock_user_id_from_handler"; // Placeholder for actual user ID retrieval
 
   if (lowerCaseMessage.startsWith('list events')) {
     try {
@@ -18,12 +19,18 @@ export async function handleMessage(message: string): Promise<string> {
       const parts = message.split(' ');
       const limit = parts.length > 2 && !isNaN(parseInt(parts[2])) ? parseInt(parts[2]) : 10;
 
-      const events: CalendarEvent[] = await listUpcomingEvents(limit);
+      // TODO: Refine error propagation from skills.
+      // listUpcomingEvents should ideally return a more explicit error object
+      // (e.g., { success: false, message: "Token error", events: [] })
+      // to distinguish "no events" from "an error occurred".
+      // For now, an empty array implies either no events or an auth/API issue.
+      const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
       if (events.length === 0) {
-        return "No upcoming events found.";
+        // Given current mock token setup, this often means tokens are missing or invalid.
+        return "Could not retrieve calendar events. Please ensure your Google Calendar is connected in settings and try again, or there might be no upcoming events.";
       }
       const eventList = events.map(event =>
-        `- ${event.summary} (${event.startTime} - ${event.endTime})${event.description ? ': ' + event.description : ''}`
+        `- ${event.summary} (${event.startTime} - ${event.endTime})${event.description ? ': ' + event.description : ''}${event.htmlLink ? ` [Link: ${event.htmlLink}]` : ''}`
       ).join('\n');
       return `Upcoming events:\n${eventList}`;
     } catch (error) {
@@ -55,11 +62,11 @@ export async function handleMessage(message: string): Promise<string> {
         };
       }
 
-      const response: CreateEventResponse = await createCalendarEvent(eventDetails);
+      const response: CreateEventResponse = await createCalendarEvent(userId, eventDetails);
       if (response.success) {
-        return `Event created: ${response.message} (ID: ${response.eventId})`;
+        return `Event created: ${response.message || 'Successfully created event.'} (ID: ${response.eventId || 'N/A'})${response.htmlLink ? ` Link: ${response.htmlLink}` : ''}`;
       } else {
-        return `Failed to create event: ${response.message}`;
+        return `Failed to create calendar event. ${response.message || 'Please check your connection or try again.'}`;
       }
     } catch (error) {
       console.error('Error creating event:', error);
