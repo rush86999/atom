@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json", // Extends /app/atomic-docker/project/functions/tsconfig.json
+  "compilerOptions": {
+    "outDir": ".", // Output .js files in the current directory
+    "noEmitOnError": true,
+    "declaration": false, // No need for .d.ts for this test run
+    "sourceMap": false,
+    // Ensure settings compatible with ES Modules if the main tsconfig is different
+    "module": "ESNext",
+    "target": "ES2020",
+    "moduleResolution": "node" // Or "nodenext"
+  },
+  "include": [
+    "api-helper.ts" // Compile only this file
+  ],
+  "exclude": [
+    "node_modules",
+    "test_event_categorization.ts" // Exclude the test file itself from this compilation step
+  ]
+}

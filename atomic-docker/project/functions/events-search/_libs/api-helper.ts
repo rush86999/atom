@@ -3,7 +3,7 @@ import { Client } from '@opensearch-project/opensearch'
 import { Config, ConfigurationOptions, AWSError } from 'aws-sdk'
 import { APIVersions } from 'aws-sdk/lib/config'
 import { ConfigurationServicePlaceholders } from 'aws-sdk/lib/config_service_placeholders'
-import { openSearchEndPoint, eventSearchIndex, eventVectorDimensions, eventVectorName, authApiToken, text2VectorUrl, hasuraGraphUrl, hasuraAdminSecret, openAIPassKey, emailKnwIndex, openAIChatGPTModel, emailKnwVectorName, agentKnwIndex, agentKnwVectorName, openTrainEventIndex, openTrainEventVectorName, openAllEventIndex, openAllEventVectorName, openTrainEventVectorDimensions, openAllEventVectorDimensions, defaultOpenAIAPIKey } from './constants'
+import { openSearchEndPoint, eventSearchIndex, eventVectorDimensions, eventVectorName, hasuraGraphUrl, hasuraAdminSecret, openAIPassKey, emailKnwIndex, openAIChatGPTModel, emailKnwVectorName, agentKnwIndex, agentKnwVectorName, openTrainEventIndex, openTrainEventVectorName, openAllEventIndex, openAllEventVectorName, openTrainEventVectorDimensions, openAllEventVectorDimensions, defaultOpenAIAPIKey } from './constants'
 import { OpenSearchResponseBodyType, EmailKnwSourceType, AgentKnwSourceType, OpenSearchGetResponseBodyType } from './types'
 
 import got from 'got'
@@ -497,34 +497,6 @@ export const createAllEventIndexInOpenSearch = async () => {
         console.log(response.body, ' created index')
     } catch (e) {
         console.log(e, ' unable to create index')
-    }
-}
-
-export const convertTextToVectorSpace2 = async (
-    text: string,
-): Promise<number[]> => {
-    try {
-        if (!text) {
-            throw new Error('no text provided insdie convertTextToVectorSpace')
-        }
-
-        const vector: number[] = await got.post(
-            text2VectorUrl,
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Basic ${Buffer.from(`admin:${authApiToken}`).toString('base64')}`,
-                },
-                json: {
-                    sentences: [text]
-                },
-            }
-        ).json()
-
-        console.log(vector, ' vector inside convertTextToVectorSpace2')
-        return vector
-    } catch (e) {
-        console.log(e, ' unable to convertTextToVectorSpace')
     }
 }
 

@@ -99,7 +99,6 @@ services:
       - optaplanner
       - postgres
       - graphql-engine
-      - classification
     environment:
       BASIC_AUTH: ${BASIC_AUTH}
       FUNCTION_SERVER_URL: ${FUNCTION_SERVER_URL}
@@ -134,10 +133,6 @@ services:
       OPTAPLANNER_USERNAME: ${OPTAPLANNER_USERNAME}
       OPTAPLANNER_PASSWORD: ${OPTAPLANNER_PASSWORD}
       OPTAPLAN_ADMIN_CALLBACK_URL: http://functions:3000/post-process-calendar/onPostOptaCal/on-opta-plan-post-process-calendar-admin
-      CLASSIFICATION_URL: http://classification:8082/classification
-      CLASSIFICATION_USERNAME: admin
-      CLASSIFICATION_PASSWORD: ${API_TOKEN}
-      TEXT_TO_VECTOR_URL: http://classification:8082/text2vector
       GOOGLE_CALENDAR_WEBHOOK_URL: https://${HOST_NAME}/v1/functions/google-calendar-sync/googleCalendarWebhook/google-calendar-webhook-public
       GOOGLE_PEOPLE_SYNC_ADMIN_URL: https://${HOST_NAME}/v1/functions/google-calendar-sync/googlePeopleSync/google-contact-sync-admin
       OPTAPLANNER_DURATION: ${OPTAPLANNER_DURATION}
@@ -285,14 +280,6 @@ services:
       PASSWORD: ${API_TOKEN}
     ports:
       - 8081:8081
-  classification:
-    image: atomic-classification:latest
-    environment:
-      CLASSIFICATION_USERNAME: admin
-      CLASSIFICATION_PASSWORD: ${API_TOKEN}
-      PYTHONPATH: /code/app/
-    ports:
-      - 8082:8082
   handshake:
     build: 
       context: ../handshake_build_docker
