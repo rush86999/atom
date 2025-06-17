@@ -116,13 +116,42 @@ Navigate to the chat interface within the application (currently accessible via 
 3.  **Placeholder Interactivity (Non-functional for some buttons):**
     *   **Action:** Click the "Connect Email Account", "Save Zapier URL" buttons.
     *   **Expected Result:** Nothing functional should happen. Console logs might appear if any were added in `AtomAgentSettings.tsx`.
-    *   **Action (Google Calendar):** See "Real Google Calendar Integration Testing" below for the "Connect/Disconnect Google Calendar" buttons.
+    *   Action (Google Calendar):** See "End-to-End Google Calendar Integration Testing" below for the "Connect/Disconnect Google Calendar" buttons.
 
-## 4. Real Google Calendar Integration Testing
+## 4. End-to-End Google Calendar Integration Testing
 
-This section details testing the actual OAuth flow with Google Calendar and subsequent API calls (which are currently expected to fail due to mock tokens being used by the skills, but the flow itself can be tested).
+This section details testing the actual OAuth flow with Google Calendar and subsequent API calls.
+Success of these tests, especially chat commands, depends on all prerequisites being met.
 
-### 4.1. OAuth Flow Testing
+### Prerequisites
+
+Before proceeding with these tests, ensure the following are correctly configured and operational:
+
+1.  **Hasura Database & Table:**
+    *   The `Calendar_Integration` table must exist in your Hasura database.
+    *   It must match the schema used by `token-utils.ts` for storing Atom Agent's Google Calendar tokens. This includes columns like `userId`, `token` (for access token), `refreshToken`, `expiresAt`, `scope`, `resource`, `clientType`, `name`, `enabled`.
+    *   A unique constraint (e.g., `Calendar_Integration_userId_resource_clientType_key`) must exist on (`userId`, `resource`, `clientType`) for the upsert logic in `saveAtomGoogleCalendarTokens` to work correctly. The values for Atom are `resource = 'google_atom_calendar'` and `clientType = 'atom_agent'`.
+2.  **Google Cloud Project:**
+    *   A Google Cloud Project must be set up with the Google Calendar API enabled.
+    *   OAuth 2.0 credentials (Client ID and Client Secret) must be created.
+    *   The "Authorized redirect URIs" for the OAuth 2.0 client must include the exact URI that will handle the callback (e.g., `http://localhost:3000/api/atom/auth/calendar/callback` for local testing, or your production equivalent).
+3.  **Environment Variables:**
+    *   The backend environment where the Next.js app (and thus API routes) runs must have the following environment variables correctly set:
+        *   `ATOM_GOOGLE_CALENDAR_CLIENT_ID`
+        *   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET`
+        *   `ATOM_GOOGLE_CALENDAR_REDIRECT_URI` (matching the one in Google Cloud Console)
+        *   `HASURA_GRAPHQL_URL` (or `HASURA_GRAPHQL_GRAPHQL_URL` as per `constants.ts`)
+        *   `HASURA_ADMIN_SECRET`
+4.  **Supertokens:**
+    *   Supertokens service must be running and correctly initialized in the Next.js application for user authentication and session management.
+5.  **Atom Agent Handler `userId` (Crucial for Chat Commands):**
+    *   The main Atom message handler (`atomic-docker/project/functions/atom-agent/handler.ts`) currently uses a mock `userId` (`const userId = "mock_user_id_from_handler";`).
+    *   **For per-user calendar operations via chat to work correctly, this MUST be updated to retrieve the real, authenticated `userId` from the Supertokens session.** (This specific update to `handler.ts` is outside the scope of this test plan update but is a critical dependency).
+    *   Without this, all users interacting with the chat interface will attempt to use tokens associated with "mock_user_id_from_handler", not their own.
+6.  **Token Encryption (Acknowledged Placeholder):**
+    *   The encryption/decryption functions in `token-utils.ts` are currently placeholders (`encrypted_...`). For these tests, this is acceptable as it allows data flow, but in production, real encryption is mandatory.
+
+### 4.1. OAuth Flow Testing & Status Verification
 
 1.  **Navigate to Settings:** Go to Settings -> Atom Agent Configuration.
 2.  **Initiate Connection:**
@@ -136,26 +165,69 @@ This section details testing the actual OAuth flow with Google Calendar and subs
     *   **Expected Result:** You should be redirected back to the Atom Agent Configuration settings page. A success message "Google Calendar connected successfully!" should be displayed. The UI should update to show "Status: Connected (user@example.com - mock)" (the email is mocked for now).
 5.  **Disconnect Calendar:**
     *   **Action:** With the status showing "Connected", click the "Disconnect Google Calendar" button.
-    *   **Expected Result:** A success message "Google Calendar disconnected successfully (mocked)." should be displayed. The UI should update to "Status: Not Connected", and the "Connect Google Calendar" button should reappear.
+    *   **Expected Result:**
+        *   A success message "Google Calendar disconnected successfully for Atom Agent." (or similar from the API) should be displayed by the settings UI.
+        *   The UI should update to "Status: Not Connected", and the "Connect Google Calendar" button should reappear.
+        *   **Server Log:** Check for logs from `/api/atom/auth/calendar/disconnect.ts` indicating `deleteAtomGoogleCalendarTokens` was called for the correct user ID.
+        *   **Status API Check:** Manually (e.g., via browser tab or Postman) call `/api/atom/auth/calendar/status`. It should return `{ "isConnected": false }`.
 
-### 4.2. Chat Interface - Calendar Commands (Post OAuth Attempt)
+### 4.2. Chat Interface - Calendar Commands (Post Successful Connection)
 
-After successfully completing the "Grant Consent" step in the OAuth Flow Testing (even though the tokens aren't fully stored and used by skills yet):
+After successfully completing the "Grant Consent" step and verifying "Status: Connected" via the UI and `/api/atom/auth/calendar/status`:
+
+**Important:** These tests assume the `userId` in `atomic-docker/project/functions/atom-agent/handler.ts` has been updated to use the real, authenticated user ID. If it's still using `"mock_user_id_from_handler"`, these commands will operate on the calendar associated with tokens stored for that mock ID, not the currently logged-in user.
 
 1.  **List Events Command:**
     *   **Action:** In the chat interface, type `list events` and send.
-    *   **Expected Result:** Atom should respond with: "Could not retrieve calendar events. Please ensure your Google Calendar is connected in settings and try again, or there might be no upcoming events."
-    *   **Reasoning:** This is because `calendarSkills.ts` currently uses `mock_access_token_from_storage` which is invalid for actual API calls. The API call will fail (likely with an "invalid_grant" or similar error logged in the server console by `calendarSkills.ts`), and the skill will return an empty array, leading to this message from `handler.ts`.
+    *   **Expected Result:**
+        *   If the connected Google Calendar has upcoming events, they should be listed (e.g., "- Event Summary (StartTime - EndTime) [Link: ...]").
+        *   If the calendar is empty, Atom should respond with "No upcoming events found (or calendar not connected/error)." (The handler might need refinement to distinguish "no events" from "error" more clearly if `calendarSkills` returns an empty array for both).
+    *   **Server Log:** Check for logs from `calendarSkills.ts` showing an attempt to list events. If there were initial token issues (e.g., just expired), logs might show token refresh attempts.
 2.  **Create Event Command:**
-    *   **Action:** In the chat interface, type `create event {"summary":"Atom Test Event","startTime":"2024-12-01T10:00:00Z","endTime":"2024-12-01T11:00:00Z"}` (use valid future ISO dates/times).
-    *   **Expected Result:** Atom should respond with: "Failed to create calendar event. Failed to create event with Google Calendar: invalid_grant" (or similar error message from the API call failure).
-    *   **Reasoning:** Similar to listing events, the mock token will cause the event creation API call to fail.
+    *   **Action:** In the chat interface, type `create event {"summary":"Atom Test Event via Chat","startTime":"YYYY-MM-DDTHH:MM:SSZ","endTime":"YYYY-MM-DDTHH:MM:SSZ"}` (use valid future ISO dates/times for your connected calendar's timezone).
+    *   **Expected Result:**
+        *   Atom should respond with a success message: "Event created: Calendar event created successfully with Google Calendar. (ID: ...)[Link: ...]".
+        *   Verify the event appears in the connected Google Calendar.
+    *   **Server Log:** Check for logs from `calendarSkills.ts` showing event insertion.
+3.  **Create Event (Minimal):**
+    *   **Action:** `create event {"summary":"Quick Meeting","startTime":"YYYY-MM-DDTHH:MM:SSZ","endTime":"YYYY-MM-DDTHH:MM:SSZ"}`
+    *   **Expected Result:** Event created in Google Calendar.
+4.  **Create Event (Past - for testing Google's behavior):**
+    *   **Action:** `create event {"summary":"Past Event Test","startTime":"YYYY-MM-DDTHH:MM:SSZ","endTime":"YYYY-MM-DDTHH:MM:SSZ"}` (use past ISO dates/times).
+    *   **Expected Result:** Google Calendar typically allows creating events in the past. Verify it appears.
 
-### 4.3. Important Note for Testers
+### 4.3. Token Refresh Testing (Conceptual & Observational)
 
-*   **Actual event listing/creation via chat commands is NOT expected to work at this stage.** The `calendarSkills.ts` functions are making calls to the Google Calendar API, but they are using placeholder mock tokens (`mock_access_token_from_storage`) for these calls because the real tokens obtained from the OAuth flow are not yet securely stored and retrieved by these skill functions.
-*   The purpose of the "Chat Interface - Calendar Commands (Post OAuth Attempt)" tests is to verify that the OAuth flow *attempt* (connection showing in settings) is followed by the skills *attempting* to use tokens, even if those attempts currently fail due to the mock token values. This confirms the basic wiring up to the point of API call attempts.
-*   You should see error messages in the **server-side console** (where you ran `npm run dev`) originating from `calendarSkills.ts`, indicating failed Google API calls (e.g., "Token error (invalid_grant or expired/revoked). User might need to re-authenticate for Atom Agent."). The exact error will depend on Google's response to an invalid/expired token.
-*   If the token refresh mechanism were fully testable via this manual plan (it's hard to force a token expiry on demand for manual testing), successful API calls after an initial "invalid_grant" (if the refresh token is valid and used) would be the ideal outcome. However, given the current setup, repeated "invalid_grant" or similar errors are expected if the initial mock token from `getAtomGoogleCalendarTokens` (if it were to return one that's invalid) is used.
+*   **Background:** The `googleapis` library automatically attempts to refresh the access token if it's expired and a refresh token is available. The `calendarSkills.ts` has a listener to save these refreshed tokens.
+*   **Manual Trigger Difficulty:** It's hard to manually force an access token (typically valid for 1 hour) to expire on demand for a quick test.
+*   **Observation Method:**
+    1.  Successfully connect Google Calendar.
+    2.  Wait for over an hour (or however long the access token is valid).
+    3.  Try a calendar command again (e.g., `list events`).
+    4.  **Expected Result:** The command should still succeed.
+    5.  **Server Log:** Check for console logs from `calendarSkills.ts` like "Google API tokens were refreshed for Atom Agent..." and from `token-utils.ts` indicating `saveAtomGoogleCalendarTokens` was called due to the refresh. This confirms the refresh flow worked.
+*   **Alternative (if tools available):** If you have a way to manually revoke the specific access token (e.g., via Google Account security settings or an API tool, without revoking the entire application grant/refresh token), doing so would immediately trigger the refresh flow on the next API call.
 
-This manual testing plan covers the core functionalities of the Atom agent as implemented with mock skills and UI placeholders, as well as the initial (partially mocked) Google Calendar OAuth flow. The calendar skill tests now verify the attempt to use stored tokens and handle API errors.
+### 4.4. Error Condition Testing
+
+1.  **Invalid Redirect URI:**
+    *   **Action:** Temporarily misconfigure `ATOM_GOOGLE_CALENDAR_REDIRECT_URI` in your environment (e.g., change a character) and restart the application. Try the "Connect Google Calendar" flow.
+    *   **Expected Result:** Google's OAuth screen should show an error (e.g., "redirect_uri_mismatch").
+2.  **Hasura Connectivity/Secret Issues during Token Storage:**
+    *   **Action:** Temporarily stop your Hasura instance or change `HASURA_ADMIN_SECRET` to an incorrect value. Attempt the Google Calendar connection and grant consent.
+    *   **Expected Result:** The `/api/atom/auth/calendar/callback` route should fail when trying to call `saveAtomGoogleCalendarTokens`. The user should be redirected to the settings page with an error like `calendar_auth_error=token_storage_failed`. Server logs in `callback.ts` and `token-utils.ts` should show details of the Hasura connection failure.
+3.  **Revoked App Permissions in Google Account:**
+    *   **Action:** Connect Google Calendar successfully. Then, go to your Google Account's "Security" -> "Third-party apps with account access" section and remove Atom Docker's access. Then, try a chat command like `list events`.
+    *   **Expected Result:** The API call from `calendarSkills.ts` should fail (likely with an `invalid_grant` or similar error indicating revoked permission). The chat should display "Could not retrieve calendar events...". The server logs should indicate the token failure.
+    *   **Action:** Try clicking "Disconnect Google Calendar" in settings.
+    *   **Expected Result:** This should still proceed to delete local tokens (as `deleteAtomGoogleCalendarTokens` is called). The UI should show "Not Connected".
+    *   **Action:** Try to "Connect Google Calendar" again.
+    *   **Expected Result:** The OAuth flow should restart, and you should be prompted for consent again by Google.
+
+### 4.5. Important Note for Testers (Revised)
+
+*   The success of "Chat Interface - Calendar Commands" **critically depends on the `userId` in `atomic-docker/project/functions/atom-agent/handler.ts` being the actual authenticated user's ID.** If it's still mocked, chat commands will always interact with tokens (if any) stored for that specific mock ID.
+*   Placeholder encryption in `token-utils.ts` means tokens are not truly secure in the database during these tests. This is an acknowledged temporary state.
+*   Focus on server logs from the API routes (`initiate.ts`, `callback.ts`, `disconnect.ts`, `status.ts`), `token-utils.ts`, and `calendarSkills.ts` for detailed insight into the token management and API call lifecycle.
+
+This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar integration, including OAuth, token storage (mocked encryption), and API interactions.
