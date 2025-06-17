@@ -331,19 +331,68 @@ function UserViewChat() {
             
 
             console.log(text, ' text inside onSendMessage')
-            await addMessageToBrain(
-                socket,
-                text,
-                userId,
-                dayjs.tz.guess(), 
-                chatHistory,
-                messageHistory,
-                setChatHistory,
-                setMessageHistory,
-                setIsLoading
-            )
+            // Add user's message to chat history immediately
+            const newUserMessage: UserChatType = {
+                id: chatHistory.length, // Or a more robust ID generation
+                content: text,
+                role: 'user',
+                date: dayjs().format(),
+            };
+            setChatHistory(prevChatHistory => [...prevChatHistory, newUserMessage]);
+            setIsLoading(true);
+
+            try {
+                const response = await fetch('/api/atom/message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: text }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const atomResponse: UserChatType = {
+                    id: chatHistory.length + 1, // Or a more robust ID generation
+                    content: data.response || "Atom didn't provide a response.",
+                    role: 'assistant', // Atom is an assistant
+                    date: dayjs().format(),
+                };
+                setChatHistory(prevChatHistory => [...prevChatHistory, atomResponse]);
+
+            } catch (e: any) {
+                console.error(e, ' unable to send message to Atom API');
+                const errorMessage: UserChatType = {
+                    id: chatHistory.length + 1,
+                    content: `Error: ${e.message || 'Failed to get response from Atom.'}`,
+                    role: 'assistant', // Display error as an assistant message
+                    date: dayjs().format(),
+                };
+                setChatHistory(prevChatHistory => [...prevChatHistory, errorMessage]);
+            } finally {
+                setIsLoading(false);
+            }
         } catch (e) {
-            console.log(e, ' unable  on send message')
+            console.log(e, ' general error in onSendMessage')
+            // Fallback for unexpected errors before API call attempt
+             const errorMessage: UserChatType = {
+                id: chatHistory.length + (chatHistory.find(m => m.role === 'user' && m.content === text) ? 1: 0), // avoid duplicate id if user message was added
+                content: `An unexpected error occurred.`,
+                role: 'assistant',
+                date: dayjs().format(),
+            };
+            // Check if user message was already added to avoid duplicates if error is before API call
+            setChatHistory(prevChatHistory => {
+                if (!prevChatHistory.find(m => m.role === 'user' && m.content === text && m.id === newUserMessage.id)) {
+                     return [...prevChatHistory, newUserMessage, errorMessage];
+                }
+                return [...prevChatHistory, errorMessage];
+            });
+            setIsLoading(false);
         }
     }
 
@@ -372,26 +421,42 @@ function UserViewChat() {
                 
                 <ScrollContainer scrollCta="New Message!" isNewSession={isNewSession} >
                     {
-                        (chatHistory as ChatHistoryType)?.map((m, i) => (
-                            <div key={m.id}>
-                                {((chatHistory?.length - 1) === i)
-                                    ? (
-                                        <Message key={m.id} message={m} isLoading={isLoading} formData={renderSelectTimezone()} htmlEmail={htmlEmail} />
-                                    ) : (
-                                        <Message key={m.id} message={m} />
-                                    )
-                                }
-                            </div>
-                        ))
+                        (chatHistory as ChatHistoryType)?.map((m, i) => {
+                            // Determine if this message is the last one and an assistant message to potentially show loading/forms
+                            const isLastMessage = (chatHistory.length - 1) === i;
+                            const showFormsForThisMessage = isLastMessage && m.role === 'assistant';
+
+                            return (
+                                <div key={m.id || `msg-${i}`}> {/* Ensure key is always unique */}
+                                    <Message
+                                        key={m.id || `msg-item-${i}`}
+                                        message={m}
+                                        isLoading={showFormsForThisMessage && isLoading} // Only show loading for last assistant message slot
+                                        // formData={showFormsForThisMessage && isForm ? renderSelectTimezone() : undefined} // Conditionally render form
+                                        // htmlEmail={showFormsForThisMessage ? htmlEmail : undefined} // Conditionally render email
+                                    />
+                                </div>
+                            )
+                        })
                     }
                 </ScrollContainer>
                 <ChatInput 
                     sendMessage={onSendMessage} 
-                    isNewSession={isNewSession} 
-                    callNewSession={callNewSession} 
+                    // For Atom, isNewSession and callNewSession might not be directly applicable in the same way
+                    // but we'll keep them for now to avoid breaking ChatInput's expected props.
+                    // Consider how "new session" should behave with Atom later.
+                    isNewSession={false} // Or manage this based on Atom's concept of sessions if any
+                    callNewSession={() => {
+                        console.log("New session clicked, behavior for Atom TBD");
+                        // Potentially clear chatHistory for Atom or send a specific new session signal
+                        // For now, let's just log it. A simple clear:
+                        // setChatHistory([{ role: 'assistant', content: 'How can I help you today?', id:0, date: dayjs().format() }]);
+                    }}
                 />
                 
             </div>
+            {/* The Modal for timezone selection is part of the old system, hiding it for Atom for now by not rendering if isForm is false */}
+            {isForm && (
             <Box>
                 <Modal animationType="slide"
                     visible={isSelect} onRequestClose={closeIsSelect}>
@@ -435,6 +500,7 @@ function UserViewChat() {
                     </Box>
                 </Modal>
             </Box>
+            )}
         </div>
     )
 
