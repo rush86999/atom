@@ -822,7 +822,7 @@ export const convertEventTitleToOpenAIVector = async (
 ) => {
     try {
         const embeddingRequest: OpenAI.Embeddings.EmbeddingCreateParams = {
-            model: 'text-embedding-ada-002',
+            model: 'text-embedding-3-small',
             input: title,
         }
 
