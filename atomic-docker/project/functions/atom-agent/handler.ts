@@ -9,12 +9,9 @@ import {
   ZapTriggerResponse
 } from '../types';
 
-export async function handleMessage(message: string): Promise<string> {
+export async function handleMessage(message: string, userId: string): Promise<string> {
   const lowerCaseMessage = message.toLowerCase();
-  // TODO: Replace with actual User ID retrieval from authenticated session
-  // This will likely involve making this handler part of an authenticated context
-  // or receiving userId as part of the message payload from an authenticated API gateway.
-  const userId = "mock_user_id_from_handler";
+  // userId is now passed as a parameter
 
   if (lowerCaseMessage.startsWith('list events')) {
     try {

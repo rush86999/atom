@@ -17,6 +17,8 @@ const mockedEmailSkills = emailSkills as jest.Mocked<typeof emailSkills>;
 const mockedWebResearchSkills = webResearchSkills as jest.Mocked<typeof webResearchSkills>;
 const mockedZapierSkills = zapierSkills as jest.Mocked<typeof zapierSkills>;
 
+const mockUserId = "test_user_123";
+
 describe('Atom Agent handleMessage', () => {
   beforeEach(() => {
     // Reset mocks before each test
@@ -27,21 +29,21 @@ describe('Atom Agent handleMessage', () => {
   it('should list upcoming events', async () => {
     const mockEvents: CalendarEvent[] = [{ id: '1', summary: 'Event 1', startTime: '2024-01-01T10:00:00Z', endTime: '2024-01-01T11:00:00Z' }];
     mockedCalendarSkills.listUpcomingEvents.mockResolvedValue(mockEvents);
-    const response = await handleMessage('list events');
-    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(10); // Default limit
+    const response = await handleMessage('list events', mockUserId);
+    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(mockUserId, 10); // Default limit
     expect(response).toContain('Upcoming events:');
     expect(response).toContain('Event 1');
   });
 
   it('should list upcoming events with a limit', async () => {
     mockedCalendarSkills.listUpcomingEvents.mockResolvedValue([]);
-    await handleMessage('list events 5');
-    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(5);
+    await handleMessage('list events 5', mockUserId);
+    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(mockUserId, 5);
   });
 
   it('should handle no upcoming events with a user-friendly message', async () => {
     mockedCalendarSkills.listUpcomingEvents.mockResolvedValue([]);
-    const response = await handleMessage('list events');
+    const response = await handleMessage('list events', mockUserId);
     expect(response).toBe("Could not retrieve calendar events. Please ensure your Google Calendar is connected in settings and try again, or there might be no upcoming events.");
   });
 
@@ -49,8 +51,8 @@ describe('Atom Agent handleMessage', () => {
     const mockResponse: CreateEventResponse = { success: true, eventId: 'newEvent1', message: 'Event created', htmlLink: 'http://google.com/event1' };
     mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockResponse);
     const eventDetails = { summary: 'Test Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
-    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
-    expect(mockedCalendarSkills.createCalendarEvent).toHaveBeenCalledWith(eventDetails);
+    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`, mockUserId);
+    expect(mockedCalendarSkills.createCalendarEvent).toHaveBeenCalledWith(mockUserId, eventDetails);
     expect(response).toContain('Event created: Event created (ID: newEvent1) Link: http://google.com/event1');
   });
 
@@ -58,7 +60,7 @@ describe('Atom Agent handleMessage', () => {
     const mockFailureResponse: CreateEventResponse = { success: false, message: 'Specific error from skill.' };
     mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
     const eventDetails = { summary: 'Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
-    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
+    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`, mockUserId);
     expect(response).toBe('Failed to create calendar event. Specific error from skill.');
   });
 
@@ -66,12 +68,12 @@ describe('Atom Agent handleMessage', () => {
     const mockFailureResponse: CreateEventResponse = { success: false }; // No message
     mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
     const eventDetails = { summary: 'Another Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
-    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
+    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`, mockUserId);
     expect(response).toBe('Failed to create calendar event. Please check your connection or try again.');
   });
 
    it('should handle invalid JSON for create calendar event', async () => {
-    const response = await handleMessage('create event this is not json');
+    const response = await handleMessage('create event this is not json', mockUserId);
     expect(response).toContain("Invalid event details format.");
     expect(mockedCalendarSkills.createCalendarEvent).not.toHaveBeenCalled();
   });

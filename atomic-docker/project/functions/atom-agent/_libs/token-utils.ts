@@ -4,23 +4,62 @@ import {
   HASURA_ADMIN_SECRET,
   ATOM_CALENDAR_RESOURCE_NAME,
   ATOM_CLIENT_TYPE,
+  ATOM_TOKEN_ENCRYPTION_KEY,
+  ATOM_TOKEN_ENCRYPTION_IV,
 } from './constants';
 import dayjs from 'dayjs'; // For handling expiry_date calculation
+import crypto from 'crypto';
 
-// Placeholder for actual encryption logic (e.g., using crypto module like Zoom example)
-export async function encryptToken(token: string): Promise<string> {
-    console.log("TODO: Implement actual token encryption for token:", token ? token.substring(0,5) + "..." : "null/undefined");
-    if (!token) return token; // Return null/undefined as is
-    return `encrypted_${token}`;
+export async function encryptToken(token: string): Promise<string | null> {
+    if (!ATOM_TOKEN_ENCRYPTION_KEY || !ATOM_TOKEN_ENCRYPTION_IV) {
+        console.error("Encryption key or IV is missing. Cannot encrypt token.");
+        return null;
+    }
+    if (!token) return token;
+
+    try {
+        const key = Buffer.from(ATOM_TOKEN_ENCRYPTION_KEY, 'hex');
+        const iv = Buffer.from(ATOM_TOKEN_ENCRYPTION_IV, 'hex');
+
+        if (key.length !== 32 || iv.length !== 16) {
+            console.error("Invalid key or IV length for AES-256-CBC. Key must be 32 bytes (64 hex chars), IV must be 16 bytes (32 hex chars).");
+            return null;
+        }
+
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        let encrypted = cipher.update(token, 'utf8', 'base64');
+        encrypted += cipher.final('base64');
+        return encrypted;
+    } catch (error) {
+        console.error("Error during token encryption:", error);
+        return null;
+    }
 }
 
-export async function decryptToken(encryptedToken: string): Promise<string> {
-    console.log("TODO: Implement actual token decryption for token:", encryptedToken ? encryptedToken.substring(0,15) + "..." : "null/undefined");
-    if (!encryptedToken) return encryptedToken; // Return null/undefined as is
-    if (encryptedToken.startsWith('encrypted_')) {
-        return encryptedToken.substring('encrypted_'.length);
+export async function decryptToken(encryptedToken: string): Promise<string | null> {
+    if (!ATOM_TOKEN_ENCRYPTION_KEY || !ATOM_TOKEN_ENCRYPTION_IV) {
+        console.error("Encryption key or IV is missing. Cannot decrypt token.");
+        return null;
     }
-    return encryptedToken;
+    if (!encryptedToken) return encryptedToken;
+
+    try {
+        const key = Buffer.from(ATOM_TOKEN_ENCRYPTION_KEY, 'hex');
+        const iv = Buffer.from(ATOM_TOKEN_ENCRYPTION_IV, 'hex');
+
+        if (key.length !== 32 || iv.length !== 16) {
+            console.error("Invalid key or IV length for AES-256-CBC.");
+            return null;
+        }
+
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        let decrypted = decipher.update(encryptedToken, 'base64', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch (error) {
+        console.error("Error during token decryption:", error);
+        return null;
+    }
 }
 
 interface GoogleTokenSet {
@@ -45,7 +84,13 @@ export async function saveAtomGoogleCalendarTokens(
     }
 
     const encryptedAccessToken = await encryptToken(tokens.access_token);
+    // Ensure refresh token is only encrypted if it exists
     const encryptedRefreshToken = tokens.refresh_token ? await encryptToken(tokens.refresh_token) : null;
+
+    if (!encryptedAccessToken || (tokens.refresh_token && !encryptedRefreshToken)) {
+        console.error("Failed to encrypt tokens. Aborting save.");
+        throw new Error("Token encryption failed. Cannot save tokens.");
+    }
 
     // Convert expiry_date (timestamp in ms) to timestamptz string for Hasura
     const expiresAt = new Date(tokens.expiry_date).toISOString();
@@ -175,9 +220,18 @@ export async function getAtomGoogleCalendarTokens(userId: string): Promise<Googl
         const accessToken = await decryptToken(integration.token);
         const refreshToken = integration.refreshToken ? await decryptToken(integration.refreshToken) : null;
 
+        // If decryption fails for a critical token (access_token), treat as no valid token found.
+        if (!accessToken) {
+            console.error(`Failed to decrypt access token for userId: ${userId}. Returning null.`);
+            return null;
+        }
+        if (integration.refreshToken && !refreshToken) {
+            console.warn(`Failed to decrypt refresh token for userId: ${userId}. Proceeding without it.`);
+        }
+
         return {
             access_token: accessToken,
-            refresh_token: refreshToken || undefined,
+            refresh_token: refreshToken || undefined, // Keep as undefined if null
             expiry_date: new Date(integration.expiresAt).getTime(),
             scope: integration.scope,
             token_type: integration.token_type,

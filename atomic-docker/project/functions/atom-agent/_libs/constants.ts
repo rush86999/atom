@@ -33,6 +33,12 @@ export const HASURA_ADMIN_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET;
 export const ATOM_CALENDAR_RESOURCE_NAME = 'google_atom_calendar';
 export const ATOM_CLIENT_TYPE = 'atom_agent';
 
+// Encryption key and IV for Atom agent's sensitive token storage
+// MUST be set in the environment. Key should be 32 bytes (256 bits) for aes-256-cbc, IV should be 16 bytes (128 bits).
+// Generate these securely (e.g., using crypto.randomBytes(32).toString('hex') and crypto.randomBytes(16).toString('hex'))
+export const ATOM_TOKEN_ENCRYPTION_KEY = process.env.ATOM_TOKEN_ENCRYPTION_KEY;
+export const ATOM_TOKEN_ENCRYPTION_IV = process.env.ATOM_TOKEN_ENCRYPTION_IV;
+
 
 // Potentially other constants for Atom agent can be added below
 // e.g., API keys for email services, Zapier specific URLs (if not user-configured), etc.
