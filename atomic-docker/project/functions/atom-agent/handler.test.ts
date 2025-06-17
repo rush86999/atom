@@ -39,33 +39,35 @@ describe('Atom Agent handleMessage', () => {
     expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(5);
   });
 
-  it('should handle no upcoming events', async () => {
+  it('should handle no upcoming events with a user-friendly message', async () => {
     mockedCalendarSkills.listUpcomingEvents.mockResolvedValue([]);
     const response = await handleMessage('list events');
-    expect(response).toBe('No upcoming events found.');
+    expect(response).toBe("Could not retrieve calendar events. Please ensure your Google Calendar is connected in settings and try again, or there might be no upcoming events.");
   });
 
-  it('should create a calendar event', async () => {
-    const mockResponse: CreateEventResponse = { success: true, eventId: 'newEvent1', message: 'Event created' };
+  it('should create a calendar event and include htmlLink', async () => {
+    const mockResponse: CreateEventResponse = { success: true, eventId: 'newEvent1', message: 'Event created', htmlLink: 'http://google.com/event1' };
     mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockResponse);
     const eventDetails = { summary: 'Test Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
     const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
     expect(mockedCalendarSkills.createCalendarEvent).toHaveBeenCalledWith(eventDetails);
-    expect(response).toContain('Event created: Event created (ID: newEvent1)');
+    expect(response).toContain('Event created: Event created (ID: newEvent1) Link: http://google.com/event1');
   });
 
-  it('should handle missing details for create calendar event', async () => {
-    const response = await handleMessage('create event {"summary":"Test"}');
-    // Assuming createCalendarEvent in skills handles this and returns a specific message
-    // For this test, we are testing handler's parsing. If JSON is valid but skill rejects, that's a skill test.
-    // If JSON is invalid, it's handled by the handler's try-catch for JSON.parse.
-    // Let's assume the skill itself would be called if JSON is valid.
-    // If createCalendarEvent is robust, it will be called. If it throws, catch block in handler runs.
-    // For now, let's assume it calls the skill.
-    const mockResponse: CreateEventResponse = { success: false, message: 'Missing details' };
-     mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockResponse);
-    await handleMessage('create event {"summary":"Test Event"}'); // Partial valid JSON
-    expect(mockedCalendarSkills.createCalendarEvent).toHaveBeenCalledWith({"summary":"Test Event"});
+  it('should handle create calendar event failure with a specific message from skill', async () => {
+    const mockFailureResponse: CreateEventResponse = { success: false, message: 'Specific error from skill.' };
+    mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
+    const eventDetails = { summary: 'Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
+    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
+    expect(response).toBe('Failed to create calendar event. Specific error from skill.');
+  });
+
+  it('should handle create calendar event failure with a generic message if skill provides none', async () => {
+    const mockFailureResponse: CreateEventResponse = { success: false }; // No message
+    mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
+    const eventDetails = { summary: 'Another Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
+    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
+    expect(response).toBe('Failed to create calendar event. Please check your connection or try again.');
   });
 
    it('should handle invalid JSON for create calendar event', async () => {

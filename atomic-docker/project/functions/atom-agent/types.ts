@@ -8,19 +8,21 @@ export interface AtomMessage {
 
 // --- Calendar Types ---
 export interface CalendarEvent {
-  id: string; // Event ID from the calendar provider
-  summary: string; // Event title
+  id: string;
+  summary: string;
+  description?: string;
   startTime: string; // ISO 8601 date-time string
-  endTime: string; // ISO 8601 date-time string
-  description?: string; // Optional event description
-  location?: string; // Optional event location
-  // We can add more fields like attendees, recurrence, etc. as needed
+  endTime: string;   // ISO 8601 date-time string
+  location?: string;
+  htmlLink?: string; // Link to the event in Google Calendar
+  // Potential future additions: attendees, recurrence rules etc.
 }
 
 export interface CreateEventResponse {
   success: boolean;
-  eventId?: string; // ID of the created event, if successful
-  message: string; // Status message
+  eventId?: string;
+  message: string;
+  htmlLink?: string; // Link to the created event in Google Calendar
 }
 
 // Generic skill response structure (optional, but can be useful)
