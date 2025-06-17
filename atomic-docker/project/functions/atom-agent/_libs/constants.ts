@@ -25,5 +25,14 @@ export const ATOM_GOOGLE_CALENDAR_REDIRECT_URI = process.env.ATOM_GOOGLE_CALENDA
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export const GOOGLE_CALENDAR_API_SCOPE = 'https://www.googleapis.com/auth/calendar';
 
+// Hasura Connection (ensure these are set in your environment)
+export const HASURA_GRAPHQL_URL = process.env.HASURA_GRAPHQL_URL; // Or specific e.g. process.env.HASURA_GRAPHQL_GRAPHQL_URL
+export const HASURA_ADMIN_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET;
+
+// Atom Agent Specific Identifiers for Token Storage
+export const ATOM_CALENDAR_RESOURCE_NAME = 'google_atom_calendar';
+export const ATOM_CLIENT_TYPE = 'atom_agent';
+
+
 // Potentially other constants for Atom agent can be added below
 // e.g., API keys for email services, Zapier specific URLs (if not user-configured), etc.

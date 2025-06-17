@@ -15,37 +15,67 @@ const AtomAgentSettings = () => {
 
   // const [zapierUrl, setZapierUrl] = React.useState(''); // For later use
 
+  const fetchCalendarStatus = async () => {
+    setApiMessage(null); // Clear previous messages on new fetch
+    setApiError(null);
+    try {
+      console.log('Fetching calendar connection status...');
+      const response = await fetch('/api/atom/auth/calendar/status');
+      if (!response.ok) {
+        throw new Error(`API responded with ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('Calendar status response:', data);
+      if (data.isConnected) {
+        setIsCalendarConnected(true);
+        setUserEmail(data.email || 'Unknown Email'); // Use email from API
+      } else {
+        setIsCalendarConnected(false);
+        setUserEmail(null);
+        if(data.error) { // If API explicitly sends an error message for not connected
+            setApiError(data.error);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch calendar status:', err);
+      setIsCalendarConnected(false); // Assume not connected on error
+      setUserEmail(null);
+      setApiError('Could not verify calendar connection status.');
+    }
+  };
+
+  useEffect(() => {
+    // Fetch initial status when component mounts
+    fetchCalendarStatus();
+  }, []); // Empty dependency array means this runs once on mount
+
   useEffect(() => {
     const { query } = router;
+    let shouldFetchStatus = false;
+
     if (query.calendar_auth_success === 'true' && query.atom_agent === 'true') {
       setApiMessage('Google Calendar connected successfully!');
-      setIsCalendarConnected(true);
-      setUserEmail('user@example.com (mock)'); // Simulate fetching/knowing user email
-      // Clean the query params from URL without page reload
+      //setIsCalendarConnected(true); // Status will be updated by fetchCalendarStatus
+      //setUserEmail('user@example.com (mock)');
+      shouldFetchStatus = true;
       router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
     } else if (query.calendar_auth_error && query.atom_agent === 'true') {
       setApiError(`Google Calendar connection failed: ${query.calendar_auth_error}`);
-      setIsCalendarConnected(false);
+      //setIsCalendarConnected(false);
+      shouldFetchStatus = true;
       router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
     } else if (query.calendar_disconnect_success === 'true' && query.atom_agent === 'true') {
       setApiMessage('Google Calendar disconnected successfully!');
-      setIsCalendarConnected(false);
-      setUserEmail(null);
+      //setIsCalendarConnected(false);
+      //setUserEmail(null);
+      shouldFetchStatus = true;
       router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
     }
 
-    // TODO: Fetch initial connection status from backend when component mounts
-    // For now, it defaults to false or relies on query params from OAuth flow.
-    // Example:
-    // fetch('/api/atom/auth/calendar/status')
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     if (data.isConnected) {
-    //       setIsCalendarConnected(true);
-    //       setUserEmail(data.email); // Assuming API returns email
-    //     }
-    //   });
-  }, [router.query]); // Re-run when query parameters change
+    if (shouldFetchStatus) {
+      fetchCalendarStatus(); // Re-fetch status after OAuth/disconnect actions
+    }
+  }, [router.query]); // Re-run when query parameters change specifically for OAuth/disconnect feedback
 
   const handleConnectGoogleCalendar = () => {
     // Redirect to the OAuth initiation URL

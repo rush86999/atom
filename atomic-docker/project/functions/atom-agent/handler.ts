@@ -11,7 +11,10 @@ import {
 
 export async function handleMessage(message: string): Promise<string> {
   const lowerCaseMessage = message.toLowerCase();
-  const userId = "mock_user_id_from_handler"; // Placeholder for actual user ID retrieval
+  // TODO: Replace with actual User ID retrieval from authenticated session
+  // This will likely involve making this handler part of an authenticated context
+  // or receiving userId as part of the message payload from an authenticated API gateway.
+  const userId = "mock_user_id_from_handler";
 
   if (lowerCaseMessage.startsWith('list events')) {
     try {
