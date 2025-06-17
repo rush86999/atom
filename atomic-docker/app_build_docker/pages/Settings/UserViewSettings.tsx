@@ -7,6 +7,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '@config/backendConfig'
 import Session from 'supertokens-node/recipe/session'
+import AtomAgentSettings from '@components/Settings/AtomAgentSettings'; // Import the new component
 
 export async function getServerSideProps({ req, res }: { req: NextApiRequest, res: NextApiResponse }) {
     // Notice how the server uses `API` from `withSSRContext`, instead of the top-level `API`.
@@ -116,6 +117,11 @@ function UserViewSettings() {
             Delete Account
           </Text>
         </div>
+
+        {/* Atom Agent Settings Section */}
+        <Box width="100%" alignItems="center" mt="l"> {/* Ensure it takes appropriate width and has some margin */}
+          <AtomAgentSettings />
+        </Box>
         
       </Box>
     </ScrollView>
