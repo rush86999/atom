@@ -740,6 +740,14 @@ function UserEditEvent(props: Props) {
               setParentStartDate={setStartDate}
               setParentEndDate={setEndDate}
             />
+            <Box px="m" width="90%" alignItems="center" mt="s">
+                <Text variant="caption" textAlign="center" color="textSecondary">
+                    Tip: Atomic can learn from your past events! After typing a title, see if Atomic suggests details from similar entries. You can also 'train' specific events to act as powerful templates.
+                    <Text variant="link" onPress={() => router.push('https://docs.atomiclife.app/docs/features/smart-scheduling')}>
+                        {' '}Learn more about smart scheduling
+                    </Text>
+                </Text>
+            </Box>
             <Box flexDirection="row" justifyContent="space-between" alignItems="center" style={{ width: '95%'}}>
               <Box />
               {renderNextButton()}
