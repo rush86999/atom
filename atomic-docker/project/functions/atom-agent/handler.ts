@@ -7,143 +7,100 @@ import {
   Email, ReadEmailResponse, SendEmailResponse,
   SearchResult,
   ZapTriggerResponse,
-  HubSpotContactProperties, // Added for create hubspot contact
-  CreateHubSpotContactResponse, // Added for create hubspot contact
-  HubSpotContact // Potentially needed if we access hubSpotContact.properties deeply
+  HubSpotContactProperties,
+  CreateHubSpotContactResponse,
+  HubSpotContact,
+  // Calendly Types - Assuming they are exported from types.ts or directly from calendlySkills
+  ListCalendlyEventTypesResponse,
+  ListCalendlyScheduledEventsResponse,
+  CalendlyEventType,
+  CalendlyScheduledEvent
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
+import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills'; // Added
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
 
-import {
-    listUpcomingEventsMicrosoft,
-    createCalendarEventMicrosoft
-} from './skills/microsoftCalendarSkills';
-import {
-    listRecentEmailsMicrosoft,
-    readEmailMicrosoft,
-    sendEmailMicrosoft
-} from './skills/microsoftEmailSkills';
-import {
-    getAtomGoogleCalendarTokens,
-    getAtomGmailTokens,
-    getAtomMicrosoftGraphTokens
-} from '../_libs/token-utils';
 
-export async function handleMessage(message: string, userId: string): Promise<string> {
+export async function handleMessage(message: string): Promise<string> {
   const lowerCaseMessage = message.toLowerCase();
-  // userId is now passed as a parameter
+  const userId = "mock_user_id_from_handler"; // Placeholder for actual user ID retrieval
 
   if (lowerCaseMessage.startsWith('list events')) {
     try {
+      // Optional: parse limit from message, e.g., "list events 5"
       const parts = message.split(' ');
       const limit = parts.length > 2 && !isNaN(parseInt(parts[2])) ? parseInt(parts[2]) : 10;
 
-      let events: CalendarEvent[] = [];
-      let serviceUsed = "";
-      let attemptedServices: string[] = [];
-
-      // TODO: Add a TODO comment in the handler regarding more explicit error objects from skills
-      // if this refinement is still pending, to better distinguish "no results" from "error".
-      // (Similar to the calendar skills). This applies to all skills.
-
-      const googleCalendarTokens = await getAtomGoogleCalendarTokens(userId);
-      if (googleCalendarTokens?.access_token) {
-        attemptedServices.push("Google Calendar");
-        console.log('Attempting to fetch from Google Calendar...');
-        events = await listUpcomingEvents(userId, limit);
-        if (events.length > 0) {
-          serviceUsed = "Google Calendar";
-        }
-      }
-
-      if (events.length === 0) { // If Google Calendar had no events, no tokens, or failed
-        const msGraphTokens = await getAtomMicrosoftGraphTokens(userId);
-        if (msGraphTokens?.access_token) {
-          attemptedServices.push("Microsoft Outlook Calendar");
-          console.log('Attempting to fetch from Microsoft Outlook Calendar...');
-          events = await listUpcomingEventsMicrosoft(userId, limit);
-          if (events.length > 0) {
-            serviceUsed = "Microsoft Outlook Calendar";
-          }
-        }
-      }
-
-      if (!serviceUsed && attemptedServices.length === 0) {
-        return "No calendar service connected. Please connect Google Calendar or Microsoft Outlook Calendar in settings.";
-      }
-
+      // TODO: Refine error propagation from skills.
+      // listUpcomingEvents should ideally return a more explicit error object
+      // (e.g., { success: false, message: "Token error", events: [] })
+      // to distinguish "no events" from "an error occurred".
+      // For now, an empty array implies either no events or an auth/API issue.
+      const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
       if (events.length === 0) {
-        // If we attempted services but found no events
-        if (attemptedServices.length > 0) {
-             return `No upcoming events found in your connected calendar(s): ${attemptedServices.join(', ')}. This could also indicate an issue with the connection(s); please check settings if you expected events.`;
-        } else { // Should be caught by !serviceUsed check, but as a fallback
-            return "No calendar service connected. Please connect Google Calendar or Microsoft Outlook Calendar in settings.";
-        }
+        // Given current mock token setup, this often means tokens are missing or invalid.
+        return "Could not retrieve calendar events. Please ensure your Google Calendar is connected in settings and try again, or there might be no upcoming events.";
       }
-
       const eventList = events.map(event =>
         `- ${event.summary} (${event.startTime} - ${event.endTime})${event.description ? ': ' + event.description : ''}${event.htmlLink ? ` [Link: ${event.htmlLink}]` : ''}`
       ).join('\n');
-      return `Upcoming events from ${serviceUsed}:\n${eventList}`;
-
-    } catch (error: any) {
+      return `Upcoming events:\n${eventList}`;
+    } catch (error) {
       console.error('Error listing events:', error);
-      return `Sorry, I couldn't create the calendar event. Error: ${error.message}`;
+      return "Sorry, I couldn't fetch the upcoming events.";
+    }
+  } else if (lowerCaseMessage.startsWith('create event')) {
+    try {
+      // This is a very basic parsing. A real agent would use NLP to extract details.
+      // Example: "create event Meeting with John from 2024-03-20T10:00 to 2024-03-20T11:00 about Project Alpha"
+      // For now, we'll expect a JSON-like structure or rely on predefined details for simplicity.
+      // Let's assume the message format "create event {"summary":"Test Event","startTime":"2024-03-20T14:00:00Z","endTime":"2024-03-20T15:00:00Z"}"
+      const eventDetailsJson = message.substring(message.indexOf('{')).trim();
+      let eventDetails: Partial<CalendarEvent>;
+
+      if (eventDetailsJson) {
+        try {
+            eventDetails = JSON.parse(eventDetailsJson);
+        } catch (e) {
+            return "Invalid event details format. Please provide JSON for event details. Example: create event {\"summary\":\"My Event\",\"startTime\":\"YYYY-MM-DDTHH:mm:ssZ\",\"endTime\":\"YYYY-MM-DDTHH:mm:ssZ\"}";
+        }
+      } else {
+        // Fallback to a default event if no details are provided
+        eventDetails = {
+            summary: 'Default Event',
+            startTime: new Date().toISOString(),
+            endTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
+            description: 'Created by Atom Agent (default)'
+        };
+      }
+
+      const response: CreateEventResponse = await createCalendarEvent(userId, eventDetails);
+      if (response.success) {
+        return `Event created: ${response.message || 'Successfully created event.'} (ID: ${response.eventId || 'N/A'})${response.htmlLink ? ` Link: ${response.htmlLink}` : ''}`;
+      } else {
+        return `Failed to create calendar event. ${response.message || 'Please check your connection or try again.'}`;
+      }
+    } catch (error) {
+      console.error('Error creating event:', error);
+      return "Sorry, I couldn't create the calendar event.";
     }
   } else if (lowerCaseMessage.startsWith('list emails')) {
     try {
       const parts = message.split(' ');
       const limit = parts.length > 2 && !isNaN(parseInt(parts[2])) ? parseInt(parts[2]) : 10;
 
-      let emails: Email[] = [];
-      let serviceUsed = "";
-      let attemptedServices: string[] = [];
-      // TODO: Add a general TODO for all skills about more explicit error objects from skills
-      // to distinguish "no results" from "an error occurred".
-
-      const gmailTokens = await getAtomGmailTokens(userId);
-      if (gmailTokens?.access_token) {
-        attemptedServices.push("Gmail");
-        console.log('Attempting to fetch from Gmail...');
-        emails = await listRecentEmails(userId, limit); // Google/Gmail skill
-        if (emails.length > 0) {
-          serviceUsed = "Gmail";
-        }
-      }
-
+      const emails: Email[] = await listRecentEmails(limit);
       if (emails.length === 0) {
-        const msGraphTokens = await getAtomMicrosoftGraphTokens(userId);
-        if (msGraphTokens?.access_token) {
-          attemptedServices.push("Microsoft Outlook");
-          console.log('Attempting to fetch from Microsoft Outlook...');
-          emails = await listRecentEmailsMicrosoft(userId, limit);
-          if (emails.length > 0) {
-            serviceUsed = "Microsoft Outlook";
-          }
-        }
+        return "No recent emails found.";
       }
-
-      if (!serviceUsed && attemptedServices.length === 0) {
-        return "No email service connected. Please connect Gmail or Microsoft Outlook in settings.";
-      }
-
-      if (emails.length === 0) {
-        if (attemptedServices.length > 0) {
-            return `No recent emails found in your connected email account(s): ${attemptedServices.join(', ')}. This could also indicate an issue with the connection(s); please check settings.`;
-        } else {
-             return "No email service connected. Please connect Gmail or Microsoft Outlook in settings.";
-        }
-      }
-
-      const emailList = emails.map((email, index) =>
-        `${index + 1}. Subject: ${email.subject || 'N/A'}\n   From: ${email.sender || 'N/A'}\n   Date: ${email.timestamp ? new Date(email.timestamp).toLocaleString() : 'N/A'}\n   ID: ${email.id}`
-      ).join('\n\n');
-      return `Here are your recent emails from ${serviceUsed}:\n\n${emailList}\n\nUse 'read email <ID>' to read a specific email.`;
-
-    } catch (error: any) {
+      const emailList = emails.map(email =>
+        `- (${email.read ? 'read' : 'unread'}) From: ${email.sender}, Subject: ${email.subject} (ID: ${email.id})`
+      ).join('\n');
+      return `Recent emails:\n${emailList}`;
+    } catch (error) {
       console.error('Error listing emails:', error);
-      return `Sorry, I couldn't fetch recent emails. Error: ${error.message}`;
+      return "Sorry, I couldn't fetch recent emails.";
     }
   } else if (lowerCaseMessage.startsWith('read email')) {
     try {
@@ -152,182 +109,100 @@ export async function handleMessage(message: string, userId: string): Promise<st
         return "Please provide an email ID to read. Usage: read email <emailId>";
       }
       const emailId = parts[2];
-
-      let response: ReadEmailResponse | null = null;
-      let serviceUsed = "";
-      // TODO: This is ambiguous if both are connected. For now, try Gmail then Outlook.
-      // A better solution would be "read gmail <id>" or "read outlook <id>" or storing context from last "list emails"
-
-      const gmailTokens = await getAtomGmailTokens(userId);
-      if (gmailTokens?.access_token) {
-        console.log(`Attempting to read email ${emailId} from Gmail...`);
-        response = await readEmail(userId, emailId); // Google/Gmail skill
-        serviceUsed = "Gmail";
-        // If successfully read or explicitly not found by Gmail, don't try Outlook with the same ID.
-        if (response.success || (response.message && response.message.includes('not found'))) {
-          // Proceed with this response
-        } else {
-          // Gmail attempt failed for a reason other than "not found", maybe try Outlook.
-          // For now, if it fails for any reason other than explicit "not found", we might still want to stop.
-          // Let's assume for now: if an attempt is made and it doesn't succeed, we report that.
-          // If it's a "not found", then it makes sense to try the next service.
-          // This needs careful error message parsing from skills or better error objects.
-          // For now, if success is false, and message does NOT indicate "not found", we stop.
-          // If it IS "not found", response is kept and we might try next.
-          if (!response.message || !response.message.toLowerCase().includes('not found')) {
-             // Error was not "not found", so report this service's error
-          } else {
-            response = null; // Clear response to allow trying the next service
-          }
-        }
-      }
-
-      if (!response || (response && !response.success && response.message && response.message.toLowerCase().includes('not found'))) { // If Gmail not connected, or read failed as "not found"
-        const msGraphTokens = await getAtomMicrosoftGraphTokens(userId);
-        if (msGraphTokens?.access_token) {
-          console.log(`Attempting to read email ${emailId} from Microsoft Outlook...`);
-          response = await readEmailMicrosoft(userId, emailId);
-          serviceUsed = "Microsoft Outlook";
-        }
-      }
-
-      if (!response) { // No service was attempted or both failed silently before setting a response
-          return "No email service connected or email ID is ambiguous. Please check settings or specify service.";
-      }
+      const response: ReadEmailResponse = await readEmail(emailId);
 
       if (response.success && response.email) {
         const email = response.email;
-        return `Email from ${serviceUsed}:\nSubject: ${email.subject || 'N/A'}\nFrom: ${email.sender || 'N/A'}\nTo: ${email.recipient || 'N/A'}\nDate: ${email.timestamp ? new Date(email.timestamp).toLocaleString() : 'N/A'}\n\nBody:\n${email.body || '(No body content)'}`;
+        return `Email (ID: ${email.id}):\nFrom: ${email.sender}\nTo: ${email.recipient}\nSubject: ${email.subject}\nDate: ${email.timestamp}\n\n${email.body}`;
       } else {
-        return `Could not read email from ${serviceUsed || 'connected services'}. ${response.message || 'Email not found or access issue.'}`;
+        return response.message || "Could not read email.";
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error reading email:', error);
-      return `Sorry, I couldn't read the specified email. Error: ${error.message}`;
+      return "Sorry, I couldn't read the specified email.";
     }
   } else if (lowerCaseMessage.startsWith('send email')) {
     try {
+      // Example: send email {"to":"test@example.com","subject":"Hello","body":"This is a test."}
       const emailDetailsJson = message.substring(message.indexOf('{')).trim();
       let emailDetails: EmailDetails;
-      try {
-        emailDetails = JSON.parse(emailDetailsJson);
-      } catch (e) {
-        return "Invalid email details format. Please provide JSON. Example: send email {\"to\":\"recipient@example.com\",\"subject\":\"Your Subject\",\"body\":\"Email content...\"}";
-      }
 
-      let response: SendEmailResponse | null = null;
-      let serviceUsed = "";
-      let serviceToTry: (() => Promise<SendEmailResponse | null>) | null = null;
-
-      const gmailTokens = await getAtomGmailTokens(userId);
-      const msGraphTokens = await getAtomMicrosoftGraphTokens(userId);
-
-      // Default to Gmail if available, then Microsoft. User preference could be added later.
-      if (gmailTokens?.access_token) {
-        serviceToTry = async () => {
-            console.log('Attempting to send email via Gmail...');
-            serviceUsed = "Gmail";
-            return await sendEmail(userId, emailDetails); // Google/Gmail skill
-        };
-      } else if (msGraphTokens?.access_token) {
-         serviceToTry = async () => {
-            console.log('Attempting to send email via Microsoft Outlook...');
-            serviceUsed = "Microsoft Outlook";
-            return await sendEmailMicrosoft(userId, emailDetails);
-        };
-      }
-
-      if(serviceToTry) {
-        response = await serviceToTry();
+      if (emailDetailsJson) {
+        try {
+          emailDetails = JSON.parse(emailDetailsJson);
+        } catch (e) {
+          return "Invalid email details format. Please provide JSON. Example: send email {\"to\":\"recipient@example.com\",\"subject\":\"Your Subject\",\"body\":\"Email content...\"}";
+        }
       } else {
-         return "No email service connected to send from. Please connect Gmail or Microsoft Outlook in settings.";
+        return "Please provide email details in JSON format after 'send email'.";
       }
 
-      if (response && response.success) {
-        return `Email sent successfully via ${serviceUsed}! ${response.message || ''} (Message ID: ${response.emailId || 'N/A'})`;
+      const response: SendEmailResponse = await sendEmail(emailDetails);
+      if (response.success) {
+        return `Email sent: ${response.message} (ID: ${response.emailId})`;
       } else {
-        return `Failed to send email via ${serviceUsed || 'the connected service'}. ${response?.message || 'Please try again or check your connection.'}`;
+        return `Failed to send email: ${response.message}`;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error sending email:', error);
-      return `Sorry, I couldn't send the email. Error: ${error.message}`;
+      return "Sorry, I couldn't send the email.";
     }
   } else if (lowerCaseMessage.startsWith('search web')) {
     try {
-      const searchQuery = message.substring('search web'.length).trim();
-      if (!searchQuery) {
-        return "Please provide a term to search for after 'search web'.";
+      const query = message.substring('search web'.length).trim();
+      if (!query) {
+        return "Please provide a search query. Usage: search web <your query>";
       }
 
-      // Pass userId to searchWeb, although it might be unused by the skill for global search
-      const results: SearchResult[] = await searchWeb(searchQuery, userId);
-
+      const results: SearchResult[] = await searchWeb(query);
       if (results.length === 0) {
-        // webResearchSkills.ts logs specific reasons for empty results (API key, actual no results, error)
-        return `I couldn't find any web results for "${searchQuery}", or there might be an issue with the web search service configuration.`;
+        return `No web results found for "${query}".`;
       }
-
-      const resultList = results.map((result, index) =>
-        `${index + 1}. ${result.title}\n   Snippet: ${result.snippet}\n   Link: ${result.link}`
+      const resultList = results.map(result =>
+        `- ${result.title}\n  Link: ${result.link}\n  Snippet: ${result.snippet}`
       ).join('\n\n');
-      return `Here are the web search results for "${searchQuery}":\n\n${resultList}`;
-
-    } catch (error: any) {
-      console.error('Error performing web search in handler:', error);
-      return `Sorry, I encountered an error while trying to search the web. Error: ${error.message}`;
+      return `Web search results for "${query}":\n\n${resultList}`;
+    } catch (error) {
+      console.error('Error performing web search:', error);
+      return "Sorry, I couldn't perform the web search.";
     }
   } else if (lowerCaseMessage.startsWith('trigger zap')) {
     try {
-      // Command format: trigger zap <ZapName> [with data {"key":"value"}]
-      const commandPrefix = "trigger zap ";
-      let remainingMessage = message.substring(commandPrefix.length);
-
+      // Example: trigger zap MyZapName with data {"key":"value"}
+      const withDataIndex = lowerCaseMessage.indexOf(' with data ');
       let zapName: string;
       let jsonData: string | undefined;
-      let data: ZapData = {};
 
-      const withDataIndex = remainingMessage.toLowerCase().indexOf(' with data ');
-
-      if (withDataIndex === -1) { // No "with data" part
-        zapName = remainingMessage.trim();
+      if (withDataIndex === -1) {
+        // No data provided
+        zapName = message.substring('trigger zap'.length).trim();
       } else {
-        zapName = remainingMessage.substring(0, withDataIndex).trim();
-        jsonData = remainingMessage.substring(withDataIndex + ' with data '.length).trim();
+        zapName = message.substring('trigger zap'.length, withDataIndex).trim();
+        jsonData = message.substring(withDataIndex + ' with data '.length).trim();
       }
 
       if (!zapName) {
-        return "Please specify the Zap name to trigger. Usage: trigger zap <ZapName> [with data {\"key\":\"value\"}]";
+        return "Please provide a Zap name. Usage: trigger zap <ZapName> [with data {JSON_DATA}]";
       }
 
+      let data: ZapData = {};
       if (jsonData) {
-        // Ensure jsonData is not empty string before trying to parse
-        if (!jsonData.trim()) {
-             return "Data part is empty. Please provide valid JSON data or omit the 'with data' part.";
-        }
         try {
           data = JSON.parse(jsonData);
         } catch (e) {
-          return "Invalid JSON data provided for the Zap. Please check the format. Example: {\"key\":\"value\"}";
+          return "Invalid JSON data format. Please provide valid JSON for the Zap data.";
         }
       }
 
-      const response: ZapTriggerResponse = await triggerZap(userId, zapName, data);
-
+      const response: ZapTriggerResponse = await triggerZap(zapName, data);
       if (response.success) {
-        let successMsg = `Successfully triggered Zap: "${response.zapName}".`;
-        if (response.message && response.message !== `Zap "${response.zapName}" triggered successfully.`) { // Avoid redundant default message
-            successMsg += ` ${response.message}`;
-        }
-        if (response.runId) {
-            successMsg += ` (Run ID: ${response.runId})`;
-        }
-        return successMsg.trim();
+        return `Zap triggered: ${response.message} (Run ID: ${response.runId})`;
       } else {
-        return `Failed to trigger Zap: "${response.zapName}". Error: ${response.message || 'An unknown error occurred.'}`;
+        return `Failed to trigger Zap: ${response.message}`;
       }
-    } catch (error: any) {
-      console.error('Error triggering Zap in handler:', error);
-      return `Sorry, I couldn't trigger the Zap. Error: ${error.message}`;
+    } catch (error) {
+      console.error('Error triggering Zap:', error);
+      return "Sorry, I couldn't trigger the Zap.";
     }
   } else if (lowerCaseMessage.startsWith('create hubspot contact')) {
     const userId = "mock_user_id_from_handler"; // Consistent with other handlers
@@ -392,7 +267,115 @@ export async function handleMessage(message: string, userId: string): Promise<st
       console.error('Error in "create hubspot contact" handler:', error.message);
       return `An unexpected error occurred while creating the HubSpot contact: ${error.message}`;
     }
+  } else if (lowerCaseMessage.startsWith('slack my agenda')) {
+    const userId = "mock_user_id_from_handler"; // IMPORTANT: This is assumed to be the Slack User ID for DM purposes.
+    const limit = 5; // Default limit for agenda items.
+
+    try {
+      const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
+
+      if (!events || events.length === 0) {
+        const noEventsMessage = "You have no upcoming events on your calendar for the near future, or I couldn't access them.";
+        // Attempt to send this to Slack DM
+        try {
+            await sendSlackMessage(userId, userId, noEventsMessage); // Send to user's own DM
+            return "I've checked your calendar. It seems there are no upcoming events. I've sent a note to your Slack DM too.";
+        } catch (dmError: any) {
+            console.error('Failed to send "no events" DM to user:', dmError.message);
+            // If DM fails, still inform the user through the primary channel if possible
+            return "I've checked your calendar. It seems there are no upcoming events. I tried to send a note to your Slack DM, but it failed.";
+        }
+      }
+
+      let formattedAgenda = "🗓️ Your Upcoming Events:\n";
+      for (const event of events) {
+        // Basic date/time formatting. For production, consider user's timezone and locale.
+        const startTime = new Date(event.startTime).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short'});
+        const endTime = new Date(event.endTime).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short'});
+
+        formattedAgenda += `- ${event.summary} (from ${startTime} to ${endTime})`;
+        if (event.location) formattedAgenda += ` - Location: ${event.location}`;
+        if (event.htmlLink) formattedAgenda += ` [View: ${event.htmlLink}]`;
+        formattedAgenda += "\n";
+      }
+
+      const slackResponse = await sendSlackMessage(userId, userId, formattedAgenda); // Send to user's own DM (userId as channel for DMs)
+      if (slackResponse.ok) {
+        return "I've sent your agenda to your Slack DM!";
+      } else {
+        console.error(`Failed to send Slack DM for agenda: ${slackResponse.error}`);
+        return `Sorry, I couldn't send your agenda to Slack. Error: ${slackResponse.error}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "slack my agenda" command:', error.message);
+      // Attempt to notify user in Slack about the failure too, if possible
+      try {
+        await sendSlackMessage(userId, userId, "Sorry, I encountered an error while trying to fetch your agenda. Please check the application logs.");
+      } catch (dmError: any) {
+        console.error('Failed to send error DM to user:', dmError.message);
+      }
+      return "Sorry, I encountered an error while fetching your agenda. I've attempted to send a notification to your Slack DM about this.";
+    }
+  } else if (lowerCaseMessage.startsWith('list calendly event types')) {
+    const userId = "mock_user_id_from_handler";
+    try {
+      const response: ListCalendlyEventTypesResponse = await listCalendlyEventTypes(userId);
+      if (response.ok && response.collection && response.collection.length > 0) {
+        let output = "Your Calendly Event Types:\n";
+        for (const et of response.collection) {
+          output += `- ${et.name} (${et.duration} mins) - Active: ${et.active} - URL: ${et.scheduling_url}\n`;
+        }
+        if (response.pagination?.next_page_token) {
+          output += `More event types available. Use next page token: ${response.pagination.next_page_token}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No active Calendly event types found.";
+      } else {
+        return `Error fetching Calendly event types: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list calendly event types" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching your Calendly event types.";
+    }
+  } else if (lowerCaseMessage.startsWith('list calendly bookings')) {
+    const userId = "mock_user_id_from_handler";
+    // Basic options parsing: "list calendly bookings active 5"
+    const parts = lowerCaseMessage.split(' '); // parts[0]=list, parts[1]=calendly, parts[2]=bookings
+    const status = parts[3] === 'active' || parts[3] === 'canceled' ? parts[3] as ('active' | 'canceled') : 'active';
+    const count = parts.length > 4 && !isNaN(parseInt(parts[4])) ? parseInt(parts[4]) : 10;
+
+    // Example for more advanced parsing if needed:
+    // let pageToken: string | undefined;
+    // const tokenIndex = parts.indexOf('token');
+    // if (tokenIndex !== -1 && parts.length > tokenIndex + 1) {
+    //   pageToken = parts[tokenIndex + 1];
+    // }
+    // const options = { count, status, sort: 'start_time:asc', pageToken };
+
+    const options = { count, status, sort: 'start_time:asc' }; // Default sort to ascending start time
+
+    try {
+      const response: ListCalendlyScheduledEventsResponse = await listCalendlyScheduledEvents(userId, options);
+      if (response.ok && response.collection && response.collection.length > 0) {
+        let output = `Your Calendly Bookings (${status}):\n`;
+        for (const se of response.collection) {
+          output += `- ${se.name} (Starts: ${new Date(se.start_time).toLocaleString()}, Ends: ${new Date(se.end_time).toLocaleString()}) - Status: ${se.status}\n`;
+        }
+        if (response.pagination?.next_page_token) {
+          output += `More bookings available. Use next page token: ${response.pagination.next_page_token}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return `No ${status} scheduled Calendly bookings found.`;
+      } else {
+        return `Error fetching Calendly bookings: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list calendly bookings" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching your Calendly bookings.";
+    }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", or "create hubspot contact {JSON_DETAILS}".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", or "list calendly bookings [active|canceled] [count]".`;
 }

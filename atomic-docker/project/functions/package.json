@@ -48,7 +48,8 @@
     "winston": "^3.10.0",
     "ws": "^8.13.0",
     "@hubspot/api-client": "^11.1.0",
-    "@slack/web-api": "^7.0.2"
+    "@slack/web-api": "^7.0.2",
+    "@calendly/api-client": "^1.10.0"
   },
   "type": "module",
   "devDependencies": {
