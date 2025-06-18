@@ -1,6 +1,20 @@
 {
   "version": "44.0.0",
   "files": {
+    "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6": {
+      "displayName": "AwsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider Code",
+      "source": {
+        "path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-current_region": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    },
     "35a53bc183aaf4d7fe84d5e5ed06d48f33ef294fa1325c16cf5db800fa6ee72d": {
       "displayName": "AwsStack/Custom::ECRAutoDeleteImagesCustomResourceProvider Code",
       "source": {
@@ -29,7 +43,7 @@
         }
       }
     },
-    "2f59037a6f7c0155056831bc1bb1bb83f862e4d7a25d0fa922e701f0f86133be": {
+    "8d91462a098109904f7cf7a448d7724d735a32d1e5af5aafb22cf157e5c1c889": {
       "displayName": "AwsStack Template",
       "source": {
         "path": "AwsStack.template.json",
@@ -38,7 +52,7 @@
       "destinations": {
         "current_account-current_region": {
           "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
-          "objectKey": "2f59037a6f7c0155056831bc1bb1bb83f862e4d7a25d0fa922e701f0f86133be.json",
+          "objectKey": "8d91462a098109904f7cf7a448d7724d735a32d1e5af5aafb22cf157e5c1c889.json",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
         }
       }

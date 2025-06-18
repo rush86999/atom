@@ -1,5 +1,194 @@
 {
  "Resources": {
+  "AtomicDataBucketE642B1DA": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": {
+     "Fn::Join": [
+      "",
+      [
+       "awsstack-atomic-data-bucket-",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       "-",
+       {
+        "Ref": "AWS::Region"
+       }
+      ]
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "Tags": [
+     {
+      "Key": "aws-cdk:auto-delete-objects",
+      "Value": "true"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicDataBucket/Resource"
+   }
+  },
+  "AtomicDataBucketPolicy5E8D6043": {
+   "Type": "AWS::S3::BucketPolicy",
+   "Properties": {
+    "Bucket": {
+     "Ref": "AtomicDataBucketE642B1DA"
+    },
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:PutBucketPolicy"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::GetAtt": [
+          "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+          "Arn"
+         ]
+        }
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AtomicDataBucketE642B1DA",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AtomicDataBucketE642B1DA",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicDataBucket/Policy/Resource"
+   }
+  },
+  "AtomicDataBucketAutoDeleteObjectsCustomResource942CD73A": {
+   "Type": "Custom::S3AutoDeleteObjects",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+      "Arn"
+     ]
+    },
+    "BucketName": {
+     "Ref": "AtomicDataBucketE642B1DA"
+    }
+   },
+   "DependsOn": [
+    "AtomicDataBucketPolicy5E8D6043"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicDataBucket/AutoDeleteObjectsCustomResource/Default"
+   }
+  },
+  "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role"
+   }
+  },
+  "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
+     },
+     "S3Key": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip"
+    },
+    "Timeout": 900,
+    "MemorySize": 128,
+    "Handler": "index.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Description": {
+     "Fn::Join": [
+      "",
+      [
+       "Lambda function for auto-deleting objects in ",
+       {
+        "Ref": "AtomicDataBucketE642B1DA"
+       },
+       " S3 bucket."
+      ]
+     ]
+    }
+   },
+   "DependsOn": [
+    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler",
+    "aws:asset:path": "asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6",
+    "aws:asset:property": "Code"
+   }
+  },
   "AtomicFunctionsRepoCA9ADB29": {
    "Type": "AWS::ECR::Repository",
    "Properties": {
@@ -266,6 +455,45 @@
    "DeletionPolicy": "Delete",
    "Metadata": {
     "aws:cdk:path": "AwsStack/AtomicAppRepo/AutoDeleteImagesCustomResource/Default"
+   }
+  },
+  "AtomicOptaplannerRepo893F41D8": {
+   "Type": "AWS::ECR::Repository",
+   "Properties": {
+    "RepositoryName": "atomic-optaplanner",
+    "Tags": [
+     {
+      "Key": "aws-cdk:auto-delete-images",
+      "Value": "true"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicOptaplannerRepo/Resource"
+   }
+  },
+  "AtomicOptaplannerRepoAutoDeleteImagesCustomResource9A90340F": {
+   "Type": "Custom::ECRAutoDeleteImages",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomECRAutoDeleteImagesCustomResourceProviderHandler8D89C030",
+      "Arn"
+     ]
+    },
+    "RepositoryName": {
+     "Ref": "AtomicOptaplannerRepo893F41D8"
+    }
+   },
+   "DependsOn": [
+    "AtomicOptaplannerRepo893F41D8"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicOptaplannerRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
   "AtomicVpcD404E496": {
@@ -880,6 +1108,30 @@
     "aws:cdk:path": "AwsStack/RdsSecurityGroup/from AwsStackHasuraSGB75C4017:5432"
    }
   },
+  "RdsSecurityGroupfromAwsStackOptaplannerSGB8DCFB76543235E54F24": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow traffic from Optaplanner to RDS",
+    "FromPort": 5432,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "RdsSecurityGroup632A77E4",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "OptaplannerSG10E13F9F",
+      "GroupId"
+     ]
+    },
+    "ToPort": 5432
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/RdsSecurityGroup/from AwsStackOptaplannerSGB8DCFB76:5432"
+   }
+  },
   "AtomicPostgresDBSubnetGroup067D56E3": {
    "Type": "AWS::RDS::DBSubnetGroup",
    "Properties": {
@@ -1138,10 +1390,50 @@
          "Ref": "OpenAiApiKeySecret05681F66"
         },
         {
+         "Ref": "OptaplannerDbConnString28A909E6"
+        },
+        {
          "Ref": "PlaceholderHasuraJwtSecret5A36E06E"
         },
         {
          "Ref": "SupertokensDbConnStringSecretC2E71EE2"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AtomicDataBucketE642B1DA",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AtomicDataBucketE642B1DA",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
         }
        ]
       },
@@ -1183,6 +1475,12 @@
         {
          "Fn::GetAtt": [
           "OAuthLogGroupF9A7E869",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "OptaplannerLogGroup6EFDA77B",
           "Arn"
          ]
         },
@@ -1239,6 +1537,12 @@
           "AtomicOauthRepoCAF08457",
           "Arn"
          ]
+        },
+        {
+         "Fn::GetAtt": [
+          "AtomicOptaplannerRepo893F41D8",
+          "Arn"
+         ]
         }
        ]
       },
@@ -1253,10 +1557,16 @@
          "Ref": "ApiTokenSecret3A926DEB"
         },
         {
+         "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
+        },
+        {
          "Ref": "HasuraAdminSecret359C72F3"
         },
         {
          "Ref": "OpenAiApiKeySecret05681F66"
+        },
+        {
+         "Ref": "OptaplannerDbConnString28A909E6"
         }
        ]
       }
@@ -1340,6 +1650,19 @@
    "DeletionPolicy": "Delete",
    "Metadata": {
     "aws:cdk:path": "AwsStack/OpenAiApiKeySecret/Resource"
+   }
+  },
+  "OptaplannerDbConnString28A909E6": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Manually populate with Optaplanner JDBC URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}",
+    "GenerateSecretString": {},
+    "Name": "AwsStack/OptaplannerDbConnString"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerDbConnString/Resource"
    }
   },
   "HasuraAdminSecret359C72F3": {
@@ -2181,6 +2504,18 @@
            }
           ]
          ]
+        }
+       },
+       {
+        "Name": "S3_BUCKET",
+        "Value": {
+         "Ref": "AtomicDataBucketE642B1DA"
+        }
+       },
+       {
+        "Name": "AWS_REGION",
+        "Value": {
+         "Ref": "AWS::Region"
         }
        }
       ],
@@ -3482,10 +3817,342 @@
     "aws:cdk:path": "AwsStack/OAuthListenerRule/Resource"
    }
   },
+  "OptaplannerSG10E13F9F": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "AwsStack/OptaplannerSG",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerSG/Resource"
+   }
+  },
+  "OptaplannerSGfromAwsStackAlbSecurityGroupFEFFD71B808191604EED": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Load balancer to target",
+    "FromPort": 8081,
+    "GroupId": {
+     "Fn::GetAtt": [
+      "OptaplannerSG10E13F9F",
+      "GroupId"
+     ]
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "AlbSecurityGroup86A59E99",
+      "GroupId"
+     ]
+    },
+    "ToPort": 8081
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerSG/from AwsStackAlbSecurityGroupFEFFD71B:8081"
+   }
+  },
+  "OptaplannerTaskDef99156FA2": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Environment": [
+       {
+        "Name": "QUARKUS_DATASOURCE_DB_KIND",
+        "Value": "postgresql"
+       },
+       {
+        "Name": "USERNAME",
+        "Value": "admin"
+       }
+      ],
+      "Essential": true,
+      "Image": {
+       "Fn::Join": [
+        "",
+        [
+         {
+          "Fn::Select": [
+           4,
+           {
+            "Fn::Split": [
+             ":",
+             {
+              "Fn::GetAtt": [
+               "AtomicOptaplannerRepo893F41D8",
+               "Arn"
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         ".dkr.ecr.",
+         {
+          "Fn::Select": [
+           3,
+           {
+            "Fn::Split": [
+             ":",
+             {
+              "Fn::GetAtt": [
+               "AtomicOptaplannerRepo893F41D8",
+               "Arn"
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         ".",
+         {
+          "Ref": "AWS::URLSuffix"
+         },
+         "/",
+         {
+          "Ref": "AtomicOptaplannerRepo893F41D8"
+         },
+         ":latest"
+        ]
+       ]
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Ref": "OptaplannerLogGroup6EFDA77B"
+        },
+        "awslogs-stream-prefix": "AwsStack/optaplanner",
+        "awslogs-region": {
+         "Ref": "AWS::Region"
+        }
+       }
+      },
+      "Name": "OptaplannerContainer",
+      "PortMappings": [
+       {
+        "ContainerPort": 8081,
+        "HostPort": 8081,
+        "Protocol": "tcp"
+       }
+      ],
+      "Secrets": [
+       {
+        "Name": "QUARKUS_DATASOURCE_JDBC_URL",
+        "ValueFrom": {
+         "Ref": "OptaplannerDbConnString28A909E6"
+        }
+       },
+       {
+        "Name": "QUARKUS_DATASOURCE_USERNAME",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
+           },
+           ":username::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "QUARKUS_DATASOURCE_PASSWORD",
+        "ValueFrom": {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
+           },
+           ":password::"
+          ]
+         ]
+        }
+       },
+       {
+        "Name": "PASSWORD",
+        "ValueFrom": {
+         "Ref": "ApiTokenSecret3A926DEB"
+        }
+       }
+      ]
+     }
+    ],
+    "Cpu": "1024",
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "ECSTaskRoleF2ADB362",
+      "Arn"
+     ]
+    },
+    "Family": "AwsStack-optaplanner",
+    "Memory": "2048",
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "RuntimePlatform": {
+     "CpuArchitecture": "X86_64",
+     "OperatingSystemFamily": "LINUX"
+    },
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "ECSTaskRoleF2ADB362",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerTaskDef/Resource"
+   }
+  },
+  "OptaplannerLogGroup6EFDA77B": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": {
+     "Fn::Join": [
+      "",
+      [
+       "/aws/ecs/",
+       {
+        "Ref": "AtomicCluster0DDF655C"
+       },
+       "/optaplanner"
+      ]
+     ]
+    },
+    "RetentionInDays": 731
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerLogGroup/Resource"
+   }
+  },
+  "OptaplannerServiceB1009854": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "Cluster": {
+     "Ref": "AtomicCluster0DDF655C"
+    },
+    "DeploymentConfiguration": {
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 50
+    },
+    "DesiredCount": 1,
+    "EnableECSManagedTags": false,
+    "HealthCheckGracePeriodSeconds": 60,
+    "LaunchType": "FARGATE",
+    "LoadBalancers": [
+     {
+      "ContainerName": "OptaplannerContainer",
+      "ContainerPort": 8081,
+      "TargetGroupArn": {
+       "Ref": "OptaplannerTargetGroupDF19B4DA"
+      }
+     }
+    ],
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": [
+         "OptaplannerSG10E13F9F",
+         "GroupId"
+        ]
+       }
+      ],
+      "Subnets": [
+       {
+        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
+       },
+       {
+        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
+       }
+      ]
+     }
+    },
+    "TaskDefinition": {
+     "Ref": "OptaplannerTaskDef99156FA2"
+    }
+   },
+   "DependsOn": [
+    "ECSTaskRoleDefaultPolicy82FC9293",
+    "ECSTaskRoleF2ADB362",
+    "OptaplannerListenerRuleF51E8FB5"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerService/Service"
+   }
+  },
+  "OptaplannerTargetGroupDF19B4DA": {
+   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+   "Properties": {
+    "HealthCheckIntervalSeconds": 30,
+    "HealthCheckPath": "/q/health",
+    "Port": 8081,
+    "Protocol": "HTTP",
+    "TargetGroupAttributes": [
+     {
+      "Key": "stickiness.enabled",
+      "Value": "false"
+     }
+    ],
+    "TargetType": "ip",
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerTargetGroup/Resource"
+   }
+  },
+  "OptaplannerListenerRuleF51E8FB5": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "OptaplannerTargetGroupDF19B4DA"
+      },
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/v1/optaplanner/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": {
+     "Ref": "AtomicAlbHttpListener370F09B3"
+    },
+    "Priority": 60
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerListenerRule/Resource"
+   }
+  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/+1ZS2/bOBD+LeUxYLVtDj3k5jhtYWy2MRxvDmsYizE5UdhQpJYPp15B/33Bh2Qlcds0TQtv24NhaV785kHO0D4sDl+8LF48gxv7nPHr51KsiubcAbumcGP/bpCZoplhra1w2mwWDTH9yzuokByRA0KJwUqvQU61FGxDjghH64zeEErAO32CEh1OKijRkiNnPLb0xzW0pONLtQ1ZS5EdFs1FzRYNqeDD6F+bLStwb8HhDWw6ivUrhW6s1aUovQEntCJHi4Ywwc0fYK97xR5d0phv6kCY+pUUjARXHqphxBocknaZYF9MxzRZOY9ii4bAGoSElZDCbf7SqjOzrtmE5+ew2LHUrFutgjoZmdRn6hS8YlcpNpSIev1qfEccrBWlmtTrVyPODVp7psYGs/fkIPqzFygiEM7f9XkjRwtyQJZ7A3A/UKRSSgUU94L2Duewkrilb2kjazUT0UAvHB5eT6bhaxtsmov1ySvzEqTdg5h/HYz9QbInMFIVTpRDo7CvoXTG5beRc8CuKlSOniPzRrjNW6N9vWgC2LwUR8uMqHvTlICU+mYk5Zl3K+0V3zYQ4HyiyoBn5iWm0yGkpj8kPsN/olUbwkBNlBQKEyVtZ6aVQhZMdv3GK/GPx5yV9g7S17uB0mDsl8yeyWwr51HVSeNe+1yNDqS+93rfX+pJPXxIjvcw6vsYgz1F/hTepblp2InuEbKJlhpui+YEHKzA4kRZB4rhoiGoShFabveUB/04+QtVSvzToplpF3vlqK6lYDDoMknpAo2NtIZcein719yr32szJLWU1GCgQocmgnwDlZCbWxZvkThegpcuIOkvJi0lInsxgLxN47rOVxIbUO2+xFBih7GyeTynhBnkqJwA2XU+niP3oIteHUcTuRkxhtaKVUhfTFm7pAlUNzbcb9tf6sFdFAcklcXJ8WAl2iX+HJmJszAqZjZx3d+xC7ONzFsexnTPsOxngFCZfpiHHWq7bOMHJj3H8RUYYA6NHSwBDM/UFKy90YaPjXBoBIyvQPV35N1Qsp9dMbc0IbEVKCjRFE3aDAbjuGbQzcGU6LZT3KLJ4DMYF/kD47vVaB/Fe67fzWcI19MIdXE+d0ao8gKkxy9RLlGhCZehgZFQVnUO+ymq0l3dTtbUK+Z83u3xEHxKdz6GaOjmHKtahkK/oxKZ2+L6QieW4ScWWzRj6a1DM5jeU9Yznc7BXp/gpVAiaMfzd88+Ee5tmHSslQOh0Axob8CUMdRmLRh+zJNc8lGmpSjBOsGkBr4CCYoJVa4Pi2bQA0418OPIQ7MYGhky6FBBWBdy+KlYJgNZcKictmHf5oavO5YITXNoKby3VEBVNDMtQ+cDa32F/HgT94ERioka5Igx7VV3IiSZoDBigwLfWfPA+Vx35/CiaZdbYmf8HjeeKenm1fP6K9UnmY9Y7LEqv7g/KfcrNojRcjsrffuN8CO78Fhu+l9BS6SJnC4QGcpcB849hPfJnJ87cBjmHntr2V/k/xf5W2d/r6or1n4q+5ZKXdqiOdVld+uS+fEBl7mwwM8inke3pNC2dOyt09UMrfZm99SY/7pMAnfkp0avBUdzDBbpyNow00MpVBl0zryrvaO7bC9bqjTH4r39bX14WLx8Vbx49t4K8dx45USFxSx9/wdoXl4Dih4AAA=="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/+1ZS2/bOBD+LeWxYLVtCvSQm+O0hbFpY9jeHNYwijE5UZhQpJYPp15B/31BUpKVxNsmaTb1Fj4EkebFb14kRz7IDl6/yV6/gGv7ivGrV1Iss2rqgF1RuLZfKvs2q448u0I3r8gyPnyGAskheUkoMVjoFcixloKtySHhaJ3Ra0IJeKePUaLD0+UlMmfJoTMeKVmhsUIr5OTwHKRFSkq/lIJNEPiAMbS2YyylZlfjyG05cVVUzKxLJ7Qih2T69sunwefBx/fHpF7Q4blKaGn6l5B10KOBvlji1xSZyaoJltoKp01QMN3LA/0dFZBj425N94a+ayimYxP7kIyDrDor2bwiBXwd/N3mXYH7CA6vYd1SrF8qdEOtzkXuDaSSmFeECW4+gb3qFDt0SWO2LgMh1RYJrtxXw4gVOCT1IsE+Gw9psjKNYvOKwAqEhKWQwq3/1Ko1syrZiDfPYbGjUNzNewFlMjIqT9UJeMUu2nYR5erd8JY4WCtyNSpX7wacG7T2VA0NNt6HAqc7giIC4fxzlzdyOCcvyWJnAO4GilRKqYBiL2jvcAZLiRv6hjawVjMRDXTC4eH9aBz+bYJNm2J98spstuefHfMfg7E7SHYERqrCkXJoFHY1lPa45m3gHLCLApWjU2TeCLf+aLQv51UA2yzF0TIjys40JSClvh5IeerdUnvFNwcIcD5SecAz8RLT7hBS020Sj+fTGI0o9UTYKsJAjZQUChMlNT3TSiELJttTySvxl8cmd/UtvO//BW4wtpf5RWU2FfioXujV8kMr/nnWe36pJ/XwPjnewajvYgx2FPnzZvj5Yplujv2z+A6hMVFTw21WHYODJVgcKetAMZxXBFUuwqWjfWpGnTj7CJVL/MOimWgXbwuDspSCQe8ETUpnaawPVs69lN1rc1u51KZPqikpwUCBDk0E+QEKIdc3LN4gcTwHL11A0o1mNSWi8aIHeZOiVdkMZTag2j7GUWL7sbLNgEIJM8hROQGyPdV5E7l7jbrpm4Zcp+8WYhnSF1NWL2gC1V6c7l5JHurBbRTtF47jo95KtE38FJmJ08DmK8rv2IbZRuYND2O6J5h395tQmb6fhy1q22zjVyY9x+EFGGAOje0tAQxP1RisvdaGD41waAQML0B1Xwm2Q2n8bIu5pgmJLUBBjiarUjMYjBdWg24GJke3ucfOqwZ8A8ZFfs/4djXaRfGO67fzGcL1NEJtnKfOCJWfgfT4EOUcFZowDvaMhLIqm7CfoMrdxc1kjb1izjfdHje4p3PnB2H3YzHDopShG26pROamAh/o6SJ8ibJZNZTeOjS9ISeVRkOnM7BXx3gulAjacZP+H/5Fl266QodaORAKTY/2AUwe02FWguG3vG36J8rVFCVYJ5jUwJcgQTGh8tVBVvUOlBMN/Cjy0Mz7RvoM2lcQ1oVcfy/myUgj3DeQ+ro7N/uvW5YJp3DfUnivqYAiqyZahqMUrPUF8qN1bCwjFBMlyAFj2qt2i0kyQWHAes2wtT+A85luN/Z5VS82xNb4HW7cpNKY2vG6+fObzG/bfQSUx6rsuXvuL8L9gQ3BaLm5bP7Exv8FXHgsN/00pSXS5ofEOIE1UGY6cO4gvEvmfOrAYbg42hvL7sl78nOQ/+uq3amuiD3b/q4vdW6z6kTn7bgtm8d7TPFhgb34VvHmVp4U6poOvXW6mKDV3txjKGgFb+mNjV4JjuYILNKBtWG8g1yoPOiceld6R7etsaip0hyzS/vb6uAge/Mue/3i0grxynjlRIHZJP3/B7w5XgzsIgAA"
    },
    "Metadata": {
     "aws:cdk:path": "AwsStack/CDKMetadata/Default"
@@ -3494,6 +4161,11 @@
   }
  },
  "Outputs": {
+  "DataBucketName": {
+   "Value": {
+    "Ref": "AtomicDataBucketE642B1DA"
+   }
+  },
   "FunctionsRepoUri": {
    "Value": {
     "Fn::Join": [
@@ -3694,6 +4366,56 @@
     ]
    }
   },
+  "OptaplannerRepoUri": {
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::Select": [
+        4,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "AtomicOptaplannerRepo893F41D8",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".dkr.ecr.",
+      {
+       "Fn::Select": [
+        3,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "AtomicOptaplannerRepo893F41D8",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "AtomicOptaplannerRepo893F41D8"
+      }
+     ]
+    ]
+   }
+  },
   "VpcId": {
    "Value": {
     "Ref": "AtomicVpcD404E496"
@@ -3753,6 +4475,11 @@
   "OpenAiApiKeySecretArn": {
    "Value": {
     "Ref": "OpenAiApiKeySecret05681F66"
+   }
+  },
+  "OptaplannerDbConnStringArn": {
+   "Value": {
+    "Ref": "OptaplannerDbConnString28A909E6"
    }
   },
   "HasuraAdminSecretOutput": {

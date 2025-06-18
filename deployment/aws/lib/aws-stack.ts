@@ -8,9 +8,12 @@ import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as opensearch from 'aws-cdk-lib/aws-opensearchservice';
 
 export class AwsStack extends cdk.Stack {
   // Define class properties for resources that need to be accessed across methods or by other constructs
+  public dataBucket: s3.Bucket; // Made public for now, can be private if only accessed internally
   private readonly vpc: ec2.Vpc;
   private readonly cluster: ecs.Cluster;
   private readonly alb: elbv2.ApplicationLoadBalancer;
@@ -25,6 +28,7 @@ export class AwsStack extends cdk.Stack {
   private readonly handshakeRepo: ecr.IRepository;
   private readonly oauthRepo: ecr.IRepository;
   private readonly appRepo: ecr.IRepository;
+  public optaplannerRepo: ecr.IRepository; // Made public for now if needed by other constructs, else private
 
   // ECS Task Role
   private readonly ecsTaskRole: iam.Role;
@@ -36,6 +40,7 @@ export class AwsStack extends cdk.Stack {
   private readonly placeholderHasuraJwtSecret: secretsmanager.ISecret;
   private readonly apiTokenSecret: secretsmanager.ISecret;
   private readonly openAiApiKeySecret: secretsmanager.ISecret;
+  public optaplannerDbConnStringSecret: secretsmanager.ISecret; // Made public for now
 
   // SuperTokens specific resources (if needed by other services, e.g. SG)
   private readonly supertokensSG: ec2.SecurityGroup;
@@ -44,13 +49,29 @@ export class AwsStack extends cdk.Stack {
   // Service-specific Security Groups (if they need to be referenced by other SGs)
   private readonly hasuraSG: ec2.SecurityGroup;
   private readonly functionsSG: ec2.SecurityGroup;
-  private readonly appSG: ec2.SecurityGroup; // Added for app service
+  private readonly appSG: ec2.SecurityGroup;
   private readonly handshakeSG: ec2.SecurityGroup;
   private readonly oauthSG: ec2.SecurityGroup;
+  public optaplannerSG!: ec2.SecurityGroup; // Will be initialized later
+  public optaplannerService!: ecs.FargateService; // Will be initialized later
+  public openSearchDomain!: opensearch.IDomain; // opensearch was not imported yet
 
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // S3 Data Bucket
+    this.dataBucket = new s3.Bucket(this, 'AtomicDataBucket', {
+      bucketName: `${this.stackName.toLowerCase()}-atomic-data-bucket-${this.account}-${this.region}`,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      versioned: false,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+    });
+    new cdk.CfnOutput(this, 'DataBucketName', { value: this.dataBucket.bucketName });
+
 
     this.functionsRepo = new ecr.Repository(this, 'AtomicFunctionsRepo', {
       repositoryName: 'atomic-functions',
@@ -79,6 +100,13 @@ export class AwsStack extends cdk.Stack {
       autoDeleteImages: true
     });
     new cdk.CfnOutput(this, 'AppRepoUri', { value: this.appRepo.repositoryUri });
+
+    this.optaplannerRepo = new ecr.Repository(this, 'AtomicOptaplannerRepo', {
+      repositoryName: 'atomic-optaplanner',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteImages: true,
+    });
+    new cdk.CfnOutput(this, 'OptaplannerRepoUri', { value: this.optaplannerRepo.repositoryUri });
 
     // VPC
     this.vpc = new ec2.Vpc(this, 'AtomicVpc', {
@@ -191,6 +219,12 @@ export class AwsStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'OpenAiApiKeySecretArn', { value: this.openAiApiKeySecret.secretArn });
 
+    this.optaplannerDbConnStringSecret = new secretsmanager.Secret(this, 'OptaplannerDbConnString', {
+        secretName: `${this.stackName}/OptaplannerDbConnString`,
+        description: "Manually populate with Optaplanner JDBC URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}",
+    });
+    new cdk.CfnOutput(this, 'OptaplannerDbConnStringArn', { value: this.optaplannerDbConnStringSecret.secretArn });
+
     this.hasuraAdminSecret = new secretsmanager.Secret(this, 'HasuraAdminSecret', {
       secretName: `${this.stackName}/HasuraAdminSecret`,
       description: 'Admin secret for Hasura GraphQL engine',
@@ -214,9 +248,13 @@ export class AwsStack extends cdk.Stack {
             this.placeholderHasuraJwtSecret.secretArn,
             this.apiTokenSecret.secretArn,
             this.openAiApiKeySecret.secretArn,
+            this.optaplannerDbConnStringSecret.secretArn,
             `arn:aws:secretsmanager:${this.region}:${this.account}:secret:${this.stackName}/*`
         ],
     }));
+    // Grant ECS Task Role S3 Read/Write access to the data bucket
+    this.dataBucket.grantReadWrite(this.ecsTaskRole);
+
     this.ecsTaskRole.addToPolicy(new iam.PolicyStatement({
         actions: [
             "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability",
@@ -394,6 +432,8 @@ export class AwsStack extends cdk.Stack {
         HASURA_GRAPHQL_GRAPHQL_URL: `http://${this.alb.loadBalancerDnsName}/v1/graphql`,
         FUNCTION_SERVER_URL: `http://${this.alb.loadBalancerDnsName}/v1/functions`,
         APP_CLIENT_URL: `http://${this.alb.loadBalancerDnsName}`,
+        S3_BUCKET: this.dataBucket.bucketName,
+        AWS_REGION: this.region,
       },
       secrets: {
         HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
@@ -627,5 +667,68 @@ export class AwsStack extends cdk.Stack {
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/oauth/*'])],
       action: elbv2.ListenerAction.forward([oauthTargetGroup]),
     });
+
+    // Optaplanner Service
+    this.optaplannerSG = new ec2.SecurityGroup(this, 'OptaplannerSG', { vpc: this.vpc, allowAllOutbound: true });
+    this.rdsSecurityGroup.connections.allowFrom(this.optaplannerSG, ec2.Port.tcp(5432), 'Allow traffic from Optaplanner to RDS');
+
+    const optaplannerTaskDef = new ecs.TaskDefinition(this, 'OptaplannerTaskDef', {
+      family: `${this.stackName}-optaplanner`,
+      compatibility: ecs.Compatibility.FARGATE,
+      cpu: "1024",
+      memoryMiB: "2048",
+      runtimePlatform: {
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+      },
+      taskRole: this.ecsTaskRole,
+      executionRole: this.ecsTaskRole,
+    });
+
+    optaplannerTaskDef.addContainer('OptaplannerContainer', {
+      image: ecs.ContainerImage.fromEcrRepository(this.optaplannerRepo),
+      logging: ecs.LogDrivers.awsLogs({ streamPrefix: `${this.stackName}/optaplanner`, logGroup: new logs.LogGroup(this, 'OptaplannerLogGroup', { logGroupName: `/aws/ecs/${this.cluster.clusterName}/optaplanner`, removalPolicy: cdk.RemovalPolicy.DESTROY }) }),
+      environment: {
+        QUARKUS_DATASOURCE_DB_KIND: 'postgresql',
+        USERNAME: 'admin', // Hardcoded as per subtask note
+      },
+      secrets: {
+        QUARKUS_DATASOURCE_JDBC_URL: ecs.Secret.fromSecretsManager(this.optaplannerDbConnStringSecret),
+        QUARKUS_DATASOURCE_USERNAME: ecs.Secret.fromSecretsManager(this.dbSecret, 'username'),
+        QUARKUS_DATASOURCE_PASSWORD: ecs.Secret.fromSecretsManager(this.dbSecret, 'password'),
+        PASSWORD: ecs.Secret.fromSecretsManager(this.apiTokenSecret),
+      },
+      portMappings: [{ containerPort: 8081, hostPort: 8081, protocol: ecs.Protocol.TCP }],
+    });
+
+    this.optaplannerService = new ecs.FargateService(this, 'OptaplannerService', {
+      cluster: this.cluster,
+      taskDefinition: optaplannerTaskDef,
+      desiredCount: 1,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [this.optaplannerSG],
+      assignPublicIp: false,
+    });
+
+    const optaplannerTargetGroup = new elbv2.ApplicationTargetGroup(this, 'OptaplannerTargetGroup', {
+      vpc: this.vpc,
+      port: 8081,
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      targetType: elbv2.TargetType.IP,
+      targets: [this.optaplannerService],
+      healthCheck: {
+        path: '/q/health',
+        interval: cdk.Duration.seconds(30),
+      },
+    });
+    new elbv2.ApplicationListenerRule(this, 'OptaplannerListenerRule', {
+      listener: this.httpListener,
+      priority: 60,
+      conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/optaplanner/*'])],
+      action: elbv2.ListenerAction.forward([optaplannerTargetGroup]),
+    });
+    this.optaplannerSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(8081), 'Allow traffic from ALB to Optaplanner');
+
+    // Note: OpenSearch Domain definition and related permissions will be added in the next step / subtask.
   }
 }

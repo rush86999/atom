@@ -53,17 +53,21 @@ RDS_ENDPOINT=$(jq -r ".${CDK_STACK_NAME}.DbInstanceEndpoint" "${OUTPUT_FILE}")
 RDS_SECRET_ARN=$(jq -r ".${CDK_STACK_NAME}.DbSecretArn" "${OUTPUT_FILE}")
 RDS_DB_NAME="atomicdb" # This is hardcoded in aws-stack.ts for rds.DatabaseInstance
 HASURA_ADMIN_SECRET_ARN=$(jq -r ".${CDK_STACK_NAME}.HasuraAdminSecretOutput" "${OUTPUT_FILE}")
+MSK_CLUSTER_ARN_OUTPUT_KEY="MskClusterArnOutput"
+MSK_CLUSTER_ARN=$(jq -r ".${CDK_STACK_NAME}.${MSK_CLUSTER_ARN_OUTPUT_KEY}" "${OUTPUT_FILE}")
 
 # Validate extracted outputs
 if [ -z "${ALB_DNS_NAME}" ] || [ "${ALB_DNS_NAME}" == "null" ] || \
    [ -z "${RDS_ENDPOINT}" ] || [ "${RDS_ENDPOINT}" == "null" ] || \
    [ -z "${RDS_SECRET_ARN}" ] || [ "${RDS_SECRET_ARN}" == "null" ] || \
-   [ -z "${HASURA_ADMIN_SECRET_ARN}" ] || [ "${HASURA_ADMIN_SECRET_ARN}" == "null" ]; then
+   [ -z "${HASURA_ADMIN_SECRET_ARN}" ] || [ "${HASURA_ADMIN_SECRET_ARN}" == "null" ] || \
+   [ -z "${MSK_CLUSTER_ARN}" ] || [ "${MSK_CLUSTER_ARN}" == "null" ]; then
     echo "Error: Failed to extract one or more required outputs from ${OUTPUT_FILE}."
     echo "ALB_DNS_NAME: ${ALB_DNS_NAME}"
     echo "RDS_ENDPOINT: ${RDS_ENDPOINT}"
     echo "RDS_SECRET_ARN: ${RDS_SECRET_ARN}"
     echo "HASURA_ADMIN_SECRET_ARN: ${HASURA_ADMIN_SECRET_ARN}"
+    echo "MSK_CLUSTER_ARN: ${MSK_CLUSTER_ARN}"
     exit 1
 fi
 echo "Extracted outputs successfully."
@@ -71,7 +75,24 @@ echo "  ALB DNS Name: ${ALB_DNS_NAME}"
 echo "  RDS Endpoint: ${RDS_ENDPOINT}"
 echo "  RDS Secret ARN: ${RDS_SECRET_ARN}"
 echo "  Hasura Admin Secret ARN: ${HASURA_ADMIN_SECRET_ARN}"
+echo "  MSK Cluster ARN: ${MSK_CLUSTER_ARN}"
 
+echo -e "
+=== IMPORTANT: Manual Configuration for MSK ==="
+        if [ -n "${MSK_CLUSTER_ARN}" ] && [ "${MSK_CLUSTER_ARN}" != "null" ]; then
+          echo "The MSK Serverless cluster ARN is: ${MSK_CLUSTER_ARN}"
+          echo "You MUST manually fetch the MSK Bootstrap Brokers using the AWS CLI (copy the full command below):"
+          echo "  aws kafka get-bootstrap-brokers --cluster-arn ${MSK_CLUSTER_ARN} --region ${AWS_REGION}"
+          echo "Then, you need to update the 'KAFKA_BOOTSTRAP_SERVERS' environment variable for the 'functions' ECS service."
+          echo "This can be done by:"
+          echo "  1. Creating a new version of the ECS Task Definition for the 'functions' service with the correct KAFKA_BOOTSTRAP_SERVERS string."
+          echo "  2. Updating the 'functions' ECS service to use this new task definition version."
+          echo "Alternatively, store this bootstrap string in AWS Secrets Manager and configure the 'functions' service to read it from there at startup (recommended for robustness)."
+          echo "The 'functions' service (and dependent features) may not function correctly until KAFKA_BOOTSTRAP_SERVERS is properly set."
+        else
+          echo "Warning: MSK Cluster ARN not found in CDK outputs. Manual configuration for MSK Bootstrap brokers will require finding the ARN from the AWS Console."
+        fi
+echo "==============================================="
 
 echo -e "
 === Section 4: Running Post-Deployment Scripts ==="
