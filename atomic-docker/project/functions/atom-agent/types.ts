@@ -114,3 +114,61 @@ export interface CreateHubSpotContactResponse {
   message?: string;
   hubSpotContact?: HubSpotContact;
 }
+
+// --- HubSpot Engagement Types ---
+export interface HubSpotEmailEngagementProperties {
+  activityTimestamp: number; // Epoch milliseconds
+  subject: string;
+  htmlBody: string;
+  direction?: 'INCOMING' | 'OUTGOING'; // Optional: direction of the email
+  // disposition?: string; // Optional: HubSpot call/email disposition ID (e.g., "Connected")
+  // external_url?: string; // Optional: Link to the email in an external system
+}
+
+export interface HubSpotEngagementAssociation {
+  to: { id: string };
+  types: { associationCategory: string; associationTypeId: number }[];
+}
+
+export interface HubSpotEngagement {
+  id: string;
+  properties: {
+    hs_object_id: string;
+    hs_engagement_type: 'EMAIL' | 'MEETING' | 'CALL' | 'NOTE' | 'TASK';
+    hs_timestamp?: string; // Engagement timestamp (e.g., when an email was sent/received or meeting occurred)
+    hs_body_preview?: string; // Preview of the engagement body
+    hs_email_subject?: string; // Subject of the email
+    hs_email_direction?: 'INCOMING' | 'OUTGOING';
+    // hs_meeting_title?: string; // Title of the meeting (if type is MEETING)
+    // hs_meeting_start_time?: string; // Start time of the meeting
+    // hs_meeting_end_time?: string; // End time of the meeting
+    // hs_call_disposition?: string; // Disposition of the call
+    // hs_call_duration?: string; // Duration of the call in milliseconds
+    // hs_call_status?: string; // Status of the call (e.g., COMPLETED, NO_ANSWER)
+    createdate?: string;
+    lastmodifieddate?: string;
+    [key: string]: any; // Allow other properties
+  };
+  associations?: { // Optional, as it might not always be populated depending on the API call
+    contacts?: { results: { id: string, type: string }[] };
+    companies?: { results: { id: string, type: string }[] };
+    // Add other object types as needed (deals, tickets, etc.)
+  };
+  createdAt: string;
+  updatedAt: string;
+  archived: boolean;
+}
+
+export interface LogEngagementResponse {
+  success: boolean;
+  engagementId?: string;
+  message: string;
+  hubSpotEngagement?: HubSpotEngagement; // Optional: The created engagement object
+}
+
+export interface GetContactActivitiesResponse {
+  success: boolean;
+  activities: HubSpotEngagement[];
+  message?: string;
+  nextPage?: string; // For pagination, 'after' cursor
+}
