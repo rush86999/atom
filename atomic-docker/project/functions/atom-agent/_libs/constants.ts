@@ -39,6 +39,36 @@ export const ATOM_CLIENT_TYPE = 'atom_agent';
 export const ATOM_TOKEN_ENCRYPTION_KEY = process.env.ATOM_TOKEN_ENCRYPTION_KEY;
 export const ATOM_TOKEN_ENCRYPTION_IV = process.env.ATOM_TOKEN_ENCRYPTION_IV;
 
+// ================================================================================================
+// Atom Agent Gmail API Integration Constants
+// ================================================================================================
+// IMPORTANT ASSUMPTIONS FOR GMAIL INTEGRATION:
+// 1. The following environment variables MUST be configured in the application's deployment environment:
+//    - ATOM_GMAIL_CLIENT_ID: The Client ID obtained from Google Cloud Console for OAuth 2.0.
+//    - ATOM_GMAIL_CLIENT_SECRET: The Client Secret obtained from Google Cloud Console.
+//    - ATOM_GMAIL_REDIRECT_URI: The Redirect URI configured in Google Cloud Console for Gmail.
+//      This URI must point to an endpoint like /api/atom/auth/email/callback.
+// 2. The Gmail API MUST be enabled for the project in the Google Cloud Console.
+// ================================================================================================
+
+// Gmail API credentials for Atom Agent
+// These must be set in the environment.
+export const ATOM_GMAIL_CLIENT_ID = process.env.ATOM_GMAIL_CLIENT_ID;
+export const ATOM_GMAIL_CLIENT_SECRET = process.env.ATOM_GMAIL_CLIENT_SECRET;
+
+// The redirect URI configured in Google Cloud Console for Atom Agent's Gmail OAuth.
+// This should point to a backend endpoint that will handle the OAuth callback for email.
+// e.g., https://<your-app-domain>/api/atom/auth/email/callback
+export const ATOM_GMAIL_REDIRECT_URI = process.env.ATOM_GMAIL_REDIRECT_URI;
+
+// Define Gmail API Scopes
+// Using a versatile set for reading, sending, and modifying emails.
+export const GMAIL_API_SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.modify' // Allows reading, sending, labeling, archiving, etc.
+];
+export const ATOM_GMAIL_RESOURCE_NAME = 'google_atom_gmail';
 
 // Potentially other constants for Atom agent can be added below
-// e.g., API keys for email services, Zapier specific URLs (if not user-configured), etc.
+// e.g., API keys for other email services, Zapier specific URLs (if not user-configured), etc.

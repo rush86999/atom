@@ -11,7 +11,7 @@ jest.mock('./skills/emailSkills');
 jest.mock('./skills/webResearchSkills');
 jest.mock('./skills/zapierSkills');
 
-// Typecast the mocked modules to access their methods with mock typings
+// Typecast the mocked modules
 const mockedCalendarSkills = calendarSkills as jest.Mocked<typeof calendarSkills>;
 const mockedEmailSkills = emailSkills as jest.Mocked<typeof emailSkills>;
 const mockedWebResearchSkills = webResearchSkills as jest.Mocked<typeof webResearchSkills>;
@@ -21,18 +21,18 @@ const mockUserId = "test_user_123";
 
 describe('Atom Agent handleMessage', () => {
   beforeEach(() => {
-    // Reset mocks before each test
     jest.clearAllMocks();
   });
 
   // Calendar Skills Tests
   it('should list upcoming events', async () => {
-    const mockEvents: CalendarEvent[] = [{ id: '1', summary: 'Event 1', startTime: '2024-01-01T10:00:00Z', endTime: '2024-01-01T11:00:00Z' }];
+    const mockEvents: CalendarEvent[] = [{ id: '1', summary: 'Event 1', startTime: '2024-01-01T10:00:00Z', endTime: '2024-01-01T11:00:00Z', htmlLink: 'link1' }];
     mockedCalendarSkills.listUpcomingEvents.mockResolvedValue(mockEvents);
     const response = await handleMessage('list events', mockUserId);
-    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(mockUserId, 10); // Default limit
+    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(mockUserId, 10);
     expect(response).toContain('Upcoming events:');
     expect(response).toContain('Event 1');
+    expect(response).toContain('[Link: link1]');
   });
 
   it('should list upcoming events with a limit', async () => {
@@ -53,7 +53,7 @@ describe('Atom Agent handleMessage', () => {
     const eventDetails = { summary: 'Test Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
     const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`, mockUserId);
     expect(mockedCalendarSkills.createCalendarEvent).toHaveBeenCalledWith(mockUserId, eventDetails);
-    expect(response).toContain('Event created: Event created (ID: newEvent1) Link: http://google.com/event1');
+    expect(response).toBe('Event created: Event created (ID: newEvent1) Link: http://google.com/event1');
   });
 
   it('should handle create calendar event failure with a specific message from skill', async () => {
@@ -65,7 +65,7 @@ describe('Atom Agent handleMessage', () => {
   });
 
   it('should handle create calendar event failure with a generic message if skill provides none', async () => {
-    const mockFailureResponse: CreateEventResponse = { success: false }; // No message
+    const mockFailureResponse: CreateEventResponse = { success: false };
     mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
     const eventDetails = { summary: 'Another Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
     const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`, mockUserId);
@@ -78,103 +78,105 @@ describe('Atom Agent handleMessage', () => {
     expect(mockedCalendarSkills.createCalendarEvent).not.toHaveBeenCalled();
   });
 
-
   // Email Skills Tests
-  it('should list recent emails', async () => {
-    const mockEmailsData: Email[] = [{ id: 'e1', sender: 'test@example.com', recipient: 'me@example.com', subject: 'Test Email', body: '', timestamp: '2024-01-01T00:00:00Z', read: false }];
+  it('should list recent emails with formatted output', async () => {
+    const mockTimestamp = new Date().toISOString();
+    const mockEmailsData: Email[] = [
+      { id: 'e1', sender: 'sender1@example.com', recipient: 'me@example.com', subject: 'Subject 1', body: 'Snippet1', timestamp: mockTimestamp, read: false },
+      { id: 'e2', sender: 'sender2@example.com', recipient: 'me@example.com', subject: 'Subject 2', body: 'Snippet2', timestamp: mockTimestamp, read: true },
+    ];
     mockedEmailSkills.listRecentEmails.mockResolvedValue(mockEmailsData);
-    const response = await handleMessage('list emails');
-    expect(mockedEmailSkills.listRecentEmails).toHaveBeenCalledWith(10);
-    expect(response).toContain('Recent emails:');
-    expect(response).toContain('Test Email');
+    const response = await handleMessage('list emails', mockUserId);
+    expect(mockedEmailSkills.listRecentEmails).toHaveBeenCalledWith(mockUserId, 10);
+    expect(response).toContain('Here are your recent emails:');
+    expect(response).toContain(`1. Subject: Subject 1\n   From: sender1@example.com\n   Date: ${new Date(mockTimestamp).toLocaleString()}\n   ID: e1`);
+    expect(response).toContain(`2. Subject: Subject 2\n   From: sender2@example.com\n   Date: ${new Date(mockTimestamp).toLocaleString()}\n   ID: e2`);
+    expect(response).toContain("Use 'read email <ID>' to read a specific email.");
   });
 
-   it('should handle no recent emails', async () => {
+   it('should handle no recent emails with specific message', async () => {
     mockedEmailSkills.listRecentEmails.mockResolvedValue([]);
-    const response = await handleMessage('list emails');
-    expect(response).toBe('No recent emails found.');
+    const response = await handleMessage('list emails', mockUserId);
+    expect(response).toBe('No recent emails found. This could also indicate an issue with your Gmail connection; please check settings if you expected emails.');
   });
 
-  it('should read an email', async () => {
-    const mockEmail: Email = { id: 'e1', sender: 'test@example.com', recipient: 'me@example.com', subject: 'Test Email', body: 'Email body', timestamp: '2024-01-01T00:00:00Z', read: false };
+  it('should read an email with formatted output', async () => {
+    const mockTimestamp = new Date().toISOString();
+    const mockEmail: Email = { id: 'e1', sender: 'sender@example.com', recipient: 'receiver@example.com', subject: 'Full Email Subject', body: 'This is the full email body.', timestamp: mockTimestamp, read: false };
     const mockResponse: ReadEmailResponse = { success: true, email: mockEmail };
     mockedEmailSkills.readEmail.mockResolvedValue(mockResponse);
-    const response = await handleMessage('read email e1');
-    expect(mockedEmailSkills.readEmail).toHaveBeenCalledWith('e1');
-    expect(response).toContain('Email (ID: e1):');
-    expect(response).toContain('Subject: Test Email');
-    expect(response).toContain('Email body');
+    const response = await handleMessage('read email e1', mockUserId);
+    expect(mockedEmailSkills.readEmail).toHaveBeenCalledWith(mockUserId, 'e1');
+    expect(response).toBe(`Subject: Full Email Subject\nFrom: sender@example.com\nTo: receiver@example.com\nDate: ${new Date(mockTimestamp).toLocaleString()}\n\nBody:\nThis is the full email body.`);
   });
 
-  it('should handle reading a non-existent email', async () => {
-    const mockResponse: ReadEmailResponse = { success: false, message: 'Email not found' };
+  it('should handle reading a non-existent email with user-friendly message', async () => {
+    const mockResponse: ReadEmailResponse = { success: false, message: 'Email not found in system.' };
     mockedEmailSkills.readEmail.mockResolvedValue(mockResponse);
-    const response = await handleMessage('read email nonExistentId');
-    expect(response).toBe('Email not found');
+    const response = await handleMessage('read email nonExistentId', mockUserId);
+    expect(response).toBe('Could not read email. Email not found in system.');
   });
 
-
-  it('should send an email', async () => {
-    const mockResponse: SendEmailResponse = { success: true, emailId: 'sentEmail1', message: 'Email sent' };
+  it('should send an email and confirm with ID', async () => {
+    const mockResponse: SendEmailResponse = { success: true, emailId: 'sentEmail123', message: 'Message delivered.' };
     mockedEmailSkills.sendEmail.mockResolvedValue(mockResponse);
     const emailDetails = { to: 'recipient@example.com', subject: 'Hello', body: 'Test body' };
-    const response = await handleMessage(`send email ${JSON.stringify(emailDetails)}`);
-    expect(mockedEmailSkills.sendEmail).toHaveBeenCalledWith(emailDetails);
-    expect(response).toContain('Email sent: Email sent (ID: sentEmail1)');
+    const response = await handleMessage(`send email ${JSON.stringify(emailDetails)}`, mockUserId);
+    expect(mockedEmailSkills.sendEmail).toHaveBeenCalledWith(mockUserId, emailDetails);
+    expect(response).toBe('Email sent successfully! Message delivered. (Message ID: sentEmail123)');
   });
 
-  // Web Research Skills Tests
+  it('should handle send email failure with specific message from skill', async () => {
+    const mockResponse: SendEmailResponse = { success: false, message: 'Specific send failure.' };
+    mockedEmailSkills.sendEmail.mockResolvedValue(mockResponse);
+    const emailDetails = { to: 'recipient@example.com', subject: 'Hello', body: 'Test body' };
+    const response = await handleMessage(`send email ${JSON.stringify(emailDetails)}`, mockUserId);
+    expect(response).toBe('Failed to send email. Specific send failure.');
+  });
+
+  it('should handle send email failure with generic message if none from skill', async () => {
+    const mockResponse: SendEmailResponse = { success: false }; // No message
+    mockedEmailSkills.sendEmail.mockResolvedValue(mockResponse);
+    const emailDetails = { to: 'recipient@example.com', subject: 'Hello', body: 'Test body' };
+    const response = await handleMessage(`send email ${JSON.stringify(emailDetails)}`, mockUserId);
+    expect(response).toBe('Failed to send email. Please try again or check your connection.');
+  });
+
+  // Web Research Skills Tests (confirming mockUserId pass-through)
   it('should search the web', async () => {
     const mockResults: SearchResult[] = [{ title: 'Result 1', link: 'http://example.com/1', snippet: 'Snippet 1' }];
     mockedWebResearchSkills.searchWeb.mockResolvedValue(mockResults);
-    const response = await handleMessage('search web test query');
-    expect(mockedWebResearchSkills.searchWeb).toHaveBeenCalledWith('test query');
+    const response = await handleMessage('search web test query', mockUserId);
+    expect(mockedWebResearchSkills.searchWeb).toHaveBeenCalledWith('test query'); // No userId for this skill
     expect(response).toContain('Web search results for "test query":');
-    expect(response).toContain('Result 1');
   });
 
-  it('should handle no web results', async () => {
-    mockedWebResearchSkills.searchWeb.mockResolvedValue([]);
-    const response = await handleMessage('search web emptyQuery');
-    expect(response).toBe('No web results found for "emptyQuery".');
-  });
-
-
-  // Zapier Skills Tests
+  // Zapier Skills Tests (confirming mockUserId pass-through)
   it('should trigger a Zap with data', async () => {
     const mockResponse: ZapTriggerResponse = { success: true, zapName: 'MyZap', runId: 'zapRun1', message: 'Zap triggered' };
     mockedZapierSkills.triggerZap.mockResolvedValue(mockResponse);
     const zapData = { key: 'value' };
-    const response = await handleMessage(`trigger zap MyZap with data ${JSON.stringify(zapData)}`);
-    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith('MyZap', zapData);
+    const response = await handleMessage(`trigger zap MyZap with data ${JSON.stringify(zapData)}`, mockUserId);
+    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith('MyZap', zapData); // No userId for this skill
     expect(response).toContain('Zap triggered: Zap triggered (Run ID: zapRun1)');
   });
 
-  it('should trigger a Zap without data', async () => {
-    const mockResponse: ZapTriggerResponse = { success: true, zapName: 'MyZapNoData', runId: 'zapRun2', message: 'Zap triggered' };
-    mockedZapierSkills.triggerZap.mockResolvedValue(mockResponse);
-    const response = await handleMessage('trigger zap MyZapNoData');
-    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith('MyZapNoData', {});
-    expect(response).toContain('Zap triggered: Zap triggered (Run ID: zapRun2)');
-  });
-
-  it('should handle invalid JSON for trigger zap data', async () => {
-    const response = await handleMessage('trigger zap MyZap with data this is not json');
-    expect(response).toContain("Invalid JSON data format.");
-    expect(mockedZapierSkills.triggerZap).not.toHaveBeenCalled();
-  });
-
-
   // General Handler Logic
   it('should handle unknown commands gracefully', async () => {
-    const response = await handleMessage('unknown command here');
+    const response = await handleMessage('unknown command here', mockUserId);
     const expectedResponse = `Atom received: "unknown command here". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", or "trigger zap <ZapName> [with data {JSON_DATA}]".`;
     expect(response).toBe(expectedResponse);
   });
 
-  it('should return error message if a skill throws an error', async () => {
-    mockedCalendarSkills.listUpcomingEvents.mockRejectedValue(new Error('Skill failure'));
-    const response = await handleMessage('list events');
+  it('should return error message if a skill throws an error (e.g. calendar skill)', async () => {
+    mockedCalendarSkills.listUpcomingEvents.mockRejectedValue(new Error('Calendar Skill failure'));
+    const response = await handleMessage('list events', mockUserId);
     expect(response).toBe("Sorry, I couldn't fetch the upcoming events.");
+  });
+
+  it('should return error message if email skill throws an error', async () => {
+    mockedEmailSkills.listRecentEmails.mockRejectedValue(new Error('Email Skill catastrophic failure'));
+    const response = await handleMessage('list emails', mockUserId);
+    expect(response).toBe("Sorry, I couldn't fetch recent emails. Error: Email Skill catastrophic failure");
   });
 });

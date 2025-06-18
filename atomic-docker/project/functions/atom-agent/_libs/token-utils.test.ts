@@ -405,5 +405,131 @@ describe('Token Utilities', () => {
           .rejects.toThrow('Failed to delete tokens: Delete failed');
       });
     });
+
+  // --- Tests for Atom Gmail Token Utilities ---
+  describe('Token Utilities - Gmail Hasura Interactions', () => {
+    const mockUserId = 'test-gmail-user-id';
+    const mockAppEmail = 'user.gmail@example.com';
+    const mockTokenData = { // Slightly different token data for distinction if needed
+      access_token: 'test_gmail_access_token',
+      refresh_token: 'test_gmail_refresh_token',
+      expiry_date: Date.now() + 7200000, // 2 hours from now
+      scope: 'gmail_test_scope',
+      token_type: 'Bearer',
+    };
+
+    // beforeEach, afterEach for consoleErrorSpy and Hasura/Encryption constants are inherited from parent describe block
+    // Or can be re-declared if specific overrides are needed for this block only
+
+    describe('saveAtomGmailTokens', () => {
+      it('should successfully save/upsert Gmail tokens to Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: { insert_Calendar_Integration_one: { id: 'mock-gmail-db-id', userId: mockUserId } },
+          }),
+        } as any);
+
+        const result = await require('./token-utils').saveAtomGmailTokens(mockUserId, mockTokenData, mockAppEmail);
+
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        const gqlVariables = callOptions.json.variables;
+
+        expect(gqlVariables.resourceName).toBe(constants.ATOM_GMAIL_RESOURCE_NAME); // Check Gmail resource name
+        expect(gqlVariables.clientType).toBe(constants.ATOM_CLIENT_TYPE);
+        expect(gqlVariables.userId).toBe(mockUserId);
+        expect(gqlVariables.accessToken).toEqual(await encryptToken(mockTokenData.access_token));
+        expect(gqlVariables.appEmail).toBe(mockAppEmail);
+
+        const gqlQuery = callOptions.json.query;
+        expect(gqlQuery).toContain('mutation upsertAtomGmailToken');
+        expect(gqlQuery).toContain(constants.ATOM_GMAIL_RESOURCE_NAME); // Ensure resource name is in query if it's dynamic, or check var
+
+        expect(result).toEqual({ id: 'mock-gmail-db-id', userId: mockUserId });
+      });
+
+      it('should throw error if Hasura returns errors for Gmail save', async () => {
+          setMockEncryptionConstants(validTestKey, validTestIv);
+          got.post.mockResolvedValue({
+            json: jest.fn().mockResolvedValue({ errors: [{ message: "Gmail save constraint violation" }] }),
+          } as any);
+
+          await expect(require('./token-utils').saveAtomGmailTokens(mockUserId, mockTokenData, mockAppEmail))
+            .rejects.toThrow('Failed to save Gmail tokens: Gmail save constraint violation');
+        });
+    });
+
+    describe('getAtomGmailTokens', () => {
+      it('should successfully fetch and decrypt Gmail tokens from Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        const encryptedAccessToken = await encryptToken(mockTokenData.access_token);
+        const encryptedRefreshToken = await encryptToken(mockTokenData.refresh_token!);
+        const mockExpiry = new Date(mockTokenData.expiry_date);
+
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: {
+              Calendar_Integration: [{
+                id: 'mock-id',
+                token: encryptedAccessToken,
+                refreshToken: encryptedRefreshToken,
+                expiresAt: mockExpiry.toISOString(),
+                scope: mockTokenData.scope,
+                token_type: mockTokenData.token_type,
+                appEmail: mockAppEmail,
+              }],
+            },
+          }),
+        } as any);
+
+        const result = await require('./token-utils').getAtomGmailTokens(mockUserId);
+
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.json.variables.resourceName).toBe(constants.ATOM_GMAIL_RESOURCE_NAME);
+        expect(callOptions.json.query).toContain('query getAtomGmailTokens');
+
+        expect(result).toEqual({
+          ...mockTokenData,
+          appEmail: mockAppEmail,
+        });
+      });
+
+      it('should return null if no Gmail tokens are found', async () => {
+          setMockEncryptionConstants(validTestKey, validTestIv);
+          got.post.mockResolvedValue({
+            json: jest.fn().mockResolvedValue({ data: { Calendar_Integration: [] } }),
+          } as any);
+          const result = await require('./token-utils').getAtomGmailTokens(mockUserId);
+          expect(result).toBeNull();
+        });
+    });
+
+    describe('deleteAtomGmailTokens', () => {
+      it('should successfully delete Gmail tokens from Hasura', async () => {
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: { delete_Calendar_Integration: { affected_rows: 1 } },
+          }),
+        } as any);
+
+        const result = await require('./token-utils').deleteAtomGmailTokens(mockUserId);
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.json.variables.resourceName).toBe(constants.ATOM_GMAIL_RESOURCE_NAME);
+        expect(callOptions.json.query).toContain('mutation deleteAtomGmailToken');
+        expect(result).toEqual({ affected_rows: 1 });
+      });
+
+      it('should throw error if Hasura returns errors on Gmail delete', async () => {
+          got.post.mockResolvedValue({
+            json: jest.fn().mockResolvedValue({ errors: [{ message: "Gmail delete failed" }] }),
+          } as any);
+          await expect(require('./token-utils').deleteAtomGmailTokens(mockUserId))
+            .rejects.toThrow('Failed to delete Gmail tokens: Gmail delete failed');
+        });
+    });
+  });
   });
 });

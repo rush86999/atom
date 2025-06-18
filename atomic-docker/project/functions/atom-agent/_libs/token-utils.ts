@@ -3,11 +3,12 @@ import {
   HASURA_GRAPHQL_URL,
   HASURA_ADMIN_SECRET,
   ATOM_CALENDAR_RESOURCE_NAME,
+  ATOM_GMAIL_RESOURCE_NAME, // Added
   ATOM_CLIENT_TYPE,
   ATOM_TOKEN_ENCRYPTION_KEY,
   ATOM_TOKEN_ENCRYPTION_IV,
 } from './constants';
-import dayjs from 'dayjs'; // For handling expiry_date calculation
+import dayjs from 'dayjs';
 import crypto from 'crypto';
 
 export async function encryptToken(token: string): Promise<string | null> {
@@ -297,5 +298,223 @@ export async function deleteAtomGoogleCalendarTokens(userId: string): Promise<{ 
     } catch (error: any) {
         console.error('Exception while deleting Atom Google Calendar tokens:', error.message);
         throw new Error(`An exception occurred while deleting tokens: ${error.message}`);
+    }
+}
+
+// --- Gmail Token Functions ---
+
+export async function saveAtomGmailTokens(
+    userId: string,
+    tokens: GoogleTokenSet, // Reusing the same interface, ensure it's suitable or create a specific one
+    appEmail?: string | null
+): Promise<{ id: string; userId: string } | null> {
+    if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+        console.error('Hasura URL or Admin Secret not configured. Cannot save Gmail tokens.');
+        throw new Error('Server configuration error for saving Gmail tokens.');
+    }
+    if (!userId || !tokens.access_token || !tokens.expiry_date) {
+        console.error('Missing required Gmail token information for saving.');
+        throw new Error('Invalid Gmail token data provided for saving.');
+    }
+
+    const encryptedAccessToken = await encryptToken(tokens.access_token);
+    const encryptedRefreshToken = tokens.refresh_token ? await encryptToken(tokens.refresh_token) : null;
+
+    if (!encryptedAccessToken || (tokens.refresh_token && !encryptedRefreshToken)) {
+        console.error("Failed to encrypt Gmail tokens. Aborting save.");
+        throw new Error("Gmail token encryption failed. Cannot save tokens.");
+    }
+
+    const expiresAt = new Date(tokens.expiry_date).toISOString();
+
+    // Using the same Calendar_Integration table and upsert mutation structure
+    // Differentiated by resource and clientType (ATOM_GMAIL_RESOURCE_NAME, ATOM_CLIENT_TYPE)
+    const mutation = `
+        mutation upsertAtomGmailToken(
+            $userId: uuid!,
+            $accessToken: String!,
+            $refreshToken: String,
+            $expiresAt: timestamptz!,
+            $scope: String,
+            $tokenType: String,
+            $resourceName: String!,
+            $clientType: String!,
+            $appEmail: String,
+            $enabled: Boolean!
+        ) {
+          insert_Calendar_Integration_one(object: {
+            userId: $userId,
+            token: $accessToken,
+            refreshToken: $refreshToken,
+            expiresAt: $expiresAt,
+            scope: $scope,
+            token_type: $tokenType,
+            resource: $resourceName,
+            clientType: $clientType,
+            name: $resourceName, // Or a more descriptive name like "Atom Gmail Connection"
+            appEmail: $appEmail,
+            enabled: $enabled,
+            syncEnabled: false // Default for Atom integrations
+          }, on_conflict: {
+            constraint: Calendar_Integration_userId_resource_clientType_key,
+            update_columns: [token, refreshToken, expiresAt, scope, token_type, appEmail, enabled, updatedAt]
+          }) {
+            id
+            userId
+          }
+        }
+    `;
+
+    const variables = {
+        userId: userId,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        expiresAt: expiresAt,
+        scope: tokens.scope,
+        tokenType: tokens.token_type,
+        resourceName: ATOM_GMAIL_RESOURCE_NAME, // Specific for Gmail
+        clientType: ATOM_CLIENT_TYPE,       // Shared client type for Atom
+        appEmail: appEmail,
+        enabled: true,
+    };
+
+    try {
+        console.log(`Saving/Updating Atom Gmail tokens for userId: ${userId}, appEmail: ${appEmail}`);
+        const response: any = await got.post(HASURA_GRAPHQL_URL, {
+            json: { query: mutation, variables: variables },
+            headers: { 'x-hasura-admin-secret': HASURA_ADMIN_SECRET },
+        }).json();
+
+        if (response.errors) {
+            console.error('Error saving Atom Gmail tokens to Hasura:', response.errors);
+            throw new Error(`Failed to save Gmail tokens: ${response.errors.map((e: any) => e.message).join(', ')}`);
+        }
+
+        console.log('Successfully saved Atom Gmail tokens:', response.data.insert_Calendar_Integration_one);
+        return response.data.insert_Calendar_Integration_one;
+    } catch (error: any) {
+        console.error('Exception while saving Atom Gmail tokens:', error.message);
+        if (error.response && error.response.body) {
+            console.error("Detailed error from got (Gmail save):", error.response.body);
+        }
+        throw new Error(`An exception occurred while saving Gmail tokens: ${error.message}`);
+    }
+}
+
+export async function getAtomGmailTokens(userId: string): Promise<(GoogleTokenSet & { appEmail?: string | null }) | null> {
+    if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+        console.error('Hasura URL or Admin Secret not configured. Cannot get Gmail tokens.');
+        throw new Error('Server configuration error for getting Gmail tokens.');
+    }
+
+    const query = `
+        query getAtomGmailTokens($userId: uuid!, $resourceName: String!, $clientType: String!) {
+          Calendar_Integration(where: {
+            userId: {_eq: $userId},
+            resource: {_eq: $resourceName},
+            clientType: {_eq: $clientType}
+          }, limit: 1) {
+            id
+            token
+            refreshToken
+            expiresAt
+            scope
+            token_type
+            appEmail
+          }
+        }
+    `;
+
+    const variables = {
+        userId: userId,
+        resourceName: ATOM_GMAIL_RESOURCE_NAME, // Specific for Gmail
+        clientType: ATOM_CLIENT_TYPE,       // Shared client type for Atom
+    };
+
+    try {
+        const response: any = await got.post(HASURA_GRAPHQL_URL, {
+            json: { query, variables },
+            headers: { 'x-hasura-admin-secret': HASURA_ADMIN_SECRET },
+        }).json();
+
+        if (response.errors) {
+            console.error('Error fetching Atom Gmail tokens from Hasura:', response.errors);
+            return null;
+        }
+
+        const integration = response.data.Calendar_Integration?.[0];
+        if (!integration) {
+            console.log(`No Atom Gmail tokens found for userId: ${userId}`);
+            return null;
+        }
+
+        const accessToken = await decryptToken(integration.token);
+        const refreshToken = integration.refreshToken ? await decryptToken(integration.refreshToken) : null;
+
+        if (!accessToken) {
+            console.error(`Failed to decrypt Gmail access token for userId: ${userId}. Returning null.`);
+            return null;
+        }
+        if (integration.refreshToken && !refreshToken) {
+            console.warn(`Failed to decrypt Gmail refresh token for userId: ${userId}. Proceeding without it.`);
+        }
+
+        return {
+            access_token: accessToken,
+            refresh_token: refreshToken || undefined,
+            expiry_date: new Date(integration.expiresAt).getTime(),
+            scope: integration.scope,
+            token_type: integration.token_type,
+            appEmail: integration.appEmail || null,
+        };
+
+    } catch (error: any) {
+        console.error('Exception while fetching Atom Gmail tokens:', error.message);
+        return null;
+    }
+}
+
+export async function deleteAtomGmailTokens(userId: string): Promise<{ affected_rows: number }> {
+    if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+        console.error('Hasura URL or Admin Secret not configured. Cannot delete Gmail tokens.');
+        throw new Error('Server configuration error for deleting Gmail tokens.');
+    }
+
+    const mutation = `
+        mutation deleteAtomGmailToken($userId: uuid!, $resourceName: String!, $clientType: String!) {
+          delete_Calendar_Integration(where: {
+            userId: {_eq: $userId},
+            resource: {_eq: $resourceName},
+            clientType: {_eq: $clientType}
+          }) {
+            affected_rows
+          }
+        }
+    `;
+
+    const variables = {
+        userId: userId,
+        resourceName: ATOM_GMAIL_RESOURCE_NAME, // Specific for Gmail
+        clientType: ATOM_CLIENT_TYPE,       // Shared client type for Atom
+    };
+
+    try {
+        console.log(`Deleting Atom Gmail tokens for userId: ${userId}`);
+        const response: any = await got.post(HASURA_GRAPHQL_URL, {
+            json: { query: mutation, variables: variables },
+            headers: { 'x-hasura-admin-secret': HASURA_ADMIN_SECRET },
+        }).json();
+
+        if (response.errors) {
+            console.error('Error deleting Atom Gmail tokens from Hasura:', response.errors);
+            throw new Error(`Failed to delete Gmail tokens: ${response.errors.map((e: any) => e.message).join(', ')}`);
+        }
+
+        console.log('Successfully deleted Atom Gmail tokens. Affected rows:', response.data.delete_Calendar_Integration.affected_rows);
+        return response.data.delete_Calendar_Integration;
+
+    } catch (error: any) {
+        console.error('Exception while deleting Atom Gmail tokens:', error.message);
+        throw new Error(`An exception occurred while deleting Gmail tokens: ${error.message}`);
     }
 }

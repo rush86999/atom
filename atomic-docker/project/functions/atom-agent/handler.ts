@@ -77,17 +77,19 @@ export async function handleMessage(message: string, userId: string): Promise<st
       const parts = message.split(' ');
       const limit = parts.length > 2 && !isNaN(parseInt(parts[2])) ? parseInt(parts[2]) : 10;
 
-      const emails: Email[] = await listRecentEmails(limit);
+      // TODO: Refine error propagation from email skills (similar to calendar)
+      // to distinguish "no results" from "an error occurred".
+      const emails: Email[] = await listRecentEmails(userId, limit);
       if (emails.length === 0) {
-        return "No recent emails found.";
+        return "No recent emails found. This could also indicate an issue with your Gmail connection; please check settings if you expected emails.";
       }
-      const emailList = emails.map(email =>
-        `- (${email.read ? 'read' : 'unread'}) From: ${email.sender}, Subject: ${email.subject} (ID: ${email.id})`
-      ).join('\n');
-      return `Recent emails:\n${emailList}`;
-    } catch (error) {
+      const emailList = emails.map((email, index) =>
+        `${index + 1}. Subject: ${email.subject || 'N/A'}\n   From: ${email.sender || 'N/A'}\n   Date: ${email.timestamp ? new Date(email.timestamp).toLocaleString() : 'N/A'}\n   ID: ${email.id}`
+      ).join('\n\n');
+      return `Here are your recent emails:\n\n${emailList}\n\nUse 'read email <ID>' to read a specific email.`;
+    } catch (error: any) {
       console.error('Error listing emails:', error);
-      return "Sorry, I couldn't fetch recent emails.";
+      return `Sorry, I couldn't fetch recent emails. Error: ${error.message}`;
     }
   } else if (lowerCaseMessage.startsWith('read email')) {
     try {
@@ -96,13 +98,13 @@ export async function handleMessage(message: string, userId: string): Promise<st
         return "Please provide an email ID to read. Usage: read email <emailId>";
       }
       const emailId = parts[2];
-      const response: ReadEmailResponse = await readEmail(emailId);
+      const response: ReadEmailResponse = await readEmail(userId, emailId);
 
       if (response.success && response.email) {
         const email = response.email;
-        return `Email (ID: ${email.id}):\nFrom: ${email.sender}\nTo: ${email.recipient}\nSubject: ${email.subject}\nDate: ${email.timestamp}\n\n${email.body}`;
+        return `Subject: ${email.subject || 'N/A'}\nFrom: ${email.sender || 'N/A'}\nTo: ${email.recipient || 'N/A'}\nDate: ${email.timestamp ? new Date(email.timestamp).toLocaleString() : 'N/A'}\n\nBody:\n${email.body || '(No body content)'}`;
       } else {
-        return response.message || "Could not read email.";
+        return `Could not read email. ${response.message || 'Email not found or access issue.'}`;
       }
     } catch (error) {
       console.error('Error reading email:', error);
@@ -124,11 +126,11 @@ export async function handleMessage(message: string, userId: string): Promise<st
         return "Please provide email details in JSON format after 'send email'.";
       }
 
-      const response: SendEmailResponse = await sendEmail(emailDetails);
+      const response: SendEmailResponse = await sendEmail(userId, emailDetails);
       if (response.success) {
-        return `Email sent: ${response.message} (ID: ${response.emailId})`;
+        return `Email sent successfully! ${response.message || ''} (Message ID: ${response.emailId || 'N/A'})`;
       } else {
-        return `Failed to send email: ${response.message}`;
+        return `Failed to send email. ${response.message || 'Please try again or check your connection.'}`;
       }
     } catch (error) {
       console.error('Error sending email:', error);

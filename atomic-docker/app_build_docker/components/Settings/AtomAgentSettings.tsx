@@ -15,6 +15,10 @@ const AtomAgentSettings = () => {
 
   // const [zapierUrl, setZapierUrl] = React.useState(''); // For later use
 
+  // Gmail State
+  const [isGmailConnected, setIsGmailConnected] = useState(false);
+  const [userGmailAddress, setUserGmailAddress] = useState<string | null>(null);
+
   const fetchCalendarStatus = async () => {
     setApiMessage(null); // Clear previous messages on new fetch
     setApiError(null);
@@ -48,37 +52,72 @@ const AtomAgentSettings = () => {
   };
 
   useEffect(() => {
-    // Fetch initial status when component mounts
+    // Fetch initial statuses when component mounts
     fetchCalendarStatus();
+    fetchGmailStatus();
   }, []); // Empty dependency array means this runs once on mount
 
   useEffect(() => {
     const { query } = router;
-    let shouldFetchStatus = false;
+    let needsCalendarStatusFetch = false;
+    let needsGmailStatusFetch = false;
+    let newPath = '/Settings/UserViewSettings'; // Default path for router.replace
+    let queryParams = { ...query }; // Copy query to modify it
 
+    // Calendar related query params
     if (query.calendar_auth_success === 'true' && query.atom_agent === 'true') {
       setApiMessage('Google Calendar connected successfully!');
-      //setIsCalendarConnected(true); // Status will be updated by fetchCalendarStatus
-      //setUserEmail('user@example.com (mock)');
-      shouldFetchStatus = true;
-      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+      needsCalendarStatusFetch = true;
+      delete queryParams.calendar_auth_success;
+      delete queryParams.atom_agent;
     } else if (query.calendar_auth_error && query.atom_agent === 'true') {
       setApiError(`Google Calendar connection failed: ${query.calendar_auth_error}`);
-      //setIsCalendarConnected(false);
-      shouldFetchStatus = true;
-      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+      needsCalendarStatusFetch = true;
+      delete queryParams.calendar_auth_error;
+      delete queryParams.atom_agent;
     } else if (query.calendar_disconnect_success === 'true' && query.atom_agent === 'true') {
       setApiMessage('Google Calendar disconnected successfully!');
-      //setIsCalendarConnected(false);
-      //setUserEmail(null);
-      shouldFetchStatus = true;
-      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+      needsCalendarStatusFetch = true;
+      delete queryParams.calendar_disconnect_success;
+      delete queryParams.atom_agent;
     }
 
-    if (shouldFetchStatus) {
-      fetchCalendarStatus(); // Re-fetch status after OAuth/disconnect actions
+    // Gmail related query params
+    if (query.email_auth_success === 'true' && query.atom_agent_email === 'true') {
+      setApiMessage('Gmail account connected successfully!'); // Can potentially overwrite calendar message if both happen
+      needsGmailStatusFetch = true;
+      delete queryParams.email_auth_success;
+      delete queryParams.atom_agent_email;
+    } else if (query.email_auth_error && query.atom_agent_email === 'true') {
+      setApiError(`Gmail account connection failed: ${query.email_auth_error}`);
+      needsGmailStatusFetch = true;
+      delete queryParams.email_auth_error;
+      delete queryParams.atom_agent_email;
+    } else if (query.email_disconnect_success === 'true' && query.atom_agent_email === 'true') {
+      setApiMessage('Gmail account disconnected successfully!');
+      needsGmailStatusFetch = true;
+      delete queryParams.email_disconnect_success;
+      delete queryParams.atom_agent_email;
     }
-  }, [router.query]); // Re-run when query parameters change specifically for OAuth/disconnect feedback
+
+    // Reconstruct the path with remaining query parameters if any
+    const remainingQueryKeys = Object.keys(queryParams);
+    if (remainingQueryKeys.length > 0) {
+        newPath += '?' + remainingQueryKeys.map(key => `${key}=${queryParams[key]}`).join('&');
+    }
+
+    // Only replace router if some params were processed and removed
+    if (Object.keys(query).length !== remainingQueryKeys.length) {
+        router.replace(newPath, undefined, { shallow: true });
+    }
+
+    if (needsCalendarStatusFetch) {
+      fetchCalendarStatus();
+    }
+    if (needsGmailStatusFetch) {
+      fetchGmailStatus();
+    }
+  }, [router.query]);
 
   const handleConnectGoogleCalendar = () => {
     // Redirect to the OAuth initiation URL
@@ -106,7 +145,60 @@ const AtomAgentSettings = () => {
     }
   };
 
-  // const handleConnectEmail = () => console.log('Connect Email Account clicked');
+  const fetchGmailStatus = async () => {
+    setApiMessage(null);
+    setApiError(null);
+    try {
+      console.log('Fetching Gmail connection status...');
+      const response = await fetch('/api/atom/auth/email/status');
+      if (!response.ok) {
+        throw new Error(`API responded with ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('Gmail status response:', data);
+      if (data.isConnected) {
+        setIsGmailConnected(true);
+        setUserGmailAddress(data.email || 'Unknown Gmail Address');
+      } else {
+        setIsGmailConnected(false);
+        setUserGmailAddress(null);
+        if(data.error) {
+            setApiError(data.error); // Show specific error from API if available
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch Gmail status:', err);
+      setIsGmailConnected(false);
+      setUserGmailAddress(null);
+      setApiError('Could not verify Gmail connection status.');
+    }
+  };
+
+  const handleConnectGmail = () => {
+    router.push('/api/atom/auth/email/initiate');
+  };
+
+  const handleDisconnectGmail = async () => {
+    setApiMessage(null);
+    setApiError(null);
+    try {
+      const response = await fetch('/api/atom/auth/email/disconnect', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setApiMessage(data.message || 'Gmail account disconnected successfully!');
+        // UI state will be updated by fetchGmailStatus called from useEffect after router.replace
+        fetchGmailStatus(); // Explicitly call to refresh status immediately
+      } else {
+        setApiError(data.message || 'Failed to disconnect Gmail account.');
+      }
+    } catch (err) {
+      console.error('Disconnect Gmail error:', err);
+      setApiError('An error occurred while disconnecting Gmail account.');
+    }
+  };
+
   // const handleSaveZapierUrl = () => console.log('Save Zapier URL clicked:', zapierUrl);
 
   return (
@@ -116,7 +208,7 @@ const AtomAgentSettings = () => {
       borderColor="hairline"
       borderRadius="m"
       margin={{ phone: 'm', tablet: 'l' }}
-      backgroundColor="white" // Assuming settings sections have a white background
+      backgroundColor="white"
     >
       <Text variant="sectionHeader" marginBottom="m">
         Atom Agent Configuration
@@ -151,22 +243,22 @@ const AtomAgentSettings = () => {
         )}
       </Box>
 
-      {/* Email Account Section */}
+      {/* Email Account (Gmail) Section */}
       <Box marginBottom="m" paddingBottom="m" borderBottomWidth={1} borderColor="hairline">
         <Text variant="subHeader" marginBottom="s">
-          Email Account
+          Email Account (Gmail)
         </Text>
-        <Button onPress={() => console.log('Connect Email Account clicked')} variant="primary" title="Connect Email Account" />
-        {/* Example of conditional display:
-        {isEmailAccountConnected ? (
+        {isGmailConnected ? (
           <Box>
-            <Text>Connected: user@example.com</Text>
-            <Button onPress={() => console.log('Disconnect Email Account')} title="Disconnect" variant="danger" />
+            <Text marginBottom="s">Status: Gmail Connected ({userGmailAddress || 'Email not available'})</Text>
+            <Button onPress={handleDisconnectGmail} variant="danger" title="Disconnect Gmail Account" />
           </Box>
         ) : (
-          <Button onPress={() => console.log('Connect Email Account clicked')} variant="primary" title="Connect Email Account" />
+          <Box>
+            <Text marginBottom="s">Status: Gmail Not Connected</Text>
+            <Button onPress={handleConnectGmail} variant="primary" title="Connect Gmail Account" />
+          </Box>
         )}
-        */}
       </Box>
 
       {/* Zapier Integration Section */}

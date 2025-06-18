@@ -252,3 +252,82 @@ After successfully completing the "Grant Consent" step and verifying "Status: Co
 *   Focus on server logs from the API routes (`initiate.ts`, `callback.ts`, `disconnect.ts`, `status.ts`), `token-utils.ts` (encryption/decryption logs), and `calendarSkills.ts` (token usage, API call attempts, refresh events) for detailed insight.
 
 This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar integration, including OAuth, secure token storage, and API interactions with real user context.
+
+## 5. End-to-End Gmail Integration Testing
+
+This section details testing the actual OAuth flow with Gmail and subsequent API calls by the Atom Agent. Success depends on all prerequisites being met.
+
+### Prerequisites (Gmail)
+
+Ensure all general prerequisites from Section 4 (Hasura, Google Cloud Project base, Supertokens, `userId` in handler, Encryption) are met, plus the following Gmail-specific items:
+
+1.  **Google Cloud Project (Gmail Specific):**
+    *   **Gmail API must be enabled** in your Google Cloud Console project.
+    *   OAuth 2.0 credentials used by Atom Agent (`ATOM_GMAIL_CLIENT_ID`, `ATOM_GMAIL_CLIENT_SECRET`) must be valid and authorized for the Gmail API scopes defined in `constants.ts` (`GMAIL_API_SCOPES`).
+    *   The "Authorized redirect URIs" for this OAuth client must include the exact URI for Gmail callback: (`http://localhost:3000/api/atom/auth/email/callback` for local testing, or your production equivalent).
+2.  **Environment Variables (Backend - Gmail Specific):**
+    The following **MUST be correctly set** in the backend environment:
+    *   `ATOM_GMAIL_CLIENT_ID`
+    *   `ATOM_GMAIL_CLIENT_SECRET`
+    *   `ATOM_GMAIL_REDIRECT_URI`
+    *   *(Ensure `ATOM_TOKEN_ENCRYPTION_KEY`, `ATOM_TOKEN_ENCRYPTION_IV`, `HASURA_GRAPHQL_URL`, `HASURA_ADMIN_SECRET` are also set as per general prerequisites).*
+
+### 5.1. OAuth Flow Testing & Status Verification (Gmail)
+
+1.  **Navigate to Settings:** Go to Settings -> Atom Agent Configuration.
+2.  **Initiate Connection:**
+    *   **Action:** Click the "Connect Gmail Account" button.
+    *   **Expected Result:** You should be redirected to a Google Account sign-in page, followed by a consent screen requesting permissions for Gmail (e.g., "Read, compose, send, and permanently delete all your email from Gmail", "View and modify but not delete your email", "View your basic profile info" - depending on the scopes defined in `GMAIL_API_SCOPES`).
+3.  **Cancel Consent:**
+    *   **Action:** On the Google consent screen, click "Cancel" or deny permission.
+    *   **Expected Result:** Redirected back to settings page. An error message like "Gmail account connection failed: access_denied" should be displayed. Status should remain "Gmail Not Connected".
+4.  **Grant Consent:**
+    *   **Action:** Click "Connect Gmail Account" again. Grant permissions on the Google consent screen.
+    *   **Expected Result:** Redirected back to settings page. Success message "Gmail account connected successfully!" displayed. UI should show "Status: Gmail Connected (your.email@gmail.com)".
+    *   **Server Log:** Check for logs from `email/callback.ts` and `token-utils.ts` indicating successful token fetch, user info fetch (email), token encryption, and storage (with `resource = ATOM_GMAIL_RESOURCE_NAME`).
+    *   **Status API Check:** Manually call `/api/atom/auth/email/status`. It should return `{ "isConnected": true, "email": "your.email@gmail.com" }`.
+5.  **Disconnect Gmail:**
+    *   **Action:** Click "Disconnect Gmail Account".
+    *   **Expected Result:** Success message. UI updates to "Gmail Not Connected". Server logs show token deletion for `ATOM_GMAIL_RESOURCE_NAME`. `/api/atom/auth/email/status` returns `{ "isConnected": false }`.
+
+### 5.2. Chat Interface - Email Commands (Post Successful Gmail Connection)
+
+1.  **List Emails Command:**
+    *   **Action:** Type `list emails` and send.
+    *   **Expected Result:** If the connected Gmail account has emails in the inbox, they should be listed (e.g., "1. Subject: [Subject], From: [Sender], Date: [Date], ID: [MsgId]"). If inbox is empty, "No recent emails found..." message.
+    *   **Server Log:** Check `emailSkills.ts` logs for API call attempts.
+2.  **List Emails with Limit:**
+    *   **Action:** Type `list emails 3` and send.
+    *   **Expected Result:** Maximum of 3 emails listed.
+3.  **Read Email Command (using ID from list):**
+    *   **Action:** Type `read email <message_id_from_list>` and send.
+    *   **Expected Result:** Full email content (Subject, From, To, Date, Body) displayed. The email should be marked as read in Gmail (verify this if possible).
+    *   **Server Log:** Check `emailSkills.ts` for `messages.get` and `messages.modify` (for unread label removal) calls.
+4.  **Read Email (Invalid ID):**
+    *   **Action:** Type `read email invalid_id_string` and send.
+    *   **Expected Result:** "Could not read email. Email not found or access issue." (or similar error from API).
+5.  **Send Email Command:**
+    *   **Action:** Type `send email {"to":"your_other_email@example.com","subject":"Atom Test Email","body":"Hello from Atom Agent!"}` and send.
+    *   **Expected Result:** "Email sent successfully! ... (Message ID: ...)" displayed. Verify the email is received at `your_other_email@example.com` and appears in the "Sent" folder of the connected Gmail account.
+    *   **Server Log:** Check `emailSkills.ts` for `messages.send` call.
+
+### 5.3. Token Refresh Testing (Gmail - Conceptual & Observational)
+
+*   Similar to calendar, this is hard to trigger manually.
+*   **Observation Method:** After connecting, wait over an hour, then try an email command. It should succeed. Check server logs for "Gmail API tokens were refreshed" messages from `emailSkills.ts` and token saving logs from `token-utils.ts`.
+
+### 5.4. Error Condition Testing (Gmail Specific)
+
+1.  **Invalid Gmail Redirect URI:**
+    *   **Action:** Temporarily misconfigure `ATOM_GMAIL_REDIRECT_URI`. Try "Connect Gmail Account".
+    *   **Expected Result:** Google OAuth screen error (e.g., "redirect_uri_mismatch").
+2.  **Revoked App Permissions for Gmail in Google Account:**
+    *   **Action:** Connect Gmail. Revoke app access in Google Account settings. Try `list emails` command.
+    *   **Expected Result:** Chat error "No recent emails found, or there was an issue...". Server logs show `invalid_grant`. Disconnect/reconnect should require full consent again.
+
+### 5.5. Multi-User Data Isolation Testing (Gmail)
+
+*   Perform similar steps as outlined in **Section 4.5 (Multi-User Data Isolation Testing)** but for Gmail connections and email commands.
+*   Verify User A's Gmail actions/data are entirely separate from User B's.
+
+This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar and Gmail integrations, including OAuth, secure token storage, and API interactions with real user context.
