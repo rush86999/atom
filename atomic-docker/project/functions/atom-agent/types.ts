@@ -172,3 +172,56 @@ export interface GetContactActivitiesResponse {
   message?: string;
   nextPage?: string; // For pagination, 'after' cursor
 }
+
+// --- Slack Types ---
+export interface SlackChannel {
+  id: string;
+  name?: string;
+  is_channel?: boolean;
+  is_group?: boolean;
+  is_im?: boolean;
+  is_mpim?: boolean;
+  is_private?: boolean;
+  is_archived?: boolean;
+  is_general?: boolean;
+  num_members?: number;
+  topic?: {
+    value: string;
+    creator: string;
+    last_set: number;
+  };
+  purpose?: {
+    value: string;
+    creator: string;
+    last_set: number;
+  };
+  created?: number;
+  creator?: string;
+}
+
+export interface SlackMessageResponse {
+  ok: boolean;
+  ts?: string; // Timestamp of the message
+  channel?: string; // Channel ID where the message was posted
+  message?: { // Detailed message object, structure can vary
+    text?: string;
+    user?: string; // User ID of the sender (could be bot_id or user_id)
+    bot_id?: string; // ID of the bot if message sent by a bot
+    ts?: string; // Timestamp of the message
+    type?: string; // e.g., 'message'
+    subtype?: string; // e.g., 'bot_message', 'channel_join'
+    [key: string]: any; // Allow other properties as message structure varies
+  };
+  error?: string; // Error message if ok is false
+  // response_metadata?: { // For errors like 'ratelimited'
+  //   messages?: string[];
+  //   retry_after?: number;
+  // };
+}
+
+export interface ListSlackChannelsResponse {
+  ok: boolean;
+  channels?: SlackChannel[];
+  error?: string;
+  nextPageCursor?: string; // For pagination
+}

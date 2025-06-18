@@ -31,3 +31,7 @@ export const GOOGLE_CALENDAR_API_SCOPE = 'https://www.googleapis.com/auth/calend
 // HubSpot API Key
 // This must be set in the environment.
 export const ATOM_HUBSPOT_API_KEY = process.env.ATOM_HUBSPOT_API_KEY || '';
+
+// Slack Bot Token
+// This must be set in the environment.
+export const ATOM_SLACK_BOT_TOKEN = process.env.ATOM_SLACK_BOT_TOKEN || '';
