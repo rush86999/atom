@@ -156,3 +156,158 @@ output "hasura_jwt_secret_arn" {
   description = "ARN of the Hasura JWT Secret (Placeholder)."
   value       = aws_secretsmanager_secret.hasura_jwt_secret.arn
 }
+
+output "alb_dns_name" {
+  description = "The DNS name of the Application Load Balancer."
+  value       = aws_lb.main.dns_name
+}
+
+output "alb_arn" {
+  description = "The ARN of the Application Load Balancer."
+  value       = aws_lb.main.arn
+}
+
+output "alb_zone_id" {
+  description = "The Zone ID of the Application Load Balancer (for Route53 alias records)."
+  value       = aws_lb.main.zone_id
+}
+
+output "alb_http_listener_arn" {
+  description = "The ARN of the ALB HTTP Listener."
+  value       = aws_lb_listener.http.arn
+}
+
+output "alb_default_target_group_arn" {
+  description = "The ARN of the ALB Default Target Group."
+  value       = aws_lb_target_group.default.arn
+}
+
+output "supertokens_ecs_service_name" {
+  description = "Name of the SuperTokens ECS service."
+  value       = aws_ecs_service.supertokens.name
+}
+
+output "supertokens_task_definition_arn" {
+  description = "ARN of the SuperTokens ECS task definition."
+  value       = aws_ecs_task_definition.supertokens.arn
+}
+
+output "supertokens_target_group_arn" {
+  description = "ARN of the SuperTokens ALB target group."
+  value       = aws_lb_target_group.supertokens.arn
+}
+
+output "hasura_ecs_service_name" {
+  description = "Name of the Hasura ECS service."
+  value       = aws_ecs_service.hasura.name
+}
+
+output "hasura_task_definition_arn" {
+  description = "ARN of the Hasura ECS task definition."
+  value       = aws_ecs_task_definition.hasura.arn
+}
+
+output "hasura_target_group_arn" {
+  description = "ARN of the Hasura ALB target group."
+  value       = aws_lb_target_group.hasura.arn
+}
+
+output "functions_ecs_service_name" {
+  description = "Name of the Functions ECS service."
+  value       = aws_ecs_service.functions.name
+}
+
+output "functions_task_definition_arn" {
+  description = "ARN of the Functions ECS task definition."
+  value       = aws_ecs_task_definition.functions.arn
+}
+
+output "functions_target_group_arn" {
+  description = "ARN of the Functions ALB target group."
+  value       = aws_lb_target_group.functions.arn
+}
+
+output "app_ecs_service_name" {
+  description = "Name of the App (frontend) ECS service."
+  value       = aws_ecs_service.app.name
+}
+
+output "app_task_definition_arn" {
+  description = "ARN of the App (frontend) ECS task definition."
+  value       = aws_ecs_task_definition.app.arn
+}
+
+output "app_target_group_arn" {
+  description = "ARN of the App (frontend) ALB target group."
+  value       = aws_lb_target_group.app.arn
+}
+
+output "handshake_ecs_service_name" {
+  description = "Name of the Handshake ECS service."
+  value       = aws_ecs_service.handshake.name
+}
+
+output "handshake_task_definition_arn" {
+  description = "ARN of the Handshake ECS task definition."
+  value       = aws_ecs_task_definition.handshake.arn
+}
+
+output "handshake_target_group_arn" {
+  description = "ARN of the Handshake ALB target group."
+  value       = aws_lb_target_group.handshake.arn
+}
+
+output "oauth_ecs_service_name" {
+  description = "Name of the OAuth ECS service."
+  value       = aws_ecs_service.oauth.name
+}
+
+output "oauth_task_definition_arn" {
+  description = "ARN of the OAuth ECS task definition."
+  value       = aws_ecs_task_definition.oauth.arn
+}
+
+output "oauth_target_group_arn" {
+  description = "ARN of the OAuth ALB target group."
+  value       = aws_lb_target_group.oauth.arn
+}
+
+output "optaplanner_ecs_service_name" {
+  description = "Name of the Optaplanner ECS service."
+  value       = aws_ecs_service.optaplanner.name
+}
+
+output "optaplanner_task_definition_arn" {
+  description = "ARN of the Optaplanner ECS task definition."
+  value       = aws_ecs_task_definition.optaplanner.arn
+}
+
+output "optaplanner_target_group_arn" {
+  description = "ARN of the Optaplanner ALB target group."
+  value       = aws_lb_target_group.optaplanner.arn
+}
+
+output "opensearch_domain_arn" {
+  description = "The ARN of the Amazon OpenSearch Service domain."
+  value       = aws_opensearch_domain.main.arn
+}
+
+output "opensearch_domain_endpoint" {
+  description = "The endpoint for the Amazon OpenSearch Service domain."
+  value       = "https://${aws_opensearch_domain.main.endpoint}"
+}
+
+output "opensearch_domain_id" {
+  description = "The ID of the Amazon OpenSearch Service domain."
+  value       = aws_opensearch_domain.main.id
+}
+
+output "msk_serverless_cluster_arn" {
+  description = "The ARN of the Amazon MSK Serverless cluster."
+  value       = aws_msk_serverless_cluster.main.arn
+}
+
+output "msk_serverless_cluster_bootstrap_brokers_instruction" {
+  description = "Command to fetch MSK Serverless bootstrap brokers using AWS CLI."
+  value       = "aws kafka get-bootstrap-brokers --cluster-arn ${aws_msk_serverless_cluster.main.arn}"
+}

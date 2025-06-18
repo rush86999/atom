@@ -80,3 +80,10 @@ variable "db_multi_az" {
   type        = bool
   default     = false # For dev/cost savings
 }
+
+variable "aws_account_id" {
+  description = "The AWS Account ID to deploy resources in. For resource naming and ARNs."
+  type        = string
+  # No default, should be passed in or determined by data source if needed by TF config itself
+  # For now, primarily for script use.
+}
