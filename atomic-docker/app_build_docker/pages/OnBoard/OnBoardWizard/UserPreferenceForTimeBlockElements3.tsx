@@ -117,10 +117,15 @@ type Props = {
       
       return (
           <Box justifyContent="center" alignItems="center" width="100%">
+            <Box p="m" width="90%" alignItems="center">
+                <Text textAlign="center" variant="optionHeader">
+                    Personalize your calendar's appearance and meeting flow. These final settings help Atomic align with your work style.
+                </Text>
+            </Box>
             <Box justifyContent="center" alignItems="flex-start" minHeight="70vh">
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center">  
-                        <Text variant="optionHeader">Select color for any new events classified as a &apos;break type&apos; event</Text>
+                        <Text variant="optionHeader">Choose a default color for &apos;break&apos; events on your calendar:</Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" alignItems="center">  
                         <Circle
@@ -134,7 +139,7 @@ type Props = {
                 </Box>
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center">  
-                        <Text variant="optionHeader">Enable back-to-back meetings with no breaks for scheduling assists? </Text>
+                        <Text variant="optionHeader">Allow Atomic to schedule back-to-back meetings (without breaks in between)?</Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}>
                         <Switch1
@@ -147,7 +152,7 @@ type Props = {
                 </Box>
                 <Box flex={1} style={{ width: '90%' }}  p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center">
-                        <Text variant="optionHeader">Once you set time preferences and priority of an event, copy over background color to any new events whose details are similar? </Text>
+                        <Text variant="optionHeader">Automatically copy event background color for similar new events?</Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}>
                         <Switch1
