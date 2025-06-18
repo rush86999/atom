@@ -97,11 +97,41 @@ async function sendUserNotification(userId: string, message: string): Promise<bo
 
 
 // --- Main Callback Handler Function ---
+
+// Access environment variable for the expected token
+const EXPECTED_CALLBACK_TOKEN = process.env.CALLBACK_SECRET_TOKEN;
+
 export async function handleSchedulerCallback(req: Request, res: Response): Promise<void> {
   logger.info('[schedulerCallbackHandler.handleSchedulerCallback] Received a callback request.');
 
+  // --- NEW TOKEN VALIDATION LOGIC ---
+  if (!EXPECTED_CALLBACK_TOKEN) {
+    logger.error('[schedulerCallbackHandler.handleSchedulerCallback] CRITICAL: CALLBACK_SECRET_TOKEN is not configured in the environment. Cannot securely process callbacks.');
+    res.status(500).send({ error: 'Internal Server Error: Callback security not configured.' });
+    return;
+  }
+
+  const receivedToken = req.headers['x-callback-token'] as string | undefined;
+
+  if (!receivedToken) {
+    logger.warn('[schedulerCallbackHandler.handleSchedulerCallback] Unauthorized: Missing X-Callback-Token in request headers.');
+    res.status(401).send({ error: 'Unauthorized: Missing callback token.' });
+    return;
+  }
+
+  if (receivedToken !== EXPECTED_CALLBACK_TOKEN) {
+    logger.warn('[schedulerCallbackHandler.handleSchedulerCallback] Forbidden: Invalid X-Callback-Token received.');
+    // Potentially log the received token for debugging if in a dev environment, but be cautious in prod.
+    // logger.info(`Received token: ${receivedToken}`);
+    res.status(403).send({ error: 'Forbidden: Invalid callback token.' });
+    return;
+  }
+  logger.info('[schedulerCallbackHandler.handleSchedulerCallback] Callback token validated successfully.');
+  // --- END OF NEW TOKEN VALIDATION LOGIC ---
+
+  // Existing logic starts here:
   if (!req.body) {
-    logger.warn('[schedulerCallbackHandler.handleSchedulerCallback] Callback request body is empty.');
+    logger.warn('[schedulerCallbackHandler.handleSchedulerCallback] Callback request body is empty after token validation.');
     res.status(400).send({ error: 'Bad Request: Empty payload.' });
     return;
   }
