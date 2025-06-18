@@ -1,3 +1,5 @@
+import axios, { AxiosResponse, AxiosError } from 'axios';
+
 // Placeholder for actual logger if available, otherwise use console
 const logger = {
   info: console.log,
@@ -20,53 +22,44 @@ function generateUuid(): string {
 
 function normalizeDateTime(dateInput?: string, timeInput?: string): string {
   // VERY basic placeholder - real implementation needs robust date/time parsing library
-  // This should combine date (e.g., "tomorrow", "2024-07-15") and time (e.g., "3pm", "15:00")
-  // and return an ISO 8601 string: "YYYY-MM-DDTHH:mm:ssZ"
-  // For now, if it looks like an ISO string, pass it, otherwise return a fixed future date.
   if (dateInput && dateInput.includes('T') && dateInput.endsWith('Z')) return dateInput;
-  if (timeInput && timeInput.includes('T') && timeInput.endsWith('Z')) return timeInput; // if full datetime passed in timeInput
+  if (timeInput && timeInput.includes('T') && timeInput.endsWith('Z')) return timeInput;
 
   const now = new Date();
 
-  // Try to parse dateInput if provided (very rudimentary)
   if (dateInput) {
     if (dateInput.toLowerCase() === 'tomorrow') {
       now.setDate(now.getDate() + 1);
-    } else if (dateInput.includes('-')) { // Attempt YYYY-MM-DD or MM-DD
+    } else if (dateInput.includes('-')) {
         const parts = dateInput.split('-');
-        if (parts.length === 3) { // YYYY-MM-DD
+        if (parts.length === 3) {
             now.setFullYear(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        } else if (parts.length === 2) { // MM-DD (assume current year)
+        } else if (parts.length === 2) {
             now.setMonth(parseInt(parts[0]) - 1, parseInt(parts[1]));
         }
     }
-    // More date parsing logic for "next Monday", "June 15th" would be needed here.
   } else {
-      // If no dateInput, and timeInput suggests a specific time today or it's just a duration,
-      // it might default to today or require more context. For simplicity, if no date, default to tomorrow.
       if (!timeInput || !timeInput.match(/(\d+)(?::(\d+))?\s*(am|pm)?/i)) {
-         now.setDate(now.getDate() + 1); // Default to tomorrow if no specific time/date info
+         now.setDate(now.getDate() + 1);
       }
   }
 
-  // Set default time to noon if not specified by timeInput
   now.setHours(12, 0, 0, 0);
 
-  if (timeInput) { // Rudimentary time parsing
+  if (timeInput) {
       const parts = timeInput.match(/(\d+)(?::(\d+))?\s*(am|pm)?/i);
       if (parts) {
           let hours = parseInt(parts[1]);
           const minutes = parts[2] ? parseInt(parts[2]) : 0;
           if (parts[3]?.toLowerCase() === 'pm' && hours < 12) hours += 12;
-          if (parts[3]?.toLowerCase() === 'am' && hours === 12) hours = 0; // Midnight case
-          now.setHours(hours, minutes, 0, 0); // Reset seconds and ms
+          if (parts[3]?.toLowerCase() === 'am' && hours === 12) hours = 0;
+          now.setHours(hours, minutes, 0, 0);
       }
   }
   return now.toISOString();
 }
 
 function calculateEndTime(startTimeIso: string, durationStr?: string): string {
-    // Placeholder: real implementation needs duration parsing (e.g., "1 hour", "30 minutes")
     const startDate = new Date(startTimeIso);
     if (durationStr) {
         const match = durationStr.match(/(\d+)\s*(hour|minute|hr|min)/i);
@@ -78,31 +71,28 @@ function calculateEndTime(startTimeIso: string, durationStr?: string): string {
             } else if (unit.startsWith('minute') || unit.startsWith('min')) {
                 startDate.setMinutes(startDate.getMinutes() + value);
             }
-        } else { // Default if duration format is not recognized
+        } else {
              startDate.setHours(startDate.getHours() + 1);
         }
-    } else { // Default duration if none provided
+    } else {
         startDate.setHours(startDate.getHours() + 1);
     }
     return startDate.toISOString();
 }
 
 function getCurrentUserBasic(userId: string): User {
-    // Placeholder: Fetches or constructs a basic User object.
-    // In a real scenario, this might fetch more details from a user profile service.
-    // Also, hostId might be different from userId if the agent supports multi-tenant hosts.
     return {
-        id: userId, // Assuming agent's internal userId can be used as scheduler's User ID
-        hostId: userId, // Assuming hostId is same as userId for simplicity here
-        workTimes: [ // Default work times, should be fetched from user's profile/preferences
+        id: userId,
+        hostId: userId,
+        workTimes: [
             { userId, hostId: userId, dayOfWeek: "MONDAY", startTime: "09:00:00", endTime: "17:00:00" },
             { userId, hostId: userId, dayOfWeek: "TUESDAY", startTime: "09:00:00", endTime: "17:00:00" },
             { userId, hostId: userId, dayOfWeek: "WEDNESDAY", startTime: "09:00:00", endTime: "17:00:00" },
             { userId, hostId: userId, dayOfWeek: "THURSDAY", startTime: "09:00:00", endTime: "17:00:00" },
             { userId, hostId: userId, dayOfWeek: "FRIDAY", startTime: "09:00:00", endTime: "17:00:00" },
         ],
-        maxWorkLoadPercent: 100, // example
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // User's local timezone
+        maxWorkLoadPercent: 100,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
 }
 
@@ -139,7 +129,7 @@ export interface SchedulingResponse {
   timeBlockId?: string;
   meetingRequestId?: string;
   details?: any;
-  singletonId?: string; // Added to align with submitSchedulingJobToAtomicScheduler return
+  singletonId?: string;
 }
 
 // ----- Types for PostTableRequestBody -----
@@ -148,21 +138,21 @@ export interface Timeslot {
     dayOfWeek: string;
     startTime: string;
     endTime: string;
-    monthDay: string; // Format --MM-DD (e.g. --07-16 for July 16th)
-    date: string;     // Format YYYY-MM-DD
+    monthDay: string;
+    date: string;
 }
 
 export interface WorkTime {
     userId: string;
     hostId: string;
     dayOfWeek: string;
-    startTime: string; // "HH:mm:ss"
-    endTime: string;   // "HH:mm:ss"
+    startTime: string;
+    endTime: string;
 }
 
 export interface User {
-    id: string; // UUID
-    hostId: string; // UUID
+    id: string;
+    hostId: string;
     workTimes: WorkTime[];
     maxWorkLoadPercent?: number;
     timeZone?: string;
@@ -173,35 +163,35 @@ export interface PreferredTimeRange {
     eventId?: string;
     userId?: string;
     hostId?: string;
-    startTime: string; // "HH:mm:ss"
-    endTime: string;   // "HH:mm:ss"
+    startTime: string;
+    endTime: string;
     dayOfWeek?: string;
 }
 
 export interface Event {
-    id: string; // UUID
-    userId: string; // UUID
-    hostId: string; // UUID
+    id: string;
+    userId: string;
+    hostId: string;
     eventType: "TASK" | "ONE_ON_ONE_MEETING" | "GROUP_MEETING" | "EVENT";
     duration?: number;
     minChunkTime?: number;
     maxChunkTime?: number;
     preferredTimeRanges?: PreferredTimeRange[] | null;
-    deadline?: string | null; // ISO DateTime string
+    deadline?: string | null;
     priority?: number;
     title?: string;
     description?: string;
 }
 
 export interface EventPart {
-    groupId: string; // UUID
-    eventId: string; // UUID
+    groupId: string;
+    eventId: string;
     part: number;
     lastPart: number;
-    startDate: string; // ISO DateTime string "YYYY-MM-DDTHH:mm:ss"
-    endDate: string;   // ISO DateTime string "YYYY-MM-DDTHH:mm:ss"
-    userId: string;    // UUID
-    hostId: string;    // UUID
+    startDate: string;
+    endDate: string;
+    userId: string;
+    hostId: string;
     user?: User | null;
     event?: Event | null;
     preferredTime?: PreferredTimeRange[] | null;
@@ -226,22 +216,62 @@ interface PendingRequestInfo {
   hostId: string;
   fileKey: string;
   submittedAt: Date;
-  // originalQuery?: string;
 }
 
 const pendingSchedulingRequests = new Map<string, PendingRequestInfo>();
 
-// ----- Conceptual HTTP Client -----
+// ----- Real HTTP Client with Axios -----
+interface HttpClientResponse {
+  status: number;
+  data?: any;
+  error?: string;
+  headers?: any;
+}
+
 const httpClient = {
-  post: async (url: string, body: any): Promise<{ status: number; data?: any; error?: string }> => {
-    logger.info(`[httpClient.post] Faking HTTP POST to ${url}`);
-    logger.info(`[httpClient.post] Body Summary: singletonId=${body?.singletonId}, fileKey=${body?.fileKey}, eventPartsCount=${body?.eventParts?.length}, userListCount=${body?.userList?.length}`);
-    if (url.endsWith('/solve-day')) {
-      return { status: 202, data: { message: "Job accepted by scheduler (simulated)" } };
+  post: async (url: string, body: any): Promise<HttpClientResponse> => {
+    logger.info(`[httpClient.post] Making actual HTTP POST request to ${url}`);
+    // logger.info(`[httpClient.post] Body Summary: singletonId=${body?.singletonId}, fileKey=${body?.fileKey}, eventPartsCount=${body?.eventParts?.length}, userListCount=${body?.userList?.length}`);
+    try {
+      const response: AxiosResponse = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          // 'User-Agent': 'AtomicAgent/1.0', // Example User-Agent
+        },
+        timeout: 10000, // 10 seconds timeout
+      });
+      return {
+        status: response.status,
+        data: response.data,
+        headers: response.headers,
+      };
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response) {
+        logger.error(`[httpClient.post] Error response from ${url}: Status ${axiosError.response.status}`, axiosError.response.data);
+        return {
+          status: axiosError.response.status,
+          data: axiosError.response.data,
+          error: (axiosError.response.data as any)?.message || axiosError.message, // Extract message from error data if possible
+          headers: axiosError.response.headers,
+        };
+      } else if (axiosError.request) {
+        logger.error(`[httpClient.post] No response received from ${url}:`, axiosError.request);
+        return {
+          status: -1, // Custom status for no response / network error
+          error: 'No response received from server. Network error or timeout.',
+        };
+      } else {
+        logger.error('[httpClient.post] Error setting up request:', axiosError.message);
+        return {
+          status: -2, // Custom status for request setup error
+          error: `Error setting up request: ${axiosError.message}`,
+        };
+      }
     }
-    return { status: 500, error: "Simulated HTTP client error for non /solve-day URL" };
   }
 };
+
 
 // ----- Core Scheduling Skill -----
 export async function submitSchedulingJobToAtomicScheduler(
@@ -271,23 +301,42 @@ export async function submitSchedulingJobToAtomicScheduler(
     logger.info(`[submitSchedulingJobToAtomicScheduler] Sending job to scheduler: ${schedulerEndpoint}`);
     const response = await httpClient.post(schedulerEndpoint, data);
 
-    if (response.status === 200 || response.status === 202) {
-      logger.info(`[submitSchedulingJobToAtomicScheduler] Job successfully submitted to scheduler for singletonId: ${data.singletonId} (fileKey: ${data.fileKey}). Response:`, response.data);
+    if (response.status === 200 || response.status === 202) { // 202 Accepted is a common response for async job submissions
+      logger.info(`[submitSchedulingJobToAtomicScheduler] Job successfully submitted to scheduler for singletonId: ${data.singletonId} (fileKey: ${data.fileKey}). Status: ${response.status}, Response Data:`, response.data);
       return {
         success: true,
-        message: "Your scheduling request has been submitted. You will be notified when it's complete.",
+        message: "Your scheduling request has been submitted. You will be notified when it's complete.", // Or use response.data.message if provided and suitable
         singletonId: data.singletonId,
       };
     } else {
-      logger.error(`[submitSchedulingJobToAtomicScheduler] Error submitting job to scheduler for singletonId: ${data.singletonId} (fileKey: ${data.fileKey}). Status: ${response.status}, Error: ${response.error || JSON.stringify(response.data)}`);
+      // Handle specific client/server errors from httpClient's structured response
+      let userMessage = `Failed to submit scheduling request. Status code: ${response.status}.`;
+
+      if (response.status === -1) { // Custom code for network error/no response
+        userMessage = "Failed to submit scheduling request: Could not connect to the scheduling service. Please try again later.";
+      } else if (response.status === -2) { // Custom code for request setup error
+        userMessage = "Failed to submit scheduling request: Internal error setting up the request.";
+      } else if (response.error) { // Error message provided by httpClient
+        userMessage = `Failed to submit scheduling request: ${response.error}`;
+      } else if (response.data) { // Fallback to data if error string is not specific
+        // Try to get a more specific message if the server sent one
+        const serverMessage = (response.data as any)?.message || (response.data as any)?.error;
+        if (serverMessage) {
+            userMessage = `Failed to submit scheduling request. Scheduler responded with status ${response.status}: ${serverMessage}`;
+        } else {
+            userMessage = `Failed to submit scheduling request. Scheduler responded with status ${response.status}.`;
+        }
+      }
+
+      logger.error(`[submitSchedulingJobToAtomicScheduler] Error submitting job for fileKey: ${data.fileKey}. Status: ${response.status}, Error: ${response.error || 'N/A'}, Data:`, response.data);
       pendingSchedulingRequests.delete(data.fileKey);
       return {
         success: false,
-        message: `Failed to submit scheduling request to the scheduler. Status: ${response.status}.`,
+        message: userMessage,
       };
     }
   } catch (error: any) {
-    logger.error(`[submitSchedulingJobToAtomicScheduler] Exception while submitting job for singletonId: ${data.singletonId} (fileKey: ${data.fileKey}):`, error);
+    logger.error(`[submitSchedulingJobToAtomicScheduler] Exception during job submission for fileKey: ${data.fileKey}:`, error.stack || error);
     pendingSchedulingRequests.delete(data.fileKey);
     return {
       success: false,
@@ -305,26 +354,13 @@ export async function createSchedulingRule(
 ): Promise<SchedulingResponse> {
   logger.info(`[schedulingSkills.createSchedulingRule] Called for userId: ${userId}`, ruleDetails);
 
-  // In a real implementation, this is where you would:
-  // 1. Validate ruleDetails thoroughly.
-  // 2. Connect to a database or user profile service.
-  // 3. Store these preferences associated with the userId.
-  //    - This might involve creating/updating records for preferred work times,
-  //      activity-specific time preferences, etc.
-  // 4. These stored preferences would then be retrieved and used when constructing
-  //    the `PostTableRequestBody` for actual scheduling requests (like blockCalendarTime
-  //    or initiateTeamMeetingScheduling), by influencing the `User.workTimes`,
-  //    `Event.preferredTimeRanges`, or available `timeslots`.
-
   const message = `Received request to create scheduling rule for '${ruleDetails.activity_description}'. User preferences would be stored and applied to future scheduling actions. (This is a simulated storage action).`;
   logger.info(`[schedulingSkills.createSchedulingRule] ${message}`);
 
-  // Simulate successful storage of preference
-  // No call to submitSchedulingJobToAtomicScheduler as this intent is about *defining* preferences.
   return {
-    success: true, // Indicate preference "storage" was successful
+    success: true,
     message,
-    ruleId: generateUuid(), // Provide a dummy ruleId
+    ruleId: generateUuid(),
     details: {
       receivedUserId: userId,
       receivedRuleDetails: ruleDetails,
@@ -334,12 +370,12 @@ export async function createSchedulingRule(
 }
 
 export async function blockCalendarTime(
-  userId: string, // This is the agent's internal user ID
+  userId: string,
   blockDetails: NLUBlockTimeSlotEntities,
 ): Promise<SchedulingResponse> {
   logger.info(`[schedulingSkills.blockCalendarTime] Called for userId: ${userId}`, blockDetails);
 
-  const hostId = userId; // Assuming agent's userId is the hostId for the scheduler
+  const hostId = userId;
   const singletonId = generateUuid();
   const eventId = generateUuid();
   const fileKey = `block_${hostId}_${singletonId}`;
@@ -351,18 +387,15 @@ export async function blockCalendarTime(
 
   const currentUser = getCurrentUserBasic(userId);
 
-  // Create a minimal timeslot that covers the event.
-  // A more sophisticated version would use the user's actual working hours for that day.
   const eventStartDate = new Date(startTimeIso);
   const timeslots: Timeslot[] = [{
       hostId,
       dayOfWeek: eventStartDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase(),
       startTime: "00:00:00",
       endTime: "23:59:59",
-      monthDay: startTimeIso.substring(5,7) + "-" + startTimeIso.substring(8,10), // Format MM-DD from YYYY-MM-DDTHH...
+      monthDay: startTimeIso.substring(5,7) + "-" + startTimeIso.substring(8,10),
       date: startTimeIso.substring(0, 10),
     }];
-
 
   const requestBody: PostTableRequestBody = {
     singletonId,
@@ -378,13 +411,13 @@ export async function blockCalendarTime(
       endDate: endTimeIso,
       userId: currentUser.id,
       hostId: hostId,
-      user: currentUser, // For scheduler to know this EventPart belongs to this user
+      user: currentUser,
       event: {
         id: eventId,
         userId: currentUser.id,
         hostId: hostId,
         eventType: "TASK",
-        title: blockDetails.task_name, // Set title on the event
+        title: blockDetails.task_name,
         description: blockDetails.purpose,
         preferredTimeRanges: null,
       },
@@ -394,21 +427,21 @@ export async function blockCalendarTime(
     callBackUrl: `${AGENT_CALLBACK_BASE_URL}/scheduler-callback`,
   };
 
-  logger.info(`[schedulingSkills.blockCalendarTime] Constructed PostTableRequestBody for fileKey ${fileKey}:`, JSON.stringify(requestBody, null, 2));
+  // logger.info(`[schedulingSkills.blockCalendarTime] Constructed PostTableRequestBody for fileKey ${fileKey}:`, JSON.stringify(requestBody, null, 2));
   const submissionResult = await submitSchedulingJobToAtomicScheduler(userId, requestBody);
   return {
-      ...submissionResult, // Includes success, message, singletonId
-      timeBlockId: submissionResult.success ? eventId : undefined, // Use eventId as a stand-in for timeBlockId
+      ...submissionResult,
+      timeBlockId: submissionResult.success ? eventId : undefined,
       details: {
           receivedUserId: userId,
           receivedBlockDetails: blockDetails,
-          constructedBody: requestBody // For debugging
+          // constructedBody: requestBody // Avoid logging full body in final response details for brevity
       }
   };
 }
 
 export async function initiateTeamMeetingScheduling(
-  userId: string, // Organizer's agent internal ID
+  userId: string,
   meetingDetails: NLUScheduleTeamMeetingEntities,
 ): Promise<SchedulingResponse> {
   logger.info(`[schedulingSkills.initiateTeamMeetingScheduling] Called for userId: ${userId}`, meetingDetails);
@@ -416,22 +449,19 @@ export async function initiateTeamMeetingScheduling(
   const hostId = userId;
   const singletonId = generateUuid();
   const eventId = generateUuid();
-  const groupId = eventId; // For a single meeting event, groupId can be same as eventId
+  const groupId = eventId;
   const fileKey = `meet_${hostId}_${singletonId}`;
 
   const organizerUser = getCurrentUserBasic(userId);
   const userList: User[] = [organizerUser];
 
   for (const attendeeIdentifier of meetingDetails.attendees) {
-      // In a real system, resolve attendeeIdentifier (email or name) to an existing User ID
-      // or create a guest user representation. For now, use a placeholder.
-      // Ensure not to duplicate the organizer if they are also in attendees list.
-      if (attendeeIdentifier !== userId) { // Basic check to avoid duplication
-          userList.push(getCurrentUserBasic(attendeeIdentifier)); // Uses identifier as ID
+      if (attendeeIdentifier !== userId) {
+          userList.push(getCurrentUserBasic(attendeeIdentifier));
       }
   }
 
-  const schedulingWindowStart = normalizeDateTime(meetingDetails.time_preference_details, "00:00:00"); // Default to start of day
+  const schedulingWindowStart = normalizeDateTime(meetingDetails.time_preference_details, "00:00:00");
   let tempEndDate = new Date(schedulingWindowStart);
   tempEndDate.setDate(tempEndDate.getDate() + 7);
   const schedulingWindowEnd = tempEndDate.toISOString();
@@ -458,7 +488,6 @@ export async function initiateTeamMeetingScheduling(
       currentDayLoop.setDate(currentDayLoop.getDate() + 1);
   }
 
-  // Create one EventPart for each user in the meeting
   const eventParts: EventPart[] = userList.map(user => ({
       groupId,
       eventId,
@@ -469,14 +498,14 @@ export async function initiateTeamMeetingScheduling(
       userId: user.id,
       hostId: hostId,
       user: user,
-      event: { // Shared event details for all parts of this group meeting
+      event: {
         id: eventId,
-        userId: hostId, // Event is "owned" by the organizer
+        userId: hostId,
         hostId,
         eventType: "GROUP_MEETING",
         title: meetingDetails.meeting_title || meetingDetails.purpose,
         description: meetingDetails.purpose,
-        duration: meetingDetails.duration_preference ? parseInt(meetingDetails.duration_preference.split(" ")[0]) * (meetingDetails.duration_preference.includes("hour") ? 60 : 1) : 30, // Basic duration parsing
+        duration: meetingDetails.duration_preference ? parseInt(meetingDetails.duration_preference.split(" ")[0]) * (meetingDetails.duration_preference.includes("hour") ? 60 : 1) : 30,
         preferredTimeRanges: preferredTimeRanges.length > 0 ? preferredTimeRanges : null,
       },
   }));
@@ -492,15 +521,15 @@ export async function initiateTeamMeetingScheduling(
     callBackUrl: `${AGENT_CALLBACK_BASE_URL}/scheduler-callback`,
   };
 
-  logger.info(`[schedulingSkills.initiateTeamMeetingScheduling] Constructed PostTableRequestBody for fileKey ${fileKey}:`, JSON.stringify(requestBody, null, 2));
+  // logger.info(`[schedulingSkills.initiateTeamMeetingScheduling] Constructed PostTableRequestBody for fileKey ${fileKey}:`, JSON.stringify(requestBody, null, 2));
   const submissionResult = await submitSchedulingJobToAtomicScheduler(userId, requestBody);
   return {
       ...submissionResult,
-      meetingRequestId: submissionResult.success ? groupId : undefined, // Use groupId as a stand-in
+      meetingRequestId: submissionResult.success ? groupId : undefined,
       details: {
           receivedUserId: userId,
           receivedMeetingDetails: meetingDetails,
-          constructedBody: requestBody // For debugging
+          // constructedBody: requestBody
       }
   };
 }
