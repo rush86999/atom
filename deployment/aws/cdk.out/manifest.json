@@ -1,0 +1,2717 @@
+{
+  "version": "44.0.0",
+  "artifacts": {
+    "AwsStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "AwsStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "AwsStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://unknown-account/unknown-region",
+      "properties": {
+        "templateFile": "AwsStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-deploy-role-${AWS::AccountId}-${AWS::Region}",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-cfn-exec-role-${AWS::AccountId}-${AWS::Region}",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/2f59037a6f7c0155056831bc1bb1bb83f862e4d7a25d0fa922e701f0f86133be.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "AwsStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-lookup-role-${AWS::AccountId}-${AWS::Region}",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "AwsStack.assets"
+      ],
+      "metadata": {
+        "/AwsStack/AtomicFunctionsRepo": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "repositoryName": "*",
+              "removalPolicy": "destroy",
+              "autoDeleteImages": true
+            }
+          }
+        ],
+        "/AwsStack/AtomicFunctionsRepo/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicFunctionsRepoCA9ADB29"
+          }
+        ],
+        "/AwsStack/AtomicFunctionsRepo/AutoDeleteImagesCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicFunctionsRepo/AutoDeleteImagesCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicFunctionsRepoAutoDeleteImagesCustomResource54DE9CE8"
+          }
+        ],
+        "/AwsStack/Custom::ECRAutoDeleteImagesCustomResourceProvider": [
+          {
+            "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+            "data": true
+          }
+        ],
+        "/AwsStack/Custom::ECRAutoDeleteImagesCustomResourceProvider/Role": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomECRAutoDeleteImagesCustomResourceProviderRole665F2773"
+          }
+        ],
+        "/AwsStack/Custom::ECRAutoDeleteImagesCustomResourceProvider/Handler": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomECRAutoDeleteImagesCustomResourceProviderHandler8D89C030"
+          }
+        ],
+        "/AwsStack/FunctionsRepoUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsRepoUri"
+          }
+        ],
+        "/AwsStack/AtomicHandshakeRepo": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "repositoryName": "*",
+              "removalPolicy": "destroy",
+              "autoDeleteImages": true
+            }
+          }
+        ],
+        "/AwsStack/AtomicHandshakeRepo/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicHandshakeRepo7FD56D21"
+          }
+        ],
+        "/AwsStack/AtomicHandshakeRepo/AutoDeleteImagesCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicHandshakeRepo/AutoDeleteImagesCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicHandshakeRepoAutoDeleteImagesCustomResource233CA07B"
+          }
+        ],
+        "/AwsStack/HandshakeRepoUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeRepoUri"
+          }
+        ],
+        "/AwsStack/AtomicOauthRepo": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "repositoryName": "*",
+              "removalPolicy": "destroy",
+              "autoDeleteImages": true
+            }
+          }
+        ],
+        "/AwsStack/AtomicOauthRepo/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicOauthRepoCAF08457"
+          }
+        ],
+        "/AwsStack/AtomicOauthRepo/AutoDeleteImagesCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicOauthRepo/AutoDeleteImagesCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicOauthRepoAutoDeleteImagesCustomResource5BB9BDBF"
+          }
+        ],
+        "/AwsStack/OauthRepoUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OauthRepoUri"
+          }
+        ],
+        "/AwsStack/AtomicAppRepo": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "repositoryName": "*",
+              "removalPolicy": "destroy",
+              "autoDeleteImages": true
+            }
+          }
+        ],
+        "/AwsStack/AtomicAppRepo/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicAppRepo2D8E1244"
+          }
+        ],
+        "/AwsStack/AtomicAppRepo/AutoDeleteImagesCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicAppRepo/AutoDeleteImagesCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicAppRepoAutoDeleteImagesCustomResource3E2101A6"
+          }
+        ],
+        "/AwsStack/AppRepoUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppRepoUri"
+          }
+        ],
+        "/AwsStack/AtomicVpc": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "maxAzs": "*",
+              "natGateways": "*",
+              "subnetConfiguration": [
+                {
+                  "cidrMask": "*",
+                  "name": "*",
+                  "subnetType": "Public"
+                },
+                {
+                  "cidrMask": "*",
+                  "name": "*",
+                  "subnetType": "Private"
+                }
+              ]
+            }
+          }
+        ],
+        "/AwsStack/AtomicVpc/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcD404E496"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addNatGateway": [
+                "*"
+              ]
+            }
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet1SubnetA3F000BA"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet1RouteTable2ADC4781"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet1RouteTableAssociation8DCF7832"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet1DefaultRoute80618E44"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1/EIP": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet1EIP7AEE3E7A"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet1/NATGateway": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet1NATGateway76048EA8"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet2": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": true,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet2/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet2Subnet4556046B"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet2/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet2RouteTable0A3C697C"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet2/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet2RouteTableAssociation8D95DA6A"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PublicSubnetSubnet2/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPublicSubnetSubnet2DefaultRouteFC7E878A"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet1": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet1/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet1/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet1RouteTable6D554B41"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet1/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet1RouteTableAssociation41866D9F"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet1/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet1DefaultRouteFDDC8008"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet2": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "availabilityZone": "*",
+              "vpcId": "*",
+              "cidrBlock": "*",
+              "mapPublicIpOnLaunch": false,
+              "ipv6CidrBlock": "*",
+              "assignIpv6AddressOnCreation": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {}
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet2/Subnet": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet2/RouteTable": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet2RouteTable8E7D1813"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet2/RouteTableAssociation": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet2RouteTableAssociation0317AC40"
+          }
+        ],
+        "/AwsStack/AtomicVpc/PrivateSubnetSubnet2/DefaultRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcPrivateSubnetSubnet2DefaultRoute17CBCC33"
+          }
+        ],
+        "/AwsStack/AtomicVpc/IGW": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcIGW53D98970"
+          }
+        ],
+        "/AwsStack/AtomicVpc/VPCGW": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcVPCGWDDE21E70"
+          }
+        ],
+        "/AwsStack/AtomicVpc/RestrictDefaultSecurityGroupCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicVpc/RestrictDefaultSecurityGroupCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicVpcRestrictDefaultSecurityGroupCustomResource0C2758BC"
+          }
+        ],
+        "/AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider": [
+          {
+            "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+            "data": true
+          }
+        ],
+        "/AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0"
+          }
+        ],
+        "/AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E"
+          }
+        ],
+        "/AwsStack/VpcId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcId"
+          }
+        ],
+        "/AwsStack/RdsSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "description": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*"
+              ]
+            }
+          }
+        ],
+        "/AwsStack/RdsSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RdsSecurityGroup632A77E4"
+          }
+        ],
+        "/AwsStack/RdsSecurityGroup/from AwsStackSupertokensSGC2B15E92:5432": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RdsSecurityGroupfromAwsStackSupertokensSGC2B15E925432F0961C4B"
+          }
+        ],
+        "/AwsStack/RdsSecurityGroup/from AwsStackHasuraSGB75C4017:5432": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RdsSecurityGroupfromAwsStackHasuraSGB75C40175432DEDDB2F0"
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "engine": {
+                "engineType": "*",
+                "singleUserRotationApplication": "*",
+                "engineVersion": {
+                  "fullVersion": "*",
+                  "majorVersion": "*"
+                },
+                "parameterGroupFamily": "*",
+                "engineFamily": "*",
+                "defaultUsername": "*"
+              },
+              "instanceType": "*",
+              "vpc": "*",
+              "vpcSubnets": {
+                "subnetType": "Private"
+              },
+              "securityGroups": [
+                "*"
+              ],
+              "credentials": "*",
+              "databaseName": "*",
+              "removalPolicy": "destroy",
+              "publiclyAccessible": false
+            }
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/SubnetGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "description": "*",
+              "vpc": "*",
+              "vpcSubnets": {
+                "subnetType": "Private"
+              },
+              "removalPolicy": "*"
+            }
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/SubnetGroup/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicPostgresDBSubnetGroup067D56E3"
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/Secret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "encryptionKey": "*",
+              "secretName": "*",
+              "replicaRegions": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "username": "*",
+              "secretName": "*",
+              "encryptionKey": "*",
+              "excludeCharacters": "*",
+              "replaceOnPasswordCriteriaChanges": true,
+              "replicaRegions": "*"
+            }
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/Secret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AwsStackAtomicPostgresDBSecret13CD6E0E3fdaad7efa858a3daf9490cf0a702aeb"
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/Secret/Attachment": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secret": "*",
+              "target": "*"
+            }
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/Secret/Attachment/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicPostgresDBSecretAttachmentDB0B9A31"
+          }
+        ],
+        "/AwsStack/AtomicPostgresDB/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicPostgresDB2E9D697F"
+          }
+        ],
+        "/AwsStack/DbInstanceEndpoint": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DbInstanceEndpoint"
+          }
+        ],
+        "/AwsStack/DbSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DbSecretArn"
+          }
+        ],
+        "/AwsStack/AtomicCluster": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*"
+            }
+          }
+        ],
+        "/AwsStack/AtomicCluster/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicCluster0DDF655C"
+          }
+        ],
+        "/AwsStack/ClusterName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ClusterName"
+          }
+        ],
+        "/AwsStack/AlbSecurityGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "description": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                {
+                  "canInlineRule": true,
+                  "connections": "*",
+                  "uniqueId": "*"
+                },
+                {},
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          }
+        ],
+        "/AwsStack/AlbSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AlbSecurityGroup86A59E99"
+          }
+        ],
+        "/AwsStack/AtomicAlb": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicAlb/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicAlbF873927A"
+          }
+        ],
+        "/AwsStack/AtomicAlb/HttpListener": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicAlb/HttpListener/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicAlbHttpListener370F09B3"
+          }
+        ],
+        "/AwsStack/AlbDnsName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AlbDnsName"
+          }
+        ],
+        "/AwsStack/AlbHttpListenerArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AlbHttpListenerArn"
+          }
+        ],
+        "/AwsStack/ECSTaskRole": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "assumedBy": {
+                "principalAccount": "*",
+                "assumeRoleAction": "*"
+              },
+              "description": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachInlinePolicy": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachInlinePolicy": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          }
+        ],
+        "/AwsStack/ECSTaskRole/ImportECSTaskRole": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/ECSTaskRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ECSTaskRoleF2ADB362"
+          }
+        ],
+        "/AwsStack/ECSTaskRole/DefaultPolicy": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachToRole": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachToRole": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          }
+        ],
+        "/AwsStack/ECSTaskRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ECSTaskRoleDefaultPolicy82FC9293"
+          }
+        ],
+        "/AwsStack/SupertokensDbConnStringSecret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*"
+            }
+          }
+        ],
+        "/AwsStack/SupertokensDbConnStringSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensDbConnStringSecretC2E71EE2"
+          }
+        ],
+        "/AwsStack/SupertokensDbConnStringSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensDbConnStringSecretArn"
+          }
+        ],
+        "/AwsStack/HasuraDbConnStringSecret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*"
+            }
+          }
+        ],
+        "/AwsStack/HasuraDbConnStringSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraDbConnStringSecret6DFFC41D"
+          }
+        ],
+        "/AwsStack/HasuraDbConnStringSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraDbConnStringSecretArn"
+          }
+        ],
+        "/AwsStack/PlaceholderHasuraJwtSecret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*",
+              "secretStringValue": "*"
+            }
+          }
+        ],
+        "/AwsStack/PlaceholderHasuraJwtSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PlaceholderHasuraJwtSecret5A36E06E"
+          }
+        ],
+        "/AwsStack/PlaceholderHasuraJwtSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PlaceholderHasuraJwtSecretArn"
+          }
+        ],
+        "/AwsStack/ApiTokenSecret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*",
+              "generateSecretString": {
+                "passwordLength": "*",
+                "excludePunctuation": true
+              }
+            }
+          }
+        ],
+        "/AwsStack/ApiTokenSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ApiTokenSecret3A926DEB"
+          }
+        ],
+        "/AwsStack/ApiTokenSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ApiTokenSecretArn"
+          }
+        ],
+        "/AwsStack/OpenAiApiKeySecret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*"
+            }
+          }
+        ],
+        "/AwsStack/OpenAiApiKeySecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OpenAiApiKeySecret05681F66"
+          }
+        ],
+        "/AwsStack/OpenAiApiKeySecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OpenAiApiKeySecretArn"
+          }
+        ],
+        "/AwsStack/HasuraAdminSecret": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*",
+              "generateSecretString": {
+                "secretStringTemplate": "*",
+                "generateStringKey": "*",
+                "passwordLength": "*",
+                "excludePunctuation": true
+              }
+            }
+          }
+        ],
+        "/AwsStack/HasuraAdminSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraAdminSecret359C72F3"
+          }
+        ],
+        "/AwsStack/HasuraAdminSecretOutput": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraAdminSecretOutput"
+          }
+        ],
+        "/AwsStack/SupertokensSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/SupertokensSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensSG8D961012"
+          }
+        ],
+        "/AwsStack/SupertokensSG/from AwsStackAlbSecurityGroupFEFFD71B:3567": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensSGfromAwsStackAlbSecurityGroupFEFFD71B35672816E8EC"
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensTaskDef562C1644"
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef/ExecutionRole": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "assumedBy": {
+                "principalAccount": "*",
+                "assumeRoleAction": "*"
+              },
+              "roleName": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachInlinePolicy": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachInlinePolicy": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef/ExecutionRole/ImportExecutionRole": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef/ExecutionRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensTaskDefExecutionRole30464032"
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef/ExecutionRole/DefaultPolicy": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachToRole": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachToRole": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          }
+        ],
+        "/AwsStack/SupertokensTaskDef/ExecutionRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensTaskDefExecutionRoleDefaultPolicy9F77350D"
+          }
+        ],
+        "/AwsStack/SupertokensLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/SupertokensLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensLogGroup841B0C09"
+          }
+        ],
+        "/AwsStack/SupertokensService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:267:32)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/SupertokensService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensService6D0139D7"
+          }
+        ],
+        "/AwsStack/SupertokensTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensTargetGroupEC539A5A"
+          }
+        ],
+        "/AwsStack/SupertokensListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SupertokensListenerRule0FF7B3A0"
+          }
+        ],
+        "/AwsStack/HasuraSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/HasuraSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraSGF7432EF8"
+          }
+        ],
+        "/AwsStack/HasuraSG/from AwsStackAlbSecurityGroupFEFFD71B:8080": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraSGfromAwsStackAlbSecurityGroupFEFFD71B808037841BB8"
+          }
+        ],
+        "/AwsStack/HasuraSG/from AwsStackFunctionsSG4487B393:8080": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraSGfromAwsStackFunctionsSG4487B3938080F8F86324"
+          }
+        ],
+        "/AwsStack/HasuraSG/from AwsStackHandshakeSG021993A2:8080": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraSGfromAwsStackHandshakeSG021993A2808054773D92"
+          }
+        ],
+        "/AwsStack/HasuraSG/from AwsStackOAuthSG55F90F09:8080": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraSGfromAwsStackOAuthSG55F90F0980800835E7B3"
+          }
+        ],
+        "/AwsStack/HasuraTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/HasuraTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraTaskDef31ABDC68"
+          }
+        ],
+        "/AwsStack/HasuraTaskDef/ExecutionRole": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "assumedBy": {
+                "principalAccount": "*",
+                "assumeRoleAction": "*"
+              },
+              "roleName": "*"
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachInlinePolicy": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachInlinePolicy": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          }
+        ],
+        "/AwsStack/HasuraTaskDef/ExecutionRole/ImportExecutionRole": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/HasuraTaskDef/ExecutionRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraTaskDefExecutionRoleD3078284"
+          }
+        ],
+        "/AwsStack/HasuraTaskDef/ExecutionRole/DefaultPolicy": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachToRole": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "attachToRole": [
+                "*"
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          }
+        ],
+        "/AwsStack/HasuraTaskDef/ExecutionRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraTaskDefExecutionRoleDefaultPolicy7A47E19B"
+          }
+        ],
+        "/AwsStack/HasuraLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/HasuraLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraLogGroupB47AF772"
+          }
+        ],
+        "/AwsStack/HasuraService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:338:27)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/HasuraService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraService0424AA98"
+          }
+        ],
+        "/AwsStack/HasuraTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraTargetGroup0636F42A"
+          }
+        ],
+        "/AwsStack/HasuraListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HasuraListenerRuleCEF25397"
+          }
+        ],
+        "/AwsStack/FunctionsSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/FunctionsSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsSGE05723DC"
+          }
+        ],
+        "/AwsStack/FunctionsSG/from AwsStackAlbSecurityGroupFEFFD71B:80": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsSGfromAwsStackAlbSecurityGroupFEFFD71B8006705D43"
+          }
+        ],
+        "/AwsStack/FunctionsTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/FunctionsTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsTaskDef51ECFDE2"
+          }
+        ],
+        "/AwsStack/FunctionsLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/FunctionsLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsLogGroup0226F429"
+          }
+        ],
+        "/AwsStack/FunctionsService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:405:30)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/FunctionsService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsService070CDCF4"
+          }
+        ],
+        "/AwsStack/FunctionsTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsTargetGroup7D789BB7"
+          }
+        ],
+        "/AwsStack/FunctionsListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "FunctionsListenerRule333BE9DD"
+          }
+        ],
+        "/AwsStack/AppSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/AppSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppSG652848D9"
+          }
+        ],
+        "/AwsStack/AppSG/from AwsStackAlbSecurityGroupFEFFD71B:3000": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppSGfromAwsStackAlbSecurityGroupFEFFD71B300050A217E7"
+          }
+        ],
+        "/AwsStack/AppTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AppTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppTaskDef32F3E122"
+          }
+        ],
+        "/AwsStack/AppLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/AppLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppLogGroup7D8CD952"
+          }
+        ],
+        "/AwsStack/AppService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:470:24)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AppService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppServiceA2F9036C"
+          }
+        ],
+        "/AwsStack/AppTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppTargetGroup3D716DB6"
+          }
+        ],
+        "/AwsStack/AppListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppListenerRuleD269CB8A"
+          }
+        ],
+        "/AwsStack/HandshakeSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/HandshakeSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeSGAE954E91"
+          }
+        ],
+        "/AwsStack/HandshakeSG/from AwsStackAlbSecurityGroupFEFFD71B:80": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeSGfromAwsStackAlbSecurityGroupFEFFD71B805DA16F73"
+          }
+        ],
+        "/AwsStack/HandshakeSG/from AwsStackOAuthSG55F90F09:80": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeSGfromAwsStackOAuthSG55F90F09803C8F8F6F"
+          }
+        ],
+        "/AwsStack/HandshakeTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/HandshakeTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeTaskDef12148854"
+          }
+        ],
+        "/AwsStack/HandshakeLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/HandshakeLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeLogGroup90831F6C"
+          }
+        ],
+        "/AwsStack/HandshakeService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:537:30)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/HandshakeService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeService90A46F3C"
+          }
+        ],
+        "/AwsStack/HandshakeTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeTargetGroupB0E5C2E0"
+          }
+        ],
+        "/AwsStack/HandshakeListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HandshakeListenerRule3CECC926"
+          }
+        ],
+        "/AwsStack/OAuthSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/OAuthSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthSGCA2E2DFC"
+          }
+        ],
+        "/AwsStack/OAuthSG/from AwsStackAlbSecurityGroupFEFFD71B:80": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthSGfromAwsStackAlbSecurityGroupFEFFD71B8094475810"
+          }
+        ],
+        "/AwsStack/OAuthTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/OAuthTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthTaskDef19B6669A"
+          }
+        ],
+        "/AwsStack/OAuthLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/OAuthLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthLogGroupF9A7E869"
+          }
+        ],
+        "/AwsStack/OAuthService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:603:26)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/OAuthService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthService4E623EC0"
+          }
+        ],
+        "/AwsStack/OAuthTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthTargetGroup82179AC8"
+          }
+        ],
+        "/AwsStack/OAuthListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OAuthListenerRuleBC6350B9"
+          }
+        ],
+        "/AwsStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/AwsStack/CDKMetadata/Condition": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadataAvailable"
+          }
+        ],
+        "/AwsStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/AwsStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "AwsStack"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  },
+  "minimumCliVersion": "2.1019.0"
+}
