@@ -53,3 +53,13 @@ export const ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN = process.env.ATOM_CALENDLY_PER
 export const ATOM_ZOOM_ACCOUNT_ID = process.env.ATOM_ZOOM_ACCOUNT_ID || '';
 export const ATOM_ZOOM_CLIENT_ID = process.env.ATOM_ZOOM_CLIENT_ID || '';
 export const ATOM_ZOOM_CLIENT_SECRET = process.env.ATOM_ZOOM_CLIENT_SECRET || '';
+
+// Microsoft Graph API Credentials for MS Teams Integration
+// These must be set in the environment for MS Teams/Graph integration.
+export const ATOM_MSGRAPH_CLIENT_ID = process.env.ATOM_MSGRAPH_CLIENT_ID || '';
+export const ATOM_MSGRAPH_CLIENT_SECRET = process.env.ATOM_MSGRAPH_CLIENT_SECRET || '';
+export const ATOM_MSGRAPH_TENANT_ID = process.env.ATOM_MSGRAPH_TENANT_ID || '';
+// Authority is usually constructed as https://login.microsoftonline.com/<TENANT_ID>
+export const ATOM_MSGRAPH_AUTHORITY = `https://login.microsoftonline.com/${process.env.ATOM_MSGRAPH_TENANT_ID || 'common'}`;
+// Define necessary scopes for MS Graph API calls (e.g., reading calendar events, online meetings)
+export const ATOM_MSGRAPH_SCOPES = (process.env.ATOM_MSGRAPH_SCOPES || 'https://graph.microsoft.com/.default').split(',');

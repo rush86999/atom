@@ -21,13 +21,18 @@ import {
   ZoomMeeting,
   // Google Meet types are already in CalendarEvent and new response types
   ListGoogleMeetEventsResponse,
-  GetGoogleMeetEventDetailsResponse
+  GetGoogleMeetEventDetailsResponse,
+  // MS Teams Types
+  ListMSTeamsMeetingsResponse,
+  GetMSTeamsMeetingDetailsResponse,
+  MSGraphEvent
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
-import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills'; // Added for Meet
+import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills';
+import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills'; // Added
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
 
 
@@ -494,7 +499,68 @@ export async function handleMessage(message: string): Promise<string> {
       console.error(`Error in "get google meet event ${eventId}" command:`, error.message);
       return `Sorry, an unexpected error occurred while fetching details for event ${eventId}.`;
     }
+  } else if (lowerCaseMessage.startsWith('list teams meetings')) {
+    const userPrincipalNameOrId = "me"; // Default for app-only permissions or replace with actual UPN/ID if user-delegated
+    const parts = lowerCaseMessage.split(' '); // "list teams meetings [limit] [nextLink]"
+                                          // parts[0]=list, parts[1]=teams, parts[2]=meetings
+    const limit = parts.length > 3 && !isNaN(parseInt(parts[3])) ? parseInt(parts[3]) : 10;
+    const nextLink = parts.length > 4 ? parts[4] : undefined; // If nextLink is provided, it contains all other params
+
+    const options = { limit, nextLink, filterForTeams: true };
+
+    try {
+      const response: ListMSTeamsMeetingsResponse = await listMicrosoftTeamsMeetings(userPrincipalNameOrId, options);
+      if (response.ok && response.events && response.events.length > 0) {
+        let output = "Your Microsoft Teams Meetings:\n";
+        for (const event of response.events) {
+          output += `- ${event.subject} (ID: ${event.id}) - Start: ${event.start?.dateTime ? new Date(event.start.dateTime).toLocaleString() : 'N/A'} - Join: ${event.onlineMeeting?.joinUrl || 'N/A'}\n`;
+        }
+        if (response.nextLink) {
+          // The nextLink is a full URL, so the user would just use it directly if they could.
+          // For a chat interface, we might need to store this and allow a "next page" command.
+          // For now, just inform them and show the link (which they can't directly use in a chat).
+          output += `More meetings available. Next page link (for API use): ${response.nextLink}\nTo get next page, you could say: list teams meetings ${limit} ${response.nextLink}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No Microsoft Teams meetings found matching your criteria.";
+      } else {
+        return `Error fetching Microsoft Teams meetings: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list teams meetings" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching your Microsoft Teams meetings.";
+    }
+  } else if (lowerCaseMessage.startsWith('get teams meeting')) {
+    const userPrincipalNameOrId = "me"; // As above
+    const parts = lowerCaseMessage.split(' '); // "get teams meeting <eventId>"
+    if (parts.length < 4) {
+      return "Please provide a Microsoft Graph Event ID. Usage: get teams meeting <eventId>";
+    }
+    const eventId = parts[3];
+
+    try {
+      const response: GetMSTeamsMeetingDetailsResponse = await getMicrosoftTeamsMeetingDetails(userPrincipalNameOrId, eventId);
+      if (response.ok && response.event) {
+        const ev = response.event;
+        let output = `Teams Meeting: ${ev.subject}\nID: ${ev.id}\nStart: ${ev.start?.dateTime ? new Date(ev.start.dateTime).toLocaleString() : 'N/A'}\nEnd: ${ev.end?.dateTime ? new Date(ev.end.dateTime).toLocaleString() : 'N/A'}`;
+        if (ev.onlineMeeting?.joinUrl) {
+          output += `\nJoin URL: ${ev.onlineMeeting.joinUrl}`;
+        }
+        if (ev.bodyPreview) {
+          output += `\nPreview: ${ev.bodyPreview}`;
+        }
+         if (ev.webLink) output += `\nOutlook Link: ${ev.webLink}`;
+        return output;
+      } else {
+        return `Error fetching Teams meeting details: ${response.error || `Meeting with ID ${eventId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get teams meeting ${eventId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching details for Teams meeting ${eventId}.`;
+    }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", or "get google meet event <eventId>".`;
+
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", or "get teams meeting <eventId>".`;
 }
