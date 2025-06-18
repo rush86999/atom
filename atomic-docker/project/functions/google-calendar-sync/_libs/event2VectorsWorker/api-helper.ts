@@ -1,4 +1,4 @@
-import { defaultOpenAIAPIKey, openAllEventIndex, openSearchEndPoint, openAllEventVectorName, openTrainEventIndex } from "@google_calendar_sync/_libs/constants";
+import { defaultOpenAIAPIKey, openAllEventIndex, openSearchEndPoint, openAllEventVectorName } from "@google_calendar_sync/_libs/constants";
 import OpenAI from "openai"
 
 import { Client } from '@opensearch-project/opensearch';
@@ -143,75 +143,6 @@ export const listAllEventWithEventOpenSearch = async (
         return response.body
     } catch (e) {
         console.log(e, ' unable to search data')
-    }
-}
-
-
-
-export const bulkPutDataInAllEventIndexInOpenSearch = async (
-    bulkImport: BulkImportBodyType[]
-) => {
-    try {
-        const bulkBody = []
-
-        for (const body of bulkImport) {
-            bulkBody.push({ index: { _index: openAllEventIndex, _id: body?.id } })
-            bulkBody.push(body?.body)
-        }
-
-        const client = await getSearchClient()
-        const bulkRequest = {
-            body: bulkBody,
-            refresh: true,
-        }
-        const response = await client.bulk(bulkRequest)
-        
-        console.log('Adding documents in bulk:')
-        console.log(response.body)
-    } catch (e) {
-        console.log(e, ' unable to put data into search')
-    }
-}
-
-export const bulkDeleteDocInAllEventIndexInOpenSearch = async (
-    ids: string[],
-) => {
-    try {
-        const bulkBody = []
-        for (const id of ids) {
-            bulkBody.push({ delete: { _index: openAllEventIndex, _id: id } })
-        }
-        const client = await getSearchClient()
-        const bulkRequest = {
-            body: bulkBody,
-            refresh: true,
-        }
-        const response = await client.bulk(bulkRequest)
-        console.log('Deleting documents in bulk:')
-        console.log(response.body)
-    } catch (e) {
-        console.log(e, ' unable to delete doc')
-    }
-}
-
-export const bulkDeleteDocInTrainEventIndexInOpenSearch = async (
-    ids: string[],
-) => {
-    try {
-        const bulkBody = []
-        for (const id of ids) {
-            bulkBody.push({ delete: { _index: openTrainEventIndex, _id: id } })
-        }
-        const client = await getSearchClient()
-        const bulkRequest = {
-            body: bulkBody,
-            refresh: true,
-        }
-        const response = await client.bulk(bulkRequest)
-        console.log('Deleting documents in bulk:')
-        console.log(response.body)
-    } catch (e) {
-        console.log(e, ' unable to delete doc')
     }
 }
 

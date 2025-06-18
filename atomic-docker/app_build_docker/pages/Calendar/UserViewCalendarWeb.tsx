@@ -1090,50 +1090,32 @@ function UserViewCalendarWeb() {
             await removeRemindersForEvent(client, id)
 
             // remove search index after Delete
-            const token = await Session.getAccessToken()
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            }
+            // The deletion from the vector index (now LanceDB) is handled by the _event2VectorsWorker_
+            // when the event is deleted from the primary database (via Kafka message).
+            // So, no direct calls to a search/delete index URL are needed here anymore.
 
-
-            // search
-            // response = res.hits.hits?.[0]
-            const searchData = {
-                search: `${originalEvent?.summary}${originalEvent?.notes ? `: ${originalEvent?.notes}` : ''}`,
-                method: 'search',
-            }
-            const results = await axios.post<{ message: string, event: esResponseBody}>(methodToSearchIndexAuthUrl, searchData, config)
-
-            console.log(results, ' results inside deleteEvent')
-            console.log(results?.data, ' results?.data inside deleteEvent')
-            console.log(results?.data?.event?.hits?.hits?.[0]?._id, ' results?.data?.event?.hits?.hits?.[0]?._id inside deleteEvent')
-
-            // if it exists, delete
-            if (results?.data?.event?.hits?.hits?.[0]?._id === id) {
-                console.log('event exists, delete it')
-                const deleteData = {
-                    eventId: results?.data?.event?.hits?.hits?.[0]?._id,
-                    method: 'delete'
-                }
-
-                const deleteResults = await axios.post<{ message: string, event: object}>(methodToSearchIndexAuthUrl, deleteData, config)
-                console.log(deleteResults, ' deleteResults in search')
-            }
             // delete meeting assist given meeting id
             if (originalEvent?.meetingId) {
+                const token = await Session.getAccessToken() // Keep token and config if needed for other calls below
+                const config = {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                }
                 const meetingAssist = await getMeetingAssistGivenId(client, originalEvent.meetingId)
                 await deleteMeetingAssistGivenId(client, originalEvent.meetingId)
                 if (meetingAssist?.conferenceApp === 'zoom') {
-                const res = await axios.post(deleteZoomConferenceUrl, {
-                    meetingId: originalEvent?.meetingId,
-                    userId,
-                }, config)
+                    const tokenCheck = await Session.getAccessToken() // Ensure token is still valid if time passed
+                    if (!tokenCheck) throw new Error("Session expired, please log in again.");
 
-                console.log(res, ' successfully deleted zoom conference')
+                    const res = await axios.post(deleteZoomConferenceUrl, {
+                        meetingId: originalEvent?.meetingId,
+                        userId,
+                    }, config) // config already defined if originalEvent.meetingId is true
+
+                    console.log(res, ' successfully deleted zoom conference')
                 }
             }
             await delEventInAppForTask(id, client, userId)
