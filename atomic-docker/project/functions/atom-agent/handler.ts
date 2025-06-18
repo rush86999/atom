@@ -18,12 +18,16 @@ import {
   // Zoom Types
   ListZoomMeetingsResponse,
   GetZoomMeetingDetailsResponse,
-  ZoomMeeting
+  ZoomMeeting,
+  // Google Meet types are already in CalendarEvent and new response types
+  ListGoogleMeetEventsResponse,
+  GetGoogleMeetEventDetailsResponse
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
-import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills'; // Added
+import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
+import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills'; // Added for Meet
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
 
 
@@ -433,7 +437,64 @@ export async function handleMessage(message: string): Promise<string> {
       console.error(`Error in "get zoom meeting ${meetingId}" command:`, error.message);
       return `Sorry, an unexpected error occurred while fetching details for Zoom meeting ${meetingId}.`;
     }
+  } else if (lowerCaseMessage.startsWith('list google meet events')) {
+    const userId = "mock_user_id_from_handler";
+    const parts = lowerCaseMessage.split(' '); // "list google meet events [limit]"
+                                          // parts[0]=list, parts[1]=google, parts[2]=meet, parts[3]=events
+    const limit = parts.length > 4 && !isNaN(parseInt(parts[4])) ? parseInt(parts[4]) : 5;
+
+    try {
+      const response: ListGoogleMeetEventsResponse = await listUpcomingGoogleMeetEvents(userId, limit);
+      if (response.ok && response.events && response.events.length > 0) {
+        let output = "Your Upcoming Google Meet Events:\n";
+        for (const event of response.events) {
+          const meetLink = event.conferenceData?.entryPoints?.find(ep => ep.entryPointType === 'video' && ep.uri?.startsWith('https://meet.google.com/'))?.uri;
+          output += `- ${event.summary} (Starts: ${new Date(event.startTime).toLocaleString()})${meetLink ? ` - Link: ${meetLink}` : ' (No direct Meet link found, check calendar event details)'}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No upcoming Google Meet events found.";
+      } else {
+        return `Error fetching Google Meet events: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list google meet events" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching your Google Meet events.";
+    }
+  } else if (lowerCaseMessage.startsWith('get google meet event')) {
+    const userId = "mock_user_id_from_handler";
+    const parts = lowerCaseMessage.split(' '); // "get google meet event <eventId>"
+    if (parts.length < 5) { // get google meet event <ID> -> 5 parts
+      return "Please provide a Google Calendar Event ID. Usage: get google meet event <eventId>";
+    }
+    const eventId = parts[4];
+
+    try {
+      const response: GetGoogleMeetEventDetailsResponse = await getGoogleMeetEventDetails(userId, eventId);
+      if (response.ok && response.event) {
+        const ev = response.event;
+        let output = `Event: ${ev.summary}\nStart: ${new Date(ev.startTime).toLocaleString()}\nEnd: ${new Date(ev.endTime).toLocaleString()}`;
+        const meetLink = ev.conferenceData?.entryPoints?.find(ep => ep.entryPointType === 'video' && ep.uri?.startsWith('https://meet.google.com/'))?.uri;
+
+        if (meetLink) {
+          output += `\nMeet Link: ${meetLink}`;
+        } else if (ev.conferenceData?.conferenceSolution?.name) {
+          output += `\nConference: ${ev.conferenceData.conferenceSolution.name} (Details might be in description or calendar entry)`;
+        } else {
+            output += "\n(No Google Meet link or explicit conference data found for this event)";
+        }
+        if (ev.htmlLink) output += `\nCalendar Link: ${ev.htmlLink}`;
+        if (ev.description) output += `\nDescription: ${ev.description}`;
+
+        return output;
+      } else {
+        return `Error fetching Google Meet event details: ${response.error || `Event with ID ${eventId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get google meet event ${eventId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching details for event ${eventId}.`;
+    }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", or "get zoom meeting <meetingId>".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", or "get google meet event <eventId>".`;
 }

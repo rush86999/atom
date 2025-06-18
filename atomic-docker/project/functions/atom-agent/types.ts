@@ -15,8 +15,57 @@ export interface CalendarEvent {
   endTime: string;   // ISO 8601 date-time string
   location?: string;
   htmlLink?: string; // Link to the event in Google Calendar
+  conferenceData?: ConferenceData; // Added for Google Meet details
   // Potential future additions: attendees, recurrence rules etc.
 }
+
+// --- Google Meet / Calendar Conference Types ---
+export interface ConferenceSolution {
+  key?: { type?: string; [key: string]: any; }; // e.g., { type: "hangoutsMeet" }
+  name?: string; // e.g., "Google Meet"
+  iconUri?: string;
+  [key: string]: any;
+}
+
+export interface ConferenceEntryPoint {
+  entryPointType?: 'video' | 'phone' | 'sip' | 'more';
+  uri?: string; // e.g., "https://meet.google.com/abc-def-ghi" or "tel:+1234567890,,,12345#"
+  label?: string;
+  pin?: string; // PIN for phone entry point
+  accessCode?: string;
+  meetingCode?: string; // e.g., "abc-def-ghi"
+  passcode?: string;
+  password?: string;
+  [key: string]: any;
+}
+
+export interface ConferenceData {
+  createRequest?: {
+    requestId?: string;
+    conferenceSolutionKey?: { type?: string; };
+    status?: { statusCode?: 'success' | 'failure' | 'pending'; };
+    [key: string]: any;
+  };
+  entryPoints?: ConferenceEntryPoint[];
+  conferenceSolution?: ConferenceSolution;
+  conferenceId?: string; // e.g., "abc-def-ghi"
+  signature?: string;
+  notes?: string;
+  [key: string]: any;
+}
+
+export interface ListGoogleMeetEventsResponse {
+  ok: boolean;
+  events?: CalendarEvent[]; // Reusing CalendarEvent as it will contain Meet details
+  error?: string;
+}
+
+export interface GetGoogleMeetEventDetailsResponse {
+  ok: boolean;
+  event?: CalendarEvent; // Reusing CalendarEvent
+  error?: string;
+}
+
 
 export interface CreateEventResponse {
   success: boolean;

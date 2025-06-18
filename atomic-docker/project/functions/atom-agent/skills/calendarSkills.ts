@@ -1,5 +1,13 @@
-import { google } from 'googleapis';
-import { CalendarEvent, CreateEventResponse } from '../types';
+import { google, calendar_v3 } from 'googleapis';
+import {
+    CalendarEvent,
+    CreateEventResponse,
+    ListGoogleMeetEventsResponse,
+    GetGoogleMeetEventDetailsResponse,
+    ConferenceData, // Assuming this and related types are in ../types
+    ConferenceSolution,
+    ConferenceEntryPoint
+} from '../types';
 import {
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
   ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
@@ -89,6 +97,8 @@ export async function listUpcomingEvents(userId: string, limit: number = 10): Pr
       endTime: event.end?.dateTime || event.end?.date || new Date().toISOString(),
       location: event.location || undefined,
       htmlLink: event.htmlLink || undefined,
+      // Ensure conferenceData is mapped if present
+      conferenceData: event.conferenceData ? mapConferenceData(event.conferenceData) : undefined,
     }));
 
   } catch (error: any) {
@@ -169,5 +179,146 @@ export async function createCalendarEvent(userId: string, eventDetails: Partial<
         // TODO: Potentially trigger a re-authentication flow or clear stored tokens.
     }
     return { success: false, message: `Failed to create event with Google Calendar: ${error.message}` };
+  }
+}
+
+
+// Helper to map Google API's conferenceData to our ConferenceData type
+// This is important because the structure might differ slightly or have more fields than we need.
+function mapConferenceData(googleConferenceData: calendar_v3.Schema$ConferenceData): ConferenceData {
+    // Basic mapping, can be expanded
+    const entryPoints = googleConferenceData.entryPoints?.map(ep => ({
+        entryPointType: ep.entryPointType as ConferenceEntryPoint['entryPointType'],
+        uri: ep.uri || undefined,
+        label: ep.label || undefined,
+        pin: ep.pin || undefined,
+        accessCode: ep.accessCode || undefined,
+        meetingCode: ep.meetingCode || undefined,
+        passcode: ep.passcode || undefined,
+        password: ep.password || undefined,
+    })) || [];
+
+    const conferenceSolution = googleConferenceData.conferenceSolution ? {
+        key: googleConferenceData.conferenceSolution.key as ConferenceSolution['key'],
+        name: googleConferenceData.conferenceSolution.name || undefined,
+        iconUri: googleConferenceData.conferenceSolution.iconUri || undefined,
+    } : undefined;
+
+    return {
+        createRequest: googleConferenceData.createRequest ? {
+            requestId: googleConferenceData.createRequest.requestId || undefined,
+            conferenceSolutionKey: googleConferenceData.createRequest.conferenceSolutionKey as ConferenceSolution['key'],
+            status: googleConferenceData.createRequest.status as any, // Cast or map status correctly
+        } : undefined,
+        entryPoints: entryPoints,
+        conferenceSolution: conferenceSolution,
+        conferenceId: googleConferenceData.conferenceId || undefined,
+        signature: googleConferenceData.signature || undefined,
+        notes: googleConferenceData.notes || undefined,
+    };
+}
+
+
+async function getCalendarEventById(userId: string, eventId: string): Promise<CalendarEvent | null> {
+  console.log(`Fetching event by ID: ${eventId} for userId: ${userId}`);
+  const retrievedTokens = await getStoredUserTokens(userId);
+  if (!retrievedTokens || !retrievedTokens.access_token) {
+    console.error(`No stored tokens for userId: ${userId}. Cannot fetch event.`);
+    return null;
+  }
+
+  if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET) {
+    console.error('Atom Agent Google Calendar client ID or secret not configured.');
+    return null;
+  }
+
+  const oauth2Client = new google.auth.OAuth2(
+    ATOM_GOOGLE_CALENDAR_CLIENT_ID,
+    ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
+  );
+  oauth2Client.setCredentials(retrievedTokens);
+  // TODO: Add token refresh listener as in listUpcomingEvents
+
+  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+  try {
+    const response = await calendar.events.get({
+      calendarId: 'primary',
+      eventId: eventId,
+    });
+
+    const event = response.data;
+    if (!event) {
+      return null;
+    }
+
+    return {
+      id: event.id || eventId,
+      summary: event.summary || 'No Title',
+      description: event.description || undefined,
+      startTime: event.start?.dateTime || event.start?.date || new Date().toISOString(),
+      endTime: event.end?.dateTime || event.end?.date || new Date().toISOString(),
+      location: event.location || undefined,
+      htmlLink: event.htmlLink || undefined,
+      conferenceData: event.conferenceData ? mapConferenceData(event.conferenceData) : undefined,
+    };
+  } catch (error: any) {
+    console.error(`Error fetching event ${eventId} from Google Calendar:`, error.message);
+    if (error.response?.status === 404) {
+        console.log(`Event ${eventId} not found.`);
+    } else if (error.response?.data?.error === 'invalid_grant') {
+        console.error('Token error (invalid_grant). User might need to re-authenticate.');
+    }
+    return null;
+  }
+}
+
+export async function listUpcomingGoogleMeetEvents(userId: string, limit: number = 10): Promise<ListGoogleMeetEventsResponse> {
+  console.log(`listUpcomingGoogleMeetEvents called for userId: ${userId}, limit: ${limit}`);
+  try {
+    // Fetch a larger number of events to ensure we can find enough Meet events up to the limit.
+    // This is a simple approach; more sophisticated filtering might be done via API if available,
+    // but Google Calendar API's direct filtering for Meet events is limited.
+    const allEvents: CalendarEvent[] = await listUpcomingEvents(userId, (limit * 4) + 10);
+
+    if (!allEvents || allEvents.length === 0) {
+      // listUpcomingEvents already handles logging for no events or token errors.
+      // It returns [] in those cases based on current implementation.
+      return { ok: true, events: [] };
+    }
+
+    const meetEvents: CalendarEvent[] = allEvents.filter(event =>
+        event.conferenceData?.conferenceSolution?.key?.type === 'hangoutsMeet' &&
+        event.conferenceData?.entryPoints?.some(ep => ep.entryPointType === 'video' && ep.uri?.startsWith('https://meet.google.com/'))
+    ).slice(0, limit);
+
+    return { ok: true, events: meetEvents };
+  } catch (error: any) {
+    console.error('Error listing Google Meet events:', error.message);
+    return { ok: false, error: 'Failed to list Google Meet events: ' + error.message };
+  }
+}
+
+export async function getGoogleMeetEventDetails(userId: string, eventId: string): Promise<GetGoogleMeetEventDetailsResponse> {
+  console.log(`getGoogleMeetEventDetails called for userId: ${userId}, eventId: ${eventId}`);
+  try {
+    const event: CalendarEvent | null = await getCalendarEventById(userId, eventId);
+
+    if (!event) {
+      return { ok: false, error: 'Event not found or access denied.' };
+    }
+
+    // Optionally, explicitly check if it's a Meet event again, though getCalendarEventById should provide conferenceData.
+    if (!event.conferenceData?.conferenceSolution?.key?.type === 'hangoutsMeet') {
+       console.log(`Event ${eventId} was found but does not appear to be a Google Meet event based on conferenceData.`);
+       // Depending on strictness, either return it or an error/specific status.
+       // For now, we'll return it as the user asked for this specific event ID.
+       // The caller can then inspect conferenceData.
+    }
+
+    return { ok: true, event: event };
+  } catch (error: any) { // This catch might be redundant if getCalendarEventById handles its errors well
+    console.error('Error getting Google Meet event details:', error.message);
+    return { ok: false, error: 'Failed to get Google Meet event details: ' + error.message };
   }
 }
