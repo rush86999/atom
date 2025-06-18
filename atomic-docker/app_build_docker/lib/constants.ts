@@ -9,6 +9,8 @@ export const featuresApplyToEventsAuthUrl = process.env.NEXT_PUBLIC_FEATURES_APP
 
 export const methodToSearchIndexAuthUrl = process.env.NEXT_PUBLIC_METHOD_TO_SEARCH_INDEX_AUTH_URL
 
+export const lanceEventMatcherUrl = process.env.NEXT_PUBLIC_LANCE_EVENT_MATCHER_URL || '/api/lance-event-matcher';
+
 export const openTrainEventVectorName = 'embeddings'
 export const eventVectorName = openTrainEventVectorName
 export const hasuraDbUrl = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL
