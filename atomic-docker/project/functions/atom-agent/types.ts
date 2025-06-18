@@ -80,3 +80,148 @@ export interface ZapTriggerResponse {
   message: string;
   // data?: any; // Optional: any data returned by Zapier upon trigger
 }
+
+// --- HubSpot Types ---
+export interface HubSpotContactProperties {
+  email: string;
+  firstname?: string;
+  lastname?: string;
+  company?: string;
+}
+
+export interface HubSpotContact {
+  id: string;
+  properties: {
+    hs_object_id: string;
+    createdate: string;
+    lastmodifieddate: string;
+    email?: string;
+    firstname?: string;
+    lastname?: string;
+    company?: string;
+    [key: string]: any;
+  };
+  createdAt: string;
+  updatedAt: string;
+  archived: boolean;
+}
+
+export type GetHubSpotContactResponse = HubSpotContact | null;
+
+export interface CreateHubSpotContactResponse {
+  success: boolean;
+  contactId?: string;
+  message?: string;
+  hubSpotContact?: HubSpotContact;
+}
+
+// --- HubSpot Engagement Types ---
+export interface HubSpotEmailEngagementProperties {
+  activityTimestamp: number; // Epoch milliseconds
+  subject: string;
+  htmlBody: string;
+  direction?: 'INCOMING' | 'OUTGOING'; // Optional: direction of the email
+  // disposition?: string; // Optional: HubSpot call/email disposition ID (e.g., "Connected")
+  // external_url?: string; // Optional: Link to the email in an external system
+}
+
+export interface HubSpotEngagementAssociation {
+  to: { id: string };
+  types: { associationCategory: string; associationTypeId: number }[];
+}
+
+export interface HubSpotEngagement {
+  id: string;
+  properties: {
+    hs_object_id: string;
+    hs_engagement_type: 'EMAIL' | 'MEETING' | 'CALL' | 'NOTE' | 'TASK';
+    hs_timestamp?: string; // Engagement timestamp (e.g., when an email was sent/received or meeting occurred)
+    hs_body_preview?: string; // Preview of the engagement body
+    hs_email_subject?: string; // Subject of the email
+    hs_email_direction?: 'INCOMING' | 'OUTGOING';
+    // hs_meeting_title?: string; // Title of the meeting (if type is MEETING)
+    // hs_meeting_start_time?: string; // Start time of the meeting
+    // hs_meeting_end_time?: string; // End time of the meeting
+    // hs_call_disposition?: string; // Disposition of the call
+    // hs_call_duration?: string; // Duration of the call in milliseconds
+    // hs_call_status?: string; // Status of the call (e.g., COMPLETED, NO_ANSWER)
+    createdate?: string;
+    lastmodifieddate?: string;
+    [key: string]: any; // Allow other properties
+  };
+  associations?: { // Optional, as it might not always be populated depending on the API call
+    contacts?: { results: { id: string, type: string }[] };
+    companies?: { results: { id: string, type: string }[] };
+    // Add other object types as needed (deals, tickets, etc.)
+  };
+  createdAt: string;
+  updatedAt: string;
+  archived: boolean;
+}
+
+export interface LogEngagementResponse {
+  success: boolean;
+  engagementId?: string;
+  message: string;
+  hubSpotEngagement?: HubSpotEngagement; // Optional: The created engagement object
+}
+
+export interface GetContactActivitiesResponse {
+  success: boolean;
+  activities: HubSpotEngagement[];
+  message?: string;
+  nextPage?: string; // For pagination, 'after' cursor
+}
+
+// --- Slack Types ---
+export interface SlackChannel {
+  id: string;
+  name?: string;
+  is_channel?: boolean;
+  is_group?: boolean;
+  is_im?: boolean;
+  is_mpim?: boolean;
+  is_private?: boolean;
+  is_archived?: boolean;
+  is_general?: boolean;
+  num_members?: number;
+  topic?: {
+    value: string;
+    creator: string;
+    last_set: number;
+  };
+  purpose?: {
+    value: string;
+    creator: string;
+    last_set: number;
+  };
+  created?: number;
+  creator?: string;
+}
+
+export interface SlackMessageResponse {
+  ok: boolean;
+  ts?: string; // Timestamp of the message
+  channel?: string; // Channel ID where the message was posted
+  message?: { // Detailed message object, structure can vary
+    text?: string;
+    user?: string; // User ID of the sender (could be bot_id or user_id)
+    bot_id?: string; // ID of the bot if message sent by a bot
+    ts?: string; // Timestamp of the message
+    type?: string; // e.g., 'message'
+    subtype?: string; // e.g., 'bot_message', 'channel_join'
+    [key: string]: any; // Allow other properties as message structure varies
+  };
+  error?: string; // Error message if ok is false
+  // response_metadata?: { // For errors like 'ratelimited'
+  //   messages?: string[];
+  //   retry_after?: number;
+  // };
+}
+
+export interface ListSlackChannelsResponse {
+  ok: boolean;
+  channels?: SlackChannel[];
+  error?: string;
+  nextPageCursor?: string; // For pagination
+}

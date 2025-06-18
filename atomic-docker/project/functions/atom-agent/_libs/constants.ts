@@ -139,4 +139,23 @@ export const SERPAPI_BASE_URL = 'https://serpapi.com/search';
 
 
 // Potentially other constants for Atom agent can be added below
+
+// e.g., API keys for email services, Zapier specific URLs (if not user-configured), etc.
+
+// HubSpot API Key
+// This must be set in the environment.
+export const ATOM_HUBSPOT_API_KEY = process.env.ATOM_HUBSPOT_API_KEY || '';
+
+// Slack Bot Token
+// This must be set in the environment.
+export const ATOM_SLACK_BOT_TOKEN = process.env.ATOM_SLACK_BOT_TOKEN || '';
+
+// Slack Channel ID for HubSpot Notifications
+// This must be set in the environment if Slack notifications for HubSpot actions are desired.
+export const ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID = process.env.ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID || '';
+
+// HubSpot Portal ID
+// This must be set in the environment if generating direct links to HubSpot records (e.g., in Slack notifications).
+export const ATOM_HUBSPOT_PORTAL_ID = process.env.ATOM_HUBSPOT_PORTAL_ID || '';
+
 // e.g., API keys for other email services, Zapier specific URLs (if not user-configured), etc.
