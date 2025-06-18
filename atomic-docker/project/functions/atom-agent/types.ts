@@ -15,8 +15,57 @@ export interface CalendarEvent {
   endTime: string;   // ISO 8601 date-time string
   location?: string;
   htmlLink?: string; // Link to the event in Google Calendar
+  conferenceData?: ConferenceData; // Added for Google Meet details
   // Potential future additions: attendees, recurrence rules etc.
 }
+
+// --- Google Meet / Calendar Conference Types ---
+export interface ConferenceSolution {
+  key?: { type?: string; [key: string]: any; }; // e.g., { type: "hangoutsMeet" }
+  name?: string; // e.g., "Google Meet"
+  iconUri?: string;
+  [key: string]: any;
+}
+
+export interface ConferenceEntryPoint {
+  entryPointType?: 'video' | 'phone' | 'sip' | 'more';
+  uri?: string; // e.g., "https://meet.google.com/abc-def-ghi" or "tel:+1234567890,,,12345#"
+  label?: string;
+  pin?: string; // PIN for phone entry point
+  accessCode?: string;
+  meetingCode?: string; // e.g., "abc-def-ghi"
+  passcode?: string;
+  password?: string;
+  [key: string]: any;
+}
+
+export interface ConferenceData {
+  createRequest?: {
+    requestId?: string;
+    conferenceSolutionKey?: { type?: string; };
+    status?: { statusCode?: 'success' | 'failure' | 'pending'; };
+    [key: string]: any;
+  };
+  entryPoints?: ConferenceEntryPoint[];
+  conferenceSolution?: ConferenceSolution;
+  conferenceId?: string; // e.g., "abc-def-ghi"
+  signature?: string;
+  notes?: string;
+  [key: string]: any;
+}
+
+export interface ListGoogleMeetEventsResponse {
+  ok: boolean;
+  events?: CalendarEvent[]; // Reusing CalendarEvent as it will contain Meet details
+  error?: string;
+}
+
+export interface GetGoogleMeetEventDetailsResponse {
+  ok: boolean;
+  event?: CalendarEvent; // Reusing CalendarEvent
+  error?: string;
+}
+
 
 export interface CreateEventResponse {
   success: boolean;
@@ -351,6 +400,76 @@ export interface ListCalendlyEventTypesResponse {
   collection?: CalendlyEventType[];
   pagination?: CalendlyPagination;
   error?: string;
+}
+
+// --- Microsoft Graph / Teams Types ---
+export interface MSGraphDateTimeTimeZone {
+  dateTime: string; // ISO 8601 format e.g., "2024-03-20T10:00:00.0000000"
+  timeZone: string; // e.g., "UTC" or "Pacific Standard Time"
+}
+
+export interface MSGraphOnlineMeetingInfo {
+  joinUrl?: string | null;
+  conferenceId?: string | null; // Often the numeric ID for joining by phone
+  tollNumber?: string | null;
+  // quickDial?: string | null; // Pre-formatted dial string
+  // phones?: { type: string; number: string; }[];
+  // Passcode/conference ID might be in other properties or in meeting body/details
+  [key: string]: any; // Allow other properties
+}
+
+export interface MSGraphEvent {
+  id: string;
+  subject?: string | null;
+  bodyPreview?: string | null; // Plain text preview of the body
+  body?: { // Full body, usually HTML
+    contentType?: 'html' | 'text';
+    content?: string | null;
+  } | null;
+  start?: MSGraphDateTimeTimeZone | null;
+  end?: MSGraphDateTimeTimeZone | null;
+  isOnlineMeeting?: boolean | null;
+  onlineMeetingProvider?: 'teamsForBusiness' | 'skypeForBusiness' | 'skypeForConsumer' | string | null;
+  onlineMeeting?: MSGraphOnlineMeetingInfo | null; // Contains joinUrl etc. if it's a Teams meeting
+  webLink?: string | null; // Link to the event in Outlook on the web
+  attendees?: { // Simplified, full Attendee type is more complex
+    emailAddress?: { address?: string | null; name?: string | null; };
+    type?: 'required' | 'optional' | 'resource';
+    status?: { response?: string; time?: string; }; // e.g. "accepted", "tentativelyAccepted"
+  }[];
+  location?: { // Simplified
+    displayName?: string | null;
+    locationType?: 'default' | 'conferenceRoom' | 'homeAddress' | 'businessAddress' | string;
+    uniqueId?: string | null; // If it's a known location like a conference room
+    address?: any; // PhysicalAddress type
+    coordinates?: any; // GeoCoordinates type
+  } | null;
+  locations?: any[]; // Array of location objects
+  organizer?: { // Simplified
+    emailAddress?: { name?: string | null; address?: string | null; };
+  } | null;
+  [key: string]: any; // Allow other properties from MS Graph API
+}
+
+export interface ListMSTeamsMeetingsResponse {
+  ok: boolean;
+  events?: MSGraphEvent[];
+  error?: string;
+  nextLink?: string; // OData nextLink for pagination
+}
+
+export interface GetMSTeamsMeetingDetailsResponse {
+  ok: boolean;
+  event?: MSGraphEvent;
+  error?: string;
+}
+
+export interface MSGraphTokenResponse { // For MSAL client credential flow
+  token_type: string; // e.g., "Bearer"
+  expires_in: number; // Seconds until expiry, e.g., 3599
+  ext_expires_in?: number; // Additional extended expiry
+  access_token: string;
+  // expires_on might be provided by MSAL in its AuthenticationResult, not directly in API response
 }
 
 // --- Zoom Types ---
