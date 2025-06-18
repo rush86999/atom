@@ -6,6 +6,8 @@ const logger = {
   error: console.error,
 };
 
+import { sendSlackMessage } from '../skills/slackSkills';
+
 // --- Type Definitions for Scheduler Callback Payload (TimeTableSolutionDto) ---
 // Based on API_GUIDE.md. These might be moved to a shared types file later.
 
@@ -67,16 +69,30 @@ interface Response {
   end: () => void;
 }
 
-// --- Placeholder User Notification Function ---
-async function sendUserNotification(userId: string, message: string): Promise<void> {
-  logger.info(`[sendUserNotification] Attempting to notify userId: ${userId}`);
-  logger.info(`[sendUserNotification] Message: "${message}"`);
-  // In a real implementation, this would call Slack, email, or other notification services.
-  // For example: await sendSlackMessage(userId, userId, message); // Assuming sendSlackMessage is available
-  // For now, we just log it.
-  // Simulate a slight delay as if a real notification was sent.
-  await new Promise(resolve => setTimeout(resolve, 100));
-  logger.info(`[sendUserNotification] Notification for userId ${userId} (simulated) complete.`);
+// Real user notification logic using Slack DMs
+async function sendUserNotification(userId: string, message: string): Promise<boolean> {
+  // userId here is assumed to be the Slack User ID for Direct Messaging.
+  // The first argument to sendSlackMessage is a contextual 'calling' userId for logging within slackSkills.
+  const agentProcessId = 'atomic-agent-scheduler-callback';
+  logger.info(`[sendUserNotification] Attempting to send Slack DM to userId: ${userId}`);
+  // Message content is already logged by the caller (handleSchedulerCallback) before this function.
+  // logger.info(`[sendUserNotification] Message: "${message}"`);
+
+  try {
+    // Using userId as the channel for a DM, and a generic process ID for the first arg.
+    const slackResponse = await sendSlackMessage(agentProcessId, userId, message);
+
+    if (slackResponse.ok) {
+      logger.info(`[sendUserNotification] Successfully sent Slack DM to userId: ${userId}. Message ID: ${slackResponse.ts}`);
+      return true;
+    } else {
+      logger.error(`[sendUserNotification] Failed to send Slack DM to userId: ${userId}. Error: ${slackResponse.error}`);
+      return false;
+    }
+  } catch (error: any) {
+    logger.error(`[sendUserNotification] Exception while sending Slack DM to userId: ${userId}. Error: ${error.message}`, error.stack);
+    return false;
+  }
 }
 
 
@@ -156,12 +172,21 @@ export async function handleSchedulerCallback(req: Request, res: Response): Prom
       notificationMessage += `\nOverall schedule score: ${solution.score}`;
     }
 
-    await sendUserNotification(userId, notificationMessage.trim());
+    const notificationSent = await sendUserNotification(userId, notificationMessage.trim());
 
+    if (notificationSent) {
+      logger.info(`[schedulerCallbackHandler.handleSchedulerCallback] User notification successful for userId: ${userId}, fileKey: ${solution.fileKey}`);
+    } else {
+      logger.warn(`[schedulerCallbackHandler.handleSchedulerCallback] User notification FAILED for userId: ${userId}, fileKey: ${solution.fileKey}. The scheduling solution was processed, but the user was not notified via Slack.`);
+      // TODO: Consider adding this failed notification to a retry queue or alternative notification mechanism in a more robust system.
+    }
+
+    // Clean up the pending request from the store after processing, regardless of notification success for this iteration.
     await removePendingRequest(solution.fileKey);
     logger.info(`[schedulerCallbackHandler.handleSchedulerCallback] Processed and cleaned up pending request for fileKey: ${solution.fileKey}`);
 
-    res.status(200).send({ message: 'Callback processed successfully. User has been notified.' });
+    // The message to the scheduler can remain positive if solution processing was okay.
+    res.status(200).send({ message: 'Callback processed successfully. User notification attempted.' });
 
   } catch (processingError: any) {
     logger.error(`[schedulerCallbackHandler.handleSchedulerCallback] Error processing solution for fileKey ${solution.fileKey}:`, processingError.message, processingError.stack);
