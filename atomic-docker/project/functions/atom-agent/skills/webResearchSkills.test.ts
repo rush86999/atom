@@ -1,62 +1,162 @@
-import * as webResearchSkills from './webResearchSkills';
+import { searchWeb } from './webResearchSkills';
 import { SearchResult } from '../types';
+import got from 'got';
+import * as constants from '../_libs/constants';
 
-describe('Web Research Skills', () => {
-  describe('searchWeb', () => {
-    it('should return an array of search result objects', async () => {
-      const results = await webResearchSkills.searchWeb('generic query');
-      expect(Array.isArray(results)).toBe(true);
-      if (results.length > 0) {
-        const firstResult = results[0];
-        expect(firstResult).toHaveProperty('title');
-        expect(firstResult).toHaveProperty('link');
-        expect(firstResult).toHaveProperty('snippet');
-      }
+// Mocks
+jest.mock('got');
+const mockedGot = got as jest.Mocked<typeof got>;
+
+// Mock constants for testing
+jest.mock('../_libs/constants', () => ({
+    ...jest.requireActual('../_libs/constants'), // Retain other constants
+    ATOM_SERPAPI_API_KEY: 'test_serpapi_api_key',
+    SERPAPI_BASE_URL: 'https://serpapi.com/search_mock',
+}));
+
+// Helper to override mocked constants for specific tests
+const mockConstants = (apiKey?: string | null) => {
+    Object.defineProperty(constants, 'ATOM_SERPAPI_API_KEY', {
+        value: apiKey,
+        configurable: true,
+        writable: true,
+    });
+};
+
+describe('Web Research Skills - searchWeb', () => {
+    let consoleErrorSpy: jest.SpyInstance;
+    let consoleLogSpy: jest.SpyInstance;
+    const mockUserId = 'test-user-web-search';
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // Restore default mock API key before each test that might alter it
+        mockConstants('test_serpapi_api_key');
+        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     });
 
-    it('should filter results based on the query (case-insensitive in title)', async () => {
-      // This test relies on the specific mock data in webResearchSkills.ts
-      // Mock data includes: 'Example Domain', 'Internet Assigned Numbers Authority (IANA)', 'World Wide Web Consortium (W3C)'
-
-      const resultsForExample = await webResearchSkills.searchWeb('example');
-      expect(resultsForExample.length).toBe(1);
-      expect(resultsForExample[0].title).toBe('Example Domain');
-
-      const resultsForIANA = await webResearchSkills.searchWeb('iana');
-      expect(resultsForIANA.length).toBe(1);
-      expect(resultsForIANA[0].title).toBe('Internet Assigned Numbers Authority (IANA)');
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleLogSpy.mockRestore();
     });
 
-    it('should filter results based on the query (case-insensitive in snippet)', async () => {
-      const resultsForDocuments = await webResearchSkills.searchWeb('documents'); // "illustrative examples in documents"
-      expect(resultsForDocuments.length).toBe(1);
-      expect(resultsForDocuments[0].title).toBe('Example Domain');
-
-      const resultsForCoordinating = await webResearchSkills.searchWeb('coordinating'); // "coordinating some of the key elements"
-      expect(resultsForCoordinating.length).toBe(1);
-      expect(resultsForCoordinating[0].title).toBe('Internet Assigned Numbers Authority (IANA)');
+    it('should return empty array and log error if API key is missing', async () => {
+        mockConstants(null); // Simulate missing API key
+        const results = await searchWeb('test query', mockUserId);
+        expect(results).toEqual([]);
+        expect(consoleErrorSpy).toHaveBeenCalledWith("SerpApi API key is missing. Cannot perform web search.");
+        expect(mockedGot.get).not.toHaveBeenCalled();
     });
 
-    it('should return a generic result if query does not match any mock data', async () => {
-      const query = 'nonExistentQuery123';
-      const results = await webResearchSkills.searchWeb(query);
-      expect(results.length).toBe(1);
-      expect(results[0].title).toBe(`No specific results for "${query}"`);
-      expect(results[0].link).toContain(encodeURIComponent(query));
-      expect(results[0].snippet).toContain('mock response');
+    it('should return empty array for an empty query string', async () => {
+        const results = await searchWeb('', mockUserId);
+        expect(results).toEqual([]);
+        expect(consoleLogSpy).toHaveBeenCalledWith("Search query is empty.");
+        expect(mockedGot.get).not.toHaveBeenCalled();
     });
 
-    it('should handle an empty query string (current mock returns generic)', async () => {
-      const results = await webResearchSkills.searchWeb('');
-      // The current mock implementation for an empty query will likely find all items
-      // because ''.toLowerCase().includes('') is true for any string.
-      // Or, if query is trimmed and checked for emptiness, it might return the generic "no specific results".
-      // Let's assume it filters and includes everything if query is effectively empty and not caught.
-      // The mock data has 3 items.
-      // If the skill treats empty string as "match all", then length would be 3.
-      // If it treats it as "no query", it gives the generic response.
-      // Current mock: `result.title.toLowerCase().includes(lowerCaseQuery)` will be true for empty `lowerCaseQuery`
-      expect(results.length).toBe(3); // Because empty string is included in all titles/snippets
+    it('should return empty array for a whitespace-only query string', async () => {
+        const results = await searchWeb('   ', mockUserId);
+        expect(results).toEqual([]);
+        expect(consoleLogSpy).toHaveBeenCalledWith("Search query is empty.");
+        expect(mockedGot.get).not.toHaveBeenCalled();
     });
-  });
+
+    it('should call SerpApi and map organic results correctly', async () => {
+        const mockSerpApiResponse = {
+            organic_results: [
+                { title: 'Result 1', link: 'http://link1.com', snippet: 'Snippet for 1' },
+                { title: 'Result 2', link: 'http://link2.com', snippet: 'Snippet for 2' },
+            ],
+        };
+        // Mock the behavior of .json() call as well
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue(mockSerpApiResponse) } as any);
+
+        const results = await searchWeb('valid query', mockUserId);
+
+        expect(mockedGot.get).toHaveBeenCalledTimes(1);
+        expect(mockedGot.get).toHaveBeenCalledWith(
+            expect.stringContaining(`${constants.SERPAPI_BASE_URL}?q=valid+query&api_key=${constants.ATOM_SERPAPI_API_KEY}&engine=google`),
+            { responseType: 'json' }
+        );
+        expect(results.length).toBe(2);
+        expect(results[0]).toEqual({ title: 'Result 1', link: 'http://link1.com', snippet: 'Snippet for 1' });
+        expect(results[1]).toEqual({ title: 'Result 2', link: 'http://link2.com', snippet: 'Snippet for 2' });
+    });
+
+    it('should limit organic results to top 5', async () => {
+        const manyResults = Array(10).fill(null).map((_, i) => ({
+            title: `Title ${i+1}`, link: `http://link${i+1}.com`, snippet: `Snippet ${i+1}`
+        }));
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue({ organic_results: manyResults }) } as any);
+
+        const results = await searchWeb('query for many', mockUserId);
+        expect(results.length).toBe(5);
+    });
+
+    it('should parse and return answer_box result if no organic_results', async () => {
+        const mockSerpApiResponse = {
+            answer_box: {
+                title: 'Answer Title',
+                link: 'http://answerlink.com',
+                snippet: 'This is the answer snippet.',
+            },
+        };
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue(mockSerpApiResponse) } as any);
+
+        const results = await searchWeb('query for answerbox', mockUserId);
+        expect(results.length).toBe(1);
+        expect(results[0]).toEqual({
+            title: 'Answer Title',
+            link: 'http://answerlink.com',
+            snippet: 'This is the answer snippet.',
+        });
+    });
+
+    it('should use answer_box.answer if snippet is not available', async () => {
+        const mockSerpApiResponse = {
+            answer_box: { title: 'Answer Title', answer: 'Direct answer content.' },
+        };
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue(mockSerpApiResponse) } as any);
+        const results = await searchWeb('query for answerbox answer', mockUserId);
+        expect(results[0].snippet).toBe('Direct answer content.');
+    });
+
+
+    it('should return empty array if SerpApi returns no organic_results or answer_box', async () => {
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue({}) } as any); // Empty response
+        const results = await searchWeb('empty response query', mockUserId);
+        expect(results).toEqual([]);
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No organic results or answer box found'));
+    });
+
+    it('should return empty array and log error on SerpApi API error (e.g. JSON error in body)', async () => {
+        // This test simulates when the .json() call itself might fail or the structure is unexpected before organic_results
+        const serpApiErrorResponse = { error: "Your account is not active or you ran out of credits." };
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue(serpApiErrorResponse) } as any);
+
+        const results = await searchWeb('query causing api error', mockUserId);
+        expect(results).toEqual([]);
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('No organic results or answer box found for query: "query causing api error"'));
+    });
+
+    it('should return empty array and log error on HTTP error from got', async () => {
+        const httpError = new Error("Simulated HTTP 500 error");
+        (httpError as any).response = { body: "Server Error Details From SerpApi" };
+        mockedGot.get.mockRejectedValue(httpError);
+
+        const results = await searchWeb('query causing http error', mockUserId);
+        expect(results).toEqual([]);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Error performing web search with SerpApi:'),
+            "Server Error Details From SerpApi"
+        );
+    });
+
+    it('should log userId if provided', async () => {
+        mockedGot.get.mockReturnValue({ json: jest.fn().mockResolvedValue({}) } as any);
+        await searchWeb('logging query', mockUserId);
+        expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(`(userId: ${mockUserId})`));
+    });
 });
