@@ -67,3 +67,18 @@ export const ATOM_MSGRAPH_SCOPES = (process.env.ATOM_MSGRAPH_SCOPES || 'https://
 // Stripe Secret Key
 // This must be set in the environment for Stripe integration.
 export const ATOM_STRIPE_SECRET_KEY = process.env.ATOM_STRIPE_SECRET_KEY || '';
+
+// QuickBooks Online (QBO) Credentials and Settings
+// These must be set in the environment for QBO integration.
+export const ATOM_QB_CLIENT_ID = process.env.ATOM_QB_CLIENT_ID || '';
+export const ATOM_QB_CLIENT_SECRET = process.env.ATOM_QB_CLIENT_SECRET || '';
+export const ATOM_QB_ENVIRONMENT = (process.env.ATOM_QB_ENVIRONMENT || 'sandbox') as 'sandbox' | 'production';
+export const ATOM_QB_REDIRECT_URI = process.env.ATOM_QB_REDIRECT_URI || '';
+// Path to a file where QBO tokens (access token, refresh token, realmId, expiry) will be stored.
+// Ensure this path is writable by the application and secure.
+// For serverless functions, this might need to be a location like /tmp/ or a database.
+export const ATOM_QB_TOKEN_FILE_PATH = process.env.ATOM_QB_TOKEN_FILE_PATH || './qb_tokens.json';
+// Scopes: com.intuit.quickbooks.accounting (for accounting tasks)
+// Other scopes like com.intuit.quickbooks.payment may be needed for payments.
+// openid profile email phone address are for user info.
+export const ATOM_QB_SCOPES = (process.env.ATOM_QB_SCOPES || 'com.intuit.quickbooks.accounting openid profile email phone address').split(' ');

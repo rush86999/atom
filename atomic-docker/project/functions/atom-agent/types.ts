@@ -402,6 +402,58 @@ export interface ListCalendlyEventTypesResponse {
   error?: string;
 }
 
+// --- QuickBooks Online (QBO) Types ---
+export interface QuickBooksAuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  realmId: string;
+  accessTokenExpiresAt: number; // Timestamp (ms since epoch) for access token expiry
+  refreshTokenExpiresAt: number; // Timestamp (ms since epoch) for refresh token expiry
+  createdAt: number; // Timestamp (ms since epoch) when these tokens were saved
+}
+
+// Simplified representation of a QBO Invoice.
+// The actual QBO API response is much more detailed.
+export interface QuickBooksInvoice {
+  Id: string;
+  DocNumber?: string; // Invoice number
+  TxnDate?: string; // Date of the transaction
+  DueDate?: string; // Due date of the invoice
+  CustomerRef?: {
+    value: string; // Customer ID
+    name?: string; // Customer name
+  };
+  BillEmail?: {
+    Address: string;
+  };
+  TotalAmt?: number;
+  Balance?: number; // Remaining balance
+  CurrencyRef?: {
+    value: string; // e.g., "USD"
+    name?: string;
+  };
+  Line?: any[]; // Array of line items, can be complex
+  PrivateNote?: string;
+  CustomerMemo?: string; // Message to customer
+  EmailStatus?: 'EmailSent' | 'NotSet' | string; // Status of email delivery for the invoice
+  // Add other fields as needed, e.g., WebAddr for online payment link
+  [key: string]: any; // Allow other properties from the QBO API
+}
+
+export interface ListQuickBooksInvoicesResponse {
+  ok: boolean;
+  invoices?: QuickBooksInvoice[];
+  error?: string;
+  // QueryResponse from node-quickbooks contains more details like totalCount, startPosition, maxResults
+  queryResponse?: any;
+}
+
+export interface GetQuickBooksInvoiceDetailsResponse {
+  ok: boolean;
+  invoice?: QuickBooksInvoice;
+  error?: string;
+}
+
 // --- Stripe Types ---
 // Represents a simplified view of a Stripe Charge, often part of a PaymentIntent
 export interface StripeCharge {

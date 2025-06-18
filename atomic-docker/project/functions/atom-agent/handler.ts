@@ -29,7 +29,11 @@ import {
   // Stripe Types
   ListStripePaymentsResponse,
   GetStripePaymentDetailsResponse,
-  StripePaymentIntent
+  StripePaymentIntent,
+  // QuickBooks Types
+  ListQuickBooksInvoicesResponse,
+  GetQuickBooksInvoiceDetailsResponse,
+  QuickBooksInvoice
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
@@ -37,8 +41,13 @@ import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/ca
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
 import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills';
 import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills';
-import { listStripePayments, getStripePaymentDetails } from './skills/stripeSkills'; // Added
-import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
+import { listStripePayments, getStripePaymentDetails } from './skills/stripeSkills';
+import {
+    listQuickBooksInvoices,
+    getQuickBooksInvoiceDetails,
+    getAuthUri as getQuickBooksAuthUri
+} from './skills/quickbooksSkills'; // Added
+import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID, ATOM_QB_TOKEN_FILE_PATH } from '../_libs/constants';
 
 
 export async function handleMessage(message: string): Promise<string> {
@@ -624,7 +633,85 @@ export async function handleMessage(message: string): Promise<string> {
       console.error(`Error in "get stripe payment ${paymentIntentId}" command:`, error.message);
       return `Sorry, an unexpected error occurred while fetching Stripe payment details for ${paymentIntentId}.`;
     }
+  } else if (lowerCaseMessage.startsWith('qb get auth url')) {
+    try {
+      const authUri = getQuickBooksAuthUri();
+      if (authUri) {
+        return `To authorize QuickBooks Online, please visit this URL in your browser: ${authUri}\nAfter authorization, the agent will need the resulting tokens and realmId to be stored in its configured token file path (${ATOM_QB_TOKEN_FILE_PATH}). This step typically requires manual intervention or a separate callback handler not part of this command.`;
+      } else {
+        return "Could not generate QuickBooks authorization URL. Please check server configuration and ensure QB Client ID, Secret, and Redirect URI are correctly set.";
+      }
+    } catch (error: any) {
+      console.error('Error generating QuickBooks auth URL:', error.message);
+      return "Sorry, an error occurred while generating the QuickBooks authorization URL.";
+    }
+  } else if (lowerCaseMessage.startsWith('list qb invoices')) {
+    const parts = lowerCaseMessage.split(' '); // e.g. "list qb invoices limit=10 offset=1 customer=CUST_ID status=Paid"
+    const options: { limit?: number; offset?: number; customerId?: string; /* status?: string; TODO: Add status filter if skill supports */ } = {};
+
+    parts.forEach(part => {
+      if (part.startsWith('limit=')) {
+        const limitVal = parseInt(part.split('=')[1], 10);
+        if (!isNaN(limitVal)) options.limit = limitVal;
+      } else if (part.startsWith('offset=')) { // QBO uses 1-based offset (called StartPosition)
+        const offsetVal = parseInt(part.split('=')[1], 10);
+        if (!isNaN(offsetVal)) options.offset = offsetVal;
+      } else if (part.startsWith('customer=')) {
+        options.customerId = part.split('=')[1];
+      }
+      // TODO: Add status parsing if listQuickBooksInvoices supports filtering by it (e.g., Paid, Overdue, Open)
+      // if (part.startsWith('status=')) options.status = part.split('=')[1];
+    });
+    if (options.limit === undefined) options.limit = 10;
+    if (options.offset === undefined) options.offset = 1;
+
+
+    try {
+      const response: ListQuickBooksInvoicesResponse = await listQuickBooksInvoices(options);
+      if (response.ok && response.invoices && response.invoices.length > 0) {
+        let output = "QuickBooks Invoices:\n";
+        for (const inv of response.invoices) {
+          output += `- ID: ${inv.Id}, Num: ${inv.DocNumber || 'N/A'}, Cust: ${inv.CustomerRef?.name || inv.CustomerRef?.value || 'N/A'}, Total: ${inv.TotalAmt !== undefined ? inv.TotalAmt.toFixed(2) : 'N/A'} ${inv.CurrencyRef?.value || ''}, Due: ${inv.DueDate || 'N/A'}, Balance: ${inv.Balance !== undefined ? inv.Balance.toFixed(2) : 'N/A'}\n`;
+        }
+        if (response.queryResponse) {
+          output += `Showing ${response.queryResponse.startPosition || options.offset}-${(response.queryResponse.startPosition || options.offset) + (response.invoices.length -1)} of ${response.queryResponse.totalCount || 'many'}. Max results per page: ${response.queryResponse.maxResults || options.limit}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No QuickBooks invoices found matching your criteria.";
+      } else {
+        return `Error fetching QuickBooks invoices: ${response.error || 'Unknown error'}. Please ensure the agent is authorized with QuickBooks (use 'qb get auth url').`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list qb invoices" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching QuickBooks invoices.";
+    }
+  } else if (lowerCaseMessage.startsWith('get qb invoice')) {
+    const parts = lowerCaseMessage.split(' '); // "get qb invoice <invoiceId>"
+    if (parts.length < 4) {
+      return "Please provide a QuickBooks Invoice ID. Usage: get qb invoice <invoiceId>";
+    }
+    const invoiceId = parts[3];
+
+    try {
+      const response: GetQuickBooksInvoiceDetailsResponse = await getQuickBooksInvoiceDetails(invoiceId);
+      if (response.ok && response.invoice) {
+        const inv = response.invoice;
+        let output = `QuickBooks Invoice (ID: ${inv.Id}):\nDoc #: ${inv.DocNumber || 'N/A'}\nCustomer: ${inv.CustomerRef?.name || inv.CustomerRef?.value || 'N/A'}\nTotal: ${inv.TotalAmt !== undefined ? inv.TotalAmt.toFixed(2) : 'N/A'} ${inv.CurrencyRef?.value || ''}, Balance: ${inv.Balance !== undefined ? inv.Balance.toFixed(2) : 'N/A'}\nTxn Date: ${inv.TxnDate || 'N/A'}, Due Date: ${inv.DueDate || 'N/A'}\nEmail: ${inv.BillEmail?.Address || 'N/A'}\nStatus: ${inv.EmailStatus || 'N/A'}\nMemo: ${inv.CustomerMemo || 'N/A'}\nPrivate Note: ${inv.PrivateNote || 'N/A'}`;
+        // Could add line item details if needed, but keep it concise for chat.
+        // if (inv.Line && inv.Line.length > 0) {
+        //   output += "\nLines:";
+        //   inv.Line.forEach(line => output += `\n  - ${line.Description || 'Item'} Amount: ${line.Amount}`);
+        // }
+        return output;
+      } else {
+        return `Error fetching QuickBooks invoice: ${response.error || `Invoice with ID ${invoiceId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get qb invoice ${invoiceId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching the QuickBooks invoice ${invoiceId}.`;
+    }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", or "get stripe payment <paymentIntentId>".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", "get stripe payment <paymentIntentId>", "qb get auth url", "list qb invoices [limit=N] [offset=N] [customer=ID]", or "get qb invoice <invoiceId>".`;
 }
