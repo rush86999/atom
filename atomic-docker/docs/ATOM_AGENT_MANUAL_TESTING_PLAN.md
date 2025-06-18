@@ -249,9 +249,68 @@ After successfully completing the "Grant Consent" step and verifying "Status: Co
 
 *   The success of "Chat Interface - Calendar Commands" **now directly depends on the real, authenticated `userId` being used throughout the system**, from API route protection to token storage and skill execution.
 *   Real AES-256-CBC encryption is implemented in `token-utils.ts`. Ensure `ATOM_TOKEN_ENCRYPTION_KEY` and `ATOM_TOKEN_ENCRYPTION_IV` are correctly set in your environment for testing.
-*   Focus on server logs from the API routes (`initiate.ts`, `callback.ts`, `disconnect.ts`, `status.ts`), `token-utils.ts` (encryption/decryption logs), and skill files (`calendarSkills.ts`, `emailSkills.ts`, etc.) for detailed insight into token management and API call lifecycles.
+*   Focus on server logs from the API routes (`initiate.ts`, `callback.ts`, `disconnect.ts`, `status.ts`), `token-utils.ts` (encryption/decryption logs), and skill files (`calendarSkills.ts`, `emailSkills.ts`, `webResearchSkills.ts`, etc.) for detailed insight into token management and API call lifecycles.
 
-This manual testing plan covers the core functionalities of the Atom agent, focusing on end-to-end Google Calendar, Gmail, and Microsoft Graph integrations, including OAuth, secure token storage, and API interactions with real user context.
+This manual testing plan covers the core functionalities of the Atom agent, focusing on end-to-end Google Calendar, Gmail, Microsoft Graph, and Web Search (SerpApi) integrations.
+
+## 7. Web Research Integration Testing (SerpApi)
+
+This section details testing the web search functionality, which uses SerpApi.
+
+### Prerequisites (Web Research - SerpApi)
+
+1.  **SerpApi Account & API Key:**
+    *   An account **must be created** at [SerpApi](https://serpapi.com).
+    *   A valid API Key **must be obtained** from the SerpApi dashboard.
+2.  **Environment Variables (Backend):**
+    The following **MUST be correctly set** in the backend environment:
+    *   `ATOM_SERPAPI_API_KEY` (with the key obtained from SerpApi).
+    *   `SERPAPI_BASE_URL` (is already defined with a default in `constants.ts` - `https://serpapi.com/search` - verify it's suitable).
+    *   *(Ensure general prerequisites like Supertokens setup for user authentication for the `/api/atom/message` route are met).*
+
+### 7.1. Chat Interface - Web Search Commands
+
+1.  **General Knowledge Query:**
+    *   **Action:** Type `search web what is the capital of France` and send.
+    *   **Expected Result:** Atom should respond with a formatted list of search results, e.g., "Here are the web search results for "what is the capital of France":\n\n1. Paris - Wikipedia\n   Snippet: Paris is the capital and most populous city of France...\n   Link: https://en.wikipedia.org/wiki/Paris\n...". The number of results should be around 5.
+    *   **Server Log:** Check `webResearchSkills.ts` logs for the query and successful API call to SerpApi.
+2.  **Query Expected to Return Answer Box:**
+    *   **Action:** Type `search web define serendipity` or `search web population of canada`.
+    *   **Expected Result:** Atom might return a direct answer if SerpApi provides an "answer_box" result, formatted similarly to other search results (e.g., "1. Serendipity - Definition\n   Snippet: The occurrence and development of events by chance in a happy or beneficial way...\n   Link: ...").
+3.  **Query Expected to Return Multiple Organic Results:**
+    *   **Action:** Type `search web latest AI research`.
+    *   **Expected Result:** A list of up to 5 relevant organic search results, formatted as described above.
+4.  **Query Expected to Return No Meaningful Results:**
+    *   **Action:** Type `search web xjzkqjweiuqweasdasdqwerty`.
+    *   **Expected Result:** Atom should respond with: "I couldn't find any web results for "xjzkqjweiuqweasdasdqwerty", or there might be an issue with the web search service configuration."
+    *   **Server Log:** Check `webResearchSkills.ts` logs; SerpApi might return empty `organic_results`.
+5.  **Query with Special Characters:**
+    *   **Action:** Type `search web "benefits of apples & oranges"`.
+    *   **Expected Result:** Search results related to the query, demonstrating that special characters are handled (URL encoding is done by `URLSearchParams`).
+6.  **Empty Query Term:**
+    *   **Action:** Type `search web` (and nothing after) and send.
+    *   **Expected Result:** Atom should respond with: "Please provide a term to search for after 'search web'." (This is handled by `handler.ts`).
+    *   **Action:** Type `search web     ` (only spaces after) and send.
+    *   **Expected Result:** Atom should respond with: "Please provide a term to search for after 'search web'."
+
+### 7.2. Error Condition Testing (Web Research - SerpApi)
+
+1.  **Missing API Key:**
+    *   **Action (Setup):** Temporarily unset or incorrectly set the `ATOM_SERPAPI_API_KEY` environment variable. Restart the application.
+    *   **Action (Test):** Type `search web any query` and send.
+    *   **Expected Result:** Atom should respond with: "I couldn't find any web results for "any query", or there might be an issue with the web search service configuration."
+    *   **Server Log:** Check `webResearchSkills.ts` logs for "SerpApi API key is missing."
+2.  **Invalid API Key:**
+    *   **Action (Setup):** Set `ATOM_SERPAPI_API_KEY` to a known invalid or expired key. Restart the application.
+    *   **Action (Test):** Type `search web any query` and send.
+    *   **Expected Result:** Atom should respond with: "I couldn't find any web results for "any query", or there might be an issue with the web search service configuration."
+    *   **Server Log:** Check `webResearchSkills.ts` logs for error messages from SerpApi (e.g., authentication failure, invalid API key). The `got` error might contain `error.response.body` with details from SerpApi.
+3.  **Rate Limits Exceeded (Conceptual):**
+    *   **Action:** (Hard to test manually without intentionally exceeding limits).
+    *   **Expected Result:** If SerpApi rate limits are hit, their API will return an error. Atom should respond with the generic "I couldn't find any web results..." message. Server logs would show the specific rate limit error from SerpApi.
+    *   **Note:** The `userId` is passed to the `searchWeb` skill for logging consistency but is not part of the SerpApi request itself, so user-specific rate limits from SerpApi depend on whether the single backend API key is shared by all users or if per-user keys were implemented (currently not).
+
+This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar, Gmail, Microsoft Graph, and Web Search (SerpApi) integrations.
 
 ## 6. End-to-End Microsoft Graph (Outlook Calendar & Email) Integration Testing
 

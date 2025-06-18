@@ -248,22 +248,27 @@ export async function handleMessage(message: string, userId: string): Promise<st
     }
   } else if (lowerCaseMessage.startsWith('search web')) {
     try {
-      const query = message.substring('search web'.length).trim();
-      if (!query) {
-        return "Please provide a search query. Usage: search web <your query>";
+      const searchQuery = message.substring('search web'.length).trim();
+      if (!searchQuery) {
+        return "Please provide a term to search for after 'search web'.";
       }
 
-      const results: SearchResult[] = await searchWeb(query);
+      // Pass userId to searchWeb, although it might be unused by the skill for global search
+      const results: SearchResult[] = await searchWeb(searchQuery, userId);
+
       if (results.length === 0) {
-        return `No web results found for "${query}".`;
+        // webResearchSkills.ts logs specific reasons for empty results (API key, actual no results, error)
+        return `I couldn't find any web results for "${searchQuery}", or there might be an issue with the web search service configuration.`;
       }
-      const resultList = results.map(result =>
-        `- ${result.title}\n  Link: ${result.link}\n  Snippet: ${result.snippet}`
+
+      const resultList = results.map((result, index) =>
+        `${index + 1}. ${result.title}\n   Snippet: ${result.snippet}\n   Link: ${result.link}`
       ).join('\n\n');
-      return `Web search results for "${query}":\n\n${resultList}`;
-    } catch (error) {
-      console.error('Error performing web search:', error);
-      return "Sorry, I couldn't perform the web search.";
+      return `Here are the web search results for "${searchQuery}":\n\n${resultList}`;
+
+    } catch (error: any) {
+      console.error('Error performing web search in handler:', error);
+      return `Sorry, I encountered an error while trying to search the web. Error: ${error.message}`;
     }
   } else if (lowerCaseMessage.startsWith('trigger zap')) {
     try {

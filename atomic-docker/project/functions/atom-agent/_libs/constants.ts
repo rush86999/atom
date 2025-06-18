@@ -120,6 +120,23 @@ export const ATOM_MSGRAPH_RESOURCE_NAME = 'microsoft_graph';
 // Microsoft Graph OAuth Endpoints base
 export const MSGRAPH_OAUTH_AUTHORITY_BASE = 'https://login.microsoftonline.com/';
 
+// ================================================================================================
+// Atom Agent SerpApi (Web Search) Integration Constants
+// ================================================================================================
+// IMPORTANT ASSUMPTIONS FOR SERPAPI INTEGRATION:
+// 1. An API key must be obtained from SerpApi (https://serpapi.com).
+// 2. The following environment variable MUST be configured in the application's deployment environment:
+//    - ATOM_SERPAPI_API_KEY: The API key from SerpApi.
+// ================================================================================================
+
+// SerpApi Web Search API credentials for Atom Agent
+// This must be set in the environment.
+export const ATOM_SERPAPI_API_KEY = process.env.ATOM_SERPAPI_API_KEY;
+
+// SerpApi base URL
+export const SERPAPI_BASE_URL = 'https://serpapi.com/search';
+// Default search engine can be 'google', can be specified in params.
+
 
 // Potentially other constants for Atom agent can be added below
 // e.g., API keys for other email services, Zapier specific URLs (if not user-configured), etc.

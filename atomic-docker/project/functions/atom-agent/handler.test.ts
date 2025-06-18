@@ -142,16 +142,42 @@ describe('Atom Agent handleMessage', () => {
     expect(response).toBe('Failed to send email. Please try again or check your connection.');
   });
 
-  // Web Research Skills Tests (confirming mockUserId pass-through)
-  it('should search the web', async () => {
-    const mockResults: SearchResult[] = [{ title: 'Result 1', link: 'http://example.com/1', snippet: 'Snippet 1' }];
-    mockedWebResearchSkills.searchWeb.mockResolvedValue(mockResults);
+  // Web Research Skills Tests
+  it('should search the web and format results', async () => {
+    const mockSearchResults: SearchResult[] = [
+      { title: 'Test Result 1', link: 'http://example.com/1', snippet: 'This is snippet 1.' },
+      { title: 'Test Result 2', link: 'http://example.com/2', snippet: 'This is snippet 2.' },
+    ];
+    mockedWebResearchSkills.searchWeb.mockResolvedValue(mockSearchResults);
     const response = await handleMessage('search web test query', mockUserId);
-    expect(mockedWebResearchSkills.searchWeb).toHaveBeenCalledWith('test query'); // No userId for this skill
-    expect(response).toContain('Web search results for "test query":');
+    expect(mockedWebResearchSkills.searchWeb).toHaveBeenCalledWith('test query', mockUserId);
+    expect(response).toBe(
+      'Here are the web search results for "test query":\n\n' +
+      '1. Test Result 1\n   Snippet: This is snippet 1.\n   Link: http://example.com/1\n\n' +
+      '2. Test Result 2\n   Snippet: This is snippet 2.\n   Link: http://example.com/2'
+    );
   });
 
-  // Zapier Skills Tests (confirming mockUserId pass-through)
+  it('should handle no web results from skill with a user-friendly message', async () => {
+    mockedWebResearchSkills.searchWeb.mockResolvedValue([]);
+    const response = await handleMessage('search web specific query', mockUserId);
+    expect(mockedWebResearchSkills.searchWeb).toHaveBeenCalledWith('specific query', mockUserId);
+    expect(response).toBe('I couldn\'t find any web results for "specific query", or there might be an issue with the web search service configuration.');
+  });
+
+  it('should ask for a query if "search web" is called with no query', async () => {
+    const response = await handleMessage('search web', mockUserId);
+    expect(response).toBe("Please provide a term to search for after 'search web'.");
+    expect(mockedWebResearchSkills.searchWeb).not.toHaveBeenCalled();
+  });
+
+  it('should ask for a query if "search web" is called with only whitespace', async () => {
+    const response = await handleMessage('search web    ', mockUserId);
+    expect(response).toBe("Please provide a term to search for after 'search web'.");
+    expect(mockedWebResearchSkills.searchWeb).not.toHaveBeenCalled();
+  });
+
+  // Zapier Skills Tests
   it('should trigger a Zap with data', async () => {
     const mockResponse: ZapTriggerResponse = { success: true, zapName: 'MyZap', runId: 'zapRun1', message: 'Zap triggered' };
     mockedZapierSkills.triggerZap.mockResolvedValue(mockResponse);
