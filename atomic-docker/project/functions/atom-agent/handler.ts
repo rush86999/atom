@@ -25,15 +25,29 @@ import {
   // MS Teams Types
   ListMSTeamsMeetingsResponse,
   GetMSTeamsMeetingDetailsResponse,
-  MSGraphEvent
+  MSGraphEvent,
+  // Stripe Types
+  ListStripePaymentsResponse,
+  GetStripePaymentDetailsResponse,
+  StripePaymentIntent,
+  // QuickBooks Types
+  ListQuickBooksInvoicesResponse,
+  GetQuickBooksInvoiceDetailsResponse,
+  QuickBooksInvoice
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
 import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills';
-import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills'; // Added
-import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
+import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills';
+import { listStripePayments, getStripePaymentDetails } from './skills/stripeSkills';
+import {
+    listQuickBooksInvoices,
+    getQuickBooksInvoiceDetails,
+    getAuthUri as getQuickBooksAuthUri
+} from './skills/quickbooksSkills'; // Added
+import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID, ATOM_QB_TOKEN_FILE_PATH } from '../_libs/constants';
 
 
 export async function handleMessage(message: string): Promise<string> {
@@ -559,8 +573,204 @@ export async function handleMessage(message: string): Promise<string> {
       console.error(`Error in "get teams meeting ${eventId}" command:`, error.message);
       return `Sorry, an unexpected error occurred while fetching details for Teams meeting ${eventId}.`;
     }
+  } else if (lowerCaseMessage.startsWith('list stripe payments')) {
+    // const userId = "mock_user_id_from_handler"; // Not directly used by these Stripe skills
+    const parts = lowerCaseMessage.split(' '); // e.g. "list stripe payments limit=5 customer=cus_123 starting_after=pi_abc"
+    const options: { limit?: number; starting_after?: string; customer?: string } = {};
+
+    parts.forEach(part => {
+      if (part.startsWith('limit=')) {
+        const limitVal = parseInt(part.split('=')[1], 10);
+        if (!isNaN(limitVal)) options.limit = limitVal;
+      } else if (part.startsWith('starting_after=')) {
+        options.starting_after = part.split('=')[1];
+      } else if (part.startsWith('customer=')) {
+        options.customer = part.split('=')[1];
+      }
+    });
+    if (options.limit === undefined) options.limit = 10; // Default limit
+
+    try {
+      const response: ListStripePaymentsResponse = await listStripePayments(options);
+      if (response.ok && response.payments && response.payments.length > 0) {
+        let output = "Stripe Payments:\n";
+        for (const payment of response.payments) {
+          output += `- ID: ${payment.id}, Amount: ${(payment.amount / 100).toFixed(2)} ${payment.currency.toUpperCase()}, Status: ${payment.status}, Created: ${new Date(payment.created * 1000).toLocaleDateString()}${payment.latest_charge?.receipt_url ? `, Receipt: ${payment.latest_charge.receipt_url}` : ''}\n`;
+        }
+        if (response.has_more && response.payments.length > 0) {
+          output += `More payments available. For next page, use option: starting_after=${response.payments[response.payments.length - 1].id}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No Stripe payments found matching your criteria.";
+      } else {
+        return `Error fetching Stripe payments: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list stripe payments" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching Stripe payments.";
+    }
+  } else if (lowerCaseMessage.startsWith('get stripe payment')) {
+    const parts = lowerCaseMessage.split(' '); // "get stripe payment <paymentIntentId>"
+    if (parts.length < 4) {
+      return "Please provide a Stripe PaymentIntent ID. Usage: get stripe payment <paymentIntentId>";
+    }
+    const paymentIntentId = parts[3];
+
+    try {
+      const response: GetStripePaymentDetailsResponse = await getStripePaymentDetails(paymentIntentId);
+      if (response.ok && response.payment) {
+        const p = response.payment;
+        let output = `Stripe Payment Details (ID: ${p.id}):\nAmount: ${(p.amount / 100).toFixed(2)} ${p.currency.toUpperCase()}\nStatus: ${p.status}\nCreated: ${new Date(p.created * 1000).toLocaleString()}\nDescription: ${p.description || 'N/A'}`;
+        if (p.customer) output += `\nCustomer ID: ${p.customer}`;
+        if (p.latest_charge?.receipt_url) output += `\nReceipt URL: ${p.latest_charge.receipt_url}`;
+        // You could add more details from p.latest_charge if needed
+        return output;
+      } else {
+        return `Error fetching Stripe payment details: ${response.error || `PaymentIntent with ID ${paymentIntentId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get stripe payment ${paymentIntentId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching Stripe payment details for ${paymentIntentId}.`;
+    }
+  } else if (lowerCaseMessage.startsWith('qb get auth url')) {
+    try {
+      const authUri = getQuickBooksAuthUri();
+      if (authUri) {
+        return `To authorize QuickBooks Online, please visit this URL in your browser: ${authUri}\nAfter authorization, the agent will need the resulting tokens and realmId to be stored in its configured token file path (${ATOM_QB_TOKEN_FILE_PATH}). This step typically requires manual intervention or a separate callback handler not part of this command.`;
+      } else {
+        return "Could not generate QuickBooks authorization URL. Please check server configuration and ensure QB Client ID, Secret, and Redirect URI are correctly set.";
+      }
+    } catch (error: any) {
+      console.error('Error generating QuickBooks auth URL:', error.message);
+      return "Sorry, an error occurred while generating the QuickBooks authorization URL.";
+    }
+  } else if (lowerCaseMessage.startsWith('list qb invoices')) {
+    const parts = lowerCaseMessage.split(' '); // e.g. "list qb invoices limit=10 offset=1 customer=CUST_ID status=Paid"
+    const options: { limit?: number; offset?: number; customerId?: string; /* status?: string; TODO: Add status filter if skill supports */ } = {};
+
+    parts.forEach(part => {
+      if (part.startsWith('limit=')) {
+        const limitVal = parseInt(part.split('=')[1], 10);
+        if (!isNaN(limitVal)) options.limit = limitVal;
+      } else if (part.startsWith('offset=')) { // QBO uses 1-based offset (called StartPosition)
+        const offsetVal = parseInt(part.split('=')[1], 10);
+        if (!isNaN(offsetVal)) options.offset = offsetVal;
+      } else if (part.startsWith('customer=')) {
+        options.customerId = part.split('=')[1];
+      }
+      // TODO: Add status parsing if listQuickBooksInvoices supports filtering by it (e.g., Paid, Overdue, Open)
+      // if (part.startsWith('status=')) options.status = part.split('=')[1];
+    });
+    if (options.limit === undefined) options.limit = 10;
+    if (options.offset === undefined) options.offset = 1;
+
+
+    try {
+      const response: ListQuickBooksInvoicesResponse = await listQuickBooksInvoices(options);
+      if (response.ok && response.invoices && response.invoices.length > 0) {
+        let output = "QuickBooks Invoices:\n";
+        for (const inv of response.invoices) {
+          output += `- ID: ${inv.Id}, Num: ${inv.DocNumber || 'N/A'}, Cust: ${inv.CustomerRef?.name || inv.CustomerRef?.value || 'N/A'}, Total: ${inv.TotalAmt !== undefined ? inv.TotalAmt.toFixed(2) : 'N/A'} ${inv.CurrencyRef?.value || ''}, Due: ${inv.DueDate || 'N/A'}, Balance: ${inv.Balance !== undefined ? inv.Balance.toFixed(2) : 'N/A'}\n`;
+        }
+        if (response.queryResponse) {
+          output += `Showing ${response.queryResponse.startPosition || options.offset}-${(response.queryResponse.startPosition || options.offset) + (response.invoices.length -1)} of ${response.queryResponse.totalCount || 'many'}. Max results per page: ${response.queryResponse.maxResults || options.limit}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No QuickBooks invoices found matching your criteria.";
+      } else {
+        return `Error fetching QuickBooks invoices: ${response.error || 'Unknown error'}. Please ensure the agent is authorized with QuickBooks (use 'qb get auth url').`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list qb invoices" command:', error.message);
+      return `An unexpected error occurred while creating the HubSpot contact: ${error.message}`;
+    }
+  } else if (lowerCaseMessage.startsWith('create hubspot contact and dm me details')) {
+    const userId = "mock_user_id_from_handler"; // This is assumed to be the Slack User ID for DM purposes.
+    const commandPrefix = 'create hubspot contact and dm me details';
+    const jsonDetailsString = message.substring(commandPrefix.length).trim();
+
+    if (!jsonDetailsString) {
+        return `Please provide contact details in JSON format after "${commandPrefix}". Usage: ${commandPrefix} {"email":"test@example.com","firstname":"Test"}`;
+    }
+
+    try { // Outer try-catch for general errors like JSON parsing or unexpected issues
+      let contactDetails: HubSpotContactProperties;
+      try {
+        contactDetails = JSON.parse(jsonDetailsString);
+      } catch (e: any) {
+        console.error('Error parsing contact JSON for HubSpot creation (DM flow):', e.message);
+        return `Invalid JSON format for contact details: ${e.message}. Please ensure you provide valid JSON.`;
+      }
+
+      if (!contactDetails.email) { // Basic validation
+        return "The 'email' property is required in the JSON details to create a HubSpot contact.";
+      }
+
+      const hubspotResponse: CreateHubSpotContactResponse = await createHubSpotContact(userId, contactDetails);
+
+      if (hubspotResponse.success && hubspotResponse.contactId && hubspotResponse.hubSpotContact) {
+        const contact = hubspotResponse.hubSpotContact;
+        let name = `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim();
+        if (!name) name = "N/A";
+
+        let slackMessage = `🎉 HubSpot Contact Created!\n`;
+        slackMessage += `ID: ${hubspotResponse.contactId}\n`;
+        slackMessage += `Name: ${name}\n`;
+        slackMessage += `Email: ${contact.properties.email || 'N/A'}\n`;
+        if (contact.properties.company) {
+          slackMessage += `Company: ${contact.properties.company}\n`;
+        }
+        if (ATOM_HUBSPOT_PORTAL_ID) {
+          slackMessage += `View in HubSpot: https://app.hubspot.com/contacts/${ATOM_HUBSPOT_PORTAL_ID}/contact/${hubspotResponse.contactId}\n`;
+        }
+
+        try { // Inner try-catch for the Slack DM part
+          const slackDmResponse = await sendSlackMessage(userId, userId, slackMessage); // userId as channel for DM
+          if (slackDmResponse.ok) {
+            return `HubSpot contact created (ID: ${hubspotResponse.contactId}). I've sent the details to your Slack DM!`;
+          } else {
+            console.error('Failed to send Slack DM for new HubSpot contact:', slackDmResponse.error);
+            return `HubSpot contact created (ID: ${hubspotResponse.contactId}), but I couldn't send details to your Slack DM. Slack error: ${slackDmResponse.error}`;
+          }
+        } catch (slackError: any) {
+          console.error('Error sending Slack DM for new HubSpot contact:', slackError.message);
+          return `HubSpot contact created (ID: ${hubspotResponse.contactId}), but there was an issue sending the confirmation to Slack: ${slackError.message}`;
+        }
+      } else { // HubSpot creation failed
+        return `Failed to create HubSpot contact: ${hubspotResponse.message || 'Unknown HubSpot error. Please check HubSpot configuration and permissions.'}`;
+      }
+    } catch (error: any) { // Catch JSON parsing errors or other unexpected issues
+      console.error('Error in "create hubspot contact and dm me details" handler:', error.message);
+      return `An unexpected error occurred: ${error.message}`;
+    }
+  } else if (lowerCaseMessage.startsWith('get qb invoice')) {
+    const parts = lowerCaseMessage.split(' '); // "get qb invoice <invoiceId>"
+    if (parts.length < 4) {
+      return "Please provide a QuickBooks Invoice ID. Usage: get qb invoice <invoiceId>";
+    }
+    const invoiceId = parts[3];
+
+    try {
+      const response: GetQuickBooksInvoiceDetailsResponse = await getQuickBooksInvoiceDetails(invoiceId);
+      if (response.ok && response.invoice) {
+        const inv = response.invoice;
+        let output = `QuickBooks Invoice (ID: ${inv.Id}):\nDoc #: ${inv.DocNumber || 'N/A'}\nCustomer: ${inv.CustomerRef?.name || inv.CustomerRef?.value || 'N/A'}\nTotal: ${inv.TotalAmt !== undefined ? inv.TotalAmt.toFixed(2) : 'N/A'} ${inv.CurrencyRef?.value || ''}, Balance: ${inv.Balance !== undefined ? inv.Balance.toFixed(2) : 'N/A'}\nTxn Date: ${inv.TxnDate || 'N/A'}, Due Date: ${inv.DueDate || 'N/A'}\nEmail: ${inv.BillEmail?.Address || 'N/A'}\nStatus: ${inv.EmailStatus || 'N/A'}\nMemo: ${inv.CustomerMemo || 'N/A'}\nPrivate Note: ${inv.PrivateNote || 'N/A'}`;
+        // Could add line item details if needed, but keep it concise for chat.
+        // if (inv.Line && inv.Line.length > 0) {
+        //   output += "\nLines:";
+        //   inv.Line.forEach(line => output += `\n  - ${line.Description || 'Item'} Amount: ${line.Amount}`);
+        // }
+        return output;
+      } else {
+        return `Error fetching QuickBooks invoice: ${response.error || `Invoice with ID ${invoiceId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get qb invoice ${invoiceId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching the QuickBooks invoice ${invoiceId}.`;
+    }
   }
 
-
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", or "get teams meeting <eventId>".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "create hubspot contact and dm me details {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", "get stripe payment <paymentIntentId>", "qb get auth url", "list qb invoices [limit=N] [offset=N] [customer=ID]", or "get qb invoice <invoiceId>".`;
 }

@@ -402,6 +402,99 @@ export interface ListCalendlyEventTypesResponse {
   error?: string;
 }
 
+// --- QuickBooks Online (QBO) Types ---
+export interface QuickBooksAuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  realmId: string;
+  accessTokenExpiresAt: number; // Timestamp (ms since epoch) for access token expiry
+  refreshTokenExpiresAt: number; // Timestamp (ms since epoch) for refresh token expiry
+  createdAt: number; // Timestamp (ms since epoch) when these tokens were saved
+}
+
+// Simplified representation of a QBO Invoice.
+// The actual QBO API response is much more detailed.
+export interface QuickBooksInvoice {
+  Id: string;
+  DocNumber?: string; // Invoice number
+  TxnDate?: string; // Date of the transaction
+  DueDate?: string; // Due date of the invoice
+  CustomerRef?: {
+    value: string; // Customer ID
+    name?: string; // Customer name
+  };
+  BillEmail?: {
+    Address: string;
+  };
+  TotalAmt?: number;
+  Balance?: number; // Remaining balance
+  CurrencyRef?: {
+    value: string; // e.g., "USD"
+    name?: string;
+  };
+  Line?: any[]; // Array of line items, can be complex
+  PrivateNote?: string;
+  CustomerMemo?: string; // Message to customer
+  EmailStatus?: 'EmailSent' | 'NotSet' | string; // Status of email delivery for the invoice
+  // Add other fields as needed, e.g., WebAddr for online payment link
+  [key: string]: any; // Allow other properties from the QBO API
+}
+
+export interface ListQuickBooksInvoicesResponse {
+  ok: boolean;
+  invoices?: QuickBooksInvoice[];
+  error?: string;
+  // QueryResponse from node-quickbooks contains more details like totalCount, startPosition, maxResults
+  queryResponse?: any;
+}
+
+export interface GetQuickBooksInvoiceDetailsResponse {
+  ok: boolean;
+  invoice?: QuickBooksInvoice;
+  error?: string;
+}
+
+// --- Stripe Types ---
+// Represents a simplified view of a Stripe Charge, often part of a PaymentIntent
+export interface StripeCharge {
+  id: string; // ch_...
+  amount: number; // In cents
+  currency: string; // e.g., "usd"
+  status: 'succeeded' | 'pending' | 'failed'; // And others
+  created: number; // Unix timestamp
+  receipt_url?: string | null; // URL to the receipt page
+  description?: string | null;
+  // billing_details?: Stripe.BillingDetails; // If needed, map this too
+  // payment_method_details?: Stripe.Charge.PaymentMethodDetails; // If needed
+}
+
+// Represents a simplified view of a Stripe PaymentIntent
+export interface StripePaymentIntent {
+  id: string; // pi_...
+  amount: number; // In cents
+  currency: string; // e.g., "usd"
+  status: 'succeeded' | 'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'canceled'; // And others
+  created: number; // Unix timestamp
+  customer?: string | null; // Customer ID: cus_...
+  description?: string | null;
+  latest_charge?: StripeCharge | null; // Our simplified charge object
+  // Add other fields as necessary, e.g., shipping, metadata
+}
+
+export interface ListStripePaymentsResponse {
+  ok: boolean;
+  payments?: StripePaymentIntent[];
+  error?: string;
+  has_more?: boolean; // For pagination
+  // next_page?: string; // Stripe uses `starting_after` for pagination, not a direct next page token in the response itself
+}
+
+export interface GetStripePaymentDetailsResponse {
+  ok: boolean;
+  payment?: StripePaymentIntent;
+  error?: string;
+}
+
 // --- Microsoft Graph / Teams Types ---
 export interface MSGraphDateTimeTimeZone {
   dateTime: string; // ISO 8601 format e.g., "2024-03-20T10:00:00.0000000"
