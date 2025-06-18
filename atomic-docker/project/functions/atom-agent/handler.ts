@@ -684,7 +684,66 @@ export async function handleMessage(message: string): Promise<string> {
       }
     } catch (error: any) {
       console.error('Error in "list qb invoices" command:', error.message);
-      return "Sorry, an unexpected error occurred while fetching QuickBooks invoices.";
+      return `An unexpected error occurred while creating the HubSpot contact: ${error.message}`;
+    }
+  } else if (lowerCaseMessage.startsWith('create hubspot contact and dm me details')) {
+    const userId = "mock_user_id_from_handler"; // This is assumed to be the Slack User ID for DM purposes.
+    const commandPrefix = 'create hubspot contact and dm me details';
+    const jsonDetailsString = message.substring(commandPrefix.length).trim();
+
+    if (!jsonDetailsString) {
+        return `Please provide contact details in JSON format after "${commandPrefix}". Usage: ${commandPrefix} {"email":"test@example.com","firstname":"Test"}`;
+    }
+
+    try { // Outer try-catch for general errors like JSON parsing or unexpected issues
+      let contactDetails: HubSpotContactProperties;
+      try {
+        contactDetails = JSON.parse(jsonDetailsString);
+      } catch (e: any) {
+        console.error('Error parsing contact JSON for HubSpot creation (DM flow):', e.message);
+        return `Invalid JSON format for contact details: ${e.message}. Please ensure you provide valid JSON.`;
+      }
+
+      if (!contactDetails.email) { // Basic validation
+        return "The 'email' property is required in the JSON details to create a HubSpot contact.";
+      }
+
+      const hubspotResponse: CreateHubSpotContactResponse = await createHubSpotContact(userId, contactDetails);
+
+      if (hubspotResponse.success && hubspotResponse.contactId && hubspotResponse.hubSpotContact) {
+        const contact = hubspotResponse.hubSpotContact;
+        let name = `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim();
+        if (!name) name = "N/A";
+
+        let slackMessage = `🎉 HubSpot Contact Created!\n`;
+        slackMessage += `ID: ${hubspotResponse.contactId}\n`;
+        slackMessage += `Name: ${name}\n`;
+        slackMessage += `Email: ${contact.properties.email || 'N/A'}\n`;
+        if (contact.properties.company) {
+          slackMessage += `Company: ${contact.properties.company}\n`;
+        }
+        if (ATOM_HUBSPOT_PORTAL_ID) {
+          slackMessage += `View in HubSpot: https://app.hubspot.com/contacts/${ATOM_HUBSPOT_PORTAL_ID}/contact/${hubspotResponse.contactId}\n`;
+        }
+
+        try { // Inner try-catch for the Slack DM part
+          const slackDmResponse = await sendSlackMessage(userId, userId, slackMessage); // userId as channel for DM
+          if (slackDmResponse.ok) {
+            return `HubSpot contact created (ID: ${hubspotResponse.contactId}). I've sent the details to your Slack DM!`;
+          } else {
+            console.error('Failed to send Slack DM for new HubSpot contact:', slackDmResponse.error);
+            return `HubSpot contact created (ID: ${hubspotResponse.contactId}), but I couldn't send details to your Slack DM. Slack error: ${slackDmResponse.error}`;
+          }
+        } catch (slackError: any) {
+          console.error('Error sending Slack DM for new HubSpot contact:', slackError.message);
+          return `HubSpot contact created (ID: ${hubspotResponse.contactId}), but there was an issue sending the confirmation to Slack: ${slackError.message}`;
+        }
+      } else { // HubSpot creation failed
+        return `Failed to create HubSpot contact: ${hubspotResponse.message || 'Unknown HubSpot error. Please check HubSpot configuration and permissions.'}`;
+      }
+    } catch (error: any) { // Catch JSON parsing errors or other unexpected issues
+      console.error('Error in "create hubspot contact and dm me details" handler:', error.message);
+      return `An unexpected error occurred: ${error.message}`;
     }
   } else if (lowerCaseMessage.startsWith('get qb invoice')) {
     const parts = lowerCaseMessage.split(' '); // "get qb invoice <invoiceId>"
@@ -713,5 +772,5 @@ export async function handleMessage(message: string): Promise<string> {
     }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", "get stripe payment <paymentIntentId>", "qb get auth url", "list qb invoices [limit=N] [offset=N] [customer=ID]", or "get qb invoice <invoiceId>".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "create hubspot contact and dm me details {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", "get stripe payment <paymentIntentId>", "qb get auth url", "list qb invoices [limit=N] [offset=N] [customer=ID]", or "get qb invoice <invoiceId>".`;
 }
