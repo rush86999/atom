@@ -80,3 +80,37 @@ export interface ZapTriggerResponse {
   message: string;
   // data?: any; // Optional: any data returned by Zapier upon trigger
 }
+
+// --- HubSpot Types ---
+export interface HubSpotContactProperties {
+  email: string;
+  firstname?: string;
+  lastname?: string;
+  company?: string;
+}
+
+export interface HubSpotContact {
+  id: string;
+  properties: {
+    hs_object_id: string;
+    createdate: string;
+    lastmodifieddate: string;
+    email?: string;
+    firstname?: string;
+    lastname?: string;
+    company?: string;
+    [key: string]: any;
+  };
+  createdAt: string;
+  updatedAt: string;
+  archived: boolean;
+}
+
+export type GetHubSpotContactResponse = HubSpotContact | null;
+
+export interface CreateHubSpotContactResponse {
+  success: boolean;
+  contactId?: string;
+  message?: string;
+  hubSpotContact?: HubSpotContact;
+}

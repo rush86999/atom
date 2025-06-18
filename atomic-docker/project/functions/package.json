@@ -46,7 +46,8 @@
     "url-join": "^5.0.0",
     "uuid": "^9.0.0",
     "winston": "^3.10.0",
-    "ws": "^8.13.0"
+    "ws": "^8.13.0",
+    "@hubspot/api-client": "^11.1.0"
   },
   "type": "module",
   "devDependencies": {

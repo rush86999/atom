@@ -27,3 +27,7 @@ export const GOOGLE_CALENDAR_API_SCOPE = 'https://www.googleapis.com/auth/calend
 
 // Potentially other constants for Atom agent can be added below
 // e.g., API keys for email services, Zapier specific URLs (if not user-configured), etc.
+
+// HubSpot API Key
+// This must be set in the environment.
+export const ATOM_HUBSPOT_API_KEY = process.env.ATOM_HUBSPOT_API_KEY || '';
