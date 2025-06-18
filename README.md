@@ -47,7 +47,9 @@ https://github.com/rush86999/atomic/assets/16848240/5720e9a3-e4d6-4dce-8e3c-5d61
   - [QuickBooks Online](#quickbooks-online-1)
 - [Diagram](#diagram)
   - [Meeting Assist](#meeting-assist)
-- [Docker](#docker)
+- [Deployment Options](#deployment-options)
+  - [Local Docker Compose](#local-docker-compose)
+  - [AWS Cloud Deployment (Self-Hosted)](#aws-cloud-deployment-self-hosted)
 - [Support the Project](#support-the-project)
 - [Contributing](#contributing)
 
@@ -251,9 +253,22 @@ The Atomic Agent uses environment variables for its configuration and to connect
 
 ```
 
-## Docker
-- Self hosted docker compose
-- See [atomic-docker](./atomic-docker/README.md) branch for more details
+## Deployment Options
+
+This project offers multiple ways to deploy and run the Atomic application stack.
+
+### Local Docker Compose
+
+For local development, testing, and self-hosting on a single machine, the project can be run using Docker Compose. This method utilizes the services defined in the `atomic-docker/` directory.
+
+-   **Setup and Instructions:** See the detailed guide in [atomic-docker/README.md](./atomic-docker/README.md).
+
+### AWS Cloud Deployment (Self-Hosted)
+
+For a scalable and robust cloud environment, you can deploy the entire application stack to your own AWS account. This deployment is managed by the AWS Cloud Development Kit (CDK) and provisions all necessary infrastructure, including managed services for databases, messaging, and search where appropriate.
+
+-   **Features:** Deploys core application services, Optaplanner, and utilizes AWS S3, Amazon OpenSearch Service, and Amazon MSK Serverless.
+-   **Detailed Guide:** For prerequisites, setup instructions, deployment steps, and management, please refer to the comprehensive [AWS Deployment Guide](./deployment/aws/README.md).
 
 ## Support the Project
 - I'm spending 100% of my work time on this project

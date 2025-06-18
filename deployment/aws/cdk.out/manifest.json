@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-deploy-role-${AWS::AccountId}-${AWS::Region}",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-cfn-exec-role-${AWS::AccountId}-${AWS::Region}",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/2f59037a6f7c0155056831bc1bb1bb83f862e4d7a25d0fa922e701f0f86133be.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/8d91462a098109904f7cf7a448d7724d735a32d1e5af5aafb22cf157e5c1c889.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -34,6 +34,76 @@
         "AwsStack.assets"
       ],
       "metadata": {
+        "/AwsStack/AtomicDataBucket": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "bucketName": "*",
+              "removalPolicy": "destroy",
+              "autoDeleteObjects": true,
+              "versioned": false,
+              "publicReadAccess": false,
+              "blockPublicAccess": "*",
+              "encryption": "S3_MANAGED"
+            }
+          }
+        ],
+        "/AwsStack/AtomicDataBucket/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicDataBucketE642B1DA"
+          }
+        ],
+        "/AwsStack/AtomicDataBucket/Policy": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "bucket": "*"
+            }
+          }
+        ],
+        "/AwsStack/AtomicDataBucket/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicDataBucketPolicy5E8D6043"
+          }
+        ],
+        "/AwsStack/AtomicDataBucket/AutoDeleteObjectsCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicDataBucket/AutoDeleteObjectsCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicDataBucketAutoDeleteObjectsCustomResource942CD73A"
+          }
+        ],
+        "/AwsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider": [
+          {
+            "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+            "data": true
+          }
+        ],
+        "/AwsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+          }
+        ],
+        "/AwsStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F"
+          }
+        ],
+        "/AwsStack/DataBucketName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DataBucketName"
+          }
+        ],
         "/AwsStack/AtomicFunctionsRepo": [
           {
             "type": "aws:cdk:analytics:construct",
@@ -186,6 +256,40 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "AppRepoUri"
+          }
+        ],
+        "/AwsStack/AtomicOptaplannerRepo": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "repositoryName": "*",
+              "removalPolicy": "destroy",
+              "autoDeleteImages": true
+            }
+          }
+        ],
+        "/AwsStack/AtomicOptaplannerRepo/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicOptaplannerRepo893F41D8"
+          }
+        ],
+        "/AwsStack/AtomicOptaplannerRepo/AutoDeleteImagesCustomResource": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/AtomicOptaplannerRepo/AutoDeleteImagesCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AtomicOptaplannerRepoAutoDeleteImagesCustomResource9A90340F"
+          }
+        ],
+        "/AwsStack/OptaplannerRepoUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerRepoUri"
           }
         ],
         "/AwsStack/AtomicVpc": [
@@ -519,6 +623,17 @@
                 "*"
               ]
             }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
           }
         ],
         "/AwsStack/RdsSecurityGroup/Resource": [
@@ -537,6 +652,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "RdsSecurityGroupfromAwsStackHasuraSGB75C40175432DEDDB2F0"
+          }
+        ],
+        "/AwsStack/RdsSecurityGroup/from AwsStackOptaplannerSGB8DCFB76:5432": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "RdsSecurityGroupfromAwsStackOptaplannerSGB8DCFB76543235E54F24"
           }
         ],
         "/AwsStack/AtomicPostgresDB": [
@@ -822,6 +943,28 @@
                 true
               ]
             }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
           }
         ],
         "/AwsStack/AlbSecurityGroup/Resource": [
@@ -849,6 +992,10 @@
         "/AwsStack/AtomicAlb/HttpListener": [
           {
             "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
             "data": "*"
           },
           {
@@ -940,6 +1087,14 @@
           {
             "type": "aws:cdk:analytics:method",
             "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
               "addToPolicy": [
                 {}
               ]
@@ -957,6 +1112,62 @@
             "type": "aws:cdk:analytics:method",
             "data": {
               "addToPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addToPrincipalPolicy": [
                 {}
               ]
             }
@@ -1298,6 +1509,70 @@
                 {}
               ]
             }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addStatements": [
+                {}
+              ]
+            }
           }
         ],
         "/AwsStack/ECSTaskRole/DefaultPolicy/Resource": [
@@ -1414,6 +1689,27 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "OpenAiApiKeySecretArn"
+          }
+        ],
+        "/AwsStack/OptaplannerDbConnString": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "secretName": "*",
+              "description": "*"
+            }
+          }
+        ],
+        "/AwsStack/OptaplannerDbConnString/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerDbConnString28A909E6"
+          }
+        ],
+        "/AwsStack/OptaplannerDbConnStringArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerDbConnStringArn"
           }
         ],
         "/AwsStack/HasuraAdminSecret": [
@@ -1639,7 +1935,7 @@
               "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
-              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:267:32)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:305:32)",
               "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
               "Module._compile (node:internal/modules/cjs/loader:1730:14)",
               "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
@@ -1974,7 +2270,7 @@
               "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
-              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:338:27)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:376:27)",
               "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
               "Module._compile (node:internal/modules/cjs/loader:1730:14)",
               "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
@@ -2137,7 +2433,7 @@
               "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
-              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:405:30)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:445:30)",
               "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
               "Module._compile (node:internal/modules/cjs/loader:1730:14)",
               "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
@@ -2281,7 +2577,7 @@
               "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
-              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:470:24)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:510:24)",
               "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
               "Module._compile (node:internal/modules/cjs/loader:1730:14)",
               "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
@@ -2461,7 +2757,7 @@
               "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
-              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:537:30)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:577:30)",
               "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
               "Module._compile (node:internal/modules/cjs/loader:1730:14)",
               "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
@@ -2631,7 +2927,7 @@
               "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
               "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
-              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:603:26)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:643:26)",
               "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
               "Module._compile (node:internal/modules/cjs/loader:1730:14)",
               "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
@@ -2677,6 +2973,177 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "OAuthListenerRuleBC6350B9"
+          }
+        ],
+        "/AwsStack/OptaplannerSG": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "vpc": "*",
+              "allowAllOutbound": true
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addEgressRule": [
+                "*",
+                {},
+                "*",
+                true
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": {
+              "addIngressRule": [
+                "*",
+                {},
+                "*",
+                false
+              ]
+            }
+          }
+        ],
+        "/AwsStack/OptaplannerSG/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerSG10E13F9F"
+          }
+        ],
+        "/AwsStack/OptaplannerSG/from AwsStackAlbSecurityGroupFEFFD71B:8081": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerSGfromAwsStackAlbSecurityGroupFEFFD71B808191604EED"
+          }
+        ],
+        "/AwsStack/OptaplannerTaskDef": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          },
+          {
+            "type": "aws:cdk:analytics:method",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/OptaplannerTaskDef/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerTaskDef99156FA2"
+          }
+        ],
+        "/AwsStack/OptaplannerLogGroup": [
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": {
+              "logGroupName": "*",
+              "removalPolicy": "destroy"
+            }
+          }
+        ],
+        "/AwsStack/OptaplannerLogGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerLogGroup6EFDA77B"
+          }
+        ],
+        "/AwsStack/OptaplannerService": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "minHealthyPercent has not been configured so the default value of 50% is used. The number of running tasks will decrease below the desired count during deployments etc. See https://github.com/aws/aws-cdk/issues/31705 [ack: @aws-cdk/aws-ecs:minHealthyPercent]",
+            "trace": [
+              "Annotations.addMessage (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1709)",
+              "Annotations.addWarningV2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new BaseService (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/base/base-service.js:1:8201)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/aws-ecs/lib/fargate/fargate-service.js:1:3888)",
+              "new FargateService2 (/app/deployment/aws/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "new AwsStack (/app/deployment/aws/lib/aws-stack.ts:704:31)",
+              "Object.<anonymous> (/app/deployment/aws/bin/aws.ts:6:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Module.m._compile (/app/deployment/aws/node_modules/ts-node/src/index.ts:1618:23)",
+              "node:internal/modules/cjs/loader:1895:10",
+              "Object.require.extensions.<computed> [as .ts] (/app/deployment/aws/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "phase4 (/app/deployment/aws/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/app/deployment/aws/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/app/deployment/aws/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/app/deployment/aws/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1730:14)",
+              "Object.<anonymous> (node:internal/modules/cjs/loader:1895:10)",
+              "Module.load (node:internal/modules/cjs/loader:1465:32)",
+              "Function._load (node:internal/modules/cjs/loader:1282:12)",
+              "TracingChannel.traceSync (node:diagnostics_channel:322:14)",
+              "wrapModuleLoad (node:internal/modules/cjs/loader:235:24)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)",
+              "node:internal/main/run_main_module:36:49"
+            ]
+          },
+          {
+            "type": "aws:cdk:analytics:construct",
+            "data": "*"
+          }
+        ],
+        "/AwsStack/OptaplannerService/Service": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerServiceB1009854"
+          }
+        ],
+        "/AwsStack/OptaplannerTargetGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerTargetGroupDF19B4DA"
+          }
+        ],
+        "/AwsStack/OptaplannerListenerRule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "OptaplannerListenerRuleF51E8FB5"
           }
         ],
         "/AwsStack/CDKMetadata/Default": [
