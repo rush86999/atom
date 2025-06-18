@@ -211,7 +211,7 @@ export interface PostTableRequestBody {
 }
 
 // ----- Shared State Import -----
-import { pendingSchedulingRequests, PendingRequestInfo } from '../sharedAgentState';
+import { storePendingRequest, removePendingRequest, PendingRequestInfo } from '../sharedAgentState';
 
 // ----- Real HTTP Client with Axios -----
 interface HttpClientResponse {
@@ -284,15 +284,15 @@ export async function submitSchedulingJobToAtomicScheduler(
   const schedulerEndpoint = `${ATOMIC_SCHEDULER_API_BASE_URL}/timeTable/user/solve-day`;
 
   try {
-    const requestInfo: PendingRequestInfo = {
+    const jobInfo: PendingRequestInfo = {
       userId: userId,
       hostId: data.hostId,
       fileKey: data.fileKey,
-      singletonId: data.singletonId, // Make sure PendingRequestInfo includes this
-      // originalQuery: "Pass if available and part of PendingRequestInfo",
+      singletonId: data.singletonId,
+      // originalQuery: "...", // Pass this if available from function params or wider scope
       submittedAt: new Date(),
     };
-    pendingSchedulingRequests.set(data.fileKey, requestInfo);
+    await storePendingRequest(jobInfo);
 
     logger.info(`[submitSchedulingJobToAtomicScheduler] Sending job to scheduler: ${schedulerEndpoint}`);
     const response = await httpClient.post(schedulerEndpoint, data);
@@ -301,7 +301,7 @@ export async function submitSchedulingJobToAtomicScheduler(
       logger.info(`[submitSchedulingJobToAtomicScheduler] Job successfully submitted to scheduler for singletonId: ${data.singletonId} (fileKey: ${data.fileKey}). Status: ${response.status}, Response Data:`, response.data);
       return {
         success: true,
-        message: "Your scheduling request has been submitted. You will be notified when it's complete.", // Or use response.data.message if provided and suitable
+        message: "Your scheduling request has been submitted. You will be notified when it's complete.",
         singletonId: data.singletonId,
       };
     } else {
@@ -315,7 +315,6 @@ export async function submitSchedulingJobToAtomicScheduler(
       } else if (response.error) { // Error message provided by httpClient
         userMessage = `Failed to submit scheduling request: ${response.error}`;
       } else if (response.data) { // Fallback to data if error string is not specific
-        // Try to get a more specific message if the server sent one
         const serverMessage = (response.data as any)?.message || (response.data as any)?.error;
         if (serverMessage) {
             userMessage = `Failed to submit scheduling request. Scheduler responded with status ${response.status}: ${serverMessage}`;
@@ -325,7 +324,7 @@ export async function submitSchedulingJobToAtomicScheduler(
       }
 
       logger.error(`[submitSchedulingJobToAtomicScheduler] Error submitting job for fileKey: ${data.fileKey}. Status: ${response.status}, Error: ${response.error || 'N/A'}, Data:`, response.data);
-      pendingSchedulingRequests.delete(data.fileKey);
+      await removePendingRequest(data.fileKey); // Use new state function
       return {
         success: false,
         message: userMessage,
@@ -333,7 +332,10 @@ export async function submitSchedulingJobToAtomicScheduler(
     }
   } catch (error: any) {
     logger.error(`[submitSchedulingJobToAtomicScheduler] Exception during job submission for fileKey: ${data.fileKey}:`, error.stack || error);
-    pendingSchedulingRequests.delete(data.fileKey);
+    // Attempt to remove from state if it was stored before the exception
+    // This assumes storePendingRequest might have succeeded before another error.
+    // If storePendingRequest is the one failing, this delete won't find anything, which is fine.
+    await removePendingRequest(data.fileKey);
     return {
       success: false,
       message: "An unexpected error occurred while submitting your scheduling request.",

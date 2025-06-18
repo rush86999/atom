@@ -33,7 +33,7 @@ interface EventDto {
 }
 
 // --- Shared State Import ---
-import { pendingSchedulingRequests, PendingRequestInfo } from '../sharedAgentState';
+import { retrievePendingRequest, removePendingRequest, PendingRequestInfo } from '../sharedAgentState';
 
 export interface EventPartDto {
   id?: string;
@@ -99,7 +99,7 @@ export async function handleSchedulerCallback(req: Request, res: Response): Prom
     return;
   }
 
-  const requestContext = pendingSchedulingRequests.get(solution.fileKey);
+  const requestContext = await retrievePendingRequest(solution.fileKey);
 
   if (!requestContext) {
     logger.warn(`[schedulerCallbackHandler.handleSchedulerCallback] No pending request found for fileKey: ${solution.fileKey}. It might have been already processed, timed out, or is invalid.`);
@@ -158,14 +158,14 @@ export async function handleSchedulerCallback(req: Request, res: Response): Prom
 
     await sendUserNotification(userId, notificationMessage.trim());
 
-    pendingSchedulingRequests.delete(solution.fileKey);
+    await removePendingRequest(solution.fileKey);
     logger.info(`[schedulerCallbackHandler.handleSchedulerCallback] Processed and cleaned up pending request for fileKey: ${solution.fileKey}`);
 
     res.status(200).send({ message: 'Callback processed successfully. User has been notified.' });
 
   } catch (processingError: any) {
     logger.error(`[schedulerCallbackHandler.handleSchedulerCallback] Error processing solution for fileKey ${solution.fileKey}:`, processingError.message, processingError.stack);
-    // Do not delete from pendingSchedulingRequests here, as it might be a temporary processing error.
+    // Do not delete from pendingSchedulingRequests here in case of processing error, to allow for retries or investigation.
     res.status(500).send({ error: 'Callback received, but an internal error occurred during solution processing.' });
   }
   // --- NEW LOGIC ENDS HERE ---
