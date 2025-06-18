@@ -1915,8 +1915,8 @@ export const generateWorkTimesForInternalAttendee = (
 
         workTimes.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
-            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
+            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
+            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
             hostId,
             userId,
         })
@@ -1993,10 +1993,11 @@ export const generateTimeSlotsForInternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 15) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                     hostId,
-                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
@@ -2012,10 +2013,11 @@ export const generateTimeSlotsForInternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 15) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                 hostId,
-                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
         console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day')
@@ -2047,10 +2049,11 @@ export const generateTimeSlotsForInternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
             hostId,
-            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
     console.log(timeSlots, ' timeSlots inside generateTimeSlots')
@@ -2069,6 +2072,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
         const endTimes = userPreference.endTimes
 
         const dayOfWeekInt = getISODay(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate())
+
 
         const startHourOfHostDateByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour()
         const startMinuteOfHostDateByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true)
@@ -2112,10 +2116,11 @@ export const generateTimeSlotsLiteForInternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 30) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                     hostId,
                     monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day before start time')
@@ -2130,10 +2135,11 @@ export const generateTimeSlotsLiteForInternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 30) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                 hostId,
                 monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
         console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day')
@@ -2162,10 +2168,11 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 30) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
             hostId,
             monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
     console.log(timeSlots, ' timeSlots inside generateTimeSlots')
@@ -2550,35 +2557,35 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
         .hour(parseInt(positiveImpactTime.slice(0, 2), 10))
         .minute(parseInt(positiveImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
     
     const adjustedNegativeImpactTime = negativeImpactTime && (dayjs(startDate?.slice(0, 19))
         .tz(timezone)
         .hour(parseInt(negativeImpactTime.slice(0, 2), 10))
         .minute(parseInt(negativeImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
     
     const adjustedPreferredTime = preferredTime && (dayjs(startDate?.slice(0, 19))
         .tz(timezone)
         .hour(parseInt(preferredTime.slice(0, 2), 10))
         .minute(parseInt(preferredTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
     
     const adjustedPreferredStartTimeRange = preferredStartTimeRange && (dayjs(startDate?.slice(0, 19))
         .tz(timezone)
         .hour(parseInt(preferredStartTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredStartTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredEndTimeRange = preferredEndTimeRange && (dayjs(startDate?.slice(0, 19))
         .tz(timezone)
         .hour(parseInt(preferredEndTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredEndTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
     
     const adjustedPreferredTimeRanges = preferredTimeRanges
         ?.map(e => ({
@@ -2588,13 +2595,13 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
                 .hour(parseInt(e?.startTime.slice(0, 2), 10))
                 .minute(parseInt(e?.startTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             endTime: dayjs(startDate?.slice(0, 19))
                 .tz(timezone)
                 .hour(parseInt(e?.endTime.slice(0, 2), 10))
                 .minute(parseInt(e?.endTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             eventId,
             userId,
             hostId
@@ -2607,8 +2614,8 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
         lastPart,
         meetingPart,
         meetingLastPart,
-        startDate,
-        endDate,
+        startDate: dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dayjs(event.endDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
         taskId,
         hardDeadline,
         softDeadline,
@@ -2645,6 +2652,7 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
             userId,
             hostId,
             preferredTimeRanges: adjustedPreferredTimeRanges ?? null,
+            eventType: event.eventType,
         }
     }
     return eventPlannerRequestBody
@@ -2715,35 +2723,35 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
         .hour(parseInt(positiveImpactTime.slice(0, 2), 10))
         .minute(parseInt(positiveImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedNegativeImpactTime = negativeImpactTime && (dayjs()
         .tz(timezone)
         .hour(parseInt(negativeImpactTime.slice(0, 2), 10))
         .minute(parseInt(negativeImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredTime = preferredTime && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredTime.slice(0, 2), 10))
         .minute(parseInt(preferredTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredStartTimeRange = preferredStartTimeRange && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredStartTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredStartTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredEndTimeRange = preferredEndTimeRange && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredEndTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredEndTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredTimeRanges = preferredTimeRanges
         ?.map(e => ({
@@ -2753,13 +2761,13 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
                 .hour(parseInt(e?.startTime.slice(0, 2), 10))
                 .minute(parseInt(e?.startTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             endTime: dayjs()
                 .tz(timezone)
                 .hour(parseInt(e?.endTime.slice(0, 2), 10))
                 .minute(parseInt(e?.endTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             eventId,
             userId,
             hostId
@@ -2772,8 +2780,8 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
         lastPart,
         meetingPart,
         meetingLastPart,
-        startDate,
-        endDate,
+        startDate: dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dayjs(event.endDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
         taskId,
         hardDeadline,
         softDeadline,
@@ -2810,6 +2818,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
             userId,
             hostId,
             preferredTimeRanges: adjustedPreferredTimeRanges ?? null,
+            eventType: event.eventType,
         }
     }
     return eventPlannerRequestBody
@@ -2840,7 +2849,7 @@ export const setPreferredTimeForUnModifiableEvent = (event: EventPartPlannerRequ
             const newEvent = {
                 ...event,
                 preferredDayOfWeek: dayOfWeekIntToString[getISODay(dayjs(event.startDate.slice(0, 19)).tz(timezone, true).toDate())],
-                preferredTime: dayjs(event.startDate.slice(0, 19)).tz(timezone, true).format('HH:mm') as Time,
+                preferredTime: dayjs(event.startDate.slice(0, 19)).tz(timezone, true).format('HH:mm:ss') as Time,
             }
             return newEvent
         }
@@ -3202,8 +3211,8 @@ export const processEventsForOptaPlannerForMainHost = async (
                     meetingLastPart: eventPart?.meetingLastPart,
                     meetingId: eventPart?.meetingId,
                     hostId: mainHostId,
-                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).format(),
-                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).format(),
+                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
+                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
                     userId: eventPart?.userId,
                     user: eventPart?.user,
                     priority: eventPart?.priority,
@@ -3485,8 +3494,8 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
                     meetingLastPart: eventPart?.meetingLastPart,
                     meetingId: eventPart?.meetingId,
                     hostId: mainHostId,
-                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
-                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
+                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
+                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
                     userId: eventPart?.userId,
                     user: eventPart?.user,
                     priority: eventPart?.priority,
@@ -3641,8 +3650,8 @@ export const generateWorkTimesForExternalAttendee = (
 
         workTimes.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
-            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
+            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
+            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
             hostId,
             userId,
         })
@@ -3662,6 +3671,7 @@ export const generateTimeSlotsForExternalAttendee = (
 ) => {
     if (isFirstDay) {
         const dayOfWeekIntByHost = getISODay(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate())
+        // convert to host timezone so everything is linked to host timezone
         const monthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).month()
         const dayOfMonthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).date()
         const startHourOfHostDateByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour()
@@ -3675,6 +3685,7 @@ export const generateTimeSlotsForExternalAttendee = (
                     : 45
 
         const sameDayEvents = attendeeEvents.filter(e => (getISODay(dayjs(e.startDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).toDate())=== dayOfWeekIntByHost))
+        // const minStartDate = _.minBy(sameDayEvents, (e) => dayjs(e.startDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).unix())
         const maxEndDate = _.maxBy(sameDayEvents, (e) => dayjs(e.endDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).unix())
 
         let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19)).tz(maxEndDate.timezone || userTimezone, true).tz(hostTimezone).hour()
@@ -3704,6 +3715,7 @@ export const generateTimeSlotsForExternalAttendee = (
                     ? 30
                     : 45
 
+        // change to work start time as work start time is  after host start time
         if (dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).isBefore(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost))) {
 
             const startDuration = dayjs.duration({ hours: workStartHourByHost, minutes: workStartMinuteByHost })
@@ -3717,10 +3729,11 @@ export const generateTimeSlotsForExternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 15) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                     hostId,
-                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
@@ -3737,10 +3750,11 @@ export const generateTimeSlotsForExternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 15) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                 hostId,
-                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
 
@@ -3748,8 +3762,10 @@ export const generateTimeSlotsForExternalAttendee = (
         return timeSlots
     }
 
+    // not first day start from work start time schedule
 
     const dayOfWeekIntByHost = getISODay(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate())
+    // convert to host timezone so everything is linked to host timezone
     const monthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).month()
     const dayOfMonthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).date()
 
@@ -3791,10 +3807,11 @@ export const generateTimeSlotsForExternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
             hostId,
-            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
 
@@ -3813,6 +3830,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
 ) => {
     if (isFirstDay) {
         const dayOfWeekIntByHost = getISODay(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate())
+        // convert to host timezone so everything is linked to host timezone
         const monthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).month()
         const dayOfMonthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).date()
         const startHourOfHostDateByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour()
@@ -3824,6 +3842,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
                 : 0
 
         const sameDayEvents = attendeeEvents.filter(e => (getISODay(dayjs(e.startDate.slice(0, 19)).tz(e?.timezone || userTimezone, true).tz(hostTimezone).toDate()) === (dayOfWeekIntByHost)))
+        // const minStartDate = _.minBy(sameDayEvents, (e) => dayjs(e.startDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).unix())
         const maxEndDate = _.maxBy(sameDayEvents, (e) => dayjs(e.endDate.slice(0, 19)).tz(e?.timezone || userTimezone, true).tz(hostTimezone).unix())
 
         let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19)).tz(maxEndDate?.timezone || userTimezone, true).tz(hostTimezone).hour()
@@ -3849,6 +3868,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
                 ? 30
                 : 0
 
+        // change to work start time as work start time is  after host start time
         if (dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).isBefore(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost))) {
 
             const startDuration = dayjs.duration({ hours: workStartHourByHost, minutes: workStartMinuteByHost })
@@ -3862,10 +3882,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 30) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                     hostId,
-                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
@@ -3882,10 +3903,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 30) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                 hostId,
-                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
 
@@ -3893,8 +3915,10 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         return timeSlots
     }
 
+    // not first day start from work start time schedule
 
     const dayOfWeekIntByHost = getISODay(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate())
+    // convert to host timezone so everything is linked to host timezone
     const monthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).month()
     const dayOfMonthByHost = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).date()
 
@@ -3932,10 +3956,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 30) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
             hostId,
-            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
 
@@ -4055,8 +4080,8 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
                     meetingLastPart: eventPart?.meetingLastPart,
                     meetingId: eventPart?.meetingId,
                     hostId: mainHostId,
-                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
-                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
+                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
+                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
                     userId: eventPart?.userId,
                     user: eventPart?.user,
                     priority: eventPart?.priority,
@@ -4496,5 +4521,3 @@ export const processEventsForOptaPlanner = async (
         console.log(e, ' unable to process events for optaplanner')
     }
 }
-
-

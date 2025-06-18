@@ -1949,8 +1949,8 @@ export const generateWorkTimesForInternalAttendee = (
 
         workTimes.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
-            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
+            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
+            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(userTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
             hostId,
             userId,
         })
@@ -2034,10 +2034,11 @@ export const generateTimeSlotsForInternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 15) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                     hostId,
-                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
@@ -2053,10 +2054,11 @@ export const generateTimeSlotsForInternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 15) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                 hostId,
-                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
         console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day')
@@ -2091,10 +2093,11 @@ export const generateTimeSlotsForInternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
             hostId,
-            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
     console.log(timeSlots, ' timeSlots inside generateTimeSlots')
@@ -2161,10 +2164,11 @@ export const generateTimeSlotsLiteForInternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 30) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                     hostId,
                     monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day before start time')
@@ -2179,10 +2183,11 @@ export const generateTimeSlotsLiteForInternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 30) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                 hostId,
                 monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
         console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day')
@@ -2213,10 +2218,11 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 30) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourByHost).minute(startMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
             hostId,
             monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
     console.log(timeSlots, ' timeSlots inside generateTimeSlots')
@@ -2614,35 +2620,35 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
         .hour(parseInt(positiveImpactTime.slice(0, 2), 10))
         .minute(parseInt(positiveImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedNegativeImpactTime = negativeImpactTime && (dayjs()
         .tz(timezone)
         .hour(parseInt(negativeImpactTime.slice(0, 2), 10))
         .minute(parseInt(negativeImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredTime = preferredTime && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredTime.slice(0, 2), 10))
         .minute(parseInt(preferredTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredStartTimeRange = preferredStartTimeRange && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredStartTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredStartTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredEndTimeRange = preferredEndTimeRange && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredEndTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredEndTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredTimeRanges = preferredTimeRanges
         ?.map(e => ({
@@ -2652,13 +2658,13 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
                 .hour(parseInt(e?.startTime.slice(0, 2), 10))
                 .minute(parseInt(e?.startTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             endTime: dayjs()
                 .tz(timezone)
                 .hour(parseInt(e?.endTime.slice(0, 2), 10))
                 .minute(parseInt(e?.endTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             eventId,
             userId,
             hostId
@@ -2671,8 +2677,8 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
         lastPart,
         meetingPart,
         meetingLastPart,
-        startDate,
-        endDate,
+        startDate: dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dayjs(event.endDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
         taskId,
         hardDeadline,
         softDeadline,
@@ -2709,6 +2715,7 @@ export const formatEventTypeToPlannerEvent = (event: InitialEventPartTypePlus, u
             userId,
             hostId,
             preferredTimeRanges: adjustedPreferredTimeRanges ?? null,
+            eventType: event.eventType,
         }
     }
     return eventPlannerRequestBody
@@ -2779,35 +2786,35 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
         .hour(parseInt(positiveImpactTime.slice(0, 2), 10))
         .minute(parseInt(positiveImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedNegativeImpactTime = negativeImpactTime && (dayjs()
         .tz(timezone)
         .hour(parseInt(negativeImpactTime.slice(0, 2), 10))
         .minute(parseInt(negativeImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredTime = preferredTime && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredTime.slice(0, 2), 10))
         .minute(parseInt(preferredTime.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredStartTimeRange = preferredStartTimeRange && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredStartTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredStartTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredEndTimeRange = preferredEndTimeRange && (dayjs()
         .tz(timezone)
         .hour(parseInt(preferredEndTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredEndTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format('HH:mm') as Time) || undefined
+        .format('HH:mm:ss') as Time) || undefined
 
     const adjustedPreferredTimeRanges = preferredTimeRanges
         ?.map(e => ({
@@ -2817,13 +2824,13 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
                 .hour(parseInt(e?.startTime.slice(0, 2), 10))
                 .minute(parseInt(e?.startTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             endTime: dayjs()
                 .tz(timezone)
                 .hour(parseInt(e?.endTime.slice(0, 2), 10))
                 .minute(parseInt(e?.endTime.slice(3), 10))
                 .tz(hostTimezone)
-                .format('HH:mm') as Time,
+                .format('HH:mm:ss') as Time,
             eventId,
             userId,
             hostId
@@ -2836,8 +2843,8 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
         lastPart,
         meetingPart,
         meetingLastPart,
-        startDate,
-        endDate,
+        startDate: dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dayjs(event.endDate.slice(0, 19)).tz(event.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
         taskId,
         hardDeadline,
         softDeadline,
@@ -2874,6 +2881,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (event: InitialE
             userId,
             hostId,
             preferredTimeRanges: adjustedPreferredTimeRanges ?? null,
+            eventType: event.eventType,
         }
     }
     return eventPlannerRequestBody
@@ -2905,7 +2913,7 @@ export const setPreferredTimeForUnModifiableEvent = (event: EventPartPlannerRequ
             const newEvent = {
                 ...event,
                 preferredDayOfWeek: dayOfWeekIntToString[getISODay(dayjs(event.startDate.slice(0, 19)).tz(timezone, true).toDate())],
-                preferredTime: dayjs(event.startDate.slice(0, 19)).tz(timezone, true).format('HH:mm') as Time,
+                preferredTime: dayjs(event.startDate.slice(0, 19)).tz(timezone, true).format('HH:mm:ss') as Time,
             }
             return newEvent
         }
@@ -3288,8 +3296,8 @@ export const processEventsForOptaPlannerForMainHost = async (
                     meetingLastPart: eventPart?.meetingLastPart,
                     meetingId: eventPart?.meetingId,
                     hostId: mainHostId,
-                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).format(),
-                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).format(),
+                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
+                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
                     userId: eventPart?.userId,
                     user: eventPart?.user,
                     priority: eventPart?.priority,
@@ -3580,8 +3588,8 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
                     meetingLastPart: eventPart?.meetingLastPart,
                     meetingId: eventPart?.meetingId,
                     hostId: mainHostId,
-                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
-                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
+                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
+                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
                     userId: eventPart?.userId,
                     user: eventPart?.user,
                     priority: eventPart?.priority,
@@ -3737,8 +3745,8 @@ export const generateWorkTimesForExternalAttendee = (
 
         workTimes.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekInt],
-            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
-            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm') as Time,
+            startTime: dayjs(setISODay(dayjs().hour(startHour).minute(startMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
+            endTime: dayjs(setISODay(dayjs().hour(endHour).minute(endMinute).tz(hostTimezone, true).toDate(), i + 1)).tz(hostTimezone).format('HH:mm:ss') as Time,
             hostId,
             userId,
         })
@@ -3816,10 +3824,11 @@ export const generateTimeSlotsForExternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 15) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                     hostId,
-                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
@@ -3836,10 +3845,11 @@ export const generateTimeSlotsForExternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 15) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
                 hostId,
-                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
 
@@ -3892,10 +3902,11 @@ export const generateTimeSlotsForExternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 15, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 15, 'minute').format('HH:mm:ss') as Time,
             hostId,
-            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
 
@@ -3966,10 +3977,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
             for (let i = 0; i < totalMinutes; i += 30) {
                 timeSlots.push({
                     dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                    startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                    endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                     hostId,
-                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                    monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                    date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
                 })
             }
             console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
@@ -3986,10 +3998,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         for (let i = 0; i < totalMinutes; i += 30) {
             timeSlots.push({
                 dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm') as Time,
-                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+                startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+                endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(startHourOfHostDateByHost).minute(startMinuteOfHostDateByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
                 hostId,
-                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+                monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+                date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
             })
         }
 
@@ -4038,10 +4051,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
     for (let i = 0; i < totalMinutes; i += 30) {
         timeSlots.push({
             dayOfWeek: dayOfWeekIntToString[dayOfWeekIntByHost],
-            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm') as Time,
-            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 30, 'minute').format('HH:mm') as Time,
+            startTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i, 'minute').format('HH:mm:ss') as Time,
+            endTime: dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).hour(workStartHourByHost).minute(workStartMinuteByHost).add(i + 30, 'minute').format('HH:mm:ss') as Time,
             hostId,
-            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType)
+            monthDay: formatToMonthDay(monthByHost as MonthType, dayOfMonthByHost as DayType),
+            date: dayjs(hostStartDate.slice(0,19)).tz(hostTimezone, true).format('YYYY-MM-DD')
         })
     }
 
@@ -4117,7 +4131,6 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
                 }
             }
             timeslots.push(...(_.uniqWith(unfilteredTimeslots, _.isEqual)))
-
         
 
         // generate event parts
@@ -4164,8 +4177,8 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
                     meetingLastPart: eventPart?.meetingLastPart,
                     meetingId: eventPart?.meetingId,
                     hostId: mainHostId,
-                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
-                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format(),
+                    startDate: dayjs(eventPart?.startDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
+                    endDate: dayjs(eventPart?.endDate.slice(0, 19)).tz(oldEvent.timezone, true).tz(hostTimezone).format('YYYY-MM-DDTHH:mm:ss'),
                     userId: eventPart?.userId,
                     user: eventPart?.user,
                     priority: eventPart?.priority,
@@ -5803,1091 +5816,4 @@ export const copyOverPreviousEventDefaults = (
                     : (userPreferences?.copyTimePreference && (previousEvent.preferredTimeRanges?.length > 0)
                         ? previousEvent?.preferredTimeRanges
                         : (category?.defaultTimePreference?.length > 0
-                            ? category?.defaultTimePreference?.map(tp => ({ ...tp, eventId: event?.id, id: uuid(), createdDate: dayjs().toISOString(), updatedAt: dayjs().toISOString(), userId: event?.userId }))
-                            : event?.preferredTimeRanges))))
-            : event.preferredTimeRanges,
-
-        copyAvailability: !previousEvent?.unlink ? previousEvent.copyAvailability : false,
-        copyTimePreference: !previousEvent?.unlink ? previousEvent.copyTimePreference : false,
-        copyPriorityLevel: !previousEvent?.unlink ? previousEvent.copyPriorityLevel : false,
-        copyIsBreak: !previousEvent?.unlink ? previousEvent.copyIsBreak : false,
-        copyModifiable: !previousEvent?.unlink ? previousEvent.copyModifiable : false,
-        copyIsMeeting: !previousEvent?.unlink ? previousEvent.copyIsMeeting : false,
-        copyIsExternalMeeting: !previousEvent?.unlink ? previousEvent.copyIsExternalMeeting : false,
-        copyDuration: !previousEvent?.unlink ? previousEvent.copyDuration : false,
-        copyCategories: !previousEvent?.unlink ? previousEvent.copyCategories : false,
-        copyReminders: !previousEvent?.unlink ? previousEvent.copyReminders : false,
-        copyTimeBlocking: !previousEvent?.unlink ? previousEvent.copyTimeBlocking : false,
-        copyColor: !previousEvent?.unlink ? previousEvent.copyColor : false,
-        unlink: !previousEvent?.unlink ? false : true,
-
-        positiveImpactDayOfWeek: !previousEvent?.unlink ? previousEvent.positiveImpactDayOfWeek : null,
-        positiveImpactScore: !previousEvent?.unlink ? previousEvent.positiveImpactScore : null,
-        negativeImpactDayOfWeek: !previousEvent?.unlink ? previousEvent.negativeImpactDayOfWeek : null,
-        negativeImpactScore: !previousEvent?.unlink ? previousEvent.negativeImpactScore : null,
-        positiveImpactTime: !previousEvent?.unlink ? previousEvent.positiveImpactTime : null,
-        negativeImpactTime: !previousEvent?.unlink ? previousEvent.negativeImpactTime : null,
-
-        backgroundColor: !event?.userModifiedColor ? (previousEvent?.copyColor ? previousEvent.backgroundColor : (category?.color ? category?.color : (userPreferences?.copyColor ? previousEvent?.backgroundColor : event?.backgroundColor))) : event.backgroundColor,
-        colorId: ((previousEvent?.copyColor && previousEvent?.colorId) ? previousEvent.colorId : ((userPreferences?.copyColor && previousEvent?.colorId) ? previousEvent?.colorId : event?.colorId)),
-    }
-}
-
-export const createPreAndPostEventsFromPreviousEvent = (event: EventPlusType, previousEvent: EventPlusType) => {
-    //  validate time blocking
-    if (!previousEvent?.copyTimeBlocking) {
-        console.log('no copy time blocking')
-        return null
-    }
-
-    // user modified time blocking do not override
-    if (event.userModifiedTimeBlocking) {
-        console.log('user modified time blocking')
-        return null
-    }
-    const eventId = uuid()
-    const eventId1 = uuid()
-    const preEventId = event?.preEventId || `${eventId}#${event?.calendarId}`
-    const postEventId = event?.postEventId || `${eventId1}#${event?.calendarId}`
-
-    // await upsertEvents([beforeEvent, afterEvent])
-
-    let valuesToReturn: any = {}
-    valuesToReturn.newEvent = event
-
-    if (previousEvent?.timeBlocking?.afterEvent) {
-        // const formattedZoneAfterEventEndDate = formatInTimeZone(addMinutes(zonedTimeToUtc(event.endDate.slice(0, 19), event.timezone), previousEvent?.timeBlocking?.afterEvent), event.timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")
-        // const formattedZoneAfterEventStartDate = formatInTimeZone(zonedTimeToUtc(event.endDate.slice(0, 19), event.timezone), event.timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")
-
-        const formattedZoneAfterEventEndDate = dayjs(event.endDate.slice(0, 19)).tz(event.timezone, true).add(previousEvent?.timeBlocking?.afterEvent, 'm').format()
-        const formattedZoneAfterEventStartDate = dayjs(event.endDate.slice(0, 19)).tz(event.timezone, true).format()
-
-        const afterEvent: EventPlusType = {
-            id: postEventId,
-            isPreEvent: false,
-            forEventId: event.id,
-            isPostEvent: true,
-            notes: 'Buffer time',
-            summary: 'Buffer time',
-            startDate: formattedZoneAfterEventStartDate,
-            endDate: formattedZoneAfterEventEndDate,
-            method: event?.postEventId ? 'update' : 'create',
-            userId: event?.userId,
-            createdDate: dayjs().toISOString(),
-            deleted: false,
-            priority: 1,
-            isFollowUp: false,
-            modifiable: true,
-            anyoneCanAddSelf: false,
-            guestsCanInviteOthers: false,
-            guestsCanSeeOtherGuests: false,
-            originalStartDate: undefined,
-            originalAllDay: false,
-            updatedAt: dayjs().toISOString(),
-            calendarId: event?.calendarId,
-            timezone: event?.timezone,
-            eventId: postEventId.split('#')[0]
-        }
-        valuesToReturn.afterEvent = afterEvent
-        valuesToReturn.newEvent = {
-            ...valuesToReturn.newEvent,
-            postEventId,
-            timeBlocking: {
-                ...valuesToReturn?.newEvent?.timeBlocking,
-                afterEvent: previousEvent?.timeBlocking?.afterEvent,
-            }
-        }
-    }
-
-    if (previousEvent?.timeBlocking?.beforeEvent) {
-        // const formattedZoneBeforeEventStartDate = formatInTimeZone(subMinutes(zonedTimeToUtc(event.startDate.slice(0, 19), event.timezone), previousEvent?.timeBlocking?.beforeEvent), event.timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")
-        // const formattedZoneBeforeEventEndDate = formatInTimeZone(zonedTimeToUtc(event.startDate.slice(0, 19), event.timezone), event.timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")
-
-        const formattedZoneBeforeEventStartDate = dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true).subtract(previousEvent?.timeBlocking?.beforeEvent, 'm').format()
-        const formattedZoneBeforeEventEndDate = dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true).format()
-
-        const beforeEvent: EventPlusType = {
-            id: preEventId,
-            isPreEvent: true,
-            isPostEvent: false,
-            forEventId: event.id,
-            notes: 'Buffer time',
-            summary: 'Buffer time',
-            startDate: formattedZoneBeforeEventStartDate,
-            endDate: formattedZoneBeforeEventEndDate,
-            method: event?.preEventId ? 'update' : 'create',
-            userId: event?.userId,
-            createdDate: dayjs().toISOString(),
-            deleted: false,
-            priority: 1,
-            isFollowUp: false,
-            modifiable: true,
-            anyoneCanAddSelf: false,
-            guestsCanInviteOthers: false,
-            guestsCanSeeOtherGuests: false,
-            originalStartDate: undefined,
-            originalAllDay: false,
-            updatedAt: dayjs().toISOString(),
-            calendarId: event?.calendarId,
-            timezone: event?.timezone,
-            eventId: preEventId.split('#')[0]
-        }
-        valuesToReturn.beforeEvent = beforeEvent
-        valuesToReturn.newEvent = {
-            ...valuesToReturn.newEvent,
-            preEventId,
-            timeBlocking: {
-                ...valuesToReturn?.newEvent?.timeBlocking,
-                beforeEvent: previousEvent?.timeBlocking?.beforeEvent,
-            }
-        }
-    }
-
-    return valuesToReturn
-
-}
-
-export const createRemindersFromPreviousEventForEvent = async (event: EventPlusType, previousEvent: EventPlusType, userId: string): Promise<ReminderType[]> => {
-    // validate time blocking
-    if (event.userModifiedReminders) {
-        console.log('no event inside createRemindersFromPreviousEventForEvent')
-        return null
-    }
-
-    if (!previousEvent?.id) {
-        console.log('no previousEvent inside createRemindersFromPreviousEventForEvent')
-        return null
-    }
-
-    if (!previousEvent?.copyReminders) {
-        console.log('no previousEvent inside createRemindersFromPreviousEventForEvent')
-        return null
-    }
-
-    const reminders = await listRemindersForEvent(previousEvent.id, userId)
-
-    return reminders?.map(reminder => ({
-        ...reminder,
-        eventId: event.id,
-        id: uuid(),
-        // event: event,
-        updatedAt: dayjs().toISOString(),
-        createdDate: dayjs().toISOString(),
-        deleted: false,
-    }))
-
-}
-
-const copyOverMeetingAndExternalMeetingDefaultsWithPreviousEventFound = (
-    event: EventPlusType,
-    previousEvent: EventPlusType,
-    category: CategoryType,
-    userPreferences: UserPreferenceType,
-): EventPlusType => {
-    return {
-        ...event,
-        transparency: !event?.userModifiedAvailability ? (previousEvent?.copyAvailability ? previousEvent.transparency : (category.copyAvailability ? previousEvent?.transparency : (category.defaultAvailability ? 'transparent' : (userPreferences?.copyAvailability ? previousEvent?.transparency : event?.transparency)))) : event.transparency,
-        preferredTime: !event?.userModifiedTimePreference ? (previousEvent?.copyTimePreference ? previousEvent.preferredTime : (category.copyTimePreference ? previousEvent?.preferredTime : (userPreferences?.copyTimePreference ? previousEvent?.preferredTime : event?.preferredTime))) : event.preferredTime,
-        preferredDayOfWeek: !event?.userModifiedTimePreference ? (previousEvent?.copyTimePreference ? previousEvent.preferredDayOfWeek : (userPreferences?.copyTimePreference ? previousEvent?.preferredDayOfWeek : event?.preferredDayOfWeek)) : event.preferredDayOfWeek,
-        preferredStartTimeRange: !event?.userModifiedTimePreference ? (previousEvent?.copyTimePreference ? previousEvent.preferredStartTimeRange : (category.copyTimePreference ? previousEvent?.preferredStartTimeRange : (userPreferences?.copyTimePreference ? previousEvent?.preferredStartTimeRange : event?.preferredStartTimeRange))) : event.preferredStartTimeRange,
-        preferredEndTimeRange: !event?.userModifiedTimePreference ? (previousEvent?.copyTimePreference ? previousEvent.preferredEndTimeRange : (category.copyTimePreference ? previousEvent?.preferredEndTimeRange : (userPreferences?.copyTimePreference ? previousEvent?.preferredEndTimeRange : event?.preferredEndTimeRange))) : event.preferredEndTimeRange,
-        priority: (!event?.userModifiedPriorityLevel ? (previousEvent?.copyPriorityLevel ? previousEvent.priority : (category.copyPriorityLevel ? previousEvent?.priority : (category.defaultPriorityLevel ? category?.defaultPriorityLevel : (userPreferences?.copyPriorityLevel ? previousEvent?.priority : event?.priority)))) : event?.priority) || 1,
-        isBreak: !event?.userModifiedIsBreak ? (previousEvent?.copyIsBreak ? previousEvent.isBreak : (category.copyIsBreak ? previousEvent?.isBreak : (category.defaultIsBreak ? category?.defaultIsBreak : (userPreferences?.copyIsBreak ? previousEvent?.isBreak : event?.isBreak)))) : event.isBreak,
-        isMeeting: !event?.userModifiedIsMeeting ? (previousEvent?.copyIsMeeting ? previousEvent.isMeeting : (category.copyIsMeeting ? previousEvent?.isMeeting : (category.defaultIsMeeting ? category?.defaultIsMeeting : (userPreferences?.copyIsMeeting ? previousEvent?.isMeeting : (category.name === meetingLabel ? true : event?.isMeeting))))) : event.isMeeting,
-        isExternalMeeting: !event?.userModifiedIsExternalMeeting ? (previousEvent?.copyIsExternalMeeting ? previousEvent.isExternalMeeting : (category.copyIsExternalMeeting ? previousEvent?.isExternalMeeting : (category.defaultIsExternalMeeting ? category?.defaultIsExternalMeeting : (userPreferences?.copyIsExternalMeeting ? previousEvent?.isExternalMeeting : (category.name === externalMeetingLabel ? true : event?.isExternalMeeting))))) : event.isExternalMeeting,
-        isMeetingModifiable: !event?.userModifiedModifiable ? category.defaultMeetingModifiable ? category?.defaultMeetingModifiable : event?.isMeetingModifiable : event.isMeetingModifiable,
-        isExternalMeetingModifiable: !event?.userModifiedModifiable ? category.defaultExternalMeetingModifiable ? category?.defaultExternalMeetingModifiable : event?.isExternalMeetingModifiable : event.isExternalMeetingModifiable,
-        backgroundColor: !event?.userModifiedColor ? (previousEvent?.copyColor ? previousEvent.backgroundColor : (category.color ? category?.color : (userPreferences?.copyColor ? previousEvent?.backgroundColor : event?.backgroundColor))) : event.backgroundColor,
-        colorId: ((previousEvent?.copyColor && previousEvent?.colorId) ? previousEvent.colorId : ((userPreferences?.copyColor && previousEvent?.colorId) ? previousEvent?.colorId : event?.colorId)),
-        preferredTimeRanges: !event?.userModifiedTimePreference
-            ? (previousEvent?.copyTimePreference && (previousEvent?.preferredTimeRanges?.length > 0)
-                ? previousEvent.preferredTimeRanges
-                : (category.copyTimePreference && (previousEvent?.preferredTimeRanges?.length > 0)
-                    ? previousEvent?.preferredTimeRanges
-                    : (userPreferences?.copyTimePreference && (previousEvent?.preferredTimeRanges?.length > 0)
-                        ? previousEvent?.preferredTimeRanges
-                        : (category.defaultTimePreference?.map(tp => ({ ...tp, eventId: event?.id, id: uuid(), createdDate: dayjs().toISOString(), updatedAt: dayjs().toISOString(), userId: event?.userId }))
-                            ? category?.defaultTimePreference?.map(tp => ({ ...tp, eventId: event?.id, id: uuid(), createdDate: dayjs().toISOString(), updatedAt: dayjs().toISOString(), userId: event?.userId }))
-                            : event?.preferredTimeRanges))))
-            : event.preferredTimeRanges,
-    }
-
-}
-
-export const copyOverCategoryMeetingAndExternalMeetingDefaultsWithFoundPreviousEvent = (
-    event: EventPlusType,
-    categories: CategoryType[],
-    userPreferences: UserPreferenceType,
-    previousEvent: EventPlusType,
-) => {
-    // validate values
-    if (!(categories?.length > 0)) {
-        console.log('no categories inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent')
-        return
-    }
-
-    if (!userPreferences?.id) {
-        console.log('no userPreferences inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent')
-        return
-    }
-
-    if (!previousEvent?.id) {
-        console.log('no previousEvent inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent')
-        return
-    }
-    if (!event?.id) {
-        console.log('no event inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent')
-        return
-    }
-
-    const meetingCategory = categories.find(category => category.name === meetingLabel)
-    const externalCategory = categories.find(category => category.name === externalMeetingLabel)
-
-    let newEventMeeting: EventPlusType | {} = {}
-    let newEventExternal: EventPlusType | {} = {}
-
-    if (meetingCategory?.id) {
-        newEventMeeting = copyOverMeetingAndExternalMeetingDefaultsWithPreviousEventFound(
-            event,
-            previousEvent,
-            meetingCategory,
-            userPreferences,
-        )
-    }
-
-    if (externalCategory?.id) {
-        newEventExternal = copyOverMeetingAndExternalMeetingDefaultsWithPreviousEventFound(
-            event,
-            previousEvent,
-            meetingCategory,
-            userPreferences,
-        )
-    }
-
-    return { newEventMeeting, newEventExternal }
-}
-export const createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences = async (
-    userId: string,
-    newEvent: EventPlusType,
-    newReminders1?: ReminderType[],
-    newTimeBlocking1?: BufferTimeObjectType,
-    previousEvent?: EventPlusType,
-    userPreferences?: UserPreferenceType,
-) => {
-    try {
-        let newReminders = newReminders1 || []
-        let newBufferTimes = newTimeBlocking1 || {}
-        if (!newEvent?.userModifiedReminders
-            && userPreferences?.copyReminders) {
-            const reminders = await createRemindersFromPreviousEventForEvent(newEvent, previousEvent, userId)
-
-            console.log(reminders, ' reminders')
-            if ((reminders?.length > 0)
-                && !newEvent?.userModifiedReminders) {
-                newReminders.push(...reminders)
-            }
-        }
-
-        if (
-            !newEvent?.userModifiedTimeBlocking
-            && userPreferences?.copyTimeBlocking
-        ) {
-            // create time blocking
-            const bufferTimes = createPreAndPostEventsFromPreviousEvent(newEvent, previousEvent)
-            console.log(bufferTimes, ' timeBlocking')
-            if (bufferTimes?.beforeEvent) {
-                (newBufferTimes as BufferTimeObjectType).beforeEvent = bufferTimes.beforeEvent
-
-            }
-
-            if (bufferTimes?.afterEvent) {
-                (newBufferTimes as BufferTimeObjectType).afterEvent = bufferTimes.afterEvent
-            }
-
-            if (bufferTimes?.newEvent?.preEventId || bufferTimes?.newEvent?.postEventId) {
-                newEvent = bufferTimes.newEvent
-            }
-        }
-        return { newEvent, newReminders, newTimeBlocking: newBufferTimes }
-
-
-    } catch (e) {
-        console.log(e, ' unable to create reminders and time blocking from previous event given user preferences')
-    }
-}
-
-export const updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting = async (
-    event: EventPlusType,
-    newEvent1: EventPlusType,
-    bestMatchCategories: CategoryType[],
-    newReminders1: ReminderType[],
-    newTimeBlocking1: BufferTimeObjectType,
-    userId: string,
-    userPreferences: UserPreferenceType,
-    previousEvent: EventPlusType,
-) => {
-    try {
-        let newEvent = newEvent1
-        let newReminders = newReminders1 || []
-        let newTimeBlocking = newTimeBlocking1 || {}
-        const { newEventMeeting, newEventExternal } = copyOverCategoryMeetingAndExternalMeetingDefaultsWithFoundPreviousEvent(
-            event,
-            bestMatchCategories,
-            userPreferences,
-            previousEvent,
-        )
-
-        if ((newEventMeeting as EventPlusType)?.id) {
-            newEvent = { ...newEvent, ...newEventMeeting }
-            const meetingCategory = bestMatchCategories.find(category => category.name === meetingLabel)
-
-            // create reminders
-            const oldReminders = await listRemindersForEvent((newEventMeeting as EventPlusType)?.id, userId)
-            const reminders = createRemindersUsingCategoryDefaultsForEvent(newEvent, meetingCategory, oldReminders, previousEvent)
-            console.log(reminders, ' reminders')
-            if (
-                (reminders?.length > 0)
-                && !newEvent?.userModifiedReminders
-            ) {
-                newReminders.push(...reminders)
-                newReminders = _.uniqBy(newReminders, 'minutes')
-            }
-
-            // create time blocking
-            if (!newEvent?.userModifiedTimeBlocking) {
-                const timeBlocking = createPreAndPostEventsForCategoryDefaults(meetingCategory, newEvent, previousEvent)
-                console.log(timeBlocking, ' timeBlocking')
-                if (timeBlocking?.beforeEvent) {
-                    newTimeBlocking.beforeEvent = timeBlocking.beforeEvent
-
-                }
-
-                if (timeBlocking?.afterEvent) {
-                    newTimeBlocking.afterEvent = timeBlocking.afterEvent
-                }
-
-                if (timeBlocking?.newEvent?.preEventId || timeBlocking?.newEvent?.postEventId) {
-                    newEvent = timeBlocking.newEvent
-                }
-            }
-        }
-
-        if ((newEventExternal as EventPlusType)?.id) {
-            newEvent = { ...newEvent, ...newEventExternal }
-            const externalCategory = bestMatchCategories.find(category => category.name === externalMeetingLabel)
-
-            // create reminders
-            const oldReminders = await listRemindersForEvent((newEventExternal as EventPlusType).id, userId)
-            const reminders = createRemindersUsingCategoryDefaultsForEvent(newEvent, externalCategory, oldReminders, previousEvent)
-            console.log(reminders, ' reminders')
-            if (
-                (reminders?.length > 0)
-                && !newEvent?.userModifiedReminders
-            ) {
-                newReminders.push(...reminders)
-                newReminders = _.uniqBy(newReminders, 'minutes')
-            }
-
-            // create time blocking
-            if (!newEvent?.userModifiedTimeBlocking) {
-                const timeBlocking = createPreAndPostEventsForCategoryDefaults(externalCategory, newEvent)
-                console.log(timeBlocking, ' timeBlocking')
-                if (timeBlocking?.beforeEvent) {
-                    newTimeBlocking.beforeEvent = timeBlocking.beforeEvent
-
-                }
-
-                if (timeBlocking?.afterEvent) {
-                    newTimeBlocking.afterEvent = timeBlocking.afterEvent
-                }
-
-                if (timeBlocking?.newEvent?.preEventId || timeBlocking?.newEvent?.postEventId) {
-                    newEvent = timeBlocking.newEvent
-                }
-            }
-        }
-
-        return { newEvent, newReminders, newTimeBlocking }
-
-    } catch (e) {
-        console.log(e, ' unable to update values for default categories')
-    }
-}
-
-export const createRemindersAndTimeBlockingFromPreviousEvent = async (
-    userId: string,
-    newEvent: EventPlusType,
-    newReminders1: ReminderType[],
-    newTimeBlocking1: BufferTimeObjectType,
-    previousEvent?: EventPlusType
-) => {
-    try {
-        let newReminders = newReminders1 || []
-        let newTimeBlocking = newTimeBlocking1 || {}
-        const reminders = await createRemindersFromPreviousEventForEvent(newEvent, previousEvent, userId)
-
-        console.log(reminders, ' reminders')
-        if ((reminders?.length > 0)
-            && !newEvent?.userModifiedReminders
-            && previousEvent?.copyReminders
-        ) {
-            newReminders.push(...reminders)
-        }
-
-        if (
-            !newEvent?.userModifiedTimeBlocking
-            && previousEvent?.copyTimeBlocking
-        ) {
-            // create time blocking
-            const timeBlocking = createPreAndPostEventsFromPreviousEvent(newEvent, previousEvent)
-            console.log(timeBlocking, ' timeBlocking')
-            if (timeBlocking?.beforeEvent) {
-                newTimeBlocking.beforeEvent = timeBlocking.beforeEvent
-
-            }
-
-            if (timeBlocking?.afterEvent) {
-                newTimeBlocking.afterEvent = timeBlocking.afterEvent
-            }
-
-            if (timeBlocking?.newEvent?.preEventId || timeBlocking?.newEvent?.postEventId) {
-                newEvent = timeBlocking.newEvent
-            }
-        }
-        return { newEvent, newReminders, newTimeBlocking }
-
-    } catch (e) {
-        console.log(e, ' unable to create reminders and time blocking from previous event')
-    }
-}
-
-
-export const processEventWithFoundPreviousEventAndCopyCategories = async (
-    id: string,
-    previousEvent: EventPlusType,
-    oldEvent: EventPlusType,
-    userPreferences: UserPreferenceType,
-    bestMatchCategory1: CategoryType,
-    userId: string,
-    bestMatchCategories1: CategoryType[],
-    newModifiedEvent1: EventPlusType,
-    newReminders1: ReminderType[] = [],
-    newTimeBlocking1: BufferTimeObjectType = {},
-    previousCategories: CategoryType[] = [],
-    previousMeetingCategoriesWithMeetingLabel: CategoryType[] = [],
-    previousMeetingCategoriesWithExternalMeetingLabel: CategoryType[] = [],
-) => {
-    try {
-        // validate
-        if (!id) {
-            console.log(' no id inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!previousEvent) {
-            console.log(' no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!oldEvent) {
-            console.log(' no event inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!userPreferences) {
-            console.log(' no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!bestMatchCategory1) {
-            console.log('no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!userId) {
-            console.log(' no userId inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!bestMatchCategories1) {
-            console.log(' no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!newModifiedEvent1) {
-            console.log(' no newModifiedEvent1 inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        let bestMatchCategories: CategoryType[] = bestMatchCategories1 || []
-        let bestMatchCategory: CategoryType | object = bestMatchCategory1 || {}
-        let newModifiedEvent: EventPlusType | object = newModifiedEvent1 || {}
-        let newReminders: ReminderType[] = newReminders1 || []
-        let newTimeBlocking: BufferTimeObjectType = newTimeBlocking1 || {}
-
-        if (
-            !previousEvent?.unlink
-            && !oldEvent?.userModifiedCategories
-        ) {
-            // copy over categories from previous event
-            if ((previousEvent?.copyCategories || userPreferences?.copyCategories) && (previousCategories?.length > 0)) {
-                const categoryEvents: CategoryEventType[] = previousCategories.map(c => {
-                    const categoryEvent: CategoryEventType = {
-                        categoryId: c.id,
-                        eventId: id,
-                        userId,
-                        id: uuid(),
-                        createdDate: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                    } as CategoryEventType
-                    return categoryEvent
-                })
-                console.log(categoryEvents, ' categoryEvents')
-                await createCategoryEvents(categoryEvents)
-            }
-
-            if (previousCategories?.[0]?.id) {
-                // find previous bestMatchCategory
-                const body = await findBestMatchCategory2(oldEvent, previousCategories)
-                console.log(body, ' body')
-                const { labels } = body
-
-                const bestMatchLabel = processBestMatchCategoriesNoThreshold(body, labels)
-                console.log(bestMatchLabel, ' bestMatchLabel')
-
-                bestMatchCategory = previousCategories.find(category => category.name === bestMatchLabel)
-
-                if ((bestMatchCategory as CategoryType)?.id) {
-                    // copy over previousEvent or category defaults
-                    newModifiedEvent = copyOverPreviousEventDefaults(oldEvent, previousEvent, bestMatchCategory as CategoryType, userPreferences)
-                }
-            } else {
-                // copy over previousEvent or category defaults
-                newModifiedEvent = copyOverPreviousEventDefaults(oldEvent, previousEvent, undefined, userPreferences)
-            }
-
-            if ((userPreferences?.copyReminders
-                || userPreferences?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking as BufferTimeObjectType, previousEvent, userPreferences)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.length > 0) {
-                    newReminders = newReminders1
-                }
-
-                if (newTimeBlocking1?.afterEvent || newTimeBlocking1?.beforeEvent) {
-                    newTimeBlocking = newTimeBlocking1
-                }
-            }
-
-            if (
-                ((bestMatchCategory as CategoryType)?.defaultReminders
-                    || (bestMatchCategory as CategoryType)?.defaultTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id
-            ) {
-
-                const {
-                    newEvent: newEvent3,
-                    newReminders: newReminders3,
-                    newTimeBlocking: newTimeBlocking3,
-                } = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(oldEvent, newModifiedEvent as EventPlusType, bestMatchCategories, newReminders, newTimeBlocking, userId, userPreferences, previousEvent)
-
-                if (newEvent3) {
-                    newModifiedEvent = newEvent3
-                }
-
-                if (newReminders3) {
-                    newReminders = newReminders3
-                }
-
-                if (newTimeBlocking3) {
-                    newTimeBlocking = newTimeBlocking3
-                }
-            }
-
-            if (((bestMatchCategory as CategoryType)?.copyReminders
-                || (bestMatchCategory as CategoryType)?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-                const {
-                    newEvent: newEvent2,
-                    newReminders: newReminders2,
-                    newBufferTimes: newTimeBlocking2,
-                } = await createRemindersAndTimeBlockingForBestMatchCategory(id, userId, newModifiedEvent as EventPlusType, bestMatchCategory as CategoryType, newReminders, newTimeBlocking)
-                if (newEvent2?.id) {
-                    newModifiedEvent = newEvent2
-                }
-
-                if (newReminders2?.[0]?.id) {
-                    newReminders = newReminders2
-                }
-
-                if ((newTimeBlocking2 as BufferTimeObjectType)?.beforeEvent?.id || (newTimeBlocking2 as BufferTimeObjectType)?.afterEvent?.id) {
-                    newTimeBlocking = newTimeBlocking2
-                }
-            }
-
-            if (
-                (previousMeetingCategoriesWithMeetingLabel?.[0]?.copyReminders
-                    || previousMeetingCategoriesWithMeetingLabel?.[0]?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id
-            ) {
-                const {
-                    newEvent: newEvent2,
-                    newReminders: newReminders2,
-                    newBufferTimes: newTimeBlocking2,
-                } = await createRemindersAndTimeBlockingForBestMatchCategory(id, userId, newModifiedEvent as EventPlusType, previousMeetingCategoriesWithMeetingLabel?.[0], newReminders, newTimeBlocking)
-                if (newEvent2?.id) {
-                    newModifiedEvent = newEvent2
-                }
-
-                if (newReminders2?.[0]?.id) {
-                    newReminders = newReminders2
-                }
-
-                if (newTimeBlocking2?.afterEvent?.id || newTimeBlocking2?.beforeEvent?.id) {
-                    newTimeBlocking = newTimeBlocking2
-                }
-            }
-
-            if ((previousMeetingCategoriesWithExternalMeetingLabel?.[0]?.copyReminders
-                || previousMeetingCategoriesWithExternalMeetingLabel?.[0]?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-                const {
-                    newEvent: newEvent2,
-                    newReminders: newReminders2,
-                    newBufferTimes: newTimeBlocking2,
-                } = await createRemindersAndTimeBlockingForBestMatchCategory(id, userId, newModifiedEvent as EventPlusType, previousMeetingCategoriesWithExternalMeetingLabel?.[0], newReminders, newTimeBlocking)
-                if (newEvent2) {
-                    newModifiedEvent = newEvent2
-                }
-
-                if (newReminders2) {
-                    newReminders = newReminders2
-                }
-
-                if (newTimeBlocking2) {
-                    newTimeBlocking = newTimeBlocking2
-                }
-            }
-
-            if ((previousEvent?.copyReminders
-                || previousEvent?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEvent(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.[0]?.id) {
-                    newReminders = newReminders1
-                }
-
-                if ((newTimeBlocking1 as BufferTimeObjectType)?.afterEvent?.id || (newTimeBlocking1 as BufferTimeObjectType)?.beforeEvent?.id) {
-                    newTimeBlocking = newTimeBlocking1
-                }
-            }
-
-            bestMatchCategories = getUniqueLabels(bestMatchCategories)
-            console.log(bestMatchCategories, ' bestMatchCategories from previousCategories')
-        }
-
-        console.log(newModifiedEvent, ' newModifiedEvent')
-        console.log(newReminders, ' newReminders')
-        console.log(newTimeBlocking, ' newTimeBlocking')
-
-        return {
-            newModifiedEvent,
-            newReminders,
-            newTimeBlocking,
-        }
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEventAndCopyCategories')
-    }
-}
-
-export const processEventWithFoundPreviousEventWithoutCategories = async (
-    previousEvent: EventPlusType,
-    event: EventPlusType,
-    userPreferences: UserPreferenceType,
-    userId: string,
-    newReminders: ReminderType[] = [],
-    newTimeBlocking: BufferTimeObjectType = {},
-) => {
-    try {
-        // validate
-        console.log('processEventWithFoundPreviousEventWithoutCategories')
-        if (!previousEvent) {
-            console.log(' no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!userPreferences) {
-            console.log(' no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!userId) {
-            console.log(' no userId inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!event) {
-            console.log(' no newModifiedEvent inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        let newModifiedEvent = event
-
-        if (
-            !previousEvent?.unlink
-        ) {
-            newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, undefined, userPreferences)
-            console.log(newModifiedEvent, ' newModifiedEvent inside processEventWithFoundPreviousEventWithoutCategories after copyOverPreviousEventDefaults')
-            if ((userPreferences?.copyReminders
-                || userPreferences?.copyTimeBlocking)
-                && (event as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking as BufferTimeObjectType, previousEvent, userPreferences)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.length > 0) {
-                    newReminders = newReminders1
-                }
-
-                if (newTimeBlocking1?.afterEvent || newTimeBlocking1?.beforeEvent) {
-                    newTimeBlocking = newTimeBlocking1
-                }
-            }
-
-            if ((previousEvent?.copyReminders
-                || previousEvent?.copyTimeBlocking)
-                && (event as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEvent(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.[0]?.id) {
-                    newReminders = newReminders1
-                }
-
-                if ((newTimeBlocking1 as BufferTimeObjectType)?.afterEvent?.id || (newTimeBlocking1 as BufferTimeObjectType)?.beforeEvent?.id) {
-                    newTimeBlocking = newTimeBlocking1
-                }
-            }
-        }
-
-        console.log(newModifiedEvent, ' newModifiedEvent')
-        console.log(newReminders, ' newReminders')
-        console.log(newTimeBlocking, ' newTimeBlocking')
-
-        return {
-            newModifiedEvent,
-            newReminders,
-            newTimeBlocking,
-        }
-
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEventWithoutCategories')
-    }
-}
-
-export const processUserEventWithFoundPreviousEvent = async (event: EventPlusType, previousEventId: string) => {
-    try {
-        const { id, userId } = event
-        console.log(id, userId, previousEventId, ' id, userId, previousEventId, inside processUserEventWithFoundPreviousEvent')
-        // validate
-        if (!id || !userId) {
-            throw new Error('id or userId is missing')
-        }
-        // get previous event
-        const previousEvent = await getEventFromPrimaryKey(previousEventId)
-        const preferredTimeRanges = await listPreferredTimeRangesForEvent(previousEventId)
-        previousEvent.preferredTimeRanges = preferredTimeRanges
-        console.log(previousEvent, ' previousEvent inside processUserEventWithFoundPreviousEvent')
-        // find categories and copy over defaults if any
-        const categories: CategoryType[] = await getUserCategories(userId)
-        console.log(id, categories, ' id, categories')
-
-        // labelConstants are already part of categories
-        // console.log(categories, ' categories')
-
-        const body: ClassificationResponseBodyType = await findBestMatchCategory2(event, categories)
-        console.log(id, body, ' id, body')
-        const { labels, scores } = body
-
-        const bestMatchLabel = processBestMatchCategories(body, labels)
-        console.log(id, bestMatchLabel, ' id, bestMatchLabel')
-        let bestMatchCategory: CategoryType | object = {}
-        if (bestMatchLabel) {
-            bestMatchCategory = categories.find(category => category.name === bestMatchLabel)
-        }
-
-        let bestMatchCategoriesPlusMeetingType = []
-        if ((bestMatchCategory as CategoryType)?.id) {
-            bestMatchCategoriesPlusMeetingType = await processEventForMeetingTypeCategories(event, bestMatchCategory as CategoryType, labels, scores, categories)
-            console.log(id, bestMatchCategoriesPlusMeetingType, ' id, bestMatchCategoriesPlusMeetingType')
-        }
-
-        // getUserPreferences
-        const userPreferences = await getUserPreferences(userId)
-        console.log(id, userPreferences, ' id, userPreferences')
-        if (!userPreferences) {
-            throw new Error('userPreferences is missing')
-        }
-
-        let newModifiedEvent = event
-        let newReminders: ReminderType[] = []
-        let newTimeBlocking: BufferTimeObjectType = {}
-
-        console.log(id, previousEvent, ' id, previousEvent before if clause inside processUserEventWithFoundPreviousEvent')
-
-        if ((previousEvent?.copyCategories
-            || userPreferences?.copyCategories)
-            && !previousEvent?.unlink
-            && !event?.userModifiedCategories) {
-
-            // get previous categories for event
-            const previousCategories = await listCategoriesForEvent(previousEvent.id)
-            console.log(id, previousCategories, ' id, previousCategories')
-
-            if (
-                userPreferences?.id
-                && newModifiedEvent?.id
-            ) {
-                // meeting and external meeting categories
-                const previousMeetingCategoriesWithMeetingLabel = previousCategories.filter(category => category.name === meetingLabel)
-                // meeting and external meeting categories
-                const previousMeetingCategoriesWithExternalMeetingLabel = previousCategories.filter(category => category.name === externalMeetingLabel)
-                const {
-                    newModifiedEvent: newModifiedEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await processEventWithFoundPreviousEventAndCopyCategories(
-                    id,
-                    previousEvent,
-                    event,
-                    userPreferences,
-                    bestMatchCategory as CategoryType,
-                    userId,
-                    bestMatchCategoriesPlusMeetingType,
-                    newModifiedEvent,
-                    newReminders,
-                    newTimeBlocking,
-                    previousCategories,
-                    previousMeetingCategoriesWithMeetingLabel,
-                    previousMeetingCategoriesWithExternalMeetingLabel,
-                )
-                console.log(newModifiedEvent, newModifiedEvent1, ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories')
-                console.log(newTimeBlocking, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories')
-                newModifiedEvent = newModifiedEvent1 as EventPlusType
-                newReminders = newReminders1
-                newTimeBlocking = newTimeBlocking1 as BufferTimeObjectType
-
-            } else {
-                const {
-                    newModifiedEvent: newModifiedEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await processEventWithFoundPreviousEventWithoutCategories(previousEvent, newModifiedEvent, userPreferences, userId, newReminders, newTimeBlocking)
-                console.log(newModifiedEvent, newModifiedEvent1, ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after else  processEventWithFoundPreviousEventAndCopyCategories')
-                console.log(newTimeBlocking, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after else processEventWithFoundPreviousEventAndCopyCategories')
-                newModifiedEvent = newModifiedEvent1 as EventPlusType
-                newReminders = newReminders1
-                newTimeBlocking = newTimeBlocking1 as BufferTimeObjectType
-            }
-        }
-
-        if (
-            userPreferences?.id
-            && !previousEvent?.copyCategories
-            && !userPreferences?.copyCategories
-            && !event?.userModifiedCategories
-            && event?.id
-            && previousEvent?.id
-        ) {
-
-            if (
-                (bestMatchCategory as CategoryType)?.id
-                && (bestMatchCategoriesPlusMeetingType?.length > 0)
-            ) {
-                // copy over previousEvent or category defaults
-                newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, bestMatchCategory as CategoryType, userPreferences)
-                console.log(newModifiedEvent, ' newModifiedEvent from BestMatchCategory')
-                if (newModifiedEvent?.id) {
-                    const {
-                        newEvent: newEvent1,
-                        newReminders: newReminders1,
-                        newBufferTimes: newTimeBlocking1,
-                    } = await createRemindersAndTimeBlockingForBestMatchCategory(id, userId, newModifiedEvent, bestMatchCategory as CategoryType, newReminders, newTimeBlocking)
-                    console.log(newModifiedEvent, newEvent1, ' newModifiedEvent, newEvent1 inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory')
-                    console.log(newTimeBlocking, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory')
-                    newModifiedEvent = newEvent1
-                    newReminders = newReminders1
-                    newTimeBlocking = newTimeBlocking1
-
-                    console.log(newModifiedEvent, ' newModifiedEvent inside BestMatchCategory')
-                    console.log(newReminders, ' newReminders inside ')
-                    console.log(newTimeBlocking, ' newTimeBlocking inside ')
-
-                    //  Meeting and external meeting categories always override other categories
-                    const {
-                        newEvent: newEvent2,
-                        newReminders: newReminders2,
-                        newTimeBlocking: newTimeBlocking2,
-                    } = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(event, newModifiedEvent, bestMatchCategoriesPlusMeetingType, newReminders, newTimeBlocking, userId, userPreferences, previousEvent)
-                    console.log(newModifiedEvent, newEvent2, ' newModifiedEvent, newEvent2 inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting')
-                    console.log(newTimeBlocking, newTimeBlocking2, ' newTimeBlocking, newTimeBlocking2, inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting')
-                    newModifiedEvent = newEvent2
-                    newReminders = newReminders2
-                    newTimeBlocking = newTimeBlocking2
-
-                    console.log(newModifiedEvent, ' newModifiedEvent inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting')
-                    console.log(newReminders, ' newReminders inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting')
-                    console.log(newTimeBlocking, ' newTimeBlocking inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting')
-                }
-            } else {
-                const {
-                    newModifiedEvent: newModifiedEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await processEventWithFoundPreviousEventWithoutCategories(previousEvent, newModifiedEvent, userPreferences, userId, newReminders, newTimeBlocking)
-                console.log(newModifiedEvent, newModifiedEvent1, ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories')
-                console.log(newTimeBlocking, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories')
-                newModifiedEvent = newModifiedEvent1 as EventPlusType
-                newReminders = newReminders1
-                newTimeBlocking = newTimeBlocking1 as BufferTimeObjectType
-            }
-
-        }
-
-        // create new event
-        const newEvent: EventPlusType = newModifiedEvent ?? event
-        console.log(newEvent, event, ' newEvent, event last before returned inside processUserEventWithFoundPreviousEvent')
-
-        return {
-            newEvent,
-            newReminders,
-            newTimeBlocking
-        }
-
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEvent')
-    }
-}
-
-export const processUserEventWithFoundPreviousEventWithUserModifiedCategories = async (event: EventPlusType, previousEventId: string) => {
-    try {
-        // validate
-        if (!event?.id) {
-            throw new Error('event is missing')
-        }
-        if (!previousEventId) {
-            throw new Error('previousEventId is missing')
-        }
-
-        // get event categories and copy over defaults if any
-        const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
-        if (!categories?.[0]?.id) {
-            throw new Error('categories is missing')
-        }
-        console.log(event?.id, 'id inside  processUserEventWithFoundPreviousEventWithUserModifiedCategories')
-        // get previous event
-        const previousEvent = await getEventFromPrimaryKey(previousEventId)
-        const preferredTimeRanges = await listPreferredTimeRangesForEvent(previousEventId)
-        previousEvent.preferredTimeRanges = preferredTimeRanges
-        if (!previousEvent?.id) {
-            throw new Error('previousEvent is missing')
-        }
-        // labelConstants are already part of categories
-        console.log(categories, ' categories')
-        const body = await findBestMatchCategory2(event, categories)
-        console.log(body, ' body')
-        if (body?.labels?.[0]) {
-            const { labels } = body
-
-            const bestMatchLabel = processBestMatchCategoriesNoThreshold(body, labels)
-            console.log(bestMatchLabel, ' bestMatchLabel')
-            if (bestMatchLabel) {
-                let bestMatchCategory = categories.find(category => category.name === bestMatchLabel)
-                if (!bestMatchCategory) {
-                    throw new Error('bestMatchCategory is missing')
-                }
-                // getUserPreferences
-                const userPreferences = await getUserPreferences(event?.userId)
-                console.log(userPreferences, ' userPreferences')
-                if (!userPreferences) {
-                    throw new Error('userPreferences is missing')
-                }
-                let newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, bestMatchCategory, userPreferences)
-                console.log(newModifiedEvent, ' newModifiedEvent from BestMatchCategory')
-                let newReminders: ReminderType[] = []
-                let newTimeBlocking: BufferTimeObjectType = {}
-
-
-                if ((categories?.length > 0)
-                    && newModifiedEvent?.id
-                ) {
-                    //  Meeting and external meeting categories always override other categories
-                    const {
-                        newEvent: newEvent1,
-                        newReminders: newReminders1,
-                        newTimeBlocking: newTimeBlocking1,
-                    } = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(event, newModifiedEvent, categories, newReminders, newTimeBlocking, event?.userId, userPreferences, previousEvent)
-                    newModifiedEvent = newEvent1
-                    newReminders = newReminders1 || []
-                    newTimeBlocking = newTimeBlocking1 || {}
-
-                    console.log(newModifiedEvent, ' newModifiedEvent inside else statement of copyCategories')
-                    console.log(newReminders, ' newReminders inside else statement of copyCategories')
-                    console.log(newTimeBlocking, ' newTimeBlocking inside else statement of copyCategories')
-
-                }
-
-                // create new event
-                const newEvent: EventPlusType = newModifiedEvent ?? event
-                console.log(newEvent, ' newEvent')
-
-                return {
-                    newEvent,
-                    newReminders,
-                    newTimeBlocking
-                }
-            }
-        }
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEventWithUserModifiedCategories')
-    }
-}
-
-
-
-
+                            ? category
