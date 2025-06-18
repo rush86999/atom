@@ -385,6 +385,34 @@ services:
 
     ports:
       - '3000:3000'
+
+  python-agent:
+    build:
+      context: ../python_agent_build_docker # Context is the directory containing the Dockerfile
+      dockerfile: Dockerfile # Explicitly name Dockerfile
+    container_name: python-agent
+    depends_on: # Optional, depending on actual interactions. None needed for just running scripts.
+      - postgres # Example, if agent needed DB access directly (not typical for this setup)
+    environment:
+      # These will be picked up from the .env file at the root of the docker-compose project
+      - NOTION_API_TOKEN=${NOTION_API_TOKEN}
+      - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID}
+      - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
+      # PYTHONPATH is set in the Dockerfile, but can be reiterated or overridden here if needed
+      # - PYTHONPATH=/app
+    volumes:
+      # Mount the local project directory into the container for development
+      # This allows code changes to be reflected without rebuilding the image.
+      # For testing the image itself, this volume mount should be commented out.
+      - .:/app/project
+      # The Dockerfile copies ../project to /app/project.
+      # If this volume mount is './:/app/project', it means 'atomic-docker/project/' on host
+      # is mounted to '/app/project' in container. This aligns with Dockerfile's COPY destination.
+    tty: true
+    stdin_open: true
+
 volumes:
   project_node_modules:
   functions_node_modules:
