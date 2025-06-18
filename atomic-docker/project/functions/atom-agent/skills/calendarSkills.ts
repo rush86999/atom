@@ -3,56 +3,66 @@ import { CalendarEvent, CreateEventResponse } from '../types';
 import {
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
   ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
+  // ATOM_GOOGLE_CALENDAR_REDIRECT_URI, // Not directly used in skill functions after auth
 } from '../_libs/constants';
-import { getAtomGoogleCalendarTokens, saveAtomGoogleCalendarTokens } from '../_libs/token-utils';
+
+// Placeholder for fetching stored Google Calendar tokens for a user
+async function getStoredUserTokens(userId: string): Promise<any | null> {
+    console.log(`TODO: Implement actual retrieval of tokens for userId: ${userId} from secure storage.`);
+    // For now, return mock tokens if userId is 'mock_user_id' (or similar consistent mock ID)
+    if (userId && userId.startsWith('mock_user_id')) {
+        return {
+            access_token: 'mock_access_token_from_storage', // This will cause API calls to fail
+            refresh_token: 'mock_refresh_token_from_storage',
+            expiry_date: Date.now() + 3600 * 1000, // Mock as valid for 1 hour
+            scope: 'https://www.googleapis.com/auth/calendar'
+        };
+    }
+    return null;
+}
+
+// Placeholder for updating/saving tokens (e.g., after a refresh)
+async function saveUserTokens(userId: string, tokens: any): Promise<void> {
+    console.log(`TODO: Implement actual saving of tokens for userId: ${userId}`, tokens);
+}
 
 
 export async function listUpcomingEvents(userId: string, limit: number = 10): Promise<CalendarEvent[]> {
   console.log(`Attempting to fetch up to ${limit} upcoming events for userId: ${userId}...`);
 
-  const retrievedTokens = await getAtomGoogleCalendarTokens(userId);
+  const retrievedTokens = await getStoredUserTokens(userId);
   if (!retrievedTokens || !retrievedTokens.access_token) {
-    console.error(`No valid tokens found for userId: ${userId} via getAtomGoogleCalendarTokens. User may need to authenticate or re-authenticate.`);
+    console.error(`No stored tokens found for userId: ${userId}. Cannot fetch calendar events.`);
+    // In a real app, you might throw an error or return a specific structure indicating auth is needed.
+    // For now, returning an empty array and logging is consistent with mock behavior for "no events".
     return [];
   }
 
   if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET) {
-    console.error('Atom Agent Google Calendar client ID or secret not configured in constants.');
-    return []; // Or throw an error indicating server misconfiguration
+    console.error('Atom Agent Google Calendar client ID or secret not configured.');
+    return []; // Or throw an error
   }
 
   const oauth2Client = new google.auth.OAuth2(
     ATOM_GOOGLE_CALENDAR_CLIENT_ID,
     ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
+    // ATOM_GOOGLE_CALENDAR_REDIRECT_URI // Not needed for API calls after tokens are obtained
   );
 
-  oauth2Client.setCredentials({
-    access_token: retrievedTokens.access_token,
-    refresh_token: retrievedTokens.refresh_token,
-    expiry_date: retrievedTokens.expiry_date,
-    scope: retrievedTokens.scope,
-    token_type: retrievedTokens.token_type,
-  });
+  oauth2Client.setCredentials(retrievedTokens);
 
-  oauth2Client.on('tokens', async (newTokens) => {
-    console.log('Google API tokens were refreshed for Atom Agent:', newTokens);
-    let tokensToSave = { ...retrievedTokens, ...newTokens };
-    if (newTokens.refresh_token) {
-        console.log('Saving new refresh token from refresh event for Atom Agent.');
-    } else {
-        tokensToSave.refresh_token = retrievedTokens?.refresh_token || tokensToSave.refresh_token;
-    }
-
-    const googleTokenSet = {
-        access_token: tokensToSave.access_token!, // Non-null assertion as it's core to the event
-        refresh_token: tokensToSave.refresh_token,
-        scope: tokensToSave.scope,
-        token_type: tokensToSave.token_type,
-        expiry_date: tokensToSave.expiry_date! // Non-null assertion
-    };
-
-    await saveAtomGoogleCalendarTokens(userId, googleTokenSet);
-  });
+  // TODO: Listen for 'tokens' event on oauth2Client to automatically save new tokens if refreshed.
+  // oauth2Client.on('tokens', (newTokens) => {
+  //   if (newTokens.refresh_token) {
+  //     // new access token and potentially new refresh token received
+  //     console.log('Tokens refreshed:', newTokens);
+  //     saveUserTokens(userId, { ...retrievedTokens, ...newTokens });
+  //   } else {
+  //     // only new access token received
+  //     console.log('Access token refreshed:', newTokens);
+  //     saveUserTokens(userId, { ...retrievedTokens, access_token: newTokens.access_token, expiry_date: newTokens.expiry_date });
+  //   }
+  // });
 
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -83,10 +93,12 @@ export async function listUpcomingEvents(userId: string, limit: number = 10): Pr
 
   } catch (error: any) {
     console.error('Error fetching Google Calendar events for Atom Agent:', error.message);
-    if (error.response?.data?.error === 'invalid_grant' || error.message.toLowerCase().includes('token has been expired or revoked')) {
-        console.error('Token error (invalid_grant or expired/revoked). User might need to re-authenticate for Atom Agent.');
-        // TODO: Potentially clear stored tokens by calling deleteAtomGoogleCalendarTokens(userId) or similar
+    if (error.response?.data?.error === 'invalid_grant') {
+        console.error('Token error (invalid_grant). User might need to re-authenticate.');
+        // TODO: Potentially trigger a re-authentication flow or clear stored tokens.
+        // await saveUserTokens(userId, null); // Example: clear bad tokens
     }
+    // For now, return empty or a specific error structure if desired by the handler
     return [];
   }
 }
@@ -94,10 +106,10 @@ export async function listUpcomingEvents(userId: string, limit: number = 10): Pr
 export async function createCalendarEvent(userId: string, eventDetails: Partial<CalendarEvent>): Promise<CreateEventResponse> {
   console.log(`Attempting to create calendar event for userId: ${userId} with details:`, eventDetails);
 
-  const retrievedTokens = await getAtomGoogleCalendarTokens(userId);
+  const retrievedTokens = await getStoredUserTokens(userId);
   if (!retrievedTokens || !retrievedTokens.access_token) {
-    console.error(`No valid tokens found for userId: ${userId} via getAtomGoogleCalendarTokens. User may need to authenticate or re-authenticate.`);
-    return { success: false, message: 'Authentication required. Please connect your Google Calendar in settings.' };
+    console.error(`No stored tokens for userId: ${userId}. Cannot create event.`);
+    return { success: false, message: 'Authentication required. No tokens found.' };
   }
 
   if (!eventDetails.summary || !eventDetails.startTime || !eventDetails.endTime) {
@@ -105,7 +117,7 @@ export async function createCalendarEvent(userId: string, eventDetails: Partial<
   }
 
   if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET) {
-    console.error('Atom Agent Google Calendar client ID or secret not configured in constants.');
+    console.error('Atom Agent Google Calendar client ID or secret not configured.');
     return { success: false, message: 'Server configuration error for calendar service.' };
   }
 
@@ -113,32 +125,9 @@ export async function createCalendarEvent(userId: string, eventDetails: Partial<
     ATOM_GOOGLE_CALENDAR_CLIENT_ID,
     ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
   );
-  oauth2Client.setCredentials({
-    access_token: retrievedTokens.access_token,
-    refresh_token: retrievedTokens.refresh_token,
-    expiry_date: retrievedTokens.expiry_date,
-    scope: retrievedTokens.scope,
-    token_type: retrievedTokens.token_type,
-  });
+  oauth2Client.setCredentials(retrievedTokens);
 
-  oauth2Client.on('tokens', async (newTokens) => {
-    console.log('Google API tokens were refreshed during createEvent for Atom Agent:', newTokens);
-    let tokensToSave = { ...retrievedTokens, ...newTokens };
-    if (newTokens.refresh_token) {
-        console.log('Saving new refresh token from refresh event during createEvent for Atom Agent.');
-    } else {
-        tokensToSave.refresh_token = retrievedTokens?.refresh_token || tokensToSave.refresh_token;
-    }
-
-    const googleTokenSet = {
-        access_token: tokensToSave.access_token!,
-        refresh_token: tokensToSave.refresh_token,
-        scope: tokensToSave.scope,
-        token_type: tokensToSave.token_type,
-        expiry_date: tokensToSave.expiry_date!
-    };
-    await saveAtomGoogleCalendarTokens(userId, googleTokenSet);
-  });
+  // TODO: Listen for 'tokens' event on oauth2Client for token refresh as in listUpcomingEvents.
 
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
@@ -175,9 +164,9 @@ export async function createCalendarEvent(userId: string, eventDetails: Partial<
 
   } catch (error: any) {
     console.error('Error creating Google Calendar event for Atom Agent:', error.message);
-    if (error.response?.data?.error === 'invalid_grant' || error.message.toLowerCase().includes('token has been expired or revoked')) {
-        console.error('Token error (invalid_grant or expired/revoked). User might need to re-authenticate for Atom Agent.');
-        // TODO: Potentially clear stored tokens
+     if (error.response?.data?.error === 'invalid_grant') {
+        console.error('Token error (invalid_grant). User might need to re-authenticate.');
+        // TODO: Potentially trigger a re-authentication flow or clear stored tokens.
     }
     return { success: false, message: `Failed to create event with Google Calendar: ${error.message}` };
   }

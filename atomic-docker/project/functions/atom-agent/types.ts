@@ -225,3 +225,182 @@ export interface ListSlackChannelsResponse {
   error?: string;
   nextPageCursor?: string; // For pagination
 }
+
+// --- Calendly Types ---
+// Note: These are simplified. The Calendly SDK might provide more detailed types.
+// We will aim to use SDK types directly in calendlySkills.ts if possible and adapt these if necessary.
+
+export interface CalendlyUser {
+  uri: string; // e.g., "https://api.calendly.com/users/AAAAAAAAAAAAAAAA"
+  name: string;
+  slug: string; // User's Calendly username/slug (e.g., "acmesales")
+  email: string;
+  scheduling_url: string; // e.g., "https://calendly.com/acmesales"
+  timezone: string; // e.g., "America/New_York"
+  avatar_url?: string | null;
+  created_at: string; // ISO 8601 Timestamp
+  updated_at: string; // ISO 8601 Timestamp
+  // current_organization: string; // URI of the organization
+}
+
+export interface CalendlyEventType {
+  uri: string; // e.g., "https://api.calendly.com/event_types/AAAAAAAAAAAAAAAA"
+  name: string;
+  active: boolean;
+  slug: string; // Event type slug (e.g., "15min")
+  scheduling_url: string; // Full URL to schedule this event type
+  duration: number; // Duration in minutes
+  kind: 'solo' | 'group'; // Type of event
+  pooling_type?: 'round_robin' | 'collective' | null; // For group events
+  type: string; // e.g., "StandardEventType" (there can be others)
+  color: string;
+  created_at: string;
+  updated_at: string;
+  // internal_note?: string | null;
+  // description_plain?: string | null;
+  // description_html?: string | null;
+  // profile?: {
+  //   name: string;
+  //   owner: string; // URI of the user or organization
+  //   type: 'User' | 'Organization';
+  // };
+  // custom_questions: any[]; // Define more strictly if needed
+  // locations: CalendlyScheduledEventLocation[]; // Possible locations
+}
+
+export interface CalendlyScheduledEventLocation {
+  type: 'physical' | 'inbound_call' | 'outbound_call' | 'custom' | 'google_conference' | 'gotomeeting_conference' | 'microsoft_teams_conference' | 'zoom_conference' | string; // string for future types
+  location?: string | null; // Details like address, phone number, meeting URL
+  // join_url?: string | null; // For video conferences, specifically Zoom, Google Meet, etc.
+  // status?: 'initiated' | 'pushed' | 'failed'; // For some integrations like Zoom
+}
+
+export interface CalendlyInvitee {
+  uri: string; // e.g., "https://api.calendly.com/scheduled_events/EVENT_UUID/invitees/INVITEE_UUID"
+  email: string;
+  name: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  status: 'active' | 'canceled';
+  questions_and_answers: { question: string; answer: string; position: number }[];
+  timezone: string; // e.g., "America/New_York"
+  event_uri: string;
+  cancel_url: string; // URL to cancel the event for this invitee
+  reschedule_url: string; // URL to reschedule the event for this invitee
+  created_at: string;
+  updated_at: string;
+  // payment?: {
+  //   id: string;
+  //   provider: 'stripe' | 'paypal';
+  //   amount: number;
+  //   currency: string;
+  //   terms: string;
+  //   successful: boolean;
+  // } | null;
+  // old_invitee?: string | null; // URI if this invitee was rescheduled
+  // new_invitee?: string | null; // URI if this invitee rescheduled to a new one
+  // tracking: {
+  //   utm_campaign?: string | null;
+  //   utm_source?: string | null;
+  //   utm_medium?: string | null;
+  //   utm_content?: string | null;
+  //   utm_term?: string | null;
+  //   salesforce_uuid?: string | null;
+  // };
+}
+
+export interface CalendlyScheduledEvent {
+  uri: string; // e.g., "https://api.calendly.com/scheduled_events/EVENT_UUID"
+  name: string; // Name of the event (often Event Type name)
+  status: 'active' | 'canceled';
+  start_time: string; // ISO 8601 Timestamp
+  end_time: string; // ISO 8601 Timestamp
+  event_type: string; // URI of the EventType
+  location: CalendlyScheduledEventLocation;
+  // invitees_counter: {
+  //   total: number;
+  //   active: number;
+  //   limit: number;
+  // };
+  created_at: string;
+  updated_at: string;
+  // event_memberships: { user: string /* URI */ }[]; // Users assigned to the event if it's a team event
+  // event_guests: { email: string; created_at: string; updated_at: string }[]; // Guests added by invitee
+  // cancellation?: {
+  //   canceler_uri: string; // URI of user who canceled
+  //   canceled_by: string; // Name of person who canceled
+  //   reason: string;
+  //   canceler_type: 'host' | 'invitee';
+  // } | null;
+  // no_show?: {
+  //   uri: string; // URI of the no_show object
+  //   created_at: string;
+  // } | null;
+}
+
+export interface CalendlyPagination {
+  count: number;
+  next_page?: string | null; // URL for the next page
+  previous_page?: string | null; // URL for the previous page
+  next_page_token?: string | null; // Token for next page (if token-based)
+  previous_page_token?: string | null; // Token for previous page
+}
+
+export interface ListCalendlyEventTypesResponse {
+  ok: boolean;
+  collection?: CalendlyEventType[];
+  pagination?: CalendlyPagination;
+  error?: string;
+}
+
+// --- Zoom Types ---
+export interface ZoomTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number; // Typically 3600 seconds (1 hour)
+  scope: string; // e.g. "meeting:read user:read"
+}
+
+export interface ZoomMeeting {
+  uuid: string;
+  id: string; // Meeting ID (numeric)
+  host_id?: string;
+  topic: string;
+  type: number; // 1: Instant, 2: Scheduled, 3: Recurring no fixed time, 8: Recurring fixed time
+  start_time?: string; // ISO 8601 Timestamp (only for scheduled/recurring)
+  duration?: number; // In minutes
+  timezone?: string;
+  agenda?: string;
+  created_at: string; // ISO 8601 Timestamp
+  join_url: string;
+  // status?: 'waiting' | 'started' | 'finished'; (May vary based on API endpoint)
+  // recurrence?: any; // Define if needed
+  // occurrences?: any[]; // Define if needed for recurring meetings
+  // settings?: any; // Define if needed
+  [key: string]: any; // Allow other properties as Zoom API is extensive
+}
+
+export interface ListZoomMeetingsResponse {
+  ok: boolean;
+  meetings?: ZoomMeeting[];
+  error?: string;
+  // Pagination fields from Zoom API for list meetings
+  page_count?: number;
+  page_number?: number;
+  page_size?: number;
+  total_records?: number;
+  next_page_token?: string;
+}
+
+export interface GetZoomMeetingDetailsResponse {
+  ok: boolean;
+  meeting?: ZoomMeeting;
+  error?: string;
+}
+
+export interface ListCalendlyScheduledEventsResponse {
+  ok: boolean;
+  collection?: CalendlyScheduledEvent[];
+  pagination?: CalendlyPagination;
+  error?: string;
+}
