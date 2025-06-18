@@ -1,27 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Placeholder for actual user ID retrieval
-async function getUserIdFromRequest(req: NextApiRequest): Promise<string | null> {
-  // TODO: Implement real user ID retrieval from session/token (e.g., SuperTokens, NextAuth.js)
-  console.log('TODO: Implement actual user ID retrieval in getUserIdFromRequest (disconnect)');
-  return "mock_user_id_from_disconnect"; // Replace with actual user ID logic
-}
+import { deleteAtomGoogleCalendarTokens } from '../../../../../../project/functions/atom-agent/_libs/token-utils'; // Adjusted path
+import { superTokensNextWrapper } from 'supertokens-node/nextjs';
+import { verifySession } from "supertokens-node/recipe/session/framework/express";
+import Session from 'supertokens-node/recipe/session';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method !== 'POST') { // Assuming POST for disconnect, could be DELETE
+
+async function handleDisconnectGoogleCalendar(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') { // Assuming POST for disconnect
     res.setHeader('Allow', ['POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  try {
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
+  const session = (req as any).session as Session.SessionContainer;
+  const userId = session.getUserId();
 
+  try {
     // --- TODO: Actual Token Revocation and Deletion Logic ---
     // 1. Retrieve the user's stored access token and refresh token for Google Calendar (Atom specific).
     // 2. If a refresh token exists, try to revoke it with Google:
@@ -36,16 +30,31 @@ export default async function handler(
     //      // Decide if this is a hard failure or if you should proceed to delete local tokens anyway.
     //      // It's often good to proceed to ensure local data is cleared.
     //    }
-    // 3. Delete the tokens (access and refresh) from your secure storage (database).
-    // --- End of TODO ---
+    // --- TODO: Actual Token Revocation with Google (see previous comments in file) ---
+    // For this step, we are focusing on deleting from our DB.
+    // Actual revocation with Google would be an additional step before or after this.
 
-    console.log(`TODO: Google Calendar tokens for Atom Agent (userId: ${userId}) should be cleared from secure storage now.`);
+    await deleteAtomGoogleCalendarTokens(userId);
+    console.log(`Atom Google Calendar tokens for Atom Agent (userId: ${userId}) marked for deletion from DB.`);
 
-    // For now, we just simulate success.
-    return res.status(200).json({ success: true, message: 'Google Calendar disconnected successfully (mocked).' });
+    return res.status(200).json({ success: true, message: 'Google Calendar disconnected successfully for Atom Agent.' });
 
   } catch (error: any) {
-    console.error('Error during Google Calendar disconnect for Atom Agent:', error);
-    res.status(500).json({ success: false, message: 'Failed to disconnect Google Calendar for Atom Agent.' });
+    console.error(`Error during Google Calendar disconnect for Atom Agent (userId: ${userId}):`, error.message);
+    res.status(500).json({ success: false, message: `Failed to disconnect Google Calendar for Atom Agent: ${error.message}` });
   }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  await superTokensNextWrapper(
+    async (next) => {
+      return await verifySession()(req, res, next);
+    },
+    req,
+    res
+  );
+  if (res.writableEnded) {
+      return;
+  }
+  return await handleDisconnectGoogleCalendar(req, res);
 }

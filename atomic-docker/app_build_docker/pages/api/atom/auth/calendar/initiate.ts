@@ -2,36 +2,30 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { google } from 'googleapis';
 import {
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
-  ATOM_GOOGLE_CALENDAR_CLIENT_SECRET, // CLIENT_SECRET is needed for OAuth2 client instantiation
+  ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
   ATOM_GOOGLE_CALENDAR_REDIRECT_URI,
   GOOGLE_CALENDAR_API_SCOPE,
 } from '../../../../../../project/functions/atom-agent/_libs/constants'; // Adjusted path
 import crypto from 'crypto';
+import { superTokensNextWrapper } from 'supertokens-node/nextjs';
+import { verifySession } from "supertokens-node/recipe/session/framework/express";
+import Session from 'supertokens-node/recipe/session';
 
-// Placeholder for actual user ID retrieval
-async function getUserIdFromRequest(req: NextApiRequest): Promise<string | null> {
-  // TODO: Implement real user ID retrieval from session/token (e.g., SuperTokens, NextAuth.js)
-  console.log('TODO: Implement actual user ID retrieval in getUserIdFromRequest');
-  return "mock_user_id_from_initiate"; // Replace with actual user ID logic
-}
+// Assuming supertokens.init is called globally, e.g., in pages/api/auth/[[...path]].ts
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+async function initiateGoogleCalendarAuth(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  try {
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+  // Session verification will handle sending 401 if not authenticated
+  const session = (req as any).session as Session.SessionContainer;
+  const userId = session.getUserId();
 
+  try {
     if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET || !ATOM_GOOGLE_CALENDAR_REDIRECT_URI) {
-      console.error('Google Calendar OAuth environment variables not set for Atom Agent.');
+      console.error('Google Calendar OAuth environment variables not set for Atom Agent for userId:', userId);
       return res.status(500).json({ error: 'OAuth configuration error for Atom Agent.' });
     }
 
@@ -56,7 +50,24 @@ export default async function handler(
     res.redirect(authUrl);
 
   } catch (error: any) {
-    console.error('Error during Google Calendar OAuth initiation for Atom Agent:', error);
+    console.error(`Error during Google Calendar OAuth initiation for Atom Agent (userId: ${userId}):`, error);
     res.status(500).json({ error: 'Failed to initiate Google Calendar authentication for Atom Agent.' });
   }
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  await superTokensNextWrapper(
+    async (next) => {
+      // We want to authenticate the user before allowing them to initiate OAuth
+      return await verifySession()(req, res, next);
+    },
+    req,
+    res
+  );
+  // If verifySession above threw an error or ended the response, this part won't run.
+  if (res.writableEnded) {
+      return;
+  }
+  // If session is verified, proceed with the main logic
+  return await initiateGoogleCalendarAuth(req, res);
 }
