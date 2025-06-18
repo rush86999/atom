@@ -6,8 +6,15 @@ import {
   CalendarEvent, CreateEventResponse,
   Email, ReadEmailResponse, SendEmailResponse,
   SearchResult,
-  ZapTriggerResponse
+  ZapTriggerResponse,
+  HubSpotContactProperties, // Added for create hubspot contact
+  CreateHubSpotContactResponse, // Added for create hubspot contact
+  HubSpotContact // Potentially needed if we access hubSpotContact.properties deeply
 } from '../types';
+import { createHubSpotContact } from './skills/hubspotSkills';
+import { sendSlackMessage } from './skills/slackSkills';
+import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
+
 
 export async function handleMessage(message: string): Promise<string> {
   const lowerCaseMessage = message.toLowerCase();
@@ -191,7 +198,70 @@ export async function handleMessage(message: string): Promise<string> {
       console.error('Error triggering Zap:', error);
       return "Sorry, I couldn't trigger the Zap.";
     }
+  } else if (lowerCaseMessage.startsWith('create hubspot contact')) {
+    const userId = "mock_user_id_from_handler"; // Consistent with other handlers
+    let userMessage: string;
+
+    try {
+      const jsonDetailsString = message.substring(message.toLowerCase().indexOf('{')).trim();
+      if (!jsonDetailsString) {
+        return "Please provide contact details in JSON format. Usage: create hubspot contact {\"email\":\"test@example.com\",\"firstname\":\"Test\"}";
+      }
+
+      let contactDetails: HubSpotContactProperties;
+      try {
+        contactDetails = JSON.parse(jsonDetailsString);
+      } catch (e: any) {
+        console.error('Error parsing HubSpot contact JSON:', e.message);
+        return `Invalid JSON format for contact details: ${e.message}. Please ensure you provide valid JSON.`;
+      }
+
+      if (!contactDetails.email) { // Basic validation
+          return "The 'email' property is required in the JSON details to create a HubSpot contact.";
+      }
+
+      const hubspotResponse: CreateHubSpotContactResponse = await createHubSpotContact(userId, contactDetails);
+
+      if (hubspotResponse.success && hubspotResponse.contactId && hubspotResponse.hubSpotContact) {
+        const contact = hubspotResponse.hubSpotContact;
+        userMessage = `HubSpot contact created successfully! ID: ${hubspotResponse.contactId}. Name: ${contact.properties.firstname || ''} ${contact.properties.lastname || ''}. Email: ${contact.properties.email}.`;
+
+        if (ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID) {
+          let slackMessage = `🎉 New HubSpot Contact Created by Atom Agent! 🎉\n`;
+          slackMessage += `ID: ${hubspotResponse.contactId}\n`;
+          slackMessage += `Name: ${contact.properties.firstname || '(not set)'} ${contact.properties.lastname || '(not set)'}\n`;
+          slackMessage += `Email: ${contact.properties.email || '(not set)'}\n`;
+          if (contact.properties.company) {
+            slackMessage += `Company: ${contact.properties.company}\n`;
+          }
+          if (ATOM_HUBSPOT_PORTAL_ID) {
+            slackMessage += `View in HubSpot: https://app.hubspot.com/contacts/${ATOM_HUBSPOT_PORTAL_ID}/contact/${hubspotResponse.contactId}\n`;
+          }
+          slackMessage += `Created by User: ${userId}`; // Or a more user-friendly name if available
+
+          try {
+            const slackResponse = await sendSlackMessage(userId, ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, slackMessage);
+            if (!slackResponse.ok) {
+              console.error('Failed to send Slack notification for HubSpot contact creation:', slackResponse.error);
+              // Do not alter userMessage, primary action (HubSpot creation) was successful.
+            } else {
+              console.log('Slack notification sent for new HubSpot contact:', hubspotResponse.contactId);
+            }
+          } catch (slackError: any) {
+            console.error('Error sending Slack notification:', slackError.message);
+          }
+        } else {
+          console.log('Slack notification channel ID for HubSpot not configured. Skipping notification.');
+        }
+      } else {
+        userMessage = `Failed to create HubSpot contact: ${hubspotResponse.message || 'An unknown error occurred.'}`;
+      }
+      return userMessage;
+    } catch (error: any) {
+      console.error('Error in "create hubspot contact" handler:', error.message);
+      return `An unexpected error occurred while creating the HubSpot contact: ${error.message}`;
+    }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", or "trigger zap <ZapName> [with data {JSON_DATA}]".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", or "create hubspot contact {JSON_DETAILS}".`;
 }

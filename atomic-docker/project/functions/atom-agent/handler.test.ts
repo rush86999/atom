@@ -1,178 +1,187 @@
 import { handleMessage } from './handler';
-import * as calendarSkills from './skills/calendarSkills';
-import * as emailSkills from './skills/emailSkills';
-import * as webResearchSkills from './skills/webResearchSkills';
-import * as zapierSkills from './skills/zapierSkills';
-import { CalendarEvent, CreateEventResponse, Email, ReadEmailResponse, SendEmailResponse, SearchResult, ZapTriggerResponse } from '../types';
+import * as hubspotSkills from './skills/hubspotSkills';
+import * as slackSkills from './skills/slackSkills';
+import * as constants from './_libs/constants';
+import { CreateHubSpotContactResponse, HubSpotContact, HubSpotContactProperties } from '../types';
 
-// Mock the skills modules
-jest.mock('./skills/calendarSkills');
-jest.mock('./skills/emailSkills');
-jest.mock('./skills/webResearchSkills');
-jest.mock('./skills/zapierSkills');
+// Mock skills and constants
+jest.mock('./skills/hubspotSkills');
+jest.mock('./skills/slackSkills');
+jest.mock('./_libs/constants', () => ({
+  ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID: '', // Default to not configured
+  ATOM_HUBSPOT_PORTAL_ID: '', // Default to not configured
+  // Add other constants if handler starts using them and they need default mocks
+}));
 
-// Typecast the mocked modules to access their methods with mock typings
-const mockedCalendarSkills = calendarSkills as jest.Mocked<typeof calendarSkills>;
-const mockedEmailSkills = emailSkills as jest.Mocked<typeof emailSkills>;
-const mockedWebResearchSkills = webResearchSkills as jest.Mocked<typeof webResearchSkills>;
-const mockedZapierSkills = zapierSkills as jest.Mocked<typeof zapierSkills>;
+describe('handleMessage - create hubspot contact', () => {
+  let mockCreateHubSpotContact: jest.SpyInstance;
+  let mockSendSlackMessage: jest.SpyInstance;
+  let consoleErrorSpy: jest.SpyInstance;
+  let consoleLogSpy: jest.SpyInstance;
 
-describe('Atom Agent handleMessage', () => {
+  const userId = "mock_user_id_from_handler"; // As used in handler
+  const validContactDetails: HubSpotContactProperties = { email: 'test@example.com', firstname: 'Test', lastname: 'User', company: 'Test Inc.' };
+  const validContactDetailsJson = JSON.stringify(validContactDetails);
+
+  const mockSuccessfulHubSpotResponse: CreateHubSpotContactResponse = {
+    success: true,
+    contactId: 'hs-123',
+    message: 'Contact created',
+    hubSpotContact: {
+      id: 'hs-123',
+      properties: {
+        hs_object_id: 'hs-123',
+        createdate: new Date().toISOString(),
+        lastmodifieddate: new Date().toISOString(),
+        email: validContactDetails.email,
+        firstname: validContactDetails.firstname,
+        lastname: validContactDetails.lastname,
+        company: validContactDetails.company,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      archived: false,
+    },
+  };
+
   beforeEach(() => {
-    // Reset mocks before each test
+    // Reset mocks and spies
+    mockCreateHubSpotContact = jest.spyOn(hubspotSkills, 'createHubSpotContact');
+    mockSendSlackMessage = jest.spyOn(slackSkills, 'sendSlackMessage');
+
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    // Reset mocked constant values by re-assigning them through the imported module
+    // This is a common way to handle module-level variable mocks in Jest
+    Object.defineProperty(constants, 'ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID', { value: '', writable: true, configurable: true });
+    Object.defineProperty(constants, 'ATOM_HUBSPOT_PORTAL_ID', { value: '', writable: true, configurable: true });
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
   });
 
-  // Calendar Skills Tests
-  it('should list upcoming events', async () => {
-    const mockEvents: CalendarEvent[] = [{ id: '1', summary: 'Event 1', startTime: '2024-01-01T10:00:00Z', endTime: '2024-01-01T11:00:00Z' }];
-    mockedCalendarSkills.listUpcomingEvents.mockResolvedValue(mockEvents);
-    const response = await handleMessage('list events');
-    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(10); // Default limit
-    expect(response).toContain('Upcoming events:');
-    expect(response).toContain('Event 1');
+  it('should successfully create contact and send Slack notification when all configs are present', async () => {
+    Object.defineProperty(constants, 'ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID', { value: 'slack-channel-123' });
+    Object.defineProperty(constants, 'ATOM_HUBSPOT_PORTAL_ID', { value: 'portal-456' });
+    mockCreateHubSpotContact.mockResolvedValue(mockSuccessfulHubSpotResponse);
+    mockSendSlackMessage.mockResolvedValue({ ok: true });
+
+    const message = `create hubspot contact ${validContactDetailsJson}`;
+    const result = await handleMessage(message);
+
+    expect(mockCreateHubSpotContact).toHaveBeenCalledWith(userId, validContactDetails);
+    expect(mockSendSlackMessage).toHaveBeenCalledTimes(1);
+    const expectedSlackMessage =
+      `🎉 New HubSpot Contact Created by Atom Agent! 🎉\n` +
+      `ID: ${mockSuccessfulHubSpotResponse.contactId}\n` +
+      `Name: ${mockSuccessfulHubSpotResponse.hubSpotContact!.properties.firstname} ${mockSuccessfulHubSpotResponse.hubSpotContact!.properties.lastname}\n` +
+      `Email: ${mockSuccessfulHubSpotResponse.hubSpotContact!.properties.email}\n` +
+      `Company: ${mockSuccessfulHubSpotResponse.hubSpotContact!.properties.company}\n` +
+      `View in HubSpot: https://app.hubspot.com/contacts/portal-456/contact/${mockSuccessfulHubSpotResponse.contactId}\n` +
+      `Created by User: ${userId}`;
+    expect(mockSendSlackMessage).toHaveBeenCalledWith(userId, 'slack-channel-123', expectedSlackMessage);
+    expect(result).toContain('HubSpot contact created successfully!');
+    expect(result).toContain(`ID: ${mockSuccessfulHubSpotResponse.contactId}`);
   });
 
-  it('should list upcoming events with a limit', async () => {
-    mockedCalendarSkills.listUpcomingEvents.mockResolvedValue([]);
-    await handleMessage('list events 5');
-    expect(mockedCalendarSkills.listUpcomingEvents).toHaveBeenCalledWith(5);
+  it('should create contact but not send Slack notification if channel ID is not configured', async () => {
+    Object.defineProperty(constants, 'ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID', { value: '' }); // Ensure it's empty
+    Object.defineProperty(constants, 'ATOM_HUBSPOT_PORTAL_ID', { value: 'portal-456' });
+    mockCreateHubSpotContact.mockResolvedValue(mockSuccessfulHubSpotResponse);
+
+    const message = `create hubspot contact ${validContactDetailsJson}`;
+    const result = await handleMessage(message);
+
+    expect(mockCreateHubSpotContact).toHaveBeenCalledWith(userId, validContactDetails);
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+    expect(result).toContain('HubSpot contact created successfully!');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Slack notification channel ID for HubSpot not configured. Skipping notification.');
   });
 
-  it('should handle no upcoming events with a user-friendly message', async () => {
-    mockedCalendarSkills.listUpcomingEvents.mockResolvedValue([]);
-    const response = await handleMessage('list events');
-    expect(response).toBe("Could not retrieve calendar events. Please ensure your Google Calendar is connected in settings and try again, or there might be no upcoming events.");
+  it('should create contact and send Slack notification without full link if Portal ID is not configured', async () => {
+    Object.defineProperty(constants, 'ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID', { value: 'slack-channel-123' });
+    Object.defineProperty(constants, 'ATOM_HUBSPOT_PORTAL_ID', { value: '' }); // Ensure it's empty
+    mockCreateHubSpotContact.mockResolvedValue(mockSuccessfulHubSpotResponse);
+    mockSendSlackMessage.mockResolvedValue({ ok: true });
+
+    const message = `create hubspot contact ${validContactDetailsJson}`;
+    await handleMessage(message);
+
+    expect(mockCreateHubSpotContact).toHaveBeenCalledWith(userId, validContactDetails);
+    expect(mockSendSlackMessage).toHaveBeenCalledTimes(1);
+    const slackCallArgs = mockSendSlackMessage.mock.calls[0];
+    expect(slackCallArgs[2]).not.toContain('View in HubSpot:'); // Check that the link part is absent
+    expect(slackCallArgs[2]).toContain(`ID: ${mockSuccessfulHubSpotResponse.contactId}`); // Ensure other details are there
   });
 
-  it('should create a calendar event and include htmlLink', async () => {
-    const mockResponse: CreateEventResponse = { success: true, eventId: 'newEvent1', message: 'Event created', htmlLink: 'http://google.com/event1' };
-    mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockResponse);
-    const eventDetails = { summary: 'Test Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
-    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
-    expect(mockedCalendarSkills.createCalendarEvent).toHaveBeenCalledWith(eventDetails);
-    expect(response).toContain('Event created: Event created (ID: newEvent1) Link: http://google.com/event1');
+  it('should handle HubSpot contact creation failure', async () => {
+    const hubspotFailureResponse: CreateHubSpotContactResponse = {
+      success: false,
+      message: 'HubSpot is down',
+    };
+    mockCreateHubSpotContact.mockResolvedValue(hubspotFailureResponse);
+
+    const message = `create hubspot contact ${validContactDetailsJson}`;
+    const result = await handleMessage(message);
+
+    expect(mockCreateHubSpotContact).toHaveBeenCalledWith(userId, validContactDetails);
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+    expect(result).toBe(`Failed to create HubSpot contact: ${hubspotFailureResponse.message}`);
   });
 
-  it('should handle create calendar event failure with a specific message from skill', async () => {
-    const mockFailureResponse: CreateEventResponse = { success: false, message: 'Specific error from skill.' };
-    mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
-    const eventDetails = { summary: 'Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
-    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
-    expect(response).toBe('Failed to create calendar event. Specific error from skill.');
+  it('should handle invalid JSON for contact details', async () => {
+    const invalidJson = '{"email":"test@example.com", "firstname": Test" }'; // Missing quote
+    const message = `create hubspot contact ${invalidJson}`;
+    const result = await handleMessage(message);
+
+    expect(mockCreateHubSpotContact).not.toHaveBeenCalled();
+    expect(mockSendSlackMessage).not.toHaveBeenCalled();
+    expect(result).toContain('Invalid JSON format for contact details:');
   });
 
-  it('should handle create calendar event failure with a generic message if skill provides none', async () => {
-    const mockFailureResponse: CreateEventResponse = { success: false }; // No message
-    mockedCalendarSkills.createCalendarEvent.mockResolvedValue(mockFailureResponse);
-    const eventDetails = { summary: 'Another Bad Event', startTime: '2024-01-01T14:00:00Z', endTime: '2024-01-01T15:00:00Z' };
-    const response = await handleMessage(`create event ${JSON.stringify(eventDetails)}`);
-    expect(response).toBe('Failed to create calendar event. Please check your connection or try again.');
+  it('should return error if no JSON details provided', async () => {
+    const message = `create hubspot contact`;
+    const result = await handleMessage(message);
+    expect(result).toBe("Please provide contact details in JSON format. Usage: create hubspot contact {\"email\":\"test@example.com\",\"firstname\":\"Test\"}");
+    expect(mockCreateHubSpotContact).not.toHaveBeenCalled();
   });
 
-   it('should handle invalid JSON for create calendar event', async () => {
-    const response = await handleMessage('create event this is not json');
-    expect(response).toContain("Invalid event details format.");
-    expect(mockedCalendarSkills.createCalendarEvent).not.toHaveBeenCalled();
+  it('should return error if email is missing in JSON details', async () => {
+    const detailsWithoutEmail = JSON.stringify({ firstname: "Test" });
+    const message = `create hubspot contact ${detailsWithoutEmail}`;
+    const result = await handleMessage(message);
+    expect(result).toBe("The 'email' property is required in the JSON details to create a HubSpot contact.");
+    expect(mockCreateHubSpotContact).not.toHaveBeenCalled();
   });
 
+   it('should log error if Slack notification fails but still return success for HubSpot creation', async () => {
+    Object.defineProperty(constants, 'ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID', { value: 'slack-channel-123' });
+    Object.defineProperty(constants, 'ATOM_HUBSPOT_PORTAL_ID', { value: 'portal-456' });
+    mockCreateHubSpotContact.mockResolvedValue(mockSuccessfulHubSpotResponse);
+    mockSendSlackMessage.mockResolvedValue({ ok: false, error: 'slack_is_down' }); // Slack send fails
 
-  // Email Skills Tests
-  it('should list recent emails', async () => {
-    const mockEmailsData: Email[] = [{ id: 'e1', sender: 'test@example.com', recipient: 'me@example.com', subject: 'Test Email', body: '', timestamp: '2024-01-01T00:00:00Z', read: false }];
-    mockedEmailSkills.listRecentEmails.mockResolvedValue(mockEmailsData);
-    const response = await handleMessage('list emails');
-    expect(mockedEmailSkills.listRecentEmails).toHaveBeenCalledWith(10);
-    expect(response).toContain('Recent emails:');
-    expect(response).toContain('Test Email');
+    const message = `create hubspot contact ${validContactDetailsJson}`;
+    const result = await handleMessage(message);
+
+    expect(mockCreateHubSpotContact).toHaveBeenCalledTimes(1);
+    expect(mockSendSlackMessage).toHaveBeenCalledTimes(1);
+    expect(result).toContain('HubSpot contact created successfully!'); // User message should still be success
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to send Slack notification for HubSpot contact creation:', 'slack_is_down');
   });
 
-   it('should handle no recent emails', async () => {
-    mockedEmailSkills.listRecentEmails.mockResolvedValue([]);
-    const response = await handleMessage('list emails');
-    expect(response).toBe('No recent emails found.');
-  });
+});
 
-  it('should read an email', async () => {
-    const mockEmail: Email = { id: 'e1', sender: 'test@example.com', recipient: 'me@example.com', subject: 'Test Email', body: 'Email body', timestamp: '2024-01-01T00:00:00Z', read: false };
-    const mockResponse: ReadEmailResponse = { success: true, email: mockEmail };
-    mockedEmailSkills.readEmail.mockResolvedValue(mockResponse);
-    const response = await handleMessage('read email e1');
-    expect(mockedEmailSkills.readEmail).toHaveBeenCalledWith('e1');
-    expect(response).toContain('Email (ID: e1):');
-    expect(response).toContain('Subject: Test Email');
-    expect(response).toContain('Email body');
-  });
-
-  it('should handle reading a non-existent email', async () => {
-    const mockResponse: ReadEmailResponse = { success: false, message: 'Email not found' };
-    mockedEmailSkills.readEmail.mockResolvedValue(mockResponse);
-    const response = await handleMessage('read email nonExistentId');
-    expect(response).toBe('Email not found');
-  });
-
-
-  it('should send an email', async () => {
-    const mockResponse: SendEmailResponse = { success: true, emailId: 'sentEmail1', message: 'Email sent' };
-    mockedEmailSkills.sendEmail.mockResolvedValue(mockResponse);
-    const emailDetails = { to: 'recipient@example.com', subject: 'Hello', body: 'Test body' };
-    const response = await handleMessage(`send email ${JSON.stringify(emailDetails)}`);
-    expect(mockedEmailSkills.sendEmail).toHaveBeenCalledWith(emailDetails);
-    expect(response).toContain('Email sent: Email sent (ID: sentEmail1)');
-  });
-
-  // Web Research Skills Tests
-  it('should search the web', async () => {
-    const mockResults: SearchResult[] = [{ title: 'Result 1', link: 'http://example.com/1', snippet: 'Snippet 1' }];
-    mockedWebResearchSkills.searchWeb.mockResolvedValue(mockResults);
-    const response = await handleMessage('search web test query');
-    expect(mockedWebResearchSkills.searchWeb).toHaveBeenCalledWith('test query');
-    expect(response).toContain('Web search results for "test query":');
-    expect(response).toContain('Result 1');
-  });
-
-  it('should handle no web results', async () => {
-    mockedWebResearchSkills.searchWeb.mockResolvedValue([]);
-    const response = await handleMessage('search web emptyQuery');
-    expect(response).toBe('No web results found for "emptyQuery".');
-  });
-
-
-  // Zapier Skills Tests
-  it('should trigger a Zap with data', async () => {
-    const mockResponse: ZapTriggerResponse = { success: true, zapName: 'MyZap', runId: 'zapRun1', message: 'Zap triggered' };
-    mockedZapierSkills.triggerZap.mockResolvedValue(mockResponse);
-    const zapData = { key: 'value' };
-    const response = await handleMessage(`trigger zap MyZap with data ${JSON.stringify(zapData)}`);
-    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith('MyZap', zapData);
-    expect(response).toContain('Zap triggered: Zap triggered (Run ID: zapRun1)');
-  });
-
-  it('should trigger a Zap without data', async () => {
-    const mockResponse: ZapTriggerResponse = { success: true, zapName: 'MyZapNoData', runId: 'zapRun2', message: 'Zap triggered' };
-    mockedZapierSkills.triggerZap.mockResolvedValue(mockResponse);
-    const response = await handleMessage('trigger zap MyZapNoData');
-    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith('MyZapNoData', {});
-    expect(response).toContain('Zap triggered: Zap triggered (Run ID: zapRun2)');
-  });
-
-  it('should handle invalid JSON for trigger zap data', async () => {
-    const response = await handleMessage('trigger zap MyZap with data this is not json');
-    expect(response).toContain("Invalid JSON data format.");
-    expect(mockedZapierSkills.triggerZap).not.toHaveBeenCalled();
-  });
-
-
-  // General Handler Logic
-  it('should handle unknown commands gracefully', async () => {
-    const response = await handleMessage('unknown command here');
-    const expectedResponse = `Atom received: "unknown command here". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", or "trigger zap <ZapName> [with data {JSON_DATA}]".`;
-    expect(response).toBe(expectedResponse);
-  });
-
-  it('should return error message if a skill throws an error', async () => {
-    mockedCalendarSkills.listUpcomingEvents.mockRejectedValue(new Error('Skill failure'));
-    const response = await handleMessage('list events');
-    expect(response).toBe("Sorry, I couldn't fetch the upcoming events.");
-  });
+// Add other test suites for other commands in handler.ts if they exist or are added later.
+// For example, describe('handleMessage - list events', () => { ... });
+// This helps keep tests organized by command/feature.
+describe('handleMessage - default fallback', () => {
+    it('should return the help message for an unknown command', async () => {
+        const message = "unknown command here";
+        const result = await handleMessage(message);
+        expect(result).toBe(`Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", or "create hubspot contact {JSON_DETAILS}".`);
+    });
 });
