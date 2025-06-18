@@ -402,6 +402,19 @@ export interface ListCalendlyEventTypesResponse {
   error?: string;
 }
 
+// --- NLU Service Types ---
+export interface NLUResponseData {
+  intent: string | null;
+  entities: Record<string, any>; // e.g., { "date_range": "tomorrow", "limit": 3 }
+  confidence?: number; // Optional: confidence score for the intent
+  recognized_phrase?: string; // Optional: the part of the message that triggered the intent
+}
+
+export interface ProcessedNLUResponse extends NLUResponseData {
+  originalMessage: string; // The original user message
+  error?: string; // If an error occurred during NLU processing
+}
+
 // --- QuickBooks Online (QBO) Types ---
 export interface QuickBooksAuthTokens {
   accessToken: string;
