@@ -249,9 +249,115 @@ After successfully completing the "Grant Consent" step and verifying "Status: Co
 
 *   The success of "Chat Interface - Calendar Commands" **now directly depends on the real, authenticated `userId` being used throughout the system**, from API route protection to token storage and skill execution.
 *   Real AES-256-CBC encryption is implemented in `token-utils.ts`. Ensure `ATOM_TOKEN_ENCRYPTION_KEY` and `ATOM_TOKEN_ENCRYPTION_IV` are correctly set in your environment for testing.
-*   Focus on server logs from the API routes (`initiate.ts`, `callback.ts`, `disconnect.ts`, `status.ts`), `token-utils.ts` (encryption/decryption logs), and `calendarSkills.ts` (token usage, API call attempts, refresh events) for detailed insight.
+*   Focus on server logs from the API routes (`initiate.ts`, `callback.ts`, `disconnect.ts`, `status.ts`), `token-utils.ts` (encryption/decryption logs), and skill files (`calendarSkills.ts`, `emailSkills.ts`, etc.) for detailed insight into token management and API call lifecycles.
 
-This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar integration, including OAuth, secure token storage, and API interactions with real user context.
+This manual testing plan covers the core functionalities of the Atom agent, focusing on end-to-end Google Calendar, Gmail, and Microsoft Graph integrations, including OAuth, secure token storage, and API interactions with real user context.
+
+## 6. End-to-End Microsoft Graph (Outlook Calendar & Email) Integration Testing
+
+This section details testing the actual OAuth flow with Microsoft Graph (for Outlook.com, Office 365 accounts) and subsequent API calls by the Atom Agent. Success depends on all prerequisites being met.
+
+### Prerequisites (Microsoft Graph)
+
+Ensure all general prerequisites from Section 4 (Hasura, Supertokens, `userId` in handler, Encryption) are met, plus the following Microsoft Graph-specific items:
+
+1.  **Azure Active Directory (Azure AD) App Registration:**
+    *   An application **must be registered** in Azure AD.
+    *   **API Permissions:** The app registration must have the following Microsoft Graph API permissions (delegated) granted and consented by an admin or user:
+        *   `User.Read`
+        *   `Calendars.ReadWrite`
+        *   `Mail.ReadWrite`
+        *   `Mail.Send`
+        *   `offline_access`
+    *   **Authentication:** A client secret **must be generated**. The platform must be configured as "Web" and the **Redirect URI** must be set (e.g., `http://localhost:3000/api/atom/auth/microsoft/callback`).
+2.  **Environment Variables (Backend - Microsoft Graph Specific):**
+    The following **MUST be correctly set** in the backend environment:
+    *   `ATOM_MSGRAPH_CLIENT_ID` (Application (client) ID from Azure AD)
+    *   `ATOM_MSGRAPH_CLIENT_SECRET` (Client secret value from Azure AD)
+    *   `ATOM_MSGRAPH_REDIRECT_URI` (Must exactly match one registered in Azure AD)
+    *   `ATOM_MSGRAPH_TENANT_ID` (Usually 'common' to support multi-tenant and personal Microsoft accounts, or your specific tenant ID)
+    *   *(Ensure general prerequisites like `ATOM_TOKEN_ENCRYPTION_KEY`, `IV`, `HASURA_GRAPHQL_URL`, `HASURA_ADMIN_SECRET` are also set).*
+
+### 6.1. OAuth Flow Testing & Status Verification (Microsoft Graph)
+
+1.  **Navigate to Settings:** Go to Settings -> Atom Agent Configuration.
+2.  **Initiate Connection:**
+    *   **Action:** Click the "Connect Microsoft Account" button.
+    *   **Expected Result:** Redirected to a Microsoft Account sign-in page, then a consent screen requesting permissions for the scopes defined in `MSGRAPH_API_SCOPES`.
+3.  **Cancel Consent:**
+    *   **Action:** On the Microsoft consent screen, cancel or deny permission.
+    *   **Expected Result:** Redirected back to settings. An error message (e.g., "Microsoft Account connection failed: access_denied" or similar, based on `mgraph_auth_error` and `mgraph_error_desc` query params) should be displayed. Status should remain "Microsoft Not Connected".
+4.  **Grant Consent:**
+    *   **Action:** Click "Connect Microsoft Account" again. Grant permissions on the Microsoft consent screen.
+    *   **Expected Result:** Redirected back to settings. Success message "Microsoft Account connected successfully!" displayed. UI shows "Status: Microsoft Connected (your.email@example.com)".
+    *   **Server Log:** Check logs from `microsoft/callback.ts` and `token-utils.ts` for successful token exchange, user info fetch (email), token encryption, and storage (with `resource = ATOM_MSGRAPH_RESOURCE_NAME`).
+    *   **Status API Check:** Manually call `/api/atom/auth/microsoft/status`. It should return `{ "isConnected": true, "email": "your.email@example.com" }`.
+5.  **Disconnect Microsoft Account:**
+    *   **Action:** Click "Disconnect Microsoft Account".
+    *   **Expected Result:** Success message. UI updates to "Microsoft Not Connected". Server logs show token deletion for `ATOM_MSGRAPH_RESOURCE_NAME`. `/api/atom/auth/microsoft/status` returns `{ "isConnected": false }`.
+
+### 6.2. Chat Interface - Calendar Commands (Microsoft Graph)
+
+(Assuming Microsoft Account is the only calendar service connected, or Google Calendar failed and it fell back to Microsoft)
+
+1.  **List Events Command:**
+    *   **Action:** Type `list events` and send.
+    *   **Expected Result:** If the connected Microsoft account's Outlook calendar has upcoming events, they should be listed (e.g., "- Event Subject (StartTime - EndTime) [Link: ...]"). If empty, "No upcoming events found in Microsoft Outlook Calendar...".
+    *   **Server Log:** Check `microsoftCalendarSkills.ts` logs.
+2.  **Create Event Command:**
+    *   **Action:** Type `create event {"summary":"Outlook Test Event","startTime":"YYYY-MM-DDTHH:MM:SSZ","endTime":"YYYY-MM-DDTHH:MM:SSZ"}`.
+    *   **Expected Result:** "Event created in Microsoft Outlook Calendar: ...". Verify event in Outlook Calendar.
+    *   **Server Log:** Check `microsoftCalendarSkills.ts` logs.
+
+### 6.3. Chat Interface - Email Commands (Microsoft Graph)
+
+(Assuming Microsoft Account is the only email service connected, or Gmail failed/was not connected)
+
+1.  **List Emails Command:**
+    *   **Action:** Type `list emails` and send.
+    *   **Expected Result:** Lists emails from Outlook inbox (e.g., "1. Subject: [Subject], From: [Sender], Date: [Date], ID: [MsgId]"). If empty, "No recent emails found in Microsoft Outlook...".
+    *   **Server Log:** Check `microsoftEmailSkills.ts` logs.
+2.  **Read Email Command (using ID from list):**
+    *   **Action:** Type `read email <message_id_from_list>` (using an ID from MS Outlook).
+    *   **Expected Result:** Full email content from Outlook displayed. Email marked as read in Outlook.
+    *   **Server Log:** Check `microsoftEmailSkills.ts` logs.
+3.  **Send Email Command:**
+    *   **Action:** Type `send email {"to":"your_other_email@example.com","subject":"Atom MSGraph Test","body":"Hello from Atom via Outlook!"}`.
+    *   **Expected Result:** "Email sent successfully via Microsoft Outlook! ..." displayed. Verify email received and in Outlook "Sent Items".
+    *   **Server Log:** Check `microsoftEmailSkills.ts` logs.
+
+### 6.4. Token Refresh Testing (Microsoft Graph - Conceptual & Observational)
+
+*   Similar to Google services: hard to trigger manually.
+*   **Observation Method:** After connecting, wait for token expiry (typically 1 hour for MS Graph access tokens). Try a command. It should succeed. Check server logs for "Microsoft Graph token was refreshed" messages and token saving logs.
+
+### 6.5. Error Condition Testing (Microsoft Graph Specific)
+
+1.  **Invalid Redirect URI in Azure AD:**
+    *   **Action:** Misconfigure `ATOM_MSGRAPH_REDIRECT_URI` in env or Azure AD. Try "Connect Microsoft Account".
+    *   **Expected Result:** Microsoft sign-in/consent screen shows an error about redirect URI mismatch.
+2.  **Revoked App Permissions for Microsoft Graph in Azure AD / User Account:**
+    *   **Action:** Connect Microsoft Account. Revoke app permissions via Azure portal or user's Microsoft account settings. Try a chat command.
+    *   **Expected Result:** Chat error (e.g., "Could not retrieve calendar events..."). Server logs show `invalid_grant` or similar from Microsoft Graph. Disconnect/reconnect should require full consent.
+
+### 6.6. Multi-User Data Isolation Testing (Microsoft Graph)
+
+*   Perform similar steps as outlined in **Section 4.5 (Multi-User Data Isolation Testing)** but for Microsoft Graph connections (Outlook Calendar & Email).
+*   Verify User A's Microsoft data/actions are entirely separate from User B's.
+
+### 6.7. Mixed Environment Testing (Google & Microsoft Connected)
+
+*   **Action:** Connect both a Google account (for Calendar and/or Gmail) AND a Microsoft account.
+*   **Test Calendar Commands:**
+    *   `list events`: Should primarily show Google Calendar events if available. If Google has no events, it might show Microsoft events (based on current handler logic). Clarify expected merged/fallback behavior if this is important.
+    *   `create event`: Should default to Google Calendar.
+*   **Test Email Commands:**
+    *   `list emails`: Should primarily show Gmail emails. If Gmail has no emails, it might show Outlook emails.
+    *   `read email <ID>`: This is ambiguous. The current handler tries Gmail then Outlook. This might lead to unexpected behavior if IDs are not globally unique or if context isn't clear. Note this ambiguity.
+    *   `send email`: Should default to Gmail.
+*   **Expected Result:** Observe the prioritization logic in `handler.ts`. The responses should indicate which service was used. This area might highlight the need for user preferences or more specific commands (e.g., "list google events", "send outlook email").
+
+This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar, Gmail, and Microsoft Graph integrations, including OAuth, secure token storage, and API interactions with real user context.
 
 ## 5. End-to-End Gmail Integration Testing
 

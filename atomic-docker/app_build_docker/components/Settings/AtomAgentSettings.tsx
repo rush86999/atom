@@ -19,6 +19,10 @@ const AtomAgentSettings = () => {
   const [isGmailConnected, setIsGmailConnected] = useState(false);
   const [userGmailAddress, setUserGmailAddress] = useState<string | null>(null);
 
+  // Microsoft Graph State
+  const [isMicrosoftConnected, setIsMicrosoftConnected] = useState(false);
+  const [userMicrosoftEmail, setUserMicrosoftEmail] = useState<string | null>(null);
+
   const fetchCalendarStatus = async () => {
     setApiMessage(null); // Clear previous messages on new fetch
     setApiError(null);
@@ -55,12 +59,14 @@ const AtomAgentSettings = () => {
     // Fetch initial statuses when component mounts
     fetchCalendarStatus();
     fetchGmailStatus();
+    fetchMicrosoftStatus();
   }, []); // Empty dependency array means this runs once on mount
 
   useEffect(() => {
     const { query } = router;
     let needsCalendarStatusFetch = false;
     let needsGmailStatusFetch = false;
+    let needsMicrosoftStatusFetch = false;
     let newPath = '/Settings/UserViewSettings'; // Default path for router.replace
     let queryParams = { ...query }; // Copy query to modify it
 
@@ -84,7 +90,7 @@ const AtomAgentSettings = () => {
 
     // Gmail related query params
     if (query.email_auth_success === 'true' && query.atom_agent_email === 'true') {
-      setApiMessage('Gmail account connected successfully!'); // Can potentially overwrite calendar message if both happen
+      setApiMessage('Gmail account connected successfully!');
       needsGmailStatusFetch = true;
       delete queryParams.email_auth_success;
       delete queryParams.atom_agent_email;
@@ -98,6 +104,25 @@ const AtomAgentSettings = () => {
       needsGmailStatusFetch = true;
       delete queryParams.email_disconnect_success;
       delete queryParams.atom_agent_email;
+    }
+
+    // Microsoft Graph related query params
+    if (query.mgraph_auth_success === 'true' && query.atom_agent_mgraph === 'true') {
+      setApiMessage('Microsoft Account connected successfully!');
+      needsMicrosoftStatusFetch = true;
+      delete queryParams.mgraph_auth_success;
+      delete queryParams.atom_agent_mgraph;
+    } else if (query.mgraph_auth_error && query.atom_agent_mgraph === 'true') {
+      setApiError(`Microsoft Account connection failed: ${query.mgraph_auth_error} ${query.mgraph_error_desc || ''}`.trim());
+      needsMicrosoftStatusFetch = true;
+      delete queryParams.mgraph_auth_error;
+      delete queryParams.atom_agent_mgraph;
+      delete queryParams.mgraph_error_desc;
+    } else if (query.mgraph_disconnect_success === 'true' && query.atom_agent_mgraph === 'true') {
+      setApiMessage('Microsoft Account disconnected successfully!');
+      needsMicrosoftStatusFetch = true;
+      delete queryParams.mgraph_disconnect_success;
+      delete queryParams.atom_agent_mgraph;
     }
 
     // Reconstruct the path with remaining query parameters if any
@@ -116,6 +141,9 @@ const AtomAgentSettings = () => {
     }
     if (needsGmailStatusFetch) {
       fetchGmailStatus();
+    }
+    if (needsMicrosoftStatusFetch) {
+      fetchMicrosoftStatus();
     }
   }, [router.query]);
 
@@ -199,6 +227,59 @@ const AtomAgentSettings = () => {
     }
   };
 
+  const fetchMicrosoftStatus = async () => {
+    setApiMessage(null);
+    setApiError(null);
+    try {
+      console.log('Fetching Microsoft Graph connection status...');
+      const response = await fetch('/api/atom/auth/microsoft/status');
+      if (!response.ok) {
+        throw new Error(`API responded with ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('Microsoft Graph status response:', data);
+      if (data.isConnected) {
+        setIsMicrosoftConnected(true);
+        setUserMicrosoftEmail(data.email || 'Unknown Microsoft Email');
+      } else {
+        setIsMicrosoftConnected(false);
+        setUserMicrosoftEmail(null);
+        if(data.error) {
+            setApiError(data.error);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch Microsoft Graph status:', err);
+      setIsMicrosoftConnected(false);
+      setUserMicrosoftEmail(null);
+      setApiError('Could not verify Microsoft Graph connection status.');
+    }
+  };
+
+  const handleConnectMicrosoft = () => {
+    router.push('/api/atom/auth/microsoft/initiate');
+  };
+
+  const handleDisconnectMicrosoft = async () => {
+    setApiMessage(null);
+    setApiError(null);
+    try {
+      const response = await fetch('/api/atom/auth/microsoft/disconnect', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setApiMessage(data.message || 'Microsoft Account disconnected successfully!');
+        fetchMicrosoftStatus(); // Refresh status
+      } else {
+        setApiError(data.message || 'Failed to disconnect Microsoft Account.');
+      }
+    } catch (err) {
+      console.error('Disconnect Microsoft Graph error:', err);
+      setApiError('An error occurred while disconnecting Microsoft Account.');
+    }
+  };
+
   // const handleSaveZapierUrl = () => console.log('Save Zapier URL clicked:', zapierUrl);
 
   return (
@@ -257,6 +338,24 @@ const AtomAgentSettings = () => {
           <Box>
             <Text marginBottom="s">Status: Gmail Not Connected</Text>
             <Button onPress={handleConnectGmail} variant="primary" title="Connect Gmail Account" />
+          </Box>
+        )}
+      </Box>
+
+      {/* Microsoft Account (Outlook Calendar & Email) Section */}
+      <Box marginBottom="m" paddingBottom="m" borderBottomWidth={1} borderColor="hairline">
+        <Text variant="subHeader" marginBottom="s">
+          Microsoft Account (Outlook Calendar & Email)
+        </Text>
+        {isMicrosoftConnected ? (
+          <Box>
+            <Text marginBottom="s">Status: Microsoft Connected ({userMicrosoftEmail || 'Email not available'})</Text>
+            <Button onPress={handleDisconnectMicrosoft} variant="danger" title="Disconnect Microsoft Account" />
+          </Box>
+        ) : (
+          <Box>
+            <Text marginBottom="s">Status: Microsoft Not Connected</Text>
+            <Button onPress={handleConnectMicrosoft} variant="primary" title="Connect Microsoft Account" />
           </Box>
         )}
       </Box>

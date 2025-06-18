@@ -532,4 +532,130 @@ describe('Token Utilities', () => {
     });
   });
   });
+
+  // --- Tests for Atom Microsoft Graph Token Utilities ---
+  describe('Token Utilities - Microsoft Graph Hasura Interactions', () => {
+    const mockUserId = 'test-msgraph-user-id';
+    const mockAppEmail = 'user.ms@example.com';
+    const mockTokenData = {
+      access_token: 'test_ms_access_token',
+      refresh_token: 'test_ms_refresh_token',
+      expiry_date: Date.now() + 3600000,
+      scope: 'ms_test_scope',
+      token_type: 'Bearer',
+    };
+
+    // beforeEach and afterEach for consoleErrorSpy and Hasura/Encryption constants are inherited from parent describe block.
+    // Specific overrides for constants (like resource_name) will be handled by using the MSGraph specific constants.
+
+    describe('saveAtomMicrosoftGraphTokens', () => {
+      it('should successfully save/upsert MS Graph tokens to Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: { insert_Calendar_Integration_one: { id: 'mock-ms-db-id', userId: mockUserId } },
+          }),
+        } as any);
+
+        const result = await require('./token-utils').saveAtomMicrosoftGraphTokens(mockUserId, mockTokenData, mockAppEmail);
+
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        const gqlVariables = callOptions.json.variables;
+
+        expect(gqlVariables.resourceName).toBe(constants.ATOM_MSGRAPH_RESOURCE_NAME); // Check MS Graph resource name
+        expect(gqlVariables.clientType).toBe(constants.ATOM_CLIENT_TYPE);
+        expect(gqlVariables.userId).toBe(mockUserId);
+        expect(gqlVariables.accessToken).toEqual(await encryptToken(mockTokenData.access_token));
+        expect(gqlVariables.appEmail).toBe(mockAppEmail);
+
+        const gqlQuery = callOptions.json.query;
+        expect(gqlQuery).toContain('mutation upsertAtomMicrosoftGraphToken');
+        expect(gqlQuery).toContain(constants.ATOM_MSGRAPH_RESOURCE_NAME);
+
+        expect(result).toEqual({ id: 'mock-ms-db-id', userId: mockUserId });
+      });
+
+      it('should throw error if Hasura returns errors for MS Graph save', async () => {
+          setMockEncryptionConstants(validTestKey, validTestIv);
+          got.post.mockResolvedValue({
+            json: jest.fn().mockResolvedValue({ errors: [{ message: "MS Graph save constraint violation" }] }),
+          } as any);
+
+          await expect(require('./token-utils').saveAtomMicrosoftGraphTokens(mockUserId, mockTokenData, mockAppEmail))
+            .rejects.toThrow('Failed to save Microsoft Graph tokens: MS Graph save constraint violation');
+        });
+    });
+
+    describe('getAtomMicrosoftGraphTokens', () => {
+      it('should successfully fetch and decrypt MS Graph tokens from Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        const encryptedAccessToken = await encryptToken(mockTokenData.access_token);
+        const encryptedRefreshToken = await encryptToken(mockTokenData.refresh_token!);
+        const mockExpiry = new Date(mockTokenData.expiry_date);
+
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: {
+              Calendar_Integration: [{
+                id: 'mock-id',
+                token: encryptedAccessToken,
+                refreshToken: encryptedRefreshToken,
+                expiresAt: mockExpiry.toISOString(),
+                scope: mockTokenData.scope,
+                token_type: mockTokenData.token_type,
+                appEmail: mockAppEmail,
+              }],
+            },
+          }),
+        } as any);
+
+        const result = await require('./token-utils').getAtomMicrosoftGraphTokens(mockUserId);
+
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.json.variables.resourceName).toBe(constants.ATOM_MSGRAPH_RESOURCE_NAME);
+        expect(callOptions.json.query).toContain('query getAtomMicrosoftGraphTokens');
+
+        expect(result).toEqual({
+          ...mockTokenData,
+          appEmail: mockAppEmail,
+        });
+      });
+
+      it('should return null if no MS Graph tokens are found', async () => {
+          setMockEncryptionConstants(validTestKey, validTestIv);
+          got.post.mockResolvedValue({
+            json: jest.fn().mockResolvedValue({ data: { Calendar_Integration: [] } }),
+          } as any);
+          const result = await require('./token-utils').getAtomMicrosoftGraphTokens(mockUserId);
+          expect(result).toBeNull();
+        });
+    });
+
+    describe('deleteAtomMicrosoftGraphTokens', () => {
+      it('should successfully delete MS Graph tokens from Hasura', async () => {
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: { delete_Calendar_Integration: { affected_rows: 1 } },
+          }),
+        } as any);
+
+        const result = await require('./token-utils').deleteAtomMicrosoftGraphTokens(mockUserId);
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.json.variables.resourceName).toBe(constants.ATOM_MSGRAPH_RESOURCE_NAME);
+        expect(callOptions.json.query).toContain('mutation deleteAtomMicrosoftGraphToken');
+        expect(result).toEqual({ affected_rows: 1 });
+      });
+
+      it('should throw error if Hasura returns errors on MS Graph delete', async () => {
+          got.post.mockResolvedValue({
+            json: jest.fn().mockResolvedValue({ errors: [{ message: "MS Graph delete failed" }] }),
+          } as any);
+          await expect(require('./token-utils').deleteAtomMicrosoftGraphTokens(mockUserId))
+            .rejects.toThrow('Failed to delete Microsoft Graph tokens: MS Graph delete failed');
+        });
+    });
+  });
 });

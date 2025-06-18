@@ -70,5 +70,56 @@ export const GMAIL_API_SCOPES = [
 ];
 export const ATOM_GMAIL_RESOURCE_NAME = 'google_atom_gmail';
 
+// ================================================================================================
+// Atom Agent Microsoft Graph API Integration Constants
+// ================================================================================================
+// IMPORTANT ASSUMPTIONS FOR MICROSOFT GRAPH INTEGRATION:
+// 1. An application must be registered in Azure Active Directory (Azure AD) to obtain credentials.
+// 2. The following environment variables MUST be configured in the application's deployment environment:
+//    - ATOM_MSGRAPH_CLIENT_ID: The Application (client) ID from Azure AD.
+//    - ATOM_MSGRAPH_CLIENT_SECRET: The Client Secret generated in Azure AD.
+//    - ATOM_MSGRAPH_REDIRECT_URI: The Redirect URI configured in Azure AD.
+//      This URI must point to an endpoint like /api/atom/auth/microsoft/callback.
+//    - ATOM_MSGRAPH_TENANT_ID: (Optional, defaults to 'common') The Azure AD tenant ID.
+//      'common' allows multi-tenant and personal Microsoft accounts.
+//      Use a specific tenant ID to restrict to a single organization.
+// 3. The required API permissions (scopes) MUST be configured in the Azure AD app registration
+//    and consented to by a user or admin.
+// ================================================================================================
+
+// Microsoft Graph API credentials for Atom Agent
+// These must be set in the environment after registering the application in Azure AD.
+export const ATOM_MSGRAPH_CLIENT_ID = process.env.ATOM_MSGRAPH_CLIENT_ID;
+export const ATOM_MSGRAPH_CLIENT_SECRET = process.env.ATOM_MSGRAPH_CLIENT_SECRET;
+
+// The redirect URI configured in Azure AD for Atom Agent's Microsoft Graph OAuth.
+// e.g., https://<your-app-domain>/api/atom/auth/microsoft/callback
+export const ATOM_MSGRAPH_REDIRECT_URI = process.env.ATOM_MSGRAPH_REDIRECT_URI;
+
+// Tenant ID for Microsoft Graph OAuth. Usually 'common' for multi-tenant applications
+// allowing users from any organization or personal Microsoft accounts.
+// Can be a specific tenant ID if restricted.
+export const ATOM_MSGRAPH_TENANT_ID = process.env.ATOM_MSGRAPH_TENANT_ID || 'common';
+
+// Define Microsoft Graph API Scopes
+// Note: offline_access is critical for getting refresh tokens.
+// User.Read is needed to get user's email address and basic profile.
+export const MSGRAPH_API_SCOPES = [
+    'User.Read',            // Read user's profile
+    'Calendars.ReadWrite',  // Full access to calendars
+    'Mail.ReadWrite',       // Full access to mail (read, write, delete, move)
+    'Mail.Send',            // Permission to send mail
+    'offline_access'        // Required to get refresh tokens for long-term access
+];
+
+// Microsoft Graph OAuth Endpoints are typically constructed dynamically by MSAL.
+// Example authority URL:
+// export const MSGRAPH_AUTHORITY = `https://login.microsoftonline.com/${ATOM_MSGRAPH_TENANT_ID}`;
+export const ATOM_MSGRAPH_RESOURCE_NAME = 'microsoft_graph';
+
+// Microsoft Graph OAuth Endpoints base
+export const MSGRAPH_OAUTH_AUTHORITY_BASE = 'https://login.microsoftonline.com/';
+
+
 // Potentially other constants for Atom agent can be added below
 // e.g., API keys for other email services, Zapier specific URLs (if not user-configured), etc.
