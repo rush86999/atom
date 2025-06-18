@@ -1,4 +1,4 @@
-<h1 align="center">Atom - An open-source priority-driven AI Agent to solve your problems</h1>
+<h1 align="center">Atom - An open-source AI Agent to solve your problems</h1>
 
 ⭐⭐⭐ If you like where this repo is heading, please support me with a star on the top right corner ⭐⭐⭐
 
