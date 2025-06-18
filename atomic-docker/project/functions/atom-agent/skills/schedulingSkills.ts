@@ -210,15 +210,8 @@ export interface PostTableRequestBody {
   callBackUrl: string;
 }
 
-// ----- Conceptual Pending Request Store -----
-interface PendingRequestInfo {
-  userId: string;
-  hostId: string;
-  fileKey: string;
-  submittedAt: Date;
-}
-
-const pendingSchedulingRequests = new Map<string, PendingRequestInfo>();
+// ----- Shared State Import -----
+import { pendingSchedulingRequests, PendingRequestInfo } from '../sharedAgentState';
 
 // ----- Real HTTP Client with Axios -----
 interface HttpClientResponse {
@@ -291,12 +284,15 @@ export async function submitSchedulingJobToAtomicScheduler(
   const schedulerEndpoint = `${ATOMIC_SCHEDULER_API_BASE_URL}/timeTable/user/solve-day`;
 
   try {
-    pendingSchedulingRequests.set(data.fileKey, {
+    const requestInfo: PendingRequestInfo = {
       userId: userId,
       hostId: data.hostId,
       fileKey: data.fileKey,
+      singletonId: data.singletonId, // Make sure PendingRequestInfo includes this
+      // originalQuery: "Pass if available and part of PendingRequestInfo",
       submittedAt: new Date(),
-    });
+    };
+    pendingSchedulingRequests.set(data.fileKey, requestInfo);
 
     logger.info(`[submitSchedulingJobToAtomicScheduler] Sending job to scheduler: ${schedulerEndpoint}`);
     const response = await httpClient.post(schedulerEndpoint, data);
