@@ -49,7 +49,8 @@ https://github.com/rush86999/atomic/assets/16848240/5720e9a3-e4d6-4dce-8e3c-5d61
   - [Meeting Assist](#meeting-assist)
 - [Deployment Options](#deployment-options)
   - [Local Docker Compose](#local-docker-compose)
-  - [AWS Cloud Deployment (Self-Hosted)](#aws-cloud-deployment-self-hosted)
+  - [AWS Cloud Deployment (via AWS CDK)](#aws-cloud-deployment-via-aws-cdk)
+  - [AWS Cloud Deployment (via Terraform)](#aws-cloud-deployment-via-terraform)
 - [Support the Project](#support-the-project)
 - [Contributing](#contributing)
 
@@ -263,12 +264,19 @@ For local development, testing, and self-hosting on a single machine, the projec
 
 -   **Setup and Instructions:** See the detailed guide in [atomic-docker/README.md](./atomic-docker/README.md).
 
-### AWS Cloud Deployment (Self-Hosted)
+### AWS Cloud Deployment (via AWS CDK)
 
-For a scalable and robust cloud environment, you can deploy the entire application stack to your own AWS account. This deployment is managed by the AWS Cloud Development Kit (CDK) and provisions all necessary infrastructure, including managed services for databases, messaging, and search where appropriate.
+It is possible to deploy the entire application stack to your own AWS account using the AWS Cloud Development Kit (CDK). This provides a scalable and robust cloud environment managed with TypeScript/Python code.
 
 -   **Features:** Deploys core application services, Optaplanner, and utilizes AWS S3, Amazon OpenSearch Service, and Amazon MSK Serverless.
--   **Detailed Guide:** For prerequisites, setup instructions, deployment steps, and management, please refer to the comprehensive [AWS Deployment Guide](./deployment/aws/README.md).
+-   **Detailed Guide:** For prerequisites, setup instructions, deployment steps, and management, please refer to the [AWS CDK Deployment Guide](./deployment/aws/README.md).
+
+### AWS Cloud Deployment (via Terraform)
+
+Alternatively, you can deploy the full application stack to your AWS account using Terraform. This option also provisions a scalable cloud environment using HashiCorp's Infrastructure as Code tool.
+
+-   **Features:** Deploys core application services, Optaplanner, and utilizes AWS S3, Amazon OpenSearch Service, and Amazon MSK Serverless, similar to the CDK deployment.
+-   **Detailed Guide:** For prerequisites, setup, deployment instructions (including manual configuration steps for secrets and MSK), and management using Terraform, please see the [Terraform AWS Deployment Guide](./terraform/aws/README.md).
 
 ## Support the Project
 - I'm spending 100% of my work time on this project
