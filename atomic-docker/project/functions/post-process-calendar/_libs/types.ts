@@ -28,14 +28,16 @@ export type DD = '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | 
 
 export type MM = '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12'
 
+export type SS = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23' | '24' | '25' | '26' | '27' | '28' | '29' | '30' | '31' | '32' | '33' | '34' | '35' | '36' | '37' | '38' | '39' | '40' | '41' | '42' | '43' | '44' | '45' | '46' | '47' | '48' | '49' | '50' | '51' | '52' | '53' | '54' | '55' | '56' | '57' | '58' | '59';
+
 
 export type MonthDayType = `--${MM}-${DD}`
 
 export type DayOfWeekType = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
 
-export type TimeSlotType = { id?: number, dayOfWeek: DayOfWeekType, startTime: Time, endTime: Time, hostId: string, monthDay: MonthDayType }
+// export type TimeSlotType = { id?: number, dayOfWeek: DayOfWeekType, startTime: Time, endTime: Time, hostId: string, monthDay: MonthDayType } // Old one, replaced by TimeslotDto for clarity in this context
 
-export type WorkTimeType = { id?: number, dayOfWeek: DayOfWeekType, startTime: Time, endTime: Time, userId: string, hostId: string }
+// export type WorkTimeType = { id?: number, dayOfWeek: DayOfWeekType, startTime: Time, endTime: Time, userId: string, hostId: string } // Old one, replaced by WorkTimeDto
 
 
 export type MeetingAssistAttendeeType = {
@@ -195,7 +197,7 @@ export type GoogleSourceType = {
 
 export type HH = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23'
 
-export type Time = `${HH}:${MM}`
+export type Time = `${HH}:${MM}:${SS}`
 
 export type BufferTimeNumberType = {
     beforeEvent: number
@@ -878,29 +880,121 @@ export type EventPlannerResponseBodyType = {
     preferredStartTimeRange?: Time,
     preferredEndTimeRange?: Time,
     totalWorkingHours?: number,
-    timeslot: TimeSlotType,
-    event: EventParentPlannerRequestBodyType
+    timeslot: TimeSlotType, // This was TimeSlotType, changed to TimeslotDto based on usage
+    event: EventParentPlannerRequestBodyType // This was EventParentPlannerRequestBodyType, changed to EventDto based on usage
 }
 
 type hardType = number
 type mediumType = number
 type softType = number
 
-export type OnOptaPlanBodyType = {
-    timeslotList: TimeSlotType[],
-    eventPartList: EventPlannerResponseBodyType[],
-    userList: UserPlannerRequestBodyType[],
-    score: `${hardType}hard/${mediumType}medium/${softType}soft` | null,
-    fileKey: string,
-    hostId: string,
-}
+// DTO definitions based on API Guide
+export type TimeslotDto = {
+    id?: number;
+    dayOfWeek: DayOfWeekType;
+    startTime: Time;
+    endTime: Time;
+    hostId: string;
+    monthDay: MonthDayType;
+    // date: string; // Explicitly missing as per API guide DTO notes
+};
+
+export type WorkTimeDto = {
+    id?: number;
+    startTime: Time;
+    endTime: Time;
+    userId: string;
+    hostId: string;
+    dayOfWeek?: DayOfWeekType;
+};
+
+export type UserDto = {
+    id: string; // UUID
+    hostId: string;
+    maxWorkLoadPercent?: number;
+    backToBackMeetings?: boolean;
+    maxNumberOfMeetings?: number;
+    minNumberOfBreaks?: number;
+    workTimes: WorkTimeDto[];
+};
+
+export type PreferredTimeRangeDto = {
+    id?: number;
+    dayOfWeek?: DayOfWeekType;
+    startTime: Time;
+    endTime: Time;
+    eventId: string;
+    userId: string;
+    hostId: string;
+};
+
+export type EventDto = {
+    id: string;
+    userId: string;
+    hostId: string;
+    preferredTimeRanges?: PreferredTimeRangeDto[] | null;
+    // eventType: string; // Explicitly missing as per API guide DTO notes
+};
+
+export type EventPartDto = {
+    groupId: string;
+    part: number;
+    lastPart: number;
+    meetingPart?: number;
+    meetingLastPart?: number;
+    eventId: string;
+    startDate: string;
+    endDate: string;
+    userId: string;
+    hostId: string;
+    meetingId?: string;
+    user: UserDto;
+    priority?: number;
+    isPreEvent?: boolean;
+    isPostEvent?: boolean;
+    forEventId?: string;
+    positiveImpactScore?: number;
+    negativeImpactScore?: number;
+    positiveImpactDayOfWeek?: DayOfWeekType;
+    positiveImpactTime?: Time;
+    negativeImpactDayOfWeek?: DayOfWeekType;
+    negativeImpactTime?: Time;
+    modifiable?: boolean;
+    preferredDayOfWeek?: DayOfWeekType;
+    preferredTime?: Time;
+    isMeeting?: boolean;
+    isExternalMeeting?: boolean;
+    isExternalMeetingModifiable?: boolean;
+    isMeetingModifiable?: boolean;
+    dailyTaskList?: boolean;
+    weeklyTaskList?: boolean;
+    gap?: boolean;
+    preferredStartTimeRange?: Time;
+    preferredEndTimeRange?: Time;
+    totalWorkingHours?: number;
+    recurringEventId?: string;
+    timeslot: TimeslotDto | null;
+    event: EventDto;
+};
+
+export type TimeTableSolutionDto = {
+    timeslotList: TimeslotDto[];
+    userList: UserDto[];
+    eventPartList: EventPartDto[];
+    score: string | null;
+    fileKey: string | null;
+    hostId: string | null;
+};
+
+
+// This type will now use/be replaced by TimeTableSolutionDto
+export type OnOptaPlanBodyType = TimeTableSolutionDto;
+
 
 export type PlannerBodyResponseType = {
-    timeslotList: TimeSlotType[],
-    eventPartList: EventPlannerResponseBodyType[],
-    userList: UserPlannerRequestBodyType[],
-    // hostId: string,
-    // score: `${hardType}hard/${mediumType}medium/${softType}soft` | null,
+    timeslotList: TimeslotDto[], // Changed from TimeSlotType
+    eventPartList: EventPartDto[], // Changed from EventPlannerResponseBodyType
+    userList: UserDto[], // Changed from UserPlannerRequestBodyType
 }
 
 export type ColorType = {
@@ -1221,5 +1315,3 @@ export type AttendeeEmailType = {
     createdDate: string,
     deleted: boolean
   }
-
-

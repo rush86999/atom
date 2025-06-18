@@ -28,12 +28,21 @@ export type DD = '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | 
 
 export type MM = '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12'
 
+export type SS = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23' | '24' | '25' | '26' | '27' | '28' | '29' | '30' | '31' | '32' | '33' | '34' | '35' | '36' | '37' | '38' | '39' | '40' | '41' | '42' | '43' | '44' | '45' | '46' | '47' | '48' | '49' | '50' | '51' | '52' | '53' | '54' | '55' | '56' | '57' | '58' | '59';
+
 
 export type MonthDayType = `--${MM}-${DD}`
 
 export type DayOfWeekType = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
 
-export type TimeSlotType = { dayOfWeek: DayOfWeekType, startTime: Time, endTime: Time, hostId: string, monthDay: MonthDayType }
+export type TimeSlotType = {
+    dayOfWeek: DayOfWeekType,
+    startTime: Time,
+    endTime: Time,
+    hostId: string,
+    monthDay: MonthDayType,
+    date: string // Added: "YYYY-MM-DD"
+}
 
 export type WorkTimeType = { dayOfWeek: DayOfWeekType, startTime: Time, endTime: Time, userId: string, hostId: string }
 
@@ -192,7 +201,7 @@ export type SourceType = {
 
 export type HH = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23'
 
-export type Time = `${HH}:${MM}`
+export type Time = `${HH}:${MM}:${SS}`
 
 export type BufferTimeNumberType = {
     beforeEvent: number
@@ -511,7 +520,8 @@ export type EventParentPlannerRequestBodyType = {
     id: string,
     userId: string,
     hostId: string,
-    preferredTimeRanges?: PreferredTimeRangePlannerRequestBodyType[]
+    preferredTimeRanges?: PreferredTimeRangePlannerRequestBodyType[],
+    eventType: string // Added
 }
 
 
