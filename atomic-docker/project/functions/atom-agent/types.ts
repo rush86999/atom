@@ -353,6 +353,51 @@ export interface ListCalendlyEventTypesResponse {
   error?: string;
 }
 
+// --- Zoom Types ---
+export interface ZoomTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number; // Typically 3600 seconds (1 hour)
+  scope: string; // e.g. "meeting:read user:read"
+}
+
+export interface ZoomMeeting {
+  uuid: string;
+  id: string; // Meeting ID (numeric)
+  host_id?: string;
+  topic: string;
+  type: number; // 1: Instant, 2: Scheduled, 3: Recurring no fixed time, 8: Recurring fixed time
+  start_time?: string; // ISO 8601 Timestamp (only for scheduled/recurring)
+  duration?: number; // In minutes
+  timezone?: string;
+  agenda?: string;
+  created_at: string; // ISO 8601 Timestamp
+  join_url: string;
+  // status?: 'waiting' | 'started' | 'finished'; (May vary based on API endpoint)
+  // recurrence?: any; // Define if needed
+  // occurrences?: any[]; // Define if needed for recurring meetings
+  // settings?: any; // Define if needed
+  [key: string]: any; // Allow other properties as Zoom API is extensive
+}
+
+export interface ListZoomMeetingsResponse {
+  ok: boolean;
+  meetings?: ZoomMeeting[];
+  error?: string;
+  // Pagination fields from Zoom API for list meetings
+  page_count?: number;
+  page_number?: number;
+  page_size?: number;
+  total_records?: number;
+  next_page_token?: string;
+}
+
+export interface GetZoomMeetingDetailsResponse {
+  ok: boolean;
+  meeting?: ZoomMeeting;
+  error?: string;
+}
+
 export interface ListCalendlyScheduledEventsResponse {
   ok: boolean;
   collection?: CalendlyScheduledEvent[];

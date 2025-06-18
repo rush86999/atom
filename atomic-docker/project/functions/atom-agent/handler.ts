@@ -14,11 +14,16 @@ import {
   ListCalendlyEventTypesResponse,
   ListCalendlyScheduledEventsResponse,
   CalendlyEventType,
-  CalendlyScheduledEvent
+  CalendlyScheduledEvent,
+  // Zoom Types
+  ListZoomMeetingsResponse,
+  GetZoomMeetingDetailsResponse,
+  ZoomMeeting
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
-import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills'; // Added
+import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
+import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills'; // Added
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
 
 
@@ -375,7 +380,60 @@ export async function handleMessage(message: string): Promise<string> {
       console.error('Error in "list calendly bookings" command:', error.message);
       return "Sorry, an unexpected error occurred while fetching your Calendly bookings.";
     }
+  } else if (lowerCaseMessage.startsWith('list zoom meetings')) {
+    const userIdForZoom = "me"; // For Server-to-Server OAuth, 'me' refers to the user under whom the app was created.
+    const parts = lowerCaseMessage.split(' '); // "list zoom meetings type page_size next_page_token"
+                                          // parts[0]=list, parts[1]=zoom, parts[2]=meetings
+
+    let type: 'live' | 'upcoming' | 'scheduled' | 'upcoming_meetings' | 'previous_meetings' = 'upcoming';
+    if (parts.length > 3 && ['live', 'upcoming', 'scheduled', 'upcoming_meetings', 'previous_meetings'].includes(parts[3].toLowerCase())) {
+        type = parts[3].toLowerCase() as typeof type;
+    }
+
+    const page_size = parts.length > 4 && !isNaN(parseInt(parts[4])) ? parseInt(parts[4]) : 30;
+    const next_page_token = parts.length > 5 ? parts[5] : undefined;
+    const options = { type, page_size, next_page_token };
+
+    try {
+      const response: ListZoomMeetingsResponse = await listZoomMeetings(userIdForZoom, options);
+      if (response.ok && response.meetings && response.meetings.length > 0) {
+        let output = `Your Zoom Meetings (${type}):\n`;
+        for (const meeting of response.meetings) {
+          output += `- ${meeting.topic} (ID: ${meeting.id}) - Start: ${meeting.start_time ? new Date(meeting.start_time).toLocaleString() : 'N/A'} - Join: ${meeting.join_url || 'N/A'}\n`;
+        }
+        if (response.next_page_token) {
+          output += `More meetings available. For next page, use token: ${response.next_page_token}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No Zoom meetings found matching your criteria.";
+      } else {
+        return `Error fetching Zoom meetings: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list zoom meetings" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching your Zoom meetings.";
+    }
+  } else if (lowerCaseMessage.startsWith('get zoom meeting')) {
+    const parts = lowerCaseMessage.split(' '); // "get zoom meeting <meetingId>"
+    if (parts.length < 4) {
+      return "Please provide a Zoom Meeting ID. Usage: get zoom meeting <meetingId>";
+    }
+    const meetingId = parts[3];
+
+    try {
+      const response: GetZoomMeetingDetailsResponse = await getZoomMeetingDetails(meetingId);
+      if (response.ok && response.meeting) {
+        const m = response.meeting;
+        return `Zoom Meeting Details:\nTopic: ${m.topic}\nID: ${m.id}\nStart Time: ${m.start_time ? new Date(m.start_time).toLocaleString() : 'N/A'}\nDuration: ${m.duration || 'N/A'} mins\nJoin URL: ${m.join_url || 'N/A'}\nAgenda: ${m.agenda || 'N/A'}`;
+      } else { // response.ok might be true if meeting not found by ID but API call itself was fine (e.g. skill handles 404)
+        return `Error fetching Zoom meeting details: ${response.error || `Meeting with ID ${meetingId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get zoom meeting ${meetingId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching details for Zoom meeting ${meetingId}.`;
+    }
   }
 
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", or "list calendly bookings [active|canceled] [count]".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", or "get zoom meeting <meetingId>".`;
 }

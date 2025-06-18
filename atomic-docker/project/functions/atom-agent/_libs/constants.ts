@@ -47,3 +47,9 @@ export const ATOM_HUBSPOT_PORTAL_ID = process.env.ATOM_HUBSPOT_PORTAL_ID || '';
 // Calendly Personal Access Token
 // This must be set in the environment for Calendly integration.
 export const ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN = process.env.ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN || '';
+
+// Zoom Credentials for Server-to-Server OAuth
+// These must be set in the environment for Zoom integration.
+export const ATOM_ZOOM_ACCOUNT_ID = process.env.ATOM_ZOOM_ACCOUNT_ID || '';
+export const ATOM_ZOOM_CLIENT_ID = process.env.ATOM_ZOOM_CLIENT_ID || '';
+export const ATOM_ZOOM_CLIENT_SECRET = process.env.ATOM_ZOOM_CLIENT_SECRET || '';
