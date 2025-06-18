@@ -54,6 +54,15 @@ import {
     getQuickBooksInvoiceDetails,
     getAuthUri as getQuickBooksAuthUri
 } from './skills/quickbooksSkills';
+import {
+    createSchedulingRule,
+    blockCalendarTime,
+    initiateTeamMeetingScheduling,
+    NLUCreateTimePreferenceRuleEntities,
+    NLUBlockTimeSlotEntities,
+    NLUScheduleTeamMeetingEntities,
+    SchedulingResponse
+} from './skills/schedulingSkills';
 import { understandMessage } from './skills/nluService'; // Added NLU Service
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID, ATOM_QB_TOKEN_FILE_PATH } from '../_libs/constants';
 
@@ -606,47 +615,66 @@ Company: ${contact.properties.company || 'N/A'}`;
 
       case "CreateTimePreferenceRule":
         try {
-            const entities = nluResponse.entities;
-            const activity_description = entities?.activity_description || 'unspecified activity';
-            const time_ranges = entities?.time_ranges ? JSON.stringify(entities.time_ranges) : 'unspecified times';
-            const days_of_week = entities?.days_of_week ? JSON.stringify(entities.days_of_week) : 'unspecified days';
-            const priority = entities?.priority || 'normal';
-            // category_tags is optional and not included in the placeholder message per instructions, but could be extracted similarly.
+            const ruleDetails: NLUCreateTimePreferenceRuleEntities = {
+                activity_description: nluResponse.entities?.activity_description as string,
+                time_ranges: nluResponse.entities?.time_ranges as Array<{ start_time: string; end_time: string }>,
+                days_of_week: nluResponse.entities?.days_of_week as string[],
+                priority: nluResponse.entities?.priority, // Can be string or number
+                category_tags: nluResponse.entities?.category_tags as string[] | undefined,
+            };
 
-            return `Okay, I understand you want to set a time preference rule for '${activity_description}' during ${time_ranges} on ${days_of_week} with priority ${priority}. Advanced scheduling rule creation is under development.`;
+            if (!ruleDetails.activity_description || !ruleDetails.time_ranges || !Array.isArray(ruleDetails.time_ranges) || ruleDetails.time_ranges.length === 0 || !ruleDetails.days_of_week || !Array.isArray(ruleDetails.days_of_week) || ruleDetails.days_of_week.length === 0) {
+                return "Missing required details (activity description, time ranges, or days of week) to create a time preference rule.";
+            }
+
+            const response: SchedulingResponse = await createSchedulingRule(userId, ruleDetails);
+            return response.message; // Return the message from the skill's response
         } catch (error: any) {
-            console.error(`Error in NLU Intent "CreateTimePreferenceRule":`, error.message);
+            console.error(`Error in NLU Intent "CreateTimePreferenceRule":`, error.message, error.stack);
             return "Sorry, there was an issue processing your time preference rule request.";
         }
 
       case "BlockTimeSlot":
         try {
-            const entities = nluResponse.entities;
-            const task_name = entities?.task_name || 'unspecified task';
-            const start_time = entities?.start_time || 'unknown start';
-            const end_time = entities?.end_time || 'unknown end';
-            const duration = entities?.duration || 'not set';
-            const date = entities?.date || 'unspecified date';
-            // purpose is optional and not included in the placeholder message per instructions.
+            const blockDetails: NLUBlockTimeSlotEntities = {
+                task_name: nluResponse.entities?.task_name as string,
+                start_time: nluResponse.entities?.start_time as string | undefined,
+                end_time: nluResponse.entities?.end_time as string | undefined,
+                duration: nluResponse.entities?.duration as string | undefined,
+                date: nluResponse.entities?.date as string | undefined,
+                purpose: nluResponse.entities?.purpose as string | undefined,
+            };
 
-            return `Got it. You want to block time for '${task_name}' on ${date} from ${start_time} to ${end_time} (duration: ${duration}). Actual time blocking is coming soon!`;
+            if (!blockDetails.task_name) {
+                return "Missing task name to block time.";
+            }
+            // Additional validation could be added here for start_time/end_time/duration combinations
+
+            const response: SchedulingResponse = await blockCalendarTime(userId, blockDetails);
+            return response.message;
         } catch (error: any) {
-            console.error(`Error in NLU Intent "BlockTimeSlot":`, error.message);
+            console.error(`Error in NLU Intent "BlockTimeSlot":`, error.message, error.stack);
             return "Sorry, there was an issue processing your time blocking request.";
         }
 
       case "ScheduleTeamMeeting":
         try {
-            const entities = nluResponse.entities;
-            const attendees = entities?.attendees ? JSON.stringify(entities.attendees) : 'unspecified attendees';
-            const purpose = entities?.purpose || 'unspecified topic';
-            const duration_preference = entities?.duration_preference || 'a standard duration';
-            const time_preference_details = entities?.time_preference_details || 'general availability';
-            const meeting_title = entities?.meeting_title || purpose || 'Team Meeting';
+            const meetingDetails: NLUScheduleTeamMeetingEntities = {
+                attendees: nluResponse.entities?.attendees as string[],
+                purpose: nluResponse.entities?.purpose as string | undefined,
+                duration_preference: nluResponse.entities?.duration_preference as string | undefined,
+                time_preference_details: nluResponse.entities?.time_preference_details as string | undefined,
+                meeting_title: nluResponse.entities?.meeting_title as string | undefined,
+            };
 
-            return `Understood. You're looking to schedule a meeting titled '${meeting_title}' with ${attendees} about '${purpose}' for ${duration_preference} based on '${time_preference_details}'. Group scheduling features are being developed.`;
+            if (!meetingDetails.attendees || !Array.isArray(meetingDetails.attendees) || meetingDetails.attendees.length === 0) {
+                return "Missing attendees (must be an array of strings) to schedule a team meeting.";
+            }
+
+            const response: SchedulingResponse = await initiateTeamMeetingScheduling(userId, meetingDetails);
+            return response.message;
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ScheduleTeamMeeting":`, error.message);
+            console.error(`Error in NLU Intent "ScheduleTeamMeeting":`, error.message, error.stack);
             return "Sorry, there was an issue processing your team meeting request.";
         }
 
