@@ -23,9 +23,28 @@ https://github.com/rush86999/atomic/assets/16848240/5720e9a3-e4d6-4dce-8e3c-5d61
 - [Problem](#problem)
 - [Documentation](#documentation)
 - [Features](#features)
-    - [Benefits of Self Hosted](#benefits-of-self-hosted)
+  - [Benefits of Self Hosted](#benefits-of-self-hosted)
   - [Cloud Hosted Atomic](#cloud-hosted-atomic)
   - [Customize Atomic for your team on your cloud](#customize-atomic-for-your-team-on-your-cloud)
+- [Core Agent Capabilities & Commands](#core-agent-capabilities--commands)
+  - [General Commands](#general-commands)
+  - [Google Calendar & Google Meet](#google-calendar--google-meet)
+  - [HubSpot CRM](#hubspot-crm)
+  - [Slack](#slack)
+  - [Zoom Meetings](#zoom-meetings)
+  - [Microsoft Teams Meetings (via MS Graph)](#microsoft-teams-meetings-via-ms-graph)
+  - [Stripe Payments](#stripe-payments)
+  - [QuickBooks Online](#quickbooks-online)
+  - [Other Skills (from initial handler)](#other-skills-from-initial-handler)
+- [Configuration (Environment Variables)](#configuration-environment-variables)
+  - [General Agent Configuration](#general-agent-configuration)
+  - [Google Calendar & Google Meet](#google-calendar--google-meet-1)
+  - [HubSpot CRM](#hubspot-crm-1)
+  - [Slack](#slack-1)
+  - [Zoom Meetings](#zoom-meetings-1)
+  - [Microsoft Teams Meetings (via MS Graph)](#microsoft-teams-meetings-via-ms-graph-1)
+  - [Stripe](#stripe)
+  - [QuickBooks Online](#quickbooks-online-1)
 - [Diagram](#diagram)
   - [Meeting Assist](#meeting-assist)
 - [Docker](#docker)
@@ -98,6 +117,117 @@ For simple 1:1 meetings, you won't need calendly links anymore. Your recipient r
 - Same features
 - 1 year support included
 - $15 / month support afterwards
+
+## Core Agent Capabilities & Commands
+
+The Atomic Agent understands a variety of commands to interact with your integrated services. Commands are typically issued in a chat interface with the agent.
+
+### General Commands
+*   `help` or `?`: Displays a list of understood commands (this should be the agent's default response if a command isn't recognized).
+
+### Google Calendar & Google Meet
+*   **`list events [limit]`**: Lists upcoming Google Calendar events.
+    *   Example: `list events 5`
+*   **`create event {JSON_DETAILS}`**: Creates a new Google Calendar event.
+    *   Example: `create event {"summary":"My Meeting","startTime":"YYYY-MM-DDTHH:mm:ssZ","endTime":"YYYY-MM-DDTHH:mm:ssZ"}`
+*   **`list google meet events [limit]`**: Lists upcoming Google Calendar events that have Google Meet links.
+    *   Example: `list google meet events 3`
+*   **`get google meet event <eventId>`**: Retrieves details for a specific Google Calendar event, highlighting Google Meet information.
+    *   Example: `get google meet event your_calendar_event_id`
+*   **`slack my agenda`**: Fetches your upcoming Google Calendar events and sends a summary to your Slack direct message.
+
+### HubSpot CRM
+*   **`create hubspot contact {JSON_DETAILS}`**: Creates a new contact in HubSpot. If `ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID` is configured, a notification is sent to that Slack channel.
+    *   Example: `create hubspot contact {"email":"name@example.com", "firstname":"John", "lastname":"Doe"}`
+*   **`create hubspot contact and dm me details {JSON_DETAILS}`**: Creates a new contact in HubSpot and sends the details (including a HubSpot link if `ATOM_HUBSPOT_PORTAL_ID` is configured) to you via Slack direct message.
+    *   Example: `create hubspot contact and dm me details {"email":"lead@example.com", "firstname":"Jane"}`
+*   **`get hubspot contact by email <email>`**: (Skill available) Retrieves HubSpot contact details for the given email.
+    *   *Note: This command might not yet be directly wired into the primary command handler but the underlying skill exists.*
+
+### Slack
+*   **`send slack message <channel_id_or_name> <text>`**: Sends a message to the specified Slack channel ID or name.
+    *   Example: `send slack message C123ABC456 Hello team!`
+    *   Example: `send slack message #general Important update!`
+*   **`list slack channels [limit] [cursor]`**: Lists available Slack channels.
+    *   Example: `list slack channels 20`
+
+### Zoom Meetings
+*   **`list zoom meetings [type] [page_size] [next_page_token]`**: Lists your Zoom meetings.
+    *   `type`: Can be `upcoming` (default), `live`, `scheduled`.
+    *   Example: `list zoom meetings upcoming 5`
+*   **`get zoom meeting <meetingId>`**: Retrieves details for a specific Zoom meeting.
+    *   Example: `get zoom meeting 1234567890`
+
+### Microsoft Teams Meetings (via MS Graph)
+*   **`list teams meetings [limit] [nextLink]`**: Lists your Microsoft Teams meetings from your calendar.
+    *   Example: `list teams meetings 5`
+*   **`get teams meeting <eventId>`**: Retrieves details for a specific Teams meeting (using its Microsoft Graph event ID).
+    *   Example: `get teams meeting AAMkAG...`
+
+### Stripe Payments
+*   **`list stripe payments [limit=N] [starting_after=ID] [customer=ID]`**: Lists Stripe payments (PaymentIntents).
+    *   Example: `list stripe payments limit=5 customer=cus_123abc`
+*   **`get stripe payment <paymentIntentId>`**: Retrieves details for a specific Stripe PaymentIntent.
+    *   Example: `get stripe payment pi_123abc...`
+
+### QuickBooks Online
+*   **`qb get auth url`**: Provides the URL to manually authorize the agent with your QuickBooks Online account. This is a one-time setup step.
+*   **`list qb invoices [limit=N] [offset=N] [customer=ID] [status=STATUS]`**: Lists invoices from QuickBooks Online.
+    *   Example: `list qb invoices limit=10 status=Open customer=123`
+*   **`get qb invoice <invoiceId>`**: Retrieves details for a specific QuickBooks Online invoice.
+    *   Example: `get qb invoice 456`
+
+### Other Skills (from initial handler)
+*   **`list emails [limit]`**: Lists recent emails (generic, implementation details may vary).
+*   **`read email <id>`**: Reads a specific email.
+*   **`send email {JSON_DETAILS}`**: Sends an email.
+*   **`search web <query>`**: Performs a web search.
+*   **`trigger zap <ZapName> [with data {JSON_DATA}]`**: Triggers a Zapier zap.
+
+## Configuration (Environment Variables)
+
+The Atomic Agent uses environment variables for its configuration and to connect to various third-party services.
+
+### General Agent Configuration
+*   _(Add any general agent config vars here if known, e.g., `PORT`, `LOG_LEVEL`)_
+
+### Google Calendar & Google Meet
+*   `ATOM_GOOGLE_CALENDAR_CLIENT_ID`: Your Google Cloud project's Client ID.
+*   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET`: Your Google Cloud project's Client Secret.
+*   `ATOM_GOOGLE_CALENDAR_SCOPES`: Space-separated list of Google API scopes (e.g., `https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly`).
+*   _(Note: Google tokens are typically stored per user, often managed via an OAuth consent screen flow. The agent skills expect these tokens to be available.)_
+
+### HubSpot CRM
+*   `ATOM_HUBSPOT_API_KEY`: Your HubSpot API Key.
+*   `ATOM_HUBSPOT_PORTAL_ID`: (Optional) Your HubSpot Portal ID, used for creating direct links to contacts in Slack notifications.
+
+### Slack
+*   `ATOM_SLACK_BOT_TOKEN`: Your Slack App's Bot User OAuth Token (starts with `xoxb-`).
+*   `ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID`: (Optional) Slack Channel ID where notifications for new HubSpot contacts will be sent.
+
+### Zoom Meetings
+*   `ATOM_ZOOM_ACCOUNT_ID`: Your Zoom Account ID (for Server-to-Server OAuth).
+*   `ATOM_ZOOM_CLIENT_ID`: Your Zoom Server-to-Server OAuth App's Client ID.
+*   `ATOM_ZOOM_CLIENT_SECRET`: Your Zoom Server-to-Server OAuth App's Client Secret.
+
+### Microsoft Teams Meetings (via MS Graph)
+*   `ATOM_MSGRAPH_CLIENT_ID`: Azure AD App Registration Client ID.
+*   `ATOM_MSGRAPH_CLIENT_SECRET`: Azure AD App Registration Client Secret.
+*   `ATOM_MSGRAPH_TENANT_ID`: Azure AD Tenant ID.
+*   `ATOM_MSGRAPH_AUTHORITY`: (Optional, defaults to `https://login.microsoftonline.com/{TENANT_ID}`) The MSAL authority URL.
+*   `ATOM_MSGRAPH_SCOPES`: Space-separated list of Microsoft Graph API scopes (e.g., `Calendars.Read OnlineMeetings.Read`).
+
+### Stripe
+*   `ATOM_STRIPE_SECRET_KEY`: Your Stripe Secret API Key (e.g., `sk_test_...` or `sk_live_...`).
+
+### QuickBooks Online
+*   `ATOM_QB_CLIENT_ID`: QuickBooks Online App Client ID.
+*   `ATOM_QB_CLIENT_SECRET`: QuickBooks Online App Client Secret.
+*   `ATOM_QB_REDIRECT_URI`: Redirect URI configured in your QBO App (e.g., `http://localhost:3000/callback`).
+*   `ATOM_QB_ENVIRONMENT`: Set to `sandbox` or `production`. Defaults to `sandbox`.
+*   `ATOM_QB_TOKEN_FILE_PATH`: Path where OAuth tokens will be stored (e.g., `./qb_oauth_tokens.json`). The agent needs write access to this path.
+    *   *Note: Initial authorization requires manually visiting a URL provided by `qb get auth url` and saving the tokens.*
+
 ## Diagram
 
 ### Meeting Assist
@@ -140,4 +270,3 @@ For simple 1:1 meetings, you won't need calendly links anymore. Your recipient r
 4. Commit your changes (`git commit -am 'Added a new feature'`)
 5. Push the branch to your fork on GitHub (`git push origin my-new-feature`)
 6. Create new Pull Request from your fork
-
