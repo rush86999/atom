@@ -609,7 +609,7 @@ function UserViewGoogleCalendarList(props: GoogleProps) {
     const closeGoogleCalendarList = () => props.setParentIsGoogleCalendarList(false)
 
     const renderItem = ({ item, index }: RenderItemType) => {
-        console.log(item, ' item inside renderItem')
+        // console.log(item, ' item inside renderItem') // Reduced console noise
         return (
             <CalendarCheckBox
                 updateEnabledValue={updateEnabledValue}
@@ -665,10 +665,10 @@ function UserViewGoogleCalendarList(props: GoogleProps) {
                 extraData={`${enabledCalendars.map(i => i?.id)}`}
             />
             </Box>
-            <Box flex={1}>
+            <Box flex={1} mt="m">
                 <Pressable onPress={closeGoogleCalendarList}>
-                    <Text variant="buttonLink" >
-                        Close Google Calendar List
+                    <Text variant="buttonLink" textAlign="center">
+                        Confirm Calendar Selection
                     </Text>
                 </Pressable>
             </Box>
@@ -682,8 +682,7 @@ function UserEnableIntegrations(props: Props) {
     const [selectedIndex, setSelectedIndex] = useState<number>(-1)
     const [selectedId, setSelectedId] = useState<string>()
     const [selectedValue, setSelectedValue] = useState<boolean>(false)
-    // const [googleCalendarEnabled, setGoogleCalendarEnabled] = useState<boolean>(false)
-    const [isGoogleCalendarList, setIsGoogleCalendarList] = useState<boolean>(false)
+    const [isGoogleCalendarList, setIsGoogleCalendarList] = useState<boolean>(false) // Initial state is false
     const [googleToken, setGoogleToken] = useState<string>()
 
     const googleCalendarElement = useRef<any>()
@@ -713,19 +712,14 @@ function UserEnableIntegrations(props: Props) {
     const googleCalendarEnabled = googleIntegrationData?.Calendar_Integration?.[0]?.enabled
     
     const integrations = integrationData?.Calendar_Integration
-    // const [integrations, setIntegrations] = useState<CalendarIntegrationType[]>(oldIntegrations)
 
+    // Automatically display calendar list when Google Calendar is enabled and token is available
     useEffect(() => {
-        if (googleCalendarEnabled) {
-            toast({
-                status: 'info',
-                title: 'Enable a calendar from Google',
-                description: 'Please click on View Google Calendars and enable at least 1 calendar to use Atomic',
-                duration: 9000,
-                isClosable: true,
-            })
+        if (googleCalendarEnabled && googleToken) {
+            setIsGoogleCalendarList(true)
         }
-    }, [googleCalendarEnabled, toast])
+    }, [googleCalendarEnabled, googleToken])
+
     //  just in case oldIntegrations are not loaded
     useEffect(() => {
         (async () => {
@@ -1082,15 +1076,27 @@ function UserEnableIntegrations(props: Props) {
                     </Box>
                   {googleCalendarEnabled
                     ? (
-                      <Box pt={{ phone: 'm', tablet: 's' }} justifyContent="center" alignItems="center">
-                        <Pressable onPress={navigateToGoogleCalendars}>
-                          <Text variant="buttonLink">
-                            View Google Calendars
-                          </Text>
-                        </Pressable>
-                      </Box>
-                    ): (
-                      null
+                    {/* "View Google Calendars" button is hidden if list is already shown or will be shown automatically */}
+                    { (googleCalendarEnabled && !isGoogleCalendarList && !googleToken) && // Show button only if enabled but list not yet shown (e.g. token fetch in progress)
+                        <Box pt={{ phone: 'm', tablet: 's' }} justifyContent="center" alignItems="center">
+                            <Pressable onPress={navigateToGoogleCalendars}>
+                            <Text variant="buttonLink">
+                                View Google Calendars
+                            </Text>
+                            </Pressable>
+                        </Box>
+                    }
+                    { (googleCalendarEnabled && googleToken && !isGoogleCalendarList) && // Case where token is fetched but useEffect for auto-show hasn't run yet or user closed it.
+                        <Box pt={{ phone: 'm', tablet: 's' }} justifyContent="center" alignItems="center">
+                            <Pressable onPress={navigateToGoogleCalendars}>
+                              <Text variant="buttonLink">
+                                Manage Google Calendars
+                              </Text>
+                            </Pressable>
+                        </Box>
+                    }
+                    { !googleCalendarEnabled && (
+                        null // No button if Google Calendar is not enabled
                     )}
                 </Box>
             ) : (
