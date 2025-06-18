@@ -178,13 +178,70 @@ describe('Atom Agent handleMessage', () => {
   });
 
   // Zapier Skills Tests
-  it('should trigger a Zap with data', async () => {
-    const mockResponse: ZapTriggerResponse = { success: true, zapName: 'MyZap', runId: 'zapRun1', message: 'Zap triggered' };
-    mockedZapierSkills.triggerZap.mockResolvedValue(mockResponse);
-    const zapData = { key: 'value' };
-    const response = await handleMessage(`trigger zap MyZap with data ${JSON.stringify(zapData)}`, mockUserId);
-    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith('MyZap', zapData); // No userId for this skill
-    expect(response).toContain('Zap triggered: Zap triggered (Run ID: zapRun1)');
+  it('should trigger a Zap with data and format success response with message and runId', async () => {
+    const zapName = 'MyDataZap';
+    const mockApiResponse: ZapTriggerResponse = { success: true, zapName, message: 'Custom Zap success!', runId: 'zapRunXYZ' };
+    mockedZapierSkills.triggerZap.mockResolvedValue(mockApiResponse);
+    const zapData = { item: 'testData' };
+    const response = await handleMessage(`trigger zap ${zapName} with data ${JSON.stringify(zapData)}`, mockUserId);
+    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith(mockUserId, zapName, zapData);
+    expect(response).toBe(`Successfully triggered Zap: "${zapName}". Custom Zap success! (Run ID: zapRunXYZ)`);
+  });
+
+  it('should trigger a Zap without data and format success response with default message from skill', async () => {
+    const zapName = 'MySimpleZap';
+    // Skill returns a default-like message which handler should ideally not repeat if it's the exact default.
+    // Current handler logic will append it if it's not identical to `Zap "${zapName}" triggered successfully.`
+    const skillMessage = `Zap "${zapName}" triggered successfully.`;
+    const mockApiResponse: ZapTriggerResponse = { success: true, zapName, message: skillMessage, runId: 'zapRunABC' };
+    mockedZapierSkills.triggerZap.mockResolvedValue(mockApiResponse);
+    const response = await handleMessage(`trigger zap ${zapName}`, mockUserId);
+    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith(mockUserId, zapName, {});
+    // Based on current handler logic, if skill message is exactly the default, it's omitted.
+    expect(response).toBe(`Successfully triggered Zap: "${zapName}". (Run ID: zapRunABC)`);
+  });
+
+  it('should trigger a Zap and format success response if only runId is present from skill', async () => {
+    const zapName = 'MyRunIdOnlyZap';
+    const mockApiResponse: ZapTriggerResponse = { success: true, zapName, runId: 'zapRunOnly123' }; // No message from skill
+    mockedZapierSkills.triggerZap.mockResolvedValue(mockApiResponse);
+    const response = await handleMessage(`trigger zap ${zapName}`, mockUserId);
+    expect(mockedZapierSkills.triggerZap).toHaveBeenCalledWith(mockUserId, zapName, {});
+    expect(response).toBe(`Successfully triggered Zap: "${zapName}". (Run ID: zapRunOnly123)`);
+  });
+
+  it('should handle trigger Zap failure with a specific message from skill', async () => {
+    const zapName = 'MyFailedZap';
+    const mockApiResponse: ZapTriggerResponse = { success: false, zapName, message: 'Zap webhook returned 400 Bad Request.' };
+    mockedZapierSkills.triggerZap.mockResolvedValue(mockApiResponse);
+    const response = await handleMessage(`trigger zap ${zapName} with data {"info":"test"}`, mockUserId);
+    expect(response).toBe(`Failed to trigger Zap: "${zapName}". Error: Zap webhook returned 400 Bad Request.`);
+  });
+
+  it('should handle trigger Zap failure with a generic message if none from skill', async () => {
+    const zapName = 'AnotherFailedZap';
+    const mockApiResponse: ZapTriggerResponse = { success: false, zapName }; // No message from skill
+    mockedZapierSkills.triggerZap.mockResolvedValue(mockApiResponse);
+    const response = await handleMessage(`trigger zap ${zapName}`, mockUserId);
+    expect(response).toBe(`Failed to trigger Zap: "${zapName}". Error: An unknown error occurred.`);
+  });
+
+  it('should return error if zap name is missing for trigger zap', async () => {
+    const response = await handleMessage('trigger zap  ', mockUserId);
+    expect(response).toBe("Please specify the Zap name to trigger. Usage: trigger zap <ZapName> [with data {\"key\":\"value\"}]");
+    expect(mockedZapierSkills.triggerZap).not.toHaveBeenCalled();
+  });
+
+  it('should return error for malformed JSON data for trigger zap', async () => {
+    const response = await handleMessage('trigger zap TestZap with data {malformed}', mockUserId);
+    expect(response).toBe("Invalid JSON data provided for the Zap. Please check the format. Example: {\"key\":\"value\"}");
+    expect(mockedZapierSkills.triggerZap).not.toHaveBeenCalled();
+  });
+
+  it('should return error for empty JSON data string for trigger zap', async () => {
+    const response = await handleMessage('trigger zap TestZap with data ', mockUserId);
+    expect(response).toBe("Data part is empty. Please provide valid JSON data or omit the 'with data' part.");
+    expect(mockedZapierSkills.triggerZap).not.toHaveBeenCalled();
   });
 
   // General Handler Logic

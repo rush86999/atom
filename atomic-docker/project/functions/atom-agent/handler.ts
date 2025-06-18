@@ -272,41 +272,56 @@ export async function handleMessage(message: string, userId: string): Promise<st
     }
   } else if (lowerCaseMessage.startsWith('trigger zap')) {
     try {
-      // Example: trigger zap MyZapName with data {"key":"value"}
-      const withDataIndex = lowerCaseMessage.indexOf(' with data ');
+      // Command format: trigger zap <ZapName> [with data {"key":"value"}]
+      const commandPrefix = "trigger zap ";
+      let remainingMessage = message.substring(commandPrefix.length);
+
       let zapName: string;
       let jsonData: string | undefined;
+      let data: ZapData = {};
 
-      if (withDataIndex === -1) {
-        // No data provided
-        zapName = message.substring('trigger zap'.length).trim();
+      const withDataIndex = remainingMessage.toLowerCase().indexOf(' with data ');
+
+      if (withDataIndex === -1) { // No "with data" part
+        zapName = remainingMessage.trim();
       } else {
-        zapName = message.substring('trigger zap'.length, withDataIndex).trim();
-        jsonData = message.substring(withDataIndex + ' with data '.length).trim();
+        zapName = remainingMessage.substring(0, withDataIndex).trim();
+        jsonData = remainingMessage.substring(withDataIndex + ' with data '.length).trim();
       }
 
       if (!zapName) {
-        return "Please provide a Zap name. Usage: trigger zap <ZapName> [with data {JSON_DATA}]";
+        return "Please specify the Zap name to trigger. Usage: trigger zap <ZapName> [with data {\"key\":\"value\"}]";
       }
 
-      let data: ZapData = {};
       if (jsonData) {
+        // Ensure jsonData is not empty string before trying to parse
+        if (!jsonData.trim()) {
+             return "Data part is empty. Please provide valid JSON data or omit the 'with data' part.";
+        }
         try {
           data = JSON.parse(jsonData);
         } catch (e) {
-          return "Invalid JSON data format. Please provide valid JSON for the Zap data.";
+          return "Invalid JSON data provided for the Zap. Please check the format. Example: {\"key\":\"value\"}";
         }
       }
 
-      const response: ZapTriggerResponse = await triggerZap(zapName, data);
+      const response: ZapTriggerResponse = await triggerZap(userId, zapName, data);
+
       if (response.success) {
-        return `Zap triggered: ${response.message} (Run ID: ${response.runId})`;
+        let successMsg = `Successfully triggered Zap: "${response.zapName}".`;
+        if (response.message && response.message !== `Zap "${response.zapName}" triggered successfully.`) { // Avoid redundant default message
+            successMsg += ` ${response.message}`;
+        }
+        if (response.runId) {
+            successMsg += ` (Run ID: ${response.runId})`;
+        }
+        return successMsg.trim();
       } else {
-        return `Failed to trigger Zap: ${response.message}`;
+        return `Failed to trigger Zap: "${response.zapName}". Error: ${response.message || 'An unknown error occurred.'}`;
       }
-    } catch (error) {
-      console.error('Error triggering Zap:', error);
-      return "Sorry, I couldn't trigger the Zap.";
+    } catch (error: any) {
+      console.error('Error triggering Zap in handler:', error);
+      return `Sorry, I couldn't trigger the Zap. Error: ${error.message}`;
     }
   }
 

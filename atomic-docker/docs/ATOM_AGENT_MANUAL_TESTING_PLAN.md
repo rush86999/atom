@@ -416,7 +416,94 @@ Ensure all general prerequisites from Section 4 (Hasura, Supertokens, `userId` i
     *   `send email`: Should default to Gmail.
 *   **Expected Result:** Observe the prioritization logic in `handler.ts`. The responses should indicate which service was used. This area might highlight the need for user preferences or more specific commands (e.g., "list google events", "send outlook email").
 
-This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar, Gmail, and Microsoft Graph integrations, including OAuth, secure token storage, and API interactions with real user context.
+This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar, Gmail, Microsoft Graph, Web Search (SerpApi), and Zapier integrations.
+
+## 8. Zapier Integration Testing
+
+This section details testing the user-configured Zapier webhook integrations with the Atom Agent.
+
+### Prerequisites (Zapier)
+
+1.  **Zapier Account:**
+    *   A Zapier account is required.
+2.  **Created Zap(s) with Webhook Trigger:**
+    *   At least one Zap **must be created** in Zapier.
+    *   This Zap must use the **"Webhooks by Zapier"** app as its trigger.
+    *   The trigger event should be **"Catch Hook"**.
+    *   Zapier will provide a **custom webhook URL** for this trigger. This URL is what the user will configure in the Atom Agent settings.
+    *   The Zap should have at least one verifiable action (e.g., add a row to a Google Sheet, send an email via Gmail, post a message to Slack) so that successful triggering can be confirmed.
+3.  **Environment Variables (Backend):**
+    *   Ensure general backend environment variables are set (Hasura, Encryption Keys `ATOM_TOKEN_ENCRYPTION_KEY`, `ATOM_TOKEN_ENCRYPTION_IV`).
+    *   Supertokens must be operational for user authentication.
+
+### 8.1. Settings UI - Zapier Webhook Management
+
+1.  **Navigate to Settings:** Go to Settings -> Atom Agent Configuration. Scroll to the "Zapier Integrations" section.
+2.  **Add New Zapier Webhook:**
+    *   **Action:** In the "Add New Zapier Webhook" form:
+        *   Enter a unique "Zap Name (Alias)" (e.g., "LogToMySheet").
+        *   Enter the "Webhook URL" copied from your Zapier "Catch Hook" trigger.
+        *   Click "Add Zap".
+    *   **Expected Result:**
+        *   A success message "Zapier webhook added successfully!" should appear.
+        *   The new Zap (e.g., "LogToMySheet") should appear in the "Configured Zapier Webhooks" list with a "Delete" button.
+        *   Input fields for adding should clear.
+    *   **Server Log:** Check `zapier-utils.ts` logs for encryption of the URL and successful save to Hasura.
+3.  **Add Zap with Duplicate Name:**
+    *   **Action:** Try to add another Zap with the *same* "Zap Name (Alias)" as one already configured for the user.
+    *   **Expected Result:** An error message like "Error: A Zap with this name already exists." should appear. The Zap should not be added.
+4.  **Add Zap with Invalid URL:**
+    *   **Action:** Enter a Zap Name and an invalid URL (e.g., "not_a_url"). Click "Add Zap".
+    *   **Expected Result:** An error message "Invalid Webhook URL format." should appear.
+5.  **List Configured Zaps:**
+    *   **Action:** Add 2-3 different Zaps.
+    *   **Expected Result:** All added Zaps should be listed correctly by their "Zap Name (Alias)". Webhook URLs themselves should NOT be displayed for security.
+6.  **Delete a Zap:**
+    *   **Action:** Click the "Delete" button next to one of the configured Zaps. Confirm the action in the browser dialog.
+    *   **Expected Result:**
+        *   A success message "Zapier webhook deleted successfully!" should appear.
+        *   The Zap should be removed from the "Configured Zapier Webhooks" list.
+    *   **Server Log:** Check `zapier-utils.ts` logs for successful deletion from Hasura.
+7.  **Delete Non-Existent Zap (Conceptual):**
+    *   The UI should only allow deleting listed Zaps. If an attempt was made to delete a Zap ID that doesn't exist for the user (e.g., via API directly), the backend should handle it gracefully (e.g., `affected_rows: 0`, user sees a "not found" or generic success if not distinguishable).
+
+### 8.2. Chat Interface - Trigger Zap Command
+
+(Ensure the Zaps configured in settings are active and set up in Zapier to perform a noticeable action.)
+
+1.  **Trigger Zap with Data:**
+    *   **Action:** Type `trigger zap LogToMySheet with data {"columnA":"Hello","columnB":"From Atom"}` (replace "LogToMySheet" with your configured Zap Name, and data with what your Zap expects).
+    *   **Expected Result:**
+        *   Atom chat responds with: "Successfully triggered Zap: "LogToMySheet". [Optional message from Zapier] (Run ID: [Zapier Run ID if provided])".
+        *   Verify the action in your Zap actually occurred (e.g., new row in Google Sheet with "Hello" and "From Atom").
+    *   **Server Log:** Check `zapierSkills.ts` for fetching the webhook URL (decrypted), and the POST request to Zapier. Check Zapier's run history for the incoming data.
+2.  **Trigger Zap without Data:**
+    *   **Action:** Type `trigger zap NotifySlackChannel` (assuming this Zap doesn't require specific data beyond what's in its Zapier configuration).
+    *   **Expected Result:** Atom chat responds with success. Verify Slack message posted.
+3.  **Trigger Non-Existent Zap Name:**
+    *   **Action:** Type `trigger zap NonExistentZapName`.
+    *   **Expected Result:** Atom chat responds with: `Failed to trigger Zap: "NonExistentZapName". Error: No webhook URL configured for Zap: NonExistentZapName. Please configure it in settings.`
+4.  **Trigger Zap with Malformed JSON Data:**
+    *   **Action:** Type `trigger zap LogToMySheet with data {"bad:"json}`.
+    *   **Expected Result:** Atom chat responds with: `Invalid JSON data provided for the Zap. Please check the format. Example: {"key":"value"}`.
+5.  **Trigger Zap with Missing Zap Name:**
+    *   **Action:** Type `trigger zap`.
+    *   **Expected Result:** Atom chat responds with: `Please specify the Zap name to trigger. Usage: trigger zap <ZapName> [with data {"key":"value"}]`.
+
+### 8.3. Error Condition Testing (Zapier)
+
+1.  **Invalid/Disabled Webhook URL Stored:**
+    *   **Action (Setup):** Manually edit a stored (encrypted) webhook URL in the database to be invalid, or disable/delete the corresponding Webhook trigger in Zapier.
+    *   **Action (Test):** Try to trigger the Zap by its name.
+    *   **Expected Result:** Atom chat should respond with a failure message, e.g., `Failed to trigger Zap: "YourZapName". Error: Zapier webhook returned status 404.` (or whatever Zapier returns for an invalid hook). Server logs should show the HTTP error from `got`.
+2.  **Zapier API Down/Rate Limited (Conceptual):**
+    *   **Expected Result:** If Zapier's webhook service is down or rate limiting, Atom's attempt to POST will fail. The chat should show a failure message from `zapierSkills.ts` (e.g., "Failed to trigger Zap. Network or parsing error...").
+3.  **Encryption Key/IV Issues (Conceptual):**
+    *   **Action (Setup):** If `ATOM_TOKEN_ENCRYPTION_KEY`/`IV` were changed *after* a webhook was saved.
+    *   **Action (Test):** Attempt to trigger that Zap.
+    *   **Expected Result:** `getZapierWebhookUrl` in `zapier-utils.ts` would fail to decrypt the URL. The `triggerZap` skill would then report that no webhook URL is configured or that configuration retrieval failed. User sees: `Failed to trigger Zap: "YourZapName". Error: Could not retrieve configuration...` or `No webhook URL configured...`. Server logs in `token-utils.ts` show decryption errors.
+
+This manual testing plan covers the core functionalities of the Atom agent, focusing on the end-to-end Google Calendar, Gmail, Microsoft Graph, Web Search (SerpApi), and Zapier integrations.
 
 ## 5. End-to-End Gmail Integration Testing
 

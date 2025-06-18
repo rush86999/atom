@@ -1,58 +1,139 @@
-import * as zapierSkills from './zapierSkills';
-import { ZapTriggerResponse } from '../types'; // Assuming ZapData is defined within zapierSkills or not explicitly typed for response
+import { triggerZap } from './zapierSkills';
+import { ZapTriggerResponse } from '../types';
+import * as zapierUtils from '../_libs/zapier-utils';
+import got from 'got';
 
-describe('Zapier Skills', () => {
-  describe('triggerZap', () => {
-    it('should return a success response with zapName and runId for a valid trigger', async () => {
-      const zapName = 'TestZap';
-      const data: zapierSkills.ZapData = { testKey: 'testValue' };
+// Mocks
+jest.mock('got');
+const mockedGot = got as jest.Mocked<typeof got>;
 
-      const response = await zapierSkills.triggerZap(zapName, data);
+jest.mock('../_libs/zapier-utils', () => ({
+    getZapierWebhookUrl: jest.fn(),
+}));
+const mockedGetZapierWebhookUrl = zapierUtils.getZapierWebhookUrl as jest.Mock;
 
-      expect(response.success).toBe(true);
-      expect(response.zapName).toBe(zapName);
-      expect(response.runId).toBeDefined();
-      expect(typeof response.runId).toBe('string');
-      expect(response.message).toContain(`Zap "${zapName}" triggered successfully (mock).`);
+describe('Zapier Skills - triggerZap', () => {
+    let consoleErrorSpy: jest.SpyInstance;
+    let consoleLogSpy: jest.SpyInstance;
+    const mockUserId = 'test-user-zap-skill';
+    const mockZapName = 'TestZap';
+    const mockWebhookUrl = 'https://hooks.zapier.com/hooks/test/url';
+    const mockData = { key: 'value', another: 123 };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+        consoleLogSpy.mockRestore();
     });
 
-    it('should handle triggering a Zap with empty data', async () => {
-      const zapName = 'ZapWithNoData';
-      const data: zapierSkills.ZapData = {};
+    it('should successfully trigger Zap and return parsed response', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        const zapierSuccessResponse = { status: 'success', attempt: 'attempt_guid', id: 'zap_run_id', message: 'Zap triggered!' };
+        mockedGot.post.mockResolvedValue({
+            statusCode: 200,
+            body: zapierSuccessResponse,
+        } as any);
 
-      const response = await zapierSkills.triggerZap(zapName, data);
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
 
-      expect(response.success).toBe(true);
-      expect(response.zapName).toBe(zapName);
-      expect(response.runId).toBeDefined();
-      expect(response.message).toContain(`Zap "${zapName}" triggered successfully (mock).`);
+        expect(mockedGetZapierWebhookUrl).toHaveBeenCalledWith(mockUserId, mockZapName);
+        expect(mockedGot.post).toHaveBeenCalledWith(mockWebhookUrl, {
+            json: mockData,
+            responseType: 'json',
+            throwHttpErrors: false,
+        });
+        expect(result).toEqual({
+            success: true,
+            zapName: mockZapName,
+            message: zapierSuccessResponse.message, // Uses message from response
+            runId: zapierSuccessResponse.id,
+        });
     });
 
-    it('should return a failure response if zapName is missing', async () => {
-      // Test with zapName as empty string, null, or undefined as per JS/TS practices
-      // The skill currently checks for !zapName, which covers empty string.
-      const data: zapierSkills.ZapData = { key: 'value' };
-
-      const response = await zapierSkills.triggerZap('', data); // Empty string for zapName
-
-      expect(response.success).toBe(false);
-      expect(response.message).toBe('Zap name is required.');
-      expect(response.runId).toBeUndefined();
-      expect(response.zapName).toBeUndefined(); // Or it might be the empty string depending on implementation
+    it('should use status if message is not in Zapier response', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        const zapierSuccessResponse = { status: 'success_alt_field', attempt: 'attempt_guid2' };
+        mockedGot.post.mockResolvedValue({ statusCode: 200, body: zapierSuccessResponse } as any);
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.message).toBe('success_alt_field');
     });
 
-    // Example of console log spying if needed, though less critical for mock functions
-    it('should log the zapName and data', async () => {
-        const consoleSpy = jest.spyOn(console, 'log');
-        const zapName = 'LoggingTestZap';
-        const data = { item: 'logging item' };
+    it('should use default message if no specific message/status from Zapier', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        mockedGot.post.mockResolvedValue({ statusCode: 200, body: {} } as any); // Empty body
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.message).toBe(`Zap "${mockZapName}" triggered successfully.`);
+    });
 
-        await zapierSkills.triggerZap(zapName, data);
+    it('should return failure if webhook URL is not found', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(null);
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('No webhook URL configured');
+        expect(mockedGot.post).not.toHaveBeenCalled();
+    });
 
-        expect(consoleSpy).toHaveBeenCalledWith(`Triggering Zap: "${zapName}" with data:`, data);
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`Mock Zap "${zapName}" triggered successfully. Run ID:`));
+    it('should return failure if getZapierWebhookUrl throws', async () => {
+        mockedGetZapierWebhookUrl.mockRejectedValue(new Error("DB error fetching URL"));
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('Could not retrieve configuration');
+        expect(result.message).toContain('DB error fetching URL');
+    });
 
-        consoleSpy.mockRestore(); // Clean up spy
-      });
-  });
+    it('should return failure if Zapier returns non-2xx status', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        const zapierErrorResponse = { error: 'Invalid data', message: 'Zapier processing failed' };
+        mockedGot.post.mockResolvedValue({
+            statusCode: 400,
+            body: zapierErrorResponse,
+        } as any);
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toBe(zapierErrorResponse.message); // Should pick up message from body
+    });
+
+    it('should use error if message is not in Zapier error response', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        const zapierErrorResponse = { error: 'zap_specific_error_code' };
+        mockedGot.post.mockResolvedValue({ statusCode: 503, body: zapierErrorResponse } as any);
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toBe('zap_specific_error_code');
+    });
+
+    it('should use default status code message if no specific error/message from Zapier', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        mockedGot.post.mockResolvedValue({ statusCode: 403, body: {} } as any); // Empty error body
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toBe('Zapier webhook returned status 403.');
+    });
+
+
+    it('should return failure if got.post throws network error', async () => {
+        mockedGetZapierWebhookUrl.mockResolvedValue(mockWebhookUrl);
+        mockedGot.post.mockRejectedValue(new Error("Network connection failed"));
+        const result = await triggerZap(mockUserId, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toContain('Failed to trigger Zap. Network or parsing error: Network connection failed');
+    });
+
+    it('should return failure if userId is missing', async () => {
+        // @ts-ignore Test invalid input
+        const result = await triggerZap(null, mockZapName, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toBe("User ID not provided.");
+    });
+
+    it('should return failure if zapName is missing', async () => {
+         // @ts-ignore Test invalid input
+        const result = await triggerZap(mockUserId, null, mockData);
+        expect(result.success).toBe(false);
+        expect(result.message).toBe("Zap name not provided.");
+    });
 });

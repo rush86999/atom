@@ -23,6 +23,12 @@ const AtomAgentSettings = () => {
   const [isMicrosoftConnected, setIsMicrosoftConnected] = useState(false);
   const [userMicrosoftEmail, setUserMicrosoftEmail] = useState<string | null>(null);
 
+  // Zapier State
+  const [zapierWebhooks, setZapierWebhooks] = useState<{id: string, zap_name: string}[]>([]);
+  const [newZapName, setNewZapName] = useState('');
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  // Reusing apiMessage and apiError for Zapier feedback as well
+
   const fetchCalendarStatus = async () => {
     setApiMessage(null); // Clear previous messages on new fetch
     setApiError(null);
@@ -60,7 +66,93 @@ const AtomAgentSettings = () => {
     fetchCalendarStatus();
     fetchGmailStatus();
     fetchMicrosoftStatus();
+    fetchZapierWebhooks(); // Fetch Zapier webhooks on mount
   }, []); // Empty dependency array means this runs once on mount
+
+  // API Helper Functions for Zapier
+  const fetchZapierWebhooks = async () => {
+    setApiMessage(null);
+    try {
+      const response = await fetch('/api/atom/zapier/list_webhooks');
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setZapierWebhooks(data.webhooks || []);
+      } else {
+        setApiError(data.error || 'Failed to fetch Zapier webhooks.');
+        setZapierWebhooks([]); // Clear existing on error
+      }
+    } catch (err: any) {
+      console.error('Error fetching Zapier webhooks:', err);
+      setApiError('An error occurred while fetching Zapier webhooks.');
+      setZapierWebhooks([]);
+    }
+  };
+
+  const handleAddZapierWebhook = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setApiMessage(null);
+    setApiError(null);
+
+    if (!newZapName.trim() || !newWebhookUrl.trim()) {
+      setApiError('Zap Name and Webhook URL are required.');
+      return;
+    }
+    try {
+      new URL(newWebhookUrl); // Basic URL validation
+    } catch (_) {
+      setApiError('Invalid Webhook URL format.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/atom/zapier/add_webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zap_name: newZapName, webhook_url: newWebhookUrl }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setApiMessage(data.message || 'Zapier webhook added successfully!');
+        setNewZapName('');
+        setNewWebhookUrl('');
+        fetchZapierWebhooks(); // Refresh list
+      } else {
+        setApiError(data.error || 'Failed to add Zapier webhook.');
+        if (response.status === 409) { // Conflict / Duplicate zap_name
+            setApiError(`Error: ${data.error || 'A Zap with this name already exists.'}`);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error adding Zapier webhook:', err);
+      setApiError('An error occurred while adding the Zapier webhook.');
+    }
+  };
+
+  const handleDeleteZapierWebhook = async (zapId: string) => {
+    setApiMessage(null);
+    setApiError(null);
+    if (!window.confirm("Are you sure you want to delete this Zapier webhook?")) {
+        return;
+    }
+    try {
+      const response = await fetch('/api/atom/zapier/delete_webhook', {
+        method: 'POST', // Or 'DELETE' if API is changed
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zap_id: zapId }),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setApiMessage(data.message || 'Zapier webhook deleted successfully!');
+        fetchZapierWebhooks(); // Refresh list
+      } else {
+        setApiError(data.error || 'Failed to delete Zapier webhook.');
+      }
+    } catch (err: any) {
+      console.error('Error deleting Zapier webhook:', err);
+      setApiError('An error occurred while deleting the Zapier webhook.');
+    }
+  };
+
 
   useEffect(() => {
     const { query } = router;
@@ -361,27 +453,65 @@ const AtomAgentSettings = () => {
       </Box>
 
       {/* Zapier Integration Section */}
-      <Box marginBottom="m">
-        <Text variant="subHeader" marginBottom="s">
-          Zapier Integration
+      <Box marginBottom="m" paddingTop="m" borderTopWidth={1} borderColor="hairline">
+        <Text variant="subHeader" marginBottom="m">
+          Zapier Integrations
         </Text>
-        <input
-          type="text"
-          placeholder="Enter Zapier Webhook URL for Atom"
-          // value={zapierUrl}
-          // onChange={(e) => setZapierUrl(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '8px',
-            marginBottom: '8px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
-        />
-        <Button onPress={() => console.log('Save Zapier URL clicked')} variant="primary" title="Save Zapier URL" />
+
+        <form onSubmit={handleAddZapierWebhook}>
+          <Box marginBottom="m">
+            <Text variant="body" marginBottom="xs">Add New Zapier Webhook:</Text>
+            <input
+              type="text"
+              placeholder="Zap Name (e.g., LogToSheet)"
+              value={newZapName}
+              onChange={(e) => setNewZapName(e.target.value)}
+              style={inputStyle}
+              required
+            />
+            <input
+              type="url"
+              placeholder="Zapier Webhook URL"
+              value={newWebhookUrl}
+              onChange={(e) => setNewWebhookUrl(e.target.value)}
+              style={{ ...inputStyle, marginTop: '8px' }}
+              required
+            />
+            <Button type="submit" title="Add Zap" variant="primary" style={{ marginTop: '8px' }} />
+          </Box>
+        </form>
+
+        <Text variant="body" marginBottom="s">Configured Zapier Webhooks:</Text>
+        {zapierWebhooks.length === 0 ? (
+          <Text>No Zapier webhooks configured yet.</Text>
+        ) : (
+          <ul style={{ listStyle: 'none', paddingLeft: '0' }}>
+            {zapierWebhooks.map(webhook => (
+              <li key={webhook.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '8px', border: '1px solid #eee' }}>
+                <Text>{webhook.zap_name}</Text>
+                <Button
+                  onPress={() => handleDeleteZapierWebhook(webhook.id)}
+                  title="Delete"
+                  variant="danger"
+                  size="small" // Assuming Button has a size prop
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </Box>
     </Box>
   );
+};
+
+// Basic style for input elements, can be moved to a stylesheet or a styled component
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px',
+  border: '1px solid #ccc',
+  borderRadius: '4px',
+  boxSizing: 'border-box',
+  fontSize: '1rem',
 };
 
 export default AtomAgentSettings;
