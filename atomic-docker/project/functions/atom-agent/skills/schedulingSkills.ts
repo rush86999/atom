@@ -1,4 +1,29 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
+import {
+    parse as dateParse,
+    format as dateFormat,
+    addHours,
+    addMinutes,
+    addDays,
+    nextMonday,
+    nextTuesday,
+    nextWednesday,
+    nextThursday,
+    nextFriday,
+    nextSaturday,
+    nextSunday,
+    startOfDay,
+    setHours,
+    setMinutes,
+    setSeconds,
+    isDate as isValidDate,
+    parseISO
+} from 'date-fns';
+import { utcToZonedTime, zonedTimeToUtc, formatInTimeZone } from 'date-fns-tz';
+
+// Assume a default user timezone if not provided - this should ideally come from user profile
+const DEFAULT_USER_TIMEZONE = 'America/New_York'; // Example, make this configurable or per-user
+
 
 // Placeholder for actual logger if available, otherwise use console
 const logger = {
@@ -8,92 +33,222 @@ const logger = {
 };
 
 // Configuration
-const ATOMIC_SCHEDULER_API_BASE_URL = process.env.ATOMIC_SCHEDULER_API_BASE_URL || 'http://localhost:8080/api/scheduler'; // Example, should be configured
-const AGENT_CALLBACK_BASE_URL = process.env.AGENT_PUBLIC_BASE_URL || 'http://localhost:3000/api'; // Agent's own public URL for callbacks
+const ATOMIC_SCHEDULER_API_BASE_URL = process.env.ATOMIC_SCHEDULER_API_BASE_URL || 'http://localhost:8080/api/scheduler';
+const AGENT_CALLBACK_BASE_URL = process.env.AGENT_PUBLIC_BASE_URL || 'http://localhost:3000/api';
 
-// ----- Placeholder Helper Functions -----
-function generateUuid(): string {
-  // Basic placeholder UUID generation
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+// ----- New Date/Time Helper Functions -----
+interface NormalizedDateTime {
+  isoDateTimeUtc?: string;    // For EventPart.startDate/endDate (UTC)
+  localTime?: string;         // For Timeslot.startTime/endTime ("HH:MM:SS" in user's TZ)
+  localDate?: string;         // For Timeslot.date ("YYYY-MM-DD" in user's TZ)
+  localMonthDay?: string;     // For Timeslot.monthDay ("--MM-DD" in user's TZ)
+  dayOfWeek?: string;         // For Timeslot.dayOfWeek (e.g., "MONDAY" in user's TZ)
 }
 
-function normalizeDateTime(dateInput?: string, timeInput?: string): string {
-  // VERY basic placeholder - real implementation needs robust date/time parsing library
-  if (dateInput && dateInput.includes('T') && dateInput.endsWith('Z')) return dateInput;
-  if (timeInput && timeInput.includes('T') && timeInput.endsWith('Z')) return timeInput;
+// Helper to parse time strings like "3pm", "15:30", "10 AM"
+function parseTimeStringToDate(timeString: string, referenceDate: Date, timeZone: string): Date | null {
+    // referenceDate is expected to be already in the target user's timezone (e.g., startOfDay(utcToZonedTime(new Date(), timeZone)))
+    let baseDate = referenceDate;
 
-  const now = new Date();
+    const timeParts = timeString.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+    if (!timeParts) return null;
 
-  if (dateInput) {
-    if (dateInput.toLowerCase() === 'tomorrow') {
-      now.setDate(now.getDate() + 1);
-    } else if (dateInput.includes('-')) {
-        const parts = dateInput.split('-');
-        if (parts.length === 3) {
-            now.setFullYear(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        } else if (parts.length === 2) {
-            now.setMonth(parseInt(parts[0]) - 1, parseInt(parts[1]));
+    let hours = parseInt(timeParts[1], 10);
+    const minutes = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+    const ampm = timeParts[3]?.toLowerCase();
+
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (ampm === 'pm' && hours < 12) hours += 12;
+    if (ampm === 'am' && hours === 12) hours = 0; // Midnight case
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+    let dateWithTime = setHours(baseDate, hours);
+    dateWithTime = setMinutes(dateWithTime, minutes);
+    dateWithTime = setSeconds(dateWithTime, 0); // Reset seconds for consistency
+
+    return dateWithTime; // This date is in the user's local timezone
+}
+
+// Main normalization function
+function normalizeDateTime(
+  dateString?: string,
+  timeString?: string,
+  userTimeZone: string = DEFAULT_USER_TIMEZONE,
+  referenceDate: Date = new Date() // "Now" in system's local time, will be converted to user's TZ
+): NormalizedDateTime {
+  let targetDateInUserTz: Date;
+  const nowInUserTz = utcToZonedTime(referenceDate, userTimeZone);
+  let baseDateForRelative = startOfDay(nowInUserTz);
+
+  if (dateString) {
+    const lowerDateString = dateString.toLowerCase();
+    if (lowerDateString === 'today') {
+      targetDateInUserTz = baseDateForRelative;
+    } else if (lowerDateString === 'tomorrow') {
+      targetDateInUserTz = addDays(baseDateForRelative, 1);
+    } else if (lowerDateString.startsWith('next ')) {
+      const day = lowerDateString.split(' ')[1];
+      switch (day) {
+        case 'monday': targetDateInUserTz = nextMonday(baseDateForRelative); break;
+        case 'tuesday': targetDateInUserTz = nextTuesday(baseDateForRelative); break;
+        case 'wednesday': targetDateInUserTz = nextWednesday(baseDateForRelative); break;
+        case 'thursday': targetDateInUserTz = nextThursday(baseDateForRelative); break;
+        case 'friday': targetDateInUserTz = nextFriday(baseDateForRelative); break;
+        case 'saturday': targetDateInUserTz = nextSaturday(baseDateForRelative); break;
+        case 'sunday': targetDateInUserTz = nextSunday(baseDateForRelative); break;
+        default: targetDateInUserTz = baseDateForRelative;
+      }
+    } else {
+      let parsedDateAttempt: Date | undefined;
+      try {
+        // Try ISO format first (which might include time and timezone)
+        const isoParsed = parseISO(dateString);
+        if (isValidDate(isoParsed)) {
+            parsedDateAttempt = utcToZonedTime(isoParsed, userTimeZone);
         }
+      } catch {}
+
+      if (!parsedDateAttempt || !isValidDate(parsedDateAttempt)) {
+        // Try specific formats using the reference date's year/month if not fully specified
+        parsedDateAttempt = dateParse(dateString, 'yyyy-MM-dd', baseDateForRelative);
+         if (!isValidDate(parsedDateAttempt)) {
+            // For MM-dd, we need to ensure it's for the correct year (baseDateForRelative has it)
+            const tempDate = dateParse(dateString, 'MM-dd', new Date(baseDateForRelative.getFullYear(),0,1)); // Parse against start of year for month/day
+            if (isValidDate(tempDate)) {
+                 targetDateInUserTz = setHours(setMinutes(setSeconds(baseDateForRelative,0),tempDate.getMinutes()),tempDate.getHours());
+                 targetDateInUserTz = addDays(startOfDay(targetDateInUserTz), tempDate.getDate()-1); // set day of month
+                 targetDateInUserTz = addMinutes(targetDateInUserTz, tempDate.getMonth() * 31 * 24 * 60); // approximation for setMonth
+                 // This is getting complicated, date-fns parse is strict.
+                 // A simpler MM-dd approach:
+                 const parts = dateString.match(/^(\d{2})-(\d{2})$/);
+                 if (parts) {
+                     parsedDateAttempt = new Date(nowInUserTz.getFullYear(), parseInt(parts[1]) -1, parseInt(parts[2]));
+                 } else {
+                      parsedDateAttempt = baseDateForRelative; // Fallback
+                 }
+            } else {
+                 parsedDateAttempt = baseDateForRelative; // Fallback
+            }
+        }
+      }
+      targetDateInUserTz = parsedDateAttempt && isValidDate(parsedDateAttempt) ? parsedDateAttempt : baseDateForRelative;
+      targetDateInUserTz = startOfDay(targetDateInUserTz); // Ensure we start from beginning of day before adding time
     }
   } else {
-      if (!timeInput || !timeInput.match(/(\d+)(?::(\d+))?\s*(am|pm)?/i)) {
-         now.setDate(now.getDate() + 1);
-      }
+    targetDateInUserTz = baseDateForRelative;
   }
 
-  now.setHours(12, 0, 0, 0);
-
-  if (timeInput) {
-      const parts = timeInput.match(/(\d+)(?::(\d+))?\s*(am|pm)?/i);
-      if (parts) {
-          let hours = parseInt(parts[1]);
-          const minutes = parts[2] ? parseInt(parts[2]) : 0;
-          if (parts[3]?.toLowerCase() === 'pm' && hours < 12) hours += 12;
-          if (parts[3]?.toLowerCase() === 'am' && hours === 12) hours = 0;
-          now.setHours(hours, minutes, 0, 0);
-      }
-  }
-  return now.toISOString();
-}
-
-function calculateEndTime(startTimeIso: string, durationStr?: string): string {
-    const startDate = new Date(startTimeIso);
-    if (durationStr) {
-        const match = durationStr.match(/(\d+)\s*(hour|minute|hr|min)/i);
-        if (match) {
-            const value = parseInt(match[1]);
-            const unit = match[2].toLowerCase();
-            if (unit.startsWith('hour') || unit.startsWith('hr')) {
-                startDate.setHours(startDate.getHours() + value);
-            } else if (unit.startsWith('minute') || unit.startsWith('min')) {
-                startDate.setMinutes(startDate.getMinutes() + value);
-            }
-        } else {
-             startDate.setHours(startDate.getHours() + 1);
-        }
+  if (timeString) {
+    const parsedTimeDate = parseTimeStringToDate(timeString, targetDateInUserTz, userTimeZone);
+    if (parsedTimeDate && isValidDate(parsedTimeDate)) {
+      targetDateInUserTz = parsedTimeDate;
     } else {
-        startDate.setHours(startDate.getHours() + 1);
+      logger.warn(`[normalizeDateTime] Could not parse timeString: ${timeString}. Using date part or default time.`);
     }
-    return startDate.toISOString();
+  } else if (dateString && dateString.includes('T')) {
+    // Time was already included in an ISO dateString, targetDateInUserTz should be set correctly.
+  } else {
+    // No time string, and dateString wasn't a full ISO with time.
+    // Default to noon if no time is specified for an event, or handle as task without specific time.
+    // For now, if it's still start of day, let's set a default time like 9 AM for tasks/events.
+    if (targetDateInUserTz.getHours() === 0 && targetDateInUserTz.getMinutes() === 0 && targetDateInUserTz.getSeconds() === 0) {
+       // targetDateInUserTz = setHours(targetDateInUserTz, 9); // Example: default to 9 AM
+    }
+  }
+
+  const result: NormalizedDateTime = {};
+  try {
+    if (isValidDate(targetDateInUserTz)) {
+        result.isoDateTimeUtc = zonedTimeToUtc(targetDateInUserTz, userTimeZone).toISOString();
+        result.localTime = formatInTimeZone(targetDateInUserTz, userTimeZone, 'HH:mm:ss');
+        result.localDate = formatInTimeZone(targetDateInUserTz, userTimeZone, 'yyyy-MM-dd');
+        result.localMonthDay = formatInTimeZone(targetDateInUserTz, userTimeZone, 'MM-dd'); // Corrected format for --MM-DD
+        result.dayOfWeek = formatInTimeZone(targetDateInUserTz, userTimeZone, 'EEEE').toUpperCase();
+    } else {
+        logger.warn(`[normalizeDateTime] Failed to produce a valid targetDateInUserTz for inputs: date='${dateString}', time='${timeString}'`);
+    }
+  } catch (tzError) {
+      logger.error(`[normalizeDateTime] Error during time zone conversion or formatting: `, tzError);
+  }
+  return result;
 }
 
-function getCurrentUserBasic(userId: string): User {
-    return {
-        id: userId,
-        hostId: userId,
-        workTimes: [
-            { userId, hostId: userId, dayOfWeek: "MONDAY", startTime: "09:00:00", endTime: "17:00:00" },
-            { userId, hostId: userId, dayOfWeek: "TUESDAY", startTime: "09:00:00", endTime: "17:00:00" },
-            { userId, hostId: userId, dayOfWeek: "WEDNESDAY", startTime: "09:00:00", endTime: "17:00:00" },
-            { userId, hostId: userId, dayOfWeek: "THURSDAY", startTime: "09:00:00", endTime: "17:00:00" },
-            { userId, hostId: userId, dayOfWeek: "FRIDAY", startTime: "09:00:00", endTime: "17:00:00" },
-        ],
-        maxWorkLoadPercent: 100,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    };
+function calculateEndTime(
+  startTimeIsoUtc: string,
+  durationStr?: string,
+): string {
+  if (!durationStr) {
+    return addHours(parseISO(startTimeIsoUtc), 1).toISOString();
+  }
+
+  try {
+    const baseTime = parseISO(startTimeIsoUtc);
+    let endTime = baseTime;
+
+    const durationParts = durationStr.toLowerCase().match(/(\d+)\s*(hour|minute|hr|min)/);
+    if (durationParts) {
+      const value = parseInt(durationParts[1], 10);
+      const unit = durationParts[2];
+      if (unit.startsWith('hour') || unit.startsWith('hr')) {
+        endTime = addHours(baseTime, value);
+      } else if (unit.startsWith('minute') || unit.startsWith('min')) {
+        endTime = addMinutes(baseTime, value);
+      } else {
+        logger.warn(`[calculateEndTime] Unknown duration unit in: ${durationStr}. Defaulting to 1 hour.`);
+        endTime = addHours(baseTime, 1);
+      }
+    } else {
+      logger.warn(`[calculateEndTime] Could not parse duration: ${durationStr}. Defaulting to 1 hour.`);
+      endTime = addHours(baseTime, 1);
+    }
+    return endTime.toISOString();
+  } catch (error) {
+    logger.error(`[calculateEndTime] Error parsing startTimeIsoUtc ('${startTimeIsoUtc}') or duration ('${durationStr}'):`, error);
+    try {
+        return addHours(parseISO(startTimeIsoUtc),1).toISOString();
+    } catch {
+        const fallbackDate = addHours(new Date(), 1);
+        logger.error(`[calculateEndTime] Catastrophic fallback for end time calculation. Using current time + 1 hour.`);
+        return fallbackDate.toISOString();
+    }
+  }
+}
+
+function getCurrentUserBasic(
+  userId: string,
+  hostId: string,
+  // eventType?: string // Optional: context of what's being scheduled, to apply specific rules
+): User {
+  logger.info(`[getCurrentUserBasic] Fetching (placeholder) data for userId: ${userId}, hostId: ${hostId}`);
+
+  // --- Placeholder for User Profile Fetching ---
+  const userTimeZone = DEFAULT_USER_TIMEZONE; // Using the global default for now. Should be user-specific.
+
+  // --- Placeholder for Stored Preference Rule Application ---
+  const placeholderWorkTimes: WorkTime[] = [
+    { userId, hostId, dayOfWeek: "MONDAY",    startTime: "09:00:00", endTime: "17:00:00" },
+    { userId, hostId, dayOfWeek: "TUESDAY",   startTime: "09:00:00", endTime: "17:00:00" },
+    { userId, hostId, dayOfWeek: "WEDNESDAY", startTime: "09:00:00", endTime: "17:00:00" },
+    { userId, hostId, dayOfWeek: "THURSDAY",  startTime: "09:00:00", endTime: "17:00:00" },
+    { userId, hostId, dayOfWeek: "FRIDAY",    startTime: "09:00:00", endTime: "15:00:00" }, // Example: shorter Friday
+  ];
+  // Simulate a "no meetings before 10am" preference if scheduling a meeting (conceptual)
+  // if (eventType === "GROUP_MEETING" || eventType === "ONE_ON_ONE_MEETING") {
+  //   placeholderWorkTimes = placeholderWorkTimes.map(wt => ({
+  //     ...wt,
+  //     startTime: wt.startTime < "10:00:00" ? "10:00:00" : wt.startTime
+  //   })).filter(wt => wt.startTime < wt.endTime);
+  // }
+
+  return {
+    id: userId,
+    hostId: hostId,
+    timeZone: userTimeZone,
+    workTimes: placeholderWorkTimes,
+    // maxWorkLoadPercent: 80, // Example
+  };
 }
 
 // Based on NLU entities defined in nluService.ts and handler.ts
@@ -224,14 +379,12 @@ interface HttpClientResponse {
 const httpClient = {
   post: async (url: string, body: any): Promise<HttpClientResponse> => {
     logger.info(`[httpClient.post] Making actual HTTP POST request to ${url}`);
-    // logger.info(`[httpClient.post] Body Summary: singletonId=${body?.singletonId}, fileKey=${body?.fileKey}, eventPartsCount=${body?.eventParts?.length}, userListCount=${body?.userList?.length}`);
     try {
       const response: AxiosResponse = await axios.post(url, body, {
         headers: {
           'Content-Type': 'application/json',
-          // 'User-Agent': 'AtomicAgent/1.0', // Example User-Agent
         },
-        timeout: 10000, // 10 seconds timeout
+        timeout: 10000,
       });
       return {
         status: response.status,
@@ -245,19 +398,19 @@ const httpClient = {
         return {
           status: axiosError.response.status,
           data: axiosError.response.data,
-          error: (axiosError.response.data as any)?.message || axiosError.message, // Extract message from error data if possible
+          error: (axiosError.response.data as any)?.message || axiosError.message,
           headers: axiosError.response.headers,
         };
       } else if (axiosError.request) {
         logger.error(`[httpClient.post] No response received from ${url}:`, axiosError.request);
         return {
-          status: -1, // Custom status for no response / network error
+          status: -1,
           error: 'No response received from server. Network error or timeout.',
         };
       } else {
         logger.error('[httpClient.post] Error setting up request:', axiosError.message);
         return {
-          status: -2, // Custom status for request setup error
+          status: -2,
           error: `Error setting up request: ${axiosError.message}`,
         };
       }
@@ -289,7 +442,6 @@ export async function submitSchedulingJobToAtomicScheduler(
       hostId: data.hostId,
       fileKey: data.fileKey,
       singletonId: data.singletonId,
-      // originalQuery: "...", // Pass this if available from function params or wider scope
       submittedAt: new Date(),
     };
     await storePendingRequest(jobInfo);
@@ -297,7 +449,7 @@ export async function submitSchedulingJobToAtomicScheduler(
     logger.info(`[submitSchedulingJobToAtomicScheduler] Sending job to scheduler: ${schedulerEndpoint}`);
     const response = await httpClient.post(schedulerEndpoint, data);
 
-    if (response.status === 200 || response.status === 202) { // 202 Accepted is a common response for async job submissions
+    if (response.status === 200 || response.status === 202) {
       logger.info(`[submitSchedulingJobToAtomicScheduler] Job successfully submitted to scheduler for singletonId: ${data.singletonId} (fileKey: ${data.fileKey}). Status: ${response.status}, Response Data:`, response.data);
       return {
         success: true,
@@ -305,16 +457,15 @@ export async function submitSchedulingJobToAtomicScheduler(
         singletonId: data.singletonId,
       };
     } else {
-      // Handle specific client/server errors from httpClient's structured response
       let userMessage = `Failed to submit scheduling request. Status code: ${response.status}.`;
 
-      if (response.status === -1) { // Custom code for network error/no response
+      if (response.status === -1) {
         userMessage = "Failed to submit scheduling request: Could not connect to the scheduling service. Please try again later.";
-      } else if (response.status === -2) { // Custom code for request setup error
+      } else if (response.status === -2) {
         userMessage = "Failed to submit scheduling request: Internal error setting up the request.";
-      } else if (response.error) { // Error message provided by httpClient
+      } else if (response.error) {
         userMessage = `Failed to submit scheduling request: ${response.error}`;
-      } else if (response.data) { // Fallback to data if error string is not specific
+      } else if (response.data) {
         const serverMessage = (response.data as any)?.message || (response.data as any)?.error;
         if (serverMessage) {
             userMessage = `Failed to submit scheduling request. Scheduler responded with status ${response.status}: ${serverMessage}`;
@@ -324,7 +475,7 @@ export async function submitSchedulingJobToAtomicScheduler(
       }
 
       logger.error(`[submitSchedulingJobToAtomicScheduler] Error submitting job for fileKey: ${data.fileKey}. Status: ${response.status}, Error: ${response.error || 'N/A'}, Data:`, response.data);
-      await removePendingRequest(data.fileKey); // Use new state function
+      await removePendingRequest(data.fileKey);
       return {
         success: false,
         message: userMessage,
@@ -332,9 +483,6 @@ export async function submitSchedulingJobToAtomicScheduler(
     }
   } catch (error: any) {
     logger.error(`[submitSchedulingJobToAtomicScheduler] Exception during job submission for fileKey: ${data.fileKey}:`, error.stack || error);
-    // Attempt to remove from state if it was stored before the exception
-    // This assumes storePendingRequest might have succeeded before another error.
-    // If storePendingRequest is the one failing, this delete won't find anything, which is fine.
     await removePendingRequest(data.fileKey);
     return {
       success: false,
@@ -378,21 +526,34 @@ export async function blockCalendarTime(
   const eventId = generateUuid();
   const fileKey = `block_${hostId}_${singletonId}`;
 
-  const startTimeIso = normalizeDateTime(blockDetails.date, blockDetails.start_time);
-  const endTimeIso = blockDetails.end_time
-                     ? normalizeDateTime(blockDetails.date, blockDetails.end_time)
-                     : calculateEndTime(startTimeIso, blockDetails.duration);
+  const currentUser = getCurrentUserBasic(userId, hostId); // Pass hostId
 
-  const currentUser = getCurrentUserBasic(userId);
+  // Use the new normalizeDateTime which returns an object
+  const normalizedStart = normalizeDateTime(blockDetails.date, blockDetails.start_time, currentUser.timeZone);
+  let normalizedEnd: NormalizedDateTime;
 
-  const eventStartDate = new Date(startTimeIso);
+  if (blockDetails.end_time) {
+      normalizedEnd = normalizeDateTime(blockDetails.date, blockDetails.end_time, currentUser.timeZone);
+  } else if (normalizedStart.isoDateTimeUtc) {
+      const calculatedEndTimeUtc = calculateEndTime(normalizedStart.isoDateTimeUtc, blockDetails.duration);
+      normalizedEnd = { isoDateTimeUtc: calculatedEndTimeUtc }; // Only UTC is strictly needed for end time calc
+  } else { // Fallback if start time couldn't be normalized
+      logger.error("[schedulingSkills.blockCalendarTime] Could not normalize start time, unable to proceed reliably.");
+      return { success: false, message: "Error processing date/time for the time block."};
+  }
+
+  if (!normalizedStart.isoDateTimeUtc || !normalizedEnd.isoDateTimeUtc) {
+    logger.error("[schedulingSkills.blockCalendarTime] Failed to get valid ISO UTC dateTimes after normalization/calculation.");
+    return { success: false, message: "Error processing date/time for the time block (ISO UTC conversion failed)."};
+  }
+
   const timeslots: Timeslot[] = [{
       hostId,
-      dayOfWeek: eventStartDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase(),
-      startTime: "00:00:00",
-      endTime: "23:59:59",
-      monthDay: startTimeIso.substring(5,7) + "-" + startTimeIso.substring(8,10),
-      date: startTimeIso.substring(0, 10),
+      dayOfWeek: normalizedStart.dayOfWeek || new Date(normalizedStart.isoDateTimeUtc).toLocaleString('en-US', { weekday: 'long' }).toUpperCase(),
+      startTime: normalizedStart.localTime || "00:00:00",
+      endTime: "23:59:59", // Broad timeslot for the day; scheduler will use eventPart start/end
+      monthDay: normalizedStart.localMonthDay || normalizedStart.isoDateTimeUtc.substring(5,7) + "-" + normalizedStart.isoDateTimeUtc.substring(8,10),
+      date: normalizedStart.localDate || normalizedStart.isoDateTimeUtc.substring(0, 10),
     }];
 
   const requestBody: PostTableRequestBody = {
@@ -405,8 +566,8 @@ export async function blockCalendarTime(
       eventId: eventId,
       part: 1,
       lastPart: 1,
-      startDate: startTimeIso,
-      endDate: endTimeIso,
+      startDate: normalizedStart.isoDateTimeUtc,
+      endDate: normalizedEnd.isoDateTimeUtc,
       userId: currentUser.id,
       hostId: hostId,
       user: currentUser,
@@ -425,7 +586,6 @@ export async function blockCalendarTime(
     callBackUrl: `${AGENT_CALLBACK_BASE_URL}/scheduler-callback`,
   };
 
-  // logger.info(`[schedulingSkills.blockCalendarTime] Constructed PostTableRequestBody for fileKey ${fileKey}:`, JSON.stringify(requestBody, null, 2));
   const submissionResult = await submitSchedulingJobToAtomicScheduler(userId, requestBody);
   return {
       ...submissionResult,
@@ -433,7 +593,6 @@ export async function blockCalendarTime(
       details: {
           receivedUserId: userId,
           receivedBlockDetails: blockDetails,
-          // constructedBody: requestBody // Avoid logging full body in final response details for brevity
       }
   };
 }
@@ -450,19 +609,33 @@ export async function initiateTeamMeetingScheduling(
   const groupId = eventId;
   const fileKey = `meet_${hostId}_${singletonId}`;
 
-  const organizerUser = getCurrentUserBasic(userId);
-  const userList: User[] = [organizerUser];
+  const userList: User[] = [];
+  // Add organizer
+  userList.push(getCurrentUserBasic(userId, hostId /*, "GROUP_MEETING" // Optional eventType context */));
 
   for (const attendeeIdentifier of meetingDetails.attendees) {
-      if (attendeeIdentifier !== userId) {
-          userList.push(getCurrentUserBasic(attendeeIdentifier));
-      }
+    // In a real system:
+    // 1. Normalize attendeeIdentifier (e.g., if it's an email or name).
+    // 2. Look up the internal userId and hostId for this attendee.
+    // For this placeholder, assume attendeeIdentifier can be used directly as their userId and a shared/same hostId.
+    const attendeeUserId = attendeeIdentifier;
+    const attendeeHostId = hostId; // Assuming attendees are under the same host context for this scheduling operation
+
+    if (attendeeUserId !== userId) { // Avoid re-adding the organizer
+      logger.info(`[initiateTeamMeetingScheduling] Adding attendee: ${attendeeUserId} (placeholder resolution)`);
+      userList.push(getCurrentUserBasic(attendeeUserId, attendeeHostId /*, "GROUP_MEETING" */));
+    }
   }
 
-  const schedulingWindowStart = normalizeDateTime(meetingDetails.time_preference_details, "00:00:00");
-  let tempEndDate = new Date(schedulingWindowStart);
+  const organizerTimeZone = userList.find(u => u.id === userId)?.timeZone || DEFAULT_USER_TIMEZONE;
+
+  // For scheduling window, use organizer's timezone
+  const normalizedSchedulingWindowStart = normalizeDateTime(meetingDetails.time_preference_details, "00:00:00", organizerTimeZone);
+  let tempEndDate = new Date(normalizedSchedulingWindowStart.isoDateTimeUtc || Date.now()); // Fallback to now if undefined
   tempEndDate.setDate(tempEndDate.getDate() + 7);
-  const schedulingWindowEnd = tempEndDate.toISOString();
+  const schedulingWindowEndIso = tempEndDate.toISOString();
+  const schedulingWindowStartIso = normalizedSchedulingWindowStart.isoDateTimeUtc || new Date().toISOString();
+
 
   const preferredTimeRanges: PreferredTimeRange[] = [];
   if (meetingDetails.time_preference_details?.toLowerCase().includes("afternoon")) {
@@ -472,18 +645,20 @@ export async function initiateTeamMeetingScheduling(
   }
 
   const timeslots: Timeslot[] = [];
-  let currentDayLoop = new Date(schedulingWindowStart);
-  const finalDayLoop = new Date(schedulingWindowEnd);
+  let currentDayLoop = new Date(schedulingWindowStartIso);
+  const finalDayLoop = new Date(schedulingWindowEndIso);
+
   while(currentDayLoop <= finalDayLoop) {
+      const zonedDay = utcToZonedTime(currentDayLoop, organizerTimeZone); // Use organizer's TZ for timeslot definition
       timeslots.push({
-          hostId,
-          dayOfWeek: currentDayLoop.toLocaleString('en-US', { weekday: 'long' }).toUpperCase(),
-          startTime: "00:00:00",
+          hostId, // Timeslots are typically defined by the host/organizer
+          dayOfWeek: formatInTimeZone(zonedDay, organizerTimeZone, 'EEEE').toUpperCase(),
+          startTime: "00:00:00", // Broad for the day
           endTime: "23:59:59",
-          monthDay: currentDayLoop.toISOString().substring(5,7) + "-" + currentDayLoop.toISOString().substring(8,10),
-          date: currentDayLoop.toISOString().substring(0,10)
+          monthDay: formatInTimeZone(zonedDay, organizerTimeZone, 'MM-dd'), // Corrected format
+          date: formatInTimeZone(zonedDay, organizerTimeZone, 'yyyy-MM-dd')
       });
-      currentDayLoop.setDate(currentDayLoop.getDate() + 1);
+      currentDayLoop = addDays(currentDayLoop, 1);
   }
 
   const eventParts: EventPart[] = userList.map(user => ({
@@ -491,14 +666,14 @@ export async function initiateTeamMeetingScheduling(
       eventId,
       part: 1,
       lastPart: 1,
-      startDate: schedulingWindowStart,
-      endDate: schedulingWindowEnd,
+      startDate: schedulingWindowStartIso,
+      endDate: schedulingWindowEndIso,
       userId: user.id,
-      hostId: hostId,
+      hostId: user.hostId, // Use the respective user's hostId
       user: user,
       event: {
         id: eventId,
-        userId: hostId,
+        userId: hostId, // Event is "owned" by the organizer (main userId)
         hostId,
         eventType: "GROUP_MEETING",
         title: meetingDetails.meeting_title || meetingDetails.purpose,
@@ -519,7 +694,6 @@ export async function initiateTeamMeetingScheduling(
     callBackUrl: `${AGENT_CALLBACK_BASE_URL}/scheduler-callback`,
   };
 
-  // logger.info(`[schedulingSkills.initiateTeamMeetingScheduling] Constructed PostTableRequestBody for fileKey ${fileKey}:`, JSON.stringify(requestBody, null, 2));
   const submissionResult = await submitSchedulingJobToAtomicScheduler(userId, requestBody);
   return {
       ...submissionResult,
@@ -527,7 +701,6 @@ export async function initiateTeamMeetingScheduling(
       details: {
           receivedUserId: userId,
           receivedMeetingDetails: meetingDetails,
-          // constructedBody: requestBody
       }
   };
 }
