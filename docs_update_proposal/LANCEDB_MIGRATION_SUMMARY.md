@@ -35,15 +35,25 @@ This document summarizes the migration from OpenSearch to LanceDB for vector sto
     *   `_libs/types.ts`: Defines `EventRecord`, `SearchRequest`, `SearchResponse` interfaces.
     *   `_libs/lancedb_connect.ts`: Provides `getEventTable()` for connecting to the "events" table in LanceDB.
     *   `_libs/api_helper.ts`:
+        *   `getUserCategories(userId, hasuraAdminSecret)`: Fetches user-defined event categories from Hasura.
         *   `convertTextToVector(text: string)`: Converts search text to an embedding.
-        *   `searchEventsInLanceDB(userId, searchVector, startDate?, endDate?, limit?)`: Queries the LanceDB "events" table using vector similarity search (`table.search(vector)`), and filters by `userId` and optionally by `start_date`/`end_date` using SQL `WHERE` clauses.
-    *   `service/handler.ts`:
-        *   Provides an Express.js-style handler (`eventSearchHandler`).
-        *   Takes `userId`, `searchText`, optional `startDate`, `endDate`, `limit`.
-        *   Calls `convertTextToVector` and `searchEventsInLanceDB`.
-        *   **Crucially, includes a placeholder comment for future AI agent integration** to process LanceDB results and apply event types. Currently, it returns the raw (or slightly formatted) results from LanceDB.
+        *   `searchEventsInLanceDB(userId, searchVector, startDate?, endDate?, limit?)`: Queries the LanceDB "events" table.
+    *   `_libs/ai_helper.ts`:
+        *   `callAIQueryEnhancer(userQuery, userCategories, openAIApiKey, userMessageHistory?)`: The first AI stage. Takes the user's raw query, categories, and optional message history to produce a refined query text, suggest relevant category IDs, and identify date intentions.
+        *   `callAIEventProcessor(events, userQuery, userCategories, openAIApiKey, userMessageHistory?)`: The second AI stage. Takes events retrieved from LanceDB, the original user query, user categories, and optional message history to filter events, assign a final category, and add a relevance score.
+    *   `service/handler.ts` (`eventSearchHandler`):
+        *   Orchestrates the multi-step process:
+            1.  Fetches API keys (OpenAI, Hasura).
+            2.  Calls `getUserCategories`.
+            3.  Calls `callAIQueryEnhancer` to process the initial `searchText`.
+            4.  Uses the `refinedQueryText` from the enhancer to call `convertTextToVector`.
+            5.  Determines search dates, prioritizing client-provided dates over AI-identified dates.
+            6.  Calls `searchEventsInLanceDB`.
+            7.  If events are found, calls `callAIEventProcessor` to further refine and categorize them.
+            8.  Returns the AI-processed events.
+        *   Includes robust error handling for each step.
 *   **Configuration:** The service endpoint is intended to be configurable (e.g., `NEXT_PUBLIC_LANCE_EVENT_MATCHER_URL`).
-*   **Testing:** Unit tests (`handler.test.ts`) were added for `eventSearchHandler`, mocking LanceDB interactions and OpenAI vector conversion, and testing various search scenarios, input validations, and error handling. A test also verifies the presence of the AI integration placeholder comment.
+*   **Testing:** Unit tests (`handler.test.ts`) were updated to mock the new AI helper functions and `getUserCategories`. Tests cover the full workflow, date prioritization, error handling for AI and API calls, and API key configuration issues.
 
 ### 2.3. Decommissioning of `events-search` Service
 
@@ -72,19 +82,27 @@ This document summarizes the migration from OpenSearch to LanceDB for vector sto
 *   **Clear Deprecation:** The old `events-search` service is clearly marked as deprecated, preventing further use.
 *   **Foundation for AI:** The `lance-event-matcher` is designed with future AI agent integration in mind, allowing for more intelligent event processing beyond simple similarity search.
 
-## 5. Future AI Integration Notes (for `lance-event-matcher`)
+## 5. AI Integration Details in `lance-event-matcher`
 
-The `lance-event-matcher/service/handler.ts` currently has placeholder comments:
-```typescript
-// TODO: Process LanceDB results with AI agent to find and apply event types.
-// This will involve calling the AI agent's API with the event data
-// (e.g., eventsFromDB.map(event => event.raw_event_text))
-// and using its response to enrich or modify the event information.
-// For example, an AI agent might return an `eventType` for each event.
-```
-This signifies the next step where an AI agent will consume the events retrieved by `searchEventsInLanceDB` to perform tasks like:
-*   Classifying events by type (e.g., "meeting", "focus time", "personal appointment").
-*   Extracting key entities or topics.
-*   Suggesting actions or providing insights based on event content.
+The `lance-event-matcher` service now implements a two-stage AI processing workflow:
 
-The results from this AI processing will then be used to enrich the event data returned to the client.
+*   **Stage 1: Pre-Query AI Enhancement (`callAIQueryEnhancer`)**
+    *   **Input:** Takes the user's original search query, a list of the user's predefined event categories (fetched from Hasura via `getUserCategories`), the OpenAI API key, and an optional user message history (currently deferred for history fetching/passing).
+    *   **Processing:** An LLM analyzes these inputs to:
+        *   Refine the original query into a concise search phrase optimized for semantic vector search.
+        *   Suggest potentially relevant category IDs from the user's list.
+        *   Identify any specific dates or date ranges implied in the query or history (e.g., "next Tuesday", "events in July").
+    *   **Output:** An `AIQueryEnhancementResult` object containing `refinedQueryText`, `suggestedCategoryIds` (optional), and `identifiedDateRange` (optional).
+
+*   **Stage 2: Post-Query AI Results Processing (`callAIEventProcessor`)**
+    *   **Input:** Takes the list of `EventRecord` objects retrieved from LanceDB (based on the `refinedQueryText`), the original user query, the user's categories, the OpenAI API key, and optional user message history.
+    *   **Processing:** An LLM processes these inputs to:
+        *   Filter the retrieved events for relevance against the user's original intent and the refined query context.
+        *   Assign a single, most relevant category ID (from the user's list) to each pertinent event.
+        *   Provide a `relevanceScore` (0.0 to 1.0) for each event.
+    *   **Output:** An array of `AIProcessedEvent` objects, each containing `eventId`, `assignedCategoryId`, and `relevanceScore`. Events deemed irrelevant by the AI are excluded.
+
+**User Message History:**
+While both AI processing stages are designed to accept `userMessageHistory` for richer contextual understanding, the actual fetching and passing of this history from the client/frontend to the `lance-event-matcher` service is currently deferred. This means the AI functions will operate based on the immediate query and user categories. Future enhancements can focus on integrating this history.
+
+This two-stage AI approach allows for more sophisticated query understanding and results processing, aiming to deliver more relevant and accurately categorized events to the user.

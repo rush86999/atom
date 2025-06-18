@@ -40,3 +40,29 @@ export interface EventSchema {
     end_date: string;
     raw_event_text?: string;
 }
+
+// Minimal representation of a user category
+export interface CategoryType {
+  id: string;
+  name: string;
+  description?: string; // Optional, but could be useful for AI
+}
+
+// Structure for events after processing by the AI
+export interface AIProcessedEvent {
+  eventId: string;
+  assignedCategoryId: string;
+  relevanceScore: number; // A score from 0.0 to 1.0
+  // Potentially other fields added by AI, like rationale or suggested actions
+  rationale?: string;
+}
+
+// Structure for the output of the AI Query Enhancer
+export interface AIQueryEnhancementResult {
+  refinedQueryText: string;
+  suggestedCategoryIds?: string[];
+  identifiedDateRange?: {
+    start?: string; // YYYY-MM-DD
+    end?: string;   // YYYY-MM-DD
+  };
+}
