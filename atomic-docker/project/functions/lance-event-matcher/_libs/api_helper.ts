@@ -1,11 +1,18 @@
+import got from 'got';
 import OpenAI from 'openai';
-import { OPENAI_API_KEY, OPENAI_EMBEDDING_MODEL, DEFAULT_SEARCH_LIMIT } from './constants';
+import {
+    OPENAI_API_KEY,
+    OPENAI_EMBEDDING_MODEL,
+    DEFAULT_SEARCH_LIMIT,
+    HASURA_GRAPHQL_URL,
+    // HASURA_ADMIN_SECRET is passed as an argument for security
+} from './constants';
 import { getEventTable } from './lancedb_connect';
-import { EventRecord } from './types';
+import { EventRecord, CategoryType } from './types'; // Added CategoryType
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
+  apiKey: OPENAI_API_KEY, // This might be better initialized per-call if key can change
 });
 
 /**
@@ -87,5 +94,68 @@ export async function searchEventsInLanceDB(
     console.error('Error searching events in LanceDB:', error);
     // Log specific LanceDB errors if possible
     throw new Error(`LanceDB search failed: ${error.message}`);
+  }
+}
+
+/**
+ * Fetches user categories from Hasura.
+ * @param userId The ID of the user whose categories to fetch.
+ * @param hasuraAdminSecret The Hasura admin secret for authentication.
+ * @returns A promise that resolves to an array of CategoryType objects.
+ * @throws Error if the fetching fails.
+ */
+export async function getUserCategories(
+  userId: string,
+  hasuraAdminSecret: string
+): Promise<CategoryType[]> {
+  if (!userId) {
+    throw new Error('User ID must be provided for fetching categories.');
+  }
+  if (!hasuraAdminSecret) {
+    throw new Error('Hasura admin secret must be provided.');
+  }
+
+  const query = `
+    query GetUserCategories($userId: uuid!) {
+      Category(where: {userId: {_eq: $userId}, deleted: {_eq: false}}) {
+        id
+        name
+        # description # Uncomment if your CategoryType and AI prompt can use it
+      }
+    }
+  `;
+
+  const variables = { userId };
+
+  try {
+    const response = await got.post(HASURA_GRAPHQL_URL, {
+      json: {
+        query,
+        variables,
+      },
+      headers: {
+        'x-hasura-admin-secret': hasuraAdminSecret,
+        'Content-Type': 'application/json',
+      },
+      responseType: 'json',
+    });
+
+    // Type assertion for the body
+    const body = response.body as { data?: { Category?: CategoryType[] }; errors?: any[] };
+
+
+    if (body.errors) {
+      console.error('Hasura errors:', body.errors);
+      throw new Error(`Error fetching categories from Hasura: ${body.errors.map((e: any) => e.message).join(', ')}`);
+    }
+
+    return body.data?.Category || [];
+  } catch (error) {
+    console.error('Error during getUserCategories:', error.response ? error.response.body : error.message);
+    // Check if it's a got HTTPError to get more details
+    if (error.name === 'HTTPError' && error.response) {
+        throw new Error(`Failed to fetch categories from Hasura. Status: ${error.response.statusCode}, Body: ${JSON.stringify(error.response.body)}`);
+    }
+    throw new Error(`Network or other error fetching categories: ${error.message}`);
   }
 }
