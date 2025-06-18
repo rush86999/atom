@@ -402,6 +402,47 @@ export interface ListCalendlyEventTypesResponse {
   error?: string;
 }
 
+// --- Stripe Types ---
+// Represents a simplified view of a Stripe Charge, often part of a PaymentIntent
+export interface StripeCharge {
+  id: string; // ch_...
+  amount: number; // In cents
+  currency: string; // e.g., "usd"
+  status: 'succeeded' | 'pending' | 'failed'; // And others
+  created: number; // Unix timestamp
+  receipt_url?: string | null; // URL to the receipt page
+  description?: string | null;
+  // billing_details?: Stripe.BillingDetails; // If needed, map this too
+  // payment_method_details?: Stripe.Charge.PaymentMethodDetails; // If needed
+}
+
+// Represents a simplified view of a Stripe PaymentIntent
+export interface StripePaymentIntent {
+  id: string; // pi_...
+  amount: number; // In cents
+  currency: string; // e.g., "usd"
+  status: 'succeeded' | 'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'canceled'; // And others
+  created: number; // Unix timestamp
+  customer?: string | null; // Customer ID: cus_...
+  description?: string | null;
+  latest_charge?: StripeCharge | null; // Our simplified charge object
+  // Add other fields as necessary, e.g., shipping, metadata
+}
+
+export interface ListStripePaymentsResponse {
+  ok: boolean;
+  payments?: StripePaymentIntent[];
+  error?: string;
+  has_more?: boolean; // For pagination
+  // next_page?: string; // Stripe uses `starting_after` for pagination, not a direct next page token in the response itself
+}
+
+export interface GetStripePaymentDetailsResponse {
+  ok: boolean;
+  payment?: StripePaymentIntent;
+  error?: string;
+}
+
 // --- Microsoft Graph / Teams Types ---
 export interface MSGraphDateTimeTimeZone {
   dateTime: string; // ISO 8601 format e.g., "2024-03-20T10:00:00.0000000"

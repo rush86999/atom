@@ -63,3 +63,7 @@ export const ATOM_MSGRAPH_TENANT_ID = process.env.ATOM_MSGRAPH_TENANT_ID || '';
 export const ATOM_MSGRAPH_AUTHORITY = `https://login.microsoftonline.com/${process.env.ATOM_MSGRAPH_TENANT_ID || 'common'}`;
 // Define necessary scopes for MS Graph API calls (e.g., reading calendar events, online meetings)
 export const ATOM_MSGRAPH_SCOPES = (process.env.ATOM_MSGRAPH_SCOPES || 'https://graph.microsoft.com/.default').split(',');
+
+// Stripe Secret Key
+// This must be set in the environment for Stripe integration.
+export const ATOM_STRIPE_SECRET_KEY = process.env.ATOM_STRIPE_SECRET_KEY || '';

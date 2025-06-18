@@ -50,7 +50,8 @@
     "@hubspot/api-client": "^11.1.0",
     "@slack/web-api": "^7.0.2",
     "@calendly/api-client": "^1.10.0",
-    "@azure/msal-node": "^2.6.3"
+    "@azure/msal-node": "^2.6.3",
+    "stripe": "^15.8.0"
   },
   "type": "module",
   "devDependencies": {

@@ -25,14 +25,19 @@ import {
   // MS Teams Types
   ListMSTeamsMeetingsResponse,
   GetMSTeamsMeetingDetailsResponse,
-  MSGraphEvent
+  MSGraphEvent,
+  // Stripe Types
+  ListStripePaymentsResponse,
+  GetStripePaymentDetailsResponse,
+  StripePaymentIntent
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
 import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills';
-import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills'; // Added
+import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills';
+import { listStripePayments, getStripePaymentDetails } from './skills/stripeSkills'; // Added
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID } from '../_libs/constants';
 
 
@@ -559,8 +564,67 @@ export async function handleMessage(message: string): Promise<string> {
       console.error(`Error in "get teams meeting ${eventId}" command:`, error.message);
       return `Sorry, an unexpected error occurred while fetching details for Teams meeting ${eventId}.`;
     }
+  } else if (lowerCaseMessage.startsWith('list stripe payments')) {
+    // const userId = "mock_user_id_from_handler"; // Not directly used by these Stripe skills
+    const parts = lowerCaseMessage.split(' '); // e.g. "list stripe payments limit=5 customer=cus_123 starting_after=pi_abc"
+    const options: { limit?: number; starting_after?: string; customer?: string } = {};
+
+    parts.forEach(part => {
+      if (part.startsWith('limit=')) {
+        const limitVal = parseInt(part.split('=')[1], 10);
+        if (!isNaN(limitVal)) options.limit = limitVal;
+      } else if (part.startsWith('starting_after=')) {
+        options.starting_after = part.split('=')[1];
+      } else if (part.startsWith('customer=')) {
+        options.customer = part.split('=')[1];
+      }
+    });
+    if (options.limit === undefined) options.limit = 10; // Default limit
+
+    try {
+      const response: ListStripePaymentsResponse = await listStripePayments(options);
+      if (response.ok && response.payments && response.payments.length > 0) {
+        let output = "Stripe Payments:\n";
+        for (const payment of response.payments) {
+          output += `- ID: ${payment.id}, Amount: ${(payment.amount / 100).toFixed(2)} ${payment.currency.toUpperCase()}, Status: ${payment.status}, Created: ${new Date(payment.created * 1000).toLocaleDateString()}${payment.latest_charge?.receipt_url ? `, Receipt: ${payment.latest_charge.receipt_url}` : ''}\n`;
+        }
+        if (response.has_more && response.payments.length > 0) {
+          output += `More payments available. For next page, use option: starting_after=${response.payments[response.payments.length - 1].id}\n`;
+        }
+        return output;
+      } else if (response.ok) {
+        return "No Stripe payments found matching your criteria.";
+      } else {
+        return `Error fetching Stripe payments: ${response.error || 'Unknown error'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "list stripe payments" command:', error.message);
+      return "Sorry, an unexpected error occurred while fetching Stripe payments.";
+    }
+  } else if (lowerCaseMessage.startsWith('get stripe payment')) {
+    const parts = lowerCaseMessage.split(' '); // "get stripe payment <paymentIntentId>"
+    if (parts.length < 4) {
+      return "Please provide a Stripe PaymentIntent ID. Usage: get stripe payment <paymentIntentId>";
+    }
+    const paymentIntentId = parts[3];
+
+    try {
+      const response: GetStripePaymentDetailsResponse = await getStripePaymentDetails(paymentIntentId);
+      if (response.ok && response.payment) {
+        const p = response.payment;
+        let output = `Stripe Payment Details (ID: ${p.id}):\nAmount: ${(p.amount / 100).toFixed(2)} ${p.currency.toUpperCase()}\nStatus: ${p.status}\nCreated: ${new Date(p.created * 1000).toLocaleString()}\nDescription: ${p.description || 'N/A'}`;
+        if (p.customer) output += `\nCustomer ID: ${p.customer}`;
+        if (p.latest_charge?.receipt_url) output += `\nReceipt URL: ${p.latest_charge.receipt_url}`;
+        // You could add more details from p.latest_charge if needed
+        return output;
+      } else {
+        return `Error fetching Stripe payment details: ${response.error || `PaymentIntent with ID ${paymentIntentId} not found or an unknown error occurred.`}`;
+      }
+    } catch (error: any) {
+      console.error(`Error in "get stripe payment ${paymentIntentId}" command:`, error.message);
+      return `Sorry, an unexpected error occurred while fetching Stripe payment details for ${paymentIntentId}.`;
+    }
   }
 
-
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", or "get teams meeting <eventId>".`;
+  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", or "get stripe payment <paymentIntentId>".`;
 }
