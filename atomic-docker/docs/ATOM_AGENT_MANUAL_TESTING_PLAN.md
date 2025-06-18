@@ -125,31 +125,31 @@ Success of these tests, especially chat commands, depends on all prerequisites b
 
 ### Prerequisites
 
-**It is critical that all the following prerequisites are met for successful end-to-end testing.** Failure to meet these will result in expected test failures.
+**It is CRITICAL that all the following prerequisites are meticulously met for successful end-to-end testing.** Failure to meet these will result in expected test failures or incomplete functionality.
 
-1.  **Hasura Database & Table:**
-    *   The `public.Calendar_Integration` table must exist in your Hasura database.
-    *   It **must** match the schema used by `token-utils.ts` (as defined in `docs/TOKEN_STORAGE_SCHEMA.md` or the SQL migration). Key columns include `userId`, `token` (for encrypted access token), `refreshToken` (for encrypted refresh token), `expiresAt`, `scope`, `resource`, `clientType`.
-    *   **Crucial:** A unique constraint (e.g., `Calendar_Integration_userId_resource_clientType_key`) **MUST exist** on the combination of (`userId`, `resource`, `clientType`). For Atom Agent, the specific values are `resource = 'google_atom_calendar'` and `clientType = 'atom_agent'`. Refer to `docs/CALENDAR_INTEGRATION_TABLE_VERIFICATION.md`.
+1.  **Hasura Database & Table (`public.Calendar_Integration`):**
+    *   **Existence & Schema:** The table must exist and precisely match the schema defined in `docs/TOKEN_STORAGE_SCHEMA.md` and used by `token-utils.ts`. This includes correct column names and data types for `userId`, `token` (encrypted access token), `refreshToken` (encrypted refresh token), `expiresAt`, `scope`, `token_type`, `resource`, `clientType`, `name`, and `appEmail`.
+    *   **Unique Constraint (Absolutely Essential):** A unique constraint **MUST** be defined on the combination of (`userId`, `resource`, `clientType`). For Atom Agent, the specific values are `resource = 'google_atom_calendar'` and `clientType = 'atom_agent'`. This is vital for the upsert logic in `saveAtomGoogleCalendarTokens`. Refer to `docs/CALENDAR_INTEGRATION_TABLE_VERIFICATION.md` for details on verifying or adding this constraint.
 2.  **Google Cloud Project:**
-    *   Google Calendar API **must be enabled**.
-    *   OAuth 2.0 credentials (Client ID and Client Secret) **must be created** and valid.
-    *   The "Authorized redirect URIs" for the OAuth 2.0 client **must exactly match** the `ATOM_GOOGLE_CALENDAR_REDIRECT_URI` environment variable value (e.g., `http://localhost:3000/api/atom/auth/calendar/callback` for local testing).
-3.  **Environment Variables:** The following **MUST be correctly set** in the backend environment where the Next.js application runs (e.g., in your `.env.local` file for `app_build_docker`):
+    *   Google Calendar API **must be enabled** in your Google Cloud Console project.
+    *   Valid OAuth 2.0 credentials (Client ID and Client Secret) **must be created**.
+    *   The "Authorized redirect URIs" for the OAuth 2.0 client **must exactly match** the value of the `ATOM_GOOGLE_CALENDAR_REDIRECT_URI` environment variable (e.g., `http://localhost:3000/api/atom/auth/calendar/callback` for local testing). Any mismatch will cause a Google error.
+3.  **Environment Variables (Backend - e.g., `.env.local` for `app_build_docker`):**
+    The following **MUST be correctly set and accessible** by the Next.js backend:
     *   `ATOM_GOOGLE_CALENDAR_CLIENT_ID` (from Google Cloud Console)
     *   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET` (from Google Cloud Console)
     *   `ATOM_GOOGLE_CALENDAR_REDIRECT_URI` (as configured in Google Cloud Console)
-    *   `HASURA_GRAPHQL_URL` (or `HASURA_GRAPHQL_GRAPHQL_URL` as per `constants.ts` - the endpoint for your Hasura instance)
-    *   `HASURA_ADMIN_SECRET` (your Hasura admin secret)
-    *   `ATOM_TOKEN_ENCRYPTION_KEY`: A **securely generated 64-character hexadecimal string** (representing 32 bytes) for AES-256 token encryption.
-    *   `ATOM_TOKEN_ENCRYPTION_IV`: A **securely generated 32-character hexadecimal string** (representing 16 bytes) for AES-256 token encryption.
-    *   *(Purpose: The encryption key and IV are critical for securing OAuth tokens stored in the database.)*
-4.  **Supertokens:**
-    *   The Supertokens service **must be running and correctly initialized** in the Next.js application, as it handles user authentication and session management. All API routes involved in this flow are protected by Supertokens.
-5.  **Atom Agent Handler `userId` (Verified):**
-    *   The `userId` passed to `atomic-docker/project/functions/atom-agent/handler.ts` (via the `/api/atom/message` route) is now correctly sourced from the authenticated Supertokens session. This ensures that all operations are performed in the context of the logged-in user.
+    *   `HASURA_GRAPHQL_URL` (or `HASURA_GRAPHQL_GRAPHQL_URL` - the correct endpoint for your Hasura instance)
+    *   `HASURA_ADMIN_SECRET` (your Hasura admin secret for backend operations)
+    *   `ATOM_TOKEN_ENCRYPTION_KEY`: A **securely generated 64-character hexadecimal string** (32 bytes) used for AES-256 token encryption. (Example generation: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+    *   `ATOM_TOKEN_ENCRYPTION_IV`: A **securely generated 32-character hexadecimal string** (16 bytes) used as the initialization vector for AES-256 token encryption. (Example generation: `node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"`)
+    *   *(Security Note: The encryption key and IV are critical for protecting stored OAuth tokens.)*
+4.  **Supertokens Integration:**
+    *   The Supertokens service **must be running** and the Next.js application **must be correctly initialized** with Supertokens for user authentication and session management. All Atom Agent related API routes (`/api/atom/...`) are protected by Supertokens.
+5.  **Atom Agent Handler `userId` (Verified & Critical):**
+    *   The `userId` used by `atomic-docker/project/functions/atom-agent/handler.ts` (passed from the `/api/atom/message` route) is now sourced from the authenticated Supertokens session. This ensures that all calendar (and other) operations are performed specifically for the logged-in user.
 6.  **Token Encryption (Verified):**
-    *   Real AES-256-CBC encryption/decryption is implemented in `token-utils.ts` and is used for storing and retrieving tokens.
+    *   AES-256-CBC encryption/decryption is implemented and used in `token-utils.ts` for storing and retrieving OAuth tokens from the database.
 
 ### 4.1. OAuth Flow Testing & Status Verification
 
@@ -216,19 +216,19 @@ After successfully completing the "Grant Consent" step and verifying "Status: Co
     *   **Expected Result:** Google's OAuth screen should show an error (e.g., "redirect_uri_mismatch").
 2.  **Hasura Connectivity/Secret Issues during Token Storage:**
     *   **Action:** Temporarily stop your Hasura instance or change `HASURA_ADMIN_SECRET` to an incorrect value. Restart the application. Attempt the Google Calendar connection and grant consent.
-    *   **Expected Result:** The `/api/atom/auth/calendar/callback` route should fail when trying to call `saveAtomGoogleCalendarTokens`. The user should be redirected to the settings page with an error like `calendar_auth_error=token_storage_failed`. Server logs should detail the Hasura connection failure.
+    *   **Expected Result:** The `/api/atom/auth/calendar/callback` route should fail when `saveAtomGoogleCalendarTokens` attempts to communicate with Hasura. The user should be redirected to the settings page with an error like `calendar_auth_error=token_storage_failed`. Server logs (from `token-utils.ts`) should detail the Hasura connection failure.
 3.  **Invalid/Missing Encryption Key/IV:**
-    *   **Action:** Set `ATOM_TOKEN_ENCRYPTION_KEY` or `ATOM_TOKEN_ENCRYPTION_IV` to an invalid value (e.g., wrong length, not valid hex for decoding) or unset them. Restart the application. Attempt the OAuth connection.
-    *   **Expected Result:** During the callback, when `saveAtomGoogleCalendarTokens` calls `encryptToken`, it should fail (return `null` and log an error). This will cause `saveAtomGoogleCalendarTokens` to throw an error ("Token encryption failed"). The user should be redirected to the settings page with an error (e.g., `calendar_auth_error=token_storage_failed`). Server logs in `token-utils.ts` should indicate "Encryption key or IV is missing" or "Invalid key or IV length".
-    *   If tokens were somehow stored with one key/IV and then the key/IV changed, subsequent calls to `getAtomGoogleCalendarTokens` (used by skills) would fail during decryption, leading to skills reporting connection issues.
+    *   **Action:** Set `ATOM_TOKEN_ENCRYPTION_KEY` or `ATOM_TOKEN_ENCRYPTION_IV` to an invalid value (e.g., wrong length for hex decoding, or completely unset them). Restart the application. Attempt the OAuth connection.
+    *   **Expected Result:** During the OAuth callback, `saveAtomGoogleCalendarTokens` will call `encryptToken`, which will fail (return `null` and log an error). This causes `saveAtomGoogleCalendarTokens` to throw an error ("Token encryption failed"). The user should be redirected to the settings page, likely with `calendar_auth_error=token_storage_failed` or a similar propagated error. Server logs in `token-utils.ts` should clearly indicate "Encryption key or IV is missing" or "Invalid key or IV length".
+    *   **Follow-up (if tokens were somehow stored with one key/IV and then key/IV changed):** Any subsequent attempt by skills to use stored tokens (e.g., `list events` command) would fail during the decryption step in `getAtomGoogleCalendarTokens`, leading to the skill reporting connection issues or failing to retrieve data.
 4.  **Revoked App Permissions in Google Account:**
-    *   **Action:** Connect Google Calendar successfully. Then, go to your Google Account's "Security" -> "Third-party apps with account access" section and remove "Atom Docker" (or your app's name) access. Then, in the application, try a chat command like `list events`.
-    *   **Expected Result:** The API call from `calendarSkills.ts` should fail (Google will return an error, likely `invalid_grant`, because the token is no longer valid). The chat should display "Could not retrieve calendar events...". Server logs from `calendarSkills.ts` should indicate the token failure (e.g., "Token error (invalid_grant or expired/revoked)").
-    *   **Action:** Try clicking "Disconnect Google Calendar" in settings.
-    *   **Expected Result:** This should still proceed to delete local tokens from the database via `deleteAtomGoogleCalendarTokens`. The UI should update to "Status: Not Connected".
-    *   **Action:** Try to "Connect Google Calendar" again.
-    *   **Expected Result:** The OAuth flow should restart, and you should be prompted for consent again by Google, as the previous grant was revoked.
-    *   **Note on API Input Validation:** Many specific API input validation errors (e.g., malformed JSON to `/api/atom/message`, missing `code` in OAuth callback) and internal server errors within individual API routes are covered by unit tests. Manual testing should focus on the end-to-end flows and how the UI presents user-facing errors resulting from these or other API issues (e.g., network problems, service unavailability).
+    *   **Action:** Connect Google Calendar successfully. Then, go to your Google Account's security settings ("Third-party apps with account access") and **remove access for "Atom Docker"** (or whatever your Google Cloud Project is named). Afterwards, in the application, try a chat command like `list events`.
+    *   **Expected Result:** The API call from `calendarSkills.ts` should fail. Google will return an error (typically `invalid_grant` as the token is no longer authorized). The chat interface should display a user-friendly error like "Could not retrieve calendar events. Please ensure your Google Calendar is connected...". Server logs from `calendarSkills.ts` should indicate the specific token failure (e.g., "Token error (invalid_grant or expired/revoked)").
+    *   **Action:** In settings, click "Disconnect Google Calendar".
+    *   **Expected Result:** This should successfully delete the (now invalid) local tokens from the database. The UI should update to "Status: Not Connected".
+    *   **Action:** Attempt to "Connect Google Calendar" again.
+    *   **Expected Result:** The full OAuth flow should initiate, and Google should prompt for consent again, as the previous application grant was revoked.
+    *   **Note on Unit Test Coverage:** Many specific backend error conditions (e.g., database connectivity issues during token storage, cryptographic errors, API authentication failures, invalid API request formats) are now robustly covered by unit tests. Manual testing should focus on verifying the end-to-end user experience, including how the UI gracefully handles errors propagated from the backend, and overall system integration.
 
 ### 4.5. Multi-User Data Isolation Testing (Requires multiple Google accounts & application user accounts):**
 

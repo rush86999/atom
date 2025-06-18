@@ -75,6 +75,21 @@ async function handleGoogleCalendarCallback(req: NextApiRequest, res: NextApiRes
     const { tokens } = await oauth2Client.getToken(code as string);
     console.log(`Received tokens from Google for Atom Agent (userId: ${userId}):`, tokens);
 
+    let userGoogleEmail: string | null | undefined = null;
+    if (tokens.access_token) {
+        // No need to set credentials again if getToken worked, it often configures the client instance.
+        // However, explicitly setting ensures it for the next specific API call.
+        oauth2Client.setCredentials(tokens);
+        try {
+            const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+            const userInfoResponse = await oauth2.userinfo.get();
+            userGoogleEmail = userInfoResponse.data.email;
+            console.log(`Fetched user's Google email for Atom Agent (userId: ${userId}): ${userGoogleEmail}`);
+        } catch (error) {
+            console.error(`Error fetching Google user info for Atom Agent (userId: ${userId}):`, error);
+            // Decide if this error is critical. For now, we'll proceed without email if it fails.
+        }
+    }
 
     if (tokens.access_token && tokens.expiry_date) { // Scope and token_type are good to have but access_token and expiry are crucial
       // No need to define userTokens separately if directly passing to saveAtomGoogleCalendarTokens
@@ -84,10 +99,10 @@ async function handleGoogleCalendarCallback(req: NextApiRequest, res: NextApiRes
         expiry_date: tokens.expiry_date,
         scope: tokens.scope || null,
         token_type: tokens.token_type || null,
-      });
-      console.log(`Atom Google Calendar tokens stored for userId: ${userId}`);
+      }, userGoogleEmail); // Pass the fetched email
+      console.log(`Atom Google Calendar tokens (and potentially email: ${userGoogleEmail}) stored for userId: ${userId}`);
     } else {
-        console.error(`Essential token information missing from Google's response for Atom Agent (userId: ${userId})`, tokens);
+        console.error(`Essential token information (access_token or expiry_date) missing from Google's response for Atom Agent (userId: ${userId})`, tokens);
         return res.redirect('/Settings/UserViewSettings?calendar_auth_error=token_missing_info&atom_agent=true');
     }
 

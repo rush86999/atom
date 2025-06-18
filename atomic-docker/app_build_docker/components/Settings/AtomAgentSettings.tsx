@@ -26,9 +26,12 @@ const AtomAgentSettings = () => {
       }
       const data = await response.json();
       console.log('Calendar status response:', data);
-      if (data.isConnected) {
+      if (data.isConnected && data.email) {
         setIsCalendarConnected(true);
-        setUserEmail(data.email || 'Unknown Email'); // Use email from API
+        setUserEmail(data.email);
+      } else if (data.isConnected) { // Connected but no email, show generic
+        setIsCalendarConnected(true);
+        setUserEmail('Connected (Email not available)');
       } else {
         setIsCalendarConnected(false);
         setUserEmail(null);
@@ -137,7 +140,7 @@ const AtomAgentSettings = () => {
         </Text>
         {isCalendarConnected ? (
           <Box>
-            <Text marginBottom="s">Status: Connected ({userEmail || 'Unknown email'})</Text>
+            <Text marginBottom="s">Status: Connected ({userEmail || 'Email not available'})</Text>
             <Button onPress={handleDisconnectGoogleCalendar} variant="danger" title="Disconnect Google Calendar" />
           </Box>
         ) : (

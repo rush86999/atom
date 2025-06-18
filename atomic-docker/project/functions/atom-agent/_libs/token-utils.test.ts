@@ -1,55 +1,57 @@
-import { encryptToken, decryptToken, saveAtomGoogleCalendarTokens, getAtomGoogleCalendarTokens } from './token-utils';
+import { encryptToken, decryptToken, saveAtomGoogleCalendarTokens, getAtomGoogleCalendarTokens, deleteAtomGoogleCalendarTokens } from './token-utils';
 import * as constants from './constants'; // Import to allow modification of its mocked properties
-import crypto from 'crypto'; // Needed for generating valid key/iv for some tests if not using mocks
+import crypto from 'crypto';
+// Mock got for Hasura calls
+jest.mock('got');
+const got = require('got') as jest.Mocked<typeof import('got')>;
 
 // Mock the constants module
 // We will set specific mock values for KEY and IV per test or describe block if needed.
-jest.mock('./constants', () => ({
-  ...jest.requireActual('./constants'), // Import and retain default behavior for other constants
-  ATOM_TOKEN_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000', // 64 hex chars -> 32 bytes
-  ATOM_TOKEN_ENCRYPTION_IV: '00000000000000000000000000000000',   // 32 hex chars -> 16 bytes
-}));
-
-// Mock got for Hasura calls in save/get token functions
-jest.mock('got');
-const got = require('got') as jest.Mocked<typeof import('got')>;
+jest.mock('./constants', () => {
+    const actualConstants = jest.requireActual('./constants');
+    return {
+        ...actualConstants,
+        ATOM_TOKEN_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000', // Default mock key
+        ATOM_TOKEN_ENCRYPTION_IV: '00000000000000000000000000000000',   // Default mock IV
+        HASURA_GRAPHQL_URL: 'mock_hasura_url', // Default mock Hasura URL
+        HASURA_ADMIN_SECRET: 'mock_hasura_secret', // Default mock Hasura Secret
+        ATOM_CALENDAR_RESOURCE_NAME: 'google_atom_calendar', // Actual value for tests
+        ATOM_CLIENT_TYPE: 'atom_agent', // Actual value for tests
+    };
+});
 
 
 describe('Token Utilities', () => {
   let consoleErrorSpy: jest.SpyInstance;
+  const validTestKey = crypto.randomBytes(32).toString('hex');
+  const validTestIv = crypto.randomBytes(16).toString('hex');
+
+  // Helper to set mock values for constants
+  const setMockEncryptionConstants = (key?: string | null, iv?: string | null) => {
+    Object.defineProperty(constants, 'ATOM_TOKEN_ENCRYPTION_KEY', { value: key, configurable: true, writable: true });
+    Object.defineProperty(constants, 'ATOM_TOKEN_ENCRYPTION_IV', { value: iv, configurable: true, writable: true });
+  };
+
+  const setMockHasuraConstants = (hasuraUrl?: string | null, hasuraSecret?: string | null) => {
+    Object.defineProperty(constants, 'HASURA_GRAPHQL_URL', { value: hasuraUrl, configurable: true, writable: true });
+    Object.defineProperty(constants, 'HASURA_ADMIN_SECRET', { value: hasuraSecret, configurable: true, writable: true });
+  }
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Spy on console.error and suppress its output during tests
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    // Set default valid encryption keys for encrypt/decrypt tests
+    setMockEncryptionConstants(validTestKey, validTestIv);
+    // Set default valid Hasura constants for Hasura interaction tests
+    setMockHasuraConstants('mock_hasura_url', 'mock_hasura_secret');
+
   });
 
   afterEach(() => {
     consoleErrorSpy.mockRestore();
   });
 
-  // Helper to set mock values for constants
-  const setMockConstants = (key?: string | null, iv?: string | null) => {
-    Object.defineProperty(constants, 'ATOM_TOKEN_ENCRYPTION_KEY', {
-      value: key,
-      configurable: true,
-      writable: true,
-    });
-    Object.defineProperty(constants, 'ATOM_TOKEN_ENCRYPTION_IV', {
-      value: iv,
-      configurable: true,
-      writable: true,
-    });
-  };
-
-  const validTestKey = crypto.randomBytes(32).toString('hex');
-  const validTestIv = crypto.randomBytes(16).toString('hex');
-
   describe('encryptToken', () => {
-    beforeEach(() => {
-        setMockConstants(validTestKey, validTestIv);
-    });
-
     it('should successfully encrypt a valid token string', async () => {
       const token = 'mySecretToken123';
       const encrypted = await encryptToken(token);
@@ -59,8 +61,7 @@ describe('Token Utilities', () => {
     });
 
     it('should return null for null token input', async () => {
-      // @ts-ignore testing invalid input
-      expect(await encryptToken(null)).toBeNull();
+      expect(await encryptToken(null as any)).toBeNull();
     });
 
     it('should return empty string for empty string token input', async () => {
@@ -68,41 +69,38 @@ describe('Token Utilities', () => {
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_KEY is missing', async () => {
-      setMockConstants(null, validTestIv);
+      setMockEncryptionConstants(null, validTestIv);
       expect(await encryptToken('test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith("Encryption key or IV is missing. Cannot encrypt token.");
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_IV is missing', async () => {
-      setMockConstants(validTestKey, null);
+      setMockEncryptionConstants(validTestKey, null);
       expect(await encryptToken('test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith("Encryption key or IV is missing. Cannot encrypt token.");
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_KEY has invalid length', async () => {
-      setMockConstants('invalidkey', validTestIv); // Too short
+      setMockEncryptionConstants('invalidkey', validTestIv); // Too short
       expect(await encryptToken('test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid key or IV length"));
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_IV has invalid length', async () => {
-      setMockConstants(validTestKey, 'invalidiv'); // Too short
+      setMockEncryptionConstants(validTestKey, 'invalidiv'); // Too short
       expect(await encryptToken('test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid key or IV length"));
     });
 
     it('should handle crypto operation errors gracefully', async () => {
-        jest.spyOn(crypto, 'createCipheriv').mockImplementationOnce(() => { throw new Error('Crypto failure'); });
+        const cryptoErrorSpy = jest.spyOn(crypto, 'createCipheriv').mockImplementationOnce(() => { throw new Error('Crypto failure'); });
         expect(await encryptToken('test')).toBeNull();
         expect(consoleErrorSpy).toHaveBeenCalledWith("Error during token encryption:", expect.any(Error));
+        cryptoErrorSpy.mockRestore();
     });
   });
 
   describe('decryptToken', () => {
-    beforeEach(() => {
-        setMockConstants(validTestKey, validTestIv);
-    });
-
     it('should successfully decrypt a previously encrypted string (roundtrip)', async () => {
       const originalToken = 'mySuperSecretToken!@#';
       const encrypted = await encryptToken(originalToken);
@@ -112,8 +110,7 @@ describe('Token Utilities', () => {
     });
 
     it('should return null for null encrypted token input', async () => {
-      // @ts-ignore testing invalid input
-      expect(await decryptToken(null)).toBeNull();
+      expect(await decryptToken(null as any)).toBeNull();
     });
 
     it('should return empty string for empty string encrypted token input', async () => {
@@ -121,25 +118,25 @@ describe('Token Utilities', () => {
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_KEY is missing for decryption', async () => {
-      setMockConstants(null, validTestIv);
+      setMockEncryptionConstants(null, validTestIv);
       expect(await decryptToken('encrypted_test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith("Encryption key or IV is missing. Cannot decrypt token.");
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_IV is missing for decryption', async () => {
-      setMockConstants(validTestKey, null);
+      setMockEncryptionConstants(validTestKey, null);
       expect(await decryptToken('encrypted_test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith("Encryption key or IV is missing. Cannot decrypt token.");
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_KEY has invalid length for decryption', async () => {
-      setMockConstants('invalidkey_dec', validTestIv);
+      setMockEncryptionConstants('invalidkey_dec', validTestIv);
       expect(await decryptToken('encrypted_test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid key or IV length"));
     });
 
     it('should return null if ATOM_TOKEN_ENCRYPTION_IV has invalid length for decryption', async () => {
-      setMockConstants(validTestKey, 'invalidiv_dec');
+      setMockEncryptionConstants(validTestKey, 'invalidiv_dec');
       expect(await decryptToken('encrypted_test')).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid key or IV length"));
     });
@@ -149,152 +146,264 @@ describe('Token Utilities', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith("Error during token decryption:", expect.any(Error));
     });
 
-    it('should return null for a valid base64 string that is not a valid ciphertext', async () => {
-      // "test" in base64 is "dGVzdA=="
-      expect(await decryptToken('dGVzdA==')).toBeNull();
+    it('should return null for a valid base64 string that is not a valid ciphertext for the key/IV', async () => {
+      expect(await decryptToken('dGVzdA==')).toBeNull(); // "test" in base64
       expect(consoleErrorSpy).toHaveBeenCalledWith("Error during token decryption:", expect.any(Error));
     });
   });
 
-  describe('saveAtomGoogleCalendarTokens', () => {
-    const mockTokens = {
-        access_token: 'access',
-        refresh_token: 'refresh',
-        expiry_date: Date.now() + 3600000,
-        scope: 'scope',
-        token_type: 'Bearer',
-      };
+  describe('Token Utilities - Hasura Interactions', () => {
+    const mockUserId = 'test-user-id';
+    const mockAppEmail = 'user@example.com';
+    const mockTokenData = {
+      access_token: 'test_access_token',
+      refresh_token: 'test_refresh_token',
+      expiry_date: Date.now() + 3600000,
+      scope: 'test_scope',
+      token_type: 'Bearer',
+    };
 
-    beforeEach(() => {
-        setMockConstants(validTestKey, validTestIv); // Ensure valid keys for encryption part
-        got.post.mockReset(); // Reset got mock specifically
-    });
+    describe('saveAtomGoogleCalendarTokens', () => {
+        it('should throw error if encryption of accessToken fails', async () => {
+            setMockEncryptionConstants(null, validTestIv); // Cause encryption to fail
+            await expect(saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail))
+              .rejects.toThrow("Token encryption failed. Cannot save tokens.");
+            expect(consoleErrorSpy).toHaveBeenCalledWith("Encryption key or IV is missing. Cannot encrypt token.");
+            expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to encrypt tokens. Aborting save.");
+            expect(got.post).not.toHaveBeenCalled();
+          });
 
-    it('should throw error if encryption of accessToken fails', async () => {
-      // Forcing encryptToken to return null for accessToken
-      const originalEncryptToken = require('./token-utils').encryptToken;
-      const encryptTokenMock = jest.spyOn(require('./token-utils'), 'encryptToken')
-        .mockImplementation(async (token: string) => {
-          if (token === mockTokens.access_token) return null;
-          return originalEncryptToken(token); // Call original for other tokens if any
-        });
+          it('should throw error if encryption of refreshToken fails (when refreshToken is present)', async () => {
+            // Make accessToken encryption succeed but refreshToken encryption fail
+            const goodKey = validTestKey;
+            const goodIv = validTestIv;
+            const badKeyForRefresh = null;
 
-      await expect(saveAtomGoogleCalendarTokens('user1', mockTokens))
-        .rejects.toThrow("Token encryption failed. Cannot save tokens.");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to encrypt tokens. Aborting save.");
-      expect(got.post).not.toHaveBeenCalled();
-      encryptTokenMock.mockRestore();
-    });
+            const encryptTokenSpy = jest.spyOn(require('./token-utils'), 'encryptToken')
+              .mockImplementation(async (token: string) => {
+                if (token === mockTokenData.access_token) {
+                  setMockEncryptionConstants(goodKey, goodIv);
+                  return `encrypted_${token}`; // Simulate good encryption
+                }
+                if (token === mockTokenData.refresh_token) {
+                  setMockEncryptionConstants(badKeyForRefresh, goodIv); // Simulate bad key for refresh token
+                  const actualModule = jest.requireActual('./token-utils');
+                  return actualModule.encryptToken(token); // Will fail and return null
+                }
+                return `encrypted_${token}`;
+              });
 
-    it('should throw error if encryption of refreshToken fails (when refreshToken is present)', async () => {
-      const originalEncryptToken = require('./token-utils').encryptToken;
-      const encryptTokenMock = jest.spyOn(require('./token-utils'), 'encryptToken')
-        .mockImplementation(async (token: string) => {
-          if (token === mockTokens.refresh_token) return null;
-          // Need to ensure access_token encrypts fine for this specific test case
-          if (token === mockTokens.access_token) return `encrypted_${token}`;
-          return originalEncryptToken(token);
-        });
+            await expect(saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail))
+              .rejects.toThrow("Token encryption failed. Cannot save tokens.");
+            expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to encrypt tokens. Aborting save.");
+            expect(got.post).not.toHaveBeenCalled();
+            encryptTokenSpy.mockRestore();
+          });
 
-      await expect(saveAtomGoogleCalendarTokens('user1', mockTokens))
-        .rejects.toThrow("Token encryption failed. Cannot save tokens.");
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to encrypt tokens. Aborting save.");
-      expect(got.post).not.toHaveBeenCalled();
-      encryptTokenMock.mockRestore();
-    });
-
-    it('should successfully call Hasura with encrypted tokens', async () => {
+      it('should successfully save/upsert tokens to Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv); // Ensure encryption works
         got.post.mockResolvedValue({
-            json: async () => ({ data: { insert_Calendar_Integration_one: { id: 'new_id', userId: 'user1' } } })
+          json: jest.fn().mockResolvedValue({
+            data: { insert_Calendar_Integration_one: { id: 'mock-db-id', userId: mockUserId } },
+          }),
         } as any);
 
-        await saveAtomGoogleCalendarTokens('user1', mockTokens);
+        const result = await saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail);
+
         expect(got.post).toHaveBeenCalledTimes(1);
-        const calledWith = got.post.mock.calls[0][1] as any; // Get the options argument
-        expect(calledWith.json.variables.accessToken).toContain('encrypted_');
-        expect(calledWith.json.variables.refreshToken).toContain('encrypted_');
-    });
-  });
+        expect(got.post).toHaveBeenCalledWith('mock_hasura_url', expect.any(Object));
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.headers['x-hasura-admin-secret']).toBe('mock_hasura_secret');
 
-  describe('getAtomGoogleCalendarTokens', () => {
-    beforeEach(() => {
-        setMockConstants(validTestKey, validTestIv);
-        got.post.mockReset();
-    });
+        const gqlVariables = callOptions.json.variables;
+        expect(gqlVariables.userId).toBe(mockUserId);
+        expect(gqlVariables.accessToken).toEqual(await encryptToken(mockTokenData.access_token));
+        expect(gqlVariables.refreshToken).toEqual(await encryptToken(mockTokenData.refresh_token!));
+        expect(gqlVariables.appEmail).toBe(mockAppEmail);
+        expect(gqlVariables.resourceName).toBe(constants.ATOM_CALENDAR_RESOURCE_NAME);
+        expect(gqlVariables.clientType).toBe(constants.ATOM_CLIENT_TYPE);
 
-    it('should return null if decryption of accessToken fails', async () => {
+        const gqlQuery = callOptions.json.query;
+        expect(gqlQuery).toContain('mutation upsertAtomGoogleCalendarToken');
+        expect(gqlQuery).toContain('insert_Calendar_Integration_one');
+        expect(gqlQuery).toContain('on_conflict');
+        expect(gqlQuery).toContain('Calendar_Integration_userId_resource_clientType_key');
+        expect(gqlQuery).toContain('$appEmail: String');
+        expect(gqlQuery).toContain('appEmail: $appEmail');
+        expect(gqlQuery).toContain('update_columns: [token, refreshToken, expiresAt, scope, token_type, appEmail, enabled, updatedAt]');
+
+        expect(result).toEqual({ id: 'mock-db-id', userId: mockUserId });
+      });
+
+      it('should throw error if Hasura returns errors', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
         got.post.mockResolvedValue({
-            json: async () => ({ data: { Calendar_Integration: [{ token: 'encrypted_access', refreshToken: 'encrypted_refresh' }] } })
+          json: jest.fn().mockResolvedValue({ errors: [{ message: "Constraint violation" }] }),
         } as any);
 
-        const originalDecryptToken = require('./token-utils').decryptToken;
-        const decryptTokenMock = jest.spyOn(require('./token-utils'), 'decryptToken')
-            .mockImplementation(async (token: string) => {
-                if (token === 'encrypted_access') return null; // Simulate access token decryption failure
-                return originalDecryptToken(token);
-            });
+        await expect(saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail))
+          .rejects.toThrow('Failed to save tokens: Constraint violation');
+        expect(consoleErrorSpy).toHaveBeenCalledWith("Error saving Atom Google Calendar tokens to Hasura:", [{ message: "Constraint violation" }]);
+      });
+
+      it('should throw error if got.post rejects (network/http error)', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockRejectedValue(new Error("Network failure"));
+        await expect(saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail))
+          .rejects.toThrow('An exception occurred while saving tokens: Network failure');
+      });
+
+      it('should throw error if Hasura URL or Secret is missing', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        setMockHasuraConstants(null, 'secret');
+        await expect(saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail))
+          .rejects.toThrow('Server configuration error for saving tokens.');
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Hasura URL or Admin Secret not configured. Cannot save tokens.');
+
+        setMockHasuraConstants('url', null);
+        await expect(saveAtomGoogleCalendarTokens(mockUserId, mockTokenData, mockAppEmail))
+          .rejects.toThrow('Server configuration error for saving tokens.');
+      });
+    });
+
+    describe('getAtomGoogleCalendarTokens', () => {
+      const encryptedAccessToken = `encrypted_${mockTokenData.access_token}`; // Placeholder for actual encryption
+      const encryptedRefreshToken = `encrypted_${mockTokenData.refresh_token!}`;
+      const mockExpiry = new Date(mockTokenData.expiry_date);
+
+      it('should successfully fetch and decrypt tokens from Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv); // Ensure decryption works
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: {
+              Calendar_Integration: [{
+                id: 'mock-id',
+                token: await encryptToken(mockTokenData.access_token), // Use actual encrypt
+                refreshToken: await encryptToken(mockTokenData.refresh_token!),
+                expiresAt: mockExpiry.toISOString(),
+                scope: mockTokenData.scope,
+                token_type: mockTokenData.token_type,
+                appEmail: mockAppEmail,
+              }],
+            },
+          }),
+        } as any);
+
+        const result = await getAtomGoogleCalendarTokens(mockUserId);
+
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.json.variables.userId).toBe(mockUserId);
+        expect(callOptions.json.variables.resourceName).toBe(constants.ATOM_CALENDAR_RESOURCE_NAME);
+        expect(callOptions.json.variables.clientType).toBe(constants.ATOM_CLIENT_TYPE);
+        expect(callOptions.json.query).toContain('query getAtomGoogleCalendarTokens');
+
+        expect(result).toEqual({
+          ...mockTokenData,
+          appEmail: mockAppEmail,
+        });
+      });
+
+      it('should return null if no tokens are found in Hasura', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({ data: { Calendar_Integration: [] } }),
+        } as any);
+        const result = await getAtomGoogleCalendarTokens(mockUserId);
+        expect(result).toBeNull();
+      });
+
+      it('should return null if Hasura returns errors', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({ errors: [{ message: "DB error" }] }),
+        } as any);
+        const result = await getAtomGoogleCalendarTokens(mockUserId);
+        expect(result).toBeNull();
+        expect(consoleErrorSpy).toHaveBeenCalledWith("Error fetching Atom Google Calendar tokens from Hasura:", [{ message: "DB error" }]);
+      });
+
+      it('should return null if got.post rejects', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockRejectedValue(new Error("Network failure"));
+        const result = await getAtomGoogleCalendarTokens(mockUserId);
+        expect(result).toBeNull();
+      });
+
+      it('should return null if decryption of accessToken fails', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
+        got.post.mockResolvedValue({
+            json: async () => ({ data: { Calendar_Integration: [{ token: 'actually_not_encrypted_properly', refreshToken: encryptedRefreshToken }] } })
+        } as any);
 
         const result = await getAtomGoogleCalendarTokens('user1');
         expect(result).toBeNull();
+        expect(consoleErrorSpy).toHaveBeenCalledWith("Error during token decryption:", expect.any(Error)); // From decryptToken itself
         expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to decrypt access token for userId: user1. Returning null.");
-        decryptTokenMock.mockRestore();
     });
 
-    it('should return tokens with null refreshToken if only refreshToken decryption fails', async () => {
+    it('should return tokens with undefined refreshToken if only refreshToken decryption fails', async () => {
+        setMockEncryptionConstants(validTestKey, validTestIv);
         got.post.mockResolvedValue({
             json: async () => ({
                 data: {
                     Calendar_Integration: [{
-                        token: 'encrypted_access_valid',
-                        refreshToken: 'encrypted_refresh_invalid',
-                        expiresAt: new Date(Date.now() + 3600000).toISOString(),
-                        scope: 'scope',
-                        token_type: 'Bearer'
+                        token: await encryptToken(mockTokenData.access_token),
+                        refreshToken: 'bad_encrypted_refresh_token',
+                        expiresAt: mockExpiry.toISOString(),
+                        scope: mockTokenData.scope,
+                        token_type: mockTokenData.token_type,
+                        appEmail: mockAppEmail
                     }]
                 }
             })
         } as any);
 
-        const decryptTokenMock = jest.spyOn(require('./token-utils'), 'decryptToken')
-            .mockImplementation(async (token: string) => {
-                if (token === 'encrypted_access_valid') return 'decrypted_access_valid';
-                if (token === 'encrypted_refresh_invalid') return null; // Simulate refresh token decryption failure
-                return token; // Should not happen for this test
-            });
-
         const result = await getAtomGoogleCalendarTokens('user1');
         expect(result).not.toBeNull();
-        expect(result?.access_token).toBe('decrypted_access_valid');
-        expect(result?.refresh_token).toBeUndefined(); // because it was null after failed decryption
+        expect(result?.access_token).toBe(mockTokenData.access_token);
+        expect(result?.refresh_token).toBeUndefined();
+        expect(consoleErrorSpy).toHaveBeenCalledWith("Error during token decryption:", expect.any(Error)); // From decryptToken
         expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to decrypt refresh token for userId: user1. Proceeding without it.");
-        decryptTokenMock.mockRestore();
     });
 
-    it('should successfully fetch and decrypt tokens', async () => {
-        const encryptedAccessToken = await encryptToken('real_access_token');
-        const encryptedRefreshToken = await encryptToken('real_refresh_token');
-        const expiry = new Date(Date.now() + 3600000);
+    });
 
+    describe('deleteAtomGoogleCalendarTokens', () => {
+      it('should successfully delete tokens from Hasura', async () => {
         got.post.mockResolvedValue({
-            json: async () => ({
-                data: {
-                    Calendar_Integration: [{
-                        token: encryptedAccessToken,
-                        refreshToken: encryptedRefreshToken,
-                        expiresAt: expiry.toISOString(),
-                        scope: 'read write',
-                        token_type: 'Bearer'
-                    }]
-                }
-            })
+          json: jest.fn().mockResolvedValue({
+            data: { delete_Calendar_Integration: { affected_rows: 1 } },
+          }),
         } as any);
 
-        const result = await getAtomGoogleCalendarTokens('user1');
-        expect(result).not.toBeNull();
-        expect(result?.access_token).toBe('real_access_token');
-        expect(result?.refresh_token).toBe('real_refresh_token');
-        expect(result?.expiry_date).toBe(expiry.getTime());
-        expect(result?.scope).toBe('read write');
+        const result = await deleteAtomGoogleCalendarTokens(mockUserId);
+        expect(got.post).toHaveBeenCalledTimes(1);
+        const callOptions = got.post.mock.calls[0][1] as any;
+        expect(callOptions.json.variables.userId).toBe(mockUserId);
+        expect(callOptions.json.variables.resourceName).toBe(constants.ATOM_CALENDAR_RESOURCE_NAME);
+        expect(callOptions.json.variables.clientType).toBe(constants.ATOM_CLIENT_TYPE);
+        expect(callOptions.json.query).toContain('mutation deleteAtomGoogleCalendarToken');
+        expect(result).toEqual({ affected_rows: 1 });
+      });
+
+      it('should return affected_rows: 0 if no tokens were deleted', async () => {
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({
+            data: { delete_Calendar_Integration: { affected_rows: 0 } },
+          }),
+        } as any);
+        const result = await deleteAtomGoogleCalendarTokens(mockUserId);
+        expect(result).toEqual({ affected_rows: 0 });
+      });
+
+      it('should throw error if Hasura returns errors on delete', async () => {
+        got.post.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({ errors: [{ message: "Delete failed" }] }),
+        } as any);
+        await expect(deleteAtomGoogleCalendarTokens(mockUserId))
+          .rejects.toThrow('Failed to delete tokens: Delete failed');
+      });
     });
   });
 });

@@ -28,9 +28,9 @@ async function getCalendarConnectionStatus(req: NextApiRequest, res: NextApiResp
     if (tokens && tokens.access_token) {
       // TODO: In a real scenario, you might want to verify if the access token is still valid
       // by making a lightweight API call to Google (e.g., userinfo).
-      // Also, the email should ideally be fetched from the user's profile or Google's token info.
-      console.log(`Tokens found for userId: ${userId}. Reporting as connected.`);
-      return res.status(200).json({ isConnected: true, email: "user_from_token@example.com" }); // Mocked email
+      // The email is now sourced from the stored appEmail.
+      console.log(`Tokens found for userId: ${userId}. Reporting as connected. Email: ${tokens.appEmail}`);
+      return res.status(200).json({ isConnected: true, email: tokens.appEmail || null });
     } else {
       console.log(`No valid tokens found for userId: ${userId}. Reporting as not connected.`);
       return res.status(200).json({ isConnected: false });

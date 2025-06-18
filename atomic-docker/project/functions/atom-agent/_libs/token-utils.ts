@@ -72,7 +72,8 @@ interface GoogleTokenSet {
 
 export async function saveAtomGoogleCalendarTokens(
     userId: string,
-    tokens: GoogleTokenSet
+    tokens: GoogleTokenSet,
+    appEmail?: string | null
 ): Promise<{ id: string; userId: string } | null> {
     if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
         console.error('Hasura URL or Admin Secret not configured. Cannot save tokens.');
@@ -105,6 +106,7 @@ export async function saveAtomGoogleCalendarTokens(
             $tokenType: String,
             $resourceName: String!,
             $clientType: String!,
+            $appEmail: String, // Added appEmail
             $enabled: Boolean!
         ) {
           insert_Calendar_Integration_one(object: {
@@ -117,11 +119,12 @@ export async function saveAtomGoogleCalendarTokens(
             resource: $resourceName,
             clientType: $clientType,
             name: $resourceName,
+            appEmail: $appEmail,     // Added appEmail
             enabled: $enabled,
             syncEnabled: false
           }, on_conflict: {
             constraint: Calendar_Integration_userId_resource_clientType_key,
-            update_columns: [token, refreshToken, expiresAt, scope, token_type, enabled, updatedAt]
+            update_columns: [token, refreshToken, expiresAt, scope, token_type, appEmail, enabled, updatedAt] // Added appEmail
           }) {
             id
             userId
@@ -138,6 +141,7 @@ export async function saveAtomGoogleCalendarTokens(
         tokenType: tokens.token_type,
         resourceName: ATOM_CALENDAR_RESOURCE_NAME,
         clientType: ATOM_CLIENT_TYPE,
+        appEmail: appEmail, // Added appEmail
         enabled: true, // Enable the integration on save/update
     };
 
@@ -190,6 +194,7 @@ export async function getAtomGoogleCalendarTokens(userId: string): Promise<Googl
             expiresAt
             scope
             token_type
+            appEmail   # Added appEmail
           }
         }
     `;
@@ -235,6 +240,7 @@ export async function getAtomGoogleCalendarTokens(userId: string): Promise<Googl
             expiry_date: new Date(integration.expiresAt).getTime(),
             scope: integration.scope,
             token_type: integration.token_type,
+            appEmail: integration.appEmail || null, // Add appEmail
         };
 
     } catch (error: any) {
