@@ -82,3 +82,11 @@ export const ATOM_QB_TOKEN_FILE_PATH = process.env.ATOM_QB_TOKEN_FILE_PATH || '.
 // Other scopes like com.intuit.quickbooks.payment may be needed for payments.
 // openid profile email phone address are for user info.
 export const ATOM_QB_SCOPES = (process.env.ATOM_QB_SCOPES || 'com.intuit.quickbooks.accounting openid profile email phone address').split(' ');
+
+// OpenAI API Key for NLU Service
+// This must be set in the environment for Natural Language Understanding capabilities.
+export const ATOM_OPENAI_API_KEY = process.env.ATOM_OPENAI_API_KEY || '';
+
+// OpenAI Model Name for NLU
+// Specifies the model to be used for NLU tasks, preferably one that supports JSON mode.
+export const ATOM_NLU_MODEL_NAME = process.env.ATOM_NLU_MODEL_NAME || 'gpt-3.5-turbo-1106';

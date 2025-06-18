@@ -33,28 +33,293 @@ import {
   // QuickBooks Types
   ListQuickBooksInvoicesResponse,
   GetQuickBooksInvoiceDetailsResponse,
-  QuickBooksInvoice
+  QuickBooksInvoice,
+  // NLU
+  ProcessedNLUResponse
 } from '../types';
 import { createHubSpotContact } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
-import { listUpcomingGoogleMeetEvents, getGoogleMeetEventDetails } from './skills/calendarSkills';
+import {
+    listUpcomingEvents,
+    createCalendarEvent,
+    listUpcomingGoogleMeetEvents,
+    getGoogleMeetEventDetails
+} from './skills/calendarSkills';
 import { listMicrosoftTeamsMeetings, getMicrosoftTeamsMeetingDetails } from './skills/msTeamsSkills';
 import { listStripePayments, getStripePaymentDetails } from './skills/stripeSkills';
 import {
     listQuickBooksInvoices,
     getQuickBooksInvoiceDetails,
     getAuthUri as getQuickBooksAuthUri
-} from './skills/quickbooksSkills'; // Added
+} from './skills/quickbooksSkills';
+import { understandMessage } from './skills/nluService'; // Added NLU Service
 import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID, ATOM_QB_TOKEN_FILE_PATH } from '../_libs/constants';
 
 
 export async function handleMessage(message: string): Promise<string> {
-  const lowerCaseMessage = message.toLowerCase();
+  const lowerCaseMessage = message.toLowerCase(); // Keep for simple fallbacks initially
   const userId = "mock_user_id_from_handler"; // Placeholder for actual user ID retrieval
 
-  if (lowerCaseMessage.startsWith('list events')) {
+  // Initial NLU Call
+  const nluResponse: ProcessedNLUResponse = await understandMessage(message);
+  console.log('NLU Response:', JSON.stringify(nluResponse, null, 2)); // For debugging
+
+  // Handle NLU Service Errors (e.g., API key, network)
+  if (nluResponse.error && !nluResponse.intent) { // Critical NLU failure
+    console.error('NLU service critical error:', nluResponse.error);
+    return "Sorry, I'm having trouble understanding requests right now. Please try again later.";
+  }
+
+  if (nluResponse.intent) { // If NLU identified an intent
+    switch (nluResponse.intent) {
+      case "GetCalendarEvents":
+        try {
+            let limit = 7; // Default limit
+            if (nluResponse.entities?.limit) {
+                if (typeof nluResponse.entities.limit === 'number') {
+                    limit = nluResponse.entities.limit;
+                } else if (typeof nluResponse.entities.limit === 'string') {
+                    const parsedLimit = parseInt(nluResponse.entities.limit, 10);
+                    if (!isNaN(parsedLimit)) limit = parsedLimit;
+                }
+            }
+            // TODO: Date range and event type filter parsing deferred for this phase.
+            // For now, event_type_filter will be handled by specific commands if needed e.g. "list google meet events"
+
+            const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
+            if (!events || events.length === 0) {
+                return "No upcoming calendar events found matching your criteria, or I couldn't access them.";
+            }
+            const eventList = events.map(event =>
+                `- ${event.summary} (from ${new Date(event.startTime).toLocaleString()} to ${new Date(event.endTime).toLocaleString()})${event.location ? ` - Loc: ${event.location}` : ''}${event.htmlLink ? ` [Link: ${event.htmlLink}]` : ''}`
+            ).join('\n');
+            return `Upcoming calendar events:\n${eventList}`;
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "GetCalendarEvents":`, error.message);
+            return "Sorry, I couldn't fetch your calendar events due to an error.";
+        }
+
+      case "CreateHubSpotContact":
+        try {
+            const { email, first_name, last_name, contact_name, company_name } = nluResponse.entities;
+            if (!email || typeof email !== 'string') {
+                return "Email is required (and must be a string) to create a HubSpot contact via NLU.";
+            }
+
+            let finalFirstName = first_name;
+            let finalLastName = last_name;
+
+            if (!finalFirstName && !finalLastName && contact_name && typeof contact_name === 'string') {
+                const nameParts = contact_name.split(' ');
+                finalFirstName = nameParts[0];
+                if (nameParts.length > 1) {
+                    finalLastName = nameParts.slice(1).join(' ');
+                }
+            }
+
+            const contactDetails: HubSpotContactProperties = {
+                email,
+                firstname: typeof finalFirstName === 'string' ? finalFirstName : undefined,
+                lastname: typeof finalLastName === 'string' ? finalLastName : undefined,
+                company: typeof company_name === 'string' ? company_name : undefined,
+            };
+
+            const hubspotResponse: CreateHubSpotContactResponse = await createHubSpotContact(userId, contactDetails);
+            if (hubspotResponse.success && hubspotResponse.contactId && hubspotResponse.hubSpotContact) {
+                const contact = hubspotResponse.hubSpotContact;
+                const name = `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim() || 'N/A';
+                return `HubSpot contact created via NLU! ID: ${hubspotResponse.contactId}. Name: ${name}. Email: ${contact.properties.email}.`;
+            } else {
+                return `Failed to create HubSpot contact via NLU: ${hubspotResponse.message || 'Unknown HubSpot error.'}`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "CreateHubSpotContact":`, error.message);
+            return "Sorry, there was an issue creating the HubSpot contact based on your request.";
+        }
+
+      case "SendSlackMessage":
+        try {
+            const { slack_channel, message_text } = nluResponse.entities;
+            if (!slack_channel || typeof slack_channel !== 'string') {
+                return "Slack channel/user ID is required to send a message via NLU.";
+            }
+            if (!message_text || typeof message_text !== 'string') {
+                return "Message text is required to send a Slack message via NLU.";
+            }
+            const slackResponse = await sendSlackMessage(userId, slack_channel, message_text);
+            if (slackResponse.ok) {
+                return `Message sent to Slack channel/user ${slack_channel}.`;
+            } else {
+                return `Failed to send Slack message to ${slack_channel} via NLU. Error: ${slackResponse.error}`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "SendSlackMessage":`, error.message);
+            return "Sorry, there was an issue sending your Slack message.";
+        }
+
+      case "ListInvoices":
+        try {
+            const { customer_id, status, limit: nluLimit } = nluResponse.entities;
+            const options: { limit?: number; offset?: number; customerId?: string; status?: string } = {limit: 10, offset: 1};
+            if (nluLimit) {
+                 if (typeof nluLimit === 'number') options.limit = nluLimit;
+                 else if (typeof nluLimit === 'string') {
+                    const parsed = parseInt(nluLimit, 10);
+                    if (!isNaN(parsed)) options.limit = parsed;
+                 }
+            }
+            if (customer_id && typeof customer_id === 'string') options.customerId = customer_id;
+            // Note: QuickBooks skill currently doesn't filter by status in list. This is a placeholder.
+            // if (status && typeof status === 'string') options.status = status;
+
+            const response: ListQuickBooksInvoicesResponse = await listQuickBooksInvoices(options);
+             if (response.ok && response.invoices && response.invoices.length > 0) {
+                let output = "QuickBooks Invoices (via NLU):\n";
+                for (const inv of response.invoices) {
+                    output += `- ID: ${inv.Id}, Num: ${inv.DocNumber || 'N/A'}, Cust: ${inv.CustomerRef?.name || inv.CustomerRef?.value || 'N/A'}, Total: ${inv.TotalAmt !== undefined ? inv.TotalAmt.toFixed(2) : 'N/A'} ${inv.CurrencyRef?.value || ''}\n`;
+                }
+                if (response.queryResponse) {
+                    output += `Showing results. Max per page: ${response.queryResponse.maxResults || options.limit}\n`;
+                }
+                return output;
+            } else if (response.ok) {
+                return "No QuickBooks invoices found via NLU matching your criteria.";
+            } else {
+                return `Error fetching QuickBooks invoices via NLU: ${response.error || 'Unknown error'}.`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "ListInvoices":`, error.message);
+            return "Sorry, an error occurred while fetching QuickBooks invoices via NLU.";
+        }
+
+      case "GetInvoiceDetails":
+        try {
+            const { invoice_id } = nluResponse.entities;
+            if (!invoice_id || typeof invoice_id !== 'string') {
+                return "Invoice ID is required to get QuickBooks invoice details via NLU.";
+            }
+            const response: GetQuickBooksInvoiceDetailsResponse = await getQuickBooksInvoiceDetails(invoice_id);
+            if (response.ok && response.invoice) {
+                const inv = response.invoice;
+                return `QuickBooks Invoice (ID: ${inv.Id}):\nDoc #: ${inv.DocNumber || 'N/A'}\nCustomer: ${inv.CustomerRef?.name || inv.CustomerRef?.value || 'N/A'}\nTotal: ${inv.TotalAmt !== undefined ? inv.TotalAmt.toFixed(2) : 'N/A'} ${inv.CurrencyRef?.value || ''}`;
+            } else {
+                return `Error fetching QuickBooks invoice via NLU: ${response.error || 'Unknown error'}.`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "GetInvoiceDetails":`, error.message);
+            return "Sorry, an error occurred while fetching QuickBooks invoice details via NLU.";
+        }
+
+      default:
+        // This case handles intents recognized by NLU but not yet implemented in the switch.
+        if (nluResponse.error) { // NLU had an issue but still returned an intent somehow (less likely with current NLU error handling)
+             console.log(`NLU processed with intent '${nluResponse.intent}' but also had an error: ${nluResponse.error}`);
+        }
+        return `I understood your intent as '${nluResponse.intent}' with entities ${JSON.stringify(nluResponse.entities)}, but I'm not fully set up to handle that specific request conversationally yet. You can try specific commands or 'help'.`;
+    }
+  } else { // NLU returned null intent (but no critical NLU service error)
+    // Fallback to existing critical/simple command matching
+    // The order of these specific commands is important.
+    if (lowerCaseMessage.startsWith('create hubspot contact and dm me details')) {
+    const userId = "mock_user_id_from_handler"; // This is assumed to be the Slack User ID for DM purposes.
+    const commandPrefix = 'create hubspot contact and dm me details';
+    const jsonDetailsString = message.substring(commandPrefix.length).trim();
+
+    if (!jsonDetailsString) {
+        return `Please provide contact details in JSON format after "${commandPrefix}". Usage: ${commandPrefix} {"email":"test@example.com","firstname":"Test"}`;
+    }
+
+    try {
+      let contactDetails: HubSpotContactProperties;
+      try {
+        contactDetails = JSON.parse(jsonDetailsString);
+      } catch (e: any) {
+        console.error('Error parsing contact JSON for HubSpot creation (DM flow):', e.message);
+        return `Invalid JSON format for contact details: ${e.message}. Please ensure you provide valid JSON.`;
+      }
+
+      if (!contactDetails.email) {
+        return "The 'email' property is required in the JSON details to create a HubSpot contact.";
+      }
+
+      const hubspotResponse: CreateHubSpotContactResponse = await createHubSpotContact(userId, contactDetails);
+
+      if (hubspotResponse.success && hubspotResponse.contactId && hubspotResponse.hubSpotContact) {
+        const contact = hubspotResponse.hubSpotContact;
+        let name = `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim();
+        if (!name) name = "N/A";
+
+        let slackMessage = `🎉 HubSpot Contact Created!\n`;
+        slackMessage += `ID: ${hubspotResponse.contactId}\n`;
+        slackMessage += `Name: ${name}\n`;
+        slackMessage += `Email: ${contact.properties.email || 'N/A'}\n`;
+        if (contact.properties.company) {
+          slackMessage += `Company: ${contact.properties.company}\n`;
+        }
+        if (ATOM_HUBSPOT_PORTAL_ID) {
+          slackMessage += `View in HubSpot: https://app.hubspot.com/contacts/${ATOM_HUBSPOT_PORTAL_ID}/contact/${hubspotResponse.contactId}\n`;
+        }
+
+        try {
+          const slackDmResponse = await sendSlackMessage(userId, userId, slackMessage);
+          if (slackDmResponse.ok) {
+            return `HubSpot contact created (ID: ${hubspotResponse.contactId}). I've sent the details to your Slack DM!`;
+          } else {
+            console.error('Failed to send Slack DM for new HubSpot contact:', slackDmResponse.error);
+            return `HubSpot contact created (ID: ${hubspotResponse.contactId}), but I couldn't send details to your Slack DM. Slack error: ${slackDmResponse.error}`;
+          }
+        } catch (slackError: any) {
+          console.error('Error sending Slack DM for new HubSpot contact:', slackError.message);
+          return `HubSpot contact created (ID: ${hubspotResponse.contactId}), but there was an issue sending the confirmation to Slack: ${slackError.message}`;
+        }
+      } else {
+        return `Failed to create HubSpot contact: ${hubspotResponse.message || 'Unknown HubSpot error. Please check HubSpot configuration and permissions.'}`;
+      }
+    } catch (error: any) {
+      console.error('Error in "create hubspot contact and dm me details" handler:', error.message);
+      return `An unexpected error occurred: ${error.message}`;
+    }
+  } else if (lowerCaseMessage.startsWith('create hubspot contact')) { // Basic channel notification version
+    const userId = "mock_user_id_from_handler";
+    let userMessage: string;
+    try {
+      const jsonDetailsString = message.substring(message.toLowerCase().indexOf('{')).trim();
+      if (!jsonDetailsString) {
+        return "Please provide contact details in JSON format. Usage: create hubspot contact {\"email\":\"test@example.com\",\"firstname\":\"Test\"}";
+      }
+      let contactDetails: HubSpotContactProperties;
+      try {
+        contactDetails = JSON.parse(jsonDetailsString);
+      } catch (e: any) {
+        console.error('Error parsing HubSpot contact JSON:', e.message);
+        return `Invalid JSON format for contact details: ${e.message}. Please ensure you provide valid JSON.`;
+      }
+      if (!contactDetails.email) {
+          return "The 'email' property is required in the JSON details to create a HubSpot contact.";
+      }
+      const hubspotResponse: CreateHubSpotContactResponse = await createHubSpotContact(userId, contactDetails);
+      if (hubspotResponse.success && hubspotResponse.contactId && hubspotResponse.hubSpotContact) {
+        const contact = hubspotResponse.hubSpotContact;
+        userMessage = `HubSpot contact created successfully! ID: ${hubspotResponse.contactId}. Name: ${contact.properties.firstname || ''} ${contact.properties.lastname || ''}. Email: ${contact.properties.email}.`;
+        if (ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID) {
+          let slackMessageText = `🎉 New HubSpot Contact Created by Atom Agent! 🎉\n`;
+          slackMessageText += `ID: ${hubspotResponse.contactId}\n`;
+          // ... (rest of slack message construction as before)
+           try {
+            await sendSlackMessage(userId, ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, slackMessageText);
+          } catch (slackError: any) { /* log but don't fail user message */ }
+        }
+      } else {
+        userMessage = `Failed to create HubSpot contact: ${hubspotResponse.message || 'An unknown error occurred.'}`;
+      }
+      return userMessage;
+    } catch (error: any) {
+      console.error('Error in "create hubspot contact" handler:', error.message);
+      return `An unexpected error occurred while creating the HubSpot contact: ${error.message}`;
+    }
+  } else if (lowerCaseMessage.startsWith('list events')) { // Simple fallback, NLU should catch "GetCalendarEvents"
     try {
       // Optional: parse limit from message, e.g., "list events 5"
       const parts = message.split(' ');
@@ -768,9 +1033,36 @@ export async function handleMessage(message: string): Promise<string> {
       }
     } catch (error: any) {
       console.error(`Error in "get qb invoice ${invoiceId}" command:`, error.message);
-      return `Sorry, an unexpected error occurred while fetching the QuickBooks invoice ${invoiceId}.`;
-    }
+    try {
+      const parts = message.split(' ');
+      const limit = parts.length > 2 && !isNaN(parseInt(parts[2])) ? parseInt(parts[2]) : 10;
+      const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
+      if (events.length === 0) {
+        return "Could not retrieve calendar events (fallback).";
+      }
+      const eventList = events.map(event => `- ${event.summary} (${new Date(event.startTime).toLocaleString()})`).join('\n');
+      return `Upcoming events (fallback):\n${eventList}`;
+    } catch (error:any) { return "Error listing events (fallback)." }
   }
-
-  return `Atom received: "${message}". I can understand "list events", "create event {JSON_DETAILS}", "list emails", "read email <id>", "send email {JSON_DETAILS}", "search web <query>", "trigger zap <ZapName> [with data {JSON_DATA}]", "create hubspot contact {JSON_DETAILS}", "create hubspot contact and dm me details {JSON_DETAILS}", "slack my agenda", "list calendly event types", "list calendly bookings [active|canceled] [count]", "list zoom meetings [live|upcoming|scheduled|upcoming_meetings|previous_meetings] [page_size] [next_page_token]", "get zoom meeting <meetingId>", "list google meet events [limit]", "get google meet event <eventId>", "list teams meetings [limit] [nextLink]", "get teams meeting <eventId>", "list stripe payments [limit=N] [starting_after=ID] [customer=ID]", "get stripe payment <paymentIntentId>", "qb get auth url", "list qb invoices [limit=N] [offset=N] [customer=ID]", or "get qb invoice <invoiceId>".`;
+  // Add other very specific non-NLU commands here if necessary, or simple help
+  else if (lowerCaseMessage === 'help' || lowerCaseMessage === '?') {
+     return `I can understand natural language for tasks like listing calendar events, creating HubSpot contacts, or sending Slack messages. Try "show me my next 3 meetings" or "create hubspot contact for jane@example.com name Jane Doe".
+You can also use specific commands:
+- "create hubspot contact and dm me details {JSON_DETAILS}"
+- "create hubspot contact {JSON_DETAILS}" (for channel notifications)
+- "slack my agenda"
+- "list calendly event types" / "list calendly bookings [active|canceled] [count]"
+- "list zoom meetings [type] [page_size] [next_page_token]" / "get zoom meeting <id>"
+- "list google meet events [limit]" / "get google meet event <id>"
+- "list teams meetings [limit] [nextLink]" / "get teams meeting <id>"
+- "list stripe payments [limit=N] [starting_after=ID] [customer=ID]" / "get stripe payment <id>"
+- "qb get auth url" / "list qb invoices [limit=N] [offset=N] [customer=ID]" / "get qb invoice <id>"
+- And other general commands like "list emails", "read email <id>", "send email {JSON}", "search web <query>", "trigger zap <name> [with data {JSON}]".`;
+  } else {
+    if (nluResponse.error) { // NLU had an error but didn't qualify as critical earlier
+        return `I had some trouble fully understanding that due to: ${nluResponse.error}. You can try rephrasing or use 'help'.`;
+    }
+    // Default response if NLU returns null intent and no specific fallback command matches
+    return "Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help' to see what I can do.";
+  }
 }
