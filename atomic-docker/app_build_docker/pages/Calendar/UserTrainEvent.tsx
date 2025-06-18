@@ -370,6 +370,14 @@ function UserTrainEvent(props: Props) {
 
     return (
         <Box style={{ width: '100%' }} height="100%" flex={1} alignItems="center" justifyContent="center">
+            <Box p="m" m="m" borderRadius="md" backgroundColor="infoBlockBackground" width={{ phone: '90%', tablet: '80%'}} alignItems="center">
+                <Text variant="body" textAlign="center" color="infoBlockText">
+                    You are training this event to become a reusable template. When you create new events with similar titles or details in the future, Atomic can automatically apply settings (like duration, color, priority, notes, etc.) from this trained event. You can manage which attributes get copied in Settings &gt; Event Defaults.
+                    <Text variant="link" onPress={() => router.push('https://docs.atomiclife.app/docs/features/event-training')}>
+                        {' '}Learn more about event training
+                    </Text>
+                </Text>
+            </Box>
              <Wizard
                 items={[
                     {

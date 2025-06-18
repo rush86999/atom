@@ -230,7 +230,15 @@ function UserViewAutopilot() {
 
     return (
         <Box flex={1} justifyContent="flex-start" alignItems="center"  style={{ width: '100%'}}>
-            <Box flex={1} justifyContent="center" alignItems="center"  style={{ width: '100%'}} minHeight="70vh">
+            <Box p="m" mt="l" mb="m" borderRadius="md" backgroundColor="infoBlockBackground" width={{ phone: '90%', tablet: '80%'}} alignItems="center">
+                <Text variant="body" textAlign="center" color="infoBlockText">
+                    Enable Autopilot to have Atomic automatically plan and optimize your schedule daily. It can apply your trained event templates and smart tags to new and existing events, helping to keep your calendar organized according to your preferences.
+                    <Text variant="link" onPress={() => router.push('https://docs.atomiclife.app/docs/features/autopilot')}>
+                        {' '}Discover Autopilot strategies
+                    </Text>
+                </Text>
+            </Box>
+            <Box flex={1} justifyContent="center" alignItems="center"  style={{ width: '100%'}} minHeight="60vh"> {/* Adjusted minHeight */}
                 <Box pt={{ phone: 'm', tablet: 's' }} flexDirection="row" justifyContent="space-between">
                     <Tooltip hasArrow label='Autopilot will apply features & run planner once every day before work start time' bg='purple.700' color='white'>
                         <Box flexDirection="row" justifyContent="flex-start">
