@@ -121,6 +121,11 @@ function UserAddTags(props: Props) {
         <Box flex={1} justifyContent="space-around" alignItems="center" style={{ width: '100%' }}>
             <Box flex={4} pt={{ phone: 'm', tablet: 'l' }} justifyContent="center" alignItems="center" style={{ width: '100%' }}>
                 <Box justifyContent="center" alignItems="center" style={{ width: '100%' }}>
+                <Box mb="m" width="80%" alignItems="center">
+                    <Text textAlign="center">
+                        Add tags (or categories) to help organize your schedule and assist Atomic in understanding your priorities. For example, you could create tags like 'Work', 'Personal', 'Urgent', or 'Exercise'.
+                    </Text>
+                </Box>
                 <FlatList
                     data={categories}
                     renderItem={({ item, index }) => (

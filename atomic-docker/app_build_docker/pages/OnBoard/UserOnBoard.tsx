@@ -971,20 +971,20 @@ function UserOnBoard(props: Props) {
                 return (
                     <Box style={{ width: '100%'}} flex={1} justifyContent="center" alignItems="center">
                         <Text variant="subheader" p={{ phone: 'm', tablet: 'l' }}>
-                            Smart Scheduling with Atomic
+                            Welcome to Atomic! Let&apos;s Get You Set Up.
                         </Text>
                         <Box p={{ phone: 'm', tablet: 'l' }}>
                             <Text variant="optionHeader" p={{ phone: 'm', tablet: 'l' }}>
-                                This wizard will help you setup some sane defaults.
+                                This quick setup wizard will personalize Atomic to your work style.
                             </Text>
                             <Text variant="optionHeader" p={{ phone: 'm', tablet: 'l' }}>
-                                You can always change these later under settings.
+                                The preferences you set here will power Atomic&apos;s intelligent scheduling assistance, helping you save time and stay organized.
                             </Text>
                             <Text variant="optionHeader" p={{ phone: 'm', tablet: 'l' }}>
-                                You are few steps away from using artificial intelligence to make your life more productive.
+                                You can always adjust these settings later.
                             </Text>
                             <Text variant="optionHeader" p={{ phone: 'm', tablet: 'l' }}>
-                                {"Let&apos;s have [X] meetings on either Mondays or Wednesdays, anytime between 8 - 11 am and keep it a priority of 5"}
+                                For example, soon you&apos;ll be able to tell Atomic things like: &apos;Schedule two project update meetings next Monday morning.&apos;
                             </Text>
                         </Box>
                         <Box style={{ width: '100%' }} p={{ phone: 'l', tablet: 'xl' }} flexDirection="row" justifyContent="space-between" alignItems="center">
@@ -1129,6 +1129,12 @@ function UserOnBoard(props: Props) {
                             <Text p={{ phone: 's', tablet: 'm' }} variant="optionHeader">
                                 Finalize your choices by pressing below.
                             </Text>
+                            <Text p={{ phone: 's', tablet: 'm' }} variant="optionHeader">
+                                Atomic is now set up to intelligently assist you with scheduling, thanks to the preferences you&apos;ve provided!
+                            </Text>
+                            <Text p={{ phone: 's', tablet: 'm' }} variant="optionHeader">
+                                P.S. Once you&apos;re in, explore Task Management to track your to-dos and our built-in Chat for quick discussions!
+                            </Text>
                             <Pressable onPress={completeOnboarding}>
                                 <Text variant="buttonLink">
                                     Complete Onboarding
@@ -1174,35 +1180,35 @@ function UserOnBoard(props: Props) {
                     },
                     {
                         index: 1,
-                        label: 'Step 2',
+                        label: 'Integrations',
                     },
                     {
                         index: 2,
-                        label: 'Step 3',
+                        label: 'Calendar',
                     },
                     {
                         index: 3,
-                        label: 'Step 4',
+                        label: 'Tags',
                     },
                     {
                         index: 4,
-                        label: 'Step 5',
+                        label: 'Alarms',
                     },
                      {
                         index: 5,
-                        label: 'Step 6',
+                        label: 'Work Hours',
                     },
                      {
                         index: 6,
-                        label: 'Step 7',
+                        label: 'Event Options',
                     },
                      {
                         index: 7,
-                        label: 'Step 8',
+                        label: 'Schedule Aids',
                     },
                     {
                         index: 8,
-                        label: 'Step 9',
+                        label: 'Meeting Setup',
                     },
                     {
                         index: 9,

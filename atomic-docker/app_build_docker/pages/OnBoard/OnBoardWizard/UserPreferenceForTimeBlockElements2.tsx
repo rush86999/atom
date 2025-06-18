@@ -105,10 +105,15 @@ import { NextApiRequest, NextApiResponse } from 'next';
   
       return (
         <Box justifyContent="center" alignItems="center">
+            <Box p="m" width="90%" alignItems="center">
+                <Text textAlign="center" variant="optionHeader">
+                    Fine-tune how Atomic helps manage your schedule and well-being. These settings improve scheduling suggestions.
+                </Text>
+            </Box>
             <Box justifyContent="center" alignItems="flex-start" minHeight="70vh">
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center"  style={{ width: '100%' }}>  
-                        <Text variant="optionHeader">Once you set time preferences or priority of an event, copy over tags to any new events whose details are similar? </Text>
+                        <Text variant="optionHeader">Automatically copy tags for similar new events?</Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}  style={{ width: '100%' }}>
                         <Switch1
@@ -120,7 +125,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
                 </Box>
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center"  style={{ width: '100%' }}>   
-                        <Text variant="optionHeader">Once you set time preferences and priority of an event that is also a break event, classify it as a break type event for any new events whose details are similar for scheduling assists? </Text>
+                        <Text variant="optionHeader">If an event is a break, automatically mark similar new events as breaks for smarter scheduling?</Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}  style={{ width: '100%' }}>
                         <Switch1
@@ -133,7 +138,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center" style={{ width: '100%' }}> 
                         <Text variant="optionHeader">
-                            Max work load percent for a typical work day for scheduling assists?
+                            Maximum daily workload percentage for scheduling assistance:
                         </Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}  style={{ width: '100%' }}>
@@ -150,7 +155,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center"  style={{ width: '100%' }}>
                         <Text variant="optionHeader">
-                            Min number of breaks for a typical work day for scheduling assists?
+                            Minimum number of daily breaks for scheduling assistance:
                         </Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end"  style={{ width: '100%' }}>
@@ -166,7 +171,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
                 <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
                     <Box flexDirection="row" justifyContent="flex-start" alignItems="center"  style={{ width: '100%' }}> 
                         <Text variant="optionHeader">
-                            Break length for a typical work day for scheduling assists?
+                            Default break length (in minutes) for scheduling assistance:
                         </Text>
                     </Box>
                     <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}  style={{ width: '100%' }}>

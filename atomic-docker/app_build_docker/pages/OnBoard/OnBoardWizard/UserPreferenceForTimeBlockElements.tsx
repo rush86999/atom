@@ -114,10 +114,15 @@ import React, {
   
     return (
       <Box flex={1} justifyContent="center" alignItems="center">
+        <Box p="m" width="90%" alignItems="center">
+            <Text textAlign="center" variant="optionHeader">
+                Automate your event creation! These settings let Atomic learn your preferences for similar events, saving you time.
+            </Text>
+        </Box>
         <ScrollView style={{ width: '100%' }} contentContainerStyle={{ width: '100%', justifyContent: 'center', alignItems: 'center' }}>
           <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
             <Box flexDirection="row" justifyContent="flex-start" alignItems="center">   
-              <Text variant="optionHeader">Once you set time preferences or priority of an event, copy over transparency of the event to any new events whose details are similar?</Text>
+              <Text variant="optionHeader">Automatically copy event transparency (free/busy status) for similar new events?</Text>
             </Box>
             <Box flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}>
               <Switch1
@@ -129,7 +134,7 @@ import React, {
           </Box>
           <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
             <Box style={{ width: '100%' }} flexDirection="row" justifyContent="flex-start" alignItems="center">  
-              <Text variant="optionHeader">Once you set time preferences and priority of an event, copy over buffer times to any new events whose details are similar?</Text>
+              <Text variant="optionHeader">Automatically copy buffer times (before/after event) for similar new events?</Text>
             </Box>
             <Box style={{ width: '100%' }} flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}>
                 <Switch1
@@ -143,7 +148,7 @@ import React, {
           </Box>
           <Box flex={1} style={{ width: '90%' }} p={{ phone: 's', tablet: 'm' }}>
             <Box style={{ width: '100%' }} flexDirection="row" justifyContent="flex-start" alignItems="center">
-              <Text variant="optionHeader">Once you set time preferences and priority of an event, copy over reminders to any new events whose details are similar?</Text>
+              <Text variant="optionHeader">Automatically copy reminders for similar new events?</Text>
             </Box>
             <Box style={{ width: '100%' }} flexDirection="row" justifyContent="flex-end" pt={{ phone: 'm', tablet: 's' }}>
                 <Switch1
