@@ -11,8 +11,8 @@
 - [Documentation](#documentation)
 - [Features](#features)
   - [Benefits of Self Hosted](#benefits-of-self-hosted)
-  - [Cloud Hosted Atomic](#cloud-hosted-atomic)
-  - [Customize Atomic for your team on your cloud](#customize-atomic-for-your-team-on-your-cloud)
+  - [Cloud Hosted Atom](#cloud-hosted-Atom)
+  - [Customize Atom for your team on your cloud](#customize-Atom-for-your-team-on-your-cloud)
   - [Note-Taking (Notion & Audio)](#note-taking-notion--audio)
   - [Multi-Agent Research System (Notion & LanceDB)](#multi-agent-research-system-notion--lancedb)
 - [Core Agent Capabilities & Commands](#core-agent-capabilities--commands)
@@ -71,16 +71,16 @@ Examples related to managing your time:
 | ----------- | ----------- |
 | Semantic search | Leverage AI-powered semantic search to match new or queried events with relevant past events, effectively turning your history into smart templates. Event details are converted into vector embeddings (via OpenAI models) and stored in **LanceDB**. The new `lance-event-matcher` service then employs a **two-stage AI process** for superior accuracy: 1.  **Query Enhancement:** User queries (and optionally, recent chat history) are first processed by an AI to refine search terms, understand the core intent, and identify potential date or category filters. 2.  **Results Processing & Categorization:** Events retrieved from LanceDB (using the AI-enhanced query) are then further analyzed by a second AI stage. This stage filters events for relevance, assigns the most appropriate category (which can dictate attributes like duration, color, priority, linked default behaviors, etc.), and provides a relevance score for ranking. This ensures highly relevant and accurately categorized results, making event templating more powerful and intuitive. Note: 'Training' involves ensuring events are properly categorized so the AI can learn these patterns for future application. |
 | Automated tagging | Automated event categorization (effectively, 'smart tagging') is performed by an AI model integrated within the `lance-event-matcher` service's results processing stage. Based on event content and the context of the user's query, the AI assigns the most relevant category to an event. Each category can define a set of default attributes and behaviors (e.g., duration, priority, color, time blocking preferences), which are then applied to the categorized events. This system streamlines event creation and ensures consistency in how similar events are handled. |
-| Flexible Meetings | Create recurring 1:1's or ad hoc team meetings that works with everyone's schedule. Every attendee's calendar is taken into account. Non-Atomic users can also sync their calendars and submit their time preferences. Once setup, your flexible recurring meetings occur automagically conflict free based on your time preferences.|
+| Flexible Meetings | Create recurring 1:1's or ad hoc team meetings that works with everyone's schedule. Every attendee's calendar is taken into account. Non-Atom users can also sync their calendars and submit their time preferences. Once setup, your flexible recurring meetings occur automagically conflict free based on your time preferences.|
 | Note-Taking (Notion & Audio) | Create text and audio notes directly in Notion. Audio notes are transcribed using Deepgram. Notes can be searched, updated, and linked to tasks or calendar events within Notion. |
 | Multi-Agent Research System (Notion & LanceDB) | Initiate research projects based on user queries. A lead researcher agent decomposes the query into sub-tasks, which are assigned to sub-agents. Sub-agents perform simulated tool use (e.g., web search, internal Notion search using LanceDB for vector search if applicable), log their findings, and update task status in a dedicated Notion database. The lead agent synthesizes completed task outputs into a final report in Notion. |
 | Autopilot | You can run the AI planner on Autopilot that will also search & apply features to new events based on past trained event templates. The AI planner will always run before your work day starts |
 |Time Preferences |Select time preferences for flexible meetings and other modifiable events |
 | Train events| You can train existing events and make them templates for new ones. Attributes you can change include transparency, buffer times, priority, time preferences, modifiable nature, tags, color, duration, break type, alarms. You can also "untrain" by turning "link off" in the event menu options.|
-| Time Blocking | You can automate time blockings of tasks that have a daily or weekly deadline with priority to let Atomic place them in the right place on your calendar. The deadlines can be soft or hard based on your requirements.|
+| Time Blocking | You can automate time blockings of tasks that have a daily or weekly deadline with priority to let Atom place them in the right place on your calendar. The deadlines can be soft or hard based on your requirements.|
 |Priority | You can set priority to modifiable events. Priority of 1 is neutral. 1 has no impact on the AI planner's decision making process. Any number > 1 will impact sooner it appears on the calendar relative other low priority events.|
-|Rating| You can rate events to tell Atomic how productive you were for the time block. Next run, Atomic will take it into consideration before the placing the event if it's modifiable|
-| Smart Tags | You can apply settings to tags. These settings will tell Atomic how to apply features or attributes to new events that are tagged by the AI model or manually.|
+|Rating| You can rate events to tell Atom how productive you were for the time block. Next run, Atom will take it into consideration before the placing the event if it's modifiable|
+| Smart Tags | You can apply settings to tags. These settings will tell Atom how to apply features or attributes to new events that are tagged by the AI model or manually.|
 
 ## Key Technologies & Services Update
 
@@ -100,7 +100,7 @@ The event matching and retrieval core has been significantly updated:
 - Privacy enabled by default
 - Customizable - adjust any parameters to make it work to your requirements
 
-### Cloud Hosted Atomic
+### Cloud Hosted Atom
 - Prioritized version
 - Full customer support & bug fixes
 - Road map
@@ -110,7 +110,7 @@ The event matching and retrieval core has been significantly updated:
   - Zoom video is integrated.
   - docker self-hosted version
 
-### Customize Atomic for your team on your cloud
+### Customize Atom for your team on your cloud
 - Same level of support & features as cloud hosted version
 - Same features
 - 1 year support included
@@ -118,7 +118,7 @@ The event matching and retrieval core has been significantly updated:
 
 ## Core Agent Capabilities & Commands
 
-The Atomic Agent understands a variety of commands to interact with your integrated services. Commands are typically issued in a chat interface with the agent.
+The Atom Agent understands a variety of commands to interact with your integrated services. Commands are typically issued in a chat interface with the agent.
 
 ### General Commands
 *   `help` or `?`: Displays a list of understood commands (this should be the agent's default response if a command isn't recognized).
@@ -198,7 +198,7 @@ The Atomic Agent understands a variety of commands to interact with your integra
 
 ## Configuration (Environment Variables)
 
-The Atomic Agent uses environment variables for its configuration and to connect to various third-party services.
+The Atom Agent uses environment variables for its configuration and to connect to various third-party services.
 
 ### General Agent Configuration
 *   `OPENAI_API_KEY`: Your OpenAI API key (used for embeddings, classification, etc.).
@@ -207,7 +207,7 @@ The Atomic Agent uses environment variables for its configuration and to connect
 *   `NOTION_NOTES_DATABASE_ID`: The ID of your Notion database for general notes.
 *   `NOTION_RESEARCH_PROJECTS_DB_ID`: The ID of your Notion database for research projects.
 *   `NOTION_RESEARCH_TASKS_DB_ID`: The ID of your Notion database for research sub-agent tasks.
-*   `LANCEDB_URI`: URI for LanceDB storage (e.g., `file:///mnt/lancedb_data/atomic_lancedb` when running in Docker/AWS with EFS, or a local path like `./data/lancedb` for local-only development).
+*   `LANCEDB_URI`: URI for LanceDB storage (e.g., `file:///mnt/lancedb_data/Atom_lancedb` when running in Docker/AWS with EFS, or a local path like `./data/lancedb` for local-only development).
 *   `SEARCH_API_KEY`: Your API key for the chosen web search engine (e.g., Google Custom Search API, Bing Search API, SerpApi, etc.). This is required for the research agent's web search capabilities.
 *   _(Remove any OpenSearch-specific variables like `OPENSEARCH_ENDPOINT`, `OPENSEARCH_USERNAME`, `OPENSEARCH_PASSWORD`)_
 
@@ -255,10 +255,10 @@ The Atomic Agent uses environment variables for its configuration and to connect
 ```mermaid
     sequenceDiagram
     actor Alice
-    participant A as Atomic
+    participant A as Atom
     actor Bob
     actor John
-    participant H as handshake.atomiclife.app
+    participant H as handshake.Atomlife.app
     participant P as AI Scheduler
 
     participant G as Google Calendar
@@ -274,13 +274,13 @@ The Atomic Agent uses environment variables for its configuration and to connect
 
 ## Deployment Options
 
-This project offers multiple ways to deploy and run the Atomic application stack.
+This project offers multiple ways to deploy and run the Atom application stack.
 
 ### Local Docker Compose
 
-For local development, testing, and self-hosting on a single machine, the project can be run using Docker Compose. This method utilizes the services defined in the `atomic-docker/` directory.
+For local development, testing, and self-hosting on a single machine, the project can be run using Docker Compose. This method utilizes the services defined in the `Atom-docker/` directory.
 
--   **Setup and Instructions:** See the detailed guide in [atomic-docker/README.md](./atomic-docker/README.md).
+-   **Setup and Instructions:** See the detailed guide in [Atom-docker/README.md](./Atom-docker/README.md).
 
 ### AWS Cloud Deployment (Self-Hosted)
 
@@ -295,7 +295,7 @@ For a scalable and robust cloud environment, you can deploy the entire applicati
 - Star this repository, so I can start an Open Collective to support this project
 - In process of setting up Github Sponsors
 - Follow me on Twitter: https://twitter.com/rish1_2
-- Used Atomic? write a review or let me know!
+- Used Atom? write a review or let me know!
 
 ## Contributing
 
