@@ -61,6 +61,16 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
                                 <div className="group/item chat-bubble chat-bubble-secondary">
                                     <ChatMessageActions message={message} />
                                     {message.content}
+                                    {message.audioUrl && (
+                                        <audio
+                                            key={message.audioUrl}
+                                            src={message.audioUrl}
+                                            autoPlay
+                                            controls={false}
+                                            style={{ display: 'none' }}
+                                            onError={(e) => console.error('Error playing audio:', e)}
+                                        />
+                                    )}
                                 </div>
                                 <div className="chat-footer opacity-50">
                                     <time className="text-xs opacity-50">{dayjs(message.date).fromNow()}</time>

@@ -1,13 +1,14 @@
 /* eslint-disable react/self-closing-comp */
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import cls from 'classnames'
-import {ButtonScrollToBottom} from '@components/chat/button-scroll-to-bottom'
+// import {ButtonScrollToBottom} from '@components/chat/button-scroll-to-bottom'
+// ButtonScrollToBottom seems unused in the provided code, commenting out for now.
+// If it's needed elsewhere or was intended for use, it can be uncommented.
 import {Textarea} from '@components/chat/ui/textarea'
-import { Tooltip, TooltipContent,
-    TooltipTrigger } from "@components/chat/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@components/chat/ui/tooltip";
 import { cn } from "@lib/Chat/utils";
 import { buttonVariants, Button } from "@components/chat/ui/button";
-import { IconPlus, IconArrowElbow } from '@components/chat/ui/icons'
+import { IconPlus, IconArrowElbow, IconMic, IconMicOff } from '@components/chat/ui/icons' // Assuming IconMic and IconMicOff
 import { useEnterSubmit } from '@lib/Chat/hooks/use-enter-submit'
 
 
@@ -19,16 +20,30 @@ type Props = {
 
  const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
     const [text, setText] = useState<string>('')
+    const [isRecording, setIsRecording] = useState<boolean>(false);
+    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+    const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+    const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
 
     const { formRef, onKeyDown } = useEnterSubmit()
-    const inputRef = React.useRef<HTMLTextAreaElement>(null)
+    const inputRef = useRef<HTMLTextAreaElement>(null)
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (inputRef.current) {
           inputRef.current.focus()
         }
       }, [])
     
+    // Cleanup media recorder and stream on unmount
+    useEffect(() => {
+        return () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+            }
+            mediaRecorder?.stream?.getTracks().forEach(track => track.stop());
+        };
+    }, [mediaRecorder]);
+
     const onChangeText = (e: { currentTarget: { value: React.SetStateAction<string>; }; }) => (setText(e.currentTarget.value))
 
     const onSubmit = (e: { preventDefault: () => void; }) => {
@@ -41,17 +56,88 @@ type Props = {
         setText('')
     }
 
+    const handleToggleRecording = async () => {
+        if (isRecording && mediaRecorder) {
+            mediaRecorder.stop();
+            setIsRecording(false);
+            // Note: onstop will handle the transcription
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const recorder = new MediaRecorder(stream);
+                setMediaRecorder(recorder);
+
+                recorder.ondataavailable = (event) => {
+                    setAudioChunks(prev => [...prev, event.data]);
+                };
+
+                recorder.onstop = async () => {
+                    setIsTranscribing(true);
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // Deepgram supports webm
+                    const audioFile = new File([audioBlob], "voice_input.webm", { type: 'audio/webm' });
+
+                    const formData = new FormData();
+                    formData.append("audio_file", audioFile);
+
+                    try {
+                        // Ensure this endpoint is correct and accessible from your frontend environment
+                        const response = await fetch('/api/audio_processor/stt', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            const errorBody = await response.json();
+                            throw new Error(errorBody.error || 'STT API request failed');
+                        }
+
+                        const result = await response.json();
+                        if (result.transcription) {
+                            setText(prevText => prevText ? `${prevText} ${result.transcription}` : result.transcription);
+                            if (inputRef.current) {
+                                inputRef.current.focus(); // Refocus after transcription
+                            }
+                        } else if (result.error) {
+                            alert(`Transcription Error: ${result.error}`);
+                        } else {
+                            alert("Transcription failed or returned empty.");
+                        }
+                    } catch (error: any) {
+                        console.error("STT Error:", error);
+                        alert(`Error during transcription: ${error.message || "Unknown error"}`);
+                    } finally {
+                        setAudioChunks([]);
+                        setIsTranscribing(false);
+                        // Stop microphone tracks to turn off microphone indicator
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                };
+
+                recorder.start();
+                setAudioChunks([]); // Clear previous chunks
+                setIsRecording(true);
+            } catch (error) {
+                console.error("Error accessing microphone:", error);
+                alert("Could not access microphone. Please check permissions.");
+                setIsRecording(false); // Ensure isRecording is false if permission denied
+            }
+        }
+    };
     
 
     return (
-        <div className={cls('fixed md:w-1/2 bottom-0 ')}>
+        <div className={cls('fixed md:w-1/2 bottom-0 ')}> {/* Consider responsive width: w-full md:w-1/2 */}
             
             <form onSubmit={onSubmit}  ref={formRef} className={cls({ 'opacity-50': isNewSession }, 'space-y-4 border-t px-4 py-2 shadow-lg sm:rounded-t-xl sm:border md:py-4 bg-white')}>
                 <label htmlFor="chat" className={cls("sr-only")}>Your message</label>
-                <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden px-8 sm:rounded-md sm:border sm:px-12">
+                <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden px-8 sm:rounded-md sm:border sm:px-12"> {/* Increased padding for mic button */}
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <button
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                type="button" // Add type="button" to prevent form submission
+                                disabled={isNewSession}
                             onClick={e => {
                                 e.preventDefault()
                                 callNewSession()
