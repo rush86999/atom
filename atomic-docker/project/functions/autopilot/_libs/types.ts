@@ -1,3 +1,16 @@
+// --- Generic Skill Error and Response Types ---
+// (Mirrors the structure from other services for consistency)
+export interface SkillError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+export interface AutopilotApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: SkillError;
+}
 
 export type ScheduleAssistWithMeetingQueueBodyType = {
     userId: string,

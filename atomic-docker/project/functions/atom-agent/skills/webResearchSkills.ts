@@ -1,82 +1,85 @@
-// Placeholder for web research skill functions
-import { SearchResult } from '../types';
-import axios from 'axios'; // Added import
+import { SearchResult, WebResearchSkillResponse, SkillError } from '../types';
+import axios, { AxiosError } from 'axios';
 
-// Keep existing mockSearchResults for fallback or if API key is missing
-const mockSearchResults: SearchResult[] = [
-  {
-    title: 'Example Domain',
-    link: 'http://example.com',
-    snippet: 'Example Domain for use in illustrative examples in documents. You may use this domain in examples without prior coordination or asking for permission.',
-  },
-  {
-    title: 'Internet Assigned Numbers Authority (IANA)',
-    link: 'https://www.iana.org/',
-    snippet: 'The Internet Assigned Numbers Authority (IANA) is responsible for coordinating some of the key elements that keep the Internet running smoothly.',
-  },
-  {
-    title: 'World Wide Web Consortium (W3C)',
-    link: 'https://www.w3.org/',
-    snippet: 'The World Wide Web Consortium (W3C) is an international community that develops open standards to ensure the long-term growth of the Web.',
-  }
-];
+// Note: mockSearchResults is removed as we will now return errors or empty data, not mocks.
 
-async function performActualWebSearch(query: string, apiKey: string): Promise<SearchResult[]> {
+async function performActualWebSearch(query: string, apiKey: string): Promise<WebResearchSkillResponse<SearchResult[]>> {
   const searchApiUrl = `https://api.exampleSearchEngine.com/search`; // Placeholder URL
+
+  // Since this function is explicitly a placeholder for a real search engine,
+  // if it's called, it means SEARCH_API_KEY was set, but this function wasn't replaced.
+  // We will treat this as a "Not Implemented" scenario for the actual search functionality.
+  // Alternatively, we could let it try the fake URL and fail with a network error.
+  // For clarity, let's return a specific error if this placeholder is hit.
+  if (searchApiUrl.includes("api.exampleSearchEngine.com")) {
+    console.warn(`performActualWebSearch is using a placeholder URL: ${searchApiUrl}`);
+    return {
+        ok: false,
+        error: {
+            code: 'NOT_IMPLEMENTED',
+            message: 'Actual web search functionality is not implemented; using a placeholder URL.',
+            details: `Search URL: ${searchApiUrl}`
+        }
+    };
+  }
+
   try {
     const response = await axios.get(searchApiUrl, {
-      params: { q: query, key: apiKey }, // Common way to pass query params
+      params: { q: query, key: apiKey },
     });
 
-    // Assuming the API returns data in the shape: { items: [{ title: string, link: string, snippet: string }] }
     if (response.data && Array.isArray(response.data.items)) {
-      return response.data.items.map((item: any) => ({
+      const results = response.data.items.map((item: any) => ({
         title: item.title || 'No title',
         link: item.link || '#',
         snippet: item.snippet || 'No snippet available.',
       }));
+      return { ok: true, data: results };
     }
     console.warn('Web search API response format unexpected:', response.data);
-    return []; // Return empty if format is not as expected
+    return { ok: false, error: { code: 'API_RESPONSE_FORMAT_ERROR', message: 'Web search API response format unexpected.', details: response.data } };
   } catch (error: any) {
     console.error('Error during web search API call:', error.message);
-    if (axios.isAxiosError(error) && error.response) {
-      console.error('API Error Status:', error.response.status);
-      console.error('API Error Data:', error.response.data);
+    const axiosError = error as AxiosError;
+    let errorCode = 'API_ERROR';
+    if (axiosError.isAxiosError) {
+        if (axiosError.code === 'ENOTFOUND' || axiosError.code === 'ECONNREFUSED') {
+            errorCode = 'NETWORK_ERROR';
+        } else if (axiosError.response?.status) {
+            errorCode = `API_HTTP_${axiosError.response.status}`;
+        }
     }
-    throw new Error(`Failed to perform web search: ${error.message}`);
+    return {
+        ok: false,
+        error: {
+            code: errorCode,
+            message: `Failed to perform web search: ${error.message}`,
+            details: axiosError.response?.data || axiosError.message
+        }
+    };
   }
 }
 
-export async function searchWeb(query: string): Promise<SearchResult[]> {
+export async function searchWeb(query: string): Promise<WebResearchSkillResponse<SearchResult[]>> {
   console.log(`Performing web search for query: "${query}"`);
+
+  if (!query || query.trim() === "") {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Search query cannot be empty.' } };
+  }
+
   const apiKey = process.env.SEARCH_API_KEY;
 
   if (!apiKey) {
-    console.error('SEARCH_API_KEY is not configured. Returning mock results or an error message.');
-    // Option 1: Return mock results (Filtering example, can be adjusted)
-    // const lowerCaseQuery = query.toLowerCase();
-    // const results = mockSearchResults.filter(
-    //   result => result.title.toLowerCase().includes(lowerCaseQuery) || result.snippet.toLowerCase().includes(lowerCaseQuery)
-    // );
-    // if (results.length > 0) return Promise.resolve(results);
-
-    // Option 2: Return an error-like search result
-    return Promise.resolve([{
-      title: 'Search Not Configured',
-      link: '#',
-      snippet: 'The web search functionality is not configured. Please set the SEARCH_API_KEY environment variable.'
-    }]);
+    console.error('SEARCH_API_KEY is not configured.');
+    return {
+        ok: false,
+        error: {
+            code: 'CONFIG_ERROR',
+            message: 'Web search functionality is not configured. SEARCH_API_KEY is missing.'
+        }
+    };
   }
 
-  try {
-    return await performActualWebSearch(query, apiKey);
-  } catch (error: any) {
-    console.error(`searchWeb failed: ${error.message}`);
-    return Promise.resolve([{
-      title: 'Search Error',
-      link: '#',
-      snippet: `An error occurred while trying to perform the web search: ${error.message}`
-    }]);
-  }
+  // The function performActualWebSearch now returns WebResearchSkillResponse, so just return its result.
+  return await performActualWebSearch(query, apiKey);
 }

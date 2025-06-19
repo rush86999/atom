@@ -13,6 +13,7 @@ import AWS from 'aws-sdk'
 import { getISODay, setISODay } from 'date-fns'
 import OpenAI from "openai"
 import { getEventById, searchTrainingEvents, deleteTrainingEventsByIds, upsertTrainingEvents, TrainingEventSchema, EventSchema } from '@functions/_utils/lancedb_service';
+import { FeaturesApplyResponse, SkillError } from './types'; // Import standardized response types
 
 dayjs.extend(duration)
 dayjs.extend(isBetween)
@@ -24,83 +25,105 @@ const openai = new OpenAI({
     apiKey: defaultOpenAIAPIKey,
 })
 
-export const getEventVectorById = async (id: string): Promise<number[] | null> => {
+export const getEventVectorById = async (id: string): Promise<FeaturesApplyResponse<number[] | null>> => {
+    if (!id) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event ID is required.' } };
+    }
     try {
         const event = await getEventById(id); // from lancedb_service
         if (event && event.vector) {
             console.log(`Vector found for event ID ${id}`);
-            return event.vector;
+            return { ok: true, data: event.vector as number[] }; // Explicitly cast if needed
         }
         console.log(`No event or vector found for ID ${id}`);
-        return null;
-    } catch (e) {
+        return { ok: true, data: null }; // Not an error, but no data found
+    } catch (e: any) {
         console.error(`Error fetching event vector for ID ${id} from LanceDB:`, e);
-        return null;
+        return { ok: false, error: { code: 'LANCEDB_ERROR', message: `Failed to fetch event vector: ${e.message}`, details: e } };
     }
 };
 
-export const deleteTrainingDataById = async (id: string): Promise<void> => {
+export const deleteTrainingDataById = async (id: string): Promise<FeaturesApplyResponse<void>> => {
+    if (!id) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'ID is required for deletion.' } };
+    }
     try {
         await deleteTrainingEventsByIds([id]);
         console.log(`Successfully deleted training data for ID: ${id}`);
-    } catch (e) {
+        return { ok: true, data: undefined };
+    } catch (e: any) {
         console.error(`Error deleting training data for ID ${id} from LanceDB:`, e);
-        throw e;
+        return { ok: false, error: { code: 'LANCEDB_ERROR', message: `Failed to delete training data: ${e.message}`, details: e } };
     }
 };
 
 export const searchTrainingDataByVector = async (
     userId: string,
     searchVector: number[],
-): Promise<TrainingEventSchema | null> => {
+): Promise<FeaturesApplyResponse<TrainingEventSchema | null>> => {
+    if (!userId || !searchVector || searchVector.length === 0) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'UserId and searchVector are required.' } };
+    }
     try {
-        // Assuming min_score logic is handled by LanceDB's search or not strictly needed,
-        // or would require more complex query building if it is.
-        // For now, simple search and return top hit.
         const results = await searchTrainingEvents(
             searchVector,
-            1, // We need only the top match
+            1,
             `userId = '${userId.replace(/'/g, "''")}'`
         );
         if (results && results.length > 0) {
-            // console.log(results[0], ' search data from LanceDB training_data');
-            return results[0];
+            return { ok: true, data: results[0] };
         }
-        return null;
-    } catch (e) {
+        return { ok: true, data: null }; // Found nothing, but operation was successful
+    } catch (e: any) {
         console.error('Error searching training data in LanceDB:', e);
-        throw e; // Or return null based on desired error handling
+        return { ok: false, error: { code: 'LANCEDB_ERROR', message: `Failed to search training data: ${e.message}`, details: e } };
     }
 }
 
-export const addTrainingData = async (trainingEntry: TrainingEventSchema): Promise<void> => {
+export const addTrainingData = async (trainingEntry: TrainingEventSchema): Promise<FeaturesApplyResponse<void>> => {
+    if (!trainingEntry || !trainingEntry.id || !trainingEntry.vector) { // Add more checks as needed
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Training entry with id and vector is required.' } };
+    }
     try {
         await upsertTrainingEvents([trainingEntry]);
         console.log(`Successfully added/updated training data for ID: ${trainingEntry.id}`);
-    } catch (e) {
+        return { ok: true, data: undefined };
+    } catch (e: any) {
         console.error(`Error adding/updating training data for ID ${trainingEntry.id} in LanceDB:`, e);
-        throw e;
+        return { ok: false, error: { code: 'LANCEDB_ERROR', message: `Failed to add/update training data: ${e.message}`, details: e } };
     }
 };
 
 export const convertEventTitleToOpenAIVector = async (
     title: string,
-) => {
+): Promise<FeaturesApplyResponse<number[] | undefined>> => {
+    if (!title || title.trim() === "") {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Title cannot be empty for vectorization.'}};
+    }
     try {
         const embeddingRequest: OpenAI.Embeddings.EmbeddingCreateParams = {
             model: 'text-embedding-3-small',
             input: title,
-        }
+        };
 
-        const res = await openai.embeddings.create(embeddingRequest)
-        console.log(res, ' res inside convertEventTitleToOpenAIVectors')
-        return res?.data?.[0]?.embedding
-    } catch (e) {
-        console.log(e, ' unable to convert event title to openaivectors')
+        const res = await openai.embeddings.create(embeddingRequest);
+        // console.log(res, ' res inside convertEventTitleToOpenAIVectors'); // Too verbose for normal operation
+        const embedding = res?.data?.[0]?.embedding;
+        if (!embedding) {
+            console.error('OpenAI embedding response did not contain embedding data.');
+            return { ok: false, error: { code: 'OPENAI_ERROR', message: 'No embedding data returned from OpenAI.', details: res }};
+        }
+        return { ok: true, data: embedding };
+    } catch (e: any) {
+        console.error('Error converting event title to OpenAI vector:', e);
+        return { ok: false, error: { code: 'OPENAI_ERROR', message: `OpenAI API error: ${e.message}`, details: e }};
     }
 }
 
-export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (meetingId: string) => {
+export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (meetingId: string): Promise<FeaturesApplyResponse<MeetingAssistPreferredTimeRangeType[] | null>> => {
+    if (!meetingId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Meeting ID is required.' } };
+    }
     try {
         const operationName = 'ListMeetingAssistPrefereredTimeRangesByMeetingId'
         const query = `
@@ -140,16 +163,21 @@ export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (meeting
             },
         ).json()
 
-        console.log(res, ' res from listMeetingAssistAttendees ')
+        console.log(res, ' res from listMeetingAssistPreferredTimeRangesGivenMeetingId'); // Corrected log
 
-        return res?.data?.Meeting_Assist_Preferred_Time_Range
+        return { ok: true, data: res?.data?.Meeting_Assist_Preferred_Time_Range || null };
 
-    } catch (e) {
-        console.log(e, ' uanble to list meeting assist preferred time ranges')
+    } catch (e: any) {
+        console.error('Error listing meeting assist preferred time ranges:', e);
+        const errorDetails = e.response?.body || e.message || e; // got error details
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list preferred time ranges: ${e.message}`, details: errorDetails } };
     }
 }
 
-export const listMeetingAssistAttendeesGivenMeetingId = async (meetingId: string) => {
+export const listMeetingAssistAttendeesGivenMeetingId = async (meetingId: string): Promise<FeaturesApplyResponse<MeetingAssistAttendeeType[] | null>> => {
+    if (!meetingId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Meeting ID is required.' } };
+    }
     try {
         const operationName = 'ListMeetingAssistAttendeesByMeetingId'
         const query = `
@@ -193,16 +221,21 @@ export const listMeetingAssistAttendeesGivenMeetingId = async (meetingId: string
             },
         ).json()
 
-        console.log(res, ' res from listMeetingAssistAttendees ')
+        console.log(res, ' res from listMeetingAssistAttendees');
 
-        return res?.data?.Meeting_Assist_Attendee
+        return { ok: true, data: res?.data?.Meeting_Assist_Attendee || null };
 
-    } catch (e) {
-        console.log(e, ' unable to list meeting assist attendees')
+    } catch (e: any) {
+        console.error('Error listing meeting assist attendees:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list meeting assist attendees: ${e.message}`, details: errorDetails } };
     }
 }
 
-export const getMeetingAssistAttendee = async (id: string) => {
+export const getMeetingAssistAttendee = async (id: string): Promise<FeaturesApplyResponse<MeetingAssistAttendeeType | null>> => {
+    if (!id) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Attendee ID is required.' } };
+    }
     try {
         const operationName = 'GetMeetingAssistAttendeeById'
         const query = `
@@ -246,16 +279,24 @@ export const getMeetingAssistAttendee = async (id: string) => {
             },
         ).json()
 
-        console.log(res, ' res from getMeetingAssistAttendee')
+        console.log(res, ' res from getMeetingAssistAttendee');
+        const attendee = res?.data?.Meeting_Assist_Attendee_by_pk;
+        if (!attendee) { // Hasura returns null for _by_pk if not found
+            return { ok: true, data: null };
+        }
+        return { ok: true, data: attendee };
 
-        return res?.data?.Meeting_Assist_Attendee_by_pk
-
-    } catch (e) {
-        console.log(e, ' unable to get meeting assist attendee')
+    } catch (e: any) {
+        console.error('Error getting meeting assist attendee:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to get meeting assist attendee: ${e.message}`, details: errorDetails } };
     }
 }
 
-export const getMeetingAssist = async (id: string) => {
+export const getMeetingAssist = async (id: string): Promise<FeaturesApplyResponse<MeetingAssistType | null>> => {
+    if (!id) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'MeetingAssist ID is required.' } };
+    }
     try {
         const operationName = 'GetMeetingAssistById'
         const query = `
@@ -326,11 +367,16 @@ export const getMeetingAssist = async (id: string) => {
             },
         ).json()
 
-        console.log(res, ' res from getMeetingAssist')
-
-        return res?.data?.Meeting_Assist_by_pk
-    } catch (e) {
-        console.log(e, ' unable to get meeting assist from id')
+        console.log(res, ' res from getMeetingAssist');
+        const meetingAssist = res?.data?.Meeting_Assist_by_pk;
+        if (!meetingAssist) { // Hasura returns null for _by_pk if not found
+            return { ok: true, data: null };
+        }
+        return { ok: true, data: meetingAssist };
+    } catch (e: any) {
+        console.error('Error getting meeting assist by id:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to get meeting assist: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -340,7 +386,10 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
     hostEndDate: string,
     userTimezone: string,
     hostTimezone: string,
-) => {
+): Promise<FeaturesApplyResponse<MeetingAssistEventType[] | null>> => {
+    if (!attendeeId || !hostStartDate || !hostEndDate || !userTimezone || !hostTimezone) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Missing required parameters for listing meeting assist events.'}};
+    }
     try {
         const operationName = 'ListMeetingAssistEventsForAttendeeGivenDates'
         const query = `
@@ -414,11 +463,13 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
             },
         ).json()
 
-        console.log(res, ' res from listMeetingAssistEventsForAttendeeGivenDates')
-        return res?.data?.Meeting_Assist_Event
+        console.log(res, ' res from listMeetingAssistEventsForAttendeeGivenDates');
+        return { ok: true, data: res?.data?.Meeting_Assist_Event || null };
 
-    } catch (e) {
-        console.log(e, ' unable to list meeting assist events for attendee given dates')
+    } catch (e: any) {
+        console.error('Error listing meeting assist events for attendee:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list meeting assist events: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -427,7 +478,10 @@ export const listEventsForDate = async (
     startDate: string,
     endDate: string,
     timezone: string,
-) => {
+): Promise<FeaturesApplyResponse<EventType[] | null>> => {
+    if (!userId || !startDate || !endDate || !timezone) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Missing required parameters for listing events for date.'}};
+    }
     try {
         const operationName = 'listEventsForDate'
         const query = `
@@ -569,11 +623,13 @@ export const listEventsForDate = async (
             },
         ).json()
 
-        console.log(res, ' res from listEventsforUser')
-        return res?.data?.Event
+        console.log(res, ' res from listEventsForDate'); // Corrected log
+        return { ok: true, data: res?.data?.Event || null };
 
-    } catch (e) {
-        console.log(e, ' unable to list events for date')
+    } catch (e: any) {
+        console.error('Error listing events for date:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list events for date: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -583,9 +639,11 @@ export const listEventsForUserGivenDates = async (
     hostEndDate: string,
     userTimezone: string,
     hostTimezone: string,
-) => {
+): Promise<FeaturesApplyResponse<EventType[] | null>> => {
+    if (!userId || !hostStartDate || !hostEndDate || !userTimezone || !hostTimezone) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Missing required parameters for listing events for user given dates.'}};
+    }
     try {
-
         const operationName = 'listEventsForUser'
         const query = `
             query listEventsForUser($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
@@ -732,18 +790,28 @@ export const listEventsForUserGivenDates = async (
             },
         ).json()
 
-        console.log(res, ' res from listEventsforUser')
-        return res?.data?.Event
-    } catch (e) {
-        console.log(e, ' listEventsForUser')
+        console.log(res, ' res from listEventsForUser');
+        return { ok: true, data: res?.data?.Event || null };
+    } catch (e: any) {
+        console.error('Error listing events for user given dates:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list events for user: ${e.message}`, details: errorDetails } };
     }
 }
 
-export const processMeetingAssistForOptaplanner = async () => {
+// processMeetingAssistForOptaplanner seems like a complex internal orchestration,
+// for now, we'll assume its return type might be a simple status or a complex object.
+// Let's assume it returns a status message for this refactoring.
+export const processMeetingAssistForOptaplanner = async (): Promise<FeaturesApplyResponse<{message: string}>> => {
     try {
-
-    } catch (e) {
-        console.log(e, ' unable to process meeting assist for optaplanner')
+        // ... existing logic ...
+        // If successful:
+        // return { ok: true, data: { message: "Processing for OptaPlanner initiated/completed." } };
+        console.warn("processMeetingAssistForOptaplanner logic is complex and not fully refactored for error handling here.");
+        return { ok: true, data: { message: "Placeholder response for processMeetingAssistForOptaplanner." } };
+    } catch (e: any) {
+        console.error('Error processing meeting assist for optaplanner:', e);
+        return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Failed to process for OptaPlanner: ${e.message}`, details: e } };
     }
 }
 
@@ -915,11 +983,13 @@ export const generateNewMeetingEventForHost = (
 
 export const listPreferredTimeRangesForEvent = async (
     eventId: string,
-) => {
+    // This function is missing userId for context if it's a user-specific action
+    // or if it's a generic lookup by eventId, it's fine. Assuming generic for now.
+): Promise<FeaturesApplyResponse<PreferredTimeRangeType[] | null>> => {
+    if (!eventId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event ID is required.' } };
+    }
     try {
-        if (!eventId) {
-            console.log(eventId, ' no eventId inside listPreferredTimeRangesForEvent')
-        }
         const operationName = 'ListPreferredTimeRangesGivenEventId'
         const query = `
       query ListPreferredTimeRangesGivenEventId($eventId: String!) {
@@ -951,13 +1021,15 @@ export const listPreferredTimeRangesForEvent = async (
             }
         }).json()
 
-        console.log(res, ' res inside  listPreferredTimeRangesForEvent')
-        res?.data?.PreferredTimeRange?.map(pt => console.log(pt, ' preferredTimeRange - res?.data?.PreferredTimeRange inside  listPreferredTimeRangesForEvent '))
+        console.log(res, ' res inside  listPreferredTimeRangesForEvent');
+        res?.data?.PreferredTimeRange?.map(pt => console.log(pt, ' preferredTimeRange - res?.data?.PreferredTimeRange inside  listPreferredTimeRangesForEvent '));
 
-        return res?.data?.PreferredTimeRange
+        return { ok: true, data: res?.data?.PreferredTimeRange || null };
 
-    } catch (e) {
-        console.log(e, ' unable to list preferred time ranges for event')
+    } catch (e: any) {
+        console.error('Error listing preferred time ranges for event:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list preferred time ranges: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -4122,9 +4194,20 @@ export const createRemindersAndBufferTimesForBestMatchCategory = async (
 
 export const createCategoryEvents = async (
     categoryEvents: CategoryEventType[],
-) => {
+): Promise<FeaturesApplyResponse<void>> => {
+    if (!categoryEvents || categoryEvents.length === 0) {
+        // Not an error, but nothing to do. Could also return success.
+        console.log('No category events provided to createCategoryEvents.');
+        return { ok: true, data: undefined };
+    }
     try {
         for (const categoryEvent of categoryEvents) {
+            // Basic validation for each categoryEvent
+            if (!categoryEvent || !categoryEvent.categoryId || !categoryEvent.eventId || !categoryEvent.userId || !categoryEvent.id) {
+                console.warn('Skipping invalid categoryEvent in createCategoryEvents:', categoryEvent);
+                continue; // Or collect errors and return a partial success/failure
+            }
+
             const variables = {
                 categoryId: categoryEvent?.categoryId,
                 eventId: categoryEvent?.eventId,
@@ -4193,11 +4276,14 @@ export const createCategoryEvents = async (
                     }
                 }).json()
 
-                console.log(res2, ' response after inserting category event')
+                console.log(res2, ' response after inserting category event');
             }
         }
-    } catch (e) {
-        console.log(e, ' unable to upsert category events')
+        return { ok: true, data: undefined };
+    } catch (e: any) {
+        console.error('Error creating category events in Hasura:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to create category events: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -4223,18 +4309,11 @@ const copyOverCategoryDefaultsForMeetingType = (event, categories: CategoryType[
 export const listRemindersForEvent = async (
     eventId: string,
     userId: string,
-) => {
+): Promise<FeaturesApplyResponse<ReminderType[] | null>> => {
+    if (!eventId || !userId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event ID and User ID are required for listing reminders.'}};
+    }
     try {
-        if (!eventId) {
-            console.log(eventId, ' no eventId present inside listRemindersForEvent')
-            return
-        }
-
-        if (!userId) {
-            console.log(userId, ' no userId present inside listRemindersForEvent')
-            return
-        }
-        console.log(' listRemindersForEvent called')
         const operationName = 'listRemindersForEvent'
         const query = `
     query listRemindersForEvent($userId: uuid!, $eventId: String!) {
@@ -4271,10 +4350,12 @@ export const listRemindersForEvent = async (
             },
         ).json()
 
-        console.log(res, ' res from listRemindersForEvent')
-        return res?.data?.Reminder
-    } catch (e) {
-        console.log(e, ' listRemindersForEvent')
+        console.log(res, ' res from listRemindersForEvent');
+        return { ok: true, data: res?.data?.Reminder || null };
+    } catch (e: any) {
+        console.error('Error listing reminders for event:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list reminders: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -4427,175 +4508,161 @@ export const updateValuesForMeetingTypeCategories = async (
     bestMatchCategories: CategoryType[],
     userId: string,
     newReminders1?: ReminderType[],
-    newTimeBlocking1?: { beforeEvent?: EventPlusType, afterEvent?: EventPlusType },
+    newTimeBlocking1?: BufferTimeObjectType, // Updated type
     previousEvent?: EventPlusType,
-) => {
+): Promise<FeaturesApplyResponse<{ newEvent: EventPlusType, newReminders: ReminderType[], newBufferTimes: BufferTimeObjectType }>> => {
+    if (!bestMatchCategories || bestMatchCategories.length === 0 || !newEvent1 || !userId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Required parameters missing for updating values for meeting type categories.' }};
+    }
     try {
-        if (!(bestMatchCategories?.length > 0)) {
-            throw new Error('bestMatchCategories cannot be empty inside updateValuesForMeetingTypeCategories ')
-        }
-        let newEvent = newEvent1
-        let newReminders = newReminders1 || []
-        let newBufferTime = newTimeBlocking1 || {}
-        const newCategoryConstantEvents = copyOverCategoryDefaultsForMeetingType(event, bestMatchCategories)
-        console.log(newCategoryConstantEvents, ' newCategoryConstantEvents')
+        let newEvent = newEvent1;
+        let newReminders = newReminders1 || [];
+        let newBufferTimes = newTimeBlocking1 || {}; // Ensure it's BufferTimeObjectType
+
+        const newCategoryConstantEvents = copyOverCategoryDefaultsForMeetingType(event, bestMatchCategories);
+        console.log(newCategoryConstantEvents, ' newCategoryConstantEvents');
 
         if (newCategoryConstantEvents?.newEventMeeting?.id) {
-            newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventMeeting }
-            const meetingCategory = bestMatchCategories.find(category => category.name === meetingLabel)
+            newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventMeeting };
+            const meetingCategory = bestMatchCategories.find(category => category.name === meetingLabel);
 
-            const oldReminders = await listRemindersForEvent(newCategoryConstantEvents.newEventMeeting.id, userId)
-            const reminders = createRemindersUsingCategoryDefaultsForEvent(newEvent, meetingCategory, oldReminders, previousEvent)
-            console.log(reminders, ' reminders')
-            if (reminders?.length > 0) {
-                newReminders.push(...reminders)
-                newReminders = _.uniqBy(newReminders, 'minutes')
-            }
+            if (meetingCategory) { // Ensure category is found
+                const listRemindersResponse = await listRemindersForEvent((newCategoryConstantEvents.newEventMeeting as EventPlusType).id, userId);
+                const oldReminders = (listRemindersResponse.ok && listRemindersResponse.data) ? listRemindersResponse.data : [];
 
-            const bufferTime = createPreAndPostEventsForCategoryDefaults(meetingCategory, newEvent, previousEvent)
-            console.log(bufferTime, ' timeBlocking')
-            if (bufferTime?.beforeEvent) {
-                newBufferTime.beforeEvent = bufferTime.beforeEvent
+                const reminders = createRemindersUsingCategoryDefaultsForEvent(newEvent, meetingCategory, oldReminders, previousEvent);
+                if (reminders?.length > 0) {
+                    newReminders.push(...reminders);
+                    newReminders = _.uniqBy(newReminders, 'minutes');
+                }
 
-            }
-
-            if (bufferTime?.afterEvent) {
-                newBufferTime.afterEvent = bufferTime.afterEvent
-            }
-
-            if (bufferTime?.newEvent?.preEventId || bufferTime?.newEvent?.postEventId) {
-                newEvent = bufferTime.newEvent
+                const bufferTime = createPreAndPostEventsForCategoryDefaults(meetingCategory, newEvent, previousEvent);
+                if (bufferTime?.beforeEvent) (newBufferTimes as BufferTimeObjectType).beforeEvent = bufferTime.beforeEvent;
+                if (bufferTime?.afterEvent) (newBufferTimes as BufferTimeObjectType).afterEvent = bufferTime.afterEvent;
+                if (bufferTime?.newEvent?.preEventId || bufferTime?.newEvent?.postEventId) newEvent = bufferTime.newEvent;
             }
         }
 
         if (newCategoryConstantEvents?.newEventExternal?.id) {
-            newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventExternal }
-            const externalCategory = bestMatchCategories.find(category => category.name === externalMeetingLabel)
+            newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventExternal };
+            const externalCategory = bestMatchCategories.find(category => category.name === externalMeetingLabel);
 
-            const oldReminders = await listRemindersForEvent(newCategoryConstantEvents.newEventExternal.id, userId)
-            const reminders = createRemindersUsingCategoryDefaultsForEvent(newEvent, externalCategory, oldReminders, previousEvent)
-            console.log(reminders, ' reminders')
-            if (reminders?.length > 0) {
-                newReminders.push(...reminders)
-                newReminders = _.uniqBy(newReminders, 'minutes')
-            }
+            if (externalCategory) { // Ensure category is found
+                const listRemindersResponse = await listRemindersForEvent((newCategoryConstantEvents.newEventExternal as EventPlusType).id, userId);
+                const oldReminders = (listRemindersResponse.ok && listRemindersResponse.data) ? listRemindersResponse.data : [];
 
-            const timeBlocking = createPreAndPostEventsForCategoryDefaults(externalCategory, newEvent, previousEvent)
-            console.log(timeBlocking, ' timeBlocking')
-            if (timeBlocking?.beforeEvent) {
-                newBufferTime.beforeEvent = timeBlocking.beforeEvent
+                const reminders = createRemindersUsingCategoryDefaultsForEvent(newEvent, externalCategory, oldReminders, previousEvent);
+                if (reminders?.length > 0) {
+                    newReminders.push(...reminders);
+                    newReminders = _.uniqBy(newReminders, 'minutes');
+                }
 
-            }
-
-            if (timeBlocking?.afterEvent) {
-                newBufferTime.afterEvent = timeBlocking.afterEvent
-            }
-
-            if (timeBlocking?.newEvent?.preEventId || timeBlocking?.newEvent?.postEventId) {
-                newEvent = timeBlocking.newEvent
+                const timeBlocking = createPreAndPostEventsForCategoryDefaults(externalCategory, newEvent, previousEvent);
+                if (timeBlocking?.beforeEvent) (newBufferTimes as BufferTimeObjectType).beforeEvent = timeBlocking.beforeEvent;
+                if (timeBlocking?.afterEvent) (newBufferTimes as BufferTimeObjectType).afterEvent = timeBlocking.afterEvent;
+                if (timeBlocking?.newEvent?.preEventId || timeBlocking?.newEvent?.postEventId) newEvent = timeBlocking.newEvent;
             }
         }
-        return { newEvent, newReminders, newBufferTimes: newBufferTime }
-    } catch (e) {
-        console.log(e, ' unable to update values for default categories')
+        return { ok: true, data: { newEvent, newReminders, newBufferTimes: newBufferTimes as BufferTimeObjectType } };
+    } catch (e: any) {
+        console.error('Error updating values for meeting type categories:', e);
+        return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Failed to update values for meeting categories: ${e.message}`, details: e } };
     }
 }
 
 
-export const processUserEventForCategoryDefaults = async (event: EventPlusType, vector: number[]) => {
+export const processUserEventForCategoryDefaults = async (event: EventPlusType, vector: number[]): Promise<FeaturesApplyResponse<{ newEvent: EventPlusType, newReminders?: ReminderType[], newBufferTimes?: BufferTimeObjectType } | null >> => {
+    if (!event || !event.id || !event.userId || !vector) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event, event ID, userId, and vector are required for category processing.' } };
+    }
     try {
-        const { id, userId } = event
-        console.log(id, ' id inside processUserEventForCategoryDefaults')
+        const { id, userId } = event;
+        console.log(id, ' id inside processUserEventForCategoryDefaults');
 
-        const categories: CategoryType[] = await getUserCategories(userId)
+        const categoriesResponse = await getUserCategories(userId);
+        if (!categoriesResponse.ok || !categoriesResponse.data) {
+            // If categories can't be fetched, we might still proceed with the event, but without categorization benefits.
+            console.warn(`Failed to get user categories for user ${userId}. Proceeding without categorization. Error: ${categoriesResponse.error?.message}`);
+            event.vector = vector; // Ensure vector is set
+            return { ok: true, data: { newEvent: event } }; // Or return error if categories are essential
+        }
+        const categories = categoriesResponse.data;
 
-        if (!categories?.[0]?.id) {
-            throw new Error('categories is not available processUserEventForCategoryDefaults')
+        if (categories.length === 0) {
+            console.log(`No categories defined for user ${userId}. Event ${id} will not be categorized further.`);
+            event.vector = vector;
+            return { ok: true, data: { newEvent: event } };
         }
 
-        console.log(categories, id, ' categories, id processUserEventForCategoryDefaults')
-        const body = await findBestMatchCategory2(event, categories)
-        console.log(body, id, ' body, id processUserEventForCategoryDefaults')
-        const { labels, scores } = body
+        const classificationResponse = await findBestMatchCategory2(event, categories);
+        if (!classificationResponse.ok || !classificationResponse.data) {
+            console.warn(`Category classification failed for event ${id}. Error: ${classificationResponse.error?.message}. Proceeding without applying category defaults.`);
+            event.vector = vector;
+            return { ok: true, data: { newEvent: event } };
+        }
+        const classificationBody = classificationResponse.data;
+        const { labels, scores } = classificationBody;
+        const bestMatchLabel = processBestMatchCategories(classificationBody, labels);
 
-        const bestMatchLabel = processBestMatchCategories(body, labels)
-        console.log(bestMatchLabel, id, ' bestMatchLabel, id processUserEventForCategoryDefaults')
+        let newEvent: EventPlusType = { ...event, vector }; // Start with original event and add vector
+        let newReminders: ReminderType[] = [];
+        let newBufferTimes: BufferTimeObjectType = {};
 
         if (bestMatchLabel) {
-            const bestMatchCategory = categories.find(category => category.name === bestMatchLabel)
-            let bestMatchPlusMeetingCategories = await processEventForMeetingTypeCategories(event, bestMatchCategory, labels, scores, categories)
-            if (bestMatchPlusMeetingCategories?.length > 0) {
-                bestMatchPlusMeetingCategories = getUniqueLabels(bestMatchPlusMeetingCategories)
-                console.log(bestMatchPlusMeetingCategories, id, ' bestMatchAndMeetingCategories, id processUserEventForCategoryDefaults')
-            }
-            const newCategoryDefaultEvent = copyOverCategoryDefaults(event, bestMatchCategory)
-            console.log(newCategoryDefaultEvent, id, ' newCategoryDefaultEvent, id processUserEventForCategoryDefaults')
+            const bestMatchCategory = categories.find(category => category.name === bestMatchLabel);
+            if (bestMatchCategory) {
+                let bestMatchPlusMeetingCategories = processEventForMeetingTypeCategories(newEvent, bestMatchCategory, labels, scores, categories);
+                bestMatchPlusMeetingCategories = getUniqueLabels(bestMatchPlusMeetingCategories);
 
-            let newEvent: EventPlusType = newCategoryDefaultEvent ?? event
-            console.log(newEvent, ' newEvent processUserEventForCategoryDefaults')
-            let newReminders: ReminderType[] = []
-            let newBufferTimes: BufferTimeObjectType = {}
+                newEvent = copyOverCategoryDefaults(newEvent, bestMatchCategory);
 
-            const {
-                newEvent: newEvent1,
-                newReminders: newReminders1,
-                newBufferTimes: newBufferTimes1,
-            } = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newEvent, bestMatchCategory, newReminders, newBufferTimes)
-            newEvent = newEvent1
-            newReminders = newReminders1
-            newBufferTimes = newBufferTimes1
+                const remindersAndBuffersResponse = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newEvent, bestMatchCategory, [], {});
+                if (remindersAndBuffersResponse.ok && remindersAndBuffersResponse.data) {
+                    newEvent = remindersAndBuffersResponse.data.newEvent;
+                    newReminders = remindersAndBuffersResponse.data.newReminders;
+                    newBufferTimes = remindersAndBuffersResponse.data.newBufferTimes;
+                } else {
+                    console.warn(`Failed to create reminders/buffers for best match category for event ${id}: ${remindersAndBuffersResponse.error?.message}`);
+                }
 
-            if (bestMatchPlusMeetingCategories?.length > 0) {
-                const categoryEvents: CategoryEventType[] = bestMatchPlusMeetingCategories.map(c => {
-                    const categoryEvent: CategoryEventType = {
-                        categoryId: c.id,
-                        eventId: id,
-                        userId,
-                        id: uuid(),
-                        createdDate: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                    } as CategoryEventType
-                    return categoryEvent
-                })
-                console.log(categoryEvents, id, ' categoryEvents, id processUserEventForCategoryDefaults')
-                await createCategoryEvents(categoryEvents)
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await updateValuesForMeetingTypeCategories(event, newEvent, bestMatchPlusMeetingCategories, userId, newReminders, newBufferTimes)
-                newEvent = newEvent1
-                newReminders = newReminders1
-                newBufferTimes = newTimeBlocking1
-            }
+                if (bestMatchPlusMeetingCategories?.length > 0) {
+                    const categoryEvents: CategoryEventType[] = bestMatchPlusMeetingCategories.map(c => ({
+                        categoryId: c.id, eventId: id, userId, id: uuid(),
+                        createdDate: new Date().toISOString(), updatedAt: new Date().toISOString(),
+                        Category: c, deleted: false
+                    }));
 
-            newEvent.vector = vector
+                    const createCatEventsResponse = await createCategoryEvents(categoryEvents);
+                    if (!createCatEventsResponse.ok) {
+                         console.warn(`Failed to create category events for event ${id}: ${createCatEventsResponse.error?.message}`);
+                    }
 
-            console.log(newEvent, ' newEvent processUserEventForCategoryDefaults')
-            console.log(newReminders, ' newReminders processUserEventForCategoryDefaults')
-            console.log(newBufferTimes, ' newTimeBlocking processUserEventForCategoryDefaults')
-
-            return {
-                newEvent,
-                newReminders,
-                newBufferTimes: newBufferTimes
+                    const updatedValuesResponse = await updateValuesForMeetingTypeCategories(event, newEvent, bestMatchPlusMeetingCategories, userId, newReminders, newBufferTimes);
+                    if (updatedValuesResponse.ok && updatedValuesResponse.data) {
+                        newEvent = updatedValuesResponse.data.newEvent;
+                        newReminders = updatedValuesResponse.data.newReminders;
+                        newBufferTimes = updatedValuesResponse.data.newBufferTimes;
+                    } else {
+                        console.warn(`Failed to update values for meeting type categories for event ${id}: ${updatedValuesResponse.error?.message}`);
+                    }
+                }
             }
         }
-        event.vector = vector
-        return {
-            newEvent: event,
-        }
-    } catch (e) {
-        console.log(e, ' e')
+        return { ok: true, data: { newEvent, newReminders, newBufferTimes }};
+    } catch (e: any) {
+        console.error(`Error processing user event ${event?.id} for category defaults:`, e);
+        return { ok: false, error: { code: 'CLASSIFICATION_ERROR', message: `Failed to process event for categories: ${e.message}`, details: e } };
     }
 }
 
 
 export const listCategoriesForEvent = async (
     eventId: string
-) => {
+): Promise<FeaturesApplyResponse<CategoryType[] | null>> => {
+    if (!eventId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event ID is required for listing categories.'}};
+    }
     try {
-        console.log(eventId, ' eventId inside listCategoriesForEvent')
         const operationName = 'listCategoriesForEvent'
         const query = `
       query listCategoriesForEvent($eventId: String!) {
@@ -4660,11 +4727,14 @@ export const listCategoriesForEvent = async (
         const categories: CategoryType[] = res?.data?.Category_Event?.map(
             (category) => category?.Category
         )
-            ?.filter((category) => (category?.id !== null))
-        console.log(categories, ' categories from listCategoriesForEvent after filter')
-        return categories
-    } catch (e) {
-        console.log(e, ' unable to listCategoriesForEvent')
+            ?.filter((category): category is CategoryType => category != null && category.id != null); // Ensure category and its id are not null
+
+        console.log(categories, ' categories from listCategoriesForEvent after filter');
+        return { ok: true, data: categories || null };
+    } catch (e: any) {
+        console.error('Error listing categories for event:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to list categories for event: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -4782,7 +4852,10 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories = asy
 }
 
 
-export const getEventFromPrimaryKey = async (id: string): Promise<EventPlusType> => {
+export const getEventFromPrimaryKey = async (id: string): Promise<FeaturesApplyResponse<EventPlusType | null>> => {
+    if (!id) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'ID is required to get event by primary key.'}};
+    }
     try {
         const operationName = 'getEventFromPrimaryKey'
         const query = `
@@ -4923,10 +4996,16 @@ export const getEventFromPrimaryKey = async (id: string): Promise<EventPlusType>
                 },
             },
         ).json()
-        console.log(res, ' res from getEventFromPrimaryKey')
-        return res?.data?.Event_by_pk
-    } catch (e) {
-        console.log(e, ' getEventFromPrimaryKey')
+        console.log(res, ' res from getEventFromPrimaryKey');
+        const event = res?.data?.Event_by_pk;
+        if (!event) {
+            return { ok: true, data: null }; // Not found is a valid success case for get by PK
+        }
+        return { ok: true, data: event };
+    } catch (e: any) {
+        console.error('Error getting event from primary key:', e);
+        const errorDetails = e.response?.body || e.message || e;
+        return { ok: false, error: { code: 'HASURA_ERROR', message: `Failed to get event by PK: ${e.message}`, details: errorDetails } };
     }
 }
 
@@ -5603,242 +5682,108 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
     previousCategories: CategoryType[] = [],
     previousMeetingCategoriesWithMeetingLabel: CategoryType[] = [],
     previousMeetingCategoriesWithExternalMeetingLabel: CategoryType[] = [],
-) => {
+): Promise<FeaturesApplyResponse<{newModifiedEvent: EventPlusType, newReminders: ReminderType[], newTimeBlocking: BufferTimeObjectType} | null >> => {
+    // Basic validation for required complex objects
+    if (!id || !previousEvent || !oldEvent || !userPreferences || !bestMatchCategory1 || !userId || !bestMatchCategories1 || !newModifiedEvent1) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'One or more critical input parameters are missing.' } };
+    }
+
     try {
-        if (!id) {
-            console.log(' no id inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
+        let bestMatchCategories: CategoryType[] = bestMatchCategories1 || [];
+        let bestMatchCategory: CategoryType | object = bestMatchCategory1 || {}; // Ensure it's CategoryType or an empty object
+        let newModifiedEvent: EventPlusType = newModifiedEvent1; // Not EventPlusType | object
+        let newReminders: ReminderType[] = newReminders1 || [];
+        let newTimeBlocking: BufferTimeObjectType = newTimeBlocking1 || {};
 
-        if (!previousEvent) {
-            console.log(' no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!oldEvent) {
-            console.log(' no event inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!userPreferences) {
-            console.log(' no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!bestMatchCategory1) {
-            console.log('no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!userId) {
-            console.log(' no userId inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!bestMatchCategories1) {
-            console.log(' no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!newModifiedEvent1) {
-            console.log(' no newModifiedEvent1 inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        let bestMatchCategories: CategoryType[] = bestMatchCategories1 || []
-        let bestMatchCategory: CategoryType | object = bestMatchCategory1 || {}
-        let newModifiedEvent: EventPlusType | object = newModifiedEvent1 || {}
-        let newReminders: ReminderType[] = newReminders1 || []
-        let newTimeBlocking: BufferTimeObjectType = newTimeBlocking1 || {}
-
-        if (
-            !previousEvent?.unlink
-            && !oldEvent?.userModifiedCategories
-        ) {
+        if (!previousEvent?.unlink && !oldEvent?.userModifiedCategories) {
             if ((previousEvent?.copyCategories || userPreferences?.copyCategories) && (previousCategories?.length > 0)) {
-                const categoryEvents: CategoryEventType[] = previousCategories.map(c => {
-                    const categoryEvent: CategoryEventType = {
-                        categoryId: c.id,
-                        eventId: id,
-                        userId,
-                        id: uuid(),
-                        createdDate: new Date().toISOString(),
-                        updatedAt: new Date().toISOString(),
-                    } as CategoryEventType
-                    return categoryEvent
-                })
-                console.log(categoryEvents, ' categoryEvents')
-                await createCategoryEvents(categoryEvents)
+                const createCatEventsResponse = await createCategoryEvents(previousCategories.map(c => ({
+                    categoryId: c.id, eventId: id, userId, id: uuid(),
+                    createdDate: new Date().toISOString(), updatedAt: new Date().toISOString(),
+                    Category: c, deleted: false,
+                })));
+                if (!createCatEventsResponse.ok) console.warn(`Failed to create category events for event ${id} during copy: ${createCatEventsResponse.error?.message}`);
             }
 
             if (previousCategories?.[0]?.id) {
-                const body = await findBestMatchCategory2(oldEvent, previousCategories)
-                console.log(body, ' body')
-                const { labels } = body
-
-                const bestMatchLabel = processBestMatchCategoriesNoThreshold(body, labels)
-                console.log(bestMatchLabel, ' bestMatchLabel')
-
-                bestMatchCategory = previousCategories.find(category => category.name === bestMatchLabel)
-
+                const classificationResponse = await findBestMatchCategory2(oldEvent, previousCategories);
+                if (classificationResponse.ok && classificationResponse.data) {
+                    const { labels, scores } = classificationResponse.data;
+                    const bestMatchLabel = processBestMatchCategoriesNoThreshold(classificationResponse.data, labels);
+                    bestMatchCategory = previousCategories.find(category => category.name === bestMatchLabel) || {};
+                } else {
+                     console.warn(`Classification failed for previous categories for event ${id}: ${classificationResponse.error?.message}`);
+                }
                 if ((bestMatchCategory as CategoryType)?.id) {
-                    newModifiedEvent = copyOverPreviousEventDefaults(oldEvent, previousEvent, bestMatchCategory as CategoryType, userPreferences)
+                    newModifiedEvent = copyOverPreviousEventDefaults(oldEvent, previousEvent, bestMatchCategory as CategoryType, userPreferences);
                 }
             } else {
-                newModifiedEvent = copyOverPreviousEventDefaults(oldEvent, previousEvent, undefined, userPreferences)
+                newModifiedEvent = copyOverPreviousEventDefaults(oldEvent, previousEvent, undefined, userPreferences);
             }
 
-            if ((userPreferences?.copyReminders
-                || userPreferences?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking as BufferTimeObjectType, previousEvent, userPreferences)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.length > 0) {
-                    newReminders = newReminders1
-                }
-
-                if (newTimeBlocking1?.afterEvent || newTimeBlocking1?.beforeEvent) {
-                    newTimeBlocking = newTimeBlocking1
+            if ((userPreferences?.copyReminders || userPreferences?.copyTimeBlocking) && newModifiedEvent?.id) {
+                const remindersTimeBlockingResp = await createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences(userId, newModifiedEvent, newReminders, newTimeBlocking, previousEvent, userPreferences);
+                if (remindersTimeBlockingResp.ok && remindersTimeBlockingResp.data) {
+                    newModifiedEvent = remindersTimeBlockingResp.data.newEvent;
+                    newReminders = remindersTimeBlockingResp.data.newReminders;
+                    newTimeBlocking = remindersTimeBlockingResp.data.newBufferTimes;
+                } else {
+                    console.warn(`Failed to create reminders/buffers from user prefs for event ${id}: ${remindersTimeBlockingResp.error?.message}`);
                 }
             }
 
-            if (
-                ((bestMatchCategory as CategoryType)?.defaultReminders
-                    || (bestMatchCategory as CategoryType)?.defaultTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id
-            ) {
-
-                const {
-                    newEvent: newEvent3,
-                    newReminders: newReminders3,
-                    newBufferTimes: newTimeBlocking3,
-                } = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(oldEvent, newModifiedEvent as EventPlusType, bestMatchCategories, newReminders, newTimeBlocking, userId, userPreferences, previousEvent)
-
-                if (newEvent3) {
-                    newModifiedEvent = newEvent3
-                }
-
-                if (newReminders3) {
-                    newReminders = newReminders3
-                }
-
-                if (newTimeBlocking3) {
-                    newTimeBlocking = newTimeBlocking3
+            const currentBestMatchCategory = bestMatchCategory as CategoryType; // To use in conditions below
+            if (currentBestMatchCategory?.id && (currentBestMatchCategory?.defaultReminders || currentBestMatchCategory?.defaultTimeBlocking) && newModifiedEvent?.id) {
+                const updateValuesResp = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(oldEvent, newModifiedEvent, bestMatchCategories, newReminders, newTimeBlocking, userId, userPreferences, previousEvent);
+                if (updateValuesResp.ok && updateValuesResp.data) {
+                    newModifiedEvent = updateValuesResp.data.newEvent;
+                    newReminders = updateValuesResp.data.newReminders;
+                    newTimeBlocking = updateValuesResp.data.newBufferTimes;
+                } else {
+                     console.warn(`Failed to update values from best match category for event ${id}: ${updateValuesResp.error?.message}`);
                 }
             }
 
-            if (((bestMatchCategory as CategoryType)?.copyReminders
-                || (bestMatchCategory as CategoryType)?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-                const {
-                    newEvent: newEvent2,
-                    newReminders: newReminders2,
-                    newBufferTimes: newTimeBlocking2,
-                } = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent as EventPlusType, bestMatchCategory as CategoryType, newReminders, newTimeBlocking)
-                if (newEvent2?.id) {
-                    newModifiedEvent = newEvent2
-                }
+            if (currentBestMatchCategory?.id && (currentBestMatchCategory?.copyReminders || currentBestMatchCategory?.copyTimeBlocking) && newModifiedEvent?.id) {
+                 const remindersAndBuffersResp = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent, currentBestMatchCategory, newReminders, newTimeBlocking);
+                 if(remindersAndBuffersResp.ok && remindersAndBuffersResp.data){
+                    newModifiedEvent = remindersAndBuffersResp.data.newEvent;
+                    newReminders = remindersAndBuffersResp.data.newReminders;
+                    newTimeBlocking = remindersAndBuffersResp.data.newBufferTimes;
+                 } else {
+                    console.warn(`Failed to create reminders/buffers from best match category (copy) for event ${id}: ${remindersAndBuffersResp.error?.message}`);
+                 }
+            }
 
-                if (newReminders2?.[0]?.id) {
-                    newReminders = newReminders2
-                }
-
-                if ((newTimeBlocking2 as BufferTimeObjectType)?.beforeEvent?.id || (newTimeBlocking2 as BufferTimeObjectType)?.afterEvent?.id) {
-                    newTimeBlocking = newTimeBlocking2
+            for (const cat of [previousMeetingCategoriesWithMeetingLabel?.[0], previousMeetingCategoriesWithExternalMeetingLabel?.[0]]) {
+                if (cat?.id && (cat.copyReminders || cat.copyTimeBlocking) && newModifiedEvent?.id) {
+                    const remindersAndBuffersResp = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent, cat, newReminders, newTimeBlocking);
+                    if(remindersAndBuffersResp.ok && remindersAndBuffersResp.data){
+                        newModifiedEvent = remindersAndBuffersResp.data.newEvent;
+                        newReminders = remindersAndBuffersResp.data.newReminders;
+                        newTimeBlocking = remindersAndBuffersResp.data.newBufferTimes;
+                    } else {
+                        console.warn(`Failed to create reminders/buffers from meeting categories for event ${id}: ${remindersAndBuffersResp.error?.message}`);
+                    }
                 }
             }
 
-            if (
-                (previousMeetingCategoriesWithMeetingLabel?.[0]?.copyReminders
-                    || previousMeetingCategoriesWithMeetingLabel?.[0]?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id
-            ) {
-                const {
-                    newEvent: newEvent2,
-                    newReminders: newReminders2,
-                    newBufferTimes: newTimeBlocking2,
-                } = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent as EventPlusType, previousMeetingCategoriesWithMeetingLabel?.[0], newReminders, newTimeBlocking)
-                if (newEvent2?.id) {
-                    newModifiedEvent = newEvent2
-                }
-
-                if (newReminders2?.[0]?.id) {
-                    newReminders = newReminders2
-                }
-
-                if (newTimeBlocking2?.afterEvent?.id || newTimeBlocking2?.beforeEvent?.id) {
-                    newTimeBlocking = newTimeBlocking2
-                }
+            if ((previousEvent?.copyReminders || previousEvent?.copyTimeBlocking) && newModifiedEvent?.id) {
+                const prevEventRemindersBuffersResp = await createRemindersAndTimeBlockingFromPreviousEvent(userId, newModifiedEvent, newReminders, newTimeBlocking, previousEvent);
+                 if(prevEventRemindersBuffersResp.ok && prevEventRemindersBuffersResp.data){
+                    newModifiedEvent = prevEventRemindersBuffersResp.data.newEvent;
+                    newReminders = prevEventRemindersBuffersResp.data.newReminders;
+                    newTimeBlocking = prevEventRemindersBuffersResp.data.newBufferTimes;
+                 } else {
+                     console.warn(`Failed to create reminders/buffers from previous event for event ${id}: ${prevEventRemindersBuffersResp.error?.message}`);
+                 }
             }
-
-            if ((previousMeetingCategoriesWithExternalMeetingLabel?.[0]?.copyReminders
-                || previousMeetingCategoriesWithExternalMeetingLabel?.[0]?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-                const {
-                    newEvent: newEvent2,
-                    newReminders: newReminders2,
-                    newBufferTimes: newTimeBlocking2,
-                } = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent as EventPlusType, previousMeetingCategoriesWithExternalMeetingLabel?.[0], newReminders, newTimeBlocking)
-                if (newEvent2) {
-                    newModifiedEvent = newEvent2
-                }
-
-                if (newReminders2) {
-                    newReminders = newReminders2
-                }
-
-                if (newTimeBlocking2) {
-                    newTimeBlocking = newTimeBlocking2
-                }
-            }
-
-            if ((previousEvent?.copyReminders
-                || previousEvent?.copyTimeBlocking)
-                && (newModifiedEvent as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEvent(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.[0]?.id) {
-                    newReminders = newReminders1
-                }
-
-                if ((newTimeBlocking1 as BufferTimeObjectType)?.afterEvent?.id || (newTimeBlocking1 as BufferTimeObjectType)?.beforeEvent?.id) {
-                    newTimeBlocking = newTimeBlocking1
-                }
-            }
-
-            bestMatchCategories = getUniqueLabels(bestMatchCategories)
-            console.log(bestMatchCategories, ' bestMatchCategories from previousCategories')
+            bestMatchCategories = getUniqueLabels(bestMatchCategories);
         }
-
-        console.log(newModifiedEvent, ' newModifiedEvent')
-        console.log(newReminders, ' newReminders')
-        console.log(newTimeBlocking, ' newTimeBlocking')
-
-        return {
-            newModifiedEvent,
-            newReminders,
-            newTimeBlocking,
-        }
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEventAndCopyCategories')
+        return { ok: true, data: { newModifiedEvent, newReminders, newTimeBlocking } };
+    } catch (e: any) {
+        console.error('Error in processEventWithFoundPreviousEventAndCopyCategories:', e);
+        return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Failed to process event with previous event and categories: ${e.message}`, details: e } };
     }
 }
 
@@ -5849,344 +5794,226 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
     userId: string,
     newReminders: ReminderType[] = [],
     newTimeBlocking: BufferTimeObjectType = {},
-) => {
+): Promise<FeaturesApplyResponse<{ newModifiedEvent: EventPlusType, newReminders: ReminderType[], newTimeBlocking: BufferTimeObjectType } | null>> => {
+    if (!previousEvent || !event || !userPreferences || !userId) {
+         return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Missing critical parameters for processing event without categories.' } };
+    }
     try {
-        console.log('processEventWithFoundPreviousEventWithoutCategories')
-        if (!previousEvent) {
-            console.log(' no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
+        let newModifiedEvent = event;
 
-        if (!userPreferences) {
-            console.log(' no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
+        if (!previousEvent?.unlink) {
+            newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, undefined, userPreferences);
 
-        if (!userId) {
-            console.log(' no userId inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        if (!event) {
-            console.log(' no newModifiedEvent inside processEventWithFoundPreviousEventAndCopyCategories')
-            return null
-        }
-
-        let newModifiedEvent = event
-
-        if (
-            !previousEvent?.unlink
-        ) {
-            newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, undefined, userPreferences)
-            console.log(newModifiedEvent, ' newModifiedEvent inside processEventWithFoundPreviousEventWithoutCategories after copyOverPreviousEventDefaults')
-            if ((userPreferences?.copyReminders
-                || userPreferences?.copyTimeBlocking)
-                && (event as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking as BufferTimeObjectType, previousEvent, userPreferences)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.length > 0) {
-                    newReminders = newReminders1
-                }
-
-                if (newTimeBlocking1?.afterEvent || newTimeBlocking1?.beforeEvent) {
-                    newTimeBlocking = newTimeBlocking1
+            if ((userPreferences?.copyReminders || userPreferences?.copyTimeBlocking) && newModifiedEvent?.id) {
+                const remindersTimeBlockingResp = await createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences(
+                    userId, newModifiedEvent, newReminders, newTimeBlocking, previousEvent, userPreferences
+                );
+                if (remindersTimeBlockingResp.ok && remindersTimeBlockingResp.data) {
+                    newModifiedEvent = remindersTimeBlockingResp.data.newEvent;
+                    newReminders = remindersTimeBlockingResp.data.newReminders;
+                    newTimeBlocking = remindersTimeBlockingResp.data.newBufferTimes;
+                } else {
+                    console.warn(`Failed to create reminders/buffers from user prefs (no categories): ${remindersTimeBlockingResp.error?.message}`);
                 }
             }
 
-            if ((previousEvent?.copyReminders
-                || previousEvent?.copyTimeBlocking)
-                && (event as EventPlusType)?.id) {
-
-                const {
-                    newEvent: newEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await createRemindersAndTimeBlockingFromPreviousEvent(userId, newModifiedEvent as EventPlusType, newReminders, newTimeBlocking)
-
-                if (newEvent1?.id) {
-                    newModifiedEvent = newEvent1
-                }
-
-                if (newReminders1?.[0]?.id) {
-                    newReminders = newReminders1
-                }
-
-                if ((newTimeBlocking1 as BufferTimeObjectType)?.afterEvent?.id || (newTimeBlocking1 as BufferTimeObjectType)?.beforeEvent?.id) {
-                    newTimeBlocking = newTimeBlocking1
-                }
+            if ((previousEvent?.copyReminders || previousEvent?.copyTimeBlocking) && newModifiedEvent?.id) {
+                const prevEventRemindersBuffersResp = await createRemindersAndTimeBlockingFromPreviousEvent(
+                    userId, newModifiedEvent, newReminders, newTimeBlocking, previousEvent
+                );
+                 if(prevEventRemindersBuffersResp.ok && prevEventRemindersBuffersResp.data){
+                    newModifiedEvent = prevEventRemindersBuffersResp.data.newEvent;
+                    newReminders = prevEventRemindersBuffersResp.data.newReminders;
+                    newTimeBlocking = prevEventRemindersBuffersResp.data.newBufferTimes;
+                 } else {
+                     console.warn(`Failed to create reminders/buffers from previous event (no categories): ${prevEventRemindersBuffersResp.error?.message}`);
+                 }
             }
         }
-
-        console.log(newModifiedEvent, ' newModifiedEvent')
-        console.log(newReminders, ' newReminders')
-        console.log(newTimeBlocking, ' newTimeBlocking')
-
-        return {
-            newModifiedEvent,
-            newReminders,
-            newBufferTimes: newTimeBlocking,
-        }
-
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEventWithoutCategories')
+        return { ok: true, data: { newModifiedEvent, newReminders, newTimeBlocking } };
+    } catch (e: any) {
+        console.error('Error in processEventWithFoundPreviousEventWithoutCategories:', e);
+        return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Failed to process event without categories: ${e.message}`, details: e } };
     }
 }
 
-export const processUserEventWithFoundPreviousEvent = async (event: EventPlusType, previousEventId: string) => {
+export const processUserEventWithFoundPreviousEvent = async (event: EventPlusType, previousEventId: string): Promise<FeaturesApplyResponse<{ newEvent: EventPlusType, newReminders?: ReminderType[], newBufferTimes?: BufferTimeObjectType } | null>> => {
+    if (!event || !event.id || !event.userId || !previousEventId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event, event ID, userId, and previousEventId are required.' } };
+    }
     try {
-        const { id, userId } = event
-        console.log(id, userId, previousEventId, ' id, userId, previousEventId, inside processUserEventWithFoundPreviousEvent')
-        if (!id || !userId) {
-            throw new Error('id or userId is missing')
+        const { id, userId } = event;
+
+        const prevEventResponse = await getEventFromPrimaryKey(previousEventId);
+        if (!prevEventResponse.ok || !prevEventResponse.data) {
+            return { ok: false, error: prevEventResponse.error || { code: 'INTERNAL_ERROR', message: `Previous event ${previousEventId} not found or failed to fetch.`} };
         }
-        const previousEvent = await getEventFromPrimaryKey(previousEventId)
-        const preferredTimeRanges = await listPreferredTimeRangesForEvent(previousEventId)
-        previousEvent.preferredTimeRanges = preferredTimeRanges
-        console.log(previousEvent, ' previousEvent inside processUserEventWithFoundPreviousEvent')
-        const categories: CategoryType[] = await getUserCategories(userId)
-        console.log(id, categories, ' id, categories')
+        const previousEvent = prevEventResponse.data;
 
-
-        const body: ClassificationResponseBodyType = await findBestMatchCategory2(event, categories)
-        console.log(id, body, ' id, body')
-        const { labels, scores } = body
-
-        const bestMatchLabel = processBestMatchCategories(body, labels)
-        console.log(id, bestMatchLabel, ' id, bestMatchLabel')
-        let bestMatchCategory: CategoryType | object = {}
-        if (bestMatchLabel) {
-            bestMatchCategory = categories.find(category => category.name === bestMatchLabel)
+        const prefTimeRangesResponse = await listPreferredTimeRangesForEvent(previousEventId);
+        // Non-critical if preferred time ranges are not found, so we don't fail the whole process here
+        if (prefTimeRangesResponse.ok && prefTimeRangesResponse.data) {
+            previousEvent.preferredTimeRanges = prefTimeRangesResponse.data;
+        } else {
+            console.warn(`Could not fetch preferred time ranges for previous event ${previousEventId}: ${prefTimeRangesResponse.error?.message}`);
+            previousEvent.preferredTimeRanges = [];
         }
 
-        let bestMatchCategoriesPlusMeetingType = []
-        if ((bestMatchCategory as CategoryType)?.id) {
-            bestMatchCategoriesPlusMeetingType = await processEventForMeetingTypeCategories(event, bestMatchCategory as CategoryType, labels, scores, categories)
-            console.log(id, bestMatchCategoriesPlusMeetingType, ' id, bestMatchCategoriesPlusMeetingType')
+        const categoriesResponse = await getUserCategories(userId);
+        if (!categoriesResponse.ok) { // If categories can't be fetched, this might be a more critical issue
+            return { ok: false, error: categoriesResponse.error || { code: 'INTERNAL_ERROR', message: 'Failed to get user categories.'} };
         }
+        const categories = categoriesResponse.data || []; // Default to empty array if null
 
-        const userPreferences = await getUserPreferences(userId)
-        console.log(id, userPreferences, ' id, userPreferences')
-        if (!userPreferences) {
-            throw new Error('userPreferences is missing')
-        }
+        let bestMatchCategory: CategoryType | null = null;
+        let bestMatchCategoriesPlusMeetingType: CategoryType[] = [];
 
-        let newModifiedEvent = event
-        let newReminders: ReminderType[] = []
-        let newBufferTimes: BufferTimeObjectType = {}
-
-        console.log(id, previousEvent, ' id, previousEvent before if clause inside processUserEventWithFoundPreviousEvent')
-
-        if ((previousEvent?.copyCategories
-            || userPreferences?.copyCategories)
-            && !previousEvent?.unlink
-            && !event?.userModifiedCategories) {
-
-            const previousCategories = await listCategoriesForEvent(previousEvent.id)
-            console.log(id, previousCategories, ' id, previousCategories')
-
-            if (
-                userPreferences?.id
-                && newModifiedEvent?.id
-            ) {
-                const previousMeetingCategoriesWithMeetingLabel = previousCategories.filter(category => category.name === meetingLabel)
-                const previousMeetingCategoriesWithExternalMeetingLabel = previousCategories.filter(category => category.name === externalMeetingLabel)
-                const {
-                    newModifiedEvent: newModifiedEvent1,
-                    newReminders: newReminders1,
-                    newTimeBlocking: newTimeBlocking1,
-                } = await processEventWithFoundPreviousEventAndCopyCategories(
-                    id,
-                    previousEvent,
-                    event,
-                    userPreferences,
-                    bestMatchCategory as CategoryType,
-                    userId,
-                    bestMatchCategoriesPlusMeetingType,
-                    newModifiedEvent,
-                    newReminders,
-                    newBufferTimes,
-                    previousCategories,
-                    previousMeetingCategoriesWithMeetingLabel,
-                    previousMeetingCategoriesWithExternalMeetingLabel,
-                )
-                console.log(newModifiedEvent, newModifiedEvent1, ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories')
-                console.log(newBufferTimes, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories')
-                newModifiedEvent = newModifiedEvent1 as EventPlusType
-                newReminders = newReminders1
-                newBufferTimes = newTimeBlocking1 as BufferTimeObjectType
-
+        if (categories.length > 0) {
+            const classificationResponse = await findBestMatchCategory2(event, categories);
+            if (classificationResponse.ok && classificationResponse.data) {
+                const classificationBody = classificationResponse.data;
+                const { labels, scores } = classificationBody;
+                const bestMatchLabel = processBestMatchCategories(classificationBody, labels);
+                if (bestMatchLabel) {
+                    bestMatchCategory = categories.find(category => category.name === bestMatchLabel) || null;
+                }
+                if (bestMatchCategory) {
+                    bestMatchCategoriesPlusMeetingType = processEventForMeetingTypeCategories(event, bestMatchCategory, labels, scores, categories);
+                    bestMatchCategoriesPlusMeetingType = getUniqueLabels(bestMatchCategoriesPlusMeetingType);
+                }
             } else {
-                const {
-                    newModifiedEvent: newModifiedEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await processEventWithFoundPreviousEventWithoutCategories(previousEvent, newModifiedEvent, userPreferences, userId, newReminders, newBufferTimes)
-                console.log(newModifiedEvent, newModifiedEvent1, ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after else  processEventWithFoundPreviousEventAndCopyCategories')
-                console.log(newBufferTimes, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after else processEventWithFoundPreviousEventAndCopyCategories')
-                newModifiedEvent = newModifiedEvent1 as EventPlusType
-                newReminders = newReminders1
-                newBufferTimes = newTimeBlocking1 as BufferTimeObjectType
+                console.warn(`Category classification failed for event ${id}: ${classificationResponse.error?.message}`);
             }
         }
 
-        if (
-            userPreferences?.id
-            && !previousEvent?.copyCategories
-            && !userPreferences?.copyCategories
-            && !event?.userModifiedCategories
-            && event?.id
-            && previousEvent?.id
-        ) {
+        const userPreferencesResponse = await getUserPreferences(userId);
+        if (!userPreferencesResponse.ok || !userPreferencesResponse.data) {
+            return { ok: false, error: userPreferencesResponse.error || { code: 'INTERNAL_ERROR', message: 'User preferences not found or failed to fetch.'} };
+        }
+        const userPreferences = userPreferencesResponse.data;
 
-            if (
-                (bestMatchCategory as CategoryType)?.id
-                && (bestMatchCategoriesPlusMeetingType?.length > 0)
-            ) {
-                newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, bestMatchCategory as CategoryType, userPreferences)
-                console.log(newModifiedEvent, ' newModifiedEvent from BestMatchCategory')
+        let newModifiedEvent: EventPlusType = { ...event }; // Start with a copy
+        let newReminders: ReminderType[] = [];
+        let newBufferTimes: BufferTimeObjectType = {};
+
+        if ((previousEvent?.copyCategories || userPreferences?.copyCategories) && !previousEvent?.unlink && !event?.userModifiedCategories) {
+            const prevCategoriesResponse = await listCategoriesForEvent(previousEvent.id);
+            const previousCategories = (prevCategoriesResponse.ok && prevCategoriesResponse.data) ? prevCategoriesResponse.data : [];
+
+            const processingResult = await processEventWithFoundPreviousEventAndCopyCategories(
+                id, previousEvent, event, userPreferences, bestMatchCategory, userId,
+                bestMatchCategoriesPlusMeetingType, newModifiedEvent, newReminders, newBufferTimes,
+                previousCategories,
+                previousCategories.filter(c => c.name === meetingLabel),
+                previousCategories.filter(c => c.name === externalMeetingLabel)
+            );
+            if (processingResult.ok && processingResult.data) {
+                newModifiedEvent = processingResult.data.newModifiedEvent;
+                newReminders = processingResult.data.newReminders;
+                newTimeBlocking = processingResult.data.newTimeBlocking;
+            } else {
+                // Log warning or error, but proceed with potentially partially modified event
+                console.warn(`Processing with 'copyCategories' failed for event ${id}: ${processingResult.error?.message}`);
+            }
+        } else if (userPreferences?.id && !previousEvent?.copyCategories && !userPreferences?.copyCategories && !event?.userModifiedCategories && event?.id && previousEvent?.id) {
+            if (bestMatchCategory && bestMatchCategoriesPlusMeetingType?.length > 0) {
+                newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, bestMatchCategory, userPreferences);
                 if (newModifiedEvent?.id) {
-                    const {
-                        newEvent: newEvent1,
-                        newReminders: newReminders1,
-                        newBufferTimes: newTimeBlocking1,
-                    } = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent, bestMatchCategory as CategoryType, newReminders, newBufferTimes)
-                    console.log(newModifiedEvent, newEvent1, ' newModifiedEvent, newEvent1 inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory')
-                    console.log(newBufferTimes, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory')
-                    newModifiedEvent = newEvent1
-                    newReminders = newReminders1
-                    newBufferTimes = newTimeBlocking1
+                    const remindersResp = await createRemindersAndBufferTimesForBestMatchCategory(id, userId, newModifiedEvent, bestMatchCategory, newReminders, newBufferTimes);
+                    if(remindersResp.ok && remindersResp.data) { newModifiedEvent = remindersResp.data.newEvent; newReminders = remindersResp.data.newReminders; newBufferTimes = remindersResp.data.newBufferTimes; }
 
-                    console.log(newModifiedEvent, ' newModifiedEvent inside BestMatchCategory')
-                    console.log(newReminders, ' newReminders inside ')
-                    console.log(newBufferTimes, ' newTimeBlocking inside ')
-
-                    const {
-                        newEvent: newEvent2,
-                        newReminders: newReminders2,
-                        newBufferTimes: newTimeBlocking2,
-                    } = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(event, newModifiedEvent, bestMatchCategoriesPlusMeetingType, newReminders, newBufferTimes, userId, userPreferences, previousEvent)
-                    console.log(newModifiedEvent, newEvent2, ' newModifiedEvent, newEvent2 inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting')
-                    console.log(newBufferTimes, newTimeBlocking2, ' newTimeBlocking, newTimeBlocking2, inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting')
-                    newModifiedEvent = newEvent2
-                    newReminders = newReminders2
-                    newBufferTimes = newTimeBlocking2
-
-                    console.log(newModifiedEvent, ' newModifiedEvent inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting')
-                    console.log(newReminders, ' newReminders inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting')
-                    console.log(newBufferTimes, ' newTimeBlocking inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting')
+                    const updateValuesResp = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(event, newModifiedEvent, bestMatchCategoriesPlusMeetingType, newReminders, newBufferTimes, userId, userPreferences, previousEvent);
+                    if(updateValuesResp.ok && updateValuesResp.data) { newModifiedEvent = updateValuesResp.data.newEvent; newReminders = updateValuesResp.data.newReminders; newBufferTimes = updateValuesResp.data.newBufferTimes; }
                 }
             } else {
-                const {
-                    newModifiedEvent: newModifiedEvent1,
-                    newReminders: newReminders1,
-                    newBufferTimes: newTimeBlocking1,
-                } = await processEventWithFoundPreviousEventWithoutCategories(previousEvent, newModifiedEvent, userPreferences, userId, newReminders, newBufferTimes)
-                console.log(newModifiedEvent, newModifiedEvent1, ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories')
-                console.log(newBufferTimes, newTimeBlocking1, ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories')
-                newModifiedEvent = newModifiedEvent1 as EventPlusType
-                newReminders = newReminders1
-                newBufferTimes = newTimeBlocking1 as BufferTimeObjectType
+                 const noCatProcessingResp = await processEventWithFoundPreviousEventWithoutCategories(previousEvent, newModifiedEvent, userPreferences, userId, newReminders, newBufferTimes);
+                 if(noCatProcessingResp.ok && noCatProcessingResp.data) { newModifiedEvent = noCatProcessingResp.data.newModifiedEvent; newReminders = noCatProcessingResp.data.newReminders; newBufferTimes = noCatProcessingResp.data.newTimeBlocking; }
             }
-
         }
 
-        const newEvent: EventPlusType = newModifiedEvent ?? event
-        console.log(newEvent, event, ' newEvent, event last before returned inside processUserEventWithFoundPreviousEvent')
+        return { ok: true, data: { newEvent: newModifiedEvent, newReminders, newBufferTimes } };
 
-        return {
-            newEvent,
-            newReminders,
-            newBufferTimes: newBufferTimes
-        }
-
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEvent')
+    } catch (e: any) {
+        console.error(`Error in processUserEventWithFoundPreviousEvent for event ${event?.id}:`, e);
+        return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Failed to process event with previous event: ${e.message}`, details: e } };
     }
 }
 
-export const processUserEventWithFoundPreviousEventWithUserModifiedCategories = async (event: EventPlusType, previousEventId: string) => {
+export const processUserEventWithFoundPreviousEventWithUserModifiedCategories = async (event: EventPlusType, previousEventId: string): Promise<FeaturesApplyResponse<{ newEvent: EventPlusType, newReminders?: ReminderType[], newBufferTimes?: BufferTimeObjectType } | null>> => {
+    if (!event || !event.id || !event.userId || !previousEventId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Event, event ID, userId, and previousEventId are required.' } };
+    }
     try {
-        if (!event?.id) {
-            throw new Error('event is missing')
+        const categoriesResponse = await listCategoriesForEvent(event.id);
+        if (!categoriesResponse.ok || !categoriesResponse.data || categoriesResponse.data.length === 0) {
+            return { ok: false, error: categoriesResponse.error || { code: 'INTERNAL_ERROR', message: `No categories found for event ${event.id} or failed to fetch.`} };
         }
-        if (!previousEventId) {
-            throw new Error('previousEventId is missing')
+        const categories = categoriesResponse.data;
+
+        const prevEventResponse = await getEventFromPrimaryKey(previousEventId);
+        if (!prevEventResponse.ok || !prevEventResponse.data) {
+            return { ok: false, error: prevEventResponse.error || { code: 'INTERNAL_ERROR', message: `Previous event ${previousEventId} not found or failed to fetch.`} };
+        }
+        const previousEvent = prevEventResponse.data;
+
+        const prefTimeRangesResponse = await listPreferredTimeRangesForEvent(previousEventId);
+        if (prefTimeRangesResponse.ok && prefTimeRangesResponse.data) {
+            previousEvent.preferredTimeRanges = prefTimeRangesResponse.data;
+        } else {
+            console.warn(`Could not fetch preferred time ranges for previous event ${previousEventId}: ${prefTimeRangesResponse.error?.message}`);
+            previousEvent.preferredTimeRanges = [];
         }
 
-        const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
-        if (!categories?.[0]?.id) {
-            throw new Error('categories is missing')
+        const classificationResponse = await findBestMatchCategory2(event, categories);
+        if (!classificationResponse.ok || !classificationResponse.data || !classificationResponse.data.labels?.length) {
+             console.warn(`Classification failed or returned no labels for event ${event.id}: ${classificationResponse.error?.message}`);
+             // Decide if to proceed with event as is, or return an error. For now, proceed.
+             return { ok: true, data: { newEvent: event } };
         }
-        console.log(event?.id, 'id inside  processUserEventWithFoundPreviousEventWithUserModifiedCategories')
-        const previousEvent = await getEventFromPrimaryKey(previousEventId)
-        const preferredTimeRanges = await listPreferredTimeRangesForEvent(previousEventId)
-        previousEvent.preferredTimeRanges = preferredTimeRanges
-        if (!previousEvent?.id) {
-            throw new Error('previousEvent is missing')
-        }
-        console.log(categories, ' categories')
-        const body = await findBestMatchCategory2(event, categories)
-        console.log(body, ' body')
-        if (body?.labels?.[0]) {
-            const { labels } = body
+        const classificationBody = classificationResponse.data;
+        const { labels } = classificationBody; // scores are also available if needed
+        const bestMatchLabel = processBestMatchCategoriesNoThreshold(classificationBody, labels);
 
-            const bestMatchLabel = processBestMatchCategoriesNoThreshold(body, labels)
-            console.log(bestMatchLabel, ' bestMatchLabel')
-            if (bestMatchLabel) {
-                let bestMatchCategory = categories.find(category => category.name === bestMatchLabel)
-                if (!bestMatchCategory) {
-                    throw new Error('bestMatchCategory is missing')
-                }
-                const userPreferences = await getUserPreferences(event?.userId)
-                console.log(userPreferences, ' userPreferences')
-                if (!userPreferences) {
-                    throw new Error('userPreferences is missing')
-                }
-                let newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, bestMatchCategory, userPreferences)
-                console.log(newModifiedEvent, ' newModifiedEvent from BestMatchCategory')
-                let newReminders: ReminderType[] = []
-                let newTimeBlocking: BufferTimeObjectType = {}
+        let newModifiedEvent: EventPlusType = { ...event };
+        let newReminders: ReminderType[] = [];
+        let newTimeBlocking: BufferTimeObjectType = {};
 
+        if (bestMatchLabel) {
+            const bestMatchCategory = categories.find(category => category.name === bestMatchLabel);
+            if (!bestMatchCategory) {
+                console.warn(`Best match label "${bestMatchLabel}" did not correspond to a known category.`);
+                return { ok: true, data: { newEvent: event } }; // Proceed with original event
+            }
 
-                if ((categories?.length > 0)
-                    && newModifiedEvent?.id
-                ) {
-                    const {
-                        newEvent: newEvent1,
-                        newReminders: newReminders1,
-                        newBufferTimes: newTimeBlocking1,
-                    } = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(event, newModifiedEvent, categories, newReminders, newTimeBlocking, event?.userId, userPreferences, previousEvent)
-                    newModifiedEvent = newEvent1
-                    newReminders = newReminders1 || []
-                    newTimeBlocking = newTimeBlocking1 || {}
+            const userPreferencesResponse = await getUserPreferences(event.userId);
+            if (!userPreferencesResponse.ok || !userPreferencesResponse.data) {
+                 return { ok: false, error: userPreferencesResponse.error || { code: 'INTERNAL_ERROR', message: 'User preferences not found or failed to fetch.'} };
+            }
+            const userPreferences = userPreferencesResponse.data;
 
-                    console.log(newModifiedEvent, ' newModifiedEvent inside else statement of copyCategories')
-                    console.log(newReminders, ' newReminders inside else statement of copyCategories')
-                    console.log(newTimeBlocking, ' newTimeBlocking inside else statement of copyCategories')
+            newModifiedEvent = copyOverPreviousEventDefaults(event, previousEvent, bestMatchCategory, userPreferences);
 
-                }
-
-                const newEvent: EventPlusType = newModifiedEvent ?? event
-                console.log(newEvent, ' newEvent')
-
-                return {
-                    newEvent,
-                    newReminders,
-                    newBufferTimes: newTimeBlocking
+            if (categories.length > 0 && newModifiedEvent?.id) { // categories is already checked to be non-empty
+                const updateValuesResp = await updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting(
+                    event, newModifiedEvent, categories, newReminders, newTimeBlocking, event.userId, userPreferences, previousEvent
+                );
+                if (updateValuesResp.ok && updateValuesResp.data) {
+                    newModifiedEvent = updateValuesResp.data.newEvent;
+                    newReminders = updateValuesResp.data.newReminders;
+                    newTimeBlocking = updateValuesResp.data.newBufferTimes;
+                } else {
+                    console.warn(`Failed to update values from modified categories for event ${event.id}: ${updateValuesResp.error?.message}`);
                 }
             }
+        } else {
+            console.warn(`No best match category found for event ${event.id}.`);
         }
-    } catch (e) {
-        console.log(e, ' processEventWithFoundPreviousEventWithUserModifiedCategories')
+
+        return { ok: true, data: { newEvent: newModifiedEvent, newReminders, newBufferTimes: newTimeBlocking } };
+
+    } catch (e: any) {
+        console.error(`Error in processUserEventWithFoundPreviousEventWithUserModifiedCategories for event ${event?.id}:`, e);
+        return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Failed to process event with modified categories: ${e.message}`, details: e } };
     }
 }
 

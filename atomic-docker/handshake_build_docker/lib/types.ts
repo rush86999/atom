@@ -1,5 +1,19 @@
 
 
+// --- Generic Skill Error and Response Types ---
+// (Mirrors the structure from project/functions/atom-agent/types.ts for consistency)
+export interface SkillError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+export interface HandshakeApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: SkillError;
+}
+
 export type ColorType = {
     id: string,
     background: string,
