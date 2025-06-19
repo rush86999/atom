@@ -1,96 +1,184 @@
-// Placeholder for a GraphQL client to interact with a service like Hasura
-// In a real environment, this would use a library like 'graphql-request' or 'apollo-client'.
+import axios, { AxiosError } from 'axios';
+import { HASURA_GRAPHQL_URL, HASURA_ADMIN_SECRET } from './constants';
 
-// TODO: Replace with actual Hasura endpoint and admin secret from environment variables
-const HASURA_GRAPHQL_ENDPOINT = process.env.HASURA_GRAPHQL_ENDPOINT || 'http://localhost:8080/v1/graphql';
-const HASURA_ADMIN_SECRET = process.env.HASURA_ADMIN_SECRET || 'myadminsecretkey';
-
-interface GraphQLResponse<T = any> {
-    data?: T;
-    errors?: Array<{ message: string; [key: string]: any }>;
+/**
+ * Represents a generic error from the GraphQL client.
+ */
+class GraphQLError extends Error {
+  constructor(message: string, public code?: string, public details?: any) {
+    super(message);
+    this.name = 'GraphQLError';
+  }
 }
 
 /**
  * Executes a GraphQL query.
- * NOTE: This is a MOCK IMPLEMENTATION. It does not perform actual HTTP requests.
- * It simulates fetching data based on the query name for demonstration purposes.
- * @param query The GraphQL query string or a named query.
- * @param variables The variables for the query.
- * @returns A promise that resolves with the mocked GraphQL response.
+ *
+ * @param query The GraphQL query string.
+ * @param variables An object containing variables for the query.
+ * @param operationName The name of the GraphQL operation.
+ * @param userId Optional user ID. If provided, the request is made with 'user' role and 'X-Hasura-User-Id' header. Otherwise, 'admin' role is used.
+ * @returns A Promise that resolves with the `data` part of the GraphQL response.
+ * @throws {GraphQLError} If there's a network error, HTTP error, or GraphQL errors are present in the response.
  */
-export async function executeGraphQLQuery<T>(query: string, variables: Record<string, any>): Promise<GraphQLResponse<T>> {
-    console.log(`[MOCK GraphQLClient] Executing query:`, query.substring(0, 100) + "...", "with variables:", variables);
+export async function executeGraphQLQuery<T = any>(
+  query: string,
+  variables: Record<string, any>,
+  operationName: string,
+  userId?: string
+): Promise<T> {
+  if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+    throw new GraphQLError(
+      'Hasura GraphQL URL or Admin Secret is not configured. Please set HASURA_GRAPHQL_URL and HASURA_ADMIN_SECRET environment variables.',
+      'CONFIG_ERROR'
+    );
+  }
 
-    // Simulate fetching user tokens for Google Calendar
-    if (query.includes("GetUserTokens") && variables.serviceName === 'google_calendar') {
-        // This is where you would typically fetch from a database.
-        // For now, let's return a null or an empty structure to indicate no token found by default.
-        // A real implementation would query a database.
-        console.warn(`[MOCK GraphQLClient] Simulating no token found for userId: ${variables.userId}, service: ${variables.serviceName}. Modify this mock if specific test data is needed.`);
-        return { data: { user_tokens: [] } as any };
-        // Example of returning a mock token:
-        // return {
-        //   data: {
-        //     user_tokens: [{
-        //       access_token: 'mock_access_token_from_db',
-        //       refresh_token: 'mock_refresh_token_from_db',
-        //       expiry_date: Date.now() + 3600 * 1000, // Expires in 1 hour
-        //       scope: 'https://www.googleapis.com/auth/calendar'
-        //     }]
-        //   } as any
-        // };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Hasura-Admin-Secret': HASURA_ADMIN_SECRET,
+  };
+
+  if (userId) {
+    headers['X-Hasura-Role'] = 'user';
+    headers['X-Hasura-User-Id'] = userId;
+  } else {
+    headers['X-Hasura-Role'] = 'admin';
+  }
+
+  try {
+    const response = await axios.post(
+      HASURA_GRAPHQL_URL,
+      {
+        query,
+        variables,
+        operationName,
+      },
+      {
+        headers,
+      }
+    );
+
+    if (response.data.errors) {
+      console.error('GraphQL errors:', JSON.stringify(response.data.errors, null, 2));
+      throw new GraphQLError(
+        `GraphQL error executing operation '${operationName}'. Check server logs or GraphQL response for details.`,
+        'GRAPHQL_EXECUTION_ERROR',
+        response.data.errors
+      );
     }
 
-    console.warn(`[MOCK GraphQLClient] No mock response configured for this query.`);
-    return { errors: [{ message: "No mock response configured for this query." }] };
+    return response.data.data as T;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError<any>;
+      let errorCode = 'NETWORK_ERROR';
+      if (axiosError.response) {
+        // HTTP error (e.g., 4xx, 5xx)
+        errorCode = `HTTP_${axiosError.response.status}`;
+        console.error(
+          `HTTP error ${axiosError.response.status} calling GraphQL endpoint for operation '${operationName}':`,
+          JSON.stringify(axiosError.response.data, null, 2)
+        );
+        throw new GraphQLError(
+          `HTTP error ${axiosError.response.status} executing operation '${operationName}'.`,
+          errorCode,
+          axiosError.response.data
+        );
+      } else if (axiosError.request) {
+        // Network error (request made but no response received)
+        console.error(`Network error calling GraphQL endpoint for operation '${operationName}':`, axiosError.message);
+        throw new GraphQLError(
+          `Network error executing operation '${operationName}': ${axiosError.message}`,
+          errorCode,
+          axiosError.request
+        );
+      }
+    }
+    // Rethrow if it's already a GraphQLError (e.g. from config check or GraphQL execution error)
+    // or if it's an unexpected error
+    if (error instanceof GraphQLError) {
+        throw error;
+    }
+    console.error(`Unexpected error executing GraphQL operation '${operationName}':`, error);
+    throw new GraphQLError(
+        `Unexpected error executing operation '${operationName}': ${(error as Error).message || 'Unknown error'}`,
+        'UNKNOWN_GRAPHQL_CLIENT_ERROR',
+        error
+    );
+  }
 }
 
 /**
  * Executes a GraphQL mutation.
- * NOTE: This is a MOCK IMPLEMENTATION. It does not perform actual HTTP requests.
- * It simulates a successful mutation.
- * @param mutation The GraphQL mutation string or a named mutation.
- * @param variables The variables for the mutation.
- * @returns A promise that resolves with the mocked GraphQL response.
+ *
+ * @param mutation The GraphQL mutation string.
+ * @param variables An object containing variables for the mutation.
+ * @param operationName The name of the GraphQL operation.
+ * @param userId Optional user ID. If provided, the request is made with 'user' role and 'X-Hasura-User-Id' header. Otherwise, 'admin' role is used.
+ * @returns A Promise that resolves with the `data` part of the GraphQL response.
+ * @throws {GraphQLError} If there's a network error, HTTP error, or GraphQL errors are present in the response.
  */
-export async function executeGraphQLMutation<T>(mutation: string, variables: Record<string, any>): Promise<GraphQLResponse<T>> {
-    console.log(`[MOCK GraphQLClient] Executing mutation:`, mutation.substring(0,100) + "...", "with variables:", variables);
-
-    // Simulate successful insertion/upsertion
-    if (mutation.includes("UpsertUserToken")) {
-        console.log(`[MOCK GraphQLClient] Simulating successful token upsert for userId: ${variables.token?.user_id}, service: ${variables.token?.service_name}.`);
-        return { data: { insert_user_tokens_one: { id: 'mock_db_id' } } as any };
-    }
-
-    console.warn(`[MOCK GraphQLClient] No mock response configured for this mutation.`);
-    return { errors: [{ message: "No mock response configured for this mutation." }] };
+export async function executeGraphQLMutation<T = any>(
+  mutation: string,
+  variables: Record<string, any>,
+  operationName: string,
+  userId?: string
+): Promise<T> {
+  // The implementation is identical to executeGraphQLQuery,
+  // as Hasura uses the same endpoint and request structure for queries and mutations.
+  return executeGraphQLQuery<T>(mutation, variables, operationName, userId);
 }
 
-// Example of how a real implementation might look (simplified):
-// import { GraphQLClient } from 'graphql-request';
-//
-// const client = new GraphQLClient(HASURA_GRAPHQL_ENDPOINT, {
-//   headers: {
-//     'x-hasura-admin-secret': HASURA_ADMIN_SECRET,
-//   },
-// });
-//
-// export async function realExecuteGraphQLQuery<T>(query: string, variables: Record<string, any>): Promise<GraphQLResponse<T>> {
-//   try {
-//     const data = await client.request<T>(query, variables);
-//     return { data };
-//   } catch (error: any) {
-//     console.error("GraphQL Query Error:", error.response?.errors || error.message);
-//     return { errors: error.response?.errors || [{ message: error.message }] };
-//   }
-// }
-//
-// export async function realExecuteGraphQLMutation<T>(mutation: string, variables: Record<string, any>): Promise<GraphQLResponse<T>> {
-//   try {
-//     const data = await client.request<T>(mutation, variables);
-//     return { data };
-//   } catch (error: any) {
-//     console.error("GraphQL Mutation Error:", error.response?.errors || error.message);
-//     return { errors: error.response?.errors || [{ message: error.message }] };
-//   }
-// }
+// Example Usage (for testing purposes, can be removed or commented out):
+/*
+async function testGraphQL() {
+  // Example: Fetching a user by ID (assuming you have a 'users' table and 'users_by_pk' query)
+  const getUserQuery = `
+    query GetUserById($id: uuid!) {
+      users_by_pk(id: $id) {
+        id
+        name
+        email
+      }
+    }
+  `;
+  try {
+    // Replace 'some-user-id' with an actual UUID from your users table for this to work
+    // const userData = await executeGraphQLQuery<{ users_by_pk: { id: string; name: string; email: string } }>(
+    //   getUserQuery,
+    //   { id: 'some-user-id' }, // Provide a valid UUID
+    //   'GetUserById',
+    //   'some-user-id' // Optional: if you want to test user-specific roles
+    // );
+    // console.log('User data:', userData.users_by_pk);
+
+    // Example: Inserting a new user (assuming you have an 'insert_users_one' mutation)
+    const insertUserMutation = `
+      mutation InsertUser($name: String!, $email: String!) {
+        insert_users_one(object: { name: $name, email: $email }) {
+          id
+          name
+          email
+        }
+      }
+    `;
+    // const newUser = await executeGraphQLMutation<{ insert_users_one: { id: string; name: string; email: string } }>(
+    //   insertUserMutation,
+    //   { name: 'Test User', email: 'test@example.com' },
+    //   'InsertUser'
+    //   // 'some-user-id' // Optional: if you want to test user-specific roles for mutations
+    // );
+    // console.log('New user:', newUser.insert_users_one);
+
+  } catch (error) {
+    if (error instanceof GraphQLError) {
+      console.error(`GraphQL Client Test Error (${error.code}): ${error.message}`, error.details);
+    } else {
+      console.error('GraphQL Client Test Error (Unknown):', error);
+    }
+  }
+}
+
+// testGraphQL(); // Uncomment to run the test function
+*/
