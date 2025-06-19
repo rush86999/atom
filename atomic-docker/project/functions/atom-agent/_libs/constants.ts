@@ -103,3 +103,21 @@ export const HASURA_ADMIN_SECRET = process.env.HASURA_ADMIN_SECRET || '';
 // SerpApi API Key for Web Search
 // This must be set in the environment for real web search capabilities.
 export const ATOM_SERPAPI_API_KEY = process.env.ATOM_SERPAPI_API_KEY || '';
+
+// Notion API Token and Database IDs
+// These must be set for Notion integration (note-taking, research agent).
+export const NOTION_API_TOKEN = process.env.NOTION_API_TOKEN || '';
+export const NOTION_NOTES_DATABASE_ID = process.env.NOTION_NOTES_DATABASE_ID || ''; // General notes
+export const NOTION_RESEARCH_PROJECTS_DB_ID = process.env.NOTION_RESEARCH_PROJECTS_DB_ID || '';
+export const NOTION_RESEARCH_TASKS_DB_ID = process.env.NOTION_RESEARCH_TASKS_DB_ID || '';
+
+// Deepgram API Key for Transcription
+// This must be set for audio transcription features.
+export const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY || '';
+
+// Python API Service URLs
+// Base URLs for the Python Flask services that handle research and note-taking logic.
+// Example for local development: http://localhost:5056
+export const PYTHON_RESEARCH_API_URL = process.env.PYTHON_RESEARCH_API_URL || '';
+// Example for local development: http://localhost:5057
+export const PYTHON_NOTE_API_URL = process.env.PYTHON_NOTE_API_URL || '';
