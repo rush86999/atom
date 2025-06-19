@@ -1,6 +1,65 @@
-actions: []
+actions:
+  - name: processAudioForNote
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/audio_processor" # Placeholder for the actual function URL
+      request_transform:
+        # This is an example, adjust if your function expects a different structure
+        # Or if you are using Hasura's default passthrough of 'input.arg1'
+        version: 2
+        template_engine: Kriti
+        body: |-
+          {
+            "action": {
+              "name": "{{$action.name}}"
+            },
+            "input": {
+              "arg1": {{$body.input.arg1}}
+            },
+            "session_variables": {{$session}}
+          }
+      response_transform:
+        # This is an example, adjust if your function returns a different structure
+        version: 2
+        template_engine: Kriti
+        body: |-
+          {
+            "note_id": {{$body.note_id}},
+            "status": {{$body.status}},
+            "error": {{$body.error}}
+          }
+      # Adding permissions here for simplicity
+      permissions:
+        - role: user
+    comment: "Processes an audio file, transcribes it, summarizes it, and creates or updates a Notion note."
+
+  - name: attendLiveMeeting
+    definition:
+      kind: synchronous
+      # type: mutation # No longer needed here as it's inferred from actions.graphql
+      # args: # Args are now also inferred from actions.graphql if type is set there
+      #   - name: input # This was for older Hasura or if not using SDL first
+      #     type: AttendLiveMeetingInput!
+      # output_type: AttendLiveMeetingOutput # Also inferred
+      handler: '{{FUNCTIONS_BASE_URL}}/attend_live_meeting'
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "action_input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Instructs an agent to attend a live meeting (e.g., Zoom) and process audio for notes."
+
 custom_types:
   enums: []
-  input_objects: []
-  objects: []
+  input_objects:
+    - name: ProcessAudioForNoteInput
+    - name: AttendLiveMeetingInput
+  objects:
+    - name: ProcessAudioForNoteOutput
+    - name: AttendLiveMeetingOutput
   scalars: []

@@ -1,0 +1,34 @@
+type ProcessAudioForNoteOutput {
+  note_id: String
+  status: String!
+  error: String
+}
+
+input ProcessAudioForNoteInput {
+  audio_file_path: String!
+  note_id: String
+  title: String
+  content: String
+  source: String
+  linked_task_id: String
+  linked_event_id: String
+}
+
+type Mutation {
+  processAudioForNote (input: ProcessAudioForNoteInput!): ProcessAudioForNoteOutput
+  attendLiveMeeting(input: AttendLiveMeetingInput!): AttendLiveMeetingOutput
+}
+
+input AttendLiveMeetingInput {
+  platform: String!
+  meeting_identifier: String!
+  notion_note_title: String!
+  notion_source: String!
+  linked_event_id: String
+}
+
+type AttendLiveMeetingOutput {
+  status: String!
+  note_id: String
+  error_message: String
+}

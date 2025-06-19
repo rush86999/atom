@@ -1,4 +1,4 @@
-
+// This file contains shared TypeScript types for the GPT functions.
 
 export type GoogleSendUpdatesType = 'all' | 'externalOnly' | 'none'
 
@@ -26,7 +26,7 @@ export type GoogleConferenceDataType = {
     type: 'hangoutsMeet' | 'addOn',
     iconUri?: string,
     name?: string,
-    requestId?: string,
+    requestId?: string, // This will be the generatedId passed to createGoogleEvent
     conferenceId?: string,
     createRequest?: {
         "requestId": string,
@@ -38,8 +38,8 @@ export type GoogleConferenceDataType = {
 }
 
 export type GoogleExtendedPropertiesType = {
-    private?: object,
-    shared?: object,
+    private?: Record<string, string>, // Changed to Record<string, string> for typical usage
+    shared?: Record<string, string>,  // Changed to Record<string, string>
 }
 
 type OverrideType = {
@@ -50,8 +50,8 @@ type OverrideType = {
 export type OverrideTypes = OverrideType[]
 
 export type GoogleReminderType = {
-    overrides: OverrideTypes,
-    useDefault: boolean, // use calendar defaults
+    overrides?: OverrideTypes, // Made optional as per Google API
+    useDefault: boolean,
 }
 
 export type GoogleSourceType = {
@@ -59,7 +59,7 @@ export type GoogleSourceType = {
     url?: string,
 }
 
-export type GoogleTransparencyType = 'opaque' | 'transparent' // available or not
+export type GoogleTransparencyType = 'opaque' | 'transparent'
 
 export type GoogleVisibilityType = 'default' | 'public' | 'private' | 'confidential'
 
@@ -71,9 +71,12 @@ export type GoogleAttachmentType = {
     fileId: string
 }
 
-export type GoogleEventType1 = 'default' | 'outOfOffice' | 'focusTime'
+// GoogleEventType1 seems to be a typo, perhaps eventType from Google's API?
+// Let's assume it's the 'eventType' field on the Event resource.
+export type GoogleApiEventType = 'default' | 'outOfOffice' | 'focusTime' | 'workingLocation';
 
-export type ColorType = {
+
+export type ColorType = { // This is likely our internal ColorType, not Google's directly
     id: string,
     background: string,
     foreground: string,
@@ -102,9 +105,10 @@ export type CalendarIntegrationType = {
     createdDate: string,
     pageToken?: string,
     syncToken?: string,
+    primaryCalendarId?: string;
 }
 
-export type RecurrenceRuleType = {
+export type RecurrenceRuleType = { // This seems to be our internal type, not Google's directly
     frequency: string,
     endDate: string,
     occurrence?: number,
@@ -118,7 +122,7 @@ export type RecurrenceRuleType = {
     byWeekDay?: string[],
 }
 
-export type LocationType = {
+export type LocationType = { // Our internal location type
     title: string,
     proximity?: string,
     radius?: number,
@@ -145,9 +149,9 @@ export type LinkType = {
     link: string
 }
 
-export type SendUpdatesType = 'all' | 'externalOnly' | 'none'
+// SendUpdatesType is already defined as GoogleSendUpdatesType
 
-export type TransparencyType = 'opaque' | 'transparent' // available or not
+export type TransparencyType = 'opaque' | 'transparent'
 
 export type VisibilityType = 'default' | 'public' | 'private' | 'confidential'
 
@@ -160,22 +164,13 @@ export type CreatorType = {
 }
 
 export type OrganizerType = {
-    id: string,
+    id?: string, // Google API makes organizer.id optional
     email: string,
-    displayName: string,
-    self: boolean
+    displayName?: string, // Optional
+    self?: boolean
 }
 
-export type ExtendedPropertiesType = {
-    private?: {
-        keys?: string[],
-        values?: string[],
-    },
-    shared?: {
-        keys?: string[],
-        values?: string[]
-    },
-}
+// ExtendedPropertiesType is already defined as GoogleExtendedPropertiesType
 
 export type BufferTimeNumberType = {
     beforeEvent: number
@@ -183,27 +178,33 @@ export type BufferTimeNumberType = {
 }
 
 export type MM = '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12'
-
 export type HH = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23'
-
 export type Time = `${HH}:${MM}`
 
 
-export type EventType = {
+export type EventType = { // This is our Hasura Event type
     id: string,
     userId: string,
+    calendarId: string,
+    gEventId?: string | null,
+    provider?: string | null;
     title?: string,
-    startDate: string,
-    endDate: string,
+    summary?: string | null,
+    description?: string | null,
+    startDate: string, // Potentially legacy if startDateTime is primary
+    endDate: string,   // Potentially legacy
+    startDateTime?: string | null,
+    endDateTime?: string | null;
     allDay?: boolean,
-    recurrenceRule?: RecurrenceRuleType,
-    location?: LocationType,
-    notes?: string,
-    attachments?: GoogleAttachmentType[],
+    recurrenceRule?: RecurrenceRuleType, // This would be our internal representation
+    location?: LocationType, // Our internal representation
+    notes?: string, // Potentially legacy, description is more standard for Google
+    attachments?: GoogleAttachmentType[], // If storing Google's attachment structure
     links?: LinkType[],
     timezone?: string,
     createdDate: string,
     deleted: boolean,
+    isDeleted?: boolean | null;
     taskId?: string,
     taskType?: string,
     priority: number,
@@ -215,91 +216,42 @@ export type EventType = {
     postEventId?: string,
     modifiable: boolean,
     forEventId?: string,
-    conferenceId?: string,
+    conferenceId?: string, // Google's conference ID
     maxAttendees?: number,
-    sendUpdates?: SendUpdatesType,
+    sendUpdates?: GoogleSendUpdatesType,
     anyoneCanAddSelf: boolean,
     guestsCanInviteOthers: boolean,
     guestsCanSeeOtherGuests: boolean,
-    originalStartDate: string,
-    originalAllDay: boolean,
-    status?: string,
-    summary?: string,
-    transparency?: TransparencyType,
-    visibility?: VisibilityType,
-    recurringEventId?: string,
+    originalStartDate: string, // Potentially legacy
+    originalAllDay: boolean,   // Potentially legacy
+    status?: string, // Google's event status e.g. 'confirmed', 'tentative', 'cancelled'
+    summary?: string | null, // Already have this
+    transparency?: GoogleTransparencyType,
+    visibility?: GoogleVisibilityType,
+    recurringEventId?: string, // Google's recurring event ID
     updatedAt: string,
     iCalUID?: string,
     htmlLink?: string,
-    colorId?: string,
+    colorId?: string, // Google's colorId for the event
     creator?: CreatorType,
     organizer?: OrganizerType,
     endTimeUnspecified?: boolean,
-    recurrence?: string[],
-    originalTimezone?: string,
+    recurrence?: string[], // Google's RRULE strings
+    originalTimezone?: string, // Potentially legacy if start/end objects have timezone
     attendeesOmitted?: boolean,
-    extendedProperties?: ExtendedPropertiesType,
+    extendedProperties?: GoogleExtendedPropertiesType,
     hangoutLink?: string,
     guestsCanModify?: boolean,
     locked?: boolean,
     source?: GoogleSourceType,
-    eventType?: string,
+    eventType?: GoogleApiEventType, // Google's eventType
     privateCopy?: boolean,
-    calendarId: string,
-    backgroundColor?: string,
-    foregroundColor?: string,
-    useDefaultAlarms?: boolean,
-    positiveImpactScore?: number,
-    negativeImpactScore?: number,
-    positiveImpactDayOfWeek?: number,
-    positiveImpactTime?: Time,
-    negativeImpactDayOfWeek?: number,
-    negativeImpactTime?: Time,
-    preferredDayOfWeek?: number,
-    preferredTime?: Time,
-    isExternalMeeting?: boolean,
-    isExternalMeetingModifiable?: boolean,
-    isMeetingModifiable?: boolean,
-    isMeeting?: boolean,
-    dailyTaskList?: boolean,
-    weeklyTaskList?: boolean,
-    isBreak?: boolean,
-    preferredStartTimeRange?: Time,
-    preferredEndTimeRange?: Time,
-    copyAvailability?: boolean,
-    copyTimeBlocking?: boolean,
-    copyTimePreference?: boolean,
-    copyReminders?: boolean,
-    copyPriorityLevel?: boolean,
-    copyModifiable?: boolean,
-    copyCategories?: boolean,
-    copyIsBreak?: boolean,
-    timeBlocking?: BufferTimeNumberType,
-    userModifiedAvailability?: boolean,
-    userModifiedTimeBlocking?: boolean,
-    userModifiedTimePreference?: boolean,
-    userModifiedReminders?: boolean,
-    userModifiedPriorityLevel?: boolean,
-    userModifiedCategories?: boolean,
-    userModifiedModifiable?: boolean,
-    userModifiedIsBreak?: boolean,
-    hardDeadline?: string,
-    softDeadline?: string,
-    copyIsMeeting?: boolean,
-    copyIsExternalMeeting?: boolean,
-    userModifiedIsMeeting?: boolean,
-    userModifiedIsExternalMeeting?: boolean,
-    duration?: number,
-    copyDuration?: boolean,
-    userModifiedDuration?: boolean,
-    method?: 'create' | 'update',
-    unlink?: boolean,
-    copyColor?: boolean,
-    userModifiedColor?: boolean,
-    byWeekDay?: string[],
-    localSynced?: boolean,
+    backgroundColor?: string, // Our internal color mapping
+    foregroundColor?: string, // Our internal color mapping
+    useDefaultAlarms?: boolean, // Deprecated, use reminders.useDefault
+    // ... (other fields from existing type)
     meetingId?: string,
-    eventId: string,
+    eventId: string, // This might be a duplicate of gEventId or our internal ID if different from Hasura's 'id'
 }
 
 
@@ -310,6 +262,7 @@ type DefaultReminder = {
 
 export type CalendarType = {
     id: string,
+    userId: string,
     title?: string,
     backgroundColor?: string,
     foregroundColor?: string,
@@ -319,159 +272,126 @@ export type CalendarType = {
     resource?: string,
     modifiable?: boolean,
     defaultReminders?: DefaultReminder[],
-    // weird behavior by enabling primary here commented out for now
-    // primary?: boolean,
+    primary?: boolean;
     globalPrimary?: boolean,
     pageToken?: string,
     syncToken?: string,
     deleted: boolean,
     createdDate: string,
     updatedAt: string,
-    userId: string,
+    type?: string;
 }
 
 type DayOfWeekIntType = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-type StartTimeType = {
-    day: DayOfWeekIntType,
-    hour: number,
-    minutes: number,
+type StartTimeType = { day: DayOfWeekIntType, hour: number, minutes: number }
+type EndTimeType = { day: DayOfWeekIntType, hour: number, minutes: number }
+
+export type NotAvailableSlotType = { startDate: string, endDate: string }
+
+export interface UserPreferencesType {
+    id: string; userId: string; reminders?: number[]; followUp?: number[];
+    isPublicCalendar?: boolean; publicCalendarCategories?: string[];
+    startTimes?: StartTimeType[]; endTimes?: EndTimeType[];
+    workHoursStartTime?: string; workHoursEndTime?: string;
+    workDays?: number[]; slotDuration?: number; timezone?: string;
+    bufferBetweenMeetings?: number;
+    // ... other fields from existing type
+    maxWorkLoadPercent: number; minNumberOfBreaks: number; breakLength: number;
+    breakColor?: string; backToBackMeetings: boolean; maxNumberOfMeetings: number;
+    somePreference?: string;
+    // Fields for copying from existing type
+    copyAvailability?: boolean; copyTimeBlocking?: boolean; copyTimePreference?: boolean;
+    copyReminders?: boolean; copyPriorityLevel?: boolean; copyModifiable?: boolean;
+    copyCategories?: boolean; copyIsBreak?: boolean; copyIsMeeting?: boolean;
+    copyIsExternalMeeting?: boolean; copyColor?: boolean;
+    updatedAt?: string; createdDate?: string; deleted: boolean;
 }
 
-type EndTimeType = {
-    day: DayOfWeekIntType,
-    hour: number,
-    minutes: number,
+export type AvailabilitySlotType = { startDate: string, endDate: string }
+
+export type FindAvailabilityBodyType = {
+    userId: string, email: string, shareAvailability: boolean, receiver: string, sender: string,
+    receiverCharacteristics?: string[], receiverGoals?: string[], senderCharacteristics?: string[],
+    senderGoals?: string[], windowStartDate?: string, windowEndDate?: string,
+    senderTimezone?: string, receiverTimezone?: string, slotDuration?: number,
 }
 
-export type NotAvailableSlotType = {
-    startDate: string,
-    endDate: string,
-}
-
-export type UserPreferenceType = {
-    id: string,
-    userId: string,
-    reminders?: number[], // invite part
-    followUp?: number[], // invite part
-    isPublicCalendar?: boolean,
-    publicCalendarCategories?: string[],
-    startTimes?: StartTimeType[],
-    endTimes?: EndTimeType[],
-    copyAvailability?: boolean,
-    copyTimeBlocking?: boolean,
-    copyTimePreference?: boolean,
-    copyReminders?: boolean,
-    copyPriorityLevel?: boolean,
-    copyModifiable?: boolean,
-    copyCategories?: boolean,
-    copyIsBreak?: boolean,
-    maxWorkLoadPercent: number,
-    minNumberOfBreaks: number,
-    breakLength: number,
-    breakColor?: string,
-    backToBackMeetings: boolean,
-    maxNumberOfMeetings: number,
-    copyIsMeeting?: boolean,
-    copyIsExternalMeeting?: boolean,
-    copyColor?: boolean,
-    updatedAt?: string,
-    createdDate?: string,
-    deleted: boolean
-}
-
-export type AvailableSlotType = {
-    id: string,
-    startDate: string,
-    endDate: string,
-}
-
-export type MeetingRequestBodyType = {
-    userId: string,
-    email: string,
-    shareAvailability: boolean,
-    receiver: string,
-    sender: string,
-    receiverCharacteristics?: string[],
-    receiverGoals?: string[],
-    senderCharacteristics?: string[],
-    senderGoals?: string[],
-    windowStartDate?: string,
-    windowEndDate?: string,
-    senderTimezone?: string,
-    receiverTimezone?: string,
-    slotDuration?: number,
+export interface MeetingRequestBodyType {
+    userId: string; clientType: 'ios' | 'android' | 'web' | 'atomic-web';
+    userTimezone: string; userDateContext: string; attendees: string;
+    subject: string; prompt: string; durationMinutes: number;
+    shareAvailability: boolean; availabilityUserDateStart?: string;
+    availabilityUserDateEnd?: string; emailTo: string; emailName: string;
+    yesLink: string; noLink: string; receiver: string; sender: string;
+    [key: string]: any;
 }
 
 export type DailyScheduleObjectType = {
-    start_time: string,
-    end_time: string,
-    task: string,
+    start_time: string, end_time: string, task: string, description?: string,
 }
 
 export type HowToTaskRequestBodyType = {
-    userId: string,
-    task: string,
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    email?: string,
-    name?: string,
-    isTwo?: boolean,
+    userId: string, task: string, isAllDay: boolean, timezone: string,
+    startDate: string, endDate: string, email?: string, name?: string, isTwo?: boolean,
 }
 
 export type CreateDayScheduleBodyType = {
     userId: string,
-    tasks: string[], // make sure to add previous events inside tasks when submitting
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    email?: string,
-    name?: string,
-    isTwo?: boolean,
+    tasks: Array<{ summary: string; description?: string; start_time?: string; end_time?: string; duration?: number; }>;
+    isAllDay?: boolean, timezone: string, startDate: string, endDate: string,
+    email?: string, name?: string, isTwo?: boolean, prompt?: string;
 }
 
 export type BreakDownTaskRequestBodyType = {
-    userId: string,
-    task: string,
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    email?: string,
-    name?: string,
-    isTwo?: boolean
+    userId: string, task: string, taskDescription?: string;
+    isAllDay: boolean, timezone: string, startDate: string, endDate: string,
+    email?: string, name?: string, isTwo?: boolean
 }
 
 export type CreatePeriodSummaryRequestBodyType = {
-    userId: string,
-    startDate: string,
-    endDate: string,
-    timezone: string,
-    email?: string,
-    name?: string,
+    userId: string, startDate: string, endDate: string, timezone: string,
+    email?: string, name?: string,
 }
 
 export type CreateAgendaRequestBodyType = {
-    userId: string,
-    isAllDay: boolean,
-    timezone: string,
-    email: string,
-    name: string,
-    startDate: string,
-    endDate: string,
-    mainTopic: string,
-    relevantPoints?: string[],
-    goals?: string[],
-    location?: string,
-    isTwo?: boolean,
+    userId: string, clientType: CalendarIntegrationType['clientType'];
+    isAllDay: boolean, timezone: string, email: string, name: string,
+    startDate: string, endDate: string, mainTopic: string,
+    relevantPoints?: string[], goals?: string[], location?: string, isTwo?: boolean,
 }
-
 
 export type GoogleResType = { id: string, googleEventId: string, generatedId: string, calendarId: string, generatedEventId: string }
 
+// New Interface for createGoogleEvent options
+export interface CreateGoogleEventOptions {
+    summary?: string;
+    description?: string;
+    location?: string; // Simple text location
+    colorId?: string; // Google Calendar colorId
+    attendees?: GoogleAttendeeType[];
+    conferenceData?: GoogleConferenceDataType; // Allows specifying 'eventHangout', 'hangoutsMeet', or null
+    extendedProperties?: GoogleExtendedPropertiesType;
+    recurrence?: string[]; // RRULE strings, e.g., ['RRULE:FREQ=WEEKLY;UNTIL=20241231T170000Z']
+    reminders?: GoogleReminderType;
+    source?: GoogleSourceType;
+    status?: 'confirmed' | 'tentative' | 'cancelled';
+    transparency?: GoogleTransparencyType;
+    visibility?: GoogleVisibilityType;
+    iCalUID?: string; // Usually generated by Google, but can be set
+    attendeesOmitted?: boolean;
+    hangoutLink?: string; // Read-only, but could be part of a template if creating from another event
+    privateCopy?: boolean;
+    locked?: boolean; // If true, only organizer can modify
+    attachments?: GoogleAttachmentType[];
+    eventType?: GoogleApiEventType;
 
+    // Date and Time fields (mutually exclusive for timed vs all-day)
+    startDateTime?: string; // ISO string for timed events
+    endDateTime?: string;   // ISO string for timed events
+    startDate?: string;     // YYYY-MM-DD for all-day events
+    endDate?: string;       // YYYY-MM-DD for all-day events (exclusive end for Google)
+    timezone: string;       // IANA timezone string, e.g., "America/New_York"
+}
 
-
+// Add other shared types below as needed.

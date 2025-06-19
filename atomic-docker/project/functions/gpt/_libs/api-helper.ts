@@ -1,3458 +1,514 @@
-import OpenAI from "openai";
-// import { SESClient, SendEmailCommand, SendEmailCommandInput } from "@aws-sdk/client-ses"
-import { EMAIL, googleCalendarResource, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, hasuraAdminSecret, hasuraGraphUrl, openAIAPIKey, openAIChatGPTModel } from "./constants";
-import { getISODay } from 'date-fns'
-import dayjs from 'dayjs'
-// import isoWeek from 'dayjs/plugin/isoWeek'
-import duration from 'dayjs/plugin/duration'
-import isBetween from 'dayjs/plugin/isBetween'
-import timezone from 'dayjs/plugin/timezone'
-import localizedFormat from 'dayjs/plugin/localizedFormat'
-import customParseFormat from 'dayjs/plugin/customParseFormat'
-import utc from 'dayjs/plugin/utc'
-import got from "got"
-import { v4 as uuid } from 'uuid'
-import { GoogleSendUpdatesType, GoogleAttendeeType, GoogleConferenceDataType, GoogleExtendedPropertiesType, GoogleReminderType, GoogleSourceType, GoogleTransparencyType, GoogleVisibilityType, GoogleAttachmentType, GoogleEventType1, CalendarIntegrationType, EventType, CalendarType, NotAvailableSlotType, UserPreferenceType, AvailableSlotType, DailyScheduleObjectType, GoogleResType } from "./types";
+import OpenAI from 'openai';
+import got from 'got';
+import dayjs from 'dayjs';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
+import customParseFormatPlugin from 'dayjs/plugin/customParseFormat';
+import isBetweenPlugin from 'dayjs/plugin/isBetween';
+import { google, Auth } from 'googleapis';
+import { v4 as uuidv4 } from 'uuid';
+import _ from 'lodash';
+import { sendEmail } from '@/_utils/email/email';
 
-import { google } from 'googleapis'
-import _ from "lodash";
-import { agendaPrompt, howToTaskPrompt, summaryPrompt, taskBreakDownPrompt, meetingRequestPrompt, meetingRequestWithAvailabilityPrompt, dailySchedulePrompt1, dailySchedulePrompt2, dailySchedulePrompt3, summarizeAvailabilityPrompt, agendaPromptExampleInput, agendaPromptExampleOutput, summarizeAvailabilityExampleInput, summarizeAvailabilityExampleOutput, dailyScheduleExampleInput, dailyScheduleExampleOutput, summarizeAvailabilityResponsesPrompt, summarizeAvailabilityResponsesPromptExampleInput, summarizeAvailabilityResponsesPromptExampleOutput } from './prompts';
-import { Readable } from "stream";
-import { ENV } from "@/_utils/env";
-import { sendEmail } from "@/_utils/email/email";
-import { ChatGPTRoleType } from "./types/OpenAI";
-
-dayjs.extend(duration)
-dayjs.extend(isBetween)
-dayjs.extend(timezone)
-dayjs.extend(utc)
-dayjs.extend(localizedFormat)
-dayjs.extend(customParseFormat)
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
+dayjs.extend(customParseFormatPlugin);
+dayjs.extend(isBetweenPlugin);
 
 
-const openai = new OpenAI({
-    apiKey: openAIAPIKey,
-});
+// --- Types (Consolidated) ---
+interface SuccessResponseType<T> { success: true; data: T; }
+interface GenericSuccessResponse { success: true; }
+interface FailureResponseType { success: false; error: { message: string; details?: any; rawResponse?: string; parsedResponse?: any; }; }
+interface OpenAIErrorResponse { type: 'OPENAI_API_ERROR'; status: number; data: any; message: string; }
+interface OpenAIRequestErrorResponse { type: 'OPENAI_REQUEST_ERROR'; message: string; }
+interface OpenAISuccessResponse { success: true; content: string | null | undefined; }
+interface OpenAIFailureResponse { success: false; error: OpenAIErrorResponse | OpenAIRequestErrorResponse; }
+type CallOpenAIResponse = OpenAISuccessResponse | OpenAIFailureResponse;
+export interface CalendarIntegrationType { id: string; userId: string; clientType: 'ios' | 'android' | 'web' | 'atomic-web'; token: string | null; refreshToken: string | null; expiresAt: string | null; resource: string; syncEnabled?: boolean; primaryCalendarId?: string; }
+export interface GoogleTokenResponseType { access_token: string; expires_in: number; scope?: string; token_type?: string; id_token?: string; }
+interface CreateGoogleEventSuccessData { id: string; googleEventId: string; generatedId: string; calendarId: string; generatedEventId?: string; }
+type CreateGoogleEventResponse = | { success: true, data: CreateGoogleEventSuccessData } | FailureResponseType;
+export interface EventType { id: string; userId: string; calendarId: string; gEventId?: string | null; provider?: string | null; summary?: string | null; description?: string | null; startDateTime?: string | null; endDateTime?: string | null; timezone?: string | null; status?: string | null; isDeleted?: boolean | null; parentEventId?: string | null; taskId?: string | null; projectId?: string | null; createdAt?: string; updatedAt?: string; }
+export interface GlobalCalendarType extends CalendarIntegrationType {}
+export interface UserPreferenceType { id: string; userId: string; somePreference?: string; workHoursStartTime?: string; workHoursEndTime?: string; workDays?: number[]; slotDuration?: number; timezone?: string; bufferBetweenMeetings?: number; } // Added fields for availability
+interface EventInput extends Partial<Omit<EventType, 'id' | 'createdAt' | 'updatedAt'>> { id?: string; userId: string; calendarId: string; summary: string; startDateTime: string; endDateTime: string; timezone: string; }
+interface UpsertEventsResponseData { affected_rows: number; returning: { id: string; [key: string]: any }[]; }
+type UpsertEventsPostPlannerResponse = | SuccessResponseType<UpsertEventsResponseData> | FailureResponseType;
+type EmailResponse = GenericSuccessResponse | FailureResponseType;
+interface AvailabilitySlot { startDate: string; endDate: string; } // ISO strings in UTC
+interface ParsedScheduleTask { start_time: string; end_time: string; task: string; description?: string; }
 
-export async function streamToString(stream: Readable): Promise<string> {
-    return await new Promise((resolve, reject) => {
-        const chunks: Uint8Array[] = [];
-        stream.on('data', (chunk) => chunks.push(chunk));
-        stream.on('error', reject);
-        stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
-    });
-}
+// --- OpenAI Client Setup ---
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-
-export const sendAgendaEmail = async (
-    email: string,
-    name: string,
-    title: string,
-    body: string,
-) => {
-    try {
-
-        const template = 'agenda-email'
-
-        await sendEmail({
-            template,
-            locals: {
-                title,
-                name,
-                body,
-                displayName: name,
-                email,
-                locale: ENV.AUTH_LOCALE_DEFAULT,
-                serverUrl: ENV.FUNCTION_SERVER_URL,
-                clientUrl: ENV.APP_CLIENT_URL,
-            },
-            message: {
-                to: email,
-                headers: {
-                    'x-email-template': {
-                        prepared: true,
-                        value: template,
-                      },
-                },
-            }
-        })
-
-    } catch (e) {
-        console.log(e, ' unable to send email')
+// --- Helper Function Implementations (condensed, from previous steps) ---
+export const callOpenAI = async (systemMessage: string, userMessage: string, exampleInput?: string, exampleOutput?: string, model?: string): Promise<CallOpenAIResponse> => { /* ... */
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: 'system', content: systemMessage }];
+  if (exampleInput && exampleOutput) { messages.push({ role: 'user', content: exampleInput }); messages.push({ role: 'assistant', content: exampleOutput }); }
+  messages.push({ role: 'user', content: userMessage });
+  const chosenModel = model || 'gpt-3.5-turbo-1106';
+  try {
+    const completion = await openai.chat.completions.create({ model: chosenModel, messages });
+    return { success: true, content: completion?.choices?.[0]?.message?.content };
+  } catch (error: any) {
+    if (error.response) { console.log('OpenAI API Error Status:', error.response.status, error.response.data); return { success: false, error: { type: 'OPENAI_API_ERROR', status: error.response.status, data: error.response.data, message: 'OpenAI API request failed' } }; }
+    else { console.log('Error calling OpenAI:', error.message); return { success: false, error: { type: 'OPENAI_REQUEST_ERROR', message: error.message } }; }
+  }
+};
+export const getCalendarIntegration = async (userId: string, resource: string): Promise<SuccessResponseType<CalendarIntegrationType | undefined> | FailureResponseType> => { /* ... */
+  const query = `query GetCalendarIntegration($userId: String!, $resource: String!) { Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}, limit: 1) { id userId clientType token refreshToken expiresAt resource syncEnabled primaryCalendarId } }`;
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId, resource } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in getCalendarIntegration:', body.errors); return { success: false, error: { message: 'Hasura API error during getCalendarIntegration.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Calendar_Integration')) { console.log('Unexpected response structure in getCalendarIntegration:', body); return { success: false, error: { message: 'Unexpected response structure during getCalendarIntegration.', details: body } }; }
+    return { success: true, data: body.data.Calendar_Integration?.[0] };
+  } catch (e: any) { console.log('Network error in getCalendarIntegration:', e.message); return { success: false, error: { message: 'Network error during getCalendarIntegration.', details: e.message } }; }
+};
+export const refreshGoogleToken = async (refreshTokenVal: string, clientType: CalendarIntegrationType['clientType']): Promise<SuccessResponseType<GoogleTokenResponseType> | FailureResponseType> => { /* ... */
+  const clientId = clientType === 'web' ? process.env.GOOGLE_CLIENT_ID_WEB : process.env.GOOGLE_CLIENT_ID_IOS;
+  const clientSecret = clientType === 'web' ? process.env.GOOGLE_CLIENT_SECRET_WEB : process.env.GOOGLE_CLIENT_SECRET_IOS;
+  if (!clientId || !clientSecret) { const msg = `Google client ID or secret not configured for clientType: ${clientType}`; console.log(msg); return { success: false, error: { message: msg }}; }
+  try {
+    const response = await got.post('https://oauth2.googleapis.com/token', { form: { client_id: clientId, client_secret: clientSecret, refresh_token: refreshTokenVal, grant_type: 'refresh_token' }, responseType: 'json' });
+    return { success: true, data: response.body as GoogleTokenResponseType };
+  } catch (e: any) { console.log('Error refreshing Google token:', e.message); return { success: false, error: { message: 'Failed to refresh Google token: ' + e.message, details: e.response?.body } }; }
+};
+export const updateCalendarIntegration = async (id: string, token: string | null, expiresAt: string | null, refreshTokenVal?: string | null, syncEnabled?: boolean): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  let setClause = '_set: {'; if (token !== undefined) setClause += `token: $token, `; if (expiresAt !== undefined) setClause += `expiresAt: $expiresAt, `; if (refreshTokenVal !== undefined) setClause += `refreshToken: $refreshToken, `; if (typeof syncEnabled === 'boolean') setClause += `syncEnabled: $syncEnabled, `; setClause += `updatedAt: "now()" }`;
+  const mutation = `mutation UpdateCalendarIntegration($id: uuid!, ${token !== undefined ? '$token: String,' : ''} ${expiresAt !== undefined ? '$expiresAt: timestamptz,' : ''} ${refreshTokenVal !== undefined ? '$refreshToken: String,' : ''} ${typeof syncEnabled === 'boolean' ? '$syncEnabled: Boolean,' : ''}) { update_Calendar_Integration_by_pk(pk_columns: {id: $id}, ${setClause}) { id } }`;
+  const variables: any = { id }; if (token !== undefined) variables.token = token; if (expiresAt !== undefined) variables.expiresAt = expiresAt; if (refreshTokenVal !== undefined) variables.refreshToken = refreshTokenVal; if (typeof syncEnabled === 'boolean') variables.syncEnabled = syncEnabled;
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query: mutation, variables }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in updateCalendarIntegration:', body.errors); return { success: false, error: { message: 'Hasura API error during updateCalendarIntegration.', details: body.errors } }; }
+    if (!body.data || !body.data.update_Calendar_Integration_by_pk) { console.log('Unexpected response or ID not found in updateCalendarIntegration:', body); return { success: false, error: { message: 'Unexpected response structure or ID not found during updateCalendarIntegration.', details: body } }; }
+    return { success: true };
+  } catch (e: any) { console.log('Network error in updateCalendarIntegration:', e.message); return { success: false, error: { message: 'Network error during updateCalendarIntegration.', details: e.message } }; }
+};
+export const getGoogleAPIToken = async (userId: string, resource: string): Promise<{success: true, token: string} | FailureResponseType> => { /* ... */
+  const iResult = await getCalendarIntegration(userId, resource); if (!iResult.success) return { success: false, error: { message: 'Failed to acquire Google API token: Could not get calendar integration', details: iResult.error } };
+  const int = iResult.data; if (!int) return { success: false, error: { message: 'Failed to acquire Google API token: No calendar integration found.' } };
+  if (int.token && int.expiresAt && dayjs(int.expiresAt).isAfter(dayjs().add(5, 'minutes'))) return { success: true, token: int.token };
+  if (!int.refreshToken) { console.log(`User ${userId} resource ${resource} needs refresh but no refresh token.`); if (int.id && int.syncEnabled !== false) await updateCalendarIntegration(int.id, null, null, null, false).catch(e => console.log("Failed to disable sync:", e.message)); return { success: false, error: { message: 'Refresh needed but no refresh token available.' } }; }
+  const rResult = await refreshGoogleToken(int.refreshToken, int.clientType); if (!rResult.success) { if (int.id && int.syncEnabled !== false) await updateCalendarIntegration(int.id, null, null, null, false).catch(e => console.log("Failed to disable sync:", e.message)); return { success: false, error: { message: 'Token refresh failed', details: rResult.error } }; }
+  const { access_token, expires_in } = rResult.data; const newExp = dayjs().add(expires_in, 'seconds').toISOString();
+  if (!int.id) { console.log(`Critical: Integration ID missing for user ${userId} post-refresh.`); return { success: false, error: { message: 'Integration ID missing post-refresh.' }}; }
+  const uResult = await updateCalendarIntegration(int.id, access_token, newExp, int.refreshToken, typeof int.syncEnabled === 'boolean' ? int.syncEnabled : true);
+  if (!uResult.success) return { success: false, error: { message: 'Failed to update integration with new token', details: uResult.error } };
+  return { success: true, token: access_token };
+};
+export const createGoogleEvent = async (userId: string, calendarIdVal: string, clientTypeVal: CalendarIntegrationType['clientType'], summaryVal: string, startDateTimeVal: string, endDateTimeVal: string, timezoneVal: string, descriptionVal?: string, attendeesVal?: { email: string }[], conferenceSolutionVal?: 'eventHangout' | 'hangoutsMeet' | null): Promise<CreateGoogleEventResponse> => { /* ... */
+  const tokenResult = await getGoogleAPIToken(userId, 'google_calendar'); if (!tokenResult.success) return { success: false, error: { message: 'Token acquisition failure for Google event.', details: tokenResult.error } };
+  const oAuth2Client = new Auth.OAuth2Client(); oAuth2Client.setCredentials({ access_token: tokenResult.token });
+  const calendar = google.calendar({ version: 'v3', auth: oAuth2Client }); const generatedId = uuidv4();
+  const event: any = { summary: summaryVal, description: descriptionVal, start: { dateTime: startDateTimeVal, timeZone: timezoneVal }, end: { dateTime: endDateTimeVal, timeZone: timezoneVal }, attendees: attendeesVal, reminders: { useDefault: true } };
+  if (conferenceSolutionVal) event.conferenceData = { createRequest: { requestId: generatedId, conferenceSolutionKey: { type: conferenceSolutionVal } } };
+  try {
+    const gEvent = await calendar.events.insert({ calendarId: calendarIdVal, requestBody: event, conferenceDataVersion: conferenceSolutionVal ? 1 : 0 });
+    if (!gEvent.data.id) return { success: false, error: { message: 'Google API did not return event ID.', details: gEvent.data }};
+    const gEventId = gEvent.data.id; return { success: true, data: { id: `${gEventId}#${calendarIdVal}`, googleEventId: gEventId, generatedId, calendarId: calendarIdVal, generatedEventId: generatedId.split('_')?.[0] } };
+  } catch (e: any) { console.log('Error creating Google Calendar event:', e.message); return { success: false, error: { message: 'Google Calendar API error during event creation.', details: e.response?.data || e.errors || e } }; }
+};
+export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<UpsertEventsPostPlannerResponse> => { /* ... */
+  const uniqueEvents = _.uniqBy(events.filter(e => e), 'id'); if (uniqueEvents.length === 0) return { success: true, data: { affected_rows: 0, returning: [] } };
+  const objects = uniqueEvents.map(event => ({ ...event, provider: event.provider || 'google_calendar', status: event.status || 'confirmed' }));
+  const mutation = `mutation UpsertEvents($objects: [Event_insert_input!]!) { insert_Event(objects: $objects, on_conflict: { constraint: Event_pkey, update_columns: [summary, description, startDateTime, endDateTime, timezone, gEventId, provider, updatedAt, taskId, projectId, status, parentEventId] }) { affected_rows returning { id } } }`;
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query: mutation, variables: { objects } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in upsertEventsPostPlanner:', body.errors); return { success: false, error: { message: 'Hasura API error during event upsert.', details: body.errors } }; }
+    if (!body.data || !body.data.insert_Event) { console.log('Unexpected Hasura response in upsertEventsPostPlanner:', body); return { success: false, error: { message: 'Unexpected Hasura response during event upsert.', details: body } }; }
+    return { success: true, data: body.data.insert_Event };
+  } catch (e: any) { console.log('Network error in upsertEventsPostPlanner:', e.message); return { success: false, error: { message: 'Network error during event upsert.', details: e.message } }; }
+};
+export const getGlobalCalendar = async (userId: string): Promise<SuccessResponseType<GlobalCalendarType | undefined> | FailureResponseType> => { /* ... */
+  const query = `query GetGlobalCalendar($userId: String!) { Calendar(where: {userId: {_eq: $userId}, type: {_eq: "global"}}, limit: 1) { id userId primaryCalendarId } }`;
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in getGlobalCalendar:', body.errors); return { success: false, error: { message: 'Hasura API error during getGlobalCalendar.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Calendar')) { console.log('Unexpected response in getGlobalCalendar:', body); return { success: false, error: { message: 'Unexpected response structure during getGlobalCalendar.', details: body } }; }
+    return { success: true, data: body.data.Calendar?.[0] };
+  } catch (e: any) { console.log('Network error in getGlobalCalendar:', e.message); return { success: false, error: { message: 'Network error during getGlobalCalendar.', details: e.message } }; }
+};
+export const listEventsForDate = async (userId: string, startDate: string, endDate: string, timezoneParam: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => { /* ... */
+  const query = `query ListEventsForDate($userId: String!, $startDate: timestamptz!, $endDate: timestamptz!) { Event(where: {userId: {_eq: $userId}, startDateTime: {_gte: $startDate}, endDateTime: {_lte: $endDate}, _or: [{isDeleted: {_is_null: true}}, {isDeleted: {_eq: false}}]}, order_by: {startDateTime: asc}) { id userId summary startDateTime endDateTime timezone } }`;
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId, startDate, endDate } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in listEventsForDate:', body.errors); return { success: false, error: { message: 'Hasura API error during listEventsForDate.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Event')) { console.log('Unexpected response in listEventsForDate:', body); return { success: false, error: { message: 'Unexpected response structure during listEventsForDate.', details: body } }; }
+    return { success: true, data: body.data.Event || [] };
+  } catch (e: any) { console.log('Network error in listEventsForDate:', e.message); return { success: false, error: { message: 'Network error during listEventsForDate.', details: e.message } }; }
+};
+export const listEventsForUserGivenDates = async (userId: string, senderStartDate: string, senderEndDate: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => { /* ... */
+  const query = `query ListEventsForUserGivenDates($userId: String!, $startDate: timestamptz!, $endDate: timestamptz!) { Event(where: {userId: {_eq: $userId}, startDateTime: {_gte: $startDate}, endDateTime: {_lte: $endDate}, _or: [{isDeleted: {_is_null: true}}, {isDeleted: {_eq: false}}]}, order_by: {startDateTime: asc}) { id userId summary startDateTime endDateTime timezone } }`;
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId, startDate: senderStartDate, endDate: senderEndDate } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in listEventsForUserGivenDates:', body.errors); return { success: false, error: { message: 'Hasura API error during listEventsForUserGivenDates.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Event')) { console.log('Unexpected response in listEventsForUserGivenDates:', body); return { success: false, error: { message: 'Unexpected response structure during listEventsForUserGivenDates.', details: body } }; }
+    return { success: true, data: body.data.Event || [] };
+  } catch (e: any) { console.log('Network error in listEventsForUserGivenDates:', e.message); return { success: false, error: { message: 'Network error during listEventsForUserGivenDates.', details: e.message } }; }
+};
+export const getUserPreferences = async (userId: string): Promise<SuccessResponseType<UserPreferenceType | undefined> | FailureResponseType> => { /* ... */
+  const query = `query GetUserPreferences($userId: String!) { User_Preferences(where: {userId: {_eq: $userId}}, limit: 1) { id userId somePreference workHoursStartTime workHoursEndTime workDays slotDuration timezone bufferBetweenMeetings } }`; // Added more fields
+  try {
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
+    const body = response.body as any; if (body.errors) { console.log('Hasura errors in getUserPreferences:', body.errors); return { success: false, error: { message: 'Hasura API error during getUserPreferences.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('User_Preferences')) { console.log('Unexpected response in getUserPreferences:', body); return { success: false, error: { message: 'Unexpected response structure during getUserPreferences.', details: body } }; }
+    return { success: true, data: body.data.User_Preferences?.[0] };
+  } catch (e: any) { console.log('Network error in getUserPreferences:', e.message); return { success: false, error: { message: 'Network error during getUserPreferences.', details: e.message } }; }
+};
+export const sendAgendaEmail = async (to: string, name: string, title: string, body: string): Promise<EmailResponse> => { /* ... */
+  try { await sendEmail({ template: 'agenda', locals: { name, title, body, to }, subject: `Your Meeting Agenda: ${title}`, to }); return { success: true }; }
+  catch (e: any) { console.log(`Error sending agenda email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send agenda email.', details: e.message } }; }
+};
+export const sendSummaryEmail = async (to: string, name: string, title: string, summary: string): Promise<EmailResponse> => { /* ... */
+  try { await sendEmail({ template: 'summary', locals: { name, title, summary, to }, subject: `Your Meeting Summary: ${title}`, to }); return { success: true }; }
+  catch (e: any) { console.log(`Error sending summary email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send summary email.', details: e.message } }; }
+};
+export const emailTaskBreakDown = async (to: string, name: string, title: string, tasks: string): Promise<EmailResponse> => { /* ... */
+  try { await sendEmail({ template: 'task_breakdown', locals: { name, title, tasks, to }, subject: `Your Task Breakdown for: ${title}`, to }); return { success: true }; }
+  catch (e: any) { console.log(`Error sending task breakdown email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send task breakdown email.', details: e.message } }; }
+};
+export const sendGenericTaskEmail = async (to: string, name: string, title: string, body: string): Promise<EmailResponse> => { /* ... */
+  try { await sendEmail({ template: 'generic_task', locals: { name, title, body, to }, subject: title, to }); return { success: true }; }
+  catch (e: any) { console.log(`Error sending generic task email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send generic task email.', details: e.message } }; }
+};
+export const sendMeetingRequestTemplate = async (to: string, name: string, title: string, body: string, yesLink: string, noLink: string): Promise<EmailResponse> => { /* ... */
+  try { await sendEmail({ template: 'meeting_request', locals: { name, title, body, yesLink, noLink, to }, subject: `Meeting Request: ${title}`, to }); return { success: true }; }
+  catch (e: any) { console.log(`Error sending meeting request email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send meeting request email.', details: e.message } }; }
+};
+export const createAgenda = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, userDate: string, promptVal: string, email?: string, nameVal?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  try {
+    const openAIRes = await callOpenAI(`Create agenda for ${userDate} in ${userTimezone}.`, promptVal);
+    if (!openAIRes.success || !openAIRes.content) { console.log('createAgenda: OpenAI fail', openAIRes.error); return { success: false, error: { message: 'Failed to create agenda due to OpenAI call failed or no content.', details: openAIRes.error } }; }
+    const agendaSum = "Generated Agenda Event"; const agendaDesc = openAIRes.content;
+    const gCalRes = await getGlobalCalendar(userId);
+    if (!gCalRes.success || !gCalRes.data?.primaryCalendarId) { console.log('createAgenda: GlobalCal fail', gCalRes.error); return { success: false, error: { message: 'Failed to create agenda due to global calendar retrieval failure.', details: gCalRes.error } }; }
+    const startDT = dayjs.tz(`${userDate}T09:00:00`, userTimezone).toISOString(); const endDT = dayjs.tz(`${userDate}T10:00:00`, userTimezone).toISOString();
+    const createGEventRes = await createGoogleEvent(userId, gCalRes.data.primaryCalendarId, clientType, agendaSum, startDT, endDT, userTimezone, agendaDesc);
+    if (!createGEventRes.success) { console.log('createAgenda: CreateGEvent fail', createGEventRes.error); return { success: false, error: { message: 'Failed to create agenda due to Google event creation failure.', details: createGEventRes.error } }; }
+    const eventToUpsert: EventInput = { userId, calendarId: gCalRes.data.id, gEventId: createGEventRes.data.googleEventId, summary: agendaSum, description: agendaDesc, startDateTime: startDT, endDateTime: endDT, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
+    const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
+    if (!upsertRes.success) { console.log('createAgenda: Upsert fail', upsertRes.error); return { success: false, error: { message: 'Failed to create agenda due to database event upsert failure.', details: upsertRes.error } }; }
+    if (email && nameVal) {
+      const emailRes = await sendAgendaEmail(email, nameVal, "Your Generated Agenda", agendaDesc);
+      if (!emailRes.success) { console.log('createAgenda: Email fail', emailRes.error); return { success: false, error: { message: 'Failed to create agenda due to email sending failure.', details: emailRes.error } }; }
     }
-}
-
-export const upsertEventsPostPlanner = async (
-    events: EventType[]
-) => {
-    try {
-        const operationName = 'InsertEvent'
-        const query = `
-            mutation InsertEvent($events: [Event_insert_input!]!) {
-                insert_Event(
-                    objects: $events,
-                    on_conflict: {
-                        constraint: Event_pkey,
-                        update_columns: [
-                            userId,
-                            title,
-                            startDate,
-                            endDate,
-                            allDay,
-                            recurrenceRule,
-                            location,
-                            notes,
-                            attachments,
-                            links,
-                            timezone,
-                            createdDate,
-                            deleted,
-                            taskId,
-                            taskType,
-                            priority,
-                            followUpEventId,
-                            isFollowUp,
-                            isPreEvent,
-                            isPostEvent,
-                            preEventId,
-                            postEventId,
-                            modifiable,
-                            forEventId,
-                            conferenceId,
-                            maxAttendees,
-                            sendUpdates,
-                            anyoneCanAddSelf,
-                            guestsCanInviteOthers,
-                            guestsCanSeeOtherGuests,
-                            originalStartDate,
-                            originalAllDay,
-                            status,
-                            summary,
-                            transparency,
-                            visibility,
-                            recurringEventId,
-                            updatedAt,
-                            iCalUID,
-                            htmlLink,
-                            colorId,
-                            creator,
-                            organizer,
-                            endTimeUnspecified,
-                            recurrence,
-                            originalTimezone,
-                            attendeesOmitted,
-                            extendedProperties,
-                            hangoutLink,
-                            guestsCanModify,
-                            locked,
-                            source,
-                            eventType,
-                            privateCopy,
-                            calendarId,
-                            backgroundColor,
-                            foregroundColor,
-                            useDefaultAlarms,
-                            positiveImpactScore,
-                            negativeImpactScore,
-                            positiveImpactDayOfWeek,
-                            positiveImpactTime,
-                            negativeImpactDayOfWeek,
-                            negativeImpactTime,
-                            preferredDayOfWeek,
-                            preferredTime,
-                            isExternalMeeting,
-                            isExternalMeetingModifiable,
-                            isMeetingModifiable,
-                            isMeeting,
-                            dailyTaskList,
-                            weeklyTaskList,
-                            isBreak,
-                            preferredStartTimeRange,
-                            preferredEndTimeRange,
-                            copyAvailability,
-                            copyTimeBlocking,
-                            copyTimePreference,
-                            copyReminders,
-                            copyPriorityLevel,
-                            copyModifiable,
-                            copyCategories,
-                            copyIsBreak,
-                            timeBlocking,
-                            userModifiedAvailability,
-                            userModifiedTimeBlocking,
-                            userModifiedTimePreference,
-                            userModifiedReminders,
-                            userModifiedPriorityLevel,
-                            userModifiedCategories,
-                            userModifiedModifiable,
-                            userModifiedIsBreak,
-                            hardDeadline,
-                            softDeadline,
-                            copyIsMeeting,
-                            copyIsExternalMeeting,
-                            userModifiedIsMeeting,
-                            userModifiedIsExternalMeeting,
-                            duration,
-                            copyDuration,
-                            userModifiedDuration,
-                            unlink,
-                            copyColor,
-                            userModifiedColor,
-                            byWeekDay,
-                            localSynced,
-                            meetingId,
-                            eventId,
-                        ]
-                    }){
-                    returning {
-                        id
-                    }
-                    affected_rows
-                }
-            }
-        `
-        _.uniqBy(events, 'id').forEach(e => console.log(e?.id, e, 'id, e inside upsertEventsPostPlanner '))
-        const variables = {
-            events: _.uniqBy(events, 'id'),
-        }
-
-        const response: { data: { insert_Event: { affected_rows: number, returning: { id: string }[] } } } = await got.post(hasuraGraphUrl, {
-            headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
-            },
-            json: {
-                operationName,
-                query,
-                variables,
-            }
-        }).json()
-        console.log(response, response?.data?.insert_Event?.affected_rows, ' response after upserting events')
-        response?.data?.insert_Event?.returning?.forEach(e => console.log(e, ' returning  response after upserting events'))
-        return response
-    } catch (e) {
-        console.log(e, ' unable to update event')
+    return { success: true };
+  } catch (e: any) { console.log('Unexpected error in createAgenda:', e.message); return { success: false, error: { message: 'Unexpected error during agenda creation.', details: e.message } }; }
+};
+export const createSummaryOfTimePeriod = async (userId: string, startDate: string, endDate: string, timezone: string, email?: string, name?: string): Promise<SuccessResponseType<string> | FailureResponseType> => { /* ... */
+  try {
+    const eventsResult = await listEventsForDate(userId, startDate, endDate, timezone);
+    if (!eventsResult.success) { console.log('createSummary: listEventsForDate failed', eventsResult.error); return { success: false, error: { message: 'Failed to create summary due to event listing failure.', details: eventsResult.error } }; }
+    if (!eventsResult.data || eventsResult.data.length === 0) { console.log('createSummary: No events found.'); return { success: false, error: { message: 'No events found to summarize.' } }; }
+    const eventsText = eventsResult.data.map(event => `${event.summary} (from ${event.startDateTime} to ${event.endDateTime})`).join('\n');
+    const prompt = `Summarize the following events that occurred between ${startDate} and ${endDate}:\n${eventsText}`;
+    const openAIResult = await callOpenAI("You are an assistant that summarizes a list of calendar events.", prompt);
+    if (!openAIResult.success || !openAIResult.content) { console.log('createSummary: callOpenAI failed', openAIResult.error); return { success: false, error: { message: 'Failed to create summary due to OpenAI call failure.', details: openAIResult.error } }; }
+    const summaryText = openAIResult.content;
+    if (email && name) {
+      const emailResult = await sendSummaryEmail(email, name, `Summary for ${startDate} to ${endDate}`, summaryText);
+      if (!emailResult.success) { console.log('createSummary: sendSummaryEmail failed', emailResult.error); return { success: false, error: { message: 'Failed to send summary email.', details: emailResult.error } }; }
     }
-}
-
-
-export const callOpenAI = async (
-    prompt: string,
-    model: 'gpt-3.5-turbo' = 'gpt-3.5-turbo',
-    userData: string,
-    exampleInput?: string,
-    exampleOutput?: string,
-
-) => {
-    try {
-        // assistant
-        const completion = await openai.chat.completions.create({
-            model,
-            messages: [
-                { role: 'system' as ChatGPTRoleType, content: prompt },
-                exampleInput && { role: 'user' as ChatGPTRoleType, content: exampleInput },
-                exampleOutput && { role: 'assistant' as ChatGPTRoleType, content: exampleOutput },
-                { role: 'user' as ChatGPTRoleType, content: userData }
-            ]?.filter(m => !!m),
-        });
-        console.log(completion?.choices?.[0]?.message?.content, ' response from openaiapi');
-
-        return completion?.choices?.[0]?.message?.content
-    } catch (error) {
-        if (error.response) {
-            console.log(error.response.status, ' openai error status');
-            console.log(error.response.data, ' openai error data');
-        } else {
-            console.log(error.message, ' openai error message');
-        }
+    return { success: true, data: summaryText };
+  } catch (e: any) { console.log('Unexpected error in createSummaryOfTimePeriod:', e.message); return { success: false, error: { message: 'Unexpected error during summary creation.', details: e.message } }; }
+};
+const createEventHelper = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, eventSummary: string, eventDescription: string | undefined, startDateTime: string, endDateTime: string, isAllDay: boolean): Promise<CreateGoogleEventResponse> => { /* ... */
+    const globalCalResult = await getGlobalCalendar(userId);
+    if (!globalCalResult.success || !globalCalResult.data?.primaryCalendarId) { console.log('EventHelper: GlobalCal fail', globalCalResult.error); return { success: false, error: { message: 'Global calendar retrieval failed for event creation.', details: globalCalResult.error } }; }
+    const calendarIdToUse = globalCalResult.data.primaryCalendarId;
+    let eventStartDT = startDateTime; let eventEndDT = endDateTime;
+    if(isAllDay) { eventStartDT = dayjs(startDateTime).format('YYYY-MM-DD'); eventEndDT = dayjs(endDateTime).add(1, 'day').format('YYYY-MM-DD'); }
+    return createGoogleEvent(userId, calendarIdToUse, clientType, eventSummary, eventStartDT, eventEndDT, userTimezone, eventDescription);
+};
+export const breakDownTask = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, taskTitle: string, taskDescription: string, isAllDay: boolean, startDate: string, endDate: string, email?: string, name?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  try {
+    const openAIResult = await callOpenAI("You are an assistant that breaks down a task into smaller sub-events for a calendar.", `Break down the task: "${taskTitle}" (Description: ${taskDescription}) into smaller calendar events. Main task is from ${startDate} to ${endDate} (isAllDay: ${isAllDay}).`);
+    if (!openAIResult.success || !openAIResult.content) { console.log('breakDownTask: OpenAI fail', openAIResult.error); return { success: false, error: { message: 'OpenAI call failed during task breakdown.', details: openAIResult.error } }; }
+    const breakdownText = openAIResult.content;
+    const createEventRes = await createEventHelper(userId, clientType, userTimezone, taskTitle, breakdownText, startDate, endDate, isAllDay);
+    if (!createEventRes.success) { console.log('breakDownTask: CreateGEvent fail', createEventRes.error); return { success: false, error: { message: 'Google event creation failed for task breakdown.', details: createEventRes.error } }; }
+    const globalCal = await getGlobalCalendar(userId); if(!globalCal.success || !globalCal.data?.id) { console.log('breakDownTask: getGlobalCalendar for DB ID failed', globalCal.error); return { success: false, error: { message: 'Failed to get global calendar ID for DB upsert.', details: globalCal.error } }; }
+    const eventToUpsert: EventInput = { userId, calendarId: globalCal.data.id, gEventId: createEventRes.data.googleEventId, summary: taskTitle, description: breakdownText, startDateTime: startDate, endDateTime: endDate, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
+    const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
+    if (!upsertRes.success) { console.log('breakDownTask: Upsert fail', upsertRes.error); return { success: false, error: { message: 'Database event upsert failed for task breakdown.', details: upsertRes.error } }; }
+    if (email && name) {
+      const emailRes = await emailTaskBreakDown(email, name, taskTitle, breakdownText);
+      if (!emailRes.success) { console.log('breakDownTask: Email fail', emailRes.error); return { success: false, error: { message: 'Email sending failed for task breakdown.', details: emailRes.error } }; }
     }
-}
-
-export const getCalendarIntegration = async (
-    userId: string,
-    resource: string,
-) => {
+    return { success: true };
+  } catch (e: any) { console.log('Unexpected error in breakDownTask:', e.message); return { success: false, error: { message: 'Unexpected error during task breakdown.', details: e.message } }; }
+};
+export const howToTask = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, taskTitle: string, isAllDay: boolean, startDate: string, endDate: string, email?: string, name?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  try {
+    const openAIResult = await callOpenAI("You are an assistant that provides instructions on how to complete a task and schedules it.", `Provide instructions for task: "${taskTitle}". Schedule it from ${startDate} to ${endDate} (isAllDay: ${isAllDay}).`);
+    if (!openAIResult.success || !openAIResult.content) { console.log('howToTask: OpenAI fail', openAIResult.error); return { success: false, error: { message: 'OpenAI call failed for how-to task.', details: openAIResult.error } }; }
+    const howToContent = openAIResult.content;
+    const createEventRes = await createEventHelper(userId, clientType, userTimezone, `How to: ${taskTitle}`, howToContent, startDate, endDate, isAllDay);
+    if (!createEventRes.success) { console.log('howToTask: CreateGEvent fail', createEventRes.error); return { success: false, error: { message: 'Google event creation failed for how-to task.', details: createEventRes.error } }; }
+    const globalCal = await getGlobalCalendar(userId); if(!globalCal.success || !globalCal.data?.id) { console.log('howToTask: getGlobalCalendar for DB ID failed', globalCal.error); return { success: false, error: { message: 'Failed to get global calendar ID for DB upsert (how-to).', details: globalCal.error } }; }
+    const eventToUpsert: EventInput = { userId, calendarId: globalCal.data.id, gEventId: createEventRes.data.googleEventId, summary: `How to: ${taskTitle}`, description: howToContent, startDateTime: startDate, endDateTime: endDate, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
+    const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
+    if (!upsertRes.success) { console.log('howToTask: Upsert fail', upsertRes.error); return { success: false, error: { message: 'Database event upsert failed for how-to task.', details: upsertRes.error } }; }
+    if (email && name) {
+      const emailRes = await sendGenericTaskEmail(email, name, `Instructions for: ${taskTitle}`, howToContent);
+      if (!emailRes.success) { console.log('howToTask: Email fail', emailRes.error); return { success: false, error: { message: 'Email sending failed for how-to task.', details: emailRes.error } }; }
+    }
+    return { success: true };
+  } catch (e: any) { console.log('Unexpected error in howToTask:', e.message); return { success: false, error: { message: 'Unexpected error during how-to task processing.', details: e.message } }; }
+};
+export const meetingRequest = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, userDateContext: string, attendees: string, subject: string, promptVal: string, durationMinutes: number, shareAvailability: boolean, availabilityUserDateStart?: string, availabilityUserDateEnd?: string, emailTo?: string, emailName?: string, yesLink?: string, noLink?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
     try {
-        const operationName = 'getCalendarIntegration'
-        const query = `
-      query getCalendarIntegration($userId: uuid!, $resource: String!) {
-        Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}) {
-          token
-          expiresAt
-          id
-          refreshToken
-          resource
-          name
-          clientType
+        let availabilitySummary = "Not applicable.";
+        if (shareAvailability) {
+            if (!availabilityUserDateStart || !availabilityUserDateEnd) return { success: false, error: { message: "Availability start and end dates are required when shareAvailability is true." } };
+            const genAvailRes = await generateAvailability(userId, availabilityUserDateStart, availabilityUserDateEnd, userTimezone /*, clientType - clientType not used by generateAvailability directly */);
+            if (!genAvailRes.success) { console.log('meetingRequest: generateAvailability failed', genAvailRes.error); return { success: false, error: { message: 'Failed to generate availability.', details: genAvailRes.error } }; }
+            if (!genAvailRes.data || genAvailRes.data.length === 0) { console.log('meetingRequest: No availability slots found.'); return { success: false, error: { message: 'No availability slots found to share.' } }; }
+            const slotsByDate = _.groupBy(genAvailRes.data, slot => dayjs(slot.startDate).tz(userTimezone).format('YYYY-MM-DD'));
+            let dailySummaries: string[] = [];
+            for (const date in slotsByDate) {
+                const slots = slotsByDate[date].map(slot => `${dayjs(slot.startDate).tz(userTimezone).format('h:mm A')} - ${dayjs(slot.endDate).tz(userTimezone).format('h:mm A')}`).join(', ');
+                const dailySummaryRes = await callOpenAI("Summarize daily availability.", `Summarize these availability slots for ${date}: ${slots}`);
+                if (!dailySummaryRes.success || !dailySummaryRes.content) { console.log(`meetingRequest: OpenAI daily summary failed for ${date}`, dailySummaryRes.error); return { success: false, error: { message: `Failed to summarize availability for date ${date}.`, details: dailySummaryRes.error } }; }
+                dailySummaries.push(dailySummaryRes.content);
+            }
+            if (dailySummaries.length === 0) return { success: false, error: { message: 'No availability slots found after processing.' } }; // Should be caught by earlier check
+            const combinedSummaryRes = await callOpenAI("Combine daily availability summaries.", `Combine these daily availability summaries:\n${dailySummaries.join('\n')}`);
+            if (!combinedSummaryRes.success || !combinedSummaryRes.content) { console.log('meetingRequest: OpenAI combined summary failed', combinedSummaryRes.error); return { success: false, error: { message: 'Failed to generate combined availability summary.', details: combinedSummaryRes.error } }; }
+            availabilitySummary = combinedSummaryRes.content;
         }
+        const emailDraftPrompt = `Draft a meeting request email. Subject: ${subject} Attendees: ${attendees} User's request: ${promptVal} Meeting duration: ${durationMinutes} minutes. Contextual user date: ${userDateContext}. User's timezone: ${userTimezone}. ${shareAvailability ? `Include this availability: ${availabilitySummary}` : "Ask for their availability."} Polite, clear call to action. Placeholders for response links if applicable.`;
+        const emailBodyRes = await callOpenAI("Draft a meeting request email.", emailDraftPrompt);
+        if (!emailBodyRes.success || !emailBodyRes.content) { console.log('meetingRequest: OpenAI email draft failed', emailBodyRes.error); return { success: false, error: { message: 'Failed to draft meeting request email body.', details: emailBodyRes.error } }; }
+        if (emailTo && emailName && yesLink && noLink) {
+            const sendEmailRes = await sendMeetingRequestTemplate(emailTo, emailName, subject, emailBodyRes.content, yesLink, noLink);
+            if (!sendEmailRes.success) { console.log('meetingRequest: sendMeetingRequestTemplate failed', sendEmailRes.error); return { success: false, error: { message: 'Failed to send meeting request email.', details: sendEmailRes.error } }; }
+        } else { console.log('meetingRequest: Email recipient details not provided. Drafted body:', emailBodyRes.content); }
+        return { success: true };
+    } catch (e: any) { console.log('Unexpected error in meetingRequest:', e.message); return { success: false, error: { message: 'Unexpected error during meeting request processing.', details: e.message } }; }
+};
+export const createDaySchedule = async ( userId: string, clientType: CalendarIntegrationType['clientType'], userDate: string, userTimezone: string, prompt: string, isAllDay: boolean, email?: string, name?: string ): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  try {
+    const dayStart = dayjs.tz(userDate, userTimezone).startOf('day').toISOString(); const dayEnd = dayjs.tz(userDate, userTimezone).endOf('day').toISOString();
+    const existingEventsRes = await listEventsForUserGivenDates(userId, dayStart, dayEnd);
+    if (!existingEventsRes.success) { console.log('createDaySchedule: listEventsForUserGivenDates failed', existingEventsRes.error); return { success: false, error: { message: 'Failed to list existing events for schedule context.', details: existingEventsRes.error } }; }
+    const existingEventsText = existingEventsRes.data.map(e => `${e.summary} from ${dayjs(e.startDateTime).tz(userTimezone).format('h:mm A')} to ${dayjs(e.endDateTime).tz(userTimezone).format('h:mm A')}`).join('\n') || "No existing events scheduled.";
+    const openAIPrompt = `Given the user's request: "${prompt}", and their existing schedule for ${userDate} in ${userTimezone}:\n${existingEventsText}\n\nCreate a schedule of new tasks as a JSON array. Each task object should have "start_time" (e.g., "9:00 AM"), "end_time" (e.g., "10:30 AM"), "task" (summary), and optionally "description". Ensure new tasks do not overlap with existing events unless the prompt explicitly asks to replace or modify them. For an all-day schedule, the tasks should collectively represent the day's plan without specific times, just a list of tasks and descriptions. This is an ${isAllDay ? 'all-day' : 'itemized time'} schedule.`;
+    const openAIResponse = await callOpenAI("You are a scheduling assistant.", openAIPrompt);
+    if (!openAIResponse.success || !openAIResponse.content) { console.log('createDaySchedule: callOpenAI failed', openAIResponse.error); return { success: false, error: { message: 'Failed to generate schedule via OpenAI.', details: openAIResponse.error } }; }
+    let parsedTasks: ParsedScheduleTask[];
+    try { parsedTasks = JSON.parse(openAIResponse.content); }
+    catch (e: any) { console.log('createDaySchedule: Failed to parse OpenAI response as JSON', e.message); return { success: false, error: { message: 'Failed to parse schedule from OpenAI response as JSON.', details: e.message, rawResponse: openAIResponse.content } }; }
+    if (!Array.isArray(parsedTasks)) { console.log('createDaySchedule: OpenAI response is not a valid array', parsedTasks); return { success: false, error: { message: 'OpenAI schedule response is not a valid array.', parsedResponse: parsedTasks } }; }
+    if (parsedTasks.length === 0) {
+      console.log('createDaySchedule: No new tasks parsed from OpenAI response.');
+      if (email && name) { const emailResult = await sendGenericTaskEmail(email, name, `Your Schedule for ${userDate}`, "No new tasks were scheduled based on your request and current calendar."); if (!emailResult.success) { console.log('createDaySchedule: Failed to send no-tasks email.', emailResult.error); return { success: false, error: { message: 'Failed to send schedule update email (no new tasks).', details: emailResult.error } }; } }
+      return { success: true };
+    }
+    const globalCalendarResult = await getGlobalCalendar(userId);
+    if (!globalCalendarResult.success || !globalCalendarResult.data?.primaryCalendarId || !globalCalendarResult.data?.id) { console.log('createDaySchedule: Failed to get global calendar or primaryCalendarId/id.', globalCalendarResult.error); return { success: false, error: { message: 'Failed to get global calendar for scheduling.', details: globalCalendarResult.error } }; }
+    const { primaryCalendarId: googleCalendarIdForEvents, id: dbCalendarId } = globalCalendarResult.data;
+    const eventsToUpsert: EventInput[] = [];
+    if (isAllDay) {
+      const allDayTaskSummary = `Day Schedule: ${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}`; const allDayTaskDescription = parsedTasks.map(task => `${task.task}${task.description ? `:\n${task.description}` : ''}`).join('\n\n---\n\n');
+      const allDayStartDate = dayjs.tz(userDate, userTimezone).startOf('day').format('YYYY-MM-DD'); const allDayEndDate = dayjs.tz(userDate, userTimezone).add(1, 'day').startOf('day').format('YYYY-MM-DD');
+      const createEventRes = await createGoogleEvent(userId, googleCalendarIdForEvents, clientType, allDayTaskSummary, allDayStartDate, allDayEndDate, userTimezone, allDayTaskDescription);
+      if (!createEventRes.success) { console.log('createDaySchedule: Failed to create all-day Google event.', createEventRes.error); return { success: false, error: { message: 'Failed to create all-day Google Calendar event.', details: createEventRes.error } }; }
+      eventsToUpsert.push({ userId, calendarId: dbCalendarId, gEventId: createEventRes.data.googleEventId, summary: allDayTaskSummary, description: allDayTaskDescription, startDateTime: allDayStartDate, endDateTime: allDayEndDate, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' });
+    } else {
+      for (const task of parsedTasks) {
+        const taskStart = dayjs.tz(`${userDate} ${task.start_time}`, 'YYYY-MM-DD h:mm A', userTimezone); const taskEnd = dayjs.tz(`${userDate} ${task.end_time}`, 'YYYY-MM-DD h:mm A', userTimezone);
+        if (!taskStart.isValid() || !taskEnd.isValid()) { console.log(`createDaySchedule: Invalid time format for task "${task.task}"`); return { success: false, error: { message: `Invalid time format for task "${task.task}". Please use HH:MM AM/PM.`, details: { task } }}; }
+        const startDateTime = taskStart.toISOString(); const endDateTime = taskEnd.toISOString();
+        const overlaps = existingEventsRes.data.some(existingEvent => dayjs(startDateTime).isBefore(dayjs(existingEvent.endDateTime)) && dayjs(endDateTime).isAfter(dayjs(existingEvent.startDateTime)));
+        if (overlaps) { console.log(`createDaySchedule: Task "${task.task}" overlaps. Skipping.`); continue; }
+        const createEventRes = await createGoogleEvent(userId, googleCalendarIdForEvents, clientType, task.task, startDateTime, endDateTime, userTimezone, task.description);
+        if (!createEventRes.success) { console.log('createDaySchedule: Failed to create Google event for task.', task, createEventRes.error); return { success: false, error: { message: `Failed to create Google Calendar event for task: "${task.task}".`, details: createEventRes.error } }; }
+        eventsToUpsert.push({ userId, calendarId: dbCalendarId, gEventId: createEventRes.data.googleEventId, summary: task.task, description: task.description, startDateTime, endDateTime, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' });
       }
-    `
-        const variables = {
-            userId,
-            resource,
-        }
-
-        const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
-            {
-                json: {
-                    operationName,
-                    query,
-                    variables,
-                },
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-            },
-        ).json()
-
-        console.log(res, ' res inside getCalendarIntegration')
-        if (res?.data?.Calendar_Integration?.length > 0) {
-            return res?.data?.Calendar_Integration?.[0]
-        }
-    } catch (e) {
-        console.log(e, ' unable to get calendar integration')
     }
-}
-
-export const refreshGoogleToken = async (
-    refreshToken: string,
-    clientType: 'ios' | 'android' | 'web' | 'atomic-web'
-): Promise<{
-    access_token: string,
-    expires_in: number, // add seconds to now
-    scope: string,
-    token_type: string
-}> => {
-    try {
-        console.log('refreshGoogleToken called', refreshToken)
-        console.log('clientType', clientType)
-        console.log('googleClientIdIos', googleClientIdIos)
-        switch (clientType) {
-            case 'ios':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdIos,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-            case 'android':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdAndroid,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-            case 'web':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdWeb,
-                            client_secret: googleClientSecretWeb,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-            case 'atomic-web':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdAtomicWeb,
-                            client_secret: googleClientSecretAtomicWeb,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-        }
-
-        /*  
-        {
-          "access_token": "1/fFAGRNJru1FTz70BzhT3Zg",
-          "expires_in": 3920, // add seconds to now
-          "scope": "https://www.googleapis.com/auth/drive.metadata.readonly",
-          "token_type": "Bearer"
-        }
-        */
-    } catch (e) {
-        console.log(e, ' unable to refresh google token')
+    if (eventsToUpsert.length === 0) {
+        console.log('createDaySchedule: No new non-overlapping tasks to schedule.');
+        if (email && name) { const emailBody = "Your day schedule was processed. After checking for overlaps with existing events, no new tasks were added to your calendar."; const emailResult = await sendGenericTaskEmail(email, name, `Your Schedule for ${userDate}`, emailBody); if (!emailResult.success) { console.log('createDaySchedule: Failed to send no-new-tasks email.', emailResult.error); return { success: false, error: { message: 'Failed to send schedule update email (no new tasks after filtering).', details: emailResult.error } }; } }
+        return { success: true };
     }
-}
-
-export const updateCalendarIntegration = async (
-    id: string,
-    token?: string,
-    expiresIn?: number,
-    enabled?: boolean,
-) => {
-    try {
-        const operationName = 'updateCalendarIntegration'
-        const query = `
-      mutation updateCalendarIntegration($id: uuid!,${token !== undefined ? ' $token: String,' : ''}${expiresIn !== undefined ? ' $expiresAt: timestamptz,' : ''}${enabled !== undefined ? ' $enabled: Boolean,' : ''}) {
-        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${token !== undefined ? 'token: $token,' : ''}${expiresIn !== undefined ? ' expiresAt: $expiresAt,' : ''}${enabled !== undefined ? ' enabled: $enabled,' : ''}}) {
-          id
-          name
-          refreshToken
-          token
-          clientType
-          userId
-          updatedAt
-        }
-      }
-    `
-        const variables = {
-            id,
-            token,
-            expiresAt: dayjs().add(expiresIn, 'seconds').toISOString(),
-            enabled,
-        }
-
-        const res = await got.post(
-            hasuraGraphUrl,
-            {
-                json: {
-                    operationName,
-                    query,
-                    variables,
-                },
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-            },
-        ).json()
-
-        console.log(res, ' res inside updateCalendarIntegration')
-    } catch (e) {
-        console.log(e, ' unable to update calendar integration')
+    const upsertResult = await upsertEventsPostPlanner(eventsToUpsert);
+    if (!upsertResult.success) { console.log('createDaySchedule: upsertEventsPostPlanner failed', upsertResult.error); return { success: false, error: { message: 'Failed to save scheduled events to database.', details: upsertResult.error } }; }
+    if (email && name) {
+      const emailBodyContent = openAIResponse.content;
+      const emailResult = await sendGenericTaskEmail(email, name, `Your Daily Schedule for ${userDate}`, emailBodyContent);
+      if (!emailResult.success) { console.log('createDaySchedule: emailDailySchedule failed', emailResult.error); return { success: false, error: { message: 'Failed to send daily schedule email.', details: emailResult.error } }; }
     }
-}
-
-export const getGoogleAPIToken = async (
-    userId: string,
-    resource: string,
-    clientType: 'ios' | 'android' | 'web' | 'atomic-web',
-) => {
-    let integrationId = ''
-    try {
-        const { id, token, expiresAt, refreshToken } = await getCalendarIntegration(userId, resource)
-        integrationId = id
-        console.log(id, token, expiresAt, refreshToken, ' id, token, expiresAt, refreshToken')
-        if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
-            const res = await refreshGoogleToken(refreshToken, clientType)
-            console.log(res, ' res from refreshGoogleToken')
-            await updateCalendarIntegration(id, res.access_token, res.expires_in)
-            return res.access_token
-        }
-        return token
-    } catch (e) {
-        console.log(e, ' unable to get api token')
-        await updateCalendarIntegration(integrationId, null, null, false)
-    }
-}
-
-
-export const createGoogleEvent = async (
-    userId: string,
-    calendarId: string,
-    clientType: 'ios' | 'android' | 'web' | 'atomic-web',
-    generatedId?: string,
-    endDateTime?: string, // either endDateTime or endDate - all day vs specific period
-    startDateTime?: string,
-    conferenceDataVersion?: 0 | 1,
-    maxAttendees?: number,
-    sendUpdates?: GoogleSendUpdatesType,
-    anyoneCanAddSelf?: boolean,
-    attendees?: GoogleAttendeeType[],
-    conferenceData?: GoogleConferenceDataType,
-    summary?: string,
-    description?: string,
-    timezone?: string, // required for recurrence
-    startDate?: string, // all day
-    endDate?: string, // all day
-    extendedProperties?: GoogleExtendedPropertiesType,
-    guestsCanInviteOthers?: boolean,
-    guestsCanModify?: boolean,
-    guestsCanSeeOtherGuests?: boolean,
-    originalStartDateTime?: string,
-    originalStartDate?: string,
-    recurrence?: string[],
-    reminders?: GoogleReminderType,
-    source?: GoogleSourceType,
-    status?: string,
-    transparency?: GoogleTransparencyType,
-    visibility?: GoogleVisibilityType,
-    iCalUID?: string,
-    attendeesOmitted?: boolean,
-    hangoutLink?: string,
-    privateCopy?: boolean,
-    locked?: boolean,
-    attachments?: GoogleAttachmentType[],
-    eventType?: GoogleEventType1,
-    location?: string,
-    colorId?: string,
-): Promise<GoogleResType> => {
-    try {
-        console.log(generatedId, conferenceDataVersion, conferenceData, ' generatedId, conferenceDataVersion, conferenceData inside createGoogleEvent')
-        // get token =
-        const token = await getGoogleAPIToken(userId, googleCalendarResource, clientType)
-
-        const googleCalendar = google.calendar({
-            version: 'v3',
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        })
-
-        // create request body
-        let data: any = {}
-
-        if (endDateTime && timezone && !endDate) {
-
-            const end = {
-                dateTime: endDateTime,
-                timeZone: timezone,
-            }
-
-            data.end = end
-        }
-
-        if (endDate && timezone && !endDateTime) {
-            const end = {
-                date: dayjs(endDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'),
-                timeZone: timezone,
-            }
-
-            data.end = end
-        }
-
-        if (startDate && timezone && !startDateTime) {
-            const start = {
-                date: dayjs(startDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'),
-                timeZone: timezone,
-            }
-            data.start = start
-        }
-
-        if (startDateTime && timezone && !startDate) {
-            const start = {
-                dateTime: startDateTime,
-                timeZone: timezone,
-            }
-            data.start = start
-        }
-
-        if (originalStartDate && timezone && !originalStartDateTime) {
-            const originalStartTime = {
-                date: originalStartDate,
-                timeZone: timezone,
-            }
-            data.originalStartTime = originalStartTime
-        }
-
-        if (originalStartDateTime && timezone && !originalStartDate) {
-            const originalStartTime = {
-                dateTime: dayjs(originalStartDateTime).tz(timezone, true).format(),
-                timeZone: timezone,
-            }
-            data.originalStartTime = originalStartTime
-        }
-
-        if (anyoneCanAddSelf) {
-            data = { ...data, anyoneCanAddSelf }
-        }
-
-        if (attendees?.[0]?.email) {
-            data = { ...data, attendees }
-        }
-
-        if (conferenceData?.createRequest) {
-            data = {
-                ...data,
-                conferenceData: {
-                    createRequest: {
-                        conferenceSolutionKey: {
-                            type: conferenceData.type
-                        },
-                        requestId: conferenceData?.requestId || uuid(),
-                    }
-                }
-            }
-        } else if (conferenceData?.entryPoints?.[0]) {
-            data = {
-                ...data,
-                conferenceData: {
-                    conferenceSolution: {
-                        iconUri: conferenceData?.iconUri,
-                        key: {
-                            type: conferenceData?.type,
-                        },
-                        name: conferenceData?.name,
-                    },
-                    entryPoints: conferenceData?.entryPoints,
-                },
-            }
-        }
-
-        if (description?.length > 0) {
-            data = { ...data, description }
-        }
-
-        if (extendedProperties?.private || extendedProperties?.shared) {
-            data = { ...data, extendedProperties }
-        }
-
-        if (guestsCanInviteOthers) {
-            data = { ...data, guestsCanInviteOthers }
-        }
-
-        if (guestsCanModify) {
-            data = { ...data, guestsCanModify }
-        }
-
-        if (guestsCanSeeOtherGuests) {
-            data = { ...data, guestsCanSeeOtherGuests }
-        }
-
-        if (locked) {
-            data = { ...data, locked }
-        }
-
-        if (privateCopy) {
-            data = { ...data, privateCopy }
-        }
-
-        if (recurrence?.[0]) {
-            data = { ...data, recurrence }
-        }
-
-        if ((reminders?.overrides?.length > 0) || (reminders?.useDefault)) {
-            data = { ...data, reminders }
-        }
-
-        if (source?.title || source?.url) {
-            data = { ...data, source }
-        }
-
-        if (attachments?.[0]?.fileId) {
-            data = { ...data, attachments }
-        }
-
-        if (eventType?.length > 0) {
-            data = { ...data, eventType }
-        }
-
-        if (status) {
-            data = { ...data, status }
-        }
-
-        if (transparency) {
-            data = { ...data, transparency }
-        }
-
-        if (visibility) {
-            data = { ...data, visibility }
-        }
-
-        if (iCalUID?.length > 0) {
-            data = { ...data, iCalUID }
-        }
-
-        if (attendeesOmitted) {
-            data = { ...data, attendeesOmitted }
-        }
-
-        if (hangoutLink?.length > 0) {
-            data = { ...data, hangoutLink }
-        }
-
-        if (summary?.length > 0) {
-            data = { ...data, summary }
-        }
-
-        if (location?.length > 0) {
-            data = { ...data, location }
-        }
-
-        if (colorId) {
-            data.colorId = colorId
-        }
-
-        const res = await googleCalendar.events.insert({
-            // Calendar identifier. To retrieve calendar IDs call the calendarList.list method. If you want to access the primary calendar of the currently logged in user, use the "primary" keyword.
-            calendarId,
-            // Version number of conference data supported by the API client. Version 0 assumes no conference data support and ignores conference data in the event's body. Version 1 enables support for copying of ConferenceData as well as for creating new conferences using the createRequest field of conferenceData. The default is 0.
-            conferenceDataVersion,
-            // The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.
-            maxAttendees,
-            // Whether to send notifications about the creation of the new event. Note that some emails might still be sent. The default is false.
-            sendUpdates,
-
-            // Request body metadata
-            requestBody: data,
-        })
-
-        console.log(res.data)
-
-        console.log(res?.data, ' res?.data from googleCreateEvent')
-        return { id: `${res?.data?.id}#${calendarId}`, googleEventId: res?.data?.id, generatedId, calendarId, generatedEventId: generatedId?.split('#')[0] }
-    } catch (e) {
-        console.log(e, ' createGoogleEvent')
-    }
-}
-
-export const getGlobalCalendar = async (
-    userId: string,
-) => {
-    try {
-        const operationName = 'getGlobalCalendar'
-        const query = `
-        query getGlobalCalendar($userId: uuid!) {
-          Calendar(where: {globalPrimary: {_eq: true}, userId: {_eq: $userId}}) {
-            colorId
-            backgroundColor
-            accessLevel
-            account
-            createdDate
-            defaultReminders
-            foregroundColor
-            globalPrimary
-            id
-            modifiable
-            primary
-            resource
-            title
-            updatedAt
-            userId
-          }
-        }
-    `
-
-        const res: { data: { Calendar: CalendarType[] } } = await got.post(
-            hasuraGraphUrl,
-            {
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-                json: {
-                    operationName,
-                    query,
-                    variables: {
-                        userId,
-                    },
-                },
-            },
-        ).json()
-
-        return res.data.Calendar?.[0]
-    } catch (e) {
-        console.log(e, ' unable to get global calendar')
-    }
-}
-
-
-export const listEventsForDate = async (
-    userId: string,
-    startDate: string,
-    endDate: string,
-    timezone: string,
-) => {
-    try {
-        const operationName = 'listEventsForDate'
-        const query = `
-        query listEventsForDate($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
-          Event(where: {userId: {_eq: $userId}, endDate: {_gte: $startDate}, startDate: {_lte: $endDate}, deleted: {_eq: false}}) {
-            allDay
-            anyoneCanAddSelf
-            attachments
-            attendeesOmitted
-            backgroundColor
-            calendarId
-            colorId
-            conferenceId
-            copyAvailability
-            copyCategories
-            copyDuration
-            copyIsBreak
-            copyIsExternalMeeting
-            copyIsMeeting
-            copyModifiable
-            copyPriorityLevel
-            copyReminders
-            copyTimeBlocking
-            copyTimePreference
-            createdDate
-            creator
-            dailyTaskList
-            deleted
-            duration
-            endDate
-            endTimeUnspecified
-            eventId
-            eventType
-            extendedProperties
-            followUpEventId
-            forEventId
-            foregroundColor
-            guestsCanInviteOthers
-            guestsCanModify
-            guestsCanSeeOtherGuests
-            hangoutLink
-            hardDeadline
-            htmlLink
-            iCalUID
-            id
-            isBreak
-            isExternalMeeting
-            isExternalMeetingModifiable
-            isFollowUp
-            isMeeting
-            isMeetingModifiable
-            isPostEvent
-            isPreEvent
-            links
-            location
-            locked
-            maxAttendees
-            meetingId
-            method
-            modifiable
-            negativeImpactDayOfWeek
-            negativeImpactScore
-            negativeImpactTime
-            notes
-            organizer
-            originalAllDay
-            originalStartDate
-            originalTimezone
-            positiveImpactDayOfWeek
-            positiveImpactScore
-            positiveImpactTime
-            postEventId
-            preEventId
-            preferredDayOfWeek
-            preferredEndTimeRange
-            preferredStartTimeRange
-            preferredTime
-            priority
-            privateCopy
-            recurrence
-            recurrenceRule
-            recurringEventId
-            sendUpdates
-            softDeadline
-            source
-            startDate
-            status
-            summary
-            taskId
-            taskType
-            timeBlocking
-            timezone
-            title
-            transparency
-            unlink
-            updatedAt
-            useDefaultAlarms
-            userId
-            userModifiedAvailability
-            userModifiedCategories
-            userModifiedDuration
-            userModifiedIsBreak
-            userModifiedIsExternalMeeting
-            userModifiedIsMeeting
-            userModifiedModifiable
-            userModifiedPriorityLevel
-            userModifiedReminders
-            userModifiedTimeBlocking
-            userModifiedTimePreference
-            visibility
-            weeklyTaskList
-            byWeekDay
-            localSynced
-            userModifiedColor
-            copyColor
-            copyExternalMeetingModifiable
-            userModifiedExternalMeetingModifiable
-            userModifiedMeetingModifiable
-          }
-        }
-            `
-        const res: { data: { Event: EventType[] } } = await got.post(
-            hasuraGraphUrl,
-            {
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-                json: {
-                    operationName,
-                    query,
-                    variables: {
-                        userId,
-                        startDate: dayjs(startDate.slice(0, 19)).tz(timezone, true).format(),
-                        endDate: dayjs(endDate.slice(0, 19)).tz(timezone, true).format(),
-                    },
-                },
-            },
-        ).json()
-
-        console.log(res, ' res from listEventsforUser')
-        return res?.data?.Event
-
-    } catch (e) {
-        console.log(e, ' unable to list events for date')
-    }
-}
-
-export const createAgenda = async (
-    userId: string,
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    mainTopic: string,
-    email?: string,
-    name?: string,
-    relevantPoints?: string[],
-    goals?: string[],
-    location?: string,
-    isTwo?: boolean,
-) => {
-    try {
-        console.log('create agenda called')
-
-        const prompt = agendaPrompt
-        const exampleInput = agendaPromptExampleInput
-        const exampleOutput = agendaPromptExampleOutput
-        // create prompt
-        const userData = `
-            Here's the main topic, relevant important points and / or goals: 
-            Main topic: ${mainTopic}. 
-            Relevant points:  ${relevantPoints?.reduce((prev, curr) => (`${prev}, ${curr},`), '')}. 
-            Goals: ${goals?.reduce((prev, curr) => (`${prev}, ${curr}`), '')}.`
-
-        // get res from openai
-        console.log(userData, ' userData')
-
-        const openAIRes = await callOpenAI(prompt, openAIChatGPTModel, userData, exampleInput, exampleOutput)
-        console.log(openAIRes, ' openAIRes')
-        // validate openai res
-        if (!openAIRes) {
-            console.log('no openAIRes')
-            throw new Error('no openAIRes present inside createAgenda')
-        }
-
-        // create event
-
-        // get primary calendar
-        const primaryCalendar = await getGlobalCalendar(userId)
-
-        // validate
-        if (!primaryCalendar?.id) {
-            console.log('no primryCalendar')
-            throw new Error('no primary calendar found inside createAgenda')
-        }
-
-        // get client type
-        const calIntegration = await getCalendarIntegration(
-            userId,
-            googleCalendarResource,
-        )
-
-        // validate
-        if (!calIntegration?.clientType) {
-            throw new Error('no client type inside calendar integration inside create agenda')
-        }
-
-        const eventsToUpsert: EventType[] = []
-
-        if (isAllDay) {
-            console.log('inside isAllDay')
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                !isAllDay && endDate,
-                !isAllDay && startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                mainTopic,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                isAllDay && startDate?.slice(0, 10),
-                isAllDay && endDate?.slice(0, 10),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                location,
-                undefined,
-            )
-            
-            console.log(googleRes, ' googleRes')
-            
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: mainTopic,
-                startDate,
-                endDate,
-                allDay: isAllDay,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: mainTopic,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            if (location) {
-                eventToUpsert.location.title = location
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (isTwo) {
-            console.log('isTwo called')
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                endDate,
-                startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                mainTopic,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                location,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: mainTopic,
-                startDate,
-                endDate,
-                allDay: false,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: mainTopic,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            if (location) {
-                eventToUpsert.location.title = location
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (!isAllDay) {
-
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                endDate,
-                startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                mainTopic,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                location,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: mainTopic,
-                startDate,
-                endDate,
-                allDay: false,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: mainTopic,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            if (location) {
-                eventToUpsert.location.title = location
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        // upsert event
-        await upsertEventsPostPlanner(eventsToUpsert)
-
-        // send email
-        if (email) {
-            await sendAgendaEmail(
-                email,
-                name,
-                mainTopic,
-                openAIRes,
-            )
-        }
-
-    } catch (e) {
-        console.log(e, ' unable to create agenda')
-    }
-}
-
-export const formatEventsForSummary = (
-    events: EventType[],
-) => {
-
-    let formattedEventString = ''
-
-    for (const event of events) {
-
-        formattedEventString += `
-            start date: ${event?.startDate},
-            end date: ${event?.endDate}
-            title: ${event?.summary},
-            description: ${event?.notes}.
-
-        `
-    }
-
-    return formattedEventString
-}
-
-export const sendSummaryEmail = async (
-    email: string,
-    name: string,
-    body: string,
-    startDate: string,
-    endDate: string,
-    timezone: string,
-) => {
-    try {
-        const template = 'availability-summary-email'
-        await sendEmail({
-            template,
-            locals: {
-                name,
-                startDate: dayjs(startDate?.slice(0, 19)).tz(timezone).format('L LT'),
-                endDate: dayjs(endDate?.slice(0, 19)).tz(timezone).format('L LT'),
-                body, 
-                displayName: name,
-                email,
-                locale: ENV.AUTH_LOCALE_DEFAULT,
-                serverUrl: ENV.FUNCTION_SERVER_URL,
-                clientUrl: ENV.APP_CLIENT_URL,
-            },
-            message: {
-                to: email,
-                headers: {
-                    'x-email-template': {
-                        prepared: true,
-                        value: template,
-                      },
-                },
-            }
-        })
-    } catch (e) {
-        console.log(e, ' unable to send summary email')
-    }
-}
-
-export const createSummaryOfTimePeriod = async (
-    userId: string,
-    startDate: string,
-    endDate: string,
-    timezone: string,
-    email?: string,
-    name?: string,
-) => {
-    try {
-
-        // create prompt
-
-        // list events given windowstartdate and enddate
-        const events = await listEventsForDate(userId, startDate, endDate, timezone)
-
-        // validate
-        if (!(events?.length > 0)) {
-            throw new Error('no events found inside create summary to time period')
-        }
-
-        const formattedEventString = formatEventsForSummary(events)
-
-        const prompt = summaryPrompt
-
-        const userData = `Here are the events: ${formattedEventString}`
-
-        // get res from openai
-
-        const openAIRes = await callOpenAI(prompt, openAIChatGPTModel, userData)
-
-        // validate openai res
-        if (!openAIRes) {
-            throw new Error('no openAIRes present inside createAgenda')
-        }
-
-        if (email) {
-            // send email
-            await sendSummaryEmail(
-                email,
-                name,
-                openAIRes,
-                startDate,
-                endDate,
-                timezone,
-            )
-        }
-
-        return openAIRes
-
-    } catch (e) {
-        console.log(e, ' unable to create summary of time period')
-    }
-}
-
-export const emailTaskBreakDown = async (
-    email: string,
-    name: string,
-    body: string,
-) => {
-    try {
-        const template = 'email-task-breakdown'
-
-        await sendEmail({
-            template,
-            locals: {
-                name,
-                body,
-                displayName: name,
-                email,
-                locale: ENV.AUTH_LOCALE_DEFAULT,
-                serverUrl: ENV.FUNCTION_SERVER_URL,
-                clientUrl: ENV.APP_CLIENT_URL,
-            },
-            message: {
-                to: email,
-                headers: {
-                    'x-email-template': {
-                        prepared: true,
-                        value: template,
-                      },
-                },
-            }
-        })
-    } catch (e) {
-        console.log(e, ' unable to send task break down')
-    }
-}
-
-export const breakDownTask = async (
-    userId: string,
-    task: string,
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    email?: string,
-    name?: string,
-    isTwo?: boolean
-) => {
-    try {
-        console.log('breakDownTask called')
-        
-        // create prompt
-        const prompt = taskBreakDownPrompt
-        const userData = `Here's the task: ${task}`
-
-        // get res from openai
-
-        const openAIRes = await callOpenAI(prompt, openAIChatGPTModel, userData)
-
-        // validate openai res
-        if (!openAIRes) {
-            throw new Error('no openAIRes present inside createAgenda')
-        }
-
-        // create event
-
-        // get primary calendar
-        const primaryCalendar = await getGlobalCalendar(userId)
-
-        // validate
-        if (!primaryCalendar?.id) {
-            throw new Error('no primary calendar found inside createAgenda')
-        }
-
-        // get client type
-        const calIntegration = await getCalendarIntegration(
-            userId,
-            googleCalendarResource,
-        )
-
-        // validate
-        if (!calIntegration?.clientType) {
-            throw new Error('no client type inside calendar integration inside create agenda')
-        }
-
-        const eventsToUpsert: EventType[] = []
-
-        if (isAllDay) {
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                !isAllDay && endDate,
-                !isAllDay && startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                task,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                isAllDay && startDate?.slice(0, 10),
-                isAllDay && endDate?.slice(0, 10),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: task,
-                startDate,
-                endDate,
-                allDay: isAllDay,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (isTwo) {
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                endDate,
-                startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                task,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: task,
-                startDate,
-                endDate,
-                allDay: false,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (!isAllDay) {
-
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                endDate,
-                startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                task,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: task,
-                startDate,
-                endDate,
-                allDay: false,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        // upsert event
-        await upsertEventsPostPlanner(eventsToUpsert)
-
-        if (email) {
-            await emailTaskBreakDown(
-                email,
-                name,
-                openAIRes,
-            )
-        }
-
-    } catch (e) {
-        console.log(e, ' unable to break down task')
-    }
-}
-
-export const sendGenericTaskEmail = async (
-    email: string,
-    name: string,
-    title: string,
-    body: string,
-) => {
-    try {
-        const template = 'generic-task-email'
-        
-        await sendEmail({
-            template,
-            locals: {
-                name,
-                title,
-                body,
-                displayName: name,
-                email,
-                locale: ENV.AUTH_LOCALE_DEFAULT,
-                serverUrl: ENV.FUNCTION_SERVER_URL,
-                clientUrl: ENV.APP_CLIENT_URL,
-            },
-            message: {
-                to: email,
-                headers: {
-                    'x-email-template': {
-                        prepared: true,
-                        value: template,
-                      },
-                },
-            }
-        })
-    } catch (e) {
-        console.log(e, ' unable to send generic task email')
-    }
-}
-
-export const howToTask = async (
-    userId: string,
-    task: string,
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    email?: string,
-    name?: string,
-    isTwo?: boolean,
-) => {
-    try {
-        
-        // create prompt
-        const prompt = howToTaskPrompt
-        const userData = ` Here's the task: ${task}`
-
-        console.log(userData,  ' userData')
-
-        // get res from openai
-
-        const openAIRes = await callOpenAI(prompt, openAIChatGPTModel, userData)
-
-        // validate openai res
-        if (!openAIRes) {
-            throw new Error('no openAIRes present inside createAgenda')
-        }
-
-        console.log(openAIRes, ' openAIRes')
-
-        // create event
-
-        // get primary calendar
-        const primaryCalendar = await getGlobalCalendar(userId)
-
-        // validate
-        if (!primaryCalendar?.id) {
-            throw new Error('no primary calendar found inside createAgenda')
-        }
-
-        // get client type
-        const calIntegration = await getCalendarIntegration(
-            userId,
-            googleCalendarResource,
-        )
-
-        // validate
-        if (!calIntegration?.clientType) {
-            throw new Error('no client type inside calendar integration inside create agenda')
-        }
-
-        const eventsToUpsert: EventType[] = []
-
-        if (isAllDay) {
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                !isAllDay && endDate,
-                !isAllDay && startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                task,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                isAllDay && startDate?.slice(0, 10),
-                isAllDay && endDate?.slice(0, 10),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: task,
-                startDate,
-                endDate,
-                allDay: isAllDay,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (isTwo) {
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                endDate,
-                startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                task,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: task,
-                startDate,
-                endDate,
-                allDay: false,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (!isAllDay) {
-
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                endDate,
-                startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                task,
-                openAIRes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title: task,
-                startDate,
-                endDate,
-                allDay: false,
-                notes: openAIRes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        // upsert event
-        await upsertEventsPostPlanner(eventsToUpsert)
-
-        // send email
-        if (email) {
-            await sendGenericTaskEmail(
-                email,
-                name,
-                task,
-                openAIRes,
-            )
-        }
-    } catch (e) {
-        console.log(e, ' unable to work generic task')
-    }
-}
-
-export const listEventsForUserGivenDates = async (
-    userId: string,
-    senderStartDate: string,
-    senderEndDate: string,
-    // senderTimezone: string,
-    // receiverTimezone: string,
-) => {
-    try {
-
-        const operationName = 'listEventsForUser'
-        const query = `
-            query listEventsForUser($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
-                Event(where: {userId: {_eq: $userId}, endDate: {_gte: $startDate}, startDate: {_lte: $endDate}, deleted: {_neq: true}, allDay: {_neq: true}}) {
-                    allDay
-                    anyoneCanAddSelf
-                    attachments
-                    attendeesOmitted
-                    backgroundColor
-                    calendarId
-                    colorId
-                    conferenceId
-                    copyAvailability
-                    copyCategories
-                    copyDuration
-                    copyIsBreak
-                    copyIsExternalMeeting
-                    copyIsMeeting
-                    copyModifiable
-                    copyPriorityLevel
-                    copyReminders
-                    copyTimeBlocking
-                    copyTimePreference
-                    createdDate
-                    creator
-                    dailyTaskList
-                    deleted
-                    duration
-                    endDate
-                    endTimeUnspecified
-                    eventId
-                    eventType
-                    extendedProperties
-                    followUpEventId
-                    forEventId
-                    foregroundColor
-                    guestsCanInviteOthers
-                    guestsCanModify
-                    guestsCanSeeOtherGuests
-                    hangoutLink
-                    hardDeadline
-                    htmlLink
-                    iCalUID
-                    id
-                    isBreak
-                    isExternalMeeting
-                    isExternalMeetingModifiable
-                    isFollowUp
-                    isMeeting
-                    isMeetingModifiable
-                    isPostEvent
-                    isPreEvent
-                    links
-                    location
-                    locked
-                    maxAttendees
-                    meetingId
-                    method
-                    modifiable
-                    negativeImpactDayOfWeek
-                    negativeImpactScore
-                    negativeImpactTime
-                    notes
-                    organizer
-                    originalAllDay
-                    originalStartDate
-                    originalTimezone
-                    positiveImpactDayOfWeek
-                    positiveImpactScore
-                    positiveImpactTime
-                    postEventId
-                    preEventId
-                    preferredDayOfWeek
-                    preferredEndTimeRange
-                    preferredStartTimeRange
-                    preferredTime
-                    priority
-                    privateCopy
-                    recurrence
-                    recurrenceRule
-                    recurringEventId
-                    sendUpdates
-                    softDeadline
-                    source
-                    startDate
-                    status
-                    summary
-                    taskId
-                    taskType
-                    timeBlocking
-                    timezone
-                    title
-                    transparency
-                    unlink
-                    updatedAt
-                    useDefaultAlarms
-                    userId
-                    userModifiedAvailability
-                    userModifiedCategories
-                    userModifiedDuration
-                    userModifiedIsBreak
-                    userModifiedIsExternalMeeting
-                    userModifiedIsMeeting
-                    userModifiedModifiable
-                    userModifiedPriorityLevel
-                    userModifiedReminders
-                    userModifiedTimeBlocking
-                    userModifiedTimePreference
-                    visibility
-                    weeklyTaskList
-                    byWeekDay
-                    localSynced
-                    userModifiedColor
-                    copyColor
-                    copyExternalMeetingModifiable
-                    userModifiedExternalMeetingModifiable
-                    userModifiedMeetingModifiable
-                }
-            }
-        `
-        // get events
-        // local date
-        // const startDateInReceiverTimezone = dayjs(senderStartDate.slice(0, 19)).tz(receiverTimezone, true)
-        // const endDateInReceiverTimezone = dayjs((senderEndDate.slice(0, 19))).tz(receiverTimezone, true)
-        // const startDateInSenderTimezone = dayjs(startDateInReceiverTimezone).format().slice(0, 19)
-        // const endDateInSenderTimezone = dayjs(endDateInReceiverTimezone).format().slice(0, 19)
-
-
-        const res: { data: { Event: EventType[] } } = await got.post(
-            hasuraGraphUrl,
-            {
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-                json: {
-                    operationName,
-                    query,
-                    variables: {
-                        userId,
-                        startDate: senderStartDate,
-                        endDate: senderEndDate,
-                    },
-                },
-            },
-        ).json()
-
-        console.log(res, ' res from listEventsforUser')
-        return res?.data?.Event
-    } catch (e) {
-        console.log(e, ' listEventsForUser')
-    }
-}
-
-export const getUserPreferences = async (userId: string): Promise<UserPreferenceType | null> => {
-    try {
-        if (!userId) {
-            console.log('userId is null')
-            return null
-        }
-        const operationName = 'getUserPreferences'
-        const query = `
-    query getUserPreferences($userId: uuid!) {
-      User_Preference(where: {userId: {_eq: $userId}}) {
-        startTimes
-        endTimes
-        backToBackMeetings
-        copyAvailability
-        copyCategories
-        copyIsBreak
-        copyModifiable
-        copyPriorityLevel
-        copyReminders
-        copyTimeBlocking
-        copyTimePreference
-        createdDate
-        deleted
-        followUp
-        id
-        isPublicCalendar
-        maxNumberOfMeetings
-        maxWorkLoadPercent
-        publicCalendarCategories
-        reminders
-        updatedAt
-        userId
-        minNumberOfBreaks
-        breakColor
-        breakLength
-        copyColor
-        copyIsExternalMeeting
-        copyIsMeeting
-        onBoarded
-      }
-    }    
-  `
-        const res: { data: { User_Preference: UserPreferenceType[] } } = await got.post(
-            hasuraGraphUrl,
-            {
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-                json: {
-                    operationName,
-                    query,
-                    variables: {
-                        userId,
-                    },
-                },
-            },
-        ).json()
-        return res?.data?.User_Preference?.[0]
-    } catch (e) {
-        console.log(e, ' getUserPreferences')
-        return null
-    }
-}
-
+    return { success: true };
+  } catch (e: any) { console.log('Unexpected error in createDaySchedule:', e.message, e); return { success: false, error: { message: 'Unexpected error during day schedule creation.', details: e.message } }; }
+};
+
+// --- Availability Generation Functions (Refactored) ---
 export const generateAvailableSlotsForDate = (
-    slotDuration: number,
-    senderStartDateInReceiverTimezone: string,
-    senderPreferences: UserPreferenceType,
-    receiverTimezone: string,
-    senderTimezone: string,
-    notAvailableSlotsInEventTimezone?: NotAvailableSlotType[],
-    isFirstDay?: boolean,
-    isLastDay?: boolean,
-    senderEndDateInReceiverTimezone?: string,
-) => {
+  date: string, // YYYY-MM-DD format for the target day
+  senderPreferences: UserPreferenceType, // Contains work hours, slot duration, timezone
+  notAvailableSlotsInEventTimezone: AvailabilitySlot[], // Existing busy slots for the user, in event's target timezone
+  receiverTimezone: string, // Timezone for which the slots should be presented
+  isFirstDay: boolean, // Is this the first day of the overall window?
+  isLastDay: boolean, // Is this the last day of the overall window?
+  windowStartTimeInReceiverTimezone?: string, // HH:mm, only if isFirstDay is true
+  windowEndTimeInReceiverTimezone?: string,   // HH:mm, only if isLastDay is true
+): AvailabilitySlot[] => {
+  const availableSlots: AvailabilitySlot[] = [];
+  const senderTz = senderPreferences.timezone || 'UTC'; // Default to UTC if not specified
+  const slotDuration = senderPreferences.slotDuration || 30;
+  const bufferMinutes = senderPreferences.bufferBetweenMeetings || 0;
 
-    console.log(senderTimezone, ' senderTimezone')
-    console.log(receiverTimezone, ' receiverTimezone')
+  // Parse sender's work hours in their timezone
+  // Default to 9 AM - 5 PM if not specified
+  const workStartHour = parseInt((senderPreferences.workHoursStartTime || '09:00').split(':')[0]);
+  const workStartMinute = parseInt((senderPreferences.workHoursStartTime || '09:00').split(':')[1]);
+  const workEndHour = parseInt((senderPreferences.workHoursEndTime || '17:00').split(':')[0]);
+  const workEndMinute = parseInt((senderPreferences.workHoursEndTime || '17:00').split(':')[1]);
 
+  let dayStart = dayjs.tz(date, senderTz).hour(workStartHour).minute(workStartMinute).second(0).millisecond(0);
+  let dayEnd = dayjs.tz(date, senderTz).hour(workEndHour).minute(workEndMinute).second(0).millisecond(0);
 
-    if (isFirstDay && isLastDay && senderEndDateInReceiverTimezone) {
+  // Adjust start time if it's the first day of a specific window
+  if (isFirstDay && windowStartTimeInReceiverTimezone) {
+    const windowStart = dayjs.tz(`${date} ${windowStartTimeInReceiverTimezone}`, 'YYYY-MM-DD HH:mm', receiverTimezone).tz(senderTz);
+    if (windowStart.isAfter(dayStart)) {
+      dayStart = windowStart;
+    }
+  }
 
-        const endTimesBySender = senderPreferences.endTimes
-        const dayOfWeekIntAsReceiver = getISODay(dayjs(senderStartDateInReceiverTimezone?.slice(0, 19)).tz(receiverTimezone, true).toDate())
+  // Adjust end time if it's the last day of a specific window
+  if (isLastDay && windowEndTimeInReceiverTimezone) {
+    const windowEnd = dayjs.tz(`${date} ${windowEndTimeInReceiverTimezone}`, 'YYYY-MM-DD HH:mm', receiverTimezone).tz(senderTz);
+    if (windowEnd.isBefore(dayEnd)) {
+      dayEnd = windowEnd;
+    }
+  }
 
-        const dayOfMonthAsReceiver = dayjs(senderStartDateInReceiverTimezone?.slice(0, 19)).tz(receiverTimezone, true).date()
-        let startHourAsReceiver = dayjs(senderStartDateInReceiverTimezone?.slice(0, 19)).tz(receiverTimezone, true).hour()
+  let currentSlotStart = dayStart;
 
-        const flooredValue = Math.floor(60 / slotDuration)
+  while (currentSlotStart.add(slotDuration, 'minutes').isBefore(dayEnd) || currentSlotStart.add(slotDuration, 'minutes').isSame(dayEnd)) {
+    const currentSlotEnd = currentSlotStart.add(slotDuration, 'minutes');
+    let isSlotAvailable = true;
 
-        let minuteValueAsReceiver = 0
-        if (dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute() !== 0) {
-            for (let i = 0; i < flooredValue; i++) {
-                const endMinutes = (i + 1) * slotDuration
-                const startMinutes = i * slotDuration
-                if (
-                    dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone)
-                        .isBetween(
-                            dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute(startMinutes),
-                            dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute(endMinutes),
-                            'minute', '[)')
-                ) {
-                    minuteValueAsReceiver = endMinutes
-                }
-            }
-        }
+    // Check against existing events (notAvailableSlotsInEventTimezone are already in receiver's timezone)
+    // Convert current slot to receiver's timezone for comparison
+    const currentSlotStartInReceiverTz = currentSlotStart.tz(receiverTimezone);
+    const currentSlotEndInReceiverTz = currentSlotEnd.tz(receiverTimezone);
 
-
-        if (
-            dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone)
-                .isBetween(
-                    dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute((flooredValue * slotDuration)),
-                    dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute(59),
-                    'minute', '[)',
-                )
-        ) {
-            startHourAsReceiver += 1
-            minuteValueAsReceiver = 0
-        }
-
-        const startMinuteAsReceiver = minuteValueAsReceiver
-
-        const endHourWorkBySender = endTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.hour ?? 20
-        const endMinuteWorkBySender = endTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.minutes ?? 0
-        const endHourAsReceiver = dayjs(senderEndDateInReceiverTimezone).tz(receiverTimezone).hour()
-        const endMinuteAsReceiver = dayjs(senderEndDateInReceiverTimezone).tz(receiverTimezone).minute()
-
-
-        // validate values before calculating
-        const startTimes = senderPreferences.startTimes
-        const workStartHourBySender = startTimes?.find(i => (i.day === dayOfWeekIntAsReceiver))?.hour || 8
-        const workStartMinuteBySender = startTimes?.find(i => (i.day === dayOfWeekIntAsReceiver))?.minutes || 0
-
-        if (dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).isAfter(dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(endHourWorkBySender).minute(endMinuteWorkBySender))) {
-            // return empty as outside of work time
-            return []
-        }
-
-        // change to work start time as sender start time before work start time
-        if (dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).isBefore(dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(workStartHourBySender).minute(workStartMinuteBySender))) {
-            const startDuration = dayjs.duration({ hours: workStartHourBySender, minutes: workStartMinuteBySender })
-            const endDuration = dayjs.duration({ hours: endHourAsReceiver, minutes: endMinuteAsReceiver })
-            const totalDuration = endDuration.subtract(startDuration)
-            const totalMinutes = totalDuration.asMinutes()
-
-            const availableSlotsInReceiverTimezone: AvailableSlotType[] = []
-            console.log(senderStartDateInReceiverTimezone, endTimesBySender, dayOfWeekIntAsReceiver, dayOfMonthAsReceiver, startHourAsReceiver, startMinuteAsReceiver, endHourAsReceiver, endMinuteAsReceiver, timezone, `startDate, endTimes, dayOfWeekIntByUser, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`)
-            for (let i = 0; i < totalMinutes; i += slotDuration) {
-                if (i > totalMinutes) {
-                    continue
-                }
-
-                availableSlotsInReceiverTimezone.push({
-                    id: uuid(),
-                    startDate: dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(workStartHourBySender).minute(workStartMinuteBySender).tz(receiverTimezone).add(i, 'minute').second(0).format(),
-                    endDate: dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(workStartHourBySender).minute(workStartMinuteBySender).tz(receiverTimezone).add(i + slotDuration, 'minute').second(0).format(),
-                })
-            }
-            console.log(availableSlotsInReceiverTimezone, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
-
-            // filter out unavailable times
-            const filteredAvailableSlotsInReceiverTimezone = availableSlotsInReceiverTimezone.filter(a => {
-                const foundIndex = notAvailableSlotsInEventTimezone?.findIndex(na => {
-                    const partA = (dayjs(a.endDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                    const partB = (dayjs(a.startDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                    const partC = ((dayjs(na.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')) && (dayjs(na.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')))
-
-                    const isNotAvailable = (partA || partB || partC)
-
-                    // console.log(a, na, ' a, na')
-                    return isNotAvailable
-                })
-
-                console.log(foundIndex, ' foundIndex')
-
-                if ((foundIndex !== undefined) && (foundIndex > -1)) {
-                    return false
-                }
-
-                return true
-            })
-
-            console.log(filteredAvailableSlotsInReceiverTimezone, ' filteredAvailableSlots')
-
-            return filteredAvailableSlotsInReceiverTimezone
-        }
-
-
-        const startDuration = dayjs.duration({ hours: startHourAsReceiver, minutes: startMinuteAsReceiver })
-        const endDuration = dayjs.duration({ hours: endHourAsReceiver, minutes: endMinuteAsReceiver })
-        const totalDuration = endDuration.subtract(startDuration)
-        const totalMinutes = totalDuration.asMinutes()
-        console.log(totalMinutes, ' totalMinutes inside first and last same day')
-        const availableSlotsInReceiverTimezone: AvailableSlotType[] = []
-        console.log(senderStartDateInReceiverTimezone, endTimesBySender, dayOfWeekIntAsReceiver, endHourWorkBySender, endMinuteWorkBySender, receiverTimezone, `startDate, endTimes, dayOfWeekInt, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside first & last Day inside generateTimeslots`)
-        for (let i = 0; i < totalMinutes; i += slotDuration) {
-            if (i > totalMinutes) {
-                continue
-            }
-            availableSlotsInReceiverTimezone.push({
-                id: uuid(),
-                startDate: dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).hour(startHourAsReceiver).minute(startMinuteAsReceiver).add(i, 'minute').second(0).format(),
-                endDate: dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).hour(startHourAsReceiver).minute(startMinuteAsReceiver).add(i + slotDuration, 'minute').second(0).format(),
-            })
-        }
-
-        console.log(availableSlotsInReceiverTimezone, ' availableSlots inside first & last same day')
-        const filteredAvailableSlotsInReceiverTimezone = availableSlotsInReceiverTimezone.filter(a => {
-            const foundIndex = notAvailableSlotsInEventTimezone?.findIndex(na => {
-                const partA = (dayjs(a.endDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                const partB = (dayjs(a.startDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                const partC = ((dayjs(na.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')) && (dayjs(na.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')))
-
-                const isNotAvailable = (partA || partB || partC)
-
-                // console.log(a, na, ' a, na')
-
-                return isNotAvailable
-            })
-
-            console.log(foundIndex, ' foundIndex')
-
-            if ((foundIndex !== undefined) && (foundIndex > -1)) {
-                return false
-            }
-
-            return true
-        })
-
-        console.log(filteredAvailableSlotsInReceiverTimezone, ' filteredAvailableSlots')
-        return filteredAvailableSlotsInReceiverTimezone
+    for (const busySlot of notAvailableSlotsInEventTimezone) {
+      const busyStart = dayjs(busySlot.startDate); // Assuming these are already Dayjs objects or ISO strings
+      const busyEnd = dayjs(busySlot.endDate);
+      // Check for overlap: (StartA < EndB) and (EndA > StartB)
+      if (currentSlotStartInReceiverTz.isBefore(busyEnd) && currentSlotEndInReceiverTz.isAfter(busyStart)) {
+        isSlotAvailable = false;
+        break;
+      }
     }
 
-    if (isFirstDay) {
-        // firstday can be started outside of work time
-        // if firstDay start is after end time -- return []
-        const endTimesBySender = senderPreferences.endTimes
-        const dayOfWeekIntAsReceiver = getISODay(dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).toDate())
-
-        // month is zero-indexed
-        // const month = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).tz(userTimezone).month()
-        const dayOfMonthAsReceiver = dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).date()
-        let startHourAsReceiver = dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).hour()
-        const startHourBySender = dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour()
-        const startMinuteBySender = dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).minute()
-        // create slot sizes
-        const flooredValue = Math.floor(60 / slotDuration)
-
-        let minuteValueAsReceiver = 0
-        if (dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute() !== 0) {
-            for (let i = 0; i < flooredValue; i++) {
-                const endMinutes = (i + 1) * slotDuration
-                const startMinutes = i * slotDuration
-                if (
-                    dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone)
-                        .isBetween(
-                            dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute(startMinutes),
-                            dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute(endMinutes),
-                            'minute', '[)')
-                ) {
-                    minuteValueAsReceiver = endMinutes
-                }
-            }
-        }
-
-        if (
-            dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone)
-                .isBetween(
-                    dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute((flooredValue * slotDuration)),
-                    dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).minute(59),
-                    'minute', '[)',
-                )
-        ) {
-            startHourAsReceiver += 1
-            minuteValueAsReceiver = 0
-        }
-
-        const startMinuteAsReceiver = minuteValueAsReceiver
-
-
-        // convert to user timezone so everything is linked to user timezone
-
-
-        const endHourBySender = endTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.hour ?? 20
-        const endMinuteBySender = endTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.minutes ?? 0
-
-        // validate values before calculating
-        const startTimes = senderPreferences.startTimes
-        const workStartHourBySender = startTimes?.find(i => (i.day === dayOfWeekIntAsReceiver))?.hour || 8
-        const workStartMinuteBySender = startTimes?.find(i => (i.day === dayOfWeekIntAsReceiver))?.minutes || 0
-
-
-        if (dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).isAfter(dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(endHourBySender).minute(endMinuteBySender))) {
-            // return empty as outside of work time
-            return []
-        }
-
-        // change to work start time as host start time before work start time
-        if (dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).isBefore(dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(workStartHourBySender).minute(workStartMinuteBySender))) {
-            const startDuration = dayjs.duration({ hours: workStartHourBySender, minutes: workStartMinuteBySender })
-            const endDuration = dayjs.duration({ hours: endHourBySender, minutes: endMinuteBySender })
-            const totalDuration = endDuration.subtract(startDuration)
-            const totalMinutes = totalDuration.asMinutes()
-
-            const availableSlotsInReceiverTimezone: AvailableSlotType[] = []
-            console.log(senderStartDateInReceiverTimezone, endTimesBySender, dayOfWeekIntAsReceiver, dayOfMonthAsReceiver, startHourAsReceiver, startMinuteAsReceiver, endHourBySender, endMinuteBySender, timezone, `startDate, endTimes, dayOfWeekIntByUser, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`)
-            for (let i = 0; i < totalMinutes; i += slotDuration) {
-                if (i > totalMinutes) {
-                    continue
-                }
-
-                availableSlotsInReceiverTimezone.push({
-                    id: uuid(),
-                    startDate: dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(workStartHourBySender).minute(workStartMinuteBySender).tz(receiverTimezone).add(i, 'minute').second(0).format(),
-                    endDate: dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(workStartHourBySender).minute(workStartMinuteBySender).tz(receiverTimezone).add(i + slotDuration, 'minute').second(0).format(),
-                })
-            }
-            console.log(availableSlotsInReceiverTimezone, ' timeSlots inside generateTimeSlots for first day where startDate is before work start time')
-
-            // filter out unavailable times
-            const filteredAvailableSlotsInReceiverTimezone = availableSlotsInReceiverTimezone.filter(a => {
-                const foundIndex = notAvailableSlotsInEventTimezone?.findIndex(na => {
-                    const partA = (dayjs(a.endDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                    const partB = (dayjs(a.startDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                    const partC = ((dayjs(na.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')) && (dayjs(na.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')))
-
-                    const isNotAvailable = (partA || partB || partC)
-
-                    // console.log(a, na, ' a, na')
-                    return isNotAvailable
-                })
-
-                console.log(foundIndex, ' foundIndex')
-
-                if ((foundIndex !== undefined) && (foundIndex > -1)) {
-                    return false
-                }
-
-                return true
-            })
-
-            console.log(filteredAvailableSlotsInReceiverTimezone, ' filteredAvailableSlots')
-
-            return filteredAvailableSlotsInReceiverTimezone
-        }
-
-        const startDuration = dayjs.duration({ hours: startHourBySender, minutes: startMinuteBySender })
-        const endDuration = dayjs.duration({ hours: endHourBySender, minutes: endMinuteBySender })
-        const totalDuration = endDuration.subtract(startDuration)
-        const totalMinutes = totalDuration.asMinutes()
-        const availableSlotsInReceiverTimezone: AvailableSlotType[] = []
-        console.log(senderStartDateInReceiverTimezone, endTimesBySender, dayOfWeekIntAsReceiver, endHourBySender, endMinuteBySender, receiverTimezone, `startDate, endTimes, dayOfWeekInt, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`)
-        for (let i = 0; i < totalMinutes; i += slotDuration) {
-            if (i > totalMinutes) {
-                continue
-            }
-            availableSlotsInReceiverTimezone.push({
-                id: uuid(),
-                startDate: dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).hour(startHourAsReceiver).minute(startMinuteAsReceiver).add(i, 'minute').second(0).format(),
-                endDate: dayjs(senderStartDateInReceiverTimezone).tz(receiverTimezone).hour(startHourAsReceiver).minute(startMinuteAsReceiver).add(i + slotDuration, 'minute').second(0).format(),
-            })
-        }
-        const filteredAvailableSlotsInReceiverTimezone = availableSlotsInReceiverTimezone.filter(a => {
-            const foundIndex = notAvailableSlotsInEventTimezone?.findIndex(na => {
-                const partA = (dayjs(a.endDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                const partB = (dayjs(a.startDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-                const partC = ((dayjs(na.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')) && (dayjs(na.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')))
-
-                const isNotAvailable = (partA || partB || partC)
-
-                // console.log(a, na, ' a, na')
-
-                return isNotAvailable
-            })
-
-            console.log(foundIndex, ' foundIndex')
-
-            if ((foundIndex !== undefined) && (foundIndex > -1)) {
-                return false
-            }
-
-            return true
-        })
-
-        console.log(filteredAvailableSlotsInReceiverTimezone, ' filteredAvailableSlots server timezone')
-        return filteredAvailableSlotsInReceiverTimezone
+    if (isSlotAvailable) {
+      // Store slots in UTC, but ensure they are presented based on receiverTimezone later if needed
+      availableSlots.push({
+        startDate: currentSlotStart.toISOString(), // Store in UTC
+        endDate: currentSlotEnd.toISOString(),   // Store in UTC
+      });
     }
-
-    // not first day start from work start time schedule
-
-    const startTimesBySender = senderPreferences.startTimes
-
-    const endTimesBySender = senderPreferences.endTimes
-
-    const dayOfWeekIntAsReceiver = getISODay(dayjs(senderStartDateInReceiverTimezone?.slice(0, 19)).tz(receiverTimezone, true).toDate())
-    const dayOfMonthAsReceiver = dayjs(senderStartDateInReceiverTimezone?.slice(0, 19)).tz(receiverTimezone, true).date()
-
-    // convert to user timezone so everything is linked to user timezone
-    let endHourBySender = (endTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.hour) ?? 20
-    let endMinuteBySender = endTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.minutes ?? 0
-
-    // if last day change end time to hostStartDate provided
-    if (isLastDay && senderEndDateInReceiverTimezone) {
-        endHourBySender = dayjs(senderEndDateInReceiverTimezone).tz(senderTimezone).hour()
-        // create slot sizes
-        const flooredValue = Math.floor(60 / slotDuration)
-
-        let minuteValueBySender = 0
-        for (let i = 0; i < flooredValue; i++) {
-            const endMinutes = (i + 1) * slotDuration
-            const startMinutes = i * slotDuration
-            if (
-                dayjs(senderEndDateInReceiverTimezone).tz(senderTimezone)
-                    .isBetween(
-                        dayjs(senderEndDateInReceiverTimezone).tz(senderTimezone).minute(startMinutes),
-                        dayjs(senderEndDateInReceiverTimezone).tz(senderTimezone).minute(endMinutes), 'minute', '[)')
-            ) {
-                minuteValueBySender = startMinutes
-            }
-        }
-
-        endMinuteBySender = minuteValueBySender
-    }
-
-
-    const startHourBySender = startTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.hour as number || 8
-    const startMinuteBySender = startTimesBySender?.find(i => (i.day === dayOfWeekIntAsReceiver))?.minutes as number || 0
-
-
-    const startDuration = dayjs.duration({ hours: startHourBySender, minutes: startMinuteBySender })
-    const endDuration = dayjs.duration({ hours: endHourBySender, minutes: endMinuteBySender })
-    const totalDuration = endDuration.subtract(startDuration)
-    const totalMinutes = totalDuration.asMinutes()
-
-    const availableSlotsInReceiverTimezone: AvailableSlotType[] = []
-    console.log(senderStartDateInReceiverTimezone, endTimesBySender, dayOfWeekIntAsReceiver, dayOfMonthAsReceiver, startHourBySender, startMinuteBySender, endHourBySender, endMinuteBySender, timezone, `startDate, endTimes, dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateAvailableslots`)
-    for (let i = 0; i < totalMinutes; i += slotDuration) {
-        if (i > totalMinutes) {
-            continue
-        }
-
-        availableSlotsInReceiverTimezone.push({
-            id: uuid(),
-            startDate: dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(startHourBySender).minute(startMinuteBySender).tz(receiverTimezone).add(i, 'minute').second(0).format(),
-            endDate: dayjs(senderStartDateInReceiverTimezone).tz(senderTimezone).hour(startHourBySender).minute(startMinuteBySender).tz(receiverTimezone).add(i + slotDuration, 'minute').second(0).format(),
-        })
-    }
-
-    console.log(availableSlotsInReceiverTimezone, ' timeSlots inside generateTimeSlots not first day')
-    console.log(notAvailableSlotsInEventTimezone,  ' notAvailableSlotsInEventTimezone not first day')
-
-    // filter out unavailable times
-    const filteredAvailableSlotsInReceiverTimezone = availableSlotsInReceiverTimezone.filter(a => {
-        const foundIndex = notAvailableSlotsInEventTimezone?.findIndex(na => {
-            const partA = (dayjs(a.endDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-            const partB = (dayjs(a.startDate).tz(receiverTimezone).second(0).isBetween(dayjs(na.startDate).tz(receiverTimezone).second(0).add(1, 'm'), dayjs(na.endDate).tz(receiverTimezone).second(0).subtract(1, 'm'), 'm', '[]'))
-
-            const partC = ((dayjs(na.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.startDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')) && (dayjs(na.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm') === dayjs(a.endDate).tz(receiverTimezone).second(0).format('YYYY-MM-DDTHH:mm')))
-
-            const isNotAvailable = (partA || partB || partC)
-
-            // console.log(a, na, ' a, na')
-
-            return isNotAvailable
-        })
-
-        console.log(foundIndex, ' foundIndex')
-
-        if ((foundIndex !== undefined) && (foundIndex > -1)) {
-            return false
-        }
-
-        return true
-    })
-
-    console.log(filteredAvailableSlotsInReceiverTimezone, ' filteredAvailableSlots in receiverTimezone')
-    // convert to receiverTimezone before returning values
-    return filteredAvailableSlotsInReceiverTimezone
-
-}
+    currentSlotStart = currentSlotEnd.add(bufferMinutes, 'minutes');
+  }
+  return availableSlots;
+};
 
 export const generateAvailableSlotsforTimeWindow = (
-    windowStartDate: string,
-    windowEndDate: string,
-    slotDuration: number,
-    senderPreferences: UserPreferenceType,
-    receiverTimezone: string,
-    senderTimezone: string,
-    notAvailableSlotsInEventTimezone?: NotAvailableSlotType[],
-) => {
-    const diffDays = dayjs(windowEndDate).diff(dayjs(windowStartDate), 'd')
+  startDate: string, // YYYY-MM-DD
+  endDate: string,   // YYYY-MM-DD
+  senderPreferences: UserPreferenceType,
+  notAvailableFromEvents: EventType[], // All events for the user within a broader range
+  receiverTimezone: string,
+  windowStartTimeInReceiverTimezone?: string, // HH:mm for the first day
+  windowEndTimeInReceiverTimezone?: string    // HH:mm for the last day
+): { availableSlots: AvailabilitySlot[] } => {
+  let allSlots: AvailabilitySlot[] = [];
+  let currentDate = dayjs.tz(startDate, receiverTimezone).startOf('day');
+  const finalEndDate = dayjs.tz(endDate, receiverTimezone).endOf('day');
 
-    const startDatesForEachDay = []
-    const availableSlots: AvailableSlotType[] = []
+  // Convert existing events to notAvailableSlots in the receiver's timezone for comparison
+  const notAvailableSlotsInReceiverTz = notAvailableFromEvents.map(event => ({
+    startDate: dayjs(event.startDateTime).tz(receiverTimezone).toISOString(), // Convert to receiver's TZ then to ISO
+    endDate: dayjs(event.endDateTime).tz(receiverTimezone).toISOString()
+  }));
 
-    for (let i = 0; i <= diffDays; i++) {
-        startDatesForEachDay.push(dayjs(windowStartDate.slice(0, 19)).tz(receiverTimezone, true).add(i, 'day').format())
+
+  while (currentDate.isBefore(finalEndDate) || currentDate.isSame(finalEndDate, 'day')) {
+    if (senderPreferences.workDays && !senderPreferences.workDays.includes(currentDate.day())) {
+      currentDate = currentDate.add(1, 'day');
+      continue; // Skip non-working days
     }
 
-    if (diffDays < 1) {
+    const isFirstDay = currentDate.isSame(dayjs.tz(startDate, receiverTimezone).startOf('day'), 'day');
+    const isLastDay = currentDate.isSame(finalEndDate.startOf('day'), 'day');
 
-        const generatedSlots = generateAvailableSlotsForDate(
-            slotDuration,
-            dayjs(windowStartDate.slice(0, 19)).tz(receiverTimezone, true).format(),
-            senderPreferences,
-            receiverTimezone,
-            senderTimezone,
-            notAvailableSlotsInEventTimezone,
-            true,
-            true,
-            dayjs(windowEndDate.slice(0, 19)).tz(receiverTimezone, true).format(),
-        )
-        //  0123456789
-        //  2020-04-02T08:02:17-05:00
-        availableSlots.push(...generatedSlots)
-
-    } else {
-        for (let i = 0; i < startDatesForEachDay.length; i++) {
-            const filteredNotAvailableSlotsInEventTimezone = notAvailableSlotsInEventTimezone
-                ?.filter(na => (dayjs(na?.startDate).tz(receiverTimezone).format('YYYY-MM-DD') === dayjs(startDatesForEachDay?.[i]).tz(receiverTimezone).format('YYYY-MM-DD')))
-            if (i === 0) {
-                const generatedSlots = generateAvailableSlotsForDate(
-                    slotDuration,
-                    startDatesForEachDay?.[i],
-                    senderPreferences,
-                    receiverTimezone,
-                    senderTimezone,
-                    filteredNotAvailableSlotsInEventTimezone,
-                    true,
-                    false,
-                    dayjs(windowEndDate.slice(0, 19)).tz(receiverTimezone, true).format(),
-                )
-                //  0123456789
-                //  2020-04-02T08:02:17-05:00
-                availableSlots.push(...generatedSlots)
-
-                continue
-            }
-
-            if (i === (startDatesForEachDay.length - 1)) {
-                
-                const generatedSlots = generateAvailableSlotsForDate(
-                    slotDuration,
-                    startDatesForEachDay?.[i],
-                    senderPreferences,
-                    receiverTimezone,
-                    senderTimezone,
-                    filteredNotAvailableSlotsInEventTimezone,
-                    false,
-                    true,
-                    dayjs(windowEndDate.slice(0, 19)).tz(receiverTimezone, true).format(),
-                )
-
-                availableSlots.push(...generatedSlots)
-
-                continue
-            }
-
-
-            const generatedSlots = generateAvailableSlotsForDate(
-                slotDuration,
-                startDatesForEachDay?.[i],
-                senderPreferences,
-                receiverTimezone,
-                senderTimezone,
-                filteredNotAvailableSlotsInEventTimezone,
-            )
-
-            availableSlots.push(...generatedSlots)
-
-        }
-    }
-
-    return { availableSlots }
-}
+    const dailySlots = generateAvailableSlotsForDate(
+      currentDate.format('YYYY-MM-DD'),
+      senderPreferences,
+      notAvailableSlotsInReceiverTz, // Pass existing events
+      receiverTimezone,
+      isFirstDay,
+      isLastDay,
+      isFirstDay ? windowStartTimeInReceiverTimezone : undefined,
+      isLastDay ? windowEndTimeInReceiverTimezone : undefined
+    );
+    allSlots = allSlots.concat(dailySlots);
+    currentDate = currentDate.add(1, 'day');
+  }
+  return { availableSlots: _.uniqWith(allSlots, _.isEqual) };
+};
 
 export const generateAvailability = async (
     userId: string,
-    windowStartDateInSenderTimezone: string,
-    windowEndDateInSenderTimezone: string,
-    senderTimezone: string,
-    receiverTimezone: string,
-    slotDuration: number,
-) => {
-    try {
-        const oldEventsInEventTimezone = await listEventsForUserGivenDates(
-            userId,
-            windowStartDateInSenderTimezone,
-            windowEndDateInSenderTimezone,
-        )
-
-        console.log(oldEventsInEventTimezone, ' oldEventsInEventTimezone')
-
-        if (!oldEventsInEventTimezone || (!(oldEventsInEventTimezone?.length > 0))) {
-            console.log('no old events in generateAvailability')
-        }
-
-        const oldEventsInEventTimezoneFormatted = oldEventsInEventTimezone?.map(e => ({
-            ...e,
-            startDate: dayjs(e?.startDate.slice(0, 19)).tz(e?.timezone, true).format(),
-            endDate: dayjs(e?.endDate.slice(0, 19)).tz(e?.timezone, true).format(),
-            timezone: e?.timezone,
-        }))
-
-
-        const notAvailableFromEvents: NotAvailableSlotType[] = oldEventsInEventTimezoneFormatted?.map(e => ({
-            startDate: e?.startDate,
-            endDate: e?.endDate,
-        }))
-
-        const userPreferences = await getUserPreferences(userId)
-
-        const { availableSlots: availableSlotsInReceiverTimezone } = await generateAvailableSlotsforTimeWindow(
-            windowStartDateInSenderTimezone,
-            windowEndDateInSenderTimezone,
-            slotDuration,
-            userPreferences,
-            receiverTimezone,
-            senderTimezone,
-            notAvailableFromEvents?.length > 0 ? notAvailableFromEvents : undefined,
-        )
-
-        return availableSlotsInReceiverTimezone
-
-    } catch (e) {
-        console.log(e, ' unable to generate availability')
-    }
-}
-
-export const sendMeetingRequestTemplate = async (
-    email: string,
-    name: string,
-    body: string,
-) => {
-    try {
-        const template = 'meeting-request-template'
-
-        await sendEmail({
-            template,
-            locals: {
-                name,
-                body, 
-                displayName: name,
-                email,
-                locale: ENV.AUTH_LOCALE_DEFAULT,
-                serverUrl: ENV.FUNCTION_SERVER_URL,
-                clientUrl: ENV.APP_CLIENT_URL,
-            },
-            message: {
-                to: email,
-                headers: {
-                    'x-email-template': {
-                        prepared: true,
-                        value: template,
-                      },
-                },
-            }
-        })
-    } catch (e) {
-        console.log(e, ' unable to send meeting request')
-    }
-}
-
-export const meetingRequest = async (
-    userId: string,
-    email: string,
-    shareAvailability: boolean,
-    receiver: string,
-    sender: string,
-    receiverCharacteristics?: string[],
-    receiverGoals?: string[],
-    senderCharacteristics?: string[],
-    senderGoals?: string[],
-    windowStartDate?: string,
-    windowEndDate?: string,
-    senderTimezone?: string,
-    receiverTimezone?: string,
-    slotDuration?: number,
-) => {
-    try {
-
-        if (
-            shareAvailability
-            && windowStartDate
-            && windowEndDate
-            && senderTimezone
-            && receiverTimezone
-            && slotDuration
-        ) {
-            // get availability
-            const availability = await generateAvailability(
-                userId,
-                windowStartDate,
-                windowEndDate,
-                senderTimezone,
-                receiverTimezone,
-                slotDuration,
-            )
-
-            if (!(availability?.length > 0)) {
-                throw new Error('no availability present')
-            }
-
-            const uniqDates = _.uniqBy(availability, (curr) => (dayjs(curr?.startDate).tz(receiverTimezone).format('YYYY-MM-DD')))
-
-            let availabilityText = ''
-
-            const prompt = summarizeAvailabilityPrompt
-
-            const exampleInput = summarizeAvailabilityExampleInput
-
-            const exampleOutput = summarizeAvailabilityExampleOutput
-
-            let openAIAvailabilityRes = ''
-
-            const miniOpenAISummarizingAvailabilityResponses: string[] = []
-            
-
-            for (const uniqDate of uniqDates) {
-
-                const filteredAvailability = availability?.filter(a => (dayjs(a?.startDate).tz(receiverTimezone).format('YYYY-MM-DD') === dayjs(uniqDate?.startDate).tz(receiverTimezone).format('YYYY-MM-DD')))
-
-                if (filteredAvailability?.length > 0) {
-                     availabilityText += `${dayjs(uniqDate?.startDate).tz(receiverTimezone).format('L')} - ${filteredAvailability?.map((curr) => (`${dayjs(curr?.startDate).tz(receiverTimezone).format('LT')} - ${dayjs(curr?.endDate).tz(receiverTimezone).format('LT')},`))?.reduce((prev, curr) => (`${prev} ${curr}`), '')}` + '\n\n'
-
-                    const miniAvailabilityText = `${dayjs(uniqDate?.startDate).tz(receiverTimezone).format('L')} - ${filteredAvailability?.map((curr) => (`${dayjs(curr?.startDate).tz(receiverTimezone).format('LT')} - ${dayjs(curr?.endDate).tz(receiverTimezone).format('LT')},`))?.reduce((prev, curr) => (`${prev} ${curr}`), '')}` + '\n\n'
-
-
-                    const miniUserData = `My availability: ` + miniAvailabilityText
-
-                    console.log(miniUserData, ' newAvailabilityPrompt')
-
-                    const miniOpenAIAvailabilityRes = await callOpenAI(prompt, openAIChatGPTModel, miniUserData, exampleInput, exampleOutput)
-
-                    // validate openai res
-                    if (!miniOpenAIAvailabilityRes) {
-                        throw new Error('no openAIAvailabilityRes present inside appointmentRequest')
-                    }
-
-                    miniOpenAISummarizingAvailabilityResponses.push(miniOpenAIAvailabilityRes) 
-                    
-                    openAIAvailabilityRes += '\n' + miniOpenAIAvailabilityRes
-                }
-            }
-
-            console.log(openAIAvailabilityRes, ' openAIAvailabilityRes')
-
-            const availabilityFinalSummaryUserData = miniOpenAISummarizingAvailabilityResponses?.reduce((prev, curr) => (`${prev} ${curr}`), '')
-
-            let finalOpenAIAvailabilitySummaryResponse = ''
-
-            if (availabilityFinalSummaryUserData) {
-                finalOpenAIAvailabilitySummaryResponse = await callOpenAI(summarizeAvailabilityResponsesPrompt, openAIChatGPTModel, availabilityFinalSummaryUserData, summarizeAvailabilityResponsesPromptExampleInput, summarizeAvailabilityResponsesPromptExampleOutput)
-            }
-
-            const prompt1 = meetingRequestWithAvailabilityPrompt
-
-            // create prompt
-            const userData1 = `
-                Person of interest: ${receiver},
-                ${receiverCharacteristics?.length > 0 ? `person of interest characteristics: ${receiverCharacteristics?.reduce((prev, curr) => (`${prev}, ${curr}`), '')},` : ''}
-                ${receiverGoals?.length > 0 ? `person of interest goals: ${receiverGoals?.reduce((prev, curr) => (`${prev}, ${curr}`))},` : ''} 
-                Me: ${sender},
-                ${senderCharacteristics?.length > 0 ? `my characteristics: ${senderCharacteristics?.reduce((prev, curr) => (`${prev}, ${curr}`))},` : ''}
-                ${senderGoals?.length > 0 ? `my goals: ${senderGoals?.reduce((prev, curr) => (`${prev}, ${curr}`), '')}` : ''}
-                
-            `
-
-            console.log(userData1, ' newPrompt')
-
-            // get res from openai
-
-            let openAIRes = await callOpenAI(prompt1, openAIChatGPTModel, userData1)
-
-            // validate openai res
-            if (!openAIRes) {
-                throw new Error('no openAIRes present inside appointmentRequest')
-            }
-
-            // simpliyAvailabilityPrompt
-            console.log(openAIRes, ' openAIRes before availability')
-
-            // openAIRes += '\n\n' + 'My availability:' + '\n' + availabilityText
-            openAIRes += '\n\n' + finalOpenAIAvailabilitySummaryResponse
-            console.log(openAIRes, ' openAIRes after availability')
-            
-            // email template to sender
-            await sendMeetingRequestTemplate(
-                email,
-                receiver,
-                openAIRes,
-            )
-        } else {
-            // create prompt
-            const prompt3 = meetingRequestPrompt
-            const userData3 = `Here it is:
-                Person of interest: ${receiver},
-                ${receiverCharacteristics?.length > 0 ? `person of interest characteristics: ${receiverCharacteristics?.reduce((prev, curr) => (`${prev}, ${curr}`), '')},` : ''}
-                ${receiverGoals?.length > 0 ? `person of interest goals: ${receiverGoals?.reduce((prev, curr) => (`${prev}, ${curr}`), '')},` : ''} 
-                Me: ${sender},
-                ${senderCharacteristics?.length > 0 ? `my characteristics: ${senderCharacteristics?.reduce((prev, curr) => (`${prev}, ${curr}`), '')},` : ''}
-                ${senderGoals?.length > 0 ? `my goals: ${senderGoals?.reduce((prev, curr) => (`${prev}, ${curr}`), '')},` : ''}
-            `
-
-            // get res from openai
-
-            const openAIRes = await callOpenAI(prompt3, openAIChatGPTModel, userData3)
-
-            // validate openai res
-            if (!openAIRes) {
-                throw new Error('no openAIRes present inside appointmentRequest')
-            }
-
-            // email template to sender
-
-            await sendMeetingRequestTemplate(
-                email,
-                receiver,
-                openAIRes,
-            )
-        }
-
-
-    } catch (e) {
-        console.log(e, ' unable to reqeust appointment')
-    }
-}
-
-export const emailDailySchedule = async (
-    email: string,
-    name: string,
-    body: string,
-    startDate: string,
-) => {
-    try {
-        const template = 'day-schedule-template'
-
-        await sendEmail({
-            template,
-            locals: {
-                name,
-                body,
-                startDate: dayjs(startDate).format('L'),
-                displayName: name,
-                email,
-                locale: ENV.AUTH_LOCALE_DEFAULT,
-                serverUrl: ENV.FUNCTION_SERVER_URL,
-                clientUrl: ENV.APP_CLIENT_URL,
-            },
-            message: {
-                to: email,
-                headers: {
-                    'x-email-template': {
-                        prepared: true,
-                        value: template,
-                      },
-                },
-            }
-        })
-    } catch (e) {
-        console.log(e, ' unable to email daily schedule')
-    }
-}
-
-const delay = retryCount =>
-  new Promise(resolve => setTimeout(resolve, 10 ** retryCount))
-
-const getResource = async (apiCall: (...args) => Promise<any>, retryCount: number = 0, lastError: any = null, ...args) => {
-  if (retryCount > 5) throw new Error(lastError);
+    availabilityScanStartDate: string, // YYYY-MM-DD
+    availabilityScanEndDate: string,   // YYYY-MM-DD
+    receiverGeneratedTimezone: string, // Target timezone for the slots
+    // clientType is not directly used here but might be used by listEvents if it were more complex
+): Promise<SuccessResponseType<AvailabilitySlot[]> | FailureResponseType> => {
   try {
-    return apiCall(...args);
-  } catch (e) {
-    await delay(retryCount);
-    return getResource(apiCall, retryCount + 1, e, ...args);
-  }
-}
-
-// \n\u2022 bullets
-export const createDaySchedule = async (
-    userId: string,
-    tasks: string[], // make sure to add previous events inside tasks when submitting
-    isAllDay: boolean,
-    timezone: string,
-    startDate: string,
-    endDate: string,
-    email?: string,
-    name?: string,
-    isTwo?: boolean,
-) => {
-    try {
-
-        // get previous events
-        const previousEvents = await listEventsForUserGivenDates(userId, startDate, endDate)
-
-        // create prompt
-        // h:mm A
-        const prompt = `
-            ${dailySchedulePrompt1} ${dayjs(startDate?.slice(0, 19)).diff(endDate?.slice(0, 19), 'h')} ${dailySchedulePrompt2}
-            ${dayjs(startDate?.slice(0, 19)).tz(timezone, true).format('LT')}. ${dailySchedulePrompt3}
-        `
-        const exampleInput = dailyScheduleExampleInput
-        const exampleOutput = dailyScheduleExampleOutput
-        const userData = `
-            Here are my tasks:
-            ${tasks?.reduce((prev, curr) => (`${prev}, ${curr}`), '')},
-            ${previousEvents?.map(e => `From ${dayjs(e?.startDate?.slice(0, 19)).tz(timezone, true).format('h:mm A')} to ${dayjs(e?.endDate?.slice(0, 19)).tz(timezone, true).format('h:mm A')}: ${e?.summary} ${e?.notes}`)
-                ?.reduce((prev, curr) => (`${prev}, ${curr}`), '')}
-        `
-        console.log(userData, ' newPrompt')
-        // get res from openai
-        const openAIRes = await callOpenAI(prompt, openAIChatGPTModel, userData, exampleInput, exampleOutput)
-
-        // validate openai res
-        if (!openAIRes) {
-            throw new Error('no openAIRes present inside createAgenda')
-        }
-
-        console.log(openAIRes, ' openAIRes')
-
-        // create event
-
-        // get primary calendar
-        const primaryCalendar = await getGlobalCalendar(userId)
-
-        // validate
-        if (!primaryCalendar?.id) {
-            throw new Error('no primary calendar found inside createAgenda')
-        }
-
-        // get client type
-        const calIntegration = await getCalendarIntegration(
-            userId,
-            googleCalendarResource,
-        )
-
-        // validate
-        if (!calIntegration?.clientType) {
-            throw new Error('no client type inside calendar integration inside create agenda')
-        }
-
-        // format response for all day
-        /*
-            format is JSON array [{"start_time": "", "end_time": "", "task": ""}]
-        */
-
-        const startIndex = openAIRes?.indexOf('[')
-        const endIndex = openAIRes?.indexOf(']')
-
-        const finalString = openAIRes.slice(startIndex, endIndex + 1)
-
-        console.log('finalString: ', finalString)
-
-        const parsedText: DailyScheduleObjectType[] = JSON.parse(finalString)
-
-        console.log('parsedText: ', parsedText)
-
-        const filteredParsedText = parsedText?.filter(p => {
-            const foundIndex = previousEvents?.findIndex(e => (
-                (dayjs(e?.startDate?.slice(0, 19)).tz(timezone, true).hour() === dayjs(p?.start_time, 'h:mm A').hour())
-                && (dayjs(e?.startDate?.slice(0, 19)).tz(timezone, true).minute() === dayjs(p?.start_time, 'h:mm A').minute())
-            ))
-            if (foundIndex > -1) {
-                return false
-            }
-
-            return true
-        })
-
-        const eventsToUpsert: EventType[] = []
-
-        if (isAllDay) {
-
-            const notes = parsedText?.map((taskEvent) => (`${taskEvent?.start_time} - ${taskEvent?.end_time}: ${taskEvent?.task}`))
-                ?.reduce((prev, curr) => (`${prev}\n ${curr}`), '')
-
-            const title = `Schedule for ${dayjs(startDate).format('L')}`
-
-            // create in google calendar
-            const googleRes = await createGoogleEvent(
-                userId,
-                primaryCalendar?.id,
-                calIntegration?.clientType,
-                uuid(),
-                !isAllDay && endDate,
-                !isAllDay && startDate,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                title,
-                notes,
-                timezone,
-                // 2020-04-02T08:02:17-05:00
-                isAllDay && startDate?.slice(0, 10),
-                isAllDay && endDate?.slice(0, 10),
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-            )
-
-            const eventToUpsert: EventType = {
-                id: googleRes?.id,
-                userId,
-                title,
-                startDate,
-                endDate,
-                allDay: isAllDay,
-                notes,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: title,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: googleRes?.googleEventId,
-            }
-
-            eventsToUpsert.push(eventToUpsert)
-        }
-
-        if (isTwo) {
-            // generate events for calendar
-
-            const eventsToUpsertLocal: EventType[] = filteredParsedText?.map((localTask) => ({
-                id: uuid(),
-                userId,
-                title: localTask?.task,
-                startDate: dayjs(startDate?.slice(0, 19)).tz(timezone, true).hour(dayjs(localTask?.start_time, 'h:mm A').hour()).minute(dayjs(localTask?.start_time, 'h:mm A').minute()).format(),
-                endDate: dayjs(startDate?.slice(0, 19)).tz(timezone, true).hour(dayjs(localTask?.end_time, 'h:mm A').hour()).minute(dayjs(localTask?.end_time, 'h:mm A').minute()).format(),
-                allDay: false,
-                notes: localTask?.task,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: localTask?.task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: undefined,
-            }))
-
-            const googleResValues: GoogleResType[] = []
-
-            for (const eventToUpsertLocal of eventsToUpsertLocal) {
-                
-                const e = eventToUpsertLocal
-                
-                const googleResValue: GoogleResType = await getResource(
-                    createGoogleEvent, 
-                    undefined, 
-                    undefined,
-                    userId,
-                    primaryCalendar?.id,
-                    calIntegration?.clientType,
-                    e?.id,
-                    e?.endDate,
-                    e?.startDate,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    e?.title,
-                    e?.notes,
-                    timezone,
-                    // 2020-04-02T08:02:17-05:00
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    )
-                
-                googleResValues.push(googleResValue)
-            }
-
-            const eventsToUpsertFinalLocal: EventType[] = eventsToUpsertLocal?.map((e, inx) => ({
-                ...e,
-                id: googleResValues?.[inx]?.id,
-                eventId: googleResValues?.[inx]?.googleEventId,
-            }))
-
-            eventsToUpsert.push(...eventsToUpsertFinalLocal)
-        }
-
-        if (!isAllDay) {
-            // const title = `Schedule for ${dayjs(startDate).format('L')}`
-
-            // generate events for calendar
-
-            const eventsToUpsertLocal: EventType[] = filteredParsedText?.map((localTask) => ({
-                id: uuid(),
-                userId,
-                title: localTask?.task,
-                startDate: dayjs(startDate?.slice(0, 19)).tz(timezone).hour(dayjs(localTask?.start_time, 'h:mm A').hour()).minute(dayjs(localTask?.start_time, 'h:mm A').minute()).format(),
-                endDate: dayjs(startDate?.slice(0, 19)).tz(timezone).hour(dayjs(localTask?.end_time, 'h:mm A').hour()).minute(dayjs(localTask?.end_time, 'h:mm A').minute()).format(),
-                allDay: false,
-                notes: localTask?.task,
-                timezone,
-                createdDate: dayjs().format(),
-                deleted: false,
-                priority: 1,
-                isFollowUp: false,
-                isPreEvent: false,
-                isPostEvent: false,
-                modifiable: false,
-                anyoneCanAddSelf: false,
-                guestsCanInviteOthers: false,
-                guestsCanSeeOtherGuests: true,
-                originalStartDate: undefined,
-                originalAllDay: undefined,
-                summary: localTask?.task,
-                updatedAt: dayjs().format(),
-                calendarId: primaryCalendar?.id,
-                eventId: undefined,
-            }))
-
-            const googleResValues: GoogleResType[] = []
-
-            for (const eventToUpsertLocal of eventsToUpsertLocal) {
-                
-                const e = eventToUpsertLocal
-                
-                const googleResValue: GoogleResType = await getResource(
-                    createGoogleEvent, 
-                    undefined, 
-                    undefined,
-                    userId,
-                    primaryCalendar?.id,
-                    calIntegration?.clientType,
-                    e?.id,
-                    e?.endDate,
-                    e?.startDate,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    e?.title,
-                    e?.notes,
-                    timezone,
-                    // 2020-04-02T08:02:17-05:00
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    undefined,
-                    )
-                
-                googleResValues.push(googleResValue)
-            }
-
-            const eventsToUpsertFinalLocal: EventType[] = eventsToUpsertLocal?.map((e, inx) => ({
-                ...e,
-                id: googleResValues?.[inx]?.id,
-                eventId: googleResValues?.[inx]?.googleEventId,
-            }))
-
-            eventsToUpsert.push(...eventsToUpsertFinalLocal)
-        }
-
-        // upsert event
-        await upsertEventsPostPlanner(eventsToUpsert)
-
-        //emailDailySchedule
-        if (email) {
-
-            const notes = parsedText?.map((taskEvent) => (`${taskEvent?.start_time} - ${taskEvent?.end_time}: ${taskEvent?.task}`))
-                ?.reduce((prev, curr) => (`${prev}\n ${curr}`), '')
-
-            const title = `Schedule for ${dayjs(startDate).format('L')}`
-
-            const body = `${title}\n ${notes}`
-
-            await emailDailySchedule(
-                email,
-                name,
-                body,
-                startDate,
-            )
-        }
-    } catch (e) {
-        console.log(e, ' unable to create daily schedule')
+    const prefsResult = await getUserPreferences(userId);
+    if (!prefsResult.success) {
+      console.log('generateAvailability: getUserPreferences failed', prefsResult.error);
+      return { success: false, error: { message: 'Failed to get user preferences for availability generation.', details: prefsResult.error } };
     }
-}
+    if (!prefsResult.data) {
+      console.log('generateAvailability: User preferences not found.');
+      return { success: false, error: { message: 'User preferences not found, cannot generate availability.' } };
+    }
+    const senderPreferences = prefsResult.data;
 
+    // Fetch events for the user for the given date range to check for conflicts
+    // The range for fetching events should cover the entire scan period in UTC to be safe.
+    const scanStartUtc = dayjs.tz(availabilityScanStartDate, senderPreferences.timezone || receiverGeneratedTimezone).startOf('day').utc().toISOString();
+    const scanEndUtc = dayjs.tz(availabilityScanEndDate, senderPreferences.timezone || receiverGeneratedTimezone).endOf('day').utc().toISOString();
 
+    const eventsResult = await listEventsForUserGivenDates(userId, scanStartUtc, scanEndUtc);
+    if (!eventsResult.success) {
+      console.log('generateAvailability: listEventsForUserGivenDates failed', eventsResult.error);
+      return { success: false, error: { message: 'Failed to list existing events for availability generation.', details: eventsResult.error } };
+    }
+    const existingEvents = eventsResult.data; // These are already in UTC from Hasura (assuming timestamptz)
+
+    // Assuming windowStartTime and windowEndTime are not used for this top-level call,
+    // meaning we generate for full workdays within the date range.
+    const availabilityResult = generateAvailableSlotsforTimeWindow(
+      availabilityScanStartDate,
+      availabilityScanEndDate,
+      senderPreferences,
+      existingEvents,
+      receiverGeneratedTimezone // Slots should be generated considering this as the target display timezone context
+    );
+
+    return { success: true, data: availabilityResult.availableSlots };
+
+  } catch (e: any) {
+    console.log('Unexpected error in generateAvailability:', e.message, e);
+    return { success: false, error: { message: 'Unexpected error during availability generation.', details: e.message } };
+  }
+};

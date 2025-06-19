@@ -1,145 +1,70 @@
-import { Request, Response } from 'express'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import { bucketName, kafkaOnDayScheduleTopic } from '../_libs/constants'
-import { v4 as uuid } from 'uuid'
-import { CreateDayScheduleBodyType } from '../_libs/types'
-import { Kafka, logLevel } from 'kafkajs'
-import ip from 'ip'
+import { Request, Response } from 'express';
+import { S3Client } from '@aws-sdk/client-s3';
+import { Kafka } from 'kafkajs';
+import {
+    validateDaySchedulePayload,
+    publishToS3AndKafka,
+    // CreateDayScheduleBodyType // Assuming this type might come from common handler or types file
+} from '../_libs/common-on-event-handler';
+// Assuming kafkaOnDayScheduleTopic might be defined in constants or ENV
+import { kafkaOnDayScheduleTopic as KAFKA_ON_DAY_SCHEDULE_TOPIC_AUTH } from '../_libs/constants'; // Use a specific topic name or the same if applicable
 
 
+// Initialize S3 and Kafka clients
 const s3Client = new S3Client({
+    region: process.env.AWS_REGION || 'us-east-1',
     credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY,
-        secretAccessKey: process.env.S3_SECRET_KEY,
+        accessKeyId: process.env.S3_ACCESS_KEY || '',
+        secretAccessKey: process.env.S3_SECRET_KEY || '',
     },
     endpoint: process.env.S3_ENDPOINT,
     forcePathStyle: true,
- })
-
-
+});
 
 const kafka = new Kafka({
-    logLevel: logLevel.DEBUG,
-    brokers: [`kafka1:29092`],
-    clientId: 'atomic',
-    // ssl: true,
-    sasl: {
-        mechanism: 'plain', // scram-sha-256 or scram-sha-512
+    clientId: process.env.KAFKA_CLIENT_ID_AUTH || 'gpt-auth-producer', // Potentially different clientId for auth context
+    brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
+    sasl: process.env.KAFKA_USERNAME && process.env.KAFKA_PASSWORD ? {
+        mechanism: 'plain',
         username: process.env.KAFKA_USERNAME,
         password: process.env.KAFKA_PASSWORD,
-      },
-  })
+      } : undefined,
+});
 
+export const handler = async (req: Request, res: Response) => {
+    // 1. Validate Payload
+    const validationResult = validateDaySchedulePayload(req.body);
+    if (!validationResult.valid || !validationResult.data) {
+        console.error('Payload validation failed for create-day-schedule-auth:', validationResult.error);
+        return res.status(400).json({ message: validationResult.error?.message || "Invalid request payload", event: validationResult.error?.event });
+    }
 
-
- const processDayScheduleBody = async (
-    body: CreateDayScheduleBodyType
-  ) => {
-    const producer = kafka.producer({ maxInFlightRequests: 1, idempotent: true })
-    await producer.connect()
-
-    const  transaction = await producer.transaction()
+    const validatedPayload = validationResult.data;
 
     try {
-      
-      const userId = body?.userId
-      const singletonId = uuid()
-  
-  
-      /**
-       * TODO:
-       * 1. get the opta plan
-       * 2. if hard score != 0 recurse until 5 times
-       * 3. still hard score != 0 send message to queue
-       * 4. if hard score == 0, send message to queue
-       */
-  
-      const params = {
-        Body: JSON.stringify({
-          ...body,
-        }),
-        Bucket: bucketName,
-        Key: `${userId}/${singletonId}.json`,
-        ContentType: 'application/json',
-      }
-  
-      const s3Command = new PutObjectCommand(params)
-  
-      const s3Response = await s3Client.send(s3Command)
-      console.log(s3Response, ' s3Response')
-      
-      
+        // 2. Publish to S3 and Kafka
+        const publishResult = await publishToS3AndKafka(
+            validatedPayload,
+            KAFKA_ON_DAY_SCHEDULE_TOPIC_AUTH, // Use the specific auth topic
+            s3Client,
+            kafka
+        );
 
-      const response = await transaction.send({
-        topic: kafkaOnDayScheduleTopic,
-        messages: [{ value: JSON.stringify({ fileKey: `${userId}/${singletonId}.json` })}]
-      })
+        if (!publishResult.success) {
+            console.error('Failed to publish to S3/Kafka for create-day-schedule-auth:', publishResult.error);
+            return res.status(500).json({ message: 'Failed to process schedule due to an internal error.', details: publishResult.error?.message });
+        }
 
-      await transaction.commit()
+        // 3. Respond to client
+        // Auth handler returns 200 for success
+        return res.status(200).json({ // Changed to .json for consistency, though original was .send
+            message: 'Successfully created day schedule',
+        });
 
-      console.log(response, ' response successfully added to queue inside publishToCalendarQueue')
-    } catch (e) {
-      console.log(e, ' processCalendarForOptaPlanner')
-      await transaction.abort()
+    } catch (e: any) {
+        console.error('Unexpected error in create-day-schedule-auth handler:', e);
+        return res.status(500).json({ message: 'An unexpected internal server error occurred.', details: e.message });
     }
-  }
+};
 
-
- const handler = async (req: Request, res: Response) => {
-    try {
-        const reqBody: CreateDayScheduleBodyType = req.body
-
-    // validate
-    if (!reqBody?.userId) {
-      return res.status(400).json({
-        message: 'no userId present',
-        event: reqBody,
-      })
-    }
-
-    if (!(reqBody?.tasks?.length > 0)) {
-      return res.status(400).json({
-        message: 'no tasks present',
-        event: reqBody,
-      })
-    }
-
-    if (!reqBody?.startDate) {
-      return res.status(400).json({
-        message: 'no startDate present',
-        event: reqBody,
-      })
-    }
-
-    if (!reqBody?.endDate) {
-      return res.status(400).json({
-        message: 'no endDate present',
-        event: reqBody,
-      })
-    }
-
-    if (!reqBody?.timezone) {
-      return res.status(400).json({
-        message: 'no timezone present',
-        event: reqBody,
-      })
-    }
-
-    if (!reqBody?.tasks) {
-      return res.status(400).json({
-        message: 'no tasks present',
-        event: reqBody,
-      })
-    }
-
-    await processDayScheduleBody(
-      reqBody,
-    )
-        res.status(200).send('succesfully created day schedule')
-    } catch (e) {
-        console.log(e, ' unable to create day schedule')
-        res.status(400).json(e)
-    }
- }
-
- export default handler
+export default handler;
