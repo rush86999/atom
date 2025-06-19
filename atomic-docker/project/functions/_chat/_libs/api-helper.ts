@@ -1,10 +1,9 @@
 // import { SESClient } from "@aws-sdk/client-ses";
 import OpenAI from "openai"
-import { openAllEventIndex, openAllEventVectorDimensions, openAllEventVectorName, openTrainEventIndex, openTrainEventVectorDimensions, openTrainEventVectorName, hasuraAdminSecret, hasuraGraphUrl, zoomBaseTokenUrl, zoomBaseUrl, zoomClientId, zoomClientSecret, zoomIVForPass, zoomPassKey, zoomResourceName, zoomSaltForPass, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, googleCalendarName, Day, defaultOpenAIAPIKey, openAIChatGPT35Model, openAIChatGPT35LongModel } from "./constants";
+import { hasuraAdminSecret, hasuraGraphUrl, zoomBaseTokenUrl, zoomBaseUrl, zoomClientId, zoomClientSecret, zoomIVForPass, zoomPassKey, zoomResourceName, zoomSaltForPass, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, googleCalendarName, Day, defaultOpenAIAPIKey, openAIChatGPT35Model, openAIChatGPT35LongModel } from "./constants";
 
-import { Client } from '@opensearch-project/opensearch'
-import { OpenSearchGetResponseBodyType, OpenSearchResponseBodyType } from "./types/OpenSearchResponseType";
 import { Dayjs, dayjs, getISODay, setISODay } from "./datetime/date-utils";
+import { searchEvents, getEventById as getEventFromLanceDbById, upsertEvents, deleteEventsByIds, searchTrainingEvents, upsertTrainingEvents, deleteTrainingEventsByIds, EventSchema as LanceDbEventSchema, TrainingEventSchema as LanceDbTrainingEventSchema } from '@functions/_utils/lancedb_service';
 import DateTimeJSONType, { RelativeTimeChangeFromNowType, RelativeTimeFromNowType } from "./datetime/DateTimeJSONJSONType";
 import { BufferTimeType, RecurrenceFrequencyType, RecurrenceRuleType, SendUpdatesType, Time } from "./types/EventType";
 import got from "got";
@@ -80,171 +79,61 @@ const openai = new OpenAI({
     apiKey: defaultOpenAIAPIKey,
 });
 
-
-export const getSearchClient = async () => {
-    try {
-        
-        return new Client({
-            node: process.env.OPENSEARCH_ENDPOINT,
-            auth: {
-                username: process.env.OPENSEARCH_USERNAME,
-                password: process.env.OPENSEARCH_PASSWORD,
-              }
-        })
-    } catch (e) {
-        console.log(e, ' unable to get credentials from getSearchClient')
-    }
-
-}
-
-export const allEventOpenSearch = async (
+export const searchSingleEventByVectorLanceDb = async (
     userId: string,
     searchVector: number[],
-): Promise<OpenSearchResponseBodyType> => {
+): Promise<LanceDbEventSchema | null> => {
     try {
-        const client = await getSearchClient()
-        const response = await client.search({
-            index: openAllEventIndex,
-            body: {
-                "size": 1,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": {
-                                    "term": {
-                                        userId,
-                                    }
-                                }
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": openAllEventVectorName,
-                                "query_value": searchVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
+        const results = await searchEvents(searchVector, 1, `userId = '${userId.replace(/'/g, "''")}'`);
+        if (results && results.length > 0) {
+            return results[0];
+        }
+        return null;
     } catch (e) {
-        console.log(e, ' unable to search data')
+        console.error('Error in searchSingleEventByVectorLanceDb:', e);
+        throw e;
     }
 }
 
-export const allEventWithDatesOpenSearch = async (
+export const searchSingleEventByVectorWithDatesLanceDb = async (
     userId: string,
     qVector: number[],
     startDate: string,
     endDate: string,
-): Promise<OpenSearchResponseBodyType> => {
+): Promise<LanceDbEventSchema | null> => {
     try {
-        const client = await getSearchClient()
-        console.log(qVector, ' qVector')
         if (typeof qVector[0] !== 'number') {
-            throw new Error('qVector is not a number')
+            throw new Error('qVector is not a number array or is empty');
         }
-
-        const filter_conditions = {
-            "bool": {
-                "must": [
-                    { "term": { "userId": userId } },
-                    { "range": { "start_date": { "gte": startDate, "lte": endDate } } },
-                    { "range": { "end_date": { "gte": startDate, "lte": endDate } } }
-                ]
-            }
+        const filterCondition = `userId = '${userId.replace(/'/g, "''")}' AND start_date >= '${startDate}' AND end_date <= '${endDate}'`;
+        const results = await searchEvents(qVector, 1, filterCondition);
+        if (results && results.length > 0) {
+            return results[0];
         }
-
-        const response = await client.search({
-            index: openAllEventIndex,
-            body: {
-                "size": 1,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": filter_conditions
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": openAllEventVectorName,
-                                "query_value": qVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
+        return null;
     } catch (e) {
-        console.log(e, ' unable to search data')
+        console.error('Error in searchSingleEventByVectorWithDatesLanceDb:', e);
+        throw e;
     }
 }
 
-export const allEventsWithDatesOpenSearch = async (
+export const searchMultipleEventsByVectorWithDatesLanceDb = async (
     userId: string,
     qVector: number[],
     startDate: string,
     endDate: string,
-): Promise<OpenSearchResponseBodyType> => {
+    limit: number = 10,
+): Promise<LanceDbEventSchema[]> => {
     try {
-        const client = await getSearchClient()
-        console.log(qVector, ' qVector')
         if (typeof qVector[0] !== 'number') {
-            throw new Error('qVector is not a number')
+            throw new Error('qVector is not a number array or is empty');
         }
-
-        const filter_conditions = {
-            "bool": {
-                "must": [
-                    { "term": { "userId": userId } },
-                    { "range": { "start_date": { "gte": startDate, "lte": endDate } } },
-                    { "range": { "end_date": { "gte": startDate, "lte": endDate } } }
-                ]
-            }
-        }
-
-        const response = await client.search({
-            index: openAllEventIndex,
-            body: {
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": filter_conditions
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": openAllEventVectorName,
-                                "query_value": qVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
+        const filterCondition = `userId = '${userId.replace(/'/g, "''")}' AND start_date >= '${startDate}' AND end_date <= '${endDate}'`;
+        const results = await searchEvents(qVector, limit, filterCondition);
+        return results || []; // Ensure an array is returned
     } catch (e) {
-        console.log(e, ' unable to search data')
+        console.error('Error in searchMultipleEventsByVectorWithDatesLanceDb:', e);
+        throw e;
     }
 }
 
@@ -537,96 +426,7 @@ export const upsertEvents = async (
     }
 }
 
-export const listAllEventWithEventOpenSearch = async (
-    userId: string,
-    qVector: number[],
-    startDate: string,
-    endDate: string,
-): Promise<OpenSearchResponseBodyType> => {
-    try {
-        const client = await getSearchClient()
-        console.log(qVector, ' qVector')
-        if (typeof qVector[0] !== 'number') {
-            throw new Error('qVector is not a number')
-        }
-
-        const filter_conditions = {
-            "bool": {
-                "must": [
-                    { "term": { "userId": userId } },
-                    { "range": { "start_date": { "gte": startDate, "lte": endDate } } },
-                    { "range": { "end_date": { "gte": startDate, "lte": endDate } } }
-                ]
-            }
-        }
-
-        const response = await client.search({
-            index: openAllEventIndex,
-            body: {
-                "size": 10,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": filter_conditions
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": openAllEventVectorName,
-                                "query_value": qVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                sort: [
-                    {
-                        start_date: {
-                            order: "asc"
-                        }
-                    }
-                ],
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
-    } catch (e) {
-        console.log(e, ' unable to search data')
-    }
-}
-
-
-export const createTrainEventIndexInOpenSearch = async () => {
-    try {
-        const client = await getSearchClient()
-
-        const response = await client.indices.create({
-            index: openTrainEventIndex,
-            body: {
-                "mappings": {
-                    "properties": {
-                        [openTrainEventVectorName]: {
-                            "type": "knn_vector",
-                            "dimension": openTrainEventVectorDimensions,
-                        },
-                        "userId": {
-                            "type": "keyword"
-                        }
-                    }
-                }
-            },
-        });
-
-        console.log('Creating index:');
-        console.log(response.body, ' created index')
-    } catch (e) {
-        console.log(e, ' unable to create index')
-    }
-}
+// Note: listAllEventWithEventOpenSearch is consolidated into searchMultipleEventsByVectorWithDatesLanceDb
 
 export const putDataInTrainEventIndexInOpenSearch = async (
     id: string,
@@ -648,172 +448,99 @@ export const putDataInTrainEventIndexInOpenSearch = async (
     }
 }
 
-export const getVectorInAllEventIndexInOpenSearch = async (
-    id: string,
-) => {
+export const getEventVectorFromLanceDb = async (id: string): Promise<number[] | null> => {
     try {
-        const client = await getSearchClient()
-
-        const {body }: { body: OpenSearchGetResponseBodyType} = await client.get({
-            index: openAllEventIndex,
-            id,
-            _source_includes: [openAllEventVectorName],
-        })
-        
-        const vector = body._source[openAllEventVectorName]
-        return vector
+        const event = await getEventFromLanceDbById(id);
+        return event?.vector || null;
     } catch (e) {
-        console.log(e, ' unable to get vector inside getVectorInAllEventIndexInOpenSearch')
+        console.error(`Error fetching event vector for ID ${id} from LanceDB:`, e);
+        return null;
     }
 }
 
-export const putDataInAllEventIndexInOpenSearch = async (
+export const upsertEventToLanceDb = async (
     id: string,
     vector: number[],
     userId: string,
     start_date: string,
     end_date: string,
+    title: string, // Assuming title is a good candidate for raw_event_text for now
+    // Consider passing the actual text used for vector generation if different
 ) => {
     try {
-        const client = await getSearchClient()
-        const response = await client.index({
+        const eventEntry: LanceDbEventSchema = {
             id,
-            index: openAllEventIndex,
-            body: { [openAllEventVectorName]: vector, userId, start_date, end_date },
-            refresh: true
-        })
-        console.log('Adding document:')
-        console.log(response.body)
+            userId,
+            vector,
+            start_date,
+            end_date,
+            raw_event_text: title, // Or a more comprehensive text source
+            title: title,
+            last_modified: dayjs().toISOString(),
+        };
+        await upsertEvents([eventEntry]);
+        console.log(`Event ${id} upserted to LanceDB.`);
     } catch (e) {
-        console.log(e, ' unable to put data into search')
+        console.error(`Error upserting event ${id} to LanceDB:`, e);
+        throw e;
     }
 }
 
-export const createAllEventIndexInOpenSearch = async () => {
+export const deleteEventFromLanceDb = async (id: string): Promise<void> => {
     try {
-        const client = await getSearchClient()
-
-        const response = await client.indices.create({
-            index: openAllEventIndex,
-            body: {
-                "mappings": {
-                    "properties": {
-                        [openAllEventVectorName]: {
-                            "type": "knn_vector",
-                            "dimension": openAllEventVectorDimensions,
-                        },
-                        "userId": {
-                            "type": "keyword"
-                        },
-                        "start_date": {
-                            "type": "date"
-                        },
-                        "end_date": {
-                            "type": "date"
-                        }
-                    }
-                }
-            },
-        });
-
-        console.log('Creating index:');
-        console.log(response.body, ' created index')
+        await deleteEventsByIds([id]);
+        console.log(`Event ${id} deleted from LanceDB.`);
     } catch (e) {
-        console.log(e, ' unable to create index')
+        console.error(`Error deleting event ${id} from LanceDB:`, e);
+        throw e;
     }
 }
 
-export const deleteDocInAllEventIndexInOpenSearch = async (
-    id: string,
-) => {
+export const deleteTrainingDataFromLanceDb = async (id: string): Promise<void> => {
     try {
-        const client = await getSearchClient()
-        const response = await client.delete({
-            id,
-            index: openAllEventIndex,
-        })
-        console.log('Deleting document in search:')
-        console.log(response.body)
+        await deleteTrainingEventsByIds([id]);
+        console.log(`Training data for ID ${id} deleted from LanceDB.`);
     } catch (e) {
-        console.log(e, ' unable to delete doc')
+        console.error(`Error deleting training data for ID ${id} from LanceDB:`, e);
+        throw e;
     }
 }
 
-export const deleteDocInTrainEventIndexInOpenSearch = async (
-    id: string,
-) => {
-    try {
-        const client = await getSearchClient()
-        const response = await client.delete({
-            id,
-            index: openTrainEventIndex,
-        })
-        console.log('Deleting document in search:')
-        console.log(response.body)
-    } catch (e) {
-        console.log(e, ' unable to delete doc')
-    }
-}
-
-export const updateDocInTrainEventIndexInOpenSearch = async (
+export const updateTrainingDataInLanceDb = async (
     id: string,
     vector: number[],
     userId: string,
+    source_event_text: string, // Required for new upsert logic
 ) => {
     try {
-        const client = await getSearchClient()
-        const response = await client.update({
-            index: openTrainEventIndex,
+        const trainingEntry: LanceDbTrainingEventSchema = {
             id,
-            body: { [openTrainEventVectorName]: vector, userId },
-            refresh: true
-        })
-        console.log('Updating document:')
-        console.log(response.body)
+            userId,
+            vector,
+            source_event_text,
+            created_at: dayjs().toISOString(), // LanceDB upsert will update if exists based on ID
+        };
+        await upsertTrainingEvents([trainingEntry]);
+        console.log(`Training data for ID ${id} updated/upserted in LanceDB.`);
     } catch (e) {
-        console.log(e, ' unable to update docs')
+        console.error(`Error updating training data for ID ${id} in LanceDB:`, e);
+        throw e;
     }
 }
 
-export const searchTrainEventIndexInOpenSearch = async (
+export const searchTrainingDataFromLanceDb = async (
     userId: string,
     searchVector: number[],
-): Promise<OpenSearchResponseBodyType> => {
+): Promise<LanceDbTrainingEventSchema | null> => {
     try {
-        const client = await getSearchClient()
-        const response = await client.search({
-            index: openTrainEventIndex,
-            body: {
-                "size": 1,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": {
-                                    "term": {
-                                        userId,
-                                    }
-                                }
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": openTrainEventVectorName,
-                                "query_value": searchVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
+        const results = await searchTrainingEvents(searchVector, 1, `userId = '${userId.replace(/'/g, "''")}'`);
+        if (results && results.length > 0) {
+            return results[0];
+        }
+        return null;
     } catch (e) {
-        console.log(e, ' unable to search data')
+        console.error('Error searching training data in LanceDB:', e);
+        throw e;
     }
 }
 

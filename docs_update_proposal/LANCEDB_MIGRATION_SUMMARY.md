@@ -66,6 +66,75 @@ This document summarizes the migration from OpenSearch to LanceDB for vector sto
         `{ message: 'This OpenSearch event search service is deprecated and no longer operational. Please use the new LanceDB-based event matching service.' }`
     *   Unused imports (like `dayjs`) were removed from these handler files.
 
+### 2.4. Shared LanceDB Service (`_utils/lancedb_service.ts`)
+
+To support the migration of multiple services and ensure consistent interaction with LanceDB, a shared utility service was created at `atomic-docker/project/functions/_utils/lancedb_service.ts`.
+
+*   **Purpose:** Provides centralized LanceDB connection management, schema definitions, and generic CRUD (Create, Read, Update, Delete) operations.
+*   **Connection Management:** Implements a singleton pattern for LanceDB connections using `vectordb.connect()`. The LanceDB data path defaults to `/data/lancedb`.
+*   **Schema Definitions:**
+    *   `EventSchema`: For general event data, including `id`, `userId`, `vector`, `start_date`, `end_date`, `raw_event_text`, `title`, `calendarId`, `last_modified`. Used for general event search.
+    *   `TrainingEventSchema`: For "training" data used by services like `features-apply`, `_chat`, and `schedule-event`. Includes `id` (source event ID), `userId`, `vector`, `source_event_text`, `created_at`.
+*   **Table Management:**
+    *   Manages two primary tables: `events_data` (for `EventSchema`) and `training_data` (for `TrainingEventSchema`).
+    *   Includes a `getOrCreateTable` function that can initialize these tables if they don't exist, using sample data to help LanceDB infer schemas and set up vector indexing.
+*   **CRUD Operations:**
+    *   Provides generic functions like `upsertItems`, `deleteItemsByIds`, `searchTableByVector`, and `getItemById`.
+    *   Offers specific wrapper functions for easier interaction with the `events_data` and `training_data` tables (e.g., `upsertEvents`, `searchEvents`, `upsertTrainingEvents`, `searchTrainingEvents`).
+
+### 2.5. Migration of `features-apply` Service
+
+The `features-apply` service, which uses a vector-based training mechanism to learn from past events and apply their properties to new ones, was migrated from OpenSearch to LanceDB.
+
+*   **Core Logic Location:** `_applyFeaturesWorker_/index.ts` with helpers in `_libs/api-helper.ts`.
+*   **LanceDB Integration:**
+    *   `_libs/api-helper.ts` was refactored to remove all OpenSearch client logic and direct OpenSearch calls.
+    *   It now imports and uses functions from the shared `_utils/lancedb_service.ts`:
+        *   `searchTrainingEvents` (replaces `searchTrainEventIndexInOpenSearch`) for finding similar training event vectors in the `training_data` table.
+        *   `getEventById` (from `lancedb_service`, used by a new `getEventVectorById` helper) to fetch event vectors from the `events_data` table (assuming vectors of processed events are stored there).
+        *   `deleteTrainingEventsByIds` (replaces `deleteDocInTrainEventIndexInOpenSearch`) for removing entries from `training_data`.
+        *   A new `addTrainingData` helper was added, utilizing `upsertTrainingEvents` to save new entries to the `training_data` table when the system learns from a new event.
+    *   The worker (`_applyFeaturesWorker_/index.ts`) was updated to call these new/modified helper functions and to correctly handle the direct `TrainingEventSchema | null` or `EventSchema | null` return types instead of OpenSearch response objects.
+*   **Cleanup:** The local `_libs/types/OpenSearchResponseType.ts` file was removed.
+
+### 2.6. Migration of `_chat` Service
+
+The `_chat` service utilized OpenSearch for two main functionalities: general event vector search (for user queries like "find my meeting about X") and a training data mechanism similar to `features-apply`. Both have been migrated to LanceDB.
+
+*   **Core Logic Location:** Primarily in `_libs/api-helper.ts` for OpenSearch interactions, with various skill handlers (e.g., `_libs/skills/askCalendar/findEvent/api-helper.ts`) consuming these helpers.
+*   **LanceDB Integration (`_chat/_libs/api-helper.ts`):**
+    *   All OpenSearch client logic and direct OpenSearch functions were removed.
+    *   The file now imports and uses functions from `_utils/lancedb_service.ts`.
+    *   **General Event Search:**
+        *   Functions like `allEventOpenSearch`, `allEventWithDatesOpenSearch`, etc., were replaced with new functions (e.g., `searchSingleEventByVectorLanceDb`, `searchMultipleEventsByVectorWithDatesLanceDb`) that call `searchEvents` on the `events_data` table.
+        *   Vector storage for general events (`putDataInAllEventIndexInOpenSearch`) now uses `upsertEvents` into the `events_data` table.
+        *   Fetching a specific event's vector (`getVectorInAllEventIndexInOpenSearch`) now uses `getEventById` (from `lancedb_service`) and retrieves the vector from the `events_data` table.
+    *   **Training Data Mechanism:**
+        *   Functions managing the `openTrainEventIndex` (e.g., `searchTrainEventIndexInOpenSearch`, `putDataInTrainEventIndexInOpenSearch`) were replaced with equivalents using `searchTrainingEvents`, `upsertTrainingEvents`, and `deleteTrainingEventsByIds` on the `training_data` table.
+*   **Skill Handler Updates:**
+    *   Skill handlers, such as those in `_libs/skills/askCalendar/findEvent/`, `findEvents/`, and `nextEvent/`, were updated to call the new LanceDB-backed functions in `_chat/_libs/api-helper.ts`.
+    *   Their logic was adapted to handle the direct `LanceDbEventSchema[]` or `LanceDbEventSchema | null` return types.
+*   **Cleanup:** The local `_libs/types/OpenSearchResponseType.ts` file was removed.
+
+### 2.7. Migration of `schedule-event` Service
+
+The `schedule-event` service employs a training data mechanism, similar to `features-apply`, to apply learned event properties. This has been migrated to LanceDB.
+
+*   **Core Logic Location:** Worker files `_scheduleEventShortWorker_/index.ts` and `_scheduleEventWorker_/index.ts`, with helpers in `_libs/api-helper.ts`.
+*   **LanceDB Integration:**
+    *   `_libs/api-helper.ts` was refactored:
+        *   OpenSearch client and direct calls were removed.
+        *   It now uses functions from `_utils/lancedb_service.ts`:
+            *   `searchTrainingEvents` (replaces `searchTrainEventIndexInOpenSearch` and an older `searchData3`).
+            *   `getEventById` (used by a new `getEventVectorById` helper).
+            *   `deleteTrainingEventsByIds` (replaces `deleteDocInSearch3`).
+            *   A new `addTrainingData` helper (using `upsertTrainingEvents`) was added.
+    *   Both worker files (`_scheduleEventShortWorker_/index.ts` and `_scheduleEventWorker_/index.ts`) were updated to:
+        *   Import and use the new LanceDB-based helpers from their `api-helper.ts`.
+        *   Adapt to the `TrainingEventSchema | null` return type from searches.
+        *   Call `addTrainingData` to save new training entries.
+*   **Cleanup:** The local `_libs/types/OpenSearchResponseType.ts` file was removed.
+
 ## 3. Client-Side Updates (`app_build_docker`)
 
 *   **Constants Update:**
@@ -81,6 +150,7 @@ This document summarizes the migration from OpenSearch to LanceDB for vector sto
 *   **Modernized Search:** The new `lance-event-matcher` provides a clean, focused service for vector search.
 *   **Clear Deprecation:** The old `events-search` service is clearly marked as deprecated, preventing further use.
 *   **Foundation for AI:** The `lance-event-matcher` is designed with future AI agent integration in mind, allowing for more intelligent event processing beyond simple similarity search.
+*   **Centralized DB Logic:** The `_utils/lancedb_service.ts` provides a single source of truth for LanceDB interactions, reducing code duplication and improving maintainability.
 
 ## 5. AI Integration Details in `lance-event-matcher`
 

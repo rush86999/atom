@@ -7,8 +7,35 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 
 import _ from 'lodash'
-import { listEventsForUserGivenDates, listMeetingAssistAttendeesGivenMeetingId, listMeetingAssistEventsForAttendeeGivenDates, listMeetingAssistPreferredTimeRangesGivenMeetingId, listPreferredTimeRangesForEvent, listEventsForDate, convertMeetingAssistEventTypeToEventPlusType, processUserEventForCategoryDefaults, listCategoriesForEvent, processUserEventForCategoryDefaultsWithUserModifiedCategories, getEventFromPrimaryKey, processUserEventWithFoundPreviousEvent, processUserEventWithFoundPreviousEventWithUserModifiedCategories, getUserPreferences, processEventWithFoundPreviousEventWithoutCategories, listFutureMeetingAssists, meetingAttendeeCountGivenMeetingId, getMeetingAssist, generateNewMeetingEventForAttendee, createBufferTimeForNewMeetingEvent, createRemindersFromMinutesAndEvent, getGlobalCalendar, searchTrainEventIndexInOpenSearch, getVectorInAllEventIndexInOpenSearch, deleteDocInTrainEventIndexInOpenSearch } from '@features_apply/_libs/api-helper';
-import { EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType, MeetingAssistAttendeeType, RemindersForEventType, BufferTimeObjectType, CategoryType, MeetingAssistType, ReturnValueForEachFutureMeetingAssistType, ValuesToReturnForBufferEventsType } from '@features_apply/_libs/types';
+import {
+    listEventsForUserGivenDates,
+    listMeetingAssistAttendeesGivenMeetingId,
+    listMeetingAssistEventsForAttendeeGivenDates,
+    listMeetingAssistPreferredTimeRangesGivenMeetingId,
+    listPreferredTimeRangesForEvent,
+    listEventsForDate,
+    convertMeetingAssistEventTypeToEventPlusType,
+    processUserEventForCategoryDefaults,
+    listCategoriesForEvent,
+    processUserEventForCategoryDefaultsWithUserModifiedCategories,
+    getEventFromPrimaryKey,
+    processUserEventWithFoundPreviousEvent,
+    processUserEventWithFoundPreviousEventWithUserModifiedCategories,
+    getUserPreferences,
+    processEventWithFoundPreviousEventWithoutCategories,
+    listFutureMeetingAssists,
+    meetingAttendeeCountGivenMeetingId,
+    getMeetingAssist,
+    generateNewMeetingEventForAttendee,
+    createBufferTimeForNewMeetingEvent,
+    createRemindersFromMinutesAndEvent,
+    getGlobalCalendar,
+    searchTrainingDataByVector, // updated
+    getEventVectorById,         // updated
+    deleteTrainingDataById,     // updated
+    addTrainingData             // added
+} from '@features_apply/_libs/api-helper';
+import { EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType, MeetingAssistAttendeeType, RemindersForEventType, BufferTimeObjectType, CategoryType, MeetingAssistType, ReturnValueForEachFutureMeetingAssistType, ValuesToReturnForBufferEventsType, TrainingEventSchema } from '@features_apply/_libs/types'; // Added TrainingEventSchema
 import { ReturnValueForEachMeetingAssistType } from '@features_apply/_libs/types';
 
 import { processEventsForOptaPlanner } from '@features_apply/_libs/optaplanner/api-helper'
@@ -382,37 +409,46 @@ const processApplyFeatures = async (body: ScheduleAssistWithMeetingQueueBodyType
       
       // 1. get event
       const { userId } = event
-      // const text = `${event?.title || event?.summary}:${event?.notes}`
-      const vector = await getVectorInAllEventIndexInOpenSearch(event?.id)
+      const vector = await getEventVectorById(event?.id) // Use new function
       console.log(vector, ' vector')
 
       // 2. find closest event
-      const res = await searchTrainEventIndexInOpenSearch(userId, vector)
-      console.log(res, ' res from searchData')
-      const results = res?.hits?.hits?.[0]
-      console.log(results, ' results from searchData')
+      const trainingResult = await searchTrainingDataByVector(userId, vector) // Use new function
+      console.log(trainingResult, ' trainingResult from LanceDB')
 
       // validate results
-      if (!(results?._id) && !event?.userModifiedCategories) {
-        console.log('no results found')
+      if (!trainingResult?.id && !event?.userModifiedCategories) {
+        console.log('no trainingResult found and no user modified categories')
         // no previous event found use CategoryDefaults
         const {
           newEvent,
           newReminders,
-          newBufferTimes: newBufferTimes,
+          newBufferTimes,
         } = await processUserEventForCategoryDefaults(event, vector)
         console.log(newEvent, ' newEvent for processUserEventForCategoryDefaults')
         console.log(newReminders, ' newReminders for processUserEventForCategoryDefaults')
         userModifiedEvents.push(newEvent)
-        newModifiedReminders.push({
-          eventId: newEvent?.id,
-          reminders: newReminders,
-        })
-        newModifiedBufferTimes.push(newBufferTimes)
-      }
+        if (newReminders) {
+          newModifiedReminders.push({
+            eventId: newEvent?.id,
+            reminders: newReminders,
+          })
+        }
+        if (newBufferTimes) {
+          newModifiedBufferTimes.push(newBufferTimes)
+        }
+        // Add current event to training data as no similar past event was found
+        const newTrainingEntry: TrainingEventSchema = {
+          id: event.id,
+          userId: event.userId,
+          vector: vector,
+          source_event_text: `${event.title || event.summary}:${event.notes || ''}`,
+          created_at: dayjs().toISOString(),
+        };
+        await addTrainingData(newTrainingEntry);
 
-      if (!(results?._id) && event?.userModifiedCategories) {
-        console.log('no results found')
+      } else if (!trainingResult?.id && event?.userModifiedCategories) {
+        console.log('no trainingResult found but event has user modified categories')
         // no previous event found use user modified categories and category defaults
         const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
         console.log(categories, ' categories')
@@ -420,155 +456,131 @@ const processApplyFeatures = async (body: ScheduleAssistWithMeetingQueueBodyType
           const {
             newEvent,
             newReminders,
-            newBufferTimes: newBufferTimes,
+            newBufferTimes,
           } = await processUserEventForCategoryDefaultsWithUserModifiedCategories(event, vector)
           console.log(newEvent, ' newEvent for processUserEventForCategoryDefaultsWithUserModifiedCategories')
           console.log(newReminders, ' newReminders for processUserEventForCategoryDefaultsWithUserModifiedCategories')
           userModifiedEvents.push(newEvent)
-          newModifiedReminders.push({
-            eventId: newEvent?.id,
-            reminders: newReminders,
-          })
-          newModifiedBufferTimes.push(newBufferTimes)
-        } else {
-          //  create new event datatype in elastic search
-          // await putDataInSearch(event?.id, vector, userId)
-          event.vector = vector
-          userModifiedEvents.push(event)
-        }
-      }
-
-      // previous event found use previous event to copy over values
-      if (results?._id && !event?.userModifiedCategories) {
-        // valdate as might be old deleted event
-        const previousEvent = await getEventFromPrimaryKey(results?._id)
-        
-        if (previousEvent?.id) {
-          const preferredTimeRanges = await listPreferredTimeRangesForEvent(results?._id)
-          previousEvent.preferredTimeRanges = preferredTimeRanges
-        }
-        
-        // there is no event found so change direction
-        if (!previousEvent) {
-          console.log(results?._id, 'results?._id inside !previousEvent results?._id && !event?.userModifiedCategories')
-          await deleteDocInTrainEventIndexInOpenSearch(results?._id)
-          if (!event?.userModifiedCategories) {
-            console.log('no results found')
-            // no previous event found use CategoryDefaults
-            const {
-              newEvent,
-              newReminders,
-              newBufferTimes: newBufferTimes,
-            } = await processUserEventForCategoryDefaults(event, vector)
-            console.log(newEvent, ' newEvent for processUserEventForCategoryDefaults')
-            console.log(newReminders, ' newReminders for processUserEventForCategoryDefaults')
-            userModifiedEvents.push(newEvent)
+          if (newReminders) {
             newModifiedReminders.push({
               eventId: newEvent?.id,
               reminders: newReminders,
             })
+          }
+          if (newBufferTimes) {
             newModifiedBufferTimes.push(newBufferTimes)
           }
-
+        } else {
+           // Add current event to training data as no similar past event was found and no categories to guide defaults
+          const newTrainingEntry: TrainingEventSchema = {
+            id: event.id,
+            userId: event.userId,
+            vector: vector,
+            source_event_text: `${event.title || event.summary}:${event.notes || ''}`,
+            created_at: dayjs().toISOString(),
+          };
+          await addTrainingData(newTrainingEntry);
+          event.vector = vector; // ensure vector is part of the event if pushed directly
+          userModifiedEvents.push(event);
+        }
+      } else if (trainingResult?.id && !event?.userModifiedCategories) {
+        // previous event found (via trainingResult) use previous event to copy over values
+        const previousEventIdFromTraining = trainingResult.id; // This ID is from the training data, assumed to be the googleEventId of a previous similar event.
+        const previousEvent = await getEventFromPrimaryKey(previousEventIdFromTraining)
+        
+        if (previousEvent?.id) {
+          const preferredTimeRanges = await listPreferredTimeRangesForEvent(previousEventIdFromTraining)
+          previousEvent.preferredTimeRanges = preferredTimeRanges
+        }
+        
+        if (!previousEvent) {
+          console.log(previousEventIdFromTraining, 'trainingResult.id inside !previousEvent && !event?.userModifiedCategories. This means the linked event was deleted.')
+          await deleteTrainingDataById(trainingResult.id) // Delete stale training entry
+          // Fallback to category defaults as the "similar" event is gone
+          const {
+            newEvent,
+            newReminders,
+            newBufferTimes,
+          } = await processUserEventForCategoryDefaults(event, vector)
+          userModifiedEvents.push(newEvent)
+          if (newReminders) { newModifiedReminders.push({ eventId: newEvent?.id, reminders: newReminders }) }
+          if (newBufferTimes) { newModifiedBufferTimes.push(newBufferTimes) }
+           // Add current event to training data as the previously similar one was stale
+          const newTrainingEntry: TrainingEventSchema = {
+            id: event.id,
+            userId: event.userId,
+            vector: vector,
+            source_event_text: `${event.title || event.summary}:${event.notes || ''}`,
+            created_at: dayjs().toISOString(),
+          };
+          await addTrainingData(newTrainingEntry);
         } else {
           const {
             newEvent,
             newReminders,
-            newBufferTimes: newBufferTimes,
-          } = await processUserEventWithFoundPreviousEvent(event, results?._id)
-          console.log(newEvent, ' newEvent for processUserEventWithFoundPreviousEvent')
-          console.log(newReminders, ' newReminders for processUserEventWithFoundPreviousEvent')
+            newBufferTimes,
+          } = await processUserEventWithFoundPreviousEvent(event, previousEventIdFromTraining)
           userModifiedEvents.push(newEvent)
-          newModifiedReminders.push({
-            eventId: newEvent?.id,
-            reminders: newReminders,
-          })
-          newModifiedBufferTimes.push(newBufferTimes)
+          if (newReminders) { newModifiedReminders.push({ eventId: newEvent?.id, reminders: newReminders }) }
+          if (newBufferTimes) { newModifiedBufferTimes.push(newBufferTimes) }
         }
-      }
-
-      if (results?._id && event?.userModifiedCategories) {
-        // valdate as might be old deleted event
-        const previousEvent = await getEventFromPrimaryKey(results?._id)
+      } else if (trainingResult?.id && event?.userModifiedCategories) {
+        const previousEventIdFromTraining = trainingResult.id;
+        const previousEvent = await getEventFromPrimaryKey(previousEventIdFromTraining)
         if (previousEvent?.id) {
-          const preferredTimeRanges = await listPreferredTimeRangesForEvent(results?._id)
+          const preferredTimeRanges = await listPreferredTimeRangesForEvent(previousEventIdFromTraining)
           previousEvent.preferredTimeRanges = preferredTimeRanges
         }
         
-
         if (!previousEvent) {
-          console.log(previousEvent, 'previousEvent - old deleted event in doc search')
-          await deleteDocInTrainEventIndexInOpenSearch(results?._id)
-
-          if (event?.userModifiedCategories) {
-            console.log(results?._id, ' results?._id inside !previousEvent results?._id && event?.userModifiedCategories')
-            console.log('no results found')
-            // no previous event found use user modified categories and category defaults
-            const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
-            console.log(categories, ' categories')
-            if (categories?.[0]?.id) {
-              const {
-                newEvent,
-                newReminders,
-                newBufferTimes: newBufferTimes,
-              } = await processUserEventForCategoryDefaultsWithUserModifiedCategories(event, vector)
-              console.log(newEvent, ' newEvent for processUserEventForCategoryDefaultsWithUserModifiedCategories')
-              console.log(newReminders, ' newReminders for processUserEventForCategoryDefaultsWithUserModifiedCategories')
-              userModifiedEvents.push(newEvent)
-              newModifiedReminders.push({
-                eventId: newEvent?.id,
-                reminders: newReminders,
-              })
-              newModifiedBufferTimes.push(newBufferTimes)
-            } else {
-              //  create new event datatype in elastic search
-              // await putDataInSearch(event?.id, vector, userId)
-              event.vector = vector
-              userModifiedEvents.push(event)
-            }
-          }
-        } else {
-          // const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
+          console.log(previousEventIdFromTraining, 'trainingResult.id inside !previousEvent && event?.userModifiedCategories. This means the linked event was deleted.')
+          await deleteTrainingDataById(trainingResult.id) // Delete stale training entry
+          // Fallback to user modified categories as the "similar" event is gone
           const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
-          console.log(categories, ' categories')
           if (categories?.[0]?.id) {
             const {
               newEvent,
               newReminders,
-              newBufferTimes: newBufferTimes,
-            } = await processUserEventWithFoundPreviousEventWithUserModifiedCategories(event, results?._id)
-            console.log(newEvent, ' newEvent for processUserEventWithFoundPreviousEventWithUserModifiedCategories')
-            console.log(newReminders, ' newReminders for processUserEventWithFoundPreviousEventWithUserModifiedCategories')
+              newBufferTimes,
+            } = await processUserEventForCategoryDefaultsWithUserModifiedCategories(event, vector)
             userModifiedEvents.push(newEvent)
-            newModifiedReminders.push({
-              eventId: newEvent?.id,
-              reminders: newReminders,
-            })
-            newModifiedBufferTimes.push(newBufferTimes)
+            if (newReminders) { newModifiedReminders.push({ eventId: newEvent?.id, reminders: newReminders }) }
+            if (newBufferTimes) { newModifiedBufferTimes.push(newBufferTimes) }
           } else {
-            console.log('no categories found')
-            // get previous event
-            const previousEvent = await getEventFromPrimaryKey(results?._id)
-            const preferredTimeRanges = await listPreferredTimeRangesForEvent(results?._id)
-            previousEvent.preferredTimeRanges = preferredTimeRanges
-
-            if (!previousEvent?.id) {
-              throw new Error('previousEvent is missing')
-            }
+            // Add current event to training data as the previously similar one was stale and no categories to guide
+            const newTrainingEntry: TrainingEventSchema = {
+              id: event.id,
+              userId: event.userId,
+              vector: vector,
+              source_event_text: `${event.title || event.summary}:${event.notes || ''}`,
+              created_at: dayjs().toISOString(),
+            };
+            await addTrainingData(newTrainingEntry);
+            event.vector = vector; // ensure vector is part of the event
+            userModifiedEvents.push(event);
+          }
+        } else {
+          const categories: CategoryType[] = await listCategoriesForEvent(event?.id)
+          if (categories?.[0]?.id) {
+            const {
+              newEvent,
+              newReminders,
+              newBufferTimes,
+            } = await processUserEventWithFoundPreviousEventWithUserModifiedCategories(event, previousEventIdFromTraining)
+            userModifiedEvents.push(newEvent)
+            if (newReminders) { newModifiedReminders.push({ eventId: newEvent?.id, reminders: newReminders }) }
+            if (newBufferTimes) { newModifiedBufferTimes.push(newBufferTimes) }
+          } else {
+            // No categories, but a previous event was found.
             const userPreferences = await getUserPreferences(userId)
-
             const {
               newModifiedEvent: newModifiedEvent1,
               newReminders: newReminders1,
               newBufferTimes: newTimeBlocking1,
             } = await processEventWithFoundPreviousEventWithoutCategories(previousEvent, event, userPreferences, userId)
-
             userModifiedEvents.push(newModifiedEvent1)
-            newModifiedReminders.push({
-              eventId: newModifiedEvent1?.id,
-              reminders: newReminders1,
-            })
-            newModifiedBufferTimes.push(newTimeBlocking1)
+            if (newReminders1) { newModifiedReminders.push({ eventId: newModifiedEvent1?.id, reminders: newReminders1 }) }
+            if (newTimeBlocking1) { newModifiedBufferTimes.push(newTimeBlocking1) }
           }
         }
       }

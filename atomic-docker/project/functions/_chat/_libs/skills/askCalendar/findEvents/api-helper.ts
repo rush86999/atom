@@ -1,9 +1,10 @@
 import QueryCalendarExtractedJSONType from "@chat/_libs/datetime/QueryCalendarExtractedDateJSONType"
 import UserInputToJSONType from "@chat/_libs/types/UserInputToJSONType"
 import { QueryCalendarExtractedAttributesType } from "@chat/_libs/skills/askCalendar/types"
-import { allEventsWithDatesOpenSearch, convertEventTitleToOpenAIVector, extractAttributesNeededFromUserInput, extrapolateEndDateFromJSONData, extrapolateStartDateFromJSONData, generateAssistantMessageFromAPIResponseForUserQuery, generateAssistantMessageToRequestUserForMissingFields, generateJSONDataFromUserInput, generateMissingFieldsJSONDataFromUserInput, generateMissingFieldsQueryDateFromUserInput, generateQueryDateFromUserInput } from "@chat/_libs/api-helper"
+import { searchMultipleEventsByVectorWithDatesLanceDb, convertEventTitleToOpenAIVector, extractAttributesNeededFromUserInput, extrapolateEndDateFromJSONData, extrapolateStartDateFromJSONData, generateAssistantMessageFromAPIResponseForUserQuery, generateAssistantMessageToRequestUserForMissingFields, generateJSONDataFromUserInput, generateMissingFieldsJSONDataFromUserInput, generateMissingFieldsQueryDateFromUserInput, generateQueryDateFromUserInput } from "@chat/_libs/api-helper" // Updated import
 import { QueryEventsType } from "./types"
 import { dayjs } from "@chat/_libs/datetime/date-utils"
+import { EventSchema as LanceDbEventSchema } from '@functions/_utils/lancedb_service'; // Added import
 import { listSortedObjectsForUserGivenDatesAndAttributes } from "@chat/_libs/skills/askCalendar/api-helper"
 import _ from "lodash"
 import OpenAI from "openai"
@@ -34,12 +35,11 @@ export const finalStepQueryEvents = async (
         const eventIds: string[] = []
 
         if (searchVector?.length > 0) {
-            const res = await allEventsWithDatesOpenSearch(body?.userId, searchVector, windowStartDate, windowEndDate)
+            const searchResults = await searchMultipleEventsByVectorWithDatesLanceDb(body?.userId, searchVector, windowStartDate, windowEndDate); // Updated call
 
-            for (const hit of res?.hits?.hits) {
-
-                if (hit?._id) {
-                    eventIds.push(hit?._id)
+            for (const event of searchResults) { // Iterate over LanceDbEventSchema[]
+                if (event?.id) {
+                    eventIds.push(event.id); // Use event.id
                 }
             }
         }

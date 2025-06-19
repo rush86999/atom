@@ -8,8 +8,32 @@ import utc from 'dayjs/plugin/utc'
 
 import { MessageQueueType } from '@schedule_event/_libs/types/scheduleEventShortWorker/types';
 import _ from 'lodash'
-import { listEventsForUserGivenDates, listMeetingAssistAttendeesGivenMeetingId, listMeetingAssistEventsForAttendeeGivenDates, listMeetingAssistPreferredTimeRangesGivenMeetingId, listPreferredTimeRangesForEvent, processEventsForOptaPlanner, listEventsForDate, convertMeetingAssistEventTypeToEventPlusType, processUserEventForCategoryDefaults, listCategoriesForEvent, processUserEventForCategoryDefaultsWithUserModifiedCategories, getEventFromPrimaryKey, deleteDocInSearch3, processUserEventWithFoundPreviousEvent, processUserEventWithFoundPreviousEventWithUserModifiedCategories, getUserPreferences, processEventWithFoundPreviousEventWithoutCategories, searchTrainEventIndexInOpenSearch, getVectorInAllEventIndexInOpenSearch } from '@schedule_event/_libs/api-helper';
-import { EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType, MeetingAssistAttendeeType, RemindersForEventType, BufferTimeObjectType, CategoryType } from '@schedule_event/_libs/types';
+import {
+    listEventsForUserGivenDates,
+    listMeetingAssistAttendeesGivenMeetingId,
+    listMeetingAssistEventsForAttendeeGivenDates,
+    listMeetingAssistPreferredTimeRangesGivenMeetingId,
+    listPreferredTimeRangesForEvent,
+    processEventsForOptaPlanner,
+    listEventsForDate,
+    convertMeetingAssistEventTypeToEventPlusType,
+    processUserEventForCategoryDefaults,
+    listCategoriesForEvent,
+    processUserEventForCategoryDefaultsWithUserModifiedCategories,
+    getEventFromPrimaryKey,
+    // deleteDocInSearch3, // Replaced
+    processUserEventWithFoundPreviousEvent,
+    processUserEventWithFoundPreviousEventWithUserModifiedCategories,
+    getUserPreferences,
+    processEventWithFoundPreviousEventWithoutCategories,
+    // searchTrainEventIndexInOpenSearch, // Replaced
+    // getVectorInAllEventIndexInOpenSearch, // Replaced
+    searchTrainingDataByVector, // Added
+    getEventVectorById, // Added
+    deleteTrainingDataById, // Added
+    addTrainingData // Added
+} from '@schedule_event/_libs/api-helper';
+import { EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType, MeetingAssistAttendeeType, RemindersForEventType, BufferTimeObjectType, CategoryType, TrainingEventSchema } from '@schedule_event/_libs/types'; // Added TrainingEventSchema
 import { ReturnValueForEachMeetingAssistType } from '@schedule_event/_libs/types';
 import { kafkaScheduleEventGroupId, kafkaScheduleShortEventTopic } from '../_libs/constants'
 import { Kafka, logLevel } from 'kafkajs'

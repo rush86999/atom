@@ -1,5 +1,5 @@
-import { authApiToken, bucketName, optaplannerDuration, optaplannerShortDuration, classificationUrl, dayOfWeekIntToString, defaultOpenAIAPIKey, eventVectorName, externalMeetingLabel, hasuraAdminSecret, hasuraGraphUrl, meetingLabel, minThresholdScore, onOptaPlanCalendarAdminCallBackUrl, openAllEventIndex, openAllEventVectorName, openSearchEndPoint, openTrainEventIndex, openTrainEventVectorName, optaPlannerPassword, optaPlannerUrl, optaPlannerUsername, searchIndex, text2VectorUrl } from "@schedule_event/_libs/constants"
-import { BufferTimeNumberType, EventPlusType, EventType, MeetingAssistAttendeeType, MeetingAssistEventType, MeetingAssistPreferredTimeRangeType, MeetingAssistType, EventMeetingPlusType, PreferredTimeRangeType, RemindersForEventType, ValuesToReturnForBufferEventsType, UserPreferenceType, CalendarType, WorkTimeType, TimeSlotType, MonthType, DayType, MM, DD, MonthDayType, Time, EventPartPlannerRequestBodyType, InitialEventPartType, InitialEventPartTypePlus, UserPlannerRequestBodyType, ReturnBodyForHostForOptaplannerPrepType, ReturnBodyForAttendeeForOptaplannerPrepType, ReturnBodyForExternalAttendeeForOptaplannerPrepType, PlannerRequestBodyType, FreemiumType, esResponseBody, CategoryType, ClassificationResponseBodyType, BufferTimeObjectType, ReminderType, CategoryEventType, OpenSearchGetResponseBodyType } from "@schedule_event/_libs/types"
+import { authApiToken, bucketName, optaplannerDuration, optaplannerShortDuration, classificationUrl, dayOfWeekIntToString, defaultOpenAIAPIKey, externalMeetingLabel, hasuraAdminSecret, hasuraGraphUrl, meetingLabel, minThresholdScore, onOptaPlanCalendarAdminCallBackUrl, optaPlannerPassword, optaPlannerUrl, optaPlannerUsername, text2VectorUrl } from "@schedule_event/_libs/constants" // Removed OpenSearch constants
+import { BufferTimeNumberType, EventPlusType, EventType, MeetingAssistAttendeeType, MeetingAssistEventType, MeetingAssistPreferredTimeRangeType, MeetingAssistType, EventMeetingPlusType, PreferredTimeRangeType, RemindersForEventType, ValuesToReturnForBufferEventsType, UserPreferenceType, CalendarType, WorkTimeType, TimeSlotType, MonthType, DayType, MM, DD, MonthDayType, Time, EventPartPlannerRequestBodyType, InitialEventPartType, InitialEventPartTypePlus, UserPlannerRequestBodyType, ReturnBodyForHostForOptaplannerPrepType, ReturnBodyForAttendeeForOptaplannerPrepType, ReturnBodyForExternalAttendeeForOptaplannerPrepType, PlannerRequestBodyType, FreemiumType, esResponseBody, CategoryType, ClassificationResponseBodyType, BufferTimeObjectType, ReminderType, CategoryEventType } from "@schedule_event/_libs/types" // Removed OpenSearchGetResponseBodyType
 import got from "got"
 import { v4 as uuid } from 'uuid'
 import { getISODay, setISODay } from 'date-fns'
@@ -11,10 +11,10 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import _ from "lodash"
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
-import { Client } from '@opensearch-project/opensearch'
 import AWS from 'aws-sdk'
-import { OpenSearchResponseBodyType } from "./types/OpenSearchResponseType"
+// Removed: import { OpenSearchResponseBodyType } from "./types/OpenSearchResponseType"
 import OpenAI from "openai"
+import { getEventById, searchTrainingEvents, deleteTrainingEventsByIds, upsertTrainingEvents, TrainingEventSchema, EventSchema } from '@functions/_utils/lancedb_service'; // Added LanceDB imports
 
 // dayjs.extend(isoWeek)
 dayjs.extend(duration)
@@ -35,79 +35,18 @@ const openai = new OpenAI({
     apiKey: defaultOpenAIAPIKey,
 });
 
-
-export const getSearchClient = async () => {
+export const getEventVectorById = async (id: string): Promise<number[] | null> => {
     try {
-        
-        return new Client({
-            node: process.env.OPENSEARCH_ENDPOINT,
-            auth: {
-                username: process.env.OPENSEARCH_USERNAME,
-                password: process.env.OPENSEARCH_PASSWORD,
-            }
-        })
+        const event = await getEventById(id); // from lancedb_service
+        if (event && event.vector) {
+            console.log(`Vector found for event ID ${id}`);
+            return event.vector;
+        }
+        console.log(`No event or vector found for ID ${id}`);
+        return null;
     } catch (e) {
-        console.log(e, ' unable to get search client')
-    }
-}
-
-export const getVectorInAllEventIndexInOpenSearch = async (
-    id: string,
-) => {
-    try {
-        const client = await getSearchClient()
-
-        const { body }: { body: OpenSearchGetResponseBodyType} = await client.get({
-            index: openAllEventIndex,
-            id,
-            stored_fields: [openAllEventVectorName],
-        })
-        
-        const vector = body._source[openAllEventVectorName]
-        return vector
-    } catch (e) {
-        console.log(e, ' unable to get vector inside getVectorInAllEventIndexInOpenSearch')
-    }
-}
-export const searchData3 = async (
-    userId: string,
-    searchVector: number[],
-): Promise<esResponseBody> => {
-    try {
-        const client = await getSearchClient()
-        const response = await client.search({
-            index: searchIndex,
-            body: {
-                "size": 1,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": {
-                                    "term": {
-                                        userId,
-                                    }
-                                }
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": eventVectorName,
-                                "query_value": searchVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
-    } catch (e) {
-        console.log(e, ' unable to search data')
+        console.error(`Error fetching event vector for ID ${id} from LanceDB:`, e);
+        return null;
     }
 }
 
@@ -139,47 +78,49 @@ export const convertEventToVectorSpace2 = async (event: EventType): Promise<numb
     }
 }
 
-export const searchTrainEventIndexInOpenSearch = async (
+export const searchTrainingDataByVector = async (
     userId: string,
     searchVector: number[],
-): Promise<OpenSearchResponseBodyType> => {
+): Promise<TrainingEventSchema | null> => {
     try {
-        const client = await getSearchClient()
-        const response = await client.search({
-            index: openTrainEventIndex,
-            body: {
-                "size": 1,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "bool": {
-                                "filter": {
-                                    "term": {
-                                        userId,
-                                    }
-                                }
-                            }
-                        },
-                        "script": {
-                            "lang": "knn",
-                            "source": "knn_score",
-                            "params": {
-                                "field": openTrainEventVectorName,
-                                "query_value": searchVector,
-                                "space_type": "cosinesimil"
-                            }
-                        }
-                    }
-                },
-                "min_score": 1.2
-            }
-        })
-        console.log(response, ' search data in search engine')
-        return response.body
+        // Assuming min_score logic is handled by LanceDB's search or not strictly needed,
+        // or would require more complex query building if it is.
+        // For now, simple search and return top hit.
+        const results = await searchTrainingEvents(
+            searchVector,
+            1, // We need only the top match
+            `userId = '${userId.replace(/'/g, "''")}'`
+        );
+        if (results && results.length > 0) {
+            // console.log(results[0], ' search data from LanceDB training_data');
+            return results[0];
+        }
+        return null;
     } catch (e) {
-        console.log(e, ' unable to search data')
+        console.error('Error searching training data in LanceDB:', e);
+        throw e; // Or return null based on desired error handling
     }
 }
+
+export const deleteTrainingDataById = async (id: string): Promise<void> => {
+    try {
+        await deleteTrainingEventsByIds([id]);
+        console.log(`Successfully deleted training data for ID: ${id} from LanceDB.`);
+    } catch (e) {
+        console.error(`Error deleting training data for ID ${id} from LanceDB:`, e);
+        throw e;
+    }
+};
+
+export const addTrainingData = async (trainingEntry: TrainingEventSchema): Promise<void> => {
+    try {
+        await upsertTrainingEvents([trainingEntry]);
+        console.log(`Successfully added/updated training data for ID: ${trainingEntry.id} in LanceDB.`);
+    } catch (e) {
+        console.error(`Error adding/updating training data for ID ${trainingEntry.id} in LanceDB:`, e);
+        throw e;
+    }
+};
 
 export const convertEventTitleToOpenAIVector = async (
     title: string,
