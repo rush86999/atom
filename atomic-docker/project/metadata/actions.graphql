@@ -16,4 +16,19 @@ input ProcessAudioForNoteInput {
 
 type Mutation {
   processAudioForNote (input: ProcessAudioForNoteInput!): ProcessAudioForNoteOutput
+  attendLiveMeeting(input: AttendLiveMeetingInput!): AttendLiveMeetingOutput
+}
+
+input AttendLiveMeetingInput {
+  platform: String!
+  meeting_identifier: String!
+  notion_note_title: String!
+  notion_source: String!
+  linked_event_id: String
+}
+
+type AttendLiveMeetingOutput {
+  status: String!
+  note_id: String
+  error_message: String
 }

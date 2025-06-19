@@ -33,10 +33,33 @@ actions:
         - role: user
     comment: "Processes an audio file, transcribes it, summarizes it, and creates or updates a Notion note."
 
+  - name: attendLiveMeeting
+    definition:
+      kind: synchronous
+      # type: mutation # No longer needed here as it's inferred from actions.graphql
+      # args: # Args are now also inferred from actions.graphql if type is set there
+      #   - name: input # This was for older Hasura or if not using SDL first
+      #     type: AttendLiveMeetingInput!
+      # output_type: AttendLiveMeetingOutput # Also inferred
+      handler: '{{FUNCTIONS_BASE_URL}}/attend_live_meeting'
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "action_input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Instructs an agent to attend a live meeting (e.g., Zoom) and process audio for notes."
+
 custom_types:
   enums: []
   input_objects:
     - name: ProcessAudioForNoteInput
+    - name: AttendLiveMeetingInput
   objects:
     - name: ProcessAudioForNoteOutput
+    - name: AttendLiveMeetingOutput
   scalars: []
