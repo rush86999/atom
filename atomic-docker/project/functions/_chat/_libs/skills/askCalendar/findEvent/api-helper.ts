@@ -1,7 +1,19 @@
 import QueryCalendarExtractedJSONType from "@chat/_libs/datetime/QueryCalendarExtractedDateJSONType"
 import UserInputToJSONType from "@chat/_libs/types/UserInputToJSONType"
 import { QueryCalendarExtractedAttributesType } from "@chat/_libs/skills/askCalendar/types"
-import { allEventWithDatesOpenSearch, convertEventTitleToOpenAIVector, extractAttributesNeededFromUserInput, extrapolateEndDateFromJSONData, extrapolateStartDateFromJSONData, generateAssistantMessageFromAPIResponseForUserQuery, generateAssistantMessageToRequestUserForMissingFields, generateJSONDataFromUserInput, generateMissingFieldsJSONDataFromUserInput, generateMissingFieldsQueryDateFromUserInput, generateQueryDateFromUserInput } from "@chat/_libs/api-helper"
+import {
+    searchSingleEventByVectorWithDatesLanceDb, // Updated
+    convertEventTitleToOpenAIVector,
+    extractAttributesNeededFromUserInput,
+    extrapolateEndDateFromJSONData,
+    extrapolateStartDateFromJSONData,
+    generateAssistantMessageFromAPIResponseForUserQuery,
+    generateAssistantMessageToRequestUserForMissingFields,
+    generateJSONDataFromUserInput,
+    generateMissingFieldsJSONDataFromUserInput,
+    generateMissingFieldsQueryDateFromUserInput,
+    generateQueryDateFromUserInput
+} from "@chat/_libs/api-helper"
 import { listSortedObjectsForUserGivenDatesAndAttributes } from "../api-helper"
 import RequiredFieldsType from "@chat/_libs/types/RequiredFieldsType"
 import { dayjs } from "@chat/_libs/datetime/date-utils"
@@ -10,7 +22,8 @@ import { QueryEventType } from "./types"
 import _ from "lodash"
 import OpenAI from 'openai'
 import { AssistantMessageType, SkillMessageHistoryType } from "@chat/_libs/types/Messaging/MessagingTypes"
-import { OpenSearchResponseBodyType } from "@chat/_libs/types/OpenSearchResponseType"
+// import { OpenSearchResponseBodyType } from "@chat/_libs/types/OpenSearchResponseType" // Removed
+import { EventSchema as LanceDbEventSchema } from '@functions/_utils/lancedb_service'; // Added
 import { EventType } from "@chat/_libs/types/EventType"
 import { AttendeeType } from "@chat/_libs/types/AttendeeType"
 import { ConferenceType } from "@chat/_libs/types/ConferenceType"
@@ -38,14 +51,14 @@ export const finalStepQueryEvent = async (
             windowEndDate = dayjs().add(4, 'w').format()
         }
 
-        let res: OpenSearchResponseBodyType
+        let searchResult: LanceDbEventSchema | null = null; // Changed type
         let events: EventType[] = []
         if (searchVector?.length > 0) {
-            res = await allEventWithDatesOpenSearch(body.userId, searchVector, windowStartDate, windowEndDate)
+            searchResult = await searchSingleEventByVectorWithDatesLanceDb(body.userId, searchVector, windowStartDate, windowEndDate) // Updated call
         }
         
 
-        const id = res?.hits?.hits?.[0]?._id
+        const id = searchResult?.id; // Updated ID extraction
 
         let objectsWithAttributes: {
             events: EventType[];

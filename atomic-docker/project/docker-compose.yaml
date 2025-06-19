@@ -95,7 +95,6 @@ services:
       - minio
       - zookeeper
       - kafka1
-      - opensearch-node1
       - optaplanner
       - postgres
       - graphql-engine
@@ -122,9 +121,6 @@ services:
       KAFKA_PASSWORD: ${KAFKA_PASSWORD}
       HOST_IP: ${HOST_IP}
       HANDSHAKE_URL: https://${HOST_NAME}/v1/handshake
-      OPENSEARCH_USERNAME: ${OPENSEARCH_USERNAME}
-      OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
-      OPENSEARCH_ENDPOINT: http://opensearch-node1:9200
       ZOOM_PASS_KEY: ${ZOOM_PASS_KEY}
       ZOOM_CLIENT_ID: ${ZOOM_CLIENT_ID}
       ZOOM_SALT_FOR_PASS: ${ZOOM_SALT_FOR_PASS}
@@ -239,32 +235,6 @@ services:
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: '1'
     volumes:
       - ./kafka/kafka/server-jaas.conf:/opt/kafka/config/server-jaas.conf:ro,z
-  opensearch-node1:
-    image: opensearchproject/opensearch:1.2.0
-    container_name: opensearch-node1
-    environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch-node1
-      - discovery.seed_hosts=opensearch-node1
-      - cluster.initial_master_nodes=opensearch-node1
-      - bootstrap.memory_lock=true
-      - "DISABLE_INSTALL_DEMO_CONFIG=true" # Prevents execution of bundled demo script which installs demo certificates and security configurations to OpenSearch
-    ulimits: 
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - ./opensearch/logs:/usr/share/opensearch/logs
-      - functions_node_modules:/usr/share/opensearch/data
-      - ./opensearch/config:/usr/share/opensearch/config
-      - ./opensearch/certs/root-ca.pem:/usr/share/opensearch/config/root-ca.pem
-      - ./opensearch/certs/admin.pem:/usr/share/opensearch/config/admin.pem
-      - ./opensearch/certs/admin-key.pem:/usr/share/opensearch/config/admin-key.pem
-      - ./opensearch/certs/node1.pem:/usr/share/opensearch/config/node1.pem
-      - ./opensearch/certs/node1-key.pem:/usr/share/opensearch/config/node1-key.pem
-    ports:
-      - 9200:9200
-      - 9600:9600
   optaplanner:
     image: atomic-scheduler:latest
     restart: always
