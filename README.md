@@ -45,17 +45,9 @@
 
 
 ## Problem
-Scheduling and managing time is always a problem. Finding a time that works for everybody is a bigger problem. What if you can tell your calendar your time preferences and priorities for things you have to do every day? Now what if everyone on your team could do the same thing? Now finding a time becomes easier when everyone's priorities are accounted for. 
+Agents are closed source. It's time to create a truly open agent that works for you! Manage your time, tasks, notes and do research on your behalf. This is the starting template for a universal assistant. 
 
-Let all of this happen automatically for you and your team on a daily basis before work starts.
-
-All of this is possible with AI-enhanced vector search (using LanceDB) to create an intelligent memory for your calendar, alongside Autopilot.
-
-Memory + Decisions + Natural Conversation Interface => Perfect Time Management Assistant
-
-It will be easier than ever to teach, find, block, create, meet, schedule, update, and more with your calendar using ChatGPT. The goal is to allow a natural conversation with your calendar assistant for your end goals.
-
-Examples:
+Examples related to managing your time:
 
 1. "Schedule a meeting with [person] at [date and time] for [purpose]."
 2. "Remind me to follow up with [person] on [date] regarding [topic]."
@@ -68,8 +60,6 @@ Examples:
 9. "Are there any overlapping events on my calendar?"
 10. "Do I have any free time on Thursday?"
 
-
-For simple 1:1 meetings, you won't need calendly links anymore. Your recipient replies to you and Atomic, and a meeting gets scheduled for you automatically.
 
 ## Documentation
 
