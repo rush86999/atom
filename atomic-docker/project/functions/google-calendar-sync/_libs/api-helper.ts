@@ -4361,6 +4361,164 @@ export const generateBreakEventsForCalendarSync = async (
     }
 }
 
+// Define GoogleEventPatchAttributes interface
+interface GoogleEventPatchAttributes {
+  summary?: string;
+  description?: string;
+  location?: string;
+  status?: 'confirmed' | 'tentative' | 'cancelled';
+  transparency?: 'opaque' | 'transparent';
+  visibility?: 'default' | 'public' | 'private' | 'confidential';
+  colorId?: string;
+  conferenceData?: Record<string, any> | null;
+}
+
+export async function directUpdateGoogleEventAndHasura(
+    userId: string,
+    calendarId: string,
+    eventId: string, // This is Google's event ID
+    clientType: 'ios' | 'android' | 'web' | 'atomic-web',
+    updates: Partial<GoogleEventPatchAttributes>
+): Promise<boolean> {
+    if (!eventId || Object.keys(updates).length === 0) {
+        console.log('Missing eventId or empty updates object.');
+        return false;
+    }
+
+    try {
+        // 1. Prepare Google Calendar API patch request
+        const patchRequestBody: Partial<GoogleEventPatchAttributes> = { ...updates };
+
+        // 2. Get Google API Token
+        const token = await getGoogleAPIToken(userId, googleCalendarResource, clientType);
+        if (!token) {
+            console.error('Failed to get Google API token.');
+            return false;
+        }
+
+        // 3. Initialize Google Calendar API
+        const googleCalendar = google.calendar({
+            version: 'v3',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // 4. Call Google Calendar API events.patch
+        try {
+            console.log(`Patching Google event ${eventId} in calendar ${calendarId} with updates:`, JSON.stringify(patchRequestBody));
+            await googleCalendar.events.patch({
+                calendarId,
+                eventId,
+                requestBody: patchRequestBody,
+                conferenceDataVersion: 1, // Enable conference data modifications
+            });
+            console.log(`Google event ${eventId} patched successfully.`);
+        } catch (googleError) {
+            console.error(`Error patching Google event ${eventId}:`, googleError.response?.data || googleError.message);
+            return false;
+        }
+
+        // 5. Prepare Hasura Update Payload
+        const hasuraEventId = `${eventId}#${calendarId}`;
+        const hasuraUpdatePayload: any = {
+            updatedAt: new Date().toISOString(),
+        };
+
+        if (updates.summary !== undefined) hasuraUpdatePayload.summary = updates.summary;
+        if (updates.description !== undefined) hasuraUpdatePayload.notes = updates.description; // Map description to notes
+        if (updates.location !== undefined) {
+            // Assuming Event.location in Hasura is a simple text field for direct updates.
+            // If it's a JSONB type expecting { title: string }, then:
+            // hasuraUpdatePayload.location = { title: updates.location };
+            hasuraUpdatePayload.location = updates.location;
+        }
+        if (updates.status !== undefined) hasuraUpdatePayload.status = updates.status;
+        if (updates.transparency !== undefined) hasuraUpdatePayload.transparency = updates.transparency;
+        if (updates.visibility !== undefined) hasuraUpdatePayload.visibility = updates.visibility;
+        if (updates.colorId !== undefined) hasuraUpdatePayload.colorId = updates.colorId;
+
+        // Handle conferenceData
+        if (updates.conferenceData === null) {
+            hasuraUpdatePayload.hangoutLink = null;
+            hasuraUpdatePayload.conferenceId = null;
+            // Potentially clear other conference related fields in Hasura if they exist
+        } else if (updates.conferenceData) {
+            // Attempt to extract hangoutLink and conferenceId
+            // This is a simplified extraction. Google's conferenceData can be complex.
+            if (updates.conferenceData.entryPoints && Array.isArray(updates.conferenceData.entryPoints)) {
+                const videoEntryPoint = updates.conferenceData.entryPoints.find(ep => ep.entryPointType === 'video');
+                if (videoEntryPoint && videoEntryPoint.uri) {
+                    hasuraUpdatePayload.hangoutLink = videoEntryPoint.uri;
+                }
+            }
+            if (updates.conferenceData.conferenceId) {
+                 hasuraUpdatePayload.conferenceId = updates.conferenceData.conferenceId;
+            }
+             // If you store the full conferenceData object in Hasura (e.g., as JSONB)
+            // hasuraUpdatePayload.conferenceData = updates.conferenceData;
+        }
+
+        // Remove undefined fields from payload to avoid Hasura errors
+        Object.keys(hasuraUpdatePayload).forEach(key => {
+            if (hasuraUpdatePayload[key] === undefined) {
+                delete hasuraUpdatePayload[key];
+            }
+        });
+
+        if (Object.keys(hasuraUpdatePayload).length === 1 && hasuraUpdatePayload.updatedAt) {
+            console.log("No mappable fields to update in Hasura besides updatedAt.");
+            // Still proceed to update 'updatedAt' or return true if Google update was the only goal
+            // For now, let's proceed to update 'updatedAt'
+        }
+
+
+        // 6. Construct and execute Hasura update_Event_by_pk mutation
+        const operationName = 'UpdateEventByPkDirect';
+        const query = `
+            mutation ${operationName}($id: String!, $changes: Event_set_input!) {
+                update_Event_by_pk(pk_columns: {id: $id}, _set: $changes) {
+                    id
+                    updatedAt
+                }
+            }
+        `;
+        const variables = {
+            id: hasuraEventId,
+            changes: hasuraUpdatePayload,
+        };
+
+        console.log(`Updating Hasura event ${hasuraEventId} with payload:`, JSON.stringify(hasuraUpdatePayload));
+
+        const hasuraResponse: any = await got.post(hasuraGraphUrl, {
+            json: {
+                operationName,
+                query,
+                variables,
+            },
+            headers: {
+                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'Content-Type': 'application/json',
+                'X-Hasura-Role': 'admin', // Or appropriate user role
+            },
+            responseType: 'json',
+        }).json();
+
+        if (hasuraResponse.errors) {
+            console.error(`Error updating Hasura event ${hasuraEventId}:`, JSON.stringify(hasuraResponse.errors, null, 2));
+            // Google update was successful, but Hasura failed.
+            // May need a reconciliation strategy or specific error handling.
+            return false; // Indicate partial failure
+        }
+
+        console.log(`Hasura event ${hasuraEventId} updated successfully.`);
+        return true;
+
+    } catch (error) {
+        console.error('An unexpected error occurred in directUpdateGoogleEventAndHasura:', error);
+        return false;
+    }
+}
+
+
 export async function streamToString(stream: Readable): Promise<string> {
     return await new Promise((resolve, reject) => {
         const chunks: Uint8Array[] = [];
