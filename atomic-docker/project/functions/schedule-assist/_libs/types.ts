@@ -748,6 +748,35 @@ export type ReturnValueForEachMeetingAssistType = {
     externalAttendees?: MeetingAssistAttendeeType[],
 }
 
+export interface AttendeeModification {
+  email: string;
+  name?: string;
+}
+
+export interface NewConstraints {
+  newTimeWindowStartUTC?: string;
+  newTimeWindowEndUTC?: string;
+  addedAttendees?: AttendeeModification[];
+  removedAttendeeEmailsOrIds?: string[];
+  newDurationMinutes?: number;
+  newSummary?: string;
+  newDescription?: string;
+  newLocation?: string;
+  preferOriginalTimeIfPossible?: boolean;
+}
+
+export interface FetchedExternalPreference {
+  id: string;
+  meeting_assist_id: string;
+  meeting_assist_attendee_id: string;
+  preference_token: string;
+  token_expires_at: string; // TIMESTAMPTZ
+  preferred_start_datetime: string; // TIMESTAMPTZ
+  preferred_end_datetime: string; // TIMESTAMPTZ
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
 export type ReturnValueForEachFutureMeetingAssistType = {
     events: EventType[],
     meetingAssistEvents: MeetingAssistEventType[],

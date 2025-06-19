@@ -202,6 +202,10 @@ export type PostProcessQueueBodyForCalendarType = {
     oldEvents: EventPlusType[],
     oldAttendeeEvents?: MeetingAssistEventType[],
     hostTimezone: string,
+    // New fields for replan context
+    isReplan?: boolean;
+    originalGoogleEventId?: string;
+    originalCalendarId?: string;
 }
 
 export type MessageQueueType = {

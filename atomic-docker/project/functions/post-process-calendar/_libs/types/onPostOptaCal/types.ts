@@ -397,4 +397,7 @@ export type GetOptaPlanBodyForCalendarType = {
   oldEvents: EventPlusType[],
   oldAttendeeEvents: MeetingAssistEventType[],
   hostTimezone: string,
+  isReplan?: boolean,
+  originalGoogleEventId?: string,
+  originalCalendarId?: string,
 }

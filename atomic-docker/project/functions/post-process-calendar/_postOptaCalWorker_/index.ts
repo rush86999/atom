@@ -61,6 +61,10 @@ const processPostOptaPlanQueueBody = async (
     const oldEvents = body?.oldEvents
     const oldAttendeeExternalEvents = body?.oldAttendeeEvents
     const hostTimezone = body?.hostTimezone
+    // Extract new replan fields
+    const isReplan = body?.isReplan
+    const originalGoogleEventId = body?.originalGoogleEventId
+    const originalCalendarId = body?.originalCalendarId
 
     newReminders.forEach(r => console.log(r, ' newReminders before updateAllCalendarEventsPostPlanner'))
     const eventsToUpdate: EventPlannerResponseBodyType[][] = []
@@ -106,6 +110,10 @@ const processPostOptaPlanQueueBody = async (
       newReminders,
       breaks,
       oldAttendeeExternalEvents,
+      // Pass new replan fields
+      isReplan,
+      originalGoogleEventId,
+      originalCalendarId,
     )
   } catch (e) {
     console.log(e, ' processCalendarForOptaPlanner')
