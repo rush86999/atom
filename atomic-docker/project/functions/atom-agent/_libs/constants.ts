@@ -99,3 +99,7 @@ export const ATOM_NLU_MODEL_NAME = process.env.ATOM_NLU_MODEL_NAME || 'gpt-3.5-t
 // These must be set in the environment for GraphQL communication.
 export const HASURA_GRAPHQL_URL = process.env.HASURA_GRAPHQL_URL || '';
 export const HASURA_ADMIN_SECRET = process.env.HASURA_ADMIN_SECRET || '';
+
+// SerpApi API Key for Web Search
+// This must be set in the environment for real web search capabilities.
+export const ATOM_SERPAPI_API_KEY = process.env.ATOM_SERPAPI_API_KEY || '';
