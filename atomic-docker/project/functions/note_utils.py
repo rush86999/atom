@@ -35,6 +35,18 @@ else:
 
 # TODO: Configure Deepgram client for streaming if different from PrerecordedOptions.
 
+# --- Agent Imports (Optional) ---
+try:
+    # Assuming 'agents' is a sub-package of 'functions' or accessible in PYTHONPATH
+    from .agents.zoom_agent import ZoomAgent
+except ImportError:
+    # This allows note_utils to be imported elsewhere without the agents package necessarily being present
+    # or if there's a circular dependency during certain test setups.
+    # For testing ZoomAgent integration specifically, ensure agents.zoom_agent is in the path.
+    ZoomAgent = None
+    print("Warning: ZoomAgent could not be imported from note_utils. Live Zoom processing might not work if called.")
+
+
 # --- OpenAI GPT Configuration ---
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_API_ENDPOINT = os.environ.get("OPENAI_API_ENDPOINT", "https://api.openai.com/v1/chat/completions") # Default endpoint
@@ -591,19 +603,26 @@ def transcribe_audio_deepgram_stream(
                 # A real implementation would receive this from the SDK's event loop.
                 if (i + 1) % 5 == 0: # Simulate a transcript segment every 5 chunks
                     is_final_segment = (i + 1) % 10 == 0 # Simulate some segments being final
-                    dummy_transcript_data = {
-                        "channel": {
-                            "alternatives": [{
-                                "transcript": f"Segment { (i+1)//5 } transcript part {'final' if is_final_segment else 'interim'}...",
-                                "words": [] # Placeholder for word-level details
-                            }]
-                        },
-                        "is_final": is_final_segment,
-                        "speech_final": is_final_segment, # Common attribute
-                        "metadata": {"request_id": "simulated_req_id"}
-                    }
+                    # Construct a MagicMock that mimics the expected Deepgram transcript object structure
+                    # more closely for the attributes accessed by handle_transcript_segment.
+                    mock_segment = MagicMock()
+
+                    # Simulate path: transcript_data.channel.alternatives[0].transcript
+                    mock_alternative = MagicMock()
+                    mock_alternative.transcript = f"Segment { (i+1)//5 } transcript part {'final' if is_final_segment else 'interim'}..."
+
+                    mock_channel = MagicMock()
+                    mock_channel.alternatives = [mock_alternative]
+
+                    mock_segment.channel = mock_channel
+                    mock_segment.is_final = is_final_segment
+                    # Add other attributes if process_live_audio_for_notion's callbacks use them
+                    # e.g., speech_final, metadata often found in Deepgram responses.
+                    mock_segment.speech_final = is_final_segment
+                    mock_segment.metadata = MagicMock(request_id="simulated_req_id")
+
                     if on_transcript_segment_callback:
-                        on_transcript_segment_callback(MagicMock(**dummy_transcript_data)) # Use MagicMock to simulate dot-notation access
+                        on_transcript_segment_callback(mock_segment)
             else:
                 print("Simulated received empty or null chunk, stopping iteration.")
                 break
