@@ -1,0 +1,19 @@
+type ProcessAudioForNoteOutput {
+  note_id: String
+  status: String!
+  error: String
+}
+
+input ProcessAudioForNoteInput {
+  audio_file_path: String!
+  note_id: String
+  title: String
+  content: String
+  source: String
+  linked_task_id: String
+  linked_event_id: String
+}
+
+type Mutation {
+  processAudioForNote (input: ProcessAudioForNoteInput!): ProcessAudioForNoteOutput
+}
