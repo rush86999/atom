@@ -150,6 +150,9 @@ export class AwsStack extends cdk.Stack {
     });
 
     // RDS PostgreSQL Instance
+    // For highly variable/infrequent workloads, consider Aurora Serverless v2 as an alternative.
+    // Example: new rds.ServerlessCluster(this, 'AtomicServerlessDB', { engine: rds.DatabaseClusterEngine.auroraPostgres(...), ... })
+    // This would replace the rds.DatabaseInstance below and require updates to how the secret and endpoint are obtained.
     this.dbInstance = new rds.DatabaseInstance(this, 'AtomicPostgresDB', {
       engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.VER_15 }),
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.SMALL),
@@ -168,6 +171,7 @@ export class AwsStack extends cdk.Stack {
     // ECS Cluster
     this.cluster = new ecs.Cluster(this, 'AtomicCluster', {
       vpc: this.vpc,
+      enableFargateCapacityProviders: true, // Add this line
     });
     new cdk.CfnOutput(this, 'ClusterName', { value: this.cluster.clusterName });
 
@@ -410,8 +414,8 @@ export class AwsStack extends cdk.Stack {
     const hasuraTaskDef = new ecs.TaskDefinition(this, 'HasuraTaskDef', {
       family: 'hasura-fargate',
       compatibility: ecs.Compatibility.FARGATE,
-      cpu: "512",
-      memoryMiB: "1024",
+      cpu: "256", // Changed from 512
+      memoryMiB: "512", // Changed from 1024
       runtimePlatform: {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
         cpuArchitecture: ecs.CpuArchitecture.X86_64,
@@ -478,8 +482,8 @@ export class AwsStack extends cdk.Stack {
     const functionsTaskDef = new ecs.TaskDefinition(this, 'FunctionsTaskDef', {
       family: 'functions-fargate',
       compatibility: ecs.Compatibility.FARGATE,
-      cpu: "512",
-      memoryMiB: "1024",
+      cpu: "256", // Changed from 512
+      memoryMiB: "512", // Changed from 1024
       runtimePlatform: {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
         cpuArchitecture: ecs.CpuArchitecture.X86_64,
@@ -519,6 +523,31 @@ export class AwsStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [this.functionsSG],
       assignPublicIp: false,
+      capacityProviderStrategies: [ // Add this block
+        {
+          capacityProvider: 'FARGATE_SPOT',
+          weight: 1,
+        },
+        {
+          capacityProvider: 'FARGATE',
+          weight: 0,
+        },
+      ],
+    });
+
+    const functionsAutoScaling = functionsService.autoScaleTaskCount({ // Add this block
+      minCapacity: 1,
+      maxCapacity: 4, // Functions might need a bit more capacity
+    });
+    functionsAutoScaling.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 65, // Lower target for critical backend
+      scaleInCooldown: cdk.Duration.minutes(5),
+      scaleOutCooldown: cdk.Duration.minutes(1),
+    });
+    functionsAutoScaling.scaleOnMemoryUtilization('MemoryScaling', {
+      targetUtilizationPercent: 65,
+      scaleInCooldown: cdk.Duration.minutes(5),
+      scaleOutCooldown: cdk.Duration.minutes(1),
     });
 
     const functionsTargetGroup = new elbv2.ApplicationTargetGroup(this, 'FunctionsTargetGroup', {
@@ -584,6 +613,31 @@ export class AwsStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [this.appSG], // Corrected: this.appSG
       assignPublicIp: false,
+      capacityProviderStrategies: [ // Add this block
+        {
+          capacityProvider: 'FARGATE_SPOT',
+          weight: 1, // Prioritize Spot
+        },
+        {
+          capacityProvider: 'FARGATE',
+          weight: 0, // Use On-Demand as fallback if Spot is unavailable
+        },
+      ],
+    });
+
+    const appAutoScaling = appService.autoScaleTaskCount({ // Add this block
+      minCapacity: 1,
+      maxCapacity: 3, // Example for small business
+    });
+    appAutoScaling.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 70,
+      scaleInCooldown: cdk.Duration.minutes(3),
+      scaleOutCooldown: cdk.Duration.minutes(1),
+    });
+    appAutoScaling.scaleOnMemoryUtilization('MemoryScaling', {
+      targetUtilizationPercent: 70,
+      scaleInCooldown: cdk.Duration.minutes(3),
+      scaleOutCooldown: cdk.Duration.minutes(1),
     });
 
     const appTargetGroup = new elbv2.ApplicationTargetGroup(this, 'AppTargetGroup', {

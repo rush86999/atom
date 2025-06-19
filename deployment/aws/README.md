@@ -1,198 +1,135 @@
-# AWS Deployment for Atomic Application Stack
+# Deploying Atomic Calendar on AWS (Optimized for Small Businesses)
 
-This document outlines the process for deploying the Atomic application stack to Amazon Web Services (AWS) using the AWS Cloud Development Kit (CDK).
+This guide details how to deploy the Atomic Calendar application on AWS using the provided AWS Cloud Development Kit (CDK) scripts. This setup is optimized for small businesses, balancing cost-effectiveness, scalability, and maintainability by leveraging AWS managed services.
 
-## Overview
+## Overview of the AWS CDK Strategy
 
-This setup provisions the necessary AWS infrastructure and deploys the containerized application services. Key components include:
-- AWS VPC, Subnets (Public and Private)
-- AWS RDS PostgreSQL for the database
-- AWS ECS (Elastic Container Service) with AWS Fargate for running application containers
-- AWS ECR (Elastic Container Registry) for storing Docker images
-- AWS Application Load Balancer (ALB) for request distribution
-- AWS Secrets Manager for handling sensitive information
-- AWS CloudWatch Logs for application and service logging
-- **Amazon EFS (Elastic File System):** Used by the `python-agent` service for persistent storage, particularly for LanceDB vector databases.
-- **Amazon MSK Serverless:** Offers a managed Apache Kafka service for asynchronous messaging.
-- *(Amazon OpenSearch Service is no longer used by default, replaced by LanceDB on EFS for relevant Python agent functionalities).*
+The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure to run the Atomic Calendar application. Key features of this optimized strategy include:
 
-The core services deployed include: SuperTokens (auth), Hasura (GraphQL), Functions (Node.js backend logic), App (frontend), Handshake, OAuth, Optaplanner, and the new `python-agent` service. Backend services include Amazon MSK and EFS.
+*   **ECS on Fargate:** Application services (frontend, backend functions, Hasura, SuperTokens, etc.) are deployed as containers orchestrated by Amazon ECS using AWS Fargate for serverless compute.
+*   **Cost Optimization:**
+    *   **Right-sized Services:** Default CPU and memory for Fargate services are set to reasonable starting points (e.g., 256 CPU units / 512 MiB RAM) and can be adjusted.
+    *   **Fargate Spot:** Key stateless services (e.g., App, Functions) are configured to use Fargate Spot instances, potentially offering significant cost savings (up to 70%) compared to On-Demand Fargate. On-Demand Fargate is used as a fallback.
+    *   **Auto-Scaling:** Application services are configured with auto-scaling based on CPU and memory utilization, allowing the system to handle varying loads efficiently by scaling out during peak times and scaling in during quieter periods.
+*   **Scalable Database:** Uses Amazon RDS for PostgreSQL (defaulting to `db.t3.small`). For highly variable workloads, consider evaluating Amazon Aurora Serverless v2.
+*   **Networking:** A dedicated VPC with public and private subnets is created. An Application Load Balancer (ALB) distributes incoming traffic to the services.
+*   **Security:** IAM roles and security groups are defined to ensure secure communication between services. Secrets are managed using AWS Secrets Manager.
+*   **Persistent Storage:** Amazon S3 is used for general data storage, and Amazon EFS is used for persistent storage for services like LanceDB (used by the Python agent).
 
 ## Prerequisites
 
-Ensure the following tools are installed and configured:
-
-- **AWS Account:** An active AWS account with sufficient permissions.
-- **AWS CLI:** Configured with your credentials and default region (`aws configure`).
-- **Node.js & npm/yarn:** Node.js (LTS version recommended) and a package manager.
-- **AWS CDK CLI:** Installed globally (`npm install -g aws-cdk`).
-- **Docker:** Installed and running (for building application images).
-- **jq:** Command-line JSON processor (used by deployment scripts).
-- **Hasura CLI:** (Optional, for manual metadata operations or if `apply_hasura_metadata.sh` is run locally). Install from [Hasura Docs](https://hasura.io/docs/latest/hasura-cli/install-hasura-cli/).
-- **psql:** PostgreSQL client (Optional, for manual database interaction or if `run_db_init_scripts.sh` is run locally).
-
-## Directory Structure (within `deployment/aws`)
-
-- `lib/aws-stack.ts`: The core CDK stack definition.
-- `bin/aws.ts`: CDK application entry point.
-- `build_scripts/`: Contains scripts to build individual Docker images (`build_<service>.sh`) and a master script to build/push all (`build_and_push_all.sh`).
-- `db_init_scripts/`: Contains SQL scripts for database schema initialization.
-- `apply_hasura_metadata.sh`: Script to apply Hasura metadata.
-- `run_db_init_scripts.sh`: Script to run database initialization SQL.
-- `deploy_atomic_aws.sh`: The main deployment orchestration script.
-- `cdk.json`, `package.json`, `tsconfig.json`: CDK project files.
+1.  **AWS Account:** An active AWS account.
+2.  **AWS CLI:** Configured with credentials and a default region.
+3.  **Node.js and npm/yarn:** Required for CDK.
+4.  **AWS CDK Toolkit:** Installed globally (`npm install -g aws-cdk`).
+5.  **Docker:** Installed locally if you need to build and push Docker images to ECR.
+6.  **Git:** To clone the repository.
 
 ## Deployment Steps
 
-### 1. Initial Setup (One-time)
-
-1.  Clone this repository.
-2.  Navigate to the CDK app directory: `cd deployment/aws`
-3.  Install CDK dependencies: `npm install` (or `yarn install`).
-
-### 2. Environment Configuration: Placeholder Secrets (Crucial First-Time Setup)
-
-The CDK stack creates several secrets in AWS Secrets Manager with **placeholder values**. After the very first successful run of `deploy_atomic_aws.sh` (which deploys the CDK stack and creates these secrets), you **MUST** manually update these secrets in the AWS Secrets Manager console with their real, operational values for the application to function correctly.
-
-The placeholder secrets to update are (names might have a suffix like `-XXXXXX` added by Secrets Manager):
-
--   **`AwsStack/SupertokensDbConnString`** (or similar, check `cdk-outputs.json` for exact name after deployment if needed):
-    *   **Required Value:** The full PostgreSQL connection URI for SuperTokens.
-    *   **Format:** `postgresql://<username>:<password>@<rds_instance_endpoint>:<port>/<database_name>`
-    *   **How to get values:**
-        *   `<username>`, `<password>`, `<rds_instance_endpoint>`, `<port>`, `<database_name>`: These are available from the RDS instance secret (whose ARN is outputted as `DbSecretArn` in `cdk-outputs.json`) and the RDS instance itself (endpoint, port, dbname `atomicdb`).
--   **`AwsStack/HasuraDbConnString`**:
-    *   **Required Value:** The full PostgreSQL connection URI for Hasura.
-    *   **Format:** `postgres://<username>:<password>@<rds_instance_endpoint>:<port>/<database_name>` (Note: `postgres://` not `postgresql://` for Hasura).
-    *   **How to get values:** Same as for SuperTokens.
--   **`AwsStack/PlaceholderHasuraJwtSecret`**:
-    *   **Required Value:** A JSON object for Hasura JWT configuration.
-    *   **Format:** `{"type":"HS256","key":"YOUR_ACTUAL_STRONG_SECRET_KEY","issuer":"supertokens"}`
-    *   **`YOUR_ACTUAL_STRONG_SECRET_KEY`**: Must be a cryptographically strong key, at least 32 characters long (e.g., a 64-character hex string).
--   **`AwsStack/OpenAiApiKeySecret`**:
-    *   **Required Value:** Your actual OpenAI API key.
--   **`AwsStack/OptaplannerDbConnString`**:
-    *   **Required Value:** The full PostgreSQL JDBC connection URI for Optaplanner.
-    *   **Format:** `jdbc:postgresql://<rds_instance_endpoint>:<port>/<database_name>`
-    *   **How to get values:** Similar to SuperTokens/Hasura, using details from the RDS instance and its secret.
--   **`AwsStack/NotionApiTokenSecret`**:
-    *   **Required Value:** Your actual Notion API Token.
--   **`AwsStack/DeepgramApiKeySecret`**:
-    *   **Required Value:** Your actual Deepgram API Key.
--   **`AwsStack/NotionNotesDbIdSecret`**:
-    *   **Required Value:** The Database ID of your Notion database for general notes.
--   **`AwsStack/NotionResearchProjectsDbIdSecret`**:
-    *   **Required Value:** The Database ID of your Notion database for research projects.
--   **`AwsStack_NotionResearchTasksDbIdSecret`** (or similar generated name):
-    *   **Required Value:** The Database ID of your Notion database for research sub-agent tasks.
-
-
-**Other Secrets:**
--   `AwsStack/HasuraAdminSecret`: Auto-generated by CDK. Used by the system.
--   `AwsStack/ApiTokenSecret`: Auto-generated by CDK. Used by some internal services.
--   `AwsStack/PostgresAdminCredentials...`: Auto-generated by RDS for the master database user.
-
-**Failure to update these placeholder secrets will result in application malfunction.**
-
-**Important Note on Initial Secret Population:** While the MSK bootstrap broker configuration (see next section) is now automated, the *other* placeholder secrets listed above (e.g., `AwsStack/SupertokensDbConnString`, `AwsStack/HasuraDbConnString`, `AwsStack/PlaceholderHasuraJwtSecret`, `AwsStack/OpenAiApiKeySecret`, Notion keys, Deepgram key, etc.) **still require manual updating** in the AWS Secrets Manager console after the very first successful run of `deploy_atomic_aws.sh`.
-
-### MSK Bootstrap Brokers Configuration (Automated)
-
-The configuration of Kafka bootstrap brokers for the `functions` ECS service to connect to Amazon MSK is now **automated** by the `deploy_atomic_aws.sh` script.
-
-**How it works:**
-1.  After the CDK stack deployment, if an MSK Cluster ARN (`MskClusterArnOutput`) is found in the `cdk-outputs.json` file, the script attempts to fetch the MSK bootstrap broker string using the AWS CLI.
-2.  It then updates an AWS Secrets Manager secret, typically named `AwsStack/MskBootstrapBrokers` (the exact name can be found in `cdk-outputs.json` as `MskBootstrapBrokersSecretArn`), with this broker string.
-3.  The `functions` ECS service is already configured in `aws-stack.ts` to read its `KAFKA_BOOTSTRAP_SERVERS` environment variable directly from this secret.
-
-This automated process replaces the previous manual steps involving manual Task Definition updates or secret creation.
-
-**Troubleshooting Note:**
--   If the MSK Serverless cluster is not provisioned as part of your CDK deployment (e.g., if it's commented out or not included), or if the `deploy_atomic_aws.sh` script fails to retrieve the MSK Cluster ARN or bootstrap brokers for any reason, this automation step might fail.
--   In such cases, the `AwsStack/MskBootstrapBrokers` secret might not be updated with the correct broker string.
--   Consequently, the `functions` service may not be able to connect to Kafka, and Kafka-dependent features will not operate correctly. Check the script output and the `functions` service logs for any related errors.
-
-### 3. Running the Deployment Script
-
-Execute the main deployment script:
-```bash
-./deployment/aws/deploy_atomic_aws.sh <your_aws_account_id> <your_aws_region> [cdk_stack_name]
-```
--   `<your_aws_account_id>`: Your 12-digit AWS Account ID.
--   `<your_aws_region>`: E.g., `us-east-1`, `eu-west-2`.
--   `[cdk_stack_name]`: (Optional) The name of the CDK stack. Defaults to `AwsStack` if not provided.
-
-This script will:
-1.  Build all necessary Docker images (including the one for `python-agent` via `build_python_agent.sh`) and push them to AWS ECR.
-2.  Deploy or update the AWS infrastructure using AWS CDK.
-3.  Run database initialization scripts against the RDS instance.
-4.  Apply Hasura metadata.
-
-Monitor the script output for any errors.
-
-## Accessing the Application
-
--   Once the `deploy_atomic_aws.sh` script completes successfully, the main application will be accessible via the Application Load Balancer.
--   The ALB DNS Name is outputted by the script (e.g., `http://<ALB_DNS_NAME>`).
--   Various services are path-routed:
-    -   App (Frontend): `http://<ALB_DNS_NAME>/`
-    -   SuperTokens API: `http://<ALB_DNS_NAME>/v1/auth/`
-    -   Hasura GraphQL: `http://<ALB_DNS_NAME>/v1/graphql/`
-    -   Functions API: `http://<ALB_DNS_NAME>/v1/functions/`
-    -   Handshake Service: `http://<ALB_DNS_NAME>/v1/handshake/`
-    -   OAuth Service: `http://<ALB_DNS_NAME>/v1/oauth/`
-    -   Optaplanner Service: `http://<ALB_DNS_NAME>/v1/optaplanner/`
-    *(Amazon OpenSearch Service and its dashboards are no longer used by default in this setup, having been replaced by LanceDB with EFS for the python-agent's vector search capabilities.)*
-
-## Updating the Deployment
-
--   **Application Code Changes (Docker Images):**
-    1.  Make your code changes in the respective service directories (e.g., `atomic-docker/app_build_docker/`).
-    2.  Re-run the deployment script: `./deployment/aws/deploy_atomic_aws.sh <your_aws_account_id> <your_aws_region>`
-    The script will rebuild and push the updated images, and CDK will trigger an update for the relevant ECS services.
--   **Infrastructure Changes (CDK Code):**
-    1.  Modify the CDK code in `deployment/aws/lib/aws-stack.ts`.
-    2.  Re-run the deployment script as above. CDK will calculate and apply the infrastructure changes.
-
-## Post-Deployment Manual Steps / Scripts
-
-The `deploy_atomic_aws.sh` script attempts to automate post-deployment steps. However, you can run them manually if needed:
-
--   **Database Initialization:**
+1.  **Clone the Repository:**
     ```bash
-    ./deployment/aws/run_db_init_scripts.sh <rds_endpoint> <rds_db_name> <rds_secret_arn> [aws_region]
+    git clone <your_repository_url>
+    cd <repository_directory>/deployment/aws
     ```
-    (Get parameters from `cdk-outputs.json` or AWS console).
--   **Hasura Metadata Application:**
+
+2.  **Install CDK Dependencies:**
     ```bash
-    ./deployment/aws/apply_hasura_metadata.sh <alb_dns_name> <hasura_admin_secret_arn> [aws_region]
+    npm install
+    # or
+    # yarn install
     ```
-    (Get parameters from `cdk-outputs.json` or AWS console).
 
-## Tearing Down the Stack
+3.  **Bootstrap CDK (if you haven't used CDK in this account/region before):**
+    ```bash
+    cdk bootstrap aws://<YOUR_AWS_ACCOUNT_ID>/<YOUR_AWS_REGION>
+    ```
+    Replace placeholders with your actual AWS account ID and region.
 
-To remove all AWS resources created by this deployment:
+4.  **Review Configuration in `lib/aws-stack.ts`:**
+    *   **Service Sizes & Scaling:** Review the default CPU/memory settings and auto-scaling parameters (`minCapacity`, `maxCapacity`, `targetUtilizationPercent`) for each Fargate service. Adjust them based on your expected load and budget.
+    *   **RDS Instance Type:** The default is `db.t3.small`. If you anticipate higher database load, you can change this. Note the comment regarding Aurora Serverless v2 for spiky workloads.
+    *   **Secrets:** Many secrets are created as placeholders in AWS Secrets Manager (e.g., for OpenAI API Key, Google API credentials, Zoom credentials, a strong Hasura JWT secret). After the initial deployment, you **MUST** update these placeholder values in the AWS Secrets Manager console with your actual secrets.
+        *   The CDK script outputs the ARNs of these secrets.
+        *   Database connection strings for SuperTokens, Hasura, and OptaPlanner also require manual population in Secrets Manager, using the actual RDS endpoint after it's created. The CDK script provides descriptions for these secrets indicating the format.
 
-1.  Navigate to `deployment/aws`.
-2.  Run: `cdk destroy <cdk_stack_name>` (e.g., `cdk destroy AwsStack`).
-3.  Confirm the destruction when prompted.
+5.  **Build and Push Docker Images to ECR:**
+    *   The CDK script will create ECR repositories for each service.
+    *   You need to build your application's Docker images and push them to these repositories. The build scripts are located in `deployment/aws/build_scripts/`.
+    *   Example for the `functions` service (after ECR repo is created by `cdk deploy` or if you know the name):
+        ```bash
+        # Authenticate Docker to your ECR registry
+        aws ecr get-login-password --region <YOUR_AWS_REGION> | docker login --username AWS --password-stdin <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.<YOUR_AWS_REGION>.amazonaws.com
 
-**Notes on Teardown:**
--   Most resources are set with `removalPolicy: cdk.RemovalPolicy.DESTROY`, so they should be deleted.
--   ECR repositories are set to `autoDeleteImages: true`. If this were false, non-empty ECR repositories would prevent stack deletion and require manual image deletion first.
--   S3 buckets (if any were created by CDK with auto-generated names and retain policies) might need manual emptying and deletion. This stack does not explicitly create S3 buckets with retain policies.
+        # Navigate to the build script directory
+        cd build_scripts
+
+        # Run the build and push script (modify script if needed for image names/tags)
+        ./build_functions.sh <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.<YOUR_AWS_REGION>.amazonaws.com/atomic-functions:latest
+        # Repeat for other services: app, handshake, oauth, optaplanner, python-agent
+        ./build_and_push_all.sh <YOUR_AWS_ACCOUNT_ID>.dkr.ecr.<YOUR_AWS_REGION>.amazonaws.com <TAG_NAME>
+        ```
+    *   **Note:** The `build_and_push_all.sh` script is a good starting point. You'll need to provide your ECR registry URL and a tag.
+    *   The CDK stack defines ECR repositories like `atomic-functions`, `atomic-app`, etc. The image names used in the `ecs.ContainerImage.fromEcrRepository(...)` calls within `aws-stack.ts` must match the images you push.
+
+6.  **Synthesize and Deploy the CDK Stack:**
+    *   **Synthesize (optional, to see CloudFormation template):**
+        ```bash
+        cdk synth
+        ```
+    *   **Deploy:**
+        ```bash
+        cdk deploy AwsStack # Or your stack name if different
+        ```
+    *   This process can take 15-30 minutes or more, as it provisions all the resources.
+    *   Approve any IAM-related changes if prompted.
+
+7.  **Post-Deployment Steps:**
+    *   **Update Secrets:**
+        *   Go to AWS Secrets Manager in the AWS console.
+        *   Locate the secrets created by the stack (they will be prefixed with the stack name, e.g., `AwsStack/SupertokensDbConnString`).
+        *   Update the **plain text** values of placeholder secrets:
+            *   `SupertokensDbConnStringSecret`: `postgresql://<DB_USER>:<DB_PASS>@<RDS_ENDPOINT_ADDRESS>:<RDS_PORT>/atomicdb`
+            *   `HasuraDbConnStringSecret`: `postgres://<DB_USER>:<DB_PASS>@<RDS_ENDPOINT_ADDRESS>:<RDS_PORT>/atomicdb`
+            *   `OptaplannerDbConnStringSecret`: `jdbc:postgresql://<RDS_ENDPOINT_ADDRESS>:<RDS_PORT>/atomicdb` (ensure user/pass are appended if not part of the JDBC URL, or handle via separate env vars if OptaPlanner supports it)
+            *   `PlaceholderHasuraJwtSecret`: Replace with a strong JSON JWT configuration.
+            *   API keys for OpenAI, Google, Notion, Deepgram, etc.
+        *   The RDS instance endpoint (`<RDS_ENDPOINT_ADDRESS>`) and the admin username/password (if you let RDS generate it) can be found in the AWS RDS console or in the output of the CDK deployment (for the secret ARN containing credentials).
+    *   **Configure DNS:**
+        *   The CDK deployment will output the DNS name of the Application LoadBalancer (`AlbDnsName`).
+        *   Create a CNAME record in your DNS provider to point your desired domain (e.g., `app.yourbusiness.com`) to this ALB DNS name.
+    *   **Hasura Metadata:**
+        *   Once Hasura is running and connected to the database, you may need to apply Hasura metadata (tables, permissions, relationships, etc.). The `deployment/aws/apply_hasura_metadata.sh` script might be relevant, but you'll need to configure it with your Hasura endpoint and admin secret. Access the Hasura console via the ALB (e.g., `http://<ALB_DNS_NAME>/v1/graphql` - though direct console access might need specific path routing or temporary direct exposure).
+
+## Cost Considerations and Monitoring
+
+*   **Fargate:** Costs are based on vCPU and memory allocated per second, and the number of tasks running. The use of Fargate Spot significantly reduces this. Monitor usage via CloudWatch.
+*   **RDS:** Cost depends on instance type, storage, and data transfer. `db.t3.small` is a cost-effective starting point.
+*   **ALB:** Hourly cost plus LCU (Load Balancer Capacity Units) charges based on traffic.
+*   **NAT Gateway:** Hourly cost plus data processing charges.
+*   **S3 & EFS:** Storage costs, data transfer, and request costs.
+*   **CloudWatch:** Logs and metrics storage and API usage.
+*   **Secrets Manager:** Small cost per secret per month.
+*   **Recommendations:**
+    *   Regularly review your AWS bill and Cost Explorer.
+    *   Set up billing alerts.
+    *   Fine-tune Fargate service auto-scaling parameters (`minCapacity`, `maxCapacity`, `targetUtilizationPercent`) based on observed load.
+    *   Consider AWS Savings Plans or Reserved Instances for stable workloads (RDS, On-Demand portion of Fargate) if you can commit to 1 or 3-year terms.
+    *   Delete unused resources or stacks if not needed (e.g., development/staging stacks). `cdk destroy AwsStack` will remove the stack.
+
+## Infrastructure as Code (IaC) - CDK and Terraform
+
+This repository contains IaC configurations in both AWS CDK (`deployment/aws/`) and Terraform (`terraform/aws/`).
+
+*   **Current Status:** The CDK setup is more comprehensive and directly manages the deployment of application services on ECS. The Terraform configuration sets up some base infrastructure but does not deploy the application services themselves.
+*   **Recommendation:** For managing this application and its infrastructure on AWS, we strongly recommend **consolidating to AWS CDK as the primary IaC tool.** This simplifies management, reduces the risk of configuration drift between tools, and leverages CDK's strengths in defining application infrastructure. If you choose to use Terraform for foundational networking, ensure a very clear and strict separation of managed resources to avoid conflicts.
 
 ## Troubleshooting
 
--   **CDK Errors:** Check the output of `cdk deploy -v` or `cdk synth`.
--   **ECS Task Failures:**
-    -   Check CloudWatch Logs: Go to AWS Console -> CloudWatch -> Log groups. Look for groups like `/ecs/AwsStack-YourServiceName-XYZ`.
-    -   Check ECS service events in the AWS ECS console.
--   **ALB Issues:** Check ALB access logs (if enabled) and target group health checks in the EC2 console.
--   **Application Errors:** Use browser developer tools and check application logs in CloudWatch.
--   **Secret Population:** Double-check that the placeholder secrets were correctly updated in AWS Secrets Manager after the first deployment.
--   **Amazon EFS:** Ensure EFS mount targets are correctly provisioned in private subnets. Verify security group rules allow NFS traffic (port 2049) between the `python-agent` service's security group and the EFS security group. Check `python-agent` logs for any mount issues.
--   **Amazon MSK Serverless:** Check the cluster status in the AWS MSK console. Verify that the `functions` service has the correct `KAFKA_BOOTSTRAP_SERVERS` configured and that its IAM role (`ecsTaskRole`) has the necessary `kafka-cluster:*` and `kafka:GetBootstrapBrokers` permissions for the cluster ARN. Security groups (`functionsSG` and `mskClusterClientSG`) must allow traffic on port 9098 (for IAM auth).
+*   Check CloudWatch Logs for Fargate tasks, ALB, and RDS.
+*   Verify security group rules and NACLs.
+*   Ensure IAM permissions are correctly configured.
+*   Check the status of ECS services and tasks in the ECS console.
+*   For CDK issues, use `cdk doctor` or increase verbosity during deployment (`cdk deploy -v`).
 
-**Dockerfile Dependencies Note:**
-- The `python-agent` service requires specific Python libraries. Ensure that the `atomic-docker/python_agent_build_docker/Dockerfile` includes `lancedb pyarrow sentence-transformers notion-client deepgram-sdk requests httpx` in its `pip install` instructions for full functionality. This list should be up-to-date.
+This optimized AWS CDK strategy provides a robust and scalable platform for small businesses while incorporating measures for cost control.
