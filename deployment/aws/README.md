@@ -94,31 +94,23 @@ The placeholder secrets to update are (names might have a suffix like `-XXXXXX` 
 
 **Failure to update these placeholder secrets will result in application malfunction.**
 
-### MSK Bootstrap Brokers Configuration (Manual Post-Deployment)
+**Important Note on Initial Secret Population:** While the MSK bootstrap broker configuration (see next section) is now automated, the *other* placeholder secrets listed above (e.g., `AwsStack/SupertokensDbConnString`, `AwsStack/HasuraDbConnString`, `AwsStack/PlaceholderHasuraJwtSecret`, `AwsStack/OpenAiApiKeySecret`, Notion keys, Deepgram key, etc.) **still require manual updating** in the AWS Secrets Manager console after the very first successful run of `deploy_atomic_aws.sh`.
 
-The `functions` ECS service requires the Kafka bootstrap broker addresses to connect to Amazon MSK. Due to the dynamic nature of these addresses upon MSK cluster creation, this configuration involves a manual step post-deployment:
+### MSK Bootstrap Brokers Configuration (Automated)
 
-1.  **Locate MSK Cluster ARN:** After the `deploy_atomic_aws.sh` script successfully completes, the MSK Cluster ARN will be displayed by the script. It can also be found in the `cdk-outputs.json` file (look for `MskClusterArnOutput`) or in the AWS CloudFormation console outputs for the stack.
-2.  **Fetch Bootstrap Brokers:** Use the AWS CLI to get the current bootstrap broker string. Replace `<YOUR_MSK_CLUSTER_ARN>` and `<YOUR_AWS_REGION>` with your actual values:
-    ```bash
-    aws kafka get-bootstrap-brokers --cluster-arn <YOUR_MSK_CLUSTER_ARN> --region <YOUR_AWS_REGION>
-    ```
-    This command will output a JSON response containing `BootstrapBrokerStringTls`. This is the value you need.
-3.  **Update `functions` Service Configuration:** The `KAFKA_BOOTSTRAP_SERVERS` environment variable for the `functions` service container needs to be set to this `BootstrapBrokerStringTls` value. There are two main ways to do this:
-    *   **Option A (Simpler for Dev/Test - Manual Task Definition Update):**
-        1.  Go to the AWS ECS Console.
-        2.  Find your cluster, then the `functions` service, and its current Task Definition.
-        3.  Create a new revision of this Task Definition.
-        4.  In the container definition for `FunctionsContainer`, find the `KAFKA_BOOTSTRAP_SERVERS` environment variable and update its value with the string obtained from the AWS CLI.
-        5.  Save the new Task Definition revision.
-        6.  Update the `functions` ECS service to use this new Task Definition revision and force a new deployment.
-    *   **Option B (Recommended for Consistency/Production - Store in Secrets Manager):**
-        1.  Create a new secret in AWS Secrets Manager (e.g., `/${CDK_STACK_NAME}/MskBootstrapBrokers`).
-        2.  Store the `BootstrapBrokerStringTls` value as the secret string.
-        3.  Modify the `functions` Task Definition in `aws-stack.ts` to read `KAFKA_BOOTSTRAP_SERVERS` from this new secret using `ecs.Secret.fromSecretsManager(...)`.
-        4.  Re-deploy the CDK stack (`./deploy_atomic_aws.sh ...`). This is a more robust, one-time CDK change.
+The configuration of Kafka bootstrap brokers for the `functions` ECS service to connect to Amazon MSK is now **automated** by the `deploy_atomic_aws.sh` script.
 
-**The `functions` service (and any Kafka-dependent features) will not operate correctly until the `KAFKA_BOOTSTRAP_SERVERS` variable is accurately configured.**
+**How it works:**
+1.  After the CDK stack deployment, if an MSK Cluster ARN (`MskClusterArnOutput`) is found in the `cdk-outputs.json` file, the script attempts to fetch the MSK bootstrap broker string using the AWS CLI.
+2.  It then updates an AWS Secrets Manager secret, typically named `AwsStack/MskBootstrapBrokers` (the exact name can be found in `cdk-outputs.json` as `MskBootstrapBrokersSecretArn`), with this broker string.
+3.  The `functions` ECS service is already configured in `aws-stack.ts` to read its `KAFKA_BOOTSTRAP_SERVERS` environment variable directly from this secret.
+
+This automated process replaces the previous manual steps involving manual Task Definition updates or secret creation.
+
+**Troubleshooting Note:**
+-   If the MSK Serverless cluster is not provisioned as part of your CDK deployment (e.g., if it's commented out or not included), or if the `deploy_atomic_aws.sh` script fails to retrieve the MSK Cluster ARN or bootstrap brokers for any reason, this automation step might fail.
+-   In such cases, the `AwsStack/MskBootstrapBrokers` secret might not be updated with the correct broker string.
+-   Consequently, the `functions` service may not be able to connect to Kafka, and Kafka-dependent features will not operate correctly. Check the script output and the `functions` service logs for any related errors.
 
 ### 3. Running the Deployment Script
 
@@ -150,7 +142,7 @@ Monitor the script output for any errors.
     -   Handshake Service: `http://<ALB_DNS_NAME>/v1/handshake/`
     -   OAuth Service: `http://<ALB_DNS_NAME>/v1/oauth/`
     -   Optaplanner Service: `http://<ALB_DNS_NAME>/v1/optaplanner/`
-    (Note: OpenSearch Dashboards are not publicly exposed by default in this setup.)
+    *(Amazon OpenSearch Service and its dashboards are no longer used by default in this setup, having been replaced by LanceDB with EFS for the python-agent's vector search capabilities.)*
 
 ## Updating the Deployment
 
@@ -203,4 +195,4 @@ To remove all AWS resources created by this deployment:
 -   **Amazon MSK Serverless:** Check the cluster status in the AWS MSK console. Verify that the `functions` service has the correct `KAFKA_BOOTSTRAP_SERVERS` configured and that its IAM role (`ecsTaskRole`) has the necessary `kafka-cluster:*` and `kafka:GetBootstrapBrokers` permissions for the cluster ARN. Security groups (`functionsSG` and `mskClusterClientSG`) must allow traffic on port 9098 (for IAM auth).
 
 **Dockerfile Dependencies Note:**
-- The `python-agent` service requires specific Python libraries. Ensure that the `atomic-docker/python_agent_build_docker/Dockerfile` includes `lancedb pyarrow sentence-transformers notion-client deepgram-sdk requests httpx` in its `pip install` instructions for full functionality.
+- The `python-agent` service requires specific Python libraries. Ensure that the `atomic-docker/python_agent_build_docker/Dockerfile` includes `lancedb pyarrow sentence-transformers notion-client deepgram-sdk requests httpx` in its `pip install` instructions for full functionality. This list should be up-to-date.
