@@ -1,5 +1,5 @@
 import { bucketName, optaplannerDuration, dayOfWeekIntToString, hasuraAdminSecret, hasuraGraphUrl, onOptaPlanCalendarAdminCallBackUrl, optaPlannerPassword, optaPlannerUrl, optaPlannerUsername } from '@schedule_assist/_libs/constants'
-import { BufferTimeNumberType, EventPlusType, EventType, MeetingAssistAttendeeType, MeetingAssistEventType, MeetingAssistPreferredTimeRangeType, MeetingAssistType, EventMeetingPlusType, PreferredTimeRangeType, RemindersForEventType, ValuesToReturnForBufferEventsType, UserPreferenceType, CalendarType, WorkTimeType, TimeSlotType, MonthType, DayType, MM, DD, MonthDayType, Time, EventPartPlannerRequestBodyType, InitialEventPartType, InitialEventPartTypePlus, UserPlannerRequestBodyType, ReturnBodyForHostForOptaplannerPrepType, ReturnBodyForAttendeeForOptaplannerPrepType, ReturnBodyForExternalAttendeeForOptaplannerPrepType, PlannerRequestBodyType, FreemiumType, BufferTimeObjectType } from "@schedule_assist/_libs/types"
+import { BufferTimeNumberType, EventPlusType, EventType, MeetingAssistAttendeeType, MeetingAssistEventType, MeetingAssistPreferredTimeRangeType, MeetingAssistType, EventMeetingPlusType, PreferredTimeRangeType, RemindersForEventType, ValuesToReturnForBufferEventsType, UserPreferenceType, CalendarType, WorkTimeType, TimeSlotType, MonthType, DayType, MM, DD, MonthDayType, Time, EventPartPlannerRequestBodyType, InitialEventPartType, InitialEventPartTypePlus, UserPlannerRequestBodyType, ReturnBodyForHostForOptaplannerPrepType, ReturnBodyForAttendeeForOptaplannerPrepType, ReturnBodyForExternalAttendeeForOptaplannerPrepType, PlannerRequestBodyType, FreemiumType, BufferTimeObjectType, FetchedExternalPreference } from "@schedule_assist/_libs/types" // Added FetchedExternalPreference
 import got from "got"
 import { v4 as uuid } from 'uuid'
 import dayjs from 'dayjs'
@@ -1418,6 +1418,65 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
     const totalDuration = endDuration.subtract(startDuration)
     return totalDuration.asHours()
 }
+
+// New function to list external attendee preferences
+export const listExternalAttendeePreferences = async (
+    // client: any, // Not needed as got is used directly with global config
+    meetingAssistId: string,
+    meetingAssistAttendeeId: string
+): Promise<FetchedExternalPreference[]> => {
+    try {
+        const operationName = 'ListExternalAttendeePreferences';
+        const query = `
+            query ListExternalAttendeePreferences($meetingAssistId: uuid!, $meetingAssistAttendeeId: uuid!) {
+                Meeting_Assist_External_Attendee_Preference(
+                    where: {
+                        meeting_assist_id: {_eq: $meetingAssistId},
+                        meeting_assist_attendee_id: {_eq: $meetingAssistAttendeeId}
+                    },
+                    order_by: {preferred_start_datetime: asc}
+                ) {
+                    preferred_start_datetime
+                    preferred_end_datetime
+                }
+            }
+        `;
+
+        const variables = {
+            meetingAssistId,
+            meetingAssistAttendeeId,
+        };
+
+        const res: { data: { Meeting_Assist_External_Attendee_Preference: FetchedExternalPreference[] } } = await got.post(
+            hasuraGraphUrl,
+            {
+                headers: {
+                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'Content-Type': 'application/json',
+                    'X-Hasura-Role': 'admin' // Or appropriate role
+                },
+                json: {
+                    operationName,
+                    query,
+                    variables,
+                },
+                responseType: 'json', // Ensure got parses the response as JSON
+            }
+        ).json();
+
+        // Check for GraphQL errors in the response body
+        if ((res as any)?.errors) {
+            console.error('Hasura errors while fetching external preferences:', JSON.stringify((res as any).errors, null, 2));
+            throw new Error(`Hasura request failed: ${(res as any).errors[0].message}`);
+        }
+
+        return res?.data?.Meeting_Assist_External_Attendee_Preference || [];
+    } catch (e) {
+        // Log the error caught by the try-catch block
+        console.error('Error fetching external attendee preferences (catch block):', e);
+        return []; // Return empty array on error
+    }
+};
 
 export const generateBreaks = (
     userPreferences: UserPreferenceType,
@@ -3972,17 +4031,21 @@ export const generateTimeSlotsLiteForExternalAttendee = (
 export const processEventsForOptaPlannerForExternalAttendees = async (
     userIds: string[],
     mainHostId: string,
-    allExternalEvents: MeetingAssistEventType[],
+    allExternalEvents: MeetingAssistEventType[], // These are MeetingAssistEvents from the user's calendar connection
     windowStartDate: string,
     windowEndDate: string,
     hostTimezone: string,
     externalAttendees: MeetingAssistAttendeeType[],
     oldExternalMeetingEvents?: EventMeetingPlusType[],
     newMeetingEvents?: EventMeetingPlusType[],
+    meetingAssistId?: string, // Added: ID of the current meeting assist for preference lookup
 ): Promise<ReturnBodyForExternalAttendeeForOptaplannerPrepType> => {
     try {
+        // Convert MeetingAssistEventType to EventPlusType for consistent processing
+        // These events are typically from the external user's own calendar, not specific meeting invites yet
+        const baseExternalUserEvents = allExternalEvents?.map(e => convertMeetingAssistEventTypeToEventPlusType(e, externalAttendees?.find(a => (a?.id === e?.attendeeId))?.userId));
 
-        const modifiedAllExternalEvents = allExternalEvents?.map(e => convertMeetingAssistEventTypeToEventPlusType(e, externalAttendees?.find(a => (a?.id === e?.attendeeId))?.userId))
+        let modifiedAllExternalEvents = [...baseExternalUserEvents];
 
 
         const oldConvertedMeetingEvents = oldExternalMeetingEvents?.map(a => convertMeetingPlusTypeToEventPlusType(a))?.filter(e => !!e)
@@ -4014,31 +4077,86 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
         const workTimes: WorkTimeType[] = _.uniqWith(unfilteredWorkTimes, _.isEqual)
 
         
-        const unfilteredTimeslots: TimeSlotType[] = []
-        const timeslots: TimeSlotType[] = []
+        const unfilteredTimeslots: TimeSlotType[] = [];
+        // This `timeslots` variable will be the final one passed to OptaPlanner after processing all attendees
+        const timeslots: TimeSlotType[] = [];
 
 
-        for (let i = 0; i < startDatesForEachDay.length; i++) {
-            if (i === 0) {
-                for (const externalAttendee of externalAttendees) {
-                    const timeslotsForDay = await generateTimeSlotsLiteForExternalAttendee(startDatesForEachDay?.[i], mainHostId, modifiedAllExternalEvents, hostTimezone, externalAttendee?.timezone, true)
-                    unfilteredTimeslots.push(...timeslotsForDay)
+        for (const externalAttendee of externalAttendees) {
+            const attendeeSpecificTimeslots: TimeSlotType[] = [];
+            let useExplicitPreferences = false;
+
+            if (meetingAssistId && externalAttendee.id) {
+                const externalPreferences = await listExternalAttendeePreferences(meetingAssistId, externalAttendee.id);
+                if (externalPreferences.length > 0) {
+                    useExplicitPreferences = true;
+                    for (const pref of externalPreferences) {
+                        let currentSlotStartTime = dayjs.utc(pref.preferred_start_datetime);
+                        const prefEndTime = dayjs.utc(pref.preferred_end_datetime);
+
+                        while (currentSlotStartTime.isBefore(prefEndTime)) {
+                            const currentSlotEndTime = currentSlotStartTime.add(30, 'minute');
+                            if (currentSlotEndTime.isAfter(prefEndTime)) {
+                                break;
+                            }
+
+                            const startTimeInHostTz = currentSlotStartTime.tz(hostTimezone);
+                            const endTimeInHostTz = currentSlotEndTime.tz(hostTimezone);
+
+                            const meetingWindowDayjsStart = dayjs(windowStartDate).tz(hostTimezone, true);
+                            const meetingWindowDayjsEnd = dayjs(windowEndDate).tz(hostTimezone, true);
+
+                            if (startTimeInHostTz.isBefore(meetingWindowDayjsStart) || endTimeInHostTz.isAfter(meetingWindowDayjsEnd)) {
+                                currentSlotStartTime = currentSlotEndTime;
+                                continue;
+                            }
+
+                            attendeeSpecificTimeslots.push({
+                                dayOfWeek: dayOfWeekIntToString[startTimeInHostTz.isoWeekday() as keyof typeof dayOfWeekIntToString],
+                                startTime: startTimeInHostTz.format('HH:mm:ss') as Time,
+                                endTime: endTimeInHostTz.format('HH:mm:ss') as Time,
+                                hostId: mainHostId,
+                                monthDay: formatToMonthDay(startTimeInHostTz.month() as MonthType, startTimeInHostTz.date() as DayType),
+                                date: startTimeInHostTz.format('YYYY-MM-DD'),
+                                // userId: externalAttendee.userId, // Optional: if OptaPlanner needs this
+                            });
+                            currentSlotStartTime = currentSlotEndTime;
+                        }
+                    }
                 }
+            }
 
-                continue
+            if (!useExplicitPreferences) {
+                // Fallback to existing logic: generate timeslots based on their general availability (e.g. synced calendar events)
+                // The existing logic iterates through `startDatesForEachDay`
+                for (let i = 0; i < startDatesForEachDay.length; i++) {
+                    const isFirstDayLoop = (i === 0);
+                    // `modifiedAllExternalEvents` should be filtered for the specific `externalAttendee.userId` if not already
+                    const attendeeEventsForFallback = modifiedAllExternalEvents.filter(evt => evt.userId === externalAttendee.userId);
+                    const fallbackSlots = await generateTimeSlotsLiteForExternalAttendee(
+                        startDatesForEachDay[i],
+                        mainHostId,
+                        attendeeEventsForFallback, // Pass only this attendee's events
+                        hostTimezone,
+                        externalAttendee.timezone,
+                        isFirstDayLoop
+                    );
+                    attendeeSpecificTimeslots.push(...fallbackSlots);
+                }
             }
-            for (const externalAttendee of externalAttendees) {
-                const timeslotsForDay = await generateTimeSlotsLiteForExternalAttendee(startDatesForEachDay?.[i], mainHostId, modifiedAllExternalEvents, hostTimezone, externalAttendee?.timezone, false)
-                unfilteredTimeslots.push(...timeslotsForDay)
-            }
+            // Add this attendee's generated timeslots (either from prefs or fallback) to the main list
+            unfilteredTimeslots.push(...attendeeSpecificTimeslots);
         }
-        timeslots.push(...(_.uniqWith(unfilteredTimeslots, _.isEqual)))
-        console.log(timeslots, ' timeslots')
         
+        timeslots.push(...(_.uniqWith(unfilteredTimeslots, _.isEqual))); // Ensure unique timeslots before sending to OptaPlanner
+        console.log(timeslots, ' final timeslots for external attendees');
+        
+        // Note on WorkTimes: If explicit preferences are used, WorkTimeType generation might also need adjustment.
+        // For this subtask, WorkTime generation remains based on existing logic (inferred from all events).
+        // `workTimes` variable used in `formatEventTypeToPlannerEventForExternalAttendee` would be the place for this.
 
-        const filteredAllEvents = _.uniqBy(modifiedAllExternalEvents.filter(e => (validateEventDatesForExternalAttendee(e))), 'id')
-        let eventParts: EventPartPlannerRequestBodyType[] = []
-        
+        const filteredAllEvents = _.uniqBy(modifiedAllExternalEvents.filter(e => (validateEventDatesForExternalAttendee(e))), 'id');
+        let eventParts: EventPartPlannerRequestBodyType[] = [];
 
             const eventPartMinisAccumulated = []
             for (const event of filteredAllEvents) {
@@ -4356,7 +4474,8 @@ export const processEventsForOptaPlanner = async (
             externalAttendees,
             externalMeetingEventPlus,
             newExternalMeetingEventsPlus,
-        ) : null
+            meetingAssistId // Pass meetingAssistId
+        ) : null;
 
         const eventParts: EventPartPlannerRequestBodyType[] = []
         const allEventsForPlanner: EventPlusType[] = []
