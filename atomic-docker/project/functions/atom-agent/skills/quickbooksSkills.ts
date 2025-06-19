@@ -1,29 +1,26 @@
 import OAuthClient from 'intuit-oauth';
 import QuickBooks from 'node-quickbooks';
-// File system operations for tokens are removed.
-// import fs from 'fs/promises';
-// import path from 'path';
-
+import { URLSearchParams } from 'url'; // For parsing state from callback URL
 import {
   ATOM_QB_CLIENT_ID,
   ATOM_QB_CLIENT_SECRET,
   ATOM_QB_ENVIRONMENT,
   ATOM_QB_REDIRECT_URI,
-  // ATOM_QB_TOKEN_FILE_PATH, // Removed
   ATOM_QB_SCOPES,
+  HASURA_GRAPHQL_URL,
+  HASURA_ADMIN_SECRET,
 } from '../_libs/constants';
-import { executeGraphQLQuery, executeGraphQLMutation } from '../_libs/graphqlClient'; // Import GraphQL helpers
+import { executeGraphQLQuery, executeGraphQLMutation } from '../_libs/graphqlClient';
 import {
   QuickBooksAuthTokens,
   QBSkillResponse,
   ListQBInvoicesData,
   SkillError,
-  QuickBooksInvoice, // Ensure this is imported if not already
+  QuickBooksInvoice,
 } from '../types';
 
 const QBO_SERVICE_NAME = 'quickbooks_online';
 let oauthClientInstance: OAuthClient | null = null;
-// const TOKEN_PATH = path.resolve(ATOM_QB_TOKEN_FILE_PATH); // Removed
 
 export function resetOAuthClientInstanceCache() {
     oauthClientInstance = null;
@@ -44,20 +41,30 @@ function getOAuthClient(): OAuthClient {
   return oauthClientInstance;
 }
 
-export function getAuthUri(): QBSkillResponse<string> {
+/**
+ * Generates the QuickBooks Online authorization URI.
+ * @returns {QBSkillResponse<string>} The authorization URI or an error response.
+ */
+export function getAuthUri(stateCSRFToken: string): QBSkillResponse<string> {
     if (!ATOM_QB_CLIENT_ID || !ATOM_QB_CLIENT_SECRET || !ATOM_QB_REDIRECT_URI || !ATOM_QB_SCOPES || ATOM_QB_SCOPES.length === 0) {
       const errorMsg = 'QuickBooks OAuth client credentials or scopes for Auth URI generation not configured.';
       console.error(errorMsg);
       return { ok: false, error: { code: 'QBO_CONFIG_ERROR', message: errorMsg } };
     }
+    if (!stateCSRFToken || typeof stateCSRFToken !== 'string' || stateCSRFToken.trim().length < 10) {
+        // Basic validation for state token
+        const errorMsg = 'A valid state CSRF token must be provided for generating the Auth URI.';
+        console.error(errorMsg);
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: errorMsg } };
+    }
     try {
         const oauthClient = getOAuthClient();
         const authUri = oauthClient.generateAuthUri({
             scope: ATOM_QB_SCOPES,
-            state: 'atom_qbo_init_oauth',
+            state: stateCSRFToken,
         });
         if (!authUri) {
-            return { ok: false, error: { code: 'QBO_UNKNOWN_ERROR', message: 'Failed to generate QBO Auth URI.' } };
+            return { ok: false, error: { code: 'QBO_UNKNOWN_ERROR', message: 'Failed to generate QBO Auth URI (URI was null/empty).' } };
         }
         return { ok: true, data: authUri };
     } catch (error: any) {
@@ -66,160 +73,157 @@ export function getAuthUri(): QBSkillResponse<string> {
     }
 }
 
+interface UserQBTokenRecord {
+  access_token: string;
+  refresh_token: string;
+  expiry_date: string;
+  other_data: {
+    realmId: string;
+    refreshTokenExpiresAt: number;
+    tokenCreatedAt: number;
+  } | null;
+}
+
 async function getStoredQBTokens(userId: string): Promise<QBSkillResponse<QuickBooksAuthTokens | null>> {
   console.log(`Retrieving QBO tokens for userId: ${userId}, service: ${QBO_SERVICE_NAME}`);
+  if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'GraphQL client is not configured for QBO token retrieval.' } };
+  }
   const query = `
-    query GetUserQBOTokens($userId: String!, $serviceName: String!) {
-      user_tokens(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}, order_by: {created_at: desc}, limit: 1) {
-        access_token
-        refresh_token
-        expiry_date
-        other_data # JSONB field storing { realmId, refreshTokenExpiresAt, createdAt }
-      }
+    query GetUserQBOToken($userId: String!, $serviceName: String!) {
+      user_tokens(
+        where: { user_id: { _eq: $userId }, service_name: { _eq: $serviceName } },
+        order_by: { created_at: desc },
+        limit: 1
+      ) { access_token refresh_token expiry_date other_data }
     }
   `;
   const variables = { userId, serviceName: QBO_SERVICE_NAME };
-
+  const operationName = 'GetUserQBOToken';
   try {
-    const response = await executeGraphQLQuery<{ user_tokens: any[] }>(query, variables);
-    if (response.errors || !response.data || response.data.user_tokens.length === 0) {
-      console.log('No QBO tokens found in database for user:', userId, response.errors);
+    const response = await executeGraphQLQuery<{ user_tokens: UserQBTokenRecord[] }>(query, variables, operationName, userId);
+    if (!response || !response.user_tokens || response.user_tokens.length === 0) {
       return { ok: true, data: null };
     }
-    const dbToken = response.data.user_tokens[0];
-    const otherData = typeof dbToken.other_data === 'string' ? JSON.parse(dbToken.other_data) : dbToken.other_data;
-
-    const tokens: QuickBooksAuthTokens = {
-        accessToken: dbToken.access_token,
-        refreshToken: dbToken.refresh_token,
-        realmId: otherData?.realmId,
-        accessTokenExpiresAt: dbToken.expiry_date ? new Date(dbToken.expiry_date).getTime() : 0,
-        refreshTokenExpiresAt: otherData?.refreshTokenExpiresAt ? new Date(otherData.refreshTokenExpiresAt).getTime() : 0,
-        createdAt: otherData?.createdAt ? new Date(otherData.createdAt).getTime() : 0,
-    };
-    if (!tokens.realmId) {
-        return { ok: false, error: { code: 'QBO_TOKEN_INVALID', message: 'Stored QBO token is missing realmId.'}};
+    const dbToken = response.user_tokens[0];
+    if (!dbToken.other_data || !dbToken.other_data.realmId) {
+        return { ok: false, error: { code: 'QBO_TOKEN_INVALID_STRUCTURE', message: 'Stored QBO token is invalid (missing realmId).'}};
     }
+    const tokens: QuickBooksAuthTokens = {
+        accessToken: dbToken.access_token, refreshToken: dbToken.refresh_token, realmId: dbToken.other_data.realmId,
+        accessTokenExpiresAt: new Date(dbToken.expiry_date).getTime(),
+        refreshTokenExpiresAt: dbToken.other_data.refreshTokenExpiresAt,
+        tokenCreatedAt: dbToken.other_data.tokenCreatedAt,
+    };
     return { ok: true, data: tokens };
   } catch (error: any) {
-    console.error('Exception during getStoredQBTokens for user:', userId, error);
-    return { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to retrieve QBO tokens.', details: error.message } };
+    console.error(`Exception during getStoredQBTokens for user ${userId}:`, error);
+    const skillError: SkillError = {
+      code: 'TOKEN_FETCH_FAILED', message: `Failed to retrieve QuickBooks Online tokens.`, details: error.message,
+    };
+    if (error.code) { skillError.details = `${error.code}: ${error.message}`; if (error.code === 'CONFIG_ERROR') skillError.code = 'CONFIG_ERROR'; }
+    return { ok: false, error: skillError };
   }
 }
 
 async function saveQBTokens(userId: string, tokenDataFromOAuth: OAuthClient.TokenResponseData): Promise<QBSkillResponse<void>> {
   console.log(`Saving QBO tokens for userId: ${userId}`);
-  const now = Date.now();
-  const accessTokenExpiresAt = now + (tokenDataFromOAuth.expires_in! * 1000);
-  const refreshTokenExpiresAt = now + (tokenDataFromOAuth.x_refresh_token_expires_in! * 1000);
-
+  if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'GraphQL client is not configured for QBO token saving.' } };
+  }
+  const tokenObtainedAt = Date.now();
+  const accessTokenExpiresAt = tokenObtainedAt + (tokenDataFromOAuth.expires_in! * 1000);
+  const refreshTokenExpiresAt = tokenObtainedAt + (tokenDataFromOAuth.x_refresh_token_expires_in! * 1000);
+  if (!tokenDataFromOAuth.realmId) {
+    return { ok: false, error: { code: 'QBO_TOKEN_INVALID_STRUCTURE', message: 'realmId missing from QBO OAuth response, cannot save tokens.'}};
+  }
   const otherData = {
-    realmId: tokenDataFromOAuth.realmId!,
-    refreshTokenExpiresAt: refreshTokenExpiresAt,
-    createdAt: now,
+    realmId: tokenDataFromOAuth.realmId, refreshTokenExpiresAt: refreshTokenExpiresAt, tokenCreatedAt: tokenObtainedAt,
   };
-
   const mutation = `
-    mutation UpsertUserToken($tokenInput: user_tokens_insert_input!) {
-      insert_user_tokens_one(object: $tokenInput, on_conflict: { constraint: user_tokens_user_id_service_name_key, update_columns: [access_token, refresh_token, expiry_date, other_data, updated_at]}) {
-        id
-      }
+    mutation UpsertUserQBOToken($objects: [user_tokens_insert_input!]!) {
+      insert_user_tokens(objects: $objects, on_conflict: {
+          constraint: user_tokens_user_id_service_name_key,
+          update_columns: [access_token, refresh_token, expiry_date, other_data, updated_at]
+        }) { affected_rows }
     }
   `;
-  const tokenInput = {
-    user_id: userId,
-    service_name: QBO_SERVICE_NAME,
-    access_token: tokenDataFromOAuth.access_token!,
-    refresh_token: tokenDataFromOAuth.refresh_token!,
-    expiry_date: new Date(accessTokenExpiresAt).toISOString(),
-    other_data: JSON.stringify(otherData), // Store realmId and refresh token expiry here
-    updated_at: new Date().toISOString(),
+  const tokenInputForDb = {
+    user_id: userId, service_name: QBO_SERVICE_NAME, access_token: tokenDataFromOAuth.access_token!,
+    refresh_token: tokenDataFromOAuth.refresh_token!, expiry_date: new Date(accessTokenExpiresAt).toISOString(),
+    other_data: otherData, updated_at: new Date().toISOString(),
   };
-
+  const variables = { objects: [tokenInputForDb] };
+  const operationName = 'UpsertUserQBOToken';
   try {
-    const response = await executeGraphQLMutation(mutation, { tokenInput });
-    if (response.errors) {
-      return { ok: false, error: { code: 'QBO_TOKEN_SAVE_ERROR', message: 'Failed to save QBO tokens to database.', details: response.errors } };
-    }
-    console.log('QBO tokens saved successfully to database for user:', userId);
+    await executeGraphQLMutation<{ insert_user_tokens: { affected_rows: number } }>(mutation, variables, operationName, userId);
+    console.log(`QBO tokens saved/updated successfully for user ${userId}.`);
     return { ok: true, data: undefined };
   } catch (error: any) {
-    return { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Exception saving QBO tokens.', details: error.message } };
+    console.error(`Exception saving QBO tokens for user ${userId}:`, error);
+    const skillError: SkillError = {
+      code: 'TOKEN_SAVE_FAILED', message: `Failed to save QuickBooks Online tokens.`, details: error.message,
+    };
+     if (error.code) { skillError.details = `${error.code}: ${error.message}`; if (error.code === 'CONFIG_ERROR') skillError.code = 'CONFIG_ERROR';}
+    return { ok: false, error: skillError };
   }
 }
 
 async function getValidTokens(userId: string): Promise<QBSkillResponse<QuickBooksAuthTokens>> {
   const loadResponse = await getStoredQBTokens(userId);
   if (!loadResponse.ok) return { ok: false, error: loadResponse.error! };
-
-  let tokens = loadResponse.data;
-  if (!tokens) {
+  let currentTokens = loadResponse.data;
+  if (!currentTokens) {
     return { ok: false, error: { code: 'QBO_AUTH_REQUIRED', message: 'No QuickBooks tokens found. Please authorize.' } };
   }
-
-  if (Date.now() >= tokens.accessTokenExpiresAt) {
-    console.log('QuickBooks access token expired for user:', userId, '. Attempting to refresh...');
-    if (!tokens.refreshToken || Date.now() >= tokens.refreshTokenExpiresAt) {
-        const msg = 'QuickBooks refresh token is missing or expired. Please re-authorize.';
-        console.error(msg);
-        // Conceptually, one might delete the invalid/expired token from the DB here.
-        return { ok: false, error: { code: 'QBO_REFRESH_TOKEN_EXPIRED', message: msg } };
+  const now = Date.now();
+  if (now >= (currentTokens.accessTokenExpiresAt - (5 * 60 * 1000))) {
+    console.log(`QBO access token for user ${userId} expired/nearing expiry. Refreshing...`);
+    if (!currentTokens.refreshToken || now >= currentTokens.refreshTokenExpiresAt) {
+        return { ok: false, error: { code: 'QBO_REFRESH_TOKEN_EXPIRED', message: 'Refresh token missing or expired. Please re-authorize.' } };
     }
     try {
       const authClient = getOAuthClient();
-      const newTokensResponseFromOAuth = await authClient.refreshUsingToken(tokens.refreshToken);
-      const newJsonTokens = newTokensResponseFromOAuth.getJson();
-
-      if (newJsonTokens && newJsonTokens.access_token) {
-        const saveOp = await saveQBTokens(userId, newJsonTokens);
-        if (!saveOp.ok) {
-            console.error("CRITICAL: Failed to save refreshed QBO tokens for user:", userId, saveOp.error);
-            return {ok: false, error: saveOp.error! };
-        }
-        console.log('QuickBooks tokens refreshed and saved for user:', userId);
-
-        const reloadedTokensResponse = await getStoredQBTokens(userId);
-        if (!reloadedTokensResponse.ok || !reloadedTokensResponse.data) {
-            const msg = "Failed to reload QBO tokens after refresh for user:" + userId;
-            return { ok: false, error: reloadedTokensResponse.error || {code: 'QBO_TOKEN_READ_ERROR', message: msg }};
-        }
-        tokens = reloadedTokensResponse.data;
-      } else {
-        const msg = "Refresh token response was invalid for user:" + userId;
-        // Also delete invalid tokens from DB
-        return { ok: false, error: { code: 'QBO_REFRESH_FAILED', message: msg, details: newTokensResponseFromOAuth } };
+      const refreshedTokenResponse = await authClient.refreshUsingToken(currentTokens.refreshToken);
+      if (!refreshedTokenResponse || !refreshedTokenResponse.getJson()?.access_token) {
+        return { ok: false, error: { code: 'QBO_REFRESH_FAILED', message: 'Invalid response from OAuth server during refresh.', details: refreshedTokenResponse?.getJson() } };
       }
+      const newTokensFromOAuth = refreshedTokenResponse.getJson();
+      const saveOp = await saveQBTokens(userId, newTokensFromOAuth);
+      if (!saveOp.ok) return {ok: false, error: saveOp.error! };
+      console.log(`QBO tokens refreshed and saved for user ${userId}.`);
+      const reloadedTokensResponse = await getStoredQBTokens(userId);
+      if (!reloadedTokensResponse.ok || !reloadedTokensResponse.data) {
+          return { ok: false, error: reloadedTokensResponse.error || {code: 'QBO_TOKEN_RELOAD_FAILED', message: 'Failed to reload tokens after refresh.' }};
+      }
+      currentTokens = reloadedTokensResponse.data;
     } catch (e: any) {
-      const msg = `QuickBooks token refresh failed for user ${userId}: ${e.message || e}`;
-      // Also delete invalid tokens from DB
-      return { ok: false, error: { code: 'QBO_REFRESH_FAILED', message: msg, details: e } };
+      const errorDetails = e.originalError?.error_description || e.message || 'Unknown refresh error';
+      return { ok: false, error: { code: 'QBO_REFRESH_FAILED', message: `Token refresh API call failed: ${errorDetails}`, details: e } };
     }
   }
-  return { ok: true, data: tokens };
+  return { ok: true, data: currentTokens };
 }
 
 async function getQboClient(userId: string): Promise<QBSkillResponse<QuickBooks>> {
   const tokenResponse = await getValidTokens(userId);
-  if (!tokenResponse.ok || !tokenResponse.data) {
-    return { ok: false, error: tokenResponse.error! };
-  }
+  if (!tokenResponse.ok || !tokenResponse.data) return { ok: false, error: tokenResponse.error! };
   const tokens = tokenResponse.data;
-
   if (!ATOM_QB_CLIENT_ID || !ATOM_QB_CLIENT_SECRET) {
-    const msg = 'QuickBooks Client ID or Secret not configured.';
-    return { ok: false, error: { code: 'QBO_CONFIG_ERROR', message: msg } };
+    return { ok: false, error: { code: 'QBO_CONFIG_ERROR', message: 'Client ID or Secret not configured.' } };
   }
-
-  const qboInstance = new QuickBooks(
-    ATOM_QB_CLIENT_ID, ATOM_QB_CLIENT_SECRET, tokens.accessToken,
-    false, tokens.realmId, ATOM_QB_ENVIRONMENT === 'sandbox',
-    true, null, '2.0', tokens.refreshToken
-  );
-  return { ok: true, data: qboInstance };
+  try {
+    return { ok: true, data: new QuickBooks(
+      ATOM_QB_CLIENT_ID, ATOM_QB_CLIENT_SECRET, tokens.accessToken, false, tokens.realmId,
+      ATOM_QB_ENVIRONMENT === 'sandbox', false, null, '2.0', tokens.refreshToken
+    )};
+  } catch(initError: any) {
+    return { ok: false, error: { code: 'QBO_CLIENT_INIT_FAILED', message: `Error initializing QuickBooks SDK: ${initError.message}`, details: initError }};
+  }
 }
 
-function mapQBInvoiceToInternal(qbInvoice: any): QuickBooksInvoice {
-    return { /* ... mapping as before ... */
+function mapQBInvoiceToInternal(qbInvoice: any): QuickBooksInvoice { /* ... as before ... */
+    return {
         Id: qbInvoice.Id, DocNumber: qbInvoice.DocNumber, TxnDate: qbInvoice.TxnDate, DueDate: qbInvoice.DueDate,
         CustomerRef: qbInvoice.CustomerRef ? { value: qbInvoice.CustomerRef.value, name: qbInvoice.CustomerRef.name } : undefined,
         BillEmail: qbInvoice.BillEmail ? { Address: qbInvoice.BillEmail.Address } : undefined,
@@ -229,68 +233,61 @@ function mapQBInvoiceToInternal(qbInvoice: any): QuickBooksInvoice {
     };
 }
 
-export async function listQuickBooksInvoices(
-  userId: string,
-  options?: { limit?: number; offset?: number; customerId?: string; status?: 'Draft' | 'Open' | 'Paid' | 'Void' | 'Pending' | 'Overdue'; }
-): Promise<QBSkillResponse<ListQBInvoicesData>> {
+export async function listQuickBooksInvoices( /* ... as before ... */ ): Promise<QBSkillResponse<ListQBInvoicesData>> {
   const qboClientResponse = await getQboClient(userId);
   if (!qboClientResponse.ok || !qboClientResponse.data) {
-    return { ok: false, error: qboClientResponse.error || { code: 'QBO_INIT_FAILED', message: 'QuickBooks client could not be initialized.'} };
+    return { ok: false, error: qboClientResponse.error || { code: 'QBO_INIT_FAILED', message: 'QBO client init failed for listing invoices.'} };
   }
   const qbo = qboClientResponse.data;
-
-  const limit = options?.limit || 10;
-  const offset = options?.offset || 1;
-
-  let query = 'SELECT * FROM Invoice';
-  const conditions: string[] = [];
-
+  const limit = options?.limit || 10; const offset = options?.offset || 1;
+  let query = 'SELECT * FROM Invoice'; const conditions: string[] = [];
   if (options?.customerId) conditions.push(`CustomerRef = '${options.customerId}'`);
   if (options?.status) {
     switch (options.status) {
-        case 'Paid': conditions.push("Balance = 0"); break;
+        case 'Paid': conditions.push("Balance = 0 AND TotalAmt > 0"); break;
         case 'Open': conditions.push("Balance > 0"); break;
-        case 'Void': conditions.push("DocNumber like '%VOID%'"); break; // Simplified
-        case 'Overdue': conditions.push(`DueDate < '${new Date().toISOString().split('T')[0]}' AND Balance > 0`); break; // Requires date to be in QBO format
-        default: console.warn(`Unsupported status filter '${options.status}'.`); break;
+        case 'Void': conditions.push("EmailStatus = 'Void'"); break;
+        case 'Overdue': conditions.push(`DueDate < '${new Date().toISOString().split('T')[0]}' AND Balance > 0`); break;
+        case 'Pending': conditions.push("EmailStatus = 'Pending'"); break;
+        case 'Draft': conditions.push("EmailStatus = 'Draft'"); break;
+        default: console.warn(`Unsupported status filter '${options.status}' ignored.`); break;
     }
   }
   if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
   query += ` ORDERBY MetaData.LastUpdatedTime DESC STARTPOSITION ${offset} MAXRESULTS ${limit}`;
-  console.log(`Executing QBO Query: ${query}`);
-
+  console.log(`QBO Query (User ${userId}): ${query}`);
   return new Promise((resolve) => {
-    qbo.query(query, (err: any, queryResponse: any) => {
+    qbo.queryInvoices({ query }, (err: any, queryResponse: any) => {
       if (err) {
-        const errorDetails = err.Fault ? err.Fault.Error[0] : err;
-        resolve({ ok: false, error: { code: `QBO_API_${errorDetails.code || 'QUERY_ERROR'}`, message: errorDetails.Message || 'Failed to list invoices.', details: errorDetails }});
+        const fault = err.Fault || err.fault; const errorDetailsArray = fault?.Error || [{ Message: 'Unknown QBO API error', code: 'UNKNOWN' }];
+        const firstError = errorDetailsArray[0]; const errorCode = firstError.code || 'QBO_QUERY_ERROR';
+        resolve({ ok: false, error: { code: `QBO_API_ERROR_${errorCode}`, message: firstError.Message || 'Failed to list QBO invoices.', details: fault || err }});
       } else {
-        const invoices = queryResponse?.QueryResponse?.Invoice?.map(mapQBInvoiceToInternal) || [];
-        resolve({ ok: true, data: { invoices: invoices, queryResponse: queryResponse?.QueryResponse } });
+        resolve({ ok: true, data: { invoices: queryResponse?.Invoice?.map(mapQBInvoiceToInternal) || [], queryResponse: queryResponse } });
       }
     });
   });
 }
 
-export async function getQuickBooksInvoiceDetails(userId: string, invoiceId: string): Promise<QBSkillResponse<QuickBooksInvoice | null>> {
+export async function getQuickBooksInvoiceDetails( /* ... as before ... */ ): Promise<QBSkillResponse<QuickBooksInvoice | null>> {
   const qboClientResponse = await getQboClient(userId);
   if (!qboClientResponse.ok || !qboClientResponse.data) {
-    return { ok: false, error: qboClientResponse.error || { code: 'QBO_INIT_FAILED', message: 'QuickBooks client could not be initialized.'} };
+    return { ok: false, error: qboClientResponse.error || { code: 'QBO_INIT_FAILED', message: 'QBO client init failed for invoice details.'} };
   }
   const qbo = qboClientResponse.data;
-
   if (!invoiceId || invoiceId.trim() === '') {
       return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invoice ID is required.'}};
   }
-
   return new Promise((resolve) => {
     qbo.getInvoice(invoiceId, (err: any, invoice: any) => {
       if (err) {
-        const errorDetails = err.Fault ? err.Fault.Error[0] : err;
-        if (errorDetails.code === '6240' || errorDetails.Message?.includes('object not found')) {
-          resolve({ ok: true, data: null }); // Not found is not an "error" state for get by ID
+        const fault = err.Fault || err.fault; const errorDetailsArray = fault?.Error || [{ Message: 'Unknown QBO API error', code: 'UNKNOWN' }];
+        const firstError = errorDetailsArray[0];
+        if (firstError.code === '6240' || firstError.Message?.toLowerCase().includes('object not found')) {
+          resolve({ ok: true, data: null });
         } else {
-          resolve({ ok: false, error: { code: `QBO_API_${errorDetails.code || 'GET_ERROR'}`, message: errorDetails.Message || 'Failed to get invoice.', details: errorDetails }});
+          const errorCode = firstError.code || 'QBO_GET_ERROR';
+          resolve({ ok: false, error: { code: `QBO_API_ERROR_${errorCode}`, message: firstError.Message || 'Failed to get QBO invoice.', details: fault || err }});
         }
       } else {
         resolve({ ok: true, data: invoice ? mapQBInvoiceToInternal(invoice) : null });
@@ -299,33 +296,93 @@ export async function getQuickBooksInvoiceDetails(userId: string, invoiceId: str
   });
 }
 
-// TODO: Implement handleQuickBooksCallback to exchange auth code for tokens and save them using saveQBTokens.
-// This function would be called by your application's OAuth redirect URI handler.
-/*
-export async function handleQuickBooksCallback(userId: string, urlWithCode: string): Promise<QBSkillResponse<{ message: string }>> {
-  const oauthClient = getOAuthClient();
-  if (!oauthClient) {
-      return { ok: false, error: { code: 'QBO_CONFIG_ERROR', message: 'OAuth client not initialized.'}};
+/**
+ * Handles the OAuth callback from QuickBooks Online.
+ * Exchanges the authorization code for tokens, validates state for CSRF protection, and saves the tokens.
+ *
+ * @param userId The ID of the user for whom the tokens are being authorized.
+ * @param urlWithCode The full callback URL string from QuickBooks (e.g., req.originalUrl or req.url).
+ * @param originalState Optional. The 'state' value that was initially sent to QBO's auth URI.
+ *                      It should be retrieved from the user's session or a secure temporary store.
+ *                      If not provided, CSRF protection is weakened (a warning will be logged).
+ * @returns A promise that resolves to a QBSkillResponse indicating success or failure.
+ *          On success, data contains a message and the realmId.
+ */
+export async function handleQuickBooksCallback(
+  userId: string,
+  urlWithCode: string,
+  originalState?: string
+): Promise<QBSkillResponse<{ message: string; realmId: string }>> {
+  // 1. Perform GraphQL configuration checks (for saveQBTokens)
+  if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'GraphQL client is not configured for QBO token saving during callback.' } };
   }
+
+  // 2. Initialize OAuthClient
+  let oauthClient: OAuthClient;
+  try {
+    oauthClient = getOAuthClient();
+  } catch (configError: any) {
+    // This error (e.g., missing client ID/secret) is critical and from app config.
+    return { ok: false, error: { code: 'QBO_CONFIG_ERROR', message: `OAuth client initialization failed: ${configError.message}` } };
+  }
+
+  // 3. CSRF Protection
+  try {
+    const callbackParams = new URLSearchParams(urlWithCode.substring(urlWithCode.indexOf('?')));
+    const receivedState = callbackParams.get('state');
+
+    if (originalState) {
+      if (!receivedState || receivedState !== originalState) {
+        console.error(`QBO OAuth callback state mismatch for user ${userId}. Expected: '${originalState}', Received: '${receivedState}'`);
+        return { ok: false, error: { code: 'INVALID_OAUTH_STATE', message: 'OAuth state mismatch. Possible CSRF attack.' } };
+      }
+    } else {
+      console.warn(`QBO OAuth callback for user ${userId}: originalState not provided. CSRF protection is weakened. Received state: '${receivedState}'`);
+      // Depending on security policy, you might choose to fail here if originalState is mandatory.
+    }
+  } catch (e: any) {
+    console.error(`Error parsing state from QBO callback URL for user ${userId}: ${urlWithCode}`, e);
+    return { ok: false, error: { code: 'URL_PARSING_ERROR', message: 'Failed to parse callback URL parameters.', details: e.message }};
+  }
+
+  // 4. Token Exchange
+  let tokenDataFromOAuth: OAuthClient.TokenResponseData;
   try {
     const authResponse = await oauthClient.createToken(urlWithCode);
-    const tokenJson = authResponse.getJson();
-
-    if (!tokenJson.access_token || !tokenJson.realmId) {
-      return { ok: false, error: { code: 'QBO_AUTH_FAILED', message: 'Callback failed to return access token or realmId.', details: tokenJson }};
+    if (!authResponse || !authResponse.getJson()?.access_token) {
+        console.error('QBO OAuth createToken response was invalid or missing access_token for user:', userId, authResponse?.getJson());
+        return { ok: false, error: { code: 'OAUTH_TOKEN_EXCHANGE_FAILED', message: 'Failed to exchange authorization code for token: Invalid response from server.', details: authResponse?.getJson() }};
     }
-    const saveOp = await saveQBTokens(userId, tokenJson); // Use new save function
-    if (!saveOp.ok) {
-        return { ok: false, error: saveOp.error! };
-    }
-    return { ok: true, data: { message: 'QuickBooks authorization successful. Tokens saved.' } };
+    tokenDataFromOAuth = authResponse.getJson();
   } catch (e: any) {
-    const errorDetails = e.error_description || e.message || e;
-    return { ok: false, error: { code: 'QBO_CALLBACK_ERROR', message: `Callback processing failed: ${errorDetails}`, details: e }};
+    const errorDetails = e.originalError?.error_description || e.message || e.intuit_tid || 'Unknown token exchange error';
+    console.error(`QBO OAuth token exchange failed for user ${userId}:`, e);
+    return { ok: false, error: { code: 'OAUTH_TOKEN_EXCHANGE_FAILED', message: `Token exchange failed: ${errorDetails}`, details: e } };
   }
+
+  // 6. Validate Token Response (especially realmId, as access_token was checked above)
+  if (!tokenDataFromOAuth.realmId) {
+    console.error(`QBO OAuth callback for user ${userId} did not return realmId.`, tokenDataFromOAuth);
+    return { ok: false, error: { code: 'QBO_AUTH_INVALID_RESPONSE', message: 'OAuth response is missing realmId.', details: tokenDataFromOAuth } };
+  }
+
+  // 7. Persist Tokens
+  const saveOp = await saveQBTokens(userId, tokenDataFromOAuth);
+  if (!saveOp.ok) {
+    // Propagate the detailed error from saveQBTokens (e.g., TOKEN_SAVE_FAILED, CONFIG_ERROR)
+    return { ok: false, error: saveOp.error! };
+  }
+
+  // 8. Success
+  console.log(`QuickBooks authorization successful and tokens saved for user ${userId}, realmId ${tokenDataFromOAuth.realmId}.`);
+  return {
+    ok: true,
+    data: {
+      message: 'QuickBooks authorization successful. Tokens saved.',
+      realmId: tokenDataFromOAuth.realmId
+    }
+  };
 }
-*/
-// Note: Conceptual GraphQL-based token storage replaces the local file system method.
-// This makes the skill more suitable for scalable or serverless deployments, assuming the
-// GraphQL client (`graphqlClient.ts`) is implemented to connect to a real database.
-// The `userId` parameter is now essential for token operations.
+
+[end of atomic-docker/project/functions/atom-agent/skills/quickbooksSkills.ts]
