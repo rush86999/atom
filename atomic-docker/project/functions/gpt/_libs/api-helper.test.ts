@@ -232,6 +232,522 @@ describe('Availability Generation Functions', () => {
     });
 });
 
+// --- Unit Tests for createGoogleEvent (Refactored) ---
+// Note: These tests will need adjustment based on the new signature of createGoogleEvent
+// which now takes an eventOptions object.
+
+// Assuming google.calendar().events.insert is already mocked via the global googleapis mock.
+// const mockGoogleEventsInsert = (google.calendar('v3') as any).events.insert as jest.Mock;
+// This was defined in a previous step for createGoogleEvent tests, ensure it's still valid/accessible.
+
+describe('createGoogleEvent (Refactored with CreateGoogleEventOptions)', () => {
+    let getGoogleAPITokenSpy: jest.SpyInstance;
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockGeneratedId = 'mock-uuid-for-conference';
+
+    // Re-accessing the mock for google.calendar().events.insert
+    // This relies on the global mock structure for 'googleapis'
+    let mockEventsInsert: jest.Mock;
+    beforeAll(() => {
+        // Ensure the googleapis mock is set up to provide a mock for events.insert
+        // This might need to be more robust depending on how the global mock is structured.
+        // If the global mock is: jest.mock('googleapis', () => ({ google: { calendar: jest.fn().mockReturnValue({ events: { insert: jest.fn() } }) } }));
+        // then this access should work.
+        mockEventsInsert = (google.calendar('v3') as any).events.insert;
+    });
+
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        getGoogleAPITokenSpy = jest.spyOn(apiHelperModule, 'getGoogleAPIToken');
+        (uuidv4 as jest.Mock).mockReturnValue(mockGeneratedId); // Consistent UUID for tests
+        mockEventsInsert.mockClear(); // Clear call history for events.insert
+    });
+
+    afterEach(() => {
+        getGoogleAPITokenSpy.mockRestore();
+        consoleLogSpy.mockRestore();
+    });
+
+    const baseParams = {
+        userId: 'user_gcal_test',
+        calendarId: 'primary',
+        clientType: 'web' as 'web',
+    };
+
+    const sampleEventOptions: apiHelperModule.CreateGoogleEventOptions = { // Assuming CreateGoogleEventOptions is exported or use apiHelperModule.
+        summary: 'Test Event from Options',
+        description: 'Event created with options object.',
+        startDateTime: '2024-09-01T10:00:00Z',
+        endDateTime: '2024-09-01T11:00:00Z',
+        timezone: 'America/New_York',
+        attendees: [{ email: 'attendee@example.com' }],
+        conferenceData: { type: 'hangoutsMeet' }, // Simplified for test, real one needs createRequest
+        status: 'confirmed',
+    };
+     const sampleAllDayEventOptions: apiHelperModule.CreateGoogleEventOptions = {
+        summary: 'All Day Event Test',
+        startDate: '2024-09-02', // YYYY-MM-DD
+        endDate: '2024-09-03',   // YYYY-MM-DD (Google Calendar end date for all-day is exclusive)
+        timezone: 'America/New_York', // Still needed for context, though GCal API uses date only
+        description: 'This is an all-day event.'
+    };
+
+
+    it('should create a timed event successfully using eventOptions', async () => {
+        getGoogleAPITokenSpy.mockResolvedValue({ success: true, token: 'dummy_token' });
+        const mockApiResponse = { data: { id: 'gcal_event_options_123', summary: sampleEventOptions.summary } };
+        mockEventsInsert.mockResolvedValue(mockApiResponse);
+
+        const result = await apiHelperModule.createGoogleEvent(
+            baseParams.userId, baseParams.calendarId, baseParams.clientType,
+            sampleEventOptions,
+            // Options that are still separate params:
+            // undefined, // generatedId (will be auto-generated if conferenceData.createRequest is used)
+            // 1 // conferenceDataVersion
+        );
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.googleEventId).toBe('gcal_event_options_123');
+        }
+        expect(mockEventsInsert).toHaveBeenCalledWith(expect.objectContaining({
+            calendarId: baseParams.calendarId,
+            requestBody: expect.objectContaining({
+                summary: sampleEventOptions.summary,
+                description: sampleEventOptions.description,
+                start: { dateTime: sampleEventOptions.startDateTime, timeZone: sampleEventOptions.timezone },
+                end: { dateTime: sampleEventOptions.endDateTime, timeZone: sampleEventOptions.timezone },
+                attendees: sampleEventOptions.attendees,
+                // conferenceData should be built based on options.conferenceData and generatedId
+                // The refactored createGoogleEvent now uses uuidv4() internally for requestId if conferenceData.createRequest is to be built
+                // So if sampleEventOptions.conferenceData = { type: 'hangoutsMeet' }, then createRequest should be built.
+                // The current sampleEventOptions.conferenceData = { type: 'hangoutsMeet' } might not trigger createRequest in the refactored code.
+                // Let's adjust sampleEventOptions for conference test.
+                status: sampleEventOptions.status,
+            }),
+            // conferenceDataVersion: 1, // This should be set if conferenceData is in requestBody
+        }));
+    });
+
+    it('should create an all-day event successfully using eventOptions', async () => {
+        getGoogleAPITokenSpy.mockResolvedValue({ success: true, token: 'dummy_token' });
+        const mockApiResponse = { data: { id: 'gcal_allday_456', summary: sampleAllDayEventOptions.summary } };
+        mockEventsInsert.mockResolvedValue(mockApiResponse);
+
+        const result = await apiHelperModule.createGoogleEvent(
+            baseParams.userId, baseParams.calendarId, baseParams.clientType,
+            sampleAllDayEventOptions
+        );
+        expect(result.success).toBe(true);
+        expect(mockEventsInsert).toHaveBeenCalledWith(expect.objectContaining({
+            requestBody: expect.objectContaining({
+                summary: sampleAllDayEventOptions.summary,
+                description: sampleAllDayEventOptions.description,
+                start: { date: '2024-09-02', timeZone: sampleAllDayEventOptions.timezone }, // date field for all-day
+                end: { date: '2024-09-03', timeZone: sampleAllDayEventOptions.timezone },   // date field for all-day
+            }),
+        }));
+    });
+
+    it('should correctly build conferenceData if createRequest details are provided in options', async () => {
+        getGoogleAPITokenSpy.mockResolvedValue({ success: true, token: 'dummy_token' });
+        const mockApiResponse = { data: { id: 'gcal_conf_789' } };
+        mockEventsInsert.mockResolvedValue(mockApiResponse);
+
+        const optionsWithConference: apiHelperModule.CreateGoogleEventOptions = {
+            ...sampleEventOptions,
+            conferenceData: { // This structure will make createGoogleEvent build the createRequest
+                createRequest: {
+                    requestId: 'should-be-overridden-by-generatedId-or-param', // Will be overridden by generatedId param or internal uuidv4
+                    conferenceSolutionKey: { type: 'hangoutsMeet' }
+                }
+            }
+        };
+        // Pass a specific generatedId to test it being used
+        const specificGeneratedId = "specific-conf-uuid";
+
+        await apiHelperModule.createGoogleEvent(
+            baseParams.userId, baseParams.calendarId, baseParams.clientType,
+            optionsWithConference,
+            specificGeneratedId, // Pass the specific generatedId here
+            1 // conferenceDataVersion
+        );
+
+        expect(mockEventsInsert).toHaveBeenCalledWith(expect.objectContaining({
+            conferenceDataVersion: 1,
+            requestBody: expect.objectContaining({
+                conferenceData: {
+                    createRequest: {
+                        requestId: specificGeneratedId, // Check if this is used
+                        conferenceSolutionKey: { type: 'hangoutsMeet' },
+                    },
+                },
+            }),
+        }));
+
+        // Test with internal uuidv4
+        (uuidv4 as jest.Mock).mockReturnValueOnce("internal-uuid-for-conf");
+         await apiHelperModule.createGoogleEvent(
+            baseParams.userId, baseParams.calendarId, baseParams.clientType,
+            optionsWithConference,
+            undefined, // No specific generatedId, so internal uuidv4 should be used
+            1
+        );
+         expect(mockEventsInsert).toHaveBeenCalledWith(expect.objectContaining({
+            requestBody: expect.objectContaining({
+                conferenceData: {
+                    createRequest: {
+                        requestId: "internal-uuid-for-conf",
+                        conferenceSolutionKey: { type: 'hangoutsMeet' },
+                    },
+                },
+            }),
+        }));
+
+    });
+
+
+    // Tests for failure cases (getGoogleAPIToken fails, GCal API fails) can be adapted from existing createGoogleEvent tests.
+    it('should return failure if getGoogleAPIToken fails (options version)', async () => {
+        const tokenError = { message: 'Token fetch failed for options' };
+        getGoogleAPITokenSpy.mockResolvedValue({ success: false, error: tokenError });
+        const result = await apiHelperModule.createGoogleEvent(baseParams.userId, baseParams.calendarId, baseParams.clientType, sampleEventOptions);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.message).toContain('Token acquisition failure');
+            expect(result.error.details).toEqual(tokenError);
+        }
+    });
+
+    it('should return failure if Google Calendar API insert fails (options version)', async () => {
+        getGoogleAPITokenSpy.mockResolvedValue({ success: true, token: 'dummy_token' });
+        const apiError = new Error("Google API Error");
+        (apiError as any).code = 500; // Simulate Google API error structure
+        mockEventsInsert.mockRejectedValue(apiError);
+        const result = await apiHelperModule.createGoogleEvent(baseParams.userId, baseParams.calendarId, baseParams.clientType, sampleEventOptions);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.message).toContain('Google Calendar API error during event creation');
+        }
+    });
+});
+
+
+// TODO: Update tests for createAgenda, breakDownTask, howToTask, and createDaySchedule
+// to ensure they correctly prepare and pass the CreateGoogleEventOptions object
+// to the spied createGoogleEvent. This will involve:
+// 1. Identifying where these orchestrators call createGoogleEvent.
+// 2. In the tests for these orchestrators, when createGoogleEventSpy is called,
+//    assert that the argument corresponding to 'eventOptions' is an object
+//    that matches the expected CreateGoogleEventOptions structure based on the orchestrator's inputs.
+// Example for createAgenda test:
+// expect(createGoogleEventSpy).toHaveBeenCalledWith(
+//   expect.any(String), // userId
+//   expect.any(String), // calendarId
+//   expect.any(String), // clientType
+//   expect.objectContaining({ // This is the eventOptions
+//     summary: "Generated Agenda Event",
+//     description: mockSuccessfulOpenAI.content, // from createAgenda's scope
+//     startDateTime: expect.any(String), // Check specific date/time if necessary
+//     endDateTime: expect.any(String),
+//     timezone: defaultCreateAgendaParams.userTimezone
+//   }),
+//   undefined, // generatedId for conference (likely undefined for simple agenda item)
+//   0 // conferenceDataVersion
+// );
+// This is a placeholder for the detailed work required in subsequent steps if this were interactive.
+// For now, this file focuses on testing createGoogleEvent itself with its new signature.
+
+// --- Updating Orchestrator Function Tests for CreateGoogleEventOptions ---
+
+// Note: The 'apiHelperModule' is used for spying, as these functions are in the same module.
+// The actual spies (e.g., createGoogleEventSpy) are defined within each orchestrator's describe block.
+
+describe('createAgenda (with refactored createGoogleEvent)', () => {
+    // Assuming spies (callOpenAISpy, getGlobalCalendarSpy, createGoogleEventSpy, etc.)
+    // and default params (defaultCreateAgendaParams) are defined as in previous createAgenda tests.
+    // Only showing the relevant part of a test case that calls createGoogleEvent.
+
+    // Minimal setup for spies needed by createAgenda before createGoogleEvent is called
+    let callOpenAISpy: jest.SpyInstance;
+    let getGlobalCalendarSpy: jest.SpyInstance;
+    let createGoogleEventSpy: jest.SpyInstance;
+    let upsertEventsPostPlannerSpy: jest.SpyInstance;
+    let sendAgendaEmailSpy: jest.SpyInstance;
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+     const defaultCreateAgendaParams = {
+        userId: 'user123',
+        clientType: 'web' as 'web',
+        userTimezone: 'America/New_York',
+        userDate: '2024-03-15',
+        prompt: 'Create an agenda for a product strategy meeting.',
+        email: 'test@example.com',
+        name: 'Test User',
+    };
+    const mockSuccessfulOpenAI = { success: true, content: 'Generated Agenda Details' };
+    const mockSuccessfulGlobalCalendar = { success: true, data: { id: 'globalCalId', primaryCalendarId: 'primaryCal123' } };
+    const mockSuccessfulCreateGoogleEvent = { success: true, data: { id: 'gEvent123#primaryCal123', googleEventId: 'gEvent123', generatedId: 'uuid1', calendarId: 'primaryCal123' } };
+    const mockSuccessfulUpsert = { success: true, data: { affected_rows: 1, returning: [{ id: 'dbEventId456' }] } };
+    const mockSuccessfulEmail = { success: true };
+
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        callOpenAISpy = jest.spyOn(apiHelperModule, 'callOpenAI').mockResolvedValue(mockSuccessfulOpenAI);
+        getGlobalCalendarSpy = jest.spyOn(apiHelperModule, 'getGlobalCalendar').mockResolvedValue(mockSuccessfulGlobalCalendar);
+        createGoogleEventSpy = jest.spyOn(apiHelperModule, 'createGoogleEvent').mockResolvedValue(mockSuccessfulCreateGoogleEvent);
+        upsertEventsPostPlannerSpy = jest.spyOn(apiHelperModule, 'upsertEventsPostPlanner').mockResolvedValue(mockSuccessfulUpsert);
+        sendAgendaEmailSpy = jest.spyOn(apiHelperModule, 'sendAgendaEmail').mockResolvedValue(mockSuccessfulEmail);
+         // getGoogleAPIToken is called by createGoogleEvent, so ensure it's spied if needed for other tests,
+        // but for testing createAgenda's call to createGoogleEvent, createGoogleEvent itself is spied.
+        jest.spyOn(apiHelperModule, 'getGoogleAPIToken').mockResolvedValue({success: true, token: "dummy-token"});
+
+    });
+    afterEach(() => {
+        jest.restoreAllMocks(); // Restore all mocks after each test
+        consoleLogSpy.mockRestore();
+    });
+
+
+    it('createAgenda should call createGoogleEvent with CreateGoogleEventOptions', async () => {
+        await apiHelperModule.createAgenda(
+            defaultCreateAgendaParams.userId, defaultCreateAgendaParams.clientType,
+            defaultCreateAgendaParams.userTimezone, defaultCreateAgendaParams.userDate,
+            defaultCreateAgendaParams.prompt, defaultCreateAgendaParams.email, defaultCreateAgendaParams.name
+        );
+
+        expect(createGoogleEventSpy).toHaveBeenCalledWith(
+            defaultCreateAgendaParams.userId,
+            mockSuccessfulGlobalCalendar.data.primaryCalendarId,
+            defaultCreateAgendaParams.clientType,
+            expect.objectContaining({ // This is the eventOptions check
+                summary: "Generated Agenda Event", // As per createAgenda's simplified logic
+                description: mockSuccessfulOpenAI.content,
+                startDateTime: dayjs.tz(`${defaultCreateAgendaParams.userDate}T09:00:00`, defaultCreateAgendaParams.userTimezone).toISOString(),
+                endDateTime: dayjs.tz(`${defaultCreateAgendaParams.userDate}T10:00:00`, defaultCreateAgendaParams.userTimezone).toISOString(),
+                timezone: defaultCreateAgendaParams.userTimezone
+            }),
+            // Default values for generatedId, conferenceDataVersion, etc., if not specified by createAgenda
+             undefined, // generatedId (for conference, likely undefined here)
+             0 // conferenceDataVersion (default if no conference)
+        );
+    });
+});
+
+describe('createDaySchedule (with refactored createGoogleEvent)', () => {
+    // Assuming spies and defaultParams are set up as in previous createDaySchedule tests
+    let listEventsForUserGivenDatesSpy: jest.SpyInstance;
+    let callOpenAISpy: jest.SpyInstance;
+    let getGlobalCalendarSpy: jest.SpyInstance;
+    let createGoogleEventSpy: jest.SpyInstance;
+    let upsertEventsPostPlannerSpy: jest.SpyInstance;
+    let sendGenericTaskEmailSpy: jest.SpyInstance;
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const defaultDayScheduleParams = {
+        userId: 'user_schedule_test',
+        clientType: 'web' as 'web',
+        userDate: '2024-08-15',
+        userTimezone: 'America/Denver',
+        prompt: 'Plan my day.',
+        isAllDay: false,
+        email: 'user@example.com',
+        name: 'Schedule User',
+    };
+    const mockParsedTasksNonAllDay = [
+        { start_time: "10:00 AM", end_time: "11:00 AM", task: "Task 1", description: "Desc 1" },
+        { start_time: "2:00 PM", end_time: "3:00 PM", task: "Task 2", description: "Desc 2" }
+    ];
+    const mockSuccessfulGlobalCalendar = { success: true, data: { id: 'dbCalId123', primaryCalendarId: 'primaryGCalId456' } };
+
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        listEventsForUserGivenDatesSpy = jest.spyOn(apiHelperModule, 'listEventsForUserGivenDates').mockResolvedValue({ success: true, data: [] });
+        callOpenAISpy = jest.spyOn(apiHelperModule, 'callOpenAI'); // Specific mock per test
+        getGlobalCalendarSpy = jest.spyOn(apiHelperModule, 'getGlobalCalendar').mockResolvedValue(mockSuccessfulGlobalCalendar);
+        createGoogleEventSpy = jest.spyOn(apiHelperModule, 'createGoogleEvent').mockResolvedValue({ success: true, data: { id: 'g1', googleEventId: 'g1', generatedId: 'u1', calendarId: 'p1' }});
+        upsertEventsPostPlannerSpy = jest.spyOn(apiHelperModule, 'upsertEventsPostPlanner').mockResolvedValue({ success: true, data: { affected_rows: 1, returning: [] } });
+        sendGenericTaskEmailSpy = jest.spyOn(apiHelperModule, 'sendGenericTaskEmail').mockResolvedValue({ success: true });
+        jest.spyOn(apiHelperModule, 'getGoogleAPIToken').mockResolvedValue({success: true, token: "dummy-token"});
+    });
+     afterEach(() => {
+        jest.restoreAllMocks();
+        consoleLogSpy.mockRestore();
+    });
+
+
+    it('createDaySchedule non-all-day should call createGoogleEvent with CreateGoogleEventOptions for each task', async () => {
+        callOpenAISpy.mockResolvedValue({ success: true, content: JSON.stringify(mockParsedTasksNonAllDay) });
+
+        await apiHelperModule.createDaySchedule(...Object.values(defaultDayScheduleParams));
+
+        expect(createGoogleEventSpy).toHaveBeenCalledTimes(mockParsedTasksNonAllDay.length);
+        mockParsedTasksNonAllDay.forEach(task => {
+            const expectedStartDateTime = dayjs.tz(`${defaultDayScheduleParams.userDate} ${task.start_time}`, 'YYYY-MM-DD h:mm A', defaultDayScheduleParams.userTimezone).toISOString();
+            const expectedEndDateTime = dayjs.tz(`${defaultDayScheduleParams.userDate} ${task.end_time}`, 'YYYY-MM-DD h:mm A', defaultDayScheduleParams.userTimezone).toISOString();
+            expect(createGoogleEventSpy).toHaveBeenCalledWith(
+                defaultDayScheduleParams.userId,
+                mockSuccessfulGlobalCalendar.data.primaryCalendarId,
+                defaultDayScheduleParams.clientType,
+                expect.objectContaining({
+                    summary: task.task,
+                    description: task.description,
+                    startDateTime: expectedStartDateTime,
+                    endDateTime: expectedEndDateTime,
+                    timezone: defaultDayScheduleParams.userTimezone
+                }),
+                undefined, // generatedId for conference
+                0 // conferenceDataVersion
+            );
+        });
+    });
+
+    it('createDaySchedule all-day should call createGoogleEvent with CreateGoogleEventOptions for a single event', async () => {
+        const mockParsedTasksAllDay = [{ task: "Task A", description: "Desc A"}, { task: "Task B", description: "Desc B"}];
+        callOpenAISpy.mockResolvedValue({ success: true, content: JSON.stringify(mockParsedTasksAllDay) });
+        const allDayParams = { ...defaultDayScheduleParams, isAllDay: true };
+
+        await apiHelperModule.createDaySchedule(...Object.values(allDayParams));
+
+        const expectedAllDayStartDate = dayjs.tz(allDayParams.userDate, allDayParams.userTimezone).startOf('day').format('YYYY-MM-DD');
+        const expectedAllDayEndDate = dayjs.tz(allDayParams.userDate, allDayParams.userTimezone).add(1, 'day').startOf('day').format('YYYY-MM-DD');
+        const expectedDescription = mockParsedTasksAllDay.map(t => `${t.task}${t.description ? `:\n${t.description}` : ''}`).join('\n\n---\n\n');
+
+        expect(createGoogleEventSpy).toHaveBeenCalledTimes(1);
+        expect(createGoogleEventSpy).toHaveBeenCalledWith(
+            allDayParams.userId,
+            mockSuccessfulGlobalCalendar.data.primaryCalendarId,
+            allDayParams.clientType,
+            expect.objectContaining({
+                summary: expect.stringContaining('Day Schedule:'),
+                description: expectedDescription,
+                startDate: expectedAllDayStartDate,
+                endDate: expectedAllDayEndDate,
+                timezone: allDayParams.userTimezone
+            }),
+            undefined, 0
+        );
+    });
+});
+
+
+describe('breakDownTask and howToTask (with refactored createGoogleEvent)', () => {
+    // Common setup for breakDownTask and howToTask
+    let callOpenAISpy: jest.SpyInstance;
+    let getGlobalCalendarSpy: jest.SpyInstance;
+    let createGoogleEventSpy: jest.SpyInstance; // This is the target for assertion change
+    let upsertEventsPostPlannerSpy: jest.SpyInstance;
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+
+    const defaultTaskParams = {
+        userId: 'user_task_test',
+        clientType: 'web' as 'web',
+        userTimezone: 'America/Los_Angeles',
+        taskTitle: 'Plan Q3 Roadmap',
+        taskDescription: 'Detailed planning for Q3.',
+        isAllDay: false,
+        startDate: '2024-07-01T10:00:00Z',
+        endDate: '2024-07-01T11:00:00Z',
+        email: 'user@example.com',
+        name: 'Task User',
+    };
+    const mockSuccessfulOpenAI_Task = { success: true, content: 'Task details from AI' };
+    const mockSuccessfulGlobalCalendar_Task = { success: true, data: { id: 'taskCalId', primaryCalendarId: 'primaryTaskCal' } };
+     // createGoogleEvent is spied, so its internal getGoogleAPIToken call doesn't need separate spying here.
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        callOpenAISpy = jest.spyOn(apiHelperModule, 'callOpenAI').mockResolvedValue(mockSuccessfulOpenAI_Task);
+        getGlobalCalendarSpy = jest.spyOn(apiHelperModule, 'getGlobalCalendar').mockResolvedValue(mockSuccessfulGlobalCalendar_Task);
+        createGoogleEventSpy = jest.spyOn(apiHelperModule, 'createGoogleEvent').mockResolvedValue({ success: true, data: { id: 'g1', googleEventId: 'g1', generatedId:'u1', calendarId:'p1' }});
+        upsertEventsPostPlannerSpy = jest.spyOn(apiHelperModule, 'upsertEventsPostPlanner').mockResolvedValue({ success: true, data: { affected_rows:1, returning:[] } });
+        jest.spyOn(apiHelperModule, 'getGoogleAPIToken').mockResolvedValue({success: true, token: "dummy-token"});
+    });
+    afterEach(() => {
+        jest.restoreAllMocks();
+        consoleLogSpy.mockRestore();
+    });
+
+    describe('breakDownTask (checking createGoogleEventOptions)', () => {
+        let emailTaskBreakDownSpy: jest.SpyInstance;
+        beforeEach(() => emailTaskBreakDownSpy = jest.spyOn(apiHelperModule, 'emailTaskBreakDown').mockResolvedValue({ success: true }));
+        afterEach(() => emailTaskBreakDownSpy.mockRestore());
+
+        it('breakDownTask timed event should call createGoogleEvent with correct options', async () => {
+            await apiHelperModule.breakDownTask(
+                defaultTaskParams.userId, defaultTaskParams.clientType, defaultTaskParams.userTimezone,
+                defaultTaskParams.taskTitle, defaultTaskParams.taskDescription, false, // isAllDay = false
+                defaultTaskParams.startDate, defaultTaskParams.endDate,
+                defaultTaskParams.email, defaultTaskParams.name
+            );
+            expect(createGoogleEventSpy).toHaveBeenCalledWith(
+                defaultTaskParams.userId, mockSuccessfulGlobalCalendar_Task.data.primaryCalendarId, defaultTaskParams.clientType,
+                expect.objectContaining({
+                    summary: defaultTaskParams.taskTitle,
+                    description: mockSuccessfulOpenAI_Task.content,
+                    startDateTime: defaultTaskParams.startDate,
+                    endDateTime: defaultTaskParams.endDate,
+                    timezone: defaultTaskParams.userTimezone
+                }),
+                undefined, 0
+            );
+        });
+
+        it('breakDownTask all-day event should call createGoogleEvent with correct date options', async () => {
+            const allDayStartDate = dayjs(defaultTaskParams.startDate).format('YYYY-MM-DD');
+            const allDayEndDate = dayjs(defaultTaskParams.endDate).format('YYYY-MM-DD'); // The helper adds 1 day to end date for GCal
+
+            await apiHelperModule.breakDownTask(
+                defaultTaskParams.userId, defaultTaskParams.clientType, defaultTaskParams.userTimezone,
+                defaultTaskParams.taskTitle, defaultTaskParams.taskDescription, true, // isAllDay = true
+                allDayStartDate, allDayEndDate,
+                defaultTaskParams.email, defaultTaskParams.name
+            );
+            expect(createGoogleEventSpy).toHaveBeenCalledWith(
+                defaultTaskParams.userId, mockSuccessfulGlobalCalendar_Task.data.primaryCalendarId, defaultTaskParams.clientType,
+                expect.objectContaining({
+                    summary: defaultTaskParams.taskTitle,
+                    description: mockSuccessfulOpenAI_Task.content,
+                    startDate: allDayStartDate,
+                    endDate: dayjs(allDayEndDate).add(1, 'day').format('YYYY-MM-DD'), // createEventHelper adds 1 day
+                    timezone: defaultTaskParams.userTimezone
+                }),
+                undefined, 0
+            );
+        });
+    });
+
+    describe('howToTask (checking createGoogleEventOptions)', () => {
+        let sendGenericTaskEmailSpy: jest.SpyInstance;
+        beforeEach(() => sendGenericTaskEmailSpy = jest.spyOn(apiHelperModule, 'sendGenericTaskEmail').mockResolvedValue({ success: true }));
+        afterEach(() => sendGenericTaskEmailSpy.mockRestore());
+
+        it('howToTask timed event should call createGoogleEvent with correct options', async () => {
+            await apiHelperModule.howToTask(
+                defaultTaskParams.userId, defaultTaskParams.clientType, defaultTaskParams.userTimezone,
+                defaultTaskParams.taskTitle, false, // isAllDay = false
+                defaultTaskParams.startDate, defaultTaskParams.endDate,
+                defaultTaskParams.email, defaultTaskParams.name
+            );
+            expect(createGoogleEventSpy).toHaveBeenCalledWith(
+                defaultTaskParams.userId, mockSuccessfulGlobalCalendar_Task.data.primaryCalendarId, defaultTaskParams.clientType,
+                expect.objectContaining({
+                    summary: `How to: ${defaultTaskParams.taskTitle}`,
+                    description: mockSuccessfulOpenAI_Task.content,
+                    startDateTime: defaultTaskParams.startDate,
+                    endDateTime: defaultTaskParams.endDate,
+                    timezone: defaultTaskParams.userTimezone
+                }),
+                undefined, 0
+            );
+        });
+    });
+});
+
 // --- Tests for createDaySchedule ---
 import { createDaySchedule } from './api-helper';
 // Spies for apiHelperModule functions will be set up in describe block.
