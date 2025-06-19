@@ -32,7 +32,14 @@ export const maxCharacterCount = 5000
 export const googleClientIdAtomicWeb = process.env.GOOGLE_CLIENT_ID_ATOMIC_WEB
 // GOOGLE_CLIENT_SECRET_ATOMIC_WEB
 export const googleClientSecretAtomicWeb = process.env.GOOGLE_CLIENT_SECRET_ATOMIC_WEB
-export const kafkaOnDayScheduleTopic = 'on-day-schedule'
-export const kafkaMeetingReqTemplateTopic = 'meeting-req-template'
-export const kafkaGPTGroupId = 'gpt'
+
+// Kafka Configuration
+export const kafkaBrokers = (process.env.KAFKA_BROKERS || 'localhost:9092').split(',').map(broker => broker.trim());
+export const kafkaOnDayScheduleTopic = process.env.KAFKA_TOPIC_ON_DAY_SCHEDULE || 'on-day-schedule';
+export const kafkaMeetingReqTemplateTopic = process.env.KAFKA_TOPIC_MEETING_REQ_TEMPLATE || 'meeting-req-template';
+export const kafkaGPTGroupId = process.env.KAFKA_GROUP_ID_GPT || 'gpt';
+
+// S3 Configuration
+// bucketName is already process.env.S3_BUCKET
+export const s3Endpoint = process.env.S3_ENDPOINT; // May be undefined if not set, S3 client handles this
 
