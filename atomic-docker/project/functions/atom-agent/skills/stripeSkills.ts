@@ -3,8 +3,11 @@ import { ATOM_STRIPE_SECRET_KEY } from '../_libs/constants';
 import {
   StripeCharge,
   StripePaymentIntent,
-  ListStripePaymentsResponse,
-  GetStripePaymentDetailsResponse,
+  // ListStripePaymentsResponse, // Superseded by StripeSkillResponse<ListStripePaymentsData>
+  // GetStripePaymentDetailsResponse, // Superseded by StripeSkillResponse<StripePaymentIntent>
+  StripeSkillResponse, // New generic response type
+  ListStripePaymentsData, // New data payload type
+  SkillError, // Standardized error type
 } from '../types';
 
 let stripeClient: Stripe | null = null;
@@ -72,19 +75,19 @@ function mapStripePaymentIntentToInternal(pi: Stripe.PaymentIntent): StripePayme
 export async function listStripePayments(
   options?: {
     limit?: number;
-    starting_after?: string; // For pagination: ID of the last object on the previous page
-    customer?: string; // Filter by customer ID
+    starting_after?: string;
+    customer?: string;
   }
-): Promise<ListStripePaymentsResponse> {
+): Promise<StripeSkillResponse<ListStripePaymentsData>> {
   const client = getStripeClient();
   if (!client) {
-    return { ok: false, error: 'Stripe Secret Key not configured.' };
+    return { ok: false, error: { code: 'STRIPE_CONFIG_ERROR', message: 'Stripe Secret Key not configured.' } };
   }
 
   try {
     const params: Stripe.PaymentIntentListParams = {
       limit: options?.limit || 10,
-      expand: ['data.latest_charge'], // Expand latest_charge to get details like receipt_url
+      expand: ['data.latest_charge'],
     };
 
     if (options?.starting_after) {
@@ -95,59 +98,82 @@ export async function listStripePayments(
     }
 
     const paymentIntentsResponse = await client.paymentIntents.list(params);
-
     const mappedPayments = paymentIntentsResponse.data.map(mapStripePaymentIntentToInternal);
 
     return {
       ok: true,
-      payments: mappedPayments,
-      has_more: paymentIntentsResponse.has_more,
+      data: {
+        payments: mappedPayments,
+        has_more: paymentIntentsResponse.has_more,
+      }
     };
   } catch (error: any) {
-    console.error('Error listing Stripe payments:', error.message);
-    // Stripe errors often have a 'code' and 'message' property.
-    // error.raw?.code, error.raw?.message might also be useful.
-    return { ok: false, error: error.message || 'Failed to list Stripe payments.' };
+    console.error('Error listing Stripe payments:', error);
+    const stripeError = error as Stripe.errors.StripeError;
+    return {
+        ok: false,
+        error: {
+            code: stripeError.code || 'STRIPE_API_ERROR',
+            message: stripeError.message || 'Failed to list Stripe payments.',
+            details: stripeError.raw // Include raw error for more context
+        }
+    };
   }
 }
 
 export async function getStripePaymentDetails(
   paymentIntentId: string
-): Promise<GetStripePaymentDetailsResponse> {
+): Promise<StripeSkillResponse<StripePaymentIntent | null>> { // Data can be null if not found
   const client = getStripeClient();
   if (!client) {
-    return { ok: false, error: 'Stripe Secret Key not configured.' };
+    return { ok: false, error: { code: 'STRIPE_CONFIG_ERROR', message: 'Stripe Secret Key not configured.' } };
   }
 
-  if (!paymentIntentId) {
-    return { ok: false, error: 'PaymentIntent ID is required.' };
+  if (!paymentIntentId || paymentIntentId.trim() === '') {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'PaymentIntent ID is required.' } };
   }
 
   try {
     const params: Stripe.PaymentIntentRetrieveParams = {
-      expand: ['latest_charge', 'customer'], // Expand for more details
+      expand: ['latest_charge', 'customer'],
     };
     const paymentIntent = await client.paymentIntents.retrieve(paymentIntentId, params);
 
-    if (!paymentIntent) {
-      // This case should ideally be caught by StripeError (e.g., resource_missing)
-      return { ok: false, error: 'PaymentIntent not found.' };
-    }
-
+    // retrieve doesn't typically return null for a found resource, it throws a resource_missing error.
+    // So, if no error is thrown, paymentIntent should exist.
     return {
       ok: true,
-      payment: mapStripePaymentIntentToInternal(paymentIntent),
+      data: mapStripePaymentIntentToInternal(paymentIntent),
     };
   } catch (error: any) {
-    console.error(`Error getting Stripe payment details for ID ${paymentIntentId}:`, error.message);
+    console.error(`Error getting Stripe payment details for ID ${paymentIntentId}:`, error);
     if (error instanceof Stripe.errors.StripeError) {
-      // Handle specific Stripe error codes
       if (error.code === 'resource_missing') {
-        return { ok: false, error: `PaymentIntent with ID ${paymentIntentId} not found.` };
+        return {
+            ok: false, // Or ok:true, data:null if you prefer to indicate "found nothing" as success
+            error: {
+                code: 'PAYMENT_INTENT_NOT_FOUND',
+                message: `PaymentIntent with ID ${paymentIntentId} not found.`,
+                details: error.raw
+            }
+        };
       }
-      // You can add more specific Stripe error code handling here
-      return { ok: false, error: `Stripe API Error: ${error.message} (Code: ${error.code || 'N/A'})` };
+      return {
+          ok: false,
+          error: {
+              code: error.code || 'STRIPE_API_ERROR',
+              message: error.message || 'Stripe API Error',
+              details: error.raw
+          }
+      };
     }
-    return { ok: false, error: error.message || `Failed to get Stripe payment details for ID ${paymentIntentId}.` };
+    return {
+        ok: false,
+        error: {
+            code: 'INTERNAL_ERROR',
+            message: error.message || `Failed to get Stripe payment details for ID ${paymentIntentId}.`,
+            details: error
+        }
+    };
   }
 }

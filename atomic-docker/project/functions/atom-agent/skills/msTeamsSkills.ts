@@ -14,8 +14,11 @@ import {
 } from '../_libs/constants';
 import {
   MSGraphEvent,
-  ListMSTeamsMeetingsResponse,
-  GetMSTeamsMeetingDetailsResponse,
+  // ListMSTeamsMeetingsResponse, // Superseded by GraphSkillResponse<ListMSGraphEventsData>
+  // GetMSTeamsMeetingDetailsResponse, // Superseded by GraphSkillResponse<MSGraphEvent>
+  GraphSkillResponse, // New generic response type
+  ListMSGraphEventsData, // New data payload type for listing events
+  SkillError, // Standardized error type
   // MSGraphTokenResponse is implicitly handled by AuthenticationResult from msal-node
 } from '../types';
 
@@ -61,103 +64,119 @@ function getMsalClient(): ConfidentialClientApplication | null {
   return msalClientApp;
 }
 
-async function getMSGraphToken(): Promise<string | null> {
+async function getMSGraphToken(): Promise<GraphSkillResponse<string>> {
   if (msGraphAccessToken && Date.now() < msGraphAccessToken.expiresOnTimestamp) {
-    return msGraphAccessToken.token;
+    console.log('Using cached MS Graph access token.');
+    return { ok: true, data: msGraphAccessToken.token };
   }
 
   const clientApp = getMsalClient();
   if (!clientApp) {
-    console.error('MSAL client application could not be initialized.');
-    return null;
+    const errorMsg = 'MSAL client application could not be initialized due to missing configuration.';
+    console.error(errorMsg);
+    return { ok: false, error: { code: 'MSGRAPH_CONFIG_ERROR', message: errorMsg } };
   }
 
   if (!ATOM_MSGRAPH_SCOPES || ATOM_MSGRAPH_SCOPES.length === 0) {
-      console.error('MS Graph API scopes are not configured.');
-      return null;
+      const errorMsg = 'MS Graph API scopes are not configured.';
+      console.error(errorMsg);
+      return { ok: false, error: { code: 'MSGRAPH_CONFIG_ERROR', message: errorMsg } };
   }
 
   const tokenRequest = {
-    scopes: ATOM_MSGRAPH_SCOPES, // e.g., ['https://graph.microsoft.com/.default']
+    scopes: ATOM_MSGRAPH_SCOPES,
   };
 
   try {
+    console.log('Requesting new MS Graph access token...');
     const response: AuthenticationResult | null = await clientApp.acquireTokenByClientCredential(tokenRequest);
     if (response && response.accessToken && response.expiresOn) {
-      // Store the token and its expiry time (with a 5-minute buffer)
       msGraphAccessToken = {
         token: response.accessToken,
         expiresOnTimestamp: response.expiresOn.getTime() - 300000, // 5 minutes buffer
       };
       console.log('Successfully obtained new MS Graph access token.');
-      return response.accessToken;
+      return { ok: true, data: response.accessToken };
     } else {
       console.error('Failed to acquire MS Graph token. Response was null or invalid.');
       msGraphAccessToken = null;
-      return null;
+      return { ok: false, error: { code: 'MSGRAPH_AUTH_ERROR', message: 'Failed to acquire MS Graph token from MSAL.', details: response } };
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error acquiring MS Graph token by client credential:', error);
     msGraphAccessToken = null;
-    return null;
+    // Attempt to get more specific error information from MSAL error
+    const errorCode = error.errorCode || 'MSGRAPH_AUTH_REQUEST_FAILED';
+    const errorMessage = error.errorMessage || error.message || 'Error acquiring MS Graph token.';
+    return { ok: false, error: { code: errorCode, message: errorMessage, details: error } };
   }
 }
 
 export async function listMicrosoftTeamsMeetings(
-  userPrincipalNameOrId: string, // e.g., "me" or "user@example.com" or user's object ID
+  userPrincipalNameOrId: string,
   options?: {
     limit?: number;
-    nextLink?: string; // For pagination using @odata.nextLink
-    filterForTeams?: boolean; // Default true, to filter for actual Teams meetings
-    // Additional filters like date ranges can be added via OData $filter query if needed
-    // e.g., filter?: "start/dateTime ge '2024-03-01T00:00:00Z' and end/dateTime le '2024-03-31T23:59:59Z'"
+    nextLink?: string;
+    filterForTeams?: boolean;
   }
-): Promise<ListMSTeamsMeetingsResponse> {
+): Promise<GraphSkillResponse<ListMSGraphEventsData>> {
   console.log(`listMicrosoftTeamsMeetings called for user: ${userPrincipalNameOrId}, options:`, options);
-  const token = await getMSGraphToken();
-  if (!token) {
-    return { ok: false, error: 'Failed to obtain MS Graph access token.' };
+
+  if (!userPrincipalNameOrId) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userPrincipalNameOrId is required.' }};
   }
 
-  let requestUrl = options?.nextLink; // Use nextLink directly if provided for pagination
+  const tokenResponse = await getMSGraphToken();
+  if (!tokenResponse.ok || !tokenResponse.data) {
+    return { ok: false, error: tokenResponse.error || { code: 'MSGRAPH_AUTH_ERROR', message: 'Failed to obtain MS Graph access token for listing meetings.'} };
+  }
+  const token = tokenResponse.data;
+
+  let requestUrl = options?.nextLink;
 
   if (!requestUrl) {
     const selectParams = 'id,subject,start,end,isOnlineMeeting,onlineMeeting,webLink,bodyPreview';
     const orderByParams = 'start/dateTime ASC';
     const topParams = options?.limit || 10;
+    let filterParamsValue = '';
 
-    let filterParams = '';
-    if (options?.filterForTeams !== false) { // Default to true
-        // This filter ensures it's an online meeting AND specifically a Teams meeting.
-        filterParams = `$filter=isOnlineMeeting eq true and onlineMeeting/onlineMeetingProvider eq 'teamsForBusiness'`;
+    if (options?.filterForTeams !== false) {
+        filterParamsValue = `isOnlineMeeting eq true and onlineMeeting/onlineMeetingProvider eq 'teamsForBusiness'`;
     }
-    // Example for date range filter if it were added to options:
-    // if (options?.filter) { filterParams = filterParams ? `${filterParams} and ${options.filter}` : `$filter=${options.filter}`; }
 
-
-    requestUrl = `${MSGRAPH_API_BASE_URL}/users/${userPrincipalNameOrId}/calendar/events?$select=${selectParams}&$orderby=${orderByParams}&$top=${topParams}`;
-    if (filterParams) {
-        requestUrl += `&${filterParams}`;
+    const queryParams = new URLSearchParams();
+    queryParams.append('$select', selectParams);
+    queryParams.append('$orderby', orderByParams);
+    queryParams.append('$top', topParams.toString());
+    if (filterParamsValue) {
+        queryParams.append('$filter', filterParamsValue);
     }
+    requestUrl = `${MSGRAPH_API_BASE_URL}/users/${userPrincipalNameOrId}/calendar/events?${queryParams.toString()}`;
   }
 
   try {
-    const response = await axios.get(requestUrl, {
+    const response = await axios.get(requestUrl, { // MS Graph returns 'value' for items and '@odata.nextLink'
       headers: { 'Authorization': `Bearer ${token}` },
     });
 
     return {
       ok: true,
-      events: response.data.value as MSGraphEvent[],
-      nextLink: response.data['@odata.nextLink'] || undefined, // OData pagination link
+      data: {
+        events: response.data.value as MSGraphEvent[],
+        nextLink: response.data['@odata.nextLink'] || undefined,
+      }
     };
-  } catch (error) {
+  } catch (error: any) {
     const axiosError = error as AxiosError;
     console.error(`Error listing MS Teams meetings for user ${userPrincipalNameOrId}:`, axiosError.message);
-    const errorResponse = axiosError.response?.data as any;
+    const errorData = axiosError.response?.data as any; // MS Graph errors are often in errorData.error
     return {
       ok: false,
-      error: errorResponse?.error?.message || axiosError.message || 'Failed to list MS Teams meetings',
+      error: {
+        code: errorData?.error?.code || 'MSGRAPH_API_ERROR',
+        message: errorData?.error?.message || axiosError.message || 'Failed to list MS Teams meetings',
+        details: errorData?.error || errorData
+      }
     };
   }
 }
@@ -165,33 +184,49 @@ export async function listMicrosoftTeamsMeetings(
 export async function getMicrosoftTeamsMeetingDetails(
   userPrincipalNameOrId: string,
   eventId: string
-): Promise<GetMSTeamsMeetingDetailsResponse> {
+): Promise<GraphSkillResponse<MSGraphEvent>> {
   console.log(`getMicrosoftTeamsMeetingDetails called for user: ${userPrincipalNameOrId}, eventId: ${eventId}`);
-  const token = await getMSGraphToken();
-  if (!token) {
-    return { ok: false, error: 'Failed to obtain MS Graph access token.' };
+
+  if (!userPrincipalNameOrId || !eventId) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userPrincipalNameOrId and eventId are required.' }};
   }
 
-  // Select more comprehensive details for a single event
+  const tokenResponse = await getMSGraphToken();
+  if (!tokenResponse.ok || !tokenResponse.data) {
+    return { ok: false, error: tokenResponse.error || { code: 'MSGRAPH_AUTH_ERROR', message: 'Failed to obtain MS Graph access token for getting meeting details.'} };
+  }
+  const token = tokenResponse.data;
+
   const selectParams = 'id,subject,start,end,isOnlineMeeting,onlineMeeting,webLink,bodyPreview,body,attendees,location,locations,organizer';
   const requestUrl = `${MSGRAPH_API_BASE_URL}/users/${userPrincipalNameOrId}/events/${eventId}?$select=${selectParams}`;
 
   try {
-    const response = await axios.get(requestUrl, {
+    const response = await axios.get<MSGraphEvent>(requestUrl, { // Expecting a single MSGraphEvent
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    return { ok: true, event: response.data as MSGraphEvent };
-  } catch (error) {
+    return { ok: true, data: response.data };
+  } catch (error: any) {
     const axiosError = error as AxiosError;
     console.error(`Error getting MS Teams meeting details for event ${eventId}, user ${userPrincipalNameOrId}:`, axiosError.message);
-    const errorResponse = axiosError.response?.data as any;
+    const errorData = axiosError.response?.data as any; // MS Graph errors are often in errorData.error
 
     if (axiosError.response?.status === 404) {
-      return { ok: false, error: `Meeting event not found (ID: ${eventId}). ${errorResponse?.error?.message || ''}`.trim() };
+      return {
+          ok: false,
+          error: {
+              code: 'EVENT_NOT_FOUND',
+              message: `Meeting event not found (ID: ${eventId}). ${errorData?.error?.message || ''}`.trim(),
+              details: errorData?.error || errorData
+          }
+      };
     }
     return {
       ok: false,
-      error: errorResponse?.error?.message || axiosError.message || 'Failed to get MS Teams meeting details',
+      error: {
+        code: errorData?.error?.code || 'MSGRAPH_API_ERROR',
+        message: errorData?.error?.message || axiosError.message || 'Failed to get MS Teams meeting details',
+        details: errorData?.error || errorData
+      }
     };
   }
 }
