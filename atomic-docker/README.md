@@ -72,21 +72,30 @@ You can also refer to this [guide](^3^) for more details and screenshots.
 - CLASSIFICATION_PASSWORD is SAME AS API_TOKEN and MUST BE SAME
 - CLASSIFICATION_USERNAME is hard coded
 ### 8. Start docker compose
-- make sure to fill in empty env variables
-- make sure the necessary data folders are created for storage such as 
-  - ```./postgres/data```
-  - ```./data```
-  - ```./letsencrypt```
+- Make sure to fill in empty env variables in your `.env` file based on `.env.example`. Key variables to add/update for new features include:
+  - `NOTION_API_TOKEN`
+  - `NOTION_NOTES_DATABASE_ID`
+  - `DEEPGRAM_API_KEY`
+  - `NOTION_RESEARCH_PROJECTS_DB_ID`
+  - `NOTION_RESEARCH_TASKS_DB_ID`
+  - `LANCEDB_URI` (e.g., `file:///app/project/data/lancedb` if you want to store LanceDB data within the `project/data` directory, which is volume-mounted by the `python-agent` service. Adjust path as needed.)
+  - Remove any OpenSearch-related variables (e.g., `OPENSEARCH_USERNAME`, `OPENSEARCH_PASSWORD`).
+- Make sure the necessary data folders are created for storage such as
+  - ```./project/postgres/data``` (Note: path updated to be relative to `atomic-docker` directory, assuming docker-compose is run from `atomic-docker/project`)
+  - ```./project/data/lancedb``` (If using the example `LANCEDB_URI` above)
+  - ```./project/letsencrypt```
 
 ```
-cp .env.example .env
+# Navigate to the directory containing docker-compose.yaml
+cd project
+cp .env.example .env # Then edit .env with your actual secrets and IDs
 docker-compose up -d
 ```
 
 ### 9. Apply Hasura Metadata
-- ```hasura metadata apply --endpoint "http://localhost:8080" --admin-secret "hello123"```
+- ```hasura metadata apply --endpoint "http://localhost:8080" --admin-secret "YOUR_HASURA_ADMIN_SECRET"```
 - Make sure to have [hasura cli installed](https://hasura.io/docs/latest/hasura-cli/install-hasura-cli/)
-- Make sure to cd into ```project``` directory 
+- Make sure to `cd` into the `project/metadata` directory or use `--project project/metadata --skip-update-check` flags if running from `project` directory.
 
 
 

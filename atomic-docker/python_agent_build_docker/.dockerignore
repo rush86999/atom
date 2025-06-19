@@ -1,0 +1,19 @@
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.git
+.gitignore
+*.md
+
+# Standard ignores for Python projects:
+*.egg-info/
+dist/
+build/
+*.log
+.vscode/
+.idea/
+.DS_Store

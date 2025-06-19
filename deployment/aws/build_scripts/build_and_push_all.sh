@@ -12,7 +12,7 @@ fi
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-SERVICES=("functions" "handshake" "oauth" "app" "optaplanner")
+SERVICES=("functions" "handshake" "oauth" "app" "optaplanner" "python-agent") # Added python-agent
 
 echo "Logging into AWS ECR..."
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
