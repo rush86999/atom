@@ -63,7 +63,7 @@ Examples related to managing your time:
 
 ## Documentation
 
-- You can find documentation on how to use Atomic at https://docs.atomiclife.app
+- Pending
 
 ## Features
 
