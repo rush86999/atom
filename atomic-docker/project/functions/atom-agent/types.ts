@@ -408,11 +408,19 @@ export interface NLUResponseData {
   entities: Record<string, any>; // e.g., { "date_range": "tomorrow", "limit": 3 }
   confidence?: number; // Optional: confidence score for the intent
   recognized_phrase?: string; // Optional: the part of the message that triggered the intent
+    clarification_question?: string;
+    partially_understood_intent?: string;
+    sub_tasks?: Array<{intent: string; entities: Record<string, any>; summary_for_sub_task?: string;}>;
+    original_query?: string;
 }
 
 export interface ProcessedNLUResponse extends NLUResponseData {
   originalMessage: string; // The original user message
   error?: string; // If an error occurred during NLU processing
+    requires_clarification?: boolean;
+    clarification_question?: string;
+    conversation_context?: any; // Or a more specific type if defined
+    sub_tasks?: Array<{intent: string | null; entities: Record<string, any>; summary_for_sub_task?: string;}>;
 }
 
 // --- QuickBooks Online (QBO) Types ---

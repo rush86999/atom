@@ -172,3 +172,104 @@ def handle_link_note(params: dict) -> dict:
         return {"status": "error", "message": f"Missing page_id parameter for linking: {e}"}
     except Exception as e:
         return {"status": "error", "message": f"Error in handle_link_note: {str(e)}"}
+
+# Make sure previous content of the file is preserved. These lines are appended.
+
+from project.functions.atom_agent import research_agent
+import os
+
+# ... (potentially other handlers here) ...
+
+def handle_initiate_research(params: dict) -> dict:
+    user_query = params.get("query")
+    user_id = params.get("user_id")
+
+    if not user_query:
+        return {"status": "error", "message": "Missing 'query' parameter for research."}
+    if not user_id:
+        return {"status": "error", "message": "Missing 'user_id' parameter for research."}
+
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    notion_api_token = os.environ.get("NOTION_API_TOKEN")
+    project_db_id = os.environ.get("NOTION_RESEARCH_PROJECTS_DB_ID")
+    task_db_id = os.environ.get("NOTION_RESEARCH_TASKS_DB_ID")
+
+    required_vars = {
+        "OPENAI_API_KEY": openai_api_key,
+        "NOTION_API_TOKEN": notion_api_token,
+        "NOTION_RESEARCH_PROJECTS_DB_ID": project_db_id,
+        "NOTION_RESEARCH_TASKS_DB_ID": task_db_id
+    }
+    missing_vars = [name for name, value in required_vars.items() if not value]
+    if missing_vars:
+        return {"status": "error", "message": f"Missing environment variables for research: {', '.join(missing_vars)}."}
+
+    result = research_agent.initiate_research_project(
+        user_query=user_query,
+        user_id=user_id,
+        project_db_id=project_db_id,
+        task_db_id=task_db_id,
+        openai_api_key=openai_api_key
+    )
+    return result
+
+
+def handle_execute_pending_research_tasks(params: dict) -> dict:
+    search_api_key = os.environ.get("SEARCH_API_KEY")
+    notion_api_token = os.environ.get("NOTION_API_TOKEN")
+    task_db_id = os.environ.get("NOTION_RESEARCH_TASKS_DB_ID")
+    project_db_id = os.environ.get("NOTION_RESEARCH_PROJECTS_DB_ID")
+    openai_api_key = os.environ.get("OPENAI_API_KEY") # Added openai_api_key for synthesis
+
+    required_vars = {
+        "SEARCH_API_KEY": search_api_key,
+        "NOTION_API_TOKEN": notion_api_token,
+        "NOTION_RESEARCH_TASKS_DB_ID": task_db_id,
+        "NOTION_RESEARCH_PROJECTS_DB_ID": project_db_id,
+        "OPENAI_API_KEY": openai_api_key # Added check
+    }
+    missing_vars = [name for name, value in required_vars.items() if not value]
+    if missing_vars:
+        return {"status": "error", "message": f"Missing environment variables for task execution/synthesis: {', '.join(missing_vars)}."}
+
+    if not note_utils.notion:
+        return {"status": "error", "message": "Notion client in note_utils not initialized. Check NOTION_API_TOKEN."}
+
+    result = research_agent.monitor_and_execute_tasks(
+        task_db_id=task_db_id,
+        search_api_key=search_api_key,
+        project_db_id=project_db_id,
+        openai_api_key=openai_api_key # Pass openai_api_key
+    )
+    return result
+
+
+def handle_synthesize_completed_research(params: dict) -> dict:
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    notion_api_token = os.environ.get("NOTION_API_TOKEN")
+    project_db_id = os.environ.get("NOTION_RESEARCH_PROJECTS_DB_ID")
+    task_db_id = os.environ.get("NOTION_RESEARCH_TASKS_DB_ID")
+
+    required_vars = {
+        "OPENAI_API_KEY": openai_api_key,
+        "NOTION_API_TOKEN": notion_api_token,
+        "NOTION_RESEARCH_PROJECTS_DB_ID": project_db_id,
+        "NOTION_RESEARCH_TASKS_DB_ID": task_db_id
+    }
+    missing_vars = [name for name, value in required_vars.items() if not value]
+    if missing_vars:
+        return {"status": "error", "message": f"Missing environment variables for synthesis: {', '.join(missing_vars)}."}
+
+    if not note_utils.notion:
+        return {"status": "error", "message": "Notion client in note_utils not initialized. Check NOTION_API_TOKEN."}
+
+    # This is a direct call to the synthesis function.
+    # In a real scenario, this might be part of a larger cron job or workflow.
+    research_agent.check_projects_for_completion_and_synthesize(
+        project_db_id=project_db_id,
+        task_db_id=task_db_id,
+        openai_api_key=openai_api_key
+    )
+    # The check_projects_for_completion_and_synthesize function currently prints to console.
+    # Returning a simple success message for the handler.
+    return {"status": "success", "message": "Synthesis check for completed research projects initiated."}

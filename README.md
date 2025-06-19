@@ -186,13 +186,18 @@ The Atomic Agent understands a variety of commands to interact with your integra
     *   Example: `get qb invoice 456`
 
 ### Other Skills (from initial handler)
+
+### Note-Taking and Research (Multi-Agent System with Notion & LanceDB)
+*   **`research \"<topic>\"`**: Initiates a new research project on the specified topic. The agent decomposes the topic into sub-tasks, performs web searches for each task, and stores the findings in a Notion database (specified by `NOTION_RESEARCH_TASKS_DB_ID`). A main project page is created in `NOTION_RESEARCH_PROJECTS_DB_ID`. This command relies on `OPENAI_API_KEY` for decomposing tasks and synthesizing reports, `NOTION_API_TOKEN` for Notion interactions, and `SEARCH_API_KEY` for web searches.
+*   **`process_research_queue`**: Triggers the agent to work on any pending research tasks found in the Notion tasks database. This includes performing web searches for tasks not yet completed and generating synthesized reports for projects where all tasks are finished. The final report is saved to the main project page in Notion.
+
 *   **`list emails [limit]`**: Lists recent emails (generic, implementation details may vary).
 *   **`read email <id>`**: Reads a specific email.
 *   **`send email {JSON_DETAILS}`**: Sends an email.
 *   **`search web <query>`**: Performs a web search.
 *   **`trigger zap <ZapName> [with data {JSON_DATA}]`**: Triggers a Zapier zap.
 
-### Note-Taking and Research (Conceptual)
+### General Note-Taking in Notion (Conceptual - see Multi-Agent System for implemented research notes)
 *   **`note create --title "My Idea" --content "This is a new idea..."`**: Creates a new text note in Notion.
 *   **`note audio create --title "Meeting Recap" --file /path/to/audio.mp3`**: Creates an audio note in Notion, transcribing the audio file.
 *   **`note search "keyword"`**: Searches for notes in Notion containing the keyword.
@@ -213,6 +218,7 @@ The Atomic Agent uses environment variables for its configuration and to connect
 *   `NOTION_RESEARCH_PROJECTS_DB_ID`: The ID of your Notion database for research projects.
 *   `NOTION_RESEARCH_TASKS_DB_ID`: The ID of your Notion database for research sub-agent tasks.
 *   `LANCEDB_URI`: URI for LanceDB storage (e.g., `file:///mnt/lancedb_data/atomic_lancedb` when running in Docker/AWS with EFS, or a local path like `./data/lancedb` for local-only development).
+*   `SEARCH_API_KEY`: Your API key for the chosen web search engine (e.g., Google Custom Search API, Bing Search API, SerpApi, etc.). This is required for the research agent's web search capabilities.
 *   _(Remove any OpenSearch-specific variables like `OPENSEARCH_ENDPOINT`, `OPENSEARCH_USERNAME`, `OPENSEARCH_PASSWORD`)_
 
 
