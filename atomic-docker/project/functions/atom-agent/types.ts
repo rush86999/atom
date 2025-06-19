@@ -138,6 +138,15 @@ export interface NotionSearchResultData { // This is an item in the array return
   [key: string]: any;
 }
 
+// For searchSimilarNotionNotes skill (based on Python's NoteSearchResult)
+export interface NotionSimilarNoteResult {
+  note_id: string;
+  score: number; // Similarity score (distance)
+  updated_at?: string; // ISO date string
+  user_id?: string;
+  // Potentially add title or snippet if fetched by Python service in future
+}
+
 
 // --- Calendar Types ---
 export interface CalendarEvent {

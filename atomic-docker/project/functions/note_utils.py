@@ -336,4 +336,48 @@ def process_audio_url_for_notion(
 # For the purpose of this Flask API service, process_audio_url_for_notion is the key one for pre-recorded audio.
 # process_live_audio_for_notion would typically be triggered differently (e.g., from a websocket handler or a specific agent).
 
+# --- Text Embedding Function ---
+def get_text_embedding_openai(text_to_embed: str, openai_api_key_param: str = None, embedding_model: str = "text-embedding-3-small") -> dict:
+    """
+    Generates a vector embedding for the given text using OpenAI.
+
+    Args:
+        text_to_embed: The text to embed.
+        openai_api_key_param: Optional OpenAI API key. If not provided, uses global OPENAI_API_KEY_GLOBAL.
+        embedding_model: The OpenAI embedding model to use.
+
+    Returns:
+        A dictionary with 'status' ('success' or 'error') and 'data' (the embedding vector) or 'message'/'details'.
+    """
+    oai_key_to_use = openai_api_key_param or OPENAI_API_KEY_GLOBAL
+    if not oai_key_to_use or not oai_key_to_use.startswith('sk-'):
+        return {"status": "error", "message": "OpenAI API key not set or invalid for embedding.", "code": "OPENAI_CONFIG_ERROR"}
+    if not text_to_embed or not text_to_embed.strip():
+        return {"status": "error", "message": "Text to embed cannot be empty.", "code": "VALIDATION_ERROR"}
+
+    try:
+        # Ensure the client is initialized with the correct key.
+        # If a global client exists, it might be using a different key.
+        # For simplicity in this function, create a new client instance if a specific key is passed,
+        # or rely on a global client if no key is passed (assuming global client is already configured).
+        # A more robust solution might involve an OpenAI client manager or passing client instances.
+        client = openai.OpenAI(api_key=oai_key_to_use)
+
+        response = client.embeddings.create(
+            model=embedding_model,
+            input=text_to_embed.strip() # Ensure no leading/trailing whitespace affects embedding
+        )
+
+        embedding_vector = response.data[0].embedding
+        return {"status": "success", "data": embedding_vector}
+
+    except openai.APIConnectionError as e: # Handle connection errors
+        return {"status": "error", "message": f"OpenAI API connection error: {e}", "code": "OPENAI_CONNECTION_ERROR", "details": str(e)}
+    except openai.RateLimitError as e: # Handle rate limit errors
+        return {"status": "error", "message": f"OpenAI API rate limit exceeded: {e}", "code": "OPENAI_RATE_LIMIT_ERROR", "details": str(e)}
+    except openai.APIStatusError as e: # Handle API errors with status codes
+        return {"status": "error", "message": f"OpenAI API status error (HTTP {e.status_code}): {e.response.text}", "code": f"OPENAI_API_STATUS_{e.status_code}", "details": e.response.text if e.response else str(e)}
+    except Exception as e:
+        return {"status": "error", "message": f"Unexpected error generating OpenAI embedding: {e}", "code": "OPENAI_EMBEDDING_ERROR", "details": str(e)}
+
 [end of atomic-docker/project/functions/note_utils.py]

@@ -65,8 +65,10 @@ def create_note_route():
     init_error = _init_clients_from_request_data(data)
     if init_error: return jsonify(init_error), 500
 
+    user_id = data.get('user_id') # Optional, for LanceDB user context
+
     # notion_db_id is optional for create_notion_note, will use global default if not set by init_notion or here
-    result = note_utils.create_notion_note(
+    notion_result = note_utils.create_notion_note(
         title=data['title'],
         content=data['content'],
         notion_db_id=data.get('notion_db_id'), # Allows overriding default DB
@@ -79,10 +81,85 @@ def create_note_route():
         key_points=data.get('key_points')
     )
 
-    if result["status"] == "success":
-        return jsonify({"ok": True, "data": result.get("data")}), 201 # 201 Created
-    else:
-        return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{result.get('code', 'CREATE_NOTE_FAILED')}", "message": result.get("message"), "details": result.get("details")}}), 500
+    if notion_result["status"] == "success":
+        page_id = notion_result.get("data", {}).get("page_id")
+        page_url = notion_result.get("data", {}).get("url")
+
+        # --- Vector Embedding and Upsert ---
+        vector_update_status = "skipped" # Default if no embedding attempted
+        vector_error_message = None
+
+        openai_api_key = data.get('openai_api_key') # Required for embedding
+        lancedb_uri = os.environ.get('LANCEDB_URI') # Get from environment
+
+        text_to_embed = data['content'] # Using the main content for embedding
+        # Could also concatenate title + content or other fields if desired
+
+        if not openai_api_key:
+            vector_update_status = "failed"
+            vector_error_message = "OpenAI API key not provided in request for embedding."
+            print(f"Warning for note {page_id}: {vector_error_message}")
+        elif not lancedb_uri:
+            vector_update_status = "failed"
+            vector_error_message = "LANCEDB_URI environment variable not set for vector upsert."
+            print(f"Warning for note {page_id}: {vector_error_message}")
+        elif page_id and text_to_embed:
+            try:
+                embedding_response = note_utils.get_text_embedding_openai(
+                    text_to_embed, openai_api_key_param=openai_api_key
+                )
+                if embedding_response["status"] == "success":
+                    vector = embedding_response["data"]
+                    # Dynamically import lancedb_service here to keep its dependencies optional if not used
+                    try:
+                        from _utils import lancedb_service # Assuming _utils is in sys.path via FUNCTIONS_DIR
+                        upsert_result = lancedb_service.upsert_note_vector(
+                            db_path=lancedb_uri,
+                            note_id=page_id,
+                            user_id=user_id, # Pass user_id if available
+                            text_content=text_to_embed,
+                            vector_embedding=vector
+                        )
+                        if upsert_result["status"] == "success":
+                            vector_update_status = upsert_result.get("operation", "success") # e.g., "added/updated", "skipped"
+                        else:
+                            vector_update_status = "failed"
+                            vector_error_message = upsert_result.get("message", "LanceDB upsert failed.")
+                            print(f"Error upserting vector for note {page_id}: {vector_error_message} (Code: {upsert_result.get('code')})")
+                    except ImportError:
+                        vector_update_status = "failed"
+                        vector_error_message = "LanceDB service module not found or import error."
+                        print(f"Error for note {page_id}: {vector_error_message}")
+                    except Exception as ldb_e:
+                        vector_update_status = "failed"
+                        vector_error_message = f"LanceDB operation error: {str(ldb_e)}"
+                        print(f"Error for note {page_id}: {vector_error_message}")
+
+                else:
+                    vector_update_status = "failed"
+                    vector_error_message = embedding_response.get("message", "Embedding generation failed.")
+                    print(f"Error generating embedding for note {page_id}: {vector_error_message} (Code: {embedding_response.get('code')})")
+            except Exception as e:
+                vector_update_status = "failed"
+                vector_error_message = f"Unexpected error during vector processing: {str(e)}"
+                print(f"Error for note {page_id}: {vector_error_message}")
+        else:
+            if not page_id: print("Warning: No page_id returned from Notion, skipping vector upsert.")
+            if not text_to_embed: print(f"Warning: No text content to embed for note {page_id}, skipping vector upsert.")
+            vector_update_status = "skipped_no_content_or_id"
+
+
+        return jsonify({
+            "ok": True,
+            "data": {
+                "page_id": page_id,
+                "url": page_url,
+                "vector_status": vector_update_status,
+                "vector_message": vector_error_message
+            }
+        }), 201
+    else: # Notion note creation failed
+        return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{notion_result.get('code', 'CREATE_NOTE_FAILED')}", "message": notion_result.get("message"), "details": notion_result.get("details")}}), 500
 
 
 @app.route('/create-audio-note-url', methods=['POST'])
@@ -91,27 +168,19 @@ def create_audio_note_url_route():
     if not data:
         return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
 
-    required_params = ['audio_url', 'title', 'notion_api_token'] # deepgram_api_key, openai_api_key are checked by note_utils
+    required_params = ['audio_url', 'title', 'notion_api_token', 'deepgram_api_key', 'openai_api_key']
     missing_params = [param for param in required_params if param not in data]
     if missing_params:
         return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": f"Missing parameters: {', '.join(missing_params)}"}}), 400
 
-    init_error = _init_clients_from_request_data(data) # Initializes Notion & Deepgram if keys present
+    init_error = _init_clients_from_request_data(data)
     if init_error: return jsonify(init_error), 500
 
-    # API keys for Deepgram & OpenAI are passed to process_audio_url_for_notion
-    # It will use these or fall back to globals (which might be an issue if globals not set in this env)
-    # Best practice: ensure handlers always pass keys explicitly from request/secure config.
-    deepgram_api_key = data.get('deepgram_api_key')
-    openai_api_key = data.get('openai_api_key')
+    deepgram_api_key = data['deepgram_api_key']
+    openai_api_key = data['openai_api_key']
+    user_id = data.get('user_id') # Optional, for LanceDB user context for the audio note's content
 
-    if not deepgram_api_key:
-        return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": "Missing parameter: deepgram_api_key"}}), 400
-    if not openai_api_key:
-        return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": "Missing parameter: openai_api_key"}}), 400
-
-
-    result = note_utils.process_audio_url_for_notion(
+    notion_result = note_utils.process_audio_url_for_notion(
         audio_url=data['audio_url'],
         title=data['title'],
         notion_db_id=data.get('notion_db_id'),
@@ -122,10 +191,71 @@ def create_audio_note_url_route():
         openai_api_key=openai_api_key
     )
 
-    if result["status"] == "success":
-        return jsonify({"ok": True, "data": result.get("data")}), 201
-    else:
-        return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{result.get('code', 'AUDIO_NOTE_FAILED')}", "message": result.get("message"), "details": result.get("details")}}), 500
+    if notion_result["status"] == "success":
+        page_id = notion_result.get("data", {}).get("notion_page_id")
+        page_url = notion_result.get("data", {}).get("url")
+        summary = notion_result.get("data", {}).get("summary")
+        key_points = notion_result.get("data", {}).get("key_points")
+        # For audio notes, the content to embed might be the transcription or summary.
+        # Let's assume transcription is primary content for embedding if available.
+        # The `process_audio_url_for_notion` needs to return the transcription text.
+        # For now, let's assume the main content for embedding is summary or title if no transcript.
+        # This part needs `process_audio_url_for_notion` to return the text used for embedding.
+        # For now, we'll embed the summary if available.
+        text_to_embed_for_audio = summary if summary else data['title']
+
+
+        vector_update_status = "skipped"
+        vector_error_message = None
+        lancedb_uri = os.environ.get('LANCEDB_URI')
+
+        if not lancedb_uri:
+            vector_update_status = "failed"
+            vector_error_message = "LANCEDB_URI environment variable not set."
+            print(f"Warning for audio note {page_id}: {vector_error_message}")
+        elif page_id and text_to_embed_for_audio:
+            try:
+                embedding_response = note_utils.get_text_embedding_openai(
+                    text_to_embed_for_audio, openai_api_key_param=openai_api_key
+                )
+                if embedding_response["status"] == "success":
+                    vector = embedding_response["data"]
+                    try:
+                        from _utils import lancedb_service
+                        upsert_result = lancedb_service.upsert_note_vector(
+                            db_path=lancedb_uri, note_id=page_id, user_id=user_id,
+                            text_content=text_to_embed_for_audio, vector_embedding=vector
+                        )
+                        if upsert_result["status"] == "success": vector_update_status = upsert_result.get("operation", "success")
+                        else:
+                            vector_update_status = "failed"; vector_error_message = upsert_result.get("message")
+                            print(f"Error upserting vector for audio note {page_id}: {vector_error_message}")
+                    except ImportError:
+                        vector_update_status = "failed"; vector_error_message = "LanceDB service module not found."
+                        print(f"Error for audio note {page_id}: {vector_error_message}")
+                    except Exception as ldb_e:
+                        vector_update_status = "failed"; vector_error_message = f"LanceDB error: {str(ldb_e)}"
+                        print(f"Error for audio note {page_id}: {vector_error_message}")
+                else:
+                    vector_update_status = "failed"; vector_error_message = embedding_response.get("message")
+                    print(f"Error embedding audio note {page_id}: {vector_error_message}")
+            except Exception as e:
+                vector_update_status = "failed"; vector_error_message = f"Vector processing error: {str(e)}"
+                print(f"Error for audio note {page_id}: {vector_error_message}")
+        else:
+            if not page_id: print("Warning: No page_id for audio note, skipping vector upsert.")
+            if not text_to_embed_for_audio: print(f"Warning: No text content to embed for audio note {page_id}.")
+            vector_update_status = "skipped_no_content_or_id"
+
+        return jsonify({
+            "ok": True,
+            "data": {
+                "page_id": page_id, "url": page_url, "summary": summary, "key_points": key_points,
+                "vector_status": vector_update_status, "vector_message": vector_error_message
+            }
+        }), 201
+    else: # Notion note creation from audio failed
+        return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{notion_result.get('code', 'AUDIO_NOTE_FAILED')}", "message": notion_result.get("message"), "details": notion_result.get("details")}}), 500
 
 
 @app.route('/search-notes', methods=['POST'])
@@ -156,5 +286,65 @@ def search_notes_route():
 if __name__ == '__main__':
     flask_port = int(os.environ.get("NOTE_HANDLER_PORT", 5057))
     app.run(host='0.0.0.0', port=flask_port, debug=True)
+
+
+@app.route('/search-similar-notes', methods=['POST'])
+def search_similar_notes_route():
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    required_params = ['query_text', 'user_id', 'openai_api_key']
+    missing_params = [param for param in required_params if param not in data]
+    if missing_params:
+        return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": f"Missing parameters: {', '.join(missing_params)}"}}), 400
+
+    query_text = data['query_text']
+    user_id = data['user_id'] # Required for user-specific search
+    openai_api_key = data['openai_api_key']
+    limit = data.get('limit', 5)
+    if not isinstance(limit, int) or limit <= 0:
+        limit = 5
+
+    lancedb_uri = os.environ.get('LANCEDB_URI')
+    if not lancedb_uri:
+        return jsonify({"ok": False, "error": {"code": "PYTHON_ERROR_CONFIG_ERROR", "message": "LANCEDB_URI environment variable not set."}}), 500
+
+    # 1. Get embedding for the query text
+    embedding_response = note_utils.get_text_embedding_openai(
+        query_text, openai_api_key_param=openai_api_key
+    )
+
+    if embedding_response["status"] != "success":
+        print(f"Failed to get embedding for similarity search: {embedding_response.get('message')}")
+        return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{embedding_response.get('code', 'EMBEDDING_FAILED')}", "message": embedding_response.get("message"), "details": embedding_response.get("details")}}), 500
+
+    query_vector = embedding_response["data"]
+
+    # 2. Search in LanceDB
+    try:
+        from _utils import lancedb_service # Assuming _utils is in sys.path
+        search_result = lancedb_service.search_similar_notes(
+            db_path=lancedb_uri,
+            query_vector=query_vector,
+            user_id=user_id, # Filter by user_id
+            limit=limit
+        )
+
+        if search_result["status"] == "success":
+            return jsonify({"ok": True, "data": search_result.get("data", [])}), 200
+        else:
+            print(f"LanceDB similarity search failed: {search_result.get('message')}")
+            return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{search_result.get('code', 'LANCEDB_SEARCH_FAILED')}", "message": search_result.get("message"), "details": search_result.get("details")}}), 500
+
+    except ImportError:
+        message = "LanceDB service module not found or import error for similarity search."
+        print(message)
+        return jsonify({"ok": False, "error": {"code": "PYTHON_ERROR_IMPORT_ERROR", "message": message}}), 500
+    except Exception as e:
+        message = f"Unexpected error during similarity search: {str(e)}"
+        print(message)
+        # This will be caught by the generic app.errorhandler if not caught more specifically
+        raise
 
 [end of atomic-docker/project/functions/python_api_service/note_handler.py]

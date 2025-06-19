@@ -88,6 +88,58 @@ export async function initiateResearch(
   }
 }
 
+/**
+ * Searches for Notion notes similar to a given query text using vector similarity.
+ *
+ * @param userId The ID of the user performing the search (to scope results).
+ * @param queryText The natural language text to search for.
+ * @param limit Optional. The maximum number of similar notes to return.
+ * @returns A promise that resolves to a SkillResponse containing an array of similar Notion notes.
+ */
+export async function searchSimilarNotionNotes(
+  userId: string,
+  queryText: string,
+  limit?: number
+): Promise<SkillResponse<NotionSimilarNoteResult[]>> {
+  if (!PYTHON_NOTE_API_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
+  }
+  if (!OPENAI_API_KEY) { // OpenAI API key is needed by the Python endpoint for embedding the query
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'OpenAI API key is not configured for similarity search.' } };
+  }
+  if (!userId) { // user_id is crucial for filtering results in LanceDB
+      return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'User ID is required for searching similar notes.'}};
+  }
+   if (!queryText || queryText.trim() === "") {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Query text cannot be empty for similarity search.' } };
+  }
+
+  try {
+    const payload = {
+      query_text: queryText,
+      user_id: userId,
+      openai_api_key: OPENAI_API_KEY, // Python service will use this to embed the query_text
+      limit: limit || 5, // Default to 5 if not provided
+    };
+
+    const response = await axios.post<PythonApiResponse<NotionSimilarNoteResult[]>>(
+      `${PYTHON_NOTE_API_URL}/search-similar-notes`,
+      payload
+    );
+    return handlePythonApiResponse(response.data, 'SearchSimilarNotionNotes');
+  } catch (error: any) {
+    const axiosError = error as AxiosError;
+    return {
+      ok: false,
+      error: {
+        code: axiosError.isAxiosError ? `HTTP_${axiosError.response?.status || 'NETWORK_ERROR'}` : 'SKILL_INTERNAL_ERROR',
+        message: `Failed to search for similar Notion notes: ${axiosError.message}`,
+        details: axiosError.response?.data || axiosError.message,
+      },
+    };
+  }
+}
+
 export async function processResearchQueue(
   userId: string // Contextual, Python service doesn't strictly need it if keys are global there
 ): Promise<SkillResponse<ProcessResearchQueueData>> {
