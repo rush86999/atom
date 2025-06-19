@@ -57,6 +57,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '../../config/backendConfig'
 import Session from 'supertokens-node/recipe/session'
+import { gql } from '@apollo/client' // Added for defining GraphQL mutation
 
 export async function getServerSideProps({ req, res }: { req: NextApiRequest, res: NextApiResponse }) {
   // Notice how the server uses `API` from `withSSRContext`, instead of the top-level `API`.
@@ -98,11 +99,52 @@ export async function getServerSideProps({ req, res }: { req: NextApiRequest, re
 }
 
 
+const PROCESS_AUDIO_FOR_NOTE = gql`
+  mutation ProcessAudioForNote($audioFilePath: String!, $noteId: String, $title: String, $content: String, $source: String, $linkedTaskId: String, $linkedEventId: String) {
+    processAudioForNote(input: {
+      audio_file_path: $audioFilePath,
+      note_id: $noteId,
+      title: $title,
+      content: $content,
+      source: $source,
+      linked_task_id: $linkedTaskId,
+      linked_event_id: $linkedEventId
+    }) {
+      note_id # This is what the action currently returns
+      status
+      error
+      # Anticipating that the action might be updated to return full note details
+      # If not, a separate query would be needed using the returned note_id
+      # For this subtask, we assume the backend might provide this structure:
+      # note_details {
+      #   notes # or original_content
+      #   summary
+      #   transcription
+      #   key_points
+      # }
+      # For now, let's assume we get these directly for simplicity in this step,
+      # even if it's not what the current Hasura action provides.
+      # This part of the response structure is speculative based on frontend needs.
+      # The actual implementation of processAudioFile will need to be robust
+      # to what the backend *actually* returns.
+      # Let's assume for now the backend is enhanced like so:
+      transcription_text: String
+      summary_text: String
+      key_points_text: String
+      # The above are hypothetical direct fields. If they are nested, adjust parsing.
+    }
+  }
+`;
 
 
 function UserCreateMeetingAssist() {
     const [notes, setNotes] = useState<string>('')
     const [summary, setSummary] = useState<string>('')
+    const [transcription, setTranscription] = useState<string>('')
+    const [keyPoints, setKeyPoints] = useState<string>('')
+    const [isRecording, setIsRecording] = useState<boolean>(false)
+    const [audioFilePath, setAudioFilePath] = useState<string | null>(null)
+    const [isLoadingAudio, setIsLoadingAudio] = useState<boolean>(false)
     const [windowStartDate, setWindowStartDate] = useState<Date>(new Date())
     const [windowEndDate, setWindowEndDate] = useState<Date>(new Date())
     const [location, setLocation] = useState<string>('')
@@ -155,6 +197,106 @@ function UserCreateMeetingAssist() {
     const userId = sub
     const router = useRouter()
     const toast = useToast()
+
+    // --- Audio Processing Functions ---
+
+    const processAudioFile = async (filePath: string) => {
+        if (!filePath) {
+            toast({ title: "No audio file selected.", status: "warning", duration: 3000, isClosable: true });
+            return;
+        }
+        setIsLoadingAudio(true);
+        try {
+            console.log(`Processing audio file: ${filePath}`);
+            // For now, we pass the existing notes and summary as content and title respectively
+            // if we want the audio processing to potentially use them or add to them.
+            // Or, they could be separate if the backend handles merging.
+            // Let's assume the action might create a new note or update based on filePath alone for now.
+            // The action `processAudioForNote` can take existing note_id, title, content.
+            // If we have a note_id from a previously created meeting assist, we could pass it.
+            // For a new meeting assist, these would likely be null or defaults.
+
+            const { data } = await client.mutate({
+                mutation: PROCESS_AUDIO_FOR_NOTE,
+                variables: {
+                    audioFilePath: filePath,
+                    // Potentially pass other details if relevant for the audio processing context
+                    // For example, if audio processing should be linked to an *existing* note:
+                    // noteId: existingNoteIdIfAny,
+                    // title: summary, // or a dedicated title for the audio note
+                    // content: notes, // or leave blank if transcription is the main content
+                },
+            });
+
+            const result = data?.processAudioForNote;
+
+            if (result?.status === 'success') {
+                // ASSUMPTION: Backend returns transcription, summary, key_points
+                // Adjust based on actual backend response structure.
+                // The GQL mutation above speculatively added these fields to the response.
+                const returnedTranscription = result.transcription_text || "Transcription not available.";
+                const returnedSummary = result.summary_text || summary; // Keep existing summary if not returned
+                const returnedKeyPoints = result.key_points_text || "Key points not available.";
+                // const returnedNotes = result.note_details?.notes || notes; // If backend returns original notes
+
+                setTranscription(returnedTranscription);
+                setSummary(returnedSummary); // Update summary if backend provides a new one
+                setKeyPoints(returnedKeyPoints);
+                // setNotes(returnedNotes); // Update notes if backend provides new/merged notes
+
+                // If a note_id is returned, it might be useful for subsequent operations
+                // e.g., if the audio processing created a new note in Notion.
+                console.log("Audio processed, note_id:", result.note_id);
+
+                toast({ title: "Audio processed successfully!", status: "success", duration: 3000, isClosable: true });
+            } else {
+                console.error("Error processing audio:", result?.error);
+                toast({ title: "Error processing audio", description: result?.error || "Unknown error", status: "error", duration: 5000, isClosable: true });
+                // Clear fields on error? Or leave them as they are?
+                // setTranscription(''); setKeyPoints(''); // Optionally clear
+            }
+        } catch (error: any) {
+            console.error("GraphQL mutation error:", error);
+            toast({ title: "Audio processing failed", description: error.message || "Please try again.", status: "error", duration: 5000, isClosable: true });
+        } finally {
+            setIsLoadingAudio(false);
+        }
+    };
+
+    const handleAudioRecordToggle = () => {
+        if (isRecording) {
+            // Stop recording
+            console.log("Stop recording (simulated)");
+            setIsRecording(false);
+            const dummyFilePath = "simulated_audio_from_record.wav";
+            setAudioFilePath(dummyFilePath); // Store dummy path
+            processAudioFile(dummyFilePath);
+        } else {
+            // Start recording
+            console.log("Start recording (simulated)");
+            setIsRecording(true);
+            // Actual recording logic would go here (e.g., MediaRecorder API)
+            // For now, we just set the state. The file will be "available" on stop.
+        }
+    };
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            console.log(`File uploaded: ${file.name} (simulated processing)`);
+            // In a real app, you'd upload this file to a server/S3 and get back a URL/path.
+            // For this subtask, we'll simulate it with a dummy path.
+            const dummyFilePath = `uploaded_${file.name}`;
+            setAudioFilePath(dummyFilePath); // Store dummy path or file name
+            processAudioFile(dummyFilePath);
+
+            // Reset file input value so the same file can be selected again if needed
+            event.target.value = '';
+        }
+    };
+
+    // --- End Audio Processing Functions ---
+
     // list old info items
     useEffect(() => {
         (async () => {
@@ -303,11 +445,20 @@ function UserCreateMeetingAssist() {
 
     const createSingleMeetingAssist = async () => {
         try {
+            // Combine notes, transcription, and key points for storage
+            let combinedNotes = notes;
+            if (transcription) {
+                combinedNotes += `\n\n--- Transcription ---\n${transcription}`;
+            }
+            if (keyPoints) {
+                combinedNotes += `\n\n--- Key Points ---\n${keyPoints}`;
+            }
+
             const meetingAssist: MeetingAssistType = {
                 id: meetingId,
                 userId,
                 summary,
-                notes,
+                notes: combinedNotes, // Use combined notes
                 windowStartDate: dayjs(windowStartDate).format(),
                 windowEndDate: dayjs(windowEndDate).format(),
                 timezone: dayjs.tz.guess(),
@@ -562,6 +713,65 @@ function UserCreateMeetingAssist() {
                             setParentWindowEndDate={setWindowEndDate}
                             setParentLocation={setLocation}
                         />
+
+                        {/* Audio Processing UI Elements */}
+                        <Box mt="m" p="m" borderWidth="1px" borderRadius="md" borderColor="gray.200" width="100%">
+                            <Text variant="label" mb="s">Audio Processing (Optional)</Text>
+                            <Box display="flex" flexDirection={{ phone: "column", tablet: "row" }} alignItems="center" gap="m" mb="m">
+                                <Button onClick={handleAudioRecordToggle} variant={isRecording ? "danger" : "primary"}>
+                                    {isRecording ? 'Stop Recording' : 'Record Audio (Simulated)'}
+                                </Button>
+                                <Box>
+                                    <Text as="label" htmlFor="audio-upload" variant="label" mr="s">Or Upload Audio:</Text>
+                                    <input
+                                        id="audio-upload"
+                                        type="file"
+                                        accept="audio/*"
+                                        onChange={handleFileUpload}
+                                        style={{ display: 'block', marginTop: '4px' }} // Basic styling
+                                    />
+                                </Box>
+                            </Box>
+
+                            {isLoadingAudio && (
+                                <Box display="flex" alignItems="center" justifyContent="center" my="m">
+                                    {/* Assuming a CircularProgress or similar component exists or can be added */}
+                                    <Text>Loading audio data...</Text>
+                                    {/* Replace with <CircularProgress isIndeterminate /> if using Chakra/MUI */}
+                                </Box>
+                            )}
+
+                            {transcription && (
+                                <Box mb="s">
+                                    <Text variant="label">Transcription:</Text>
+                                    <Box p="s" borderWidth="1px" borderRadius="md" maxHeight="150px" overflowY="auto" bg="gray.50">
+                                        <Text whiteSpace="pre-wrap">{transcription}</Text>
+                                    </Box>
+                                </Box>
+                            )}
+                            {/* Summary is already handled by CreateMeetingAssistBaseStep, but if audio processing specifically updates it, display it here too or ensure CreateMeetingAssistBaseStep reflects it.*/}
+                            {/* For now, assuming summary from audio is handled by setSummary and reflected in the main summary field. */}
+                            {/* If summary needs a separate display area:
+                            {summary && ( // This summary is the main state one
+                                <Box mb="s">
+                                    <Text variant="label">Summary (from audio if processed):</Text>
+                                    <Box p="s" borderWidth="1px" borderRadius="md" maxHeight="100px" overflowY="auto"  bg="gray.50">
+                                        <Text whiteSpace="pre-wrap">{summary}</Text>
+                                    </Box>
+                                </Box>
+                            )}
+                            */}
+                             {keyPoints && (
+                                <Box>
+                                    <Text variant="label">Key Points:</Text>
+                                    <Box p="s" borderWidth="1px" borderRadius="md" maxHeight="150px" overflowY="auto" bg="gray.50">
+                                        <Text whiteSpace="pre-wrap">{keyPoints}</Text>
+                                    </Box>
+                                </Box>
+                            )}
+                        </Box>
+                        {/* End Audio Processing UI Elements */}
+
                         <Box style={{ width: '100%' }} flexDirection="row" justifyContent="space-between" alignItems="center">
                             <Box />
                             {renderNextButton()}
