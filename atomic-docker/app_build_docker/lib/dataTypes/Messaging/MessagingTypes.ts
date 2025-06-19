@@ -39,6 +39,7 @@ export type UserChatType = {
     content: string,
     id: number,
     date: string,
+    audioUrl?: string; // Added for TTS audio playback
 }
 
 export type ChatHistoryType = UserChatType[]
