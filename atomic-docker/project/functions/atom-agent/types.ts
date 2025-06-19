@@ -82,6 +82,62 @@ export interface WebResearchSkillResponse<T> {
   error?: SkillError;
 }
 
+// --- Python Service API Call Types ---
+
+/**
+ * Represents the structure of an error payload from the Python Flask services.
+ */
+export interface PythonErrorPayload {
+  code: string; // e.g., "PYTHON_ERROR_CONFIG_ERROR", "PYTHON_ERROR_NOTION_API_ERROR"
+  message: string;
+  details?: any;
+}
+
+/**
+ * Generic type for responses from the Python Flask services.
+ * These services should return a JSON object with an "ok" boolean field,
+ * and either "data" on success or "error" on failure.
+ */
+export interface PythonApiResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: PythonErrorPayload;
+}
+
+// Specific data types for Python API responses (matching Python's return dicts)
+
+// For initiateResearch (data field of PythonApiResponse)
+export interface InitiateResearchData {
+  project_page_id: string;
+  task_page_ids: string[];
+}
+
+// For processResearchQueue (data field of PythonApiResponse)
+export interface ProcessResearchQueueData {
+  message: string;
+  processed_tasks: number;
+  failed_tasks: number;
+  synthesis_outcome?: any;
+}
+
+// For createNotionNote and createAudioNoteFromUrl (data field of PythonApiResponse)
+export interface CreateNoteData {
+  page_id: string;
+  url?: string;
+  summary?: string;
+  key_points?: string;
+}
+
+// For searchNotionNotes (data field of PythonApiResponse)
+export interface NotionSearchResultData { // This is an item in the array returned by searchNotionNotes
+  id: string;
+  title?: string; // Title property from Notion
+  url?: string;
+  content?: string; // Main content snippet or ContentText property
+  // other properties from Notion page summary (e.g., Source, Linked Task ID)
+  [key: string]: any;
+}
+
 
 // --- Calendar Types ---
 export interface CalendarEvent {
@@ -131,28 +187,14 @@ export interface ConferenceData {
   [key: string]: any;
 }
 
-/* Commented out as they are replaced by CalendarSkillResponse
-export interface ListGoogleMeetEventsResponse {
-  ok: boolean;
-  events?: CalendarEvent[];
-  error?: string;
-}
-
-export interface GetGoogleMeetEventDetailsResponse {
-  ok: boolean;
-  event?: CalendarEvent;
-  error?: string;
-}
-*/
-
-export interface CreateEventResponse { // Used as T in CalendarSkillResponse<CreateEventResponse>
+export interface CreateEventResponse {
   success: boolean;
   eventId?: string;
   message: string;
   htmlLink?: string;
 }
 
-export interface SkillResponse { // Generic fallback, prefer specific skill responses
+export interface SkillResponse {
   success: boolean;
   message: string;
   data?: any;
@@ -221,12 +263,8 @@ export interface HubSpotContact {
   archived: boolean;
 }
 
-// GetHubSpotContactResponse is replaced by HubSpotSkillResponse<HubSpotContact | null> or HubSpotSkillResponse<HubSpotContact>
-// export type GetHubSpotContactResponse = HubSpotContact | null;
-
-// CreateHubSpotContactResponse is used as T in HubSpotSkillResponse<CreateHubSpotContactResponse>
 export interface CreateHubSpotContactResponse {
-  success: boolean; // Retained for now, but `ok` from HubSpotSkillResponse is primary
+  success: boolean;
   contactId?: string;
   message?: string;
   hubSpotContact?: HubSpotContact;
@@ -266,17 +304,15 @@ export interface HubSpotEngagement {
   archived: boolean;
 }
 
-// LogEngagementResponse can be T in HubSpotSkillResponse<LogEngagementResponse>
 export interface LogEngagementResponse {
-  success: boolean; // Retained
+  success: boolean;
   engagementId?: string;
   message: string;
   hubSpotEngagement?: HubSpotEngagement;
 }
 
-// GetContactActivitiesResponse can be T in HubSpotSkillResponse<GetContactActivitiesResponse>
 export interface GetContactActivitiesResponse {
-  success: boolean; // Retained
+  success: boolean;
   activities: HubSpotEngagement[];
   message?: string;
   nextPage?: string;
@@ -300,10 +336,9 @@ export interface SlackChannel {
   creator?: string;
 }
 
-// SlackMessageData contains the core payload of a sent Slack message
 export interface SlackMessageData {
   ts?: string;
-  channel?: string; // Channel ID where the message was posted
+  channel?: string;
   message?: {
     text?: string;
     user?: string;
@@ -315,29 +350,10 @@ export interface SlackMessageData {
   };
 }
 
-// ListSlackChannelsData contains the core payload for listing Slack channels
 export interface ListSlackChannelsData {
   channels?: SlackChannel[];
   nextPageCursor?: string;
 }
-
-/* Old Slack response types, superseded by SlackSkillResponse<SlackMessageData> and SlackSkillResponse<ListSlackChannelsData>
-export interface SlackMessageResponse {
-  ok: boolean;
-  ts?: string;
-  channel?: string;
-  message?: { ... };
-  error?: string;
-}
-
-export interface ListSlackChannelsResponse {
-  ok: boolean;
-  channels?: SlackChannel[];
-  error?: string;
-  nextPageCursor?: string;
-}
-*/
-
 
 // --- Calendly Types ---
 export interface CalendlyUser {
@@ -408,22 +424,6 @@ export interface CalendlyPagination {
   previous_page_token?: string | null;
 }
 
-/* Commented out as they are replaced by CalendarSkillResponse or HubSpotSkillResponse etc.
-export interface ListCalendlyEventTypesResponse {
-  ok: boolean;
-  collection?: CalendlyEventType[];
-  pagination?: CalendlyPagination;
-  error?: string;
-}
-
-export interface ListCalendlyScheduledEventsResponse {
-  ok: boolean;
-  collection?: CalendlyScheduledEvent[];
-  pagination?: CalendlyPagination;
-  error?: string;
-}
-*/
-
 // --- NLU Service Types ---
 export interface NLUResponseData {
   intent: string | null;
@@ -446,7 +446,7 @@ export interface ProcessedNLUResponse extends NLUResponseData {
 }
 
 // --- QuickBooks Online (QBO) Types ---
-export interface QuickBooksAuthTokens { // For storing tokens
+export interface QuickBooksAuthTokens {
   accessToken: string;
   refreshToken: string;
   realmId: string;
@@ -455,26 +455,11 @@ export interface QuickBooksAuthTokens { // For storing tokens
   createdAt: number;
 }
 
-// Define data payload for List QuickBooks Invoices
 export interface ListQBInvoicesData {
   invoices: QuickBooksInvoice[];
-  queryResponse?: any; // Raw queryResponse from node-quickbooks for additional details if needed
-}
-
-/* Commented out as they are replaced by QBSkillResponse<ListQBInvoicesData> and QBSkillResponse<QuickBooksInvoice>
-export interface ListQuickBooksInvoicesResponse {
-  ok: boolean;
-  invoices?: QuickBooksInvoice[];
-  error?: string;
   queryResponse?: any;
 }
 
-export interface GetQuickBooksInvoiceDetailsResponse {
-  ok: boolean;
-  invoice?: QuickBooksInvoice;
-  error?: string;
-}
-*/
 export interface QuickBooksInvoice {
   Id: string;
   DocNumber?: string;
@@ -493,7 +478,6 @@ export interface QuickBooksInvoice {
 }
 
 // --- Stripe Types ---
-// Define data payload for ListStripePayments
 export interface ListStripePaymentsData {
   payments: StripePaymentIntent[];
   has_more: boolean;
@@ -509,20 +493,6 @@ export interface StripeCharge {
   description?: string | null;
 }
 
-/* Commented out as they are replaced by StripeSkillResponse<ListStripePaymentsData> and StripeSkillResponse<StripePaymentIntent>
-export interface ListStripePaymentsResponse {
-  ok: boolean;
-  payments?: StripePaymentIntent[];
-  error?: string;
-  has_more?: boolean;
-}
-
-export interface GetStripePaymentDetailsResponse {
-  ok: boolean;
-  payment?: StripePaymentIntent;
-  error?: string;
-}
-*/
 export interface StripePaymentIntent {
   id: string;
   amount: number;
@@ -535,10 +505,9 @@ export interface StripePaymentIntent {
 }
 
 // --- Microsoft Graph / Teams Types ---
-// Define data payload for List MS Graph Events (Teams Meetings)
 export interface ListMSGraphEventsData {
   events: MSGraphEvent[];
-  nextLink?: string; // For OData pagination
+  nextLink?: string;
 }
 
 export interface MSGraphDateTimeTimeZone {
@@ -553,20 +522,6 @@ export interface MSGraphOnlineMeetingInfo {
   [key: string]: any;
 }
 
-/* Commented out as they are replaced by GraphSkillResponse<ListMSGraphEventsData> and GraphSkillResponse<MSGraphEvent>
-export interface ListMSTeamsMeetingsResponse {
-  ok: boolean;
-  events?: MSGraphEvent[];
-  error?: string;
-  nextLink?: string;
-}
-
-export interface GetMSTeamsMeetingDetailsResponse {
-  ok: boolean;
-  event?: MSGraphEvent;
-  error?: string;
-}
-*/
 export interface MSGraphEvent {
   id: string;
   subject?: string | null;
@@ -585,7 +540,7 @@ export interface MSGraphEvent {
   [key: string]: any;
 }
 
-export interface MSGraphTokenResponse { // This is for the MSAL token acquisition by client credential.
+export interface MSGraphTokenResponse {
   token_type: string;
   expires_in: number;
   ext_expires_in?: number;
@@ -593,14 +548,13 @@ export interface MSGraphTokenResponse { // This is for the MSAL token acquisitio
 }
 
 // --- Zoom Types ---
-export interface ZoomTokenResponse { // This is for the OAuth token response itself
+export interface ZoomTokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
   scope: string;
 }
 
-// Define data payload for ListZoomMeetings
 export interface ListZoomMeetingsData {
   meetings: ZoomMeeting[];
   page_count?: number;
@@ -610,38 +564,19 @@ export interface ListZoomMeetingsData {
   next_page_token?: string;
 }
 
-// The old ListZoomMeetingsResponse and GetZoomMeetingDetailsResponse are superseded by
-// ZoomSkillResponse<ListZoomMeetingsData> and ZoomSkillResponse<ZoomMeeting> respectively.
-/*
-export interface ListZoomMeetingsResponse {
-  ok: boolean;
-  meetings?: ZoomMeeting[];
-  error?: string;
-  page_count?: number;
-  page_number?: number;
-  page_size?: number;
-  total_records?: number;
-  next_page_token?: string;
-}
-
-export interface GetZoomMeetingDetailsResponse {
-  ok: boolean;
-  meeting?: ZoomMeeting;
-  error?: string;
-}
-*/
-
-export interface ZoomMeeting { // This is the structure of a single Zoom meeting object
+export interface ZoomMeeting {
   uuid: string;
-  id: string; // Numeric ID
+  id: string;
   host_id?: string;
   topic: string;
-  type: number; // 1: Instant, 2: Scheduled, 3: Recurring no fixed time, 8: Recurring fixed time
-  start_time?: string; // ISO 8601 Timestamp (only for scheduled/recurring)
-  duration?: number; // In minutes
+  type: number;
+  start_time?: string;
+  duration?: number;
   timezone?: string;
   agenda?: string;
-  created_at: string; // ISO 8601 Timestamp
+  created_at: string;
   join_url: string;
-  [key: string]: any; // Allow other properties as Zoom API is extensive
+  [key: string]: any;
 }
+
+[end of atomic-docker/project/functions/atom-agent/types.ts]
