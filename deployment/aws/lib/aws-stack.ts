@@ -51,6 +51,9 @@ export class AwsStack extends cdk.Stack {
   private readonly notionResearchProjectsDbIdSecret: secretsmanager.ISecret;
   private readonly notionResearchTasksDbIdSecret: secretsmanager.ISecret;
 
+  // MSK Secrets
+  private readonly mskBootstrapBrokersSecret: secretsmanager.ISecret;
+
   // SuperTokens specific resources (if needed by other services, e.g. SG)
   private readonly supertokensSG: ec2.SecurityGroup;
   private readonly supertokensTaskDef: ecs.TaskDefinition;
@@ -276,6 +279,13 @@ export class AwsStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'NotionResearchTasksDbIdSecretArn', { value: this.notionResearchTasksDbIdSecret.secretArn });
 
+    this.mskBootstrapBrokersSecret = new secretsmanager.Secret(this, 'MskBootstrapBrokersSecret', {
+      secretName: `${this.stackName}/MskBootstrapBrokers`,
+      description: 'MSK Bootstrap Brokers string',
+      secretStringValue: cdk.SecretValue.unsafePlainText('msk_bootstrap_brokers_placeholder'),
+    });
+    new cdk.CfnOutput(this, 'MskBootstrapBrokersSecretArn', { value: this.mskBootstrapBrokersSecret.secretArn });
+
 
     this.hasuraAdminSecret = new secretsmanager.Secret(this, 'HasuraAdminSecret', {
       secretName: `${this.stackName}/HasuraAdminSecret`,
@@ -497,6 +507,7 @@ export class AwsStack extends cdk.Stack {
       secrets: {
         HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
         OPENAI_API_KEY: ecs.Secret.fromSecretsManager(this.openAiApiKeySecret),
+        KAFKA_BOOTSTRAP_SERVERS: ecs.Secret.fromSecretsManager(this.mskBootstrapBrokersSecret),
       },
       portMappings: [{ containerPort: 80, protocol: ecs.Protocol.TCP }],
     });

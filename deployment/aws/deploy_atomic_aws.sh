@@ -14,36 +14,41 @@ fi
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 OUTPUT_FILE="${SCRIPT_DIR}/cdk-outputs.json"
 
-# Check for AWS CLI, CDK, jq
-if ! command -v aws &> /dev/null || ! command -v cdk &> /dev/null || ! command -v jq &> /dev/null; then
-    echo "Error: Required tools (aws cli, cdk, jq) are not installed or not in PATH."
+# Check for AWS CLI, CDK, jq, Docker
+if ! command -v aws &> /dev/null || \
+   ! command -v cdk &> /dev/null || \
+   ! command -v jq &> /dev/null || \
+   ! command -v docker &> /dev/null; then
+    echo "Error: Required tools (aws cli, cdk, jq, docker) are not installed or not in PATH." >&2
     exit 1
 fi
+echo "All prerequisite tools are available."
 
-echo "=== Section 1: Building and Pushing Docker Images ==="
+echo -e "\n=== Section 1: Building and Pushing Docker Images ==="
+echo "--- Starting Docker image build and push ---"
 if ! "${SCRIPT_DIR}/build_scripts/build_and_push_all.sh" "${AWS_ACCOUNT_ID}" "${AWS_REGION}"; then
-    echo "Error: Docker image build and push failed."
+    echo "Error: Docker image build and push failed." >&2
     exit 1
 fi
-echo "Docker images built and pushed successfully."
+echo "--- Finished Docker image build and push successfully ---"
 
-echo -e "
-=== Section 2: Deploying AWS CDK Stack (${CDK_STACK_NAME}) ==="
+echo -e "\n=== Section 2: Deploying AWS CDK Stack (${CDK_STACK_NAME}) ==="
+echo "--- Starting CDK deployment ---"
 # Navigate to CDK app directory
 cd "${SCRIPT_DIR}"
 # Using the specific stack name for deployment is generally better.
 if ! cdk deploy "${CDK_STACK_NAME}" --require-approval never --outputs-file "${OUTPUT_FILE}"; then
-    echo "Error: CDK deployment failed."
+    echo "Error: CDK deployment failed." >&2
     cd - > /dev/null # Go back to original dir before exiting
     exit 1
 fi
-echo "CDK stack deployed successfully. Outputs saved to ${OUTPUT_FILE}"
+echo "--- Finished CDK deployment successfully. Outputs saved to ${OUTPUT_FILE} ---"
 cd - > /dev/null # Go back to original dir
 
-echo -e "
-=== Section 3: Extracting Outputs from ${OUTPUT_FILE} ==="
+echo -e "\n=== Section 3: Extracting Outputs from ${OUTPUT_FILE} ==="
+echo "--- Starting output extraction ---"
 if [ ! -f "${OUTPUT_FILE}" ]; then
-    echo "Error: CDK output file ${OUTPUT_FILE} not found."
+    echo "Error: CDK output file ${OUTPUT_FILE} not found." >&2
     exit 1
 fi
 
@@ -62,60 +67,79 @@ if [ -z "${ALB_DNS_NAME}" ] || [ "${ALB_DNS_NAME}" == "null" ] || \
    [ -z "${RDS_SECRET_ARN}" ] || [ "${RDS_SECRET_ARN}" == "null" ] || \
    [ -z "${HASURA_ADMIN_SECRET_ARN}" ] || [ "${HASURA_ADMIN_SECRET_ARN}" == "null" ] || \
    [ -z "${MSK_CLUSTER_ARN}" ] || [ "${MSK_CLUSTER_ARN}" == "null" ]; then
-    echo "Error: Failed to extract one or more required outputs from ${OUTPUT_FILE}."
-    echo "ALB_DNS_NAME: ${ALB_DNS_NAME}"
-    echo "RDS_ENDPOINT: ${RDS_ENDPOINT}"
-    echo "RDS_SECRET_ARN: ${RDS_SECRET_ARN}"
-    echo "HASURA_ADMIN_SECRET_ARN: ${HASURA_ADMIN_SECRET_ARN}"
-    echo "MSK_CLUSTER_ARN: ${MSK_CLUSTER_ARN}"
+    echo "Error: Failed to extract one or more required outputs from ${OUTPUT_FILE}." >&2
+    echo "ALB_DNS_NAME: ${ALB_DNS_NAME}" >&2
+    echo "RDS_ENDPOINT: ${RDS_ENDPOINT}" >&2
+    echo "RDS_SECRET_ARN: ${RDS_SECRET_ARN}" >&2
+    echo "HASURA_ADMIN_SECRET_ARN: ${HASURA_ADMIN_SECRET_ARN}" >&2
+    echo "MSK_CLUSTER_ARN: ${MSK_CLUSTER_ARN}" >&2
     exit 1
 fi
-echo "Extracted outputs successfully."
+echo "Extracted outputs successfully:"
 echo "  ALB DNS Name: ${ALB_DNS_NAME}"
 echo "  RDS Endpoint: ${RDS_ENDPOINT}"
 echo "  RDS Secret ARN: ${RDS_SECRET_ARN}"
 echo "  Hasura Admin Secret ARN: ${HASURA_ADMIN_SECRET_ARN}"
 echo "  MSK Cluster ARN: ${MSK_CLUSTER_ARN}"
+echo "--- Finished output extraction ---"
 
-echo -e "
-=== IMPORTANT: Manual Configuration for MSK ==="
-        if [ -n "${MSK_CLUSTER_ARN}" ] && [ "${MSK_CLUSTER_ARN}" != "null" ]; then
-          echo "The MSK Serverless cluster ARN is: ${MSK_CLUSTER_ARN}"
-          echo "You MUST manually fetch the MSK Bootstrap Brokers using the AWS CLI (copy the full command below):"
-          echo "  aws kafka get-bootstrap-brokers --cluster-arn ${MSK_CLUSTER_ARN} --region ${AWS_REGION}"
-          echo "Then, you need to update the 'KAFKA_BOOTSTRAP_SERVERS' environment variable for the 'functions' ECS service."
-          echo "This can be done by:"
-          echo "  1. Creating a new version of the ECS Task Definition for the 'functions' service with the correct KAFKA_BOOTSTRAP_SERVERS string."
-          echo "  2. Updating the 'functions' ECS service to use this new task definition version."
-          echo "Alternatively, store this bootstrap string in AWS Secrets Manager and configure the 'functions' service to read it from there at startup (recommended for robustness)."
-          echo "The 'functions' service (and dependent features) may not function correctly until KAFKA_BOOTSTRAP_SERVERS is properly set."
-        else
-          echo "Warning: MSK Cluster ARN not found in CDK outputs. Manual configuration for MSK Bootstrap brokers will require finding the ARN from the AWS Console."
-        fi
-echo "==============================================="
+echo -e "\n=== Section 3a: Updating MSK Bootstrap Brokers Secret ==="
+echo "--- Starting MSK bootstrap brokers secret update ---"
+# MSK_CLUSTER_ARN is already validated by the block above.
+# If it was "null" or empty, the script would have exited.
 
-echo -e "
-=== Section 4: Running Post-Deployment Scripts ==="
+echo "Fetching MSK Bootstrap Brokers for Cluster ARN: ${MSK_CLUSTER_ARN}..."
+MSK_BROKERS=$(aws kafka get-bootstrap-brokers --cluster-arn "${MSK_CLUSTER_ARN}" --region "${AWS_REGION}" --query 'BootstrapBrokerStringTls' --output text)
+
+if [ $? -ne 0 ] || [ -z "${MSK_BROKERS}" ] || [ "${MSK_BROKERS}" == "null" ]; then
+    echo "Error: Failed to fetch MSK Bootstrap Brokers." >&2
+    echo "MSK_BROKERS: ${MSK_BROKERS}" >&2
+    echo "Please check the MSK cluster status and AWS CLI configuration." >&2
+    exit 1
+fi
+echo "Successfully fetched MSK Bootstrap Brokers."
+# echo "MSK_BROKERS: ${MSK_BROKERS}" # Potentially sensitive, uncomment for debugging only
+
+MSK_SECRET_ARN_OUTPUT_KEY="MskBootstrapBrokersSecretArn"
+MSK_SECRET_ARN=$(jq -r ".${CDK_STACK_NAME}.${MSK_SECRET_ARN_OUTPUT_KEY}" "${OUTPUT_FILE}")
+
+if [ -z "${MSK_SECRET_ARN}" ] || [ "${MSK_SECRET_ARN}" == "null" ]; then
+    echo "Error: Failed to extract MskBootstrapBrokersSecretArn from ${OUTPUT_FILE}." >&2
+    echo "MSK_SECRET_ARN: ${MSK_SECRET_ARN}" >&2
+    exit 1
+fi
+echo "Successfully extracted MSK Bootstrap Brokers Secret ARN: ${MSK_SECRET_ARN}"
+
+echo "Updating AWS Secrets Manager secret (${MSK_SECRET_ARN}) with MSK Bootstrap Brokers..."
+if ! aws secretsmanager update-secret --secret-id "${MSK_SECRET_ARN}" --secret-string "${MSK_BROKERS}" --region "${AWS_REGION}"; then
+    echo "Error: Failed to update MSK Bootstrap Brokers secret in AWS Secrets Manager." >&2
+    exit 1
+fi
+echo "Successfully updated MSK Bootstrap Brokers secret."
+echo "--- Finished MSK bootstrap brokers secret update ---"
+
+echo -e "\n=== Section 4: Running Post-Deployment Scripts ==="
+echo "--- Starting post-deployment scripts ---"
 
 echo "Running Database Initialization Script..."
 # run_db_init_scripts.sh expects: <rds_endpoint> <rds_db_name> <rds_secret_arn> [aws_region]
 if ! "${SCRIPT_DIR}/run_db_init_scripts.sh" "${RDS_ENDPOINT}" "${RDS_DB_NAME}" "${RDS_SECRET_ARN}" "${AWS_REGION}"; then
-    echo "Error: Database initialization script failed."
-    # Allowing script to continue to attempt Hasura metadata apply, as DB might be partially initialized.
+    echo "Error: Database initialization script failed. This is a critical error." >&2
+    exit 1
 else
-    echo "Database initialization script completed."
+    echo "Database initialization script completed successfully."
 fi
 
 echo "Running Hasura Metadata Apply Script..."
 # apply_hasura_metadata.sh expects: <alb_dns_name> <hasura_admin_secret_arn> [aws_region]
 if ! "${SCRIPT_DIR}/apply_hasura_metadata.sh" "${ALB_DNS_NAME}" "${HASURA_ADMIN_SECRET_ARN}" "${AWS_REGION}"; then
-    echo "Error: Hasura metadata apply script failed."
+    echo "Error: Hasura metadata apply script failed. This is a critical error." >&2
     exit 1
 fi
 echo "Hasura metadata apply script completed successfully."
+echo "--- Finished post-deployment scripts ---"
 
-echo -e "
-=== Deployment Attempt Completed ===
-"
+echo -e "\n=== Deployment Script Completed ===\n"
 echo "Application should be accessible at: http://${ALB_DNS_NAME}"
-echo "NOTE: Manual population of placeholder secrets (DB connection strings, JWT key, API keys) in AWS Secrets Manager is required for full functionality."
+echo "Important: Review script output for any warnings or errors."
+echo "NOTE: Manual population of placeholder secrets (DB connection strings, JWT key, API keys) in AWS Secrets Manager is required for full functionality if not automated."
