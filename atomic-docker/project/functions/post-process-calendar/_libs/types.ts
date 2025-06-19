@@ -1315,3 +1315,32 @@ export type AttendeeEmailType = {
     createdDate: string,
     deleted: boolean
   }
+
+// Type for the S3 payload consumed by _postOptaCalWorker_
+// This includes the OptaPlanner solution and context passed from the initial S3 payload.
+export type WorkerS3PayloadType = {
+    // Fields from OptaPlanner solution (via TimeTableSolutionDto)
+    eventPartList: EventPartDto[];
+    userList: UserDto[];
+    timeslotList: TimeslotDto[];
+    score: string | null;
+
+    // Contextual fields passed through or added by the callback
+    fileKey: string | null; // The S3 key of the OptaPlanner output file (which is also the input to the callback)
+    hostId: string | null; // HostId from OptaPlanner output
+    singletonId: string; // From the initial S3 payload created by schedule-assist
+
+    // Optional context fields from the initial S3 payload (read by callback, passed to worker)
+    newHostReminders?: RemindersForEventType[];
+    newHostBufferTimes?: BufferTimeObjectType[];
+    allEvents?: EventPlusType[];
+    breaks?: EventPlusType[];
+    oldEvents?: EventPlusType[];
+    oldAttendeeEvents?: MeetingAssistEventType[];
+    hostTimezone?: string;
+
+    // New fields for replan context
+    isReplan?: boolean;
+    originalGoogleEventId?: string;
+    originalCalendarId?: string;
+};

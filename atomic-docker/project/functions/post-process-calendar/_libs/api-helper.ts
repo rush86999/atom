@@ -8273,6 +8273,9 @@ export const updateAllCalendarEventsPostPlanner = async (
     newHostReminders?: RemindersForEventType[],
     breaks?: EventPlusType[],
     oldAttendeeExternalEvents?: MeetingAssistEventType[],
+    isReplan?: boolean,
+    originalGoogleEventIdToUpdate?: string,
+    originalCalendarIdToUpdate?: string,
 ) => {
     try {
         eventsToValidate.forEach(e => validateEventsFromOptaplanner(e))
@@ -8431,6 +8434,63 @@ export const updateAllCalendarEventsPostPlanner = async (
             const { resource } = await getCalendarWithId(eventToUpdate.calendarId)
             const calendarIntegration = await getCalendarIntegration(eventToUpdate.userId, resource)
             const clientType = calendarIntegration?.clientType
+
+            // --- REPLAN LOGIC ---
+            if (
+                isReplan &&
+                originalGoogleEventIdToUpdate &&
+                originalCalendarIdToUpdate &&
+                eventToUpdate.eventId === originalGoogleEventIdToUpdate && // eventId is Google's ID
+                eventToUpdate.calendarId === originalCalendarIdToUpdate
+            ) {
+                console.log(`Replanning: Updating event ${originalGoogleEventIdToUpdate} in calendar ${originalCalendarIdToUpdate}`);
+                // Ensure attendees are in GoogleAttendeeType format if needed by patchGoogleEvent
+                const googleAttendees: GoogleAttendeeType[] = eventToUpdate.attendees?.map(att => ({
+                    email: att.primaryEmail || att.emails?.[0]?.value,
+                    displayName: att.name,
+                    // We might need to map responseStatus, optional, etc. if available and needed
+                })) || [];
+
+                // Call postPlannerModifyEventInCalendar with 'update'
+                // IMPORTANT: newEvent.eventId for patchGoogleEvent should be the originalGoogleEventIdToUpdate
+                // The eventToUpdate contains the new start/end times and other modified properties.
+                updatePromises.push(
+                    postPlannerModifyEventInCalendar(
+                        { ...eventToUpdate, eventId: originalGoogleEventIdToUpdate }, // Pass original Google ID for update
+                        eventToUpdate.userId,
+                        'update',
+                        resource,
+                        false, // Assuming the main replanned event is not inherently a "time blocking" break
+                        clientType,
+                        remindersObjectForEvent?.reminders,
+                        googleAttendees, // Pass the full final list of attendees
+                        undefined // Conference data - handle if it can change during replan
+                    ) as Promise<string>
+                );
+                eventToUpdate.method = null; // Mark as processed for upsert logic
+                eventsToUpsert.push(eventToUpdate); // Still upsert to Hasura to reflect changes
+
+                // Handle reminders and preferred time ranges for the updated event
+                if (remindersObjectForEvent?.reminders?.length > 0) {
+                    const oldReminders = await listRemindersForEvent(originalGoogleEventIdToUpdate, eventToUpdate.userId); // Use original ID
+                    if (oldReminders?.length > 0) {
+                        deleteReminders.push(...oldReminders.map(r => ({...r, eventId: originalGoogleEventIdToUpdate})));
+                    }
+                    insertReminderObjects.push(...remindersObjectForEvent.reminders.map(r => ({...r, eventId: originalGoogleEventIdToUpdate})));
+                }
+                const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(originalGoogleEventIdToUpdate); // Use original ID
+                if (!_.isEqual(oldPreferredTimeRanges, eventToUpdate.preferredTimeRanges)) {
+                    if (oldPreferredTimeRanges?.length > 0) {
+                        deletePreferredTimeRangeObjects.push(...oldPreferredTimeRanges.map(ptr => ({...ptr, eventId: originalGoogleEventIdToUpdate})));
+                    }
+                    if (eventToUpdate?.preferredTimeRanges?.length > 0) {
+                        insertPreferredTimeRangeObjects.push(...eventToUpdate.preferredTimeRanges.map(ptr => ({...ptr, eventId: originalGoogleEventIdToUpdate})));
+                    }
+                }
+                continue; // Skip the create logic below for this event
+            }
+            // --- END REPLAN LOGIC ---
+
             const beforeEventIndex = hostBufferTimes?.findIndex(bufferTimes => (bufferTimes?.beforeEvent?.id === eventToUpdate.id))
             console.log(beforeEventIndex, resource, ' beforeEventIndex, resource ')
             const afterEventIndex = hostBufferTimes?.findIndex(bufferTimes => (bufferTimes?.afterEvent?.id === eventToUpdate.id))
@@ -8450,9 +8510,11 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 eventToUpdate.userId,
                                 'create',
                                 resource,
-                                true,
+                                true, // isTimeBlocking for buffer events
                                 clientType,
-                                remindersObjectForEvent?.reminders,
+                                remindersObjectForEvent?.reminders, // Pass reminders if any
+                                undefined, // Attendees for buffer events? Usually none.
+                                undefined  // Conference for buffer events? Usually none.
                             ) as Promise<CreateGoogleEventResponseType>
                         )
                         
@@ -8460,7 +8522,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                         
 
                         if (remindersObjectForEvent?.reminders?.length > 0) {
-                            insertReminderObjects.push(...remindersObjectForEvent?.reminders)
+                            insertReminderObjects.push(...remindersObjectForEvent.reminders)
                         }
 
                         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(eventToUpdate.id)
@@ -8488,9 +8550,11 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 eventToUpdate?.userId,
                                 'update',
                                 resource,
-                                true,
+                                true, // isTimeBlocking for buffer events
                                 clientType,
-                                remindersObjectForEvent?.reminders,
+                                remindersObjectForEvent?.reminders, // Pass reminders if any
+                                undefined, // Attendees
+                                undefined // Conference
                             ) as Promise<string>
                         )
 
@@ -8499,7 +8563,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                             if (oldReminders?.length > 0) {
                                 deleteReminders.push(...oldReminders)
                             }
-                            insertReminderObjects.push(...remindersObjectForEvent?.reminders)
+                            insertReminderObjects.push(...remindersObjectForEvent.reminders)
                         }
 
                         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(eventToUpdate.id)
@@ -8528,8 +8592,11 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 eventToUpdate.userId,
                                 'create',
                                 resource,
-                                true,
+                                true, // isTimeBlocking for buffer events
                                 clientType,
+                                undefined, // Reminders for buffer events?
+                                undefined, // Attendees
+                                undefined // Conference
                             ) as Promise<CreateGoogleEventResponseType>
                         )
                         
@@ -8537,7 +8604,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                         
 
                         if (remindersObjectForEvent?.reminders?.length > 0) {
-                            insertReminderObjects.push(...remindersObjectForEvent?.reminders)
+                            insertReminderObjects.push(...remindersObjectForEvent.reminders)
                         }
 
                         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(eventToUpdate.id)
@@ -8566,8 +8633,11 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 eventToUpdate?.userId,
                                 'update',
                                 resource,
-                                true,
+                                true, // isTimeBlocking for buffer events
                                 clientType,
+                                undefined, // Reminders
+                                undefined, // Attendees
+                                undefined // Conference
                             ) as Promise<string>
                         )
 
@@ -8576,7 +8646,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                             if (oldReminders?.length > 0) {
                                 deleteReminders.push(...oldReminders)
                             }
-                            insertReminderObjects.push(...remindersObjectForEvent?.reminders)
+                            insertReminderObjects.push(...remindersObjectForEvent.reminders)
                         }
 
                         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(eventToUpdate.id)
@@ -8605,9 +8675,11 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 eventToUpdate.userId,
                                 'create',
                                 resource,
-                                false,
+                                false, // Not a break event itself
                                 clientType,
-                                remindersObjectForEvent?.reminders,
+                                remindersObjectForEvent?.reminders, // Pass reminders if any
+                                undefined, // Attendees
+                                undefined // Conference
                             ) as Promise<CreateGoogleEventResponseType>
                         )
                         
@@ -8615,7 +8687,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                         
 
                         if (remindersObjectForEvent?.reminders?.length > 0) {
-                            insertReminderObjects.push(...remindersObjectForEvent?.reminders)
+                            insertReminderObjects.push(...remindersObjectForEvent.reminders)
                         }
 
                         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(eventToUpdate.id)
@@ -8647,9 +8719,11 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 eventToUpdate.userId,
                                 'update',
                                 resource,
-                                false,
+                                false, // Not a break event
                                 clientType,
-                                remindersObjectForEvent?.reminders,
+                                remindersObjectForEvent?.reminders, // Pass reminders if any
+                                undefined, // Attendees
+                                undefined // Conference
                             ) as Promise<string>
                         )
 
@@ -8659,7 +8733,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                                 deleteReminders.push(...oldReminders)
                             }
                             
-                            insertReminderObjects.push(...remindersObjectForEvent?.reminders)
+                            insertReminderObjects.push(...remindersObjectForEvent.reminders)
                         }
 
                         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(eventToUpdate.id)

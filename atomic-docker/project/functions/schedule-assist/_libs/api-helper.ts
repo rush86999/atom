@@ -1,5 +1,5 @@
 import { bucketName, optaplannerDuration, dayOfWeekIntToString, hasuraAdminSecret, hasuraGraphUrl, onOptaPlanCalendarAdminCallBackUrl, optaPlannerPassword, optaPlannerUrl, optaPlannerUsername } from '@schedule_assist/_libs/constants'
-import { BufferTimeNumberType, EventPlusType, EventType, MeetingAssistAttendeeType, MeetingAssistEventType, MeetingAssistPreferredTimeRangeType, MeetingAssistType, EventMeetingPlusType, PreferredTimeRangeType, RemindersForEventType, ValuesToReturnForBufferEventsType, UserPreferenceType, CalendarType, WorkTimeType, TimeSlotType, MonthType, DayType, MM, DD, MonthDayType, Time, EventPartPlannerRequestBodyType, InitialEventPartType, InitialEventPartTypePlus, UserPlannerRequestBodyType, ReturnBodyForHostForOptaplannerPrepType, ReturnBodyForAttendeeForOptaplannerPrepType, ReturnBodyForExternalAttendeeForOptaplannerPrepType, PlannerRequestBodyType, FreemiumType, BufferTimeObjectType, FetchedExternalPreference } from "@schedule_assist/_libs/types" // Added FetchedExternalPreference
+import { BufferTimeNumberType, EventPlusType, EventType, MeetingAssistAttendeeType, MeetingAssistEventType, MeetingAssistPreferredTimeRangeType, MeetingAssistType, EventMeetingPlusType, PreferredTimeRangeType, RemindersForEventType, ValuesToReturnForBufferEventsType, UserPreferenceType, CalendarType, WorkTimeType, TimeSlotType, MonthType, DayType, MM, DD, MonthDayType, Time, EventPartPlannerRequestBodyType, InitialEventPartType, InitialEventPartTypePlus, UserPlannerRequestBodyType, ReturnBodyForHostForOptaplannerPrepType, ReturnBodyForAttendeeForOptaplannerPrepType, ReturnBodyForExternalAttendeeForOptaplannerPrepType, PlannerRequestBodyType, FreemiumType, BufferTimeObjectType, FetchedExternalPreference, NewConstraints } from "@schedule_assist/_libs/types" // Added FetchedExternalPreference and NewConstraints
 import got from "got"
 import { v4 as uuid } from 'uuid'
 import dayjs from 'dayjs'
@@ -1418,6 +1418,459 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
     const totalDuration = endDuration.subtract(startDuration)
     return totalDuration.asHours()
 }
+
+export const getEventDetailsForModification = async (
+    hasuraEventId: string, // Format: "googleEventId#calendarId"
+): Promise<EventType & { attendees?: MeetingAssistAttendeeType[] } | null> => {
+    try {
+        const operationName = 'GetEventWithAttendeesForModification';
+        const query = `
+            query ${operationName}($eventId: String!) {
+                Event_by_pk(id: $eventId) {
+                    id
+                    userId
+                    calendarId
+                    eventId
+                    summary
+                    startDate
+                    endDate
+                    timezone
+                    duration
+                    notes
+                    location
+                    status
+                    transparency
+                    visibility
+                    colorId
+                    recurringEventId
+                    allDay
+                    recurrenceRule
+                    attachments
+                    links
+                    createdDate
+                    deleted
+                    taskId
+                    taskType
+                    priority
+                    followUpEventId
+                    isFollowUp
+                    isPreEvent
+                    isPostEvent
+                    preEventId
+                    postEventId
+                    modifiable
+                    forEventId
+                    conferenceId
+                    maxAttendees
+                    sendUpdates
+                    anyoneCanAddSelf
+                    guestsCanInviteOthers
+                    guestsCanSeeOtherGuests
+                    originalStartDate
+                    originalAllDay
+                    htmlLink
+                    creator
+                    organizer
+                    endTimeUnspecified
+                    recurrence
+                    originalTimezone
+                    attendeesOmitted
+                    extendedProperties
+                    hangoutLink
+                    guestsCanModify
+                    locked
+                    source
+                    eventType
+                    privateCopy
+                    backgroundColor
+                    foregroundColor
+                    useDefaultAlarms
+                    iCalUID
+
+                    Attendees {
+                        id
+                        userId
+                        contactId
+                        name
+                        primaryEmail
+                        emails
+                        timezone
+                        externalAttendee
+                        hostId
+                        meetingId
+                    }
+                }
+            }
+        `;
+
+        const variables = {
+            eventId: hasuraEventId,
+        };
+
+        const response: { data: { Event_by_pk: EventType & { Attendees?: MeetingAssistAttendeeType[] } } } = await got.post(
+            hasuraGraphUrl,
+            {
+                headers: {
+                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'Content-Type': 'application/json',
+                    'X-Hasura-Role': 'admin',
+                },
+                json: {
+                    operationName,
+                    query,
+                    variables,
+                },
+                responseType: 'json',
+            }
+        ).json();
+
+        if ((response as any)?.errors) {
+            console.error(`Hasura error fetching event ${hasuraEventId} for modification:`, JSON.stringify((response as any).errors, null, 2));
+            return null;
+        }
+
+        const eventData = response.data.Event_by_pk;
+        if (eventData) {
+            if (eventData.Attendees) {
+                eventData.attendees = eventData.Attendees;
+                delete (eventData as any).Attendees;
+            } else {
+                eventData.attendees = [];
+            }
+            return eventData;
+        }
+        return null;
+
+    } catch (error) {
+        console.error(`Error in getEventDetailsForModification for event ${hasuraEventId}:`, error);
+        return null;
+    }
+};
+
+export function generateEventPartsForReplan(
+    allUserEvents: EventPlusType[], // All events for all relevant users
+    eventToReplanHasuraId: string, // e.g., "googleEventId#calendarId"
+    replanConstraints: NewConstraints,
+    hostId: string, // Typically originalEventDetails.userId
+    hostTimezone: string // To resolve event part start/end for OptaPlanner if needed by formatEventType...
+): InitialEventPartTypePlus[] {
+    const allEventParts: InitialEventPartTypePlus[] = [];
+
+    for (const event of allUserEvents) {
+        // Ensure preferredTimeRanges is at least an empty array for InitialEventPartTypePlus
+        const eventWithPrefs: EventPlusType = {
+            ...event,
+            preferredTimeRanges: event.preferredTimeRanges || [],
+        };
+
+        let parts = generateEventPartsLite(eventWithPrefs, hostId); // Returns InitialEventPartType[]
+
+        if (event.id === eventToReplanHasuraId) {
+            // This is the event being replanned
+            const newDuration = replanConstraints.newDurationMinutes;
+            if (newDuration && newDuration > 0) {
+                const originalEventStartDate = dayjs(event.startDate.slice(0, 19)).tz(event.timezone || hostTimezone, true);
+                const newEventEndDate = originalEventStartDate.add(newDuration, 'minutes');
+
+                // Create a temporary event with the new duration to generate parts
+                const tempEventForNewDuration: EventPlusType = {
+                    ...eventWithPrefs,
+                    endDate: newEventEndDate.format(), // Ensure correct format
+                };
+                parts = generateEventPartsLite(tempEventForNewDuration, hostId);
+            }
+
+            parts = parts.map(p => ({
+                ...p,
+                modifiable: true,
+                // Add empty preferredTimeRanges if not present, to satisfy InitialEventPartTypePlus
+                preferredTimeRanges: (p as InitialEventPartTypePlus).preferredTimeRanges || [],
+            }));
+        } else {
+            // This is not the event being replanned, so pin it
+            parts = parts.map(p => {
+                const initialPartPlus: InitialEventPartTypePlus = {
+                    ...p,
+                    modifiable: false,
+                    // Add empty preferredTimeRanges if not present
+                    preferredTimeRanges: (p as InitialEventPartTypePlus).preferredTimeRanges || [],
+                };
+
+                // Apply pinning logic similar to setPreferredTimeForUnModifiableEvent
+                // This function expects EventPartPlannerRequestBodyType, so we adapt its logic here for InitialEventPartTypePlus
+                if (!initialPartPlus.preferredDayOfWeek && !initialPartPlus.preferredTime) {
+                    const partStartDate = dayjs(initialPartPlus.startDate.slice(0, 19)).tz(initialPartPlus.timezone || hostTimezone, true);
+                    initialPartPlus.preferredDayOfWeek = getISODay(partStartDate.toDate()) as any; // May need dayOfWeekIntToString conversion if type mismatch
+                    initialPartPlus.preferredTime = partStartDate.format('HH:mm:ss') as Time;
+                }
+                return initialPartPlus;
+            });
+        }
+        allEventParts.push(...parts);
+    }
+    return allEventParts;
+}
+
+export async function generateTimeSlotsForReplan(
+    users: MeetingAssistAttendeeType[], // Final list of users for the replanned event
+    replanConstraints: NewConstraints,
+    hostTimezone: string,
+    globalDefaultWindowStart: string, // Fallback window start (ISO string)
+    globalDefaultWindowEnd: string,   // Fallback window end (ISO string)
+    mainHostId: string, // Needed by generateTimeSlotsLiteForInternalAttendee
+    userPreferencesCache: Map<string, UserPreferenceType> // Cache to avoid re-fetching
+): Promise<TimeSlotType[]> {
+    const allTimeSlots: TimeSlotType[] = [];
+
+    const effectiveWindowStartUTC = replanConstraints.newTimeWindowStartUTC || globalDefaultWindowStart;
+    const effectiveWindowEndUTC = replanConstraints.newTimeWindowEndUTC || globalDefaultWindowEnd;
+
+    // Convert effective UTC window to hostTimezone for generating slots locally if needed,
+    // or ensure downstream functions correctly handle UTC or convert to hostTimezone.
+    // For generateTimeSlotsLiteForInternalAttendee, it expects hostStartDate in hostTimezone.
+    const effectiveWindowStartInHostTz = dayjs.utc(effectiveWindowStartUTC).tz(hostTimezone).format();
+    const effectiveWindowEndInHostTz = dayjs.utc(effectiveWindowEndUTC).tz(hostTimezone).format();
+
+    const diffDays = dayjs(effectiveWindowEndInHostTz).diff(dayjs(effectiveWindowStartInHostTz), 'day');
+    const startDatesForEachDayInWindow: string[] = [];
+    for (let i = 0; i <= diffDays; i++) {
+        startDatesForEachDayInWindow.push(
+            dayjs(effectiveWindowStartInHostTz).add(i, 'day').format()
+        );
+    }
+
+    for (const user of users) {
+        let userPrefs = userPreferencesCache.get(user.userId);
+        if (!userPrefs) {
+            userPrefs = await getUserPreferences(user.userId);
+            if (userPrefs) {
+                userPreferencesCache.set(user.userId, userPrefs);
+            } else {
+                // Handle case where user preferences might not be found for a user
+                console.warn(`Preferences not found for user ${user.userId}, skipping timeslot generation for them.`);
+                continue;
+            }
+        }
+
+        // Assuming generateTimeSlotsLiteForInternalAttendee is the primary one.
+        // If external users have a different slot generation mechanism, that would need to be called here.
+        // The generateTimeSlotsLiteForInternalAttendee expects hostStartDate for each day.
+        for (let i = 0; i < startDatesForEachDayInWindow.length; i++) {
+            const dayToGenerateSlots = startDatesForEachDayInWindow[i];
+            const isFirstDayLoop = (i === 0);
+
+            // Ensure the date being passed to generateTimeSlotsLiteForInternalAttendee is correctly formatted and in hostTimezone.
+            // The loop already generates dates in hostTimezone based on effectiveWindowStartInHostTz
+            const userSpecificSlots = generateTimeSlotsLiteForInternalAttendee(
+                dayToGenerateSlots, // This is already a date string in hostTimezone
+                mainHostId, // Or user.hostId if appropriate, mainHostId seems more aligned with OptaPlanner's model
+                userPrefs,
+                hostTimezone, // Host's overall timezone
+                user.timezone || hostTimezone, // Attendee's specific timezone
+                isFirstDayLoop
+            );
+            allTimeSlots.push(...userSpecificSlots);
+        }
+    }
+
+    return _.uniqWith(allTimeSlots, _.isEqual);
+}
+
+export async function orchestrateReplanOptaPlannerInput(
+    userId: string, // User initiating the replan (usually the host)
+    hostTimezone: string,
+    originalEventDetails: EventType & { attendees?: MeetingAssistAttendeeType[], meetingId?: string },
+    newConstraints: NewConstraints,
+    allUsersFromOriginalEventAndAdded: MeetingAssistAttendeeType[], // Combined list of original and newly added attendees
+    allExistingEventsForUsers: EventPlusType[], // Pre-fetched events for ALL relevant users in a broad window
+    // client: any, // ApolloClient, if needed - currently using global got for Hasura
+): Promise<PlannerRequestBodyType | null> {
+    try {
+        const singletonId = uuid();
+        const eventToReplanHasuraId = originalEventDetails.id; // googleEventId#calendarId
+
+        // 1. Generate Event Parts
+        // Host ID for event parts is typically the user ID from the original event
+        const eventParts = generateEventPartsForReplan(
+            allExistingEventsForUsers,
+            eventToReplanHasuraId,
+            newConstraints,
+            originalEventDetails.userId,
+            hostTimezone
+        );
+
+        if (!eventParts || eventParts.length === 0) {
+            console.error("No event parts generated for replan. Aborting.");
+            return null;
+        }
+
+        // 2. Generate Time Slots
+        // Use a cache for user preferences within this function's scope
+        const userPreferencesCache = new Map<string, UserPreferenceType>();
+
+        // Define global fallback window (e.g., next 7 days from original event start if no new window specified)
+        // These should be ISO datetime strings
+        const originalEventStartDayjs = dayjs(originalEventDetails.startDate.slice(0,19)).tz(originalEventDetails.timezone || hostTimezone, true);
+        const globalDefaultWindowStart = newConstraints.newTimeWindowStartUTC || originalEventStartDayjs.toISOString();
+        const globalDefaultWindowEnd = newConstraints.newTimeWindowEndUTC || originalEventStartDayjs.add(7, 'days').toISOString();
+
+        const timeSlots = await generateTimeSlotsForReplan(
+            allUsersFromOriginalEventAndAdded,
+            newConstraints,
+            hostTimezone,
+            globalDefaultWindowStart,
+            globalDefaultWindowEnd,
+            originalEventDetails.userId, // mainHostId for timeslot generation context
+            userPreferencesCache
+        );
+
+        if (!timeSlots || timeSlots.length === 0) {
+            console.error("No time slots generated for replan. Aborting.");
+            return null;
+        }
+
+        // 3. Construct User List (UserPlannerRequestBodyType)
+        const userListForPlanner: UserPlannerRequestBodyType[] = [];
+        for (const user of allUsersFromOriginalEventAndAdded) {
+            let userPrefs = userPreferencesCache.get(user.userId);
+            if (!userPrefs) {
+                userPrefs = await getUserPreferences(user.userId);
+                if (userPrefs) {
+                    userPreferencesCache.set(user.userId, userPrefs);
+                } else {
+                    console.warn(`Preferences not found for user ${user.userId} while building userListForPlanner. Using defaults.`);
+                    // Provide default/minimal UserPreferenceType if none found
+                    userPrefs = {
+                        id: uuid(), // temp id
+                        userId: user.userId,
+                        maxWorkLoadPercent: 100, // Default values
+                        backToBackMeetings: false,
+                        maxNumberOfMeetings: 99,
+                        minNumberOfBreaks: 0,
+                        startTimes: [], // Default empty start/end times
+                        endTimes: [],
+                        breakLength: 30,
+                        // Add other mandatory fields from UserPreferenceType with defaults
+                        deleted: false,
+                    } as UserPreferenceType;
+                }
+            }
+
+            const workTimes = user.externalAttendee
+                ? generateWorkTimesForExternalAttendee(
+                    originalEventDetails.userId, // hostId context
+                    user.userId,
+                    allExistingEventsForUsers.filter(e => e.userId === user.userId), // Pass only this user's events
+                    hostTimezone,
+                    user.timezone || hostTimezone
+                  )
+                : generateWorkTimesForInternalAttendee(
+                    originalEventDetails.userId, // hostId context
+                    user.userId,
+                    userPrefs,
+                    hostTimezone,
+                    user.timezone || hostTimezone
+                  );
+
+            userListForPlanner.push(
+                user.externalAttendee
+                ? generateUserPlannerRequestBodyForExternalAttendee(user.userId, workTimes, originalEventDetails.userId)
+                : generateUserPlannerRequestBody(userPrefs, user.userId, workTimes, originalEventDetails.userId)
+            );
+        }
+
+        const uniqueUserListForPlanner = _.uniqBy(userListForPlanner, 'id');
+
+
+        // 4. Assemble PlannerRequestBodyType
+        const fileKey = `${originalEventDetails.userId}/${singletonId}_REPLAN_${originalEventDetails.eventId}.json`;
+
+        const plannerRequestBody: PlannerRequestBodyType = {
+            singletonId,
+            hostId: originalEventDetails.userId,
+            timeslots: _.uniqWith(timeSlots, _.isEqual),
+            userList: uniqueUserListForPlanner,
+            // Event parts need to be correctly formatted as EventPartPlannerRequestBodyType
+            // The generateEventPartsForReplan returns InitialEventPartTypePlus[]
+            // We need to map these to EventPartPlannerRequestBodyType, similar to how processEventsForOptaPlanner does.
+            // This requires userPreferences for each event part's user.
+            eventParts: eventParts.map(ep => {
+                const partUser = allUsersFromOriginalEventAndAdded.find(u => u.userId === ep.userId);
+                let partUserPrefs = userPreferencesCache.get(ep.userId);
+                if(!partUserPrefs) {
+                    // This should ideally not happen if all users in eventParts are in allUsersFromOriginalEventAndAdded
+                    // and their prefs were fetched for userList. Adding a fallback.
+                    console.warn(`Prefs not in cache for user ${ep.userId} during event part formatting. Using defaults.`);
+                    partUserPrefs = { /* ... default UserPreferenceType ... */ } as UserPreferenceType;
+                }
+
+                const partWorkTimes = partUser?.externalAttendee
+                    ? generateWorkTimesForExternalAttendee(originalEventDetails.userId, ep.userId, allExistingEventsForUsers.filter(e => e.userId === ep.userId), hostTimezone, partUser?.timezone || hostTimezone)
+                    : generateWorkTimesForInternalAttendee(originalEventDetails.userId, ep.userId, partUserPrefs, hostTimezone, partUser?.timezone || hostTimezone);
+
+                return partUser?.externalAttendee
+                    ? formatEventTypeToPlannerEventForExternalAttendee(ep, partWorkTimes, allExistingEventsForUsers.filter(e => e.userId === ep.userId), hostTimezone)
+                    : formatEventTypeToPlannerEvent(ep, partUserPrefs, partWorkTimes, hostTimezone);
+            }).filter(ep => ep !== null), // Filter out nulls if allDay events were skipped
+            fileKey,
+            delay: optaplannerDuration, // from constants
+            callBackUrl: onOptaPlanCalendarAdminCallBackUrl, // from constants
+        };
+
+        // Filter out any null event parts that might result from allDay events etc.
+        plannerRequestBody.eventParts = plannerRequestBody.eventParts.filter(ep => ep != null);
+
+        if (!plannerRequestBody.eventParts || plannerRequestBody.eventParts.length === 0) {
+            console.error("No valid event parts to send to OptaPlanner after formatting. Aborting.");
+            return null;
+        }
+
+
+        // 5. S3 Upload
+        const s3UploadParams = {
+            Body: JSON.stringify({ // Storing the input to OptaPlanner for debugging/history
+                singletonId: plannerRequestBody.singletonId,
+                hostId: plannerRequestBody.hostId,
+                eventParts: plannerRequestBody.eventParts, // These are now EventPartPlannerRequestBodyType
+                allEvents: allExistingEventsForUsers, // For context
+                // Include any other relevant data for debugging the replan request
+                originalEventDetails,
+                newConstraints,
+                finalUserListForPlanner: uniqueUserListForPlanner,
+                finalTimeSlots: timeSlots,
+                isReplan: true,
+                originalGoogleEventId: originalEventDetails.eventId, // Assuming eventId is googleEventId here
+                originalCalendarId: originalEventDetails.calendarId,
+            }),
+            Bucket: bucketName, // from constants
+            Key: fileKey,
+            ContentType: 'application/json',
+        };
+        const s3Command = new PutObjectCommand(s3UploadParams);
+        await s3Client.send(s3Command);
+        console.log(`Successfully uploaded replan input to S3: ${fileKey}`);
+
+        // 6. Call optaPlanWeekly
+        await optaPlanWeekly(
+            plannerRequestBody.timeslots,
+            plannerRequestBody.userList,
+            plannerRequestBody.eventParts,
+            plannerRequestBody.singletonId,
+            plannerRequestBody.hostId,
+            plannerRequestBody.fileKey,
+            plannerRequestBody.delay,
+            plannerRequestBody.callBackUrl
+        );
+        console.log(`OptaPlanner replan task initiated for singletonId: ${singletonId}`);
+
+        return plannerRequestBody;
+
+    } catch (error) {
+        console.error(`Error in orchestrateReplanOptaPlannerInput for event ${originalEventDetails.id}:`, error);
+        return null;
+    }
+}
+
 
 // New function to list external attendee preferences
 export const listExternalAttendeePreferences = async (
@@ -4390,16 +4843,71 @@ export const processEventsForOptaPlanner = async (
     meetingAssistEvents?: MeetingAssistEventType[],
     newHostReminders?: RemindersForEventType[],
     newHostBufferTimes?: BufferTimeObjectType[],
+    isReplan?: boolean,
+    eventBeingReplanned?: {
+        originalEventId: string; // Hasura event ID: googleEventId#calendarId
+        googleEventId: string;
+        calendarId: string;
+        newConstraints: NewConstraints;
+        originalAttendees: MeetingAssistAttendeeType[]
+    }
 ) => {
     try {
-        console.log(windowStartDate, windowEndDate, ' windowStartDate, windowEndDate inside processEventsForOptaPlanner')
+        let currentInternalAttendees = [...internalAttendees];
+        let currentExternalAttendees = [...externalAttendees];
+
+        console.log(windowStartDate, windowEndDate, ' windowStartDate, windowEndDate inside processEventsForOptaPlanner');
+        if (isReplan && eventBeingReplanned) {
+            console.log('Replanning event:', eventBeingReplanned.originalEventId, 'with constraints:', eventBeingReplanned.newConstraints);
+
+            let processedOriginalAttendees = eventBeingReplanned.originalAttendees.map(a => ({...a, primaryEmail: a.emails?.find(e => e.primary)?.value || a.emails?.[0]?.value || a.primaryEmail}));
+
+            // Handle removed attendees
+            if (eventBeingReplanned.newConstraints.removedAttendeeEmailsOrIds?.length > 0) {
+                processedOriginalAttendees = processedOriginalAttendees.filter(att =>
+                    !eventBeingReplanned.newConstraints.removedAttendeeEmailsOrIds.includes(att.primaryEmail) &&
+                    !eventBeingReplanned.newConstraints.removedAttendeeEmailsOrIds.includes(att.id) &&
+                    !eventBeingReplanned.newConstraints.removedAttendeeEmailsOrIds.includes(att.userId)
+                );
+            }
+
+            // Handle added attendees
+            if (eventBeingReplanned.newConstraints.addedAttendees?.length > 0) {
+                for (const addedAtt of eventBeingReplanned.newConstraints.addedAttendees) {
+                    // Avoid adding duplicates if they somehow remained from original list
+                    if (processedOriginalAttendees.some(oa => oa.primaryEmail === addedAtt.email || (addedAtt.userId && oa.userId === addedAtt.userId))) {
+                        continue;
+                    }
+                    // Fetch full attendee details if needed, or construct a partial MeetingAssistAttendeeType
+                    // This example assumes we might need to fetch full details using getMeetingAssistAttendeeByEmailOrUserId (hypothetical function)
+                    // For now, construct a partial object based on NewConstraints, assuming MA_Attendee ID is not known yet for new ones.
+                    const newAttendeeObject: MeetingAssistAttendeeType = {
+                        id: uuid(), // Generate a temporary ID or handle appropriately if it's a known user
+                        userId: addedAtt.userId || null, // UserID might be known if internal
+                        hostId: mainHostId, // Associate with the main host
+                        meetingId: null, // Not tied to a specific MA record yet, or use current MA if appropriate
+                        name: addedAtt.name || addedAtt.email.split('@')[0],
+                        primaryEmail: addedAtt.email,
+                        emails: [{ primary: true, value: addedAtt.email, type: 'work', displayName: addedAtt.name || addedAtt.email.split('@')[0] }],
+                        timezone: addedAtt.timezone || hostTimezone, // Default to host timezone if not provided
+                        externalAttendee: addedAtt.externalAttendee !== undefined ? addedAtt.externalAttendee : !addedAtt.userId,
+                        createdDate: dayjs().toISOString(),
+                        updatedAt: dayjs().toISOString(),
+                    };
+                    processedOriginalAttendees.push(newAttendeeObject);
+                }
+            }
+            // Separate into internal and external based on the final list
+            currentInternalAttendees = processedOriginalAttendees.filter(a => !a.externalAttendee);
+            currentExternalAttendees = processedOriginalAttendees.filter(a => a.externalAttendee);
+        }
 
 
 
       
 
         const newInternalMeetingEventsPlus = newMeetingEventPlus?.map(e => {
-            const foundIndex = externalAttendees?.findIndex(a => (a?.userId === e?.userId))
+            const foundIndex = currentExternalAttendees?.findIndex(a => (a?.userId === e?.userId))
 
             if (foundIndex > -1) {
                 return null
@@ -4408,7 +4916,7 @@ export const processEventsForOptaPlanner = async (
         })?.filter(e => (e !== null))
 
         const newExternalMeetingEventsPlus = newMeetingEventPlus?.map(e => {
-            const foundIndex = externalAttendees?.findIndex(a => (a?.userId === e?.userId))
+            const foundIndex = currentExternalAttendees?.findIndex(a => (a?.userId === e?.userId))
 
             if (foundIndex > -1) {
                 return e
@@ -4421,7 +4929,7 @@ export const processEventsForOptaPlanner = async (
         const oldHostEvents = oldEvents.filter(e => (e?.userId === mainHostId))
 
 
-        const hostIsInternalAttendee = internalAttendees.some(ia => (ia?.userId === mainHostId))
+        const hostIsInternalAttendee = currentInternalAttendees.some(ia => (ia?.userId === mainHostId))
 
 
         let returnValuesFromInternalAttendees: ReturnBodyForAttendeeForOptaplannerPrepType | {} = {}
@@ -4434,47 +4942,63 @@ export const processEventsForOptaPlanner = async (
              returnValuesFromInternalAttendees = await processEventsForOptaPlannerForInternalAttendees(
                 mainHostId,
                 allEvents,
+                // TODO: For replan, if eventBeingReplanned.newConstraints.newTimeWindowStartUTC is set, use it here for relevant attendees
                 windowStartDate,
                 windowEndDate,
                 hostTimezone,
-                internalAttendees,
+                currentInternalAttendees, // Use finalized list
                 oldEvents,
                 meetingEventPlus,
                 newInternalMeetingEventsPlus,
                 newHostBufferTimes,
+                // Pass isReplan and eventBeingReplanned for modifiable flag and duration logic
+                isReplan,
+                eventBeingReplanned
             )
         } else {
+             // Assuming mainHost is always part of internalAttendees if they are internal.
+             // If mainHost can be external or not in the list, this logic needs adjustment.
             returnValuesFromHost = await processEventsForOptaPlannerForMainHost(
                 mainHostId,
                 allHostEvents,
+                 // TODO: For replan, if eventBeingReplanned.newConstraints.newTimeWindowStartUTC is set, use it here
                 windowStartDate,
                 windowEndDate,
                 hostTimezone,
                 oldHostEvents,
                 newHostBufferTimes,
+                // Pass isReplan and eventBeingReplanned for modifiable flag and duration logic
+                isReplan,
+                eventBeingReplanned
             )
         }
 
         console.log(returnValuesFromInternalAttendees, ' returnValuesFromInternalAttendees')
         const externalMeetingEventPlus = meetingEventPlus.map(e => {
-            const foundIndex = externalAttendees.findIndex(a => (a?.userId === e?.userId))
+            const foundIndex = currentExternalAttendees.findIndex(a => (a?.userId === e?.userId))
             if (foundIndex > -1) {
                 return e
             }
             return null
         })?.filter(e => (e !== null))
 
-        const returnValuesFromExternalAttendees: ReturnBodyForExternalAttendeeForOptaplannerPrepType = externalAttendees?.length > 0 ? await processEventsForOptaPlannerForExternalAttendees(
-            externalAttendees?.map(a => a.userId),
+        const returnValuesFromExternalAttendees: ReturnBodyForExternalAttendeeForOptaplannerPrepType = currentExternalAttendees?.length > 0 ? await processEventsForOptaPlannerForExternalAttendees(
+            currentExternalAttendees?.map(a => a.userId),
             mainHostId,
             meetingAssistEvents,
+            // TODO: For replan, if eventBeingReplanned.newConstraints.newTimeWindowStartUTC is set, use it here for relevant attendees
             windowStartDate,
             windowEndDate,
             hostTimezone,
-            externalAttendees,
+            currentExternalAttendees, // Use finalized list
             externalMeetingEventPlus,
             newExternalMeetingEventsPlus,
-            meetingAssistId // Pass meetingAssistId
+            // Pass meetingAssistId if available (e.g. from eventBeingReplanned or other context)
+            // For now, assuming it might come from the event being replanned if it's a meeting assist event
+            eventBeingReplanned?.originalEventId.includes('#') ? null : eventBeingReplanned?.originalEventId, // Simplistic check, might need better logic
+            // Pass isReplan and eventBeingReplanned for modifiable flag and duration logic
+            isReplan,
+            eventBeingReplanned
         ) : null;
 
         const eventParts: EventPartPlannerRequestBodyType[] = []
@@ -4609,9 +5133,14 @@ export const processEventsForOptaPlanner = async (
                 newHostBufferTimes: newHostBufferTimes,
                 newHostReminders: newHostReminders,
                 hostTimezone,
+                ...(isReplan && eventBeingReplanned && {
+                    isReplan: true,
+                    originalGoogleEventId: eventBeingReplanned.googleEventId,
+                    originalCalendarId: eventBeingReplanned.calendarId
+                })
             }),
             Bucket: bucketName,
-            Key: `${mainHostId}/${singletonId}.json`,
+            Key: isReplan && eventBeingReplanned ? `${mainHostId}/${singletonId}_REPLAN_${eventBeingReplanned.googleEventId}.json` : `${mainHostId}/${singletonId}.json`,
             ContentType: 'application/json',
         }
 
@@ -4628,7 +5157,7 @@ export const processEventsForOptaPlanner = async (
             duplicateFreeEventParts,
             singletonId,
             mainHostId,
-            `${mainHostId}/${singletonId}.json`,
+            isReplan && eventBeingReplanned ? `${mainHostId}/${singletonId}_REPLAN_${eventBeingReplanned.googleEventId}.json` : `${mainHostId}/${singletonId}.json`,
             optaplannerDuration,
             onOptaPlanCalendarAdminCallBackUrl,
         )
