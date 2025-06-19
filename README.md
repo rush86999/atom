@@ -49,7 +49,7 @@ Scheduling and managing time is always a problem. Finding a time that works for 
 
 Let all of this happen automatically for you and your team on a daily basis before work starts.
 
-All of this is possible with vector-based search to create a memory for your calendar and Autopilot.
+All of this is possible with AI-enhanced vector search (using LanceDB) to create an intelligent memory for your calendar, alongside Autopilot.
 
 Memory + Decisions + Natural Conversation Interface => Perfect Time Management Assistant
 
@@ -79,8 +79,8 @@ For simple 1:1 meetings, you won't need calendly links anymore. Your recipient r
 
 | Feature | Description |
 | ----------- | ----------- |
-| Semantic search | Use unique key phrases to match semantically similar past task events and apply them to new ones. Event details are converted into vectors and indexed for search. The vectorization of event details now leverages direct calls to advanced OpenAI embedding models. For Retrieval Augmented Generation (RAG) in research tasks, LanceDB is used for local vector storage and search, replacing previous OpenSearch implementations. Note: You need to "train" Atomic on existing events to create event templates for new events. Read the [docs](https://docs.atomiclife.app) for more info. |
-| Automated tagging | Apply tags automatically using an AI model used for classification. Each tag comes with its own set of settings configured to apply to all matched events. This classification is now primarily handled by direct integration with powerful OpenAI language models. |
+| Semantic search | Leverage AI-powered semantic search to match new or queried events with relevant past events, effectively turning your history into smart templates. Event details are converted into vector embeddings (via OpenAI models) and stored in **LanceDB**. The new `lance-event-matcher` service then employs a **two-stage AI process** for superior accuracy: 1.  **Query Enhancement:** User queries (and optionally, recent chat history) are first processed by an AI to refine search terms, understand the core intent, and identify potential date or category filters. 2.  **Results Processing & Categorization:** Events retrieved from LanceDB (using the AI-enhanced query) are then further analyzed by a second AI stage. This stage filters events for relevance, assigns the most appropriate category (which can dictate attributes like duration, color, priority, linked default behaviors, etc.), and provides a relevance score for ranking. This ensures highly relevant and accurately categorized results, making event templating more powerful and intuitive. Note: 'Training' involves ensuring events are properly categorized so the AI can learn these patterns for future application. |
+| Automated tagging | Automated event categorization (effectively, 'smart tagging') is performed by an AI model integrated within the `lance-event-matcher` service's results processing stage. Based on event content and the context of the user's query, the AI assigns the most relevant category to an event. Each category can define a set of default attributes and behaviors (e.g., duration, priority, color, time blocking preferences), which are then applied to the categorized events. This system streamlines event creation and ensures consistency in how similar events are handled. |
 | Flexible Meetings | Create recurring 1:1's or ad hoc team meetings that works with everyone's schedule. Every attendee's calendar is taken into account. Non-Atomic users can also sync their calendars and submit their time preferences. Once setup, your flexible recurring meetings occur automagically conflict free based on your time preferences.|
 | Note-Taking (Notion & Audio) | Create text and audio notes directly in Notion. Audio notes are transcribed using Deepgram. Notes can be searched, updated, and linked to tasks or calendar events within Notion. |
 | Multi-Agent Research System (Notion & LanceDB) | Initiate research projects based on user queries. A lead researcher agent decomposes the query into sub-tasks, which are assigned to sub-agents. Sub-agents perform simulated tool use (e.g., web search, internal Notion search using LanceDB for vector search if applicable), log their findings, and update task status in a dedicated Notion database. The lead agent synthesizes completed task outputs into a final report in Notion. |
@@ -91,6 +91,20 @@ For simple 1:1 meetings, you won't need calendly links anymore. Your recipient r
 |Priority | You can set priority to modifiable events. Priority of 1 is neutral. 1 has no impact on the AI planner's decision making process. Any number > 1 will impact sooner it appears on the calendar relative other low priority events.|
 |Rating| You can rate events to tell Atomic how productive you were for the time block. Next run, Atomic will take it into consideration before the placing the event if it's modifiable|
 | Smart Tags | You can apply settings to tags. These settings will tell Atomic how to apply features or attributes to new events that are tagged by the AI model or manually.|
+
+## Key Technologies & Services Update
+
+The event matching and retrieval core has been significantly updated:
+
+*   **`lance-event-matcher` Service:** This is the new primary backend service for all event search, matching, and categorization tasks. It leverages:
+    *   **LanceDB** for efficient vector storage and similarity search of event embeddings.
+    *   A **two-stage AI processing pipeline** (using models like GPT) to:
+        1.  Enhance and understand the user's initial search query.
+        2.  Process and filter search results from LanceDB, assign relevant categories, and score them for relevance.
+
+*   **LanceDB:** Has replaced OpenSearch as the vector database for storing and searching event embeddings and associated metadata (like start/end dates and user IDs).
+
+*   **OpenSearch (for Event Search - Deprecated):** The previous system using OpenSearch for event vector search and the associated `events-search` backend service have been deprecated and are no longer in use. Client applications should utilize the new `lance-event-matcher` service.
 
 #### Benefits of Self Hosted
 - Privacy enabled by default
@@ -277,6 +291,7 @@ For local development, testing, and self-hosting on a single machine, the projec
 For a scalable and robust cloud environment, you can deploy the entire application stack to your own AWS account. This deployment is managed by the AWS Cloud Development Kit (CDK) and provisions all necessary infrastructure, including managed services for databases, messaging, and search where appropriate.
 
 -   **Features:** Deploys core application services, Optaplanner, a new `python-agent` service (for notes and research), and utilizes AWS S3, Amazon EFS (for LanceDB vector stores), and Amazon MSK Serverless. Amazon OpenSearch Service is no longer used.
+
 -   **Detailed Guide:** For prerequisites, setup instructions, deployment steps, and management, please refer to the comprehensive [AWS Deployment Guide](./deployment/aws/README.md).
 
 ## Support the Project

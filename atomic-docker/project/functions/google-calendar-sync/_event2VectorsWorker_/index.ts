@@ -2,10 +2,11 @@
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 
-import { bucketName, kafkaGoogleCalendarSyncGroupId, kafkaGoogleCalendarSyncTopic, openAllEventVectorName } from '@google_calendar_sync/_libs/constants';
+import { bucketName, kafkaGoogleCalendarSyncGroupId, kafkaGoogleCalendarSyncTopic } from '@google_calendar_sync/_libs/constants';
 import { Readable } from 'stream';
-import { Event2VectorBodyType, BulkImportBodyType } from '../_libs/types/event2Vectors/types';
-import { bulkDeleteDocInAllEventIndexInOpenSearch, bulkDeleteDocInTrainEventIndexInOpenSearch, bulkPutDataInAllEventIndexInOpenSearch, convertEventTitleToOpenAIVector } from '../_libs/event2VectorsWorker/api-helper';
+import { Event2VectorBodyType } from '../_libs/types/event2Vectors/types';
+import { convertEventTitleToOpenAIVector } from '../_libs/event2VectorsWorker/api-helper';
+import { bulkUpsertToLanceDBEvents, bulkDeleteFromLanceDBEvents } from '../_libs/lancedb_helper';
 import { dayjs } from '@google_calendar_sync/_libs/date-utils';
 import { Kafka, logLevel } from 'kafkajs'
 import ip from 'ip'
@@ -39,55 +40,45 @@ const kafka = new Kafka({
 export const event2VectorBody = async (body: Event2VectorBodyType) => {
   try {
 
-    const bulkImports: BulkImportBodyType[] = []
+    const eventsToUpsert = [] // For LanceDB
 
     for (const eventObject of body?.events) {
-
       if (eventObject?.method === 'upsert') {
-
-        const { event } = eventObject
-
-        let text = ''
-
+        const { event } = eventObject;
+        let text = event?.summary || '';
         if (event?.description) {
-          text += `${event?.summary}:${event?.description} \n`
-        } else {
-          text += `${event?.summary}`
+          text += `:${event?.description}`;
         }
 
-        const vector = await convertEventTitleToOpenAIVector(text)
-        const startDate = dayjs(event?.start?.dateTime?.slice(0, 19) || event?.start?.date?.slice(0, 19)).tz(event?.start?.timeZone, true).format()
-        const endDate = dayjs(event?.end?.dateTime?.slice(0, 19) || event?.start?.date?.slice(0, 19)).tz(event?.start?.timeZone, true).format()
-        // await putDataInAllEventIndexInOpenSearch(`${event?.id}#${eventObject?.calendarId}`, vector, body?.userId, startDate, endDate)
-        const bulkImport: BulkImportBodyType = {
+        const vector = await convertEventTitleToOpenAIVector(text.trim());
+        const startDate = dayjs(event?.start?.dateTime?.slice(0, 19) || event?.start?.date?.slice(0, 19)).tz(event?.start?.timeZone, true).format();
+        const endDate = dayjs(event?.end?.dateTime?.slice(0, 19) || event?.end?.date?.slice(0, 19)).tz(event?.end?.timeZone || event?.start?.timeZone, true).format(); // Corrected: use end.timeZone if available for end date
+
+        eventsToUpsert.push({
           id: `${event?.id}#${eventObject?.calendarId}`,
-          body: { [openAllEventVectorName]: vector, userId: body?.userId, start_date: startDate, end_date: endDate }
-        }
-
-        bulkImports.push(bulkImport)
+          userId: body?.userId,
+          vector,
+          start_date: startDate,
+          end_date: endDate,
+          raw_event_text: text.trim(),
+        });
       }
     }
 
-    if (bulkImports?.length > 0) {
-      await bulkPutDataInAllEventIndexInOpenSearch(bulkImports)
+    if (eventsToUpsert?.length > 0) {
+      await bulkUpsertToLanceDBEvents(eventsToUpsert);
     }
 
-    const ids: string[] = []
+    const idsToDelete: string[] = []
     for (const eventObject of body?.events) {
-
       if (eventObject?.method === 'delete') {
-        const { event } = eventObject
-      
-        // await deleteDocInAllEventIndexInOpenSearch(`${event?.id}#${eventObject?.calendarId}`)
-        ids.push(`${event?.id}#${eventObject?.calendarId}`)
-        
+        const { event } = eventObject;
+        idsToDelete.push(`${event?.id}#${eventObject?.calendarId}`);
       }
-      
     }
 
-    if (ids?.length > 0) {
-      await bulkDeleteDocInAllEventIndexInOpenSearch(ids)
-      await bulkDeleteDocInTrainEventIndexInOpenSearch(ids)
+    if (idsToDelete?.length > 0) {
+      await bulkDeleteFromLanceDBEvents(idsToDelete);
     }
 
   } catch (e) {
