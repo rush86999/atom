@@ -167,6 +167,38 @@ import { backendConfig } from '../../config/backendConfig'
 import Session1 from 'supertokens-node/recipe/session'
 import { getUserPreference } from '@lib/OnBoard/OnBoardHelper'
 
+
+// GraphQL Mutations for Agent Actions
+const ATTEND_LIVE_MEETING_MUTATION = gql`
+  mutation AttendLiveMeeting($platform: String!, $meetingIdentifier: String!, $notionNoteTitle: String!, $notionSource: String!, $linkedEventId: String) {
+    attendLiveMeeting(platform: $platform, meeting_id: $meetingIdentifier, notion_note_title: $notionNoteTitle, notion_source: $notionSource, linked_event_id: $linkedEventId) {
+      status
+      note_id
+      error_message
+    }
+  }
+`;
+
+const PROCESS_MEETING_ARTIFACTS_MUTATION = gql`
+  mutation ProcessMeetingArtifacts($platform: String!, $meetingIdentifier: String!, $artifactType: String!, $notionNoteTitle: String!, $notionSource: String!, $linkedEventId: String) {
+    processMeetingArtifacts(platform: $platform, meeting_id: $meetingIdentifier, artifact_type: $artifactType, notion_note_title: $notionNoteTitle, notion_source: $notionSource, linked_event_id: $linkedEventId) {
+      status
+      note_id
+      error_message
+    }
+  }
+`;
+
+const STOP_AGENT_FOR_MEETING_MUTATION = gql`
+  mutation StopAgentForMeeting($meetingIdentifier: String!) {
+    stopAgentForMeeting(meeting_id: $meetingIdentifier) {
+      status
+      error_message
+    }
+  }
+`;
+
+
 export async function getServerSideProps({ req, res }: { req: NextApiRequest, res: NextApiResponse }) {
   // Notice how the server uses `API` from `withSSRContext`, instead of the top-level `API`.
   // const SSR = withSSRContext({ req })
@@ -246,6 +278,10 @@ function UserViewCalendarWeb() {
     const [isRecurring, setIsRecurring] = useState<boolean>(false)
     const [recurringEndDate, setRecurringEndDate] = useState<Date>(new Date())
     const [frequency, setFrequency] = useState<RecurrenceFrequencyType>('daily')
+    // State for Agent Meeting Attendance
+    const [isAgentAttendingMeeting, setIsAgentAttendingMeeting] = useState<boolean>(false);
+    const [agentMeetingStatus, setAgentMeetingStatus] = useState<string>('');
+    const [selectedMeetingForAgentId, setSelectedMeetingForAgentId] = useState<string | null>(null);
     const [interval, setInterval] = useState<string>('1')
     const [startDate, setStartDate] = useState<Date>(new Date())
     const [endDate, setEndDate] = useState<Date>(new Date())
@@ -256,10 +292,147 @@ function UserViewCalendarWeb() {
 
     const userId = sub
     const toast = useToast()
+
+    const getMeetingPlatformAndIdentifier = (event: CalendarEventPro | undefined): { platform: string; identifier: string } | null => {
+        if (!event) return null;
+
+        // Check Google Meet hangoutLink first
+        if (event.hangoutLink) {
+            return { platform: 'google', identifier: event.hangoutLink };
+        }
+
+        // Check location for Zoom or Teams links
+        if (event.location) {
+            const location = event.location.toLowerCase();
+            // Basic Zoom ID parsing (e.g., zoom.us/j/1234567890)
+            const zoomMatch = location.match(/zoom.us\/j\/(\d+)/);
+            if (zoomMatch && zoomMatch[1]) {
+                return { platform: 'zoom', identifier: zoomMatch[1] };
+            }
+            // Basic Teams URL parsing
+            if (location.includes('teams.microsoft.com/l/meetup-join/')) {
+                return { platform: 'teams', identifier: event.location }; // Return the full URL as identifier
+            }
+        }
+
+        // Check description for Zoom or Teams links if not found in location
+        if (event.notes) { // Assuming description is in 'notes' field based on UserCreateMeetingAssist
+            const description = event.notes.toLowerCase();
+            const zoomMatchDesc = description.match(/zoom.us\/j\/(\d+)/);
+            if (zoomMatchDesc && zoomMatchDesc[1]) {
+                return { platform: 'zoom', identifier: zoomMatchDesc[1] };
+            }
+            if (description.includes('teams.microsoft.com/l/meetup-join/')) {
+                 // Extract the full Teams URL from description if possible, might need more robust regex
+                const teamsUrlMatch = event.notes.match(/(https?:\/\/teams\.microsoft\.com\/l\/meetup-join\/[^ \n\r\t<]+)/);
+                if (teamsUrlMatch && teamsUrlMatch[1]) {
+                    return { platform: 'teams', identifier: teamsUrlMatch[1] };
+                }
+            }
+            // Google Meet links in description (less common if hangoutLink is primary)
+            const googleMeetMatchDesc = event.notes.match(/(https?:\/\/meet\.google\.com\/[a-z\-]+)/);
+            if (googleMeetMatchDesc && googleMeetMatchDesc[1]) {
+                return { platform: 'google', identifier: googleMeetMatchDesc[1] };
+            }
+        }
+
+        return null;
+    };
     
     const {defaultDate} = useMemo(() => ({
         defaultDate: new Date()
     }), [])
+
+    const handleAttendWithAgent = async (event: CalendarEventPro | undefined) => {
+        if (!event) return;
+
+        const meetingInfo = getMeetingPlatformAndIdentifier(event);
+
+        if (!meetingInfo) {
+            toast({ title: "Not a recognized online meeting", description: "No valid Google Meet, Zoom, or Teams link found in the event details.", status: "error", duration: 5000, isClosable: true });
+            return;
+        }
+
+        setSelectedMeetingForAgentId(event.id);
+        setIsAgentAttendingMeeting(true);
+        setAgentMeetingStatus(`Agent joining ${meetingInfo.platform} meeting...`);
+
+        try {
+            const { data, errors } = await client.mutate({
+                mutation: ATTEND_LIVE_MEETING_MUTATION,
+                variables: {
+                    platform: meetingInfo.platform,
+                    meetingIdentifier: meetingInfo.identifier,
+                    notionNoteTitle: event.title || `Meeting Notes for ${event.id}`,
+                    notionSource: `Live from ${meetingInfo.platform} meeting - ${event.title || event.id}`,
+                    linkedEventId: event.id,
+                },
+            });
+
+            if (errors && errors.length > 0) {
+                throw new Error(errors.map(e => e.message).join(', '));
+            }
+
+            if (data?.attendLiveMeeting?.status === 'success' || data?.attendLiveMeeting?.status?.startsWith('Connected')) {
+                setAgentMeetingStatus(`Agent connected: ${data.attendLiveMeeting.status}. Note ID: ${data.attendLiveMeeting.note_id || 'N/A'}`);
+                toast({ title: "Agent Action", description: `Agent connected: ${data.attendLiveMeeting.status}`, status: "success", duration: 5000, isClosable: true });
+            } else {
+                const errorMessage = data?.attendLiveMeeting?.error_message || "Unknown error from agent.";
+                setAgentMeetingStatus(`Agent connection failed: ${errorMessage}`);
+                toast({ title: "Agent Action Failed", description: errorMessage, status: "error", duration: 5000, isClosable: true });
+                // setIsAgentAttendingMeeting(false); // Optionally reset if connection failed outright
+                // setSelectedMeetingForAgentId(null);
+            }
+        } catch (error: any) {
+            console.error("Error calling AttendLiveMeeting mutation:", error);
+            setAgentMeetingStatus(`Error: ${error.message}`);
+            toast({ title: "Error Attending Meeting", description: error.message, status: "error", duration: 5000, isClosable: true });
+            // Reset state on error to allow retry
+            // setIsAgentAttendingMeeting(false); // Keep it true to show status and allow stop? Or false to allow retry?
+            // setSelectedMeetingForAgentId(null); // For now, keep meeting selected to show error status
+        }
+    };
+
+    const handleStopAgent = async (event: CalendarEventPro | undefined) => {
+        if (!event) return;
+
+        const meetingInfo = getMeetingPlatformAndIdentifier(event);
+        // meetingIdentifier might be needed if the stop action requires it.
+        // For now, the mutation only takes meeting_id which is event.id
+        // const meetingIdentifier = meetingInfo?.identifier;
+
+        setAgentMeetingStatus('Stopping agent...');
+
+        try {
+            // Conceptual: Call STOP_AGENT_FOR_MEETING_MUTATION
+            // For this subtask, we simulate the stop action as Hasura action might not exist yet.
+            console.log(`Simulating call to STOP_AGENT_FOR_MEETING_MUTATION for event ID: ${event.id}`);
+            // const { data } = await client.mutate({
+            //     mutation: STOP_AGENT_FOR_MEETING_MUTATION,
+            //     variables: { meetingIdentifier: event.id }, // Assuming meetingIdentifier is the event.id for stopping purposes
+            // });
+            // if (data?.stopAgentForMeeting?.status === 'success') {
+            //   toast({ title: "Agent stopped successfully.", status: "info", duration: 3000, isClosable: true });
+            // } else {
+            //   throw new Error(data?.stopAgentForMeeting?.error_message || "Failed to stop agent via backend.");
+            // }
+
+            // Simulate immediate success for frontend state reset
+            setIsAgentAttendingMeeting(false);
+            setAgentMeetingStatus('Agent stopped.');
+            setSelectedMeetingForAgentId(null);
+            toast({ title: "Agent stopped (simulated).", status: "info", duration: 3000, isClosable: true });
+
+        } catch (error: any) {
+            console.error("Error calling StopAgentForMeeting mutation (simulated):", error);
+            setAgentMeetingStatus(`Error stopping agent: ${error.message}`);
+            toast({ title: "Error Stopping Agent", description: error.message, status: "error", duration: 5000, isClosable: true });
+            // Decide if we should reset all agent states even if stop fails, or leave them for retry.
+            // For now, we reset to allow user to try "Attend" again if stop failed.
+            setIsAgentAttendingMeeting(false); // Attempt to reset to a clean state
+            setSelectedMeetingForAgentId(null);
+        }
+    };
 
     // renew push notifictions
     useEffect(() => {
@@ -2280,7 +2453,33 @@ function UserViewCalendarWeb() {
                                 <span className="ml-4">Delete</span>
                             </span>
                         </button>
-
+                        {/* Agent Attendance Buttons and Status */}
+                        <Box width="100%" my={{phone: 's', tablet: 'm'}} p={{phone: 's', tablet: 'm'}} borderWidth="1px" borderRadius="md" borderColor="gray.300">
+                            <Text variant="label" mb="s">Agent Assistance</Text>
+                            {isAgentAttendingMeeting && selectedMeetingForAgentId === eventOfMenu?.id ? (
+                                <Button colorScheme="red" onClick={() => handleStopAgent(eventOfMenu)} width="100%">
+                                    Stop Agent Notes
+                                </Button>
+                            ) : (
+                                <Button
+                                    colorScheme="teal"
+                                    onClick={() => handleAttendWithAgent(eventOfMenu)}
+                                    isDisabled={!getMeetingPlatformAndIdentifier(eventOfMenu)}
+                                    width="100%"
+                                >
+                                    Attend with Agent
+                                </Button>
+                            )}
+                            {isAgentAttendingMeeting && selectedMeetingForAgentId === eventOfMenu?.id && agentMeetingStatus && (
+                                <Text mt="s" fontSize="sm" color="gray.600">{agentMeetingStatus}</Text>
+                            )}
+                            {!getMeetingPlatformAndIdentifier(eventOfMenu) && !(isAgentAttendingMeeting && selectedMeetingForAgentId === eventOfMenu?.id) && (
+                                <Text mt="s" fontSize="xs" color="gray.500">
+                                    No recognizable meeting link (Google Meet, Zoom, Teams) found in event details for live attendance.
+                                </Text>
+                            )}
+                        </Box>
+                        {/* End Agent Attendance Buttons and Status */}
                     </div>
                     
                 </div>

@@ -1,6 +1,8 @@
 import os
 import requests # For GPT API calls
 import json # For parsing GPT response
+import threading # For live audio processing
+from unittest.mock import MagicMock # For streaming placeholder
 from notion_client import Client
 from deepgram import DeepgramClient, PrerecordedOptions, FileSource # Added Deepgram imports
 
@@ -30,6 +32,8 @@ if DEEPGRAM_API_KEY:
         print(f"Error initializing Deepgram client: {e}. Transcription functions will not work.")
 else:
     print("Warning: DEEPGRAM_API_KEY not set. Transcription functions will not work.")
+
+# TODO: Configure Deepgram client for streaming if different from PrerecordedOptions.
 
 # --- OpenAI GPT Configuration ---
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -356,129 +360,129 @@ def search_notion_notes(query: str, date_range: tuple = None, source: str = None
         return []
 
 
-# --- Audio Processing and Note Integration ---
+# --- Audio File/Recording Processing for Notion ---
 def process_audio_for_note(
-    audio_file_path: str,
-    note_id: str = None,
-    title: str = "New Audio Note", # Default title if creating a new note
-    content: str = "", # Default content
-    source: str = "Audio Upload", # Default source
+    audio_source: str, # Can be a file path or a URL
+    source_type: str,  # "file" or "recording_url"
+    notion_note_title: str,
+    # Optional: if an existing Notion note_id is provided, update it.
+    # This makes the function more versatile if the target note is already known.
+    existing_notion_note_id: str = None,
+    notion_content: str = "Meeting Notes (Audio Recording)", # Default content for the note body
+    notion_source_text: str = "Audio Recording", # Text for the 'Source' property in Notion
     linked_task_id: str = None,
     linked_event_id: str = None
 ) -> str:
     """
-    Processes an audio file, transcribes it, summarizes it, and creates or updates a Notion note.
-    Returns: The Notion page ID if successful, or None/error message otherwise.
+    Processes a downloaded audio recording (file path or URL), transcribes it,
+    summarizes it, and creates or updates a Notion note.
+    Returns: The Notion page ID if successful, or an error message string otherwise.
     """
-    print(f"Processing audio file: {audio_file_path}")
-    transcription = transcribe_audio_deepgram(audio_file_path)
 
-    if "Error:" in transcription or not transcription.strip():
-        print(f"Transcription failed or empty: {transcription}")
-        # Optionally, still create/update note with just audio link if needed,
-        # but current requirement implies transcription is key.
-        return f"Transcription failed: {transcription}"
+    transcript = None
+    actual_audio_file_link_for_notion = None # This will be the original audio_source if it's a URL
 
-    print("Transcription successful. Generating summary and key points...")
-    summary, key_points = summarize_transcript_gpt(transcription)
+    if source_type == "file":
+        if not os.path.exists(audio_source):
+            print(f"Error: Audio file not found at local path: {audio_source}")
+            return f"Error: Audio file not found at {audio_source}"
+        print(f"Processing local audio file: {audio_source}")
+        transcript = transcribe_audio_deepgram(audio_source)
+        # actual_audio_file_link_for_notion could be a file:// URL or None if only local
+        # For simplicity, we won't set it for local files unless a public URL is generated.
 
-    if note_id:
-        print(f"Updating existing Notion note: {note_id}")
-        # Construct content for update.
-        # update_notion_note handles transcription separately if it's a property.
-        # Here, we want to ensure the transcription is part of the main body or appended.
-        # The current update_notion_note doesn't explicitly add transcription to blocks,
-        # but it preserves existing transcription blocks if content is updated.
-        # For now, let's assume transcription is handled as a property or we rely on existing blocks.
-        # The prompt for update_notion_note was to "add the transcript, summary, and key points".
-        # Let's pass transcription to content for update_notion_note, assuming it will be added as a block.
-        # This might need refinement based on how update_notion_note handles 'content' vs 'transcription' blocks.
-        # For simplicity, we'll pass transcription to update_notion_note's content parameter for now.
-        # This is a slight divergence from create_notion_note which has a specific transcription param.
-        # Re-reading update_notion_note: it does not have a 'transcription' param.
-        # It preserves existing transcription blocks.
-        # We need to ensure new transcription, summary, key_points are added.
-        # The current update_notion_note will append summary and key_points blocks.
-        # It does not have a mechanism to add/update a transcription block directly.
-        # This is a limitation of the current update_notion_note design.
-        # For now, we will update properties and summary/keypoints blocks.
-        # The transcription will be in the "TranscriptionText" property.
+    elif source_type == "recording_url":
+        print(f"Processing audio from recording URL: {audio_source}")
+        actual_audio_file_link_for_notion = audio_source # Store the original URL for Notion link
+        downloaded_file_path = None
+        try:
+            # TODO: Implement download_audio_from_url(audio_source)
+            # This function would download the file and return its local path.
+            # For now, we'll simulate this by assuming the URL might also be a local path for testing,
+            # or it's a path that transcribe_audio_deepgram can somehow handle (less likely for remote URLs).
+            print(f"Simulating download for URL: {audio_source} (treating as local path for now)")
+            downloaded_file_path = audio_source # Placeholder: Assume audio_source can be a local path for now.
+                                                # A real implementation would download to a temp path.
 
-        # Let's refine: update_notion_note should also accept 'transcription' to update the property
-        # and potentially manage transcription blocks similar to how create_notion_note does.
-        # This is beyond the original scope for `update_notion_note` changes.
-        # So, for now, process_audio_for_note will update the `TranscriptionText` property via `update_notion_note`
-        # and then add summary and key points.
-        # This means `update_notion_note` needs a `transcription` parameter.
+            if not os.path.exists(downloaded_file_path):
+                # This check is only effective if audio_source was indeed a local path.
+                # If it was a URL, this check would likely fail unless the URL is also a valid local file name.
+                print(f"Error: Audio file not found at {downloaded_file_path} (after 'download' simulation).")
+                return f"Error: Audio file not found at {downloaded_file_path} after download attempt."
 
-        # Let's go back and quickly add `transcription` to `update_notion_note` params and properties.
-        # This is a necessary adjustment for `process_audio_for_note` to function as intended.
-        # This will be a separate patch after this one.
-        # For now, proceed with the current structure and make a note for this adjustment.
+            transcript = transcribe_audio_deepgram(downloaded_file_path)
 
-        # For now, we will call update_notion_note without transcription in its direct params,
-        # relying on it being set if it were a property (which it's not directly in update)
-        # This will be fixed in a subsequent step by modifying update_notion_note signature.
-        # Let's assume for now it will be added.
-
-        # The prompt stated for `update_notion_note`: "add the transcript, summary, and key points".
-        # `update_notion_note` was modified to take `summary` and `key_points`.
-        # It was NOT modified to take `transcription` to add as blocks.
-        # It has `TranscriptionText` property.
-
-        # Let's assume `update_notion_note` should be called with `content` being the new transcription
-        # or some combination. The original `update_notion_note` replaces content blocks.
-        # This is tricky. Let's assume the main "content" parameter of the note is NOT the transcription.
-        # The transcription is separate.
-
-        # Revised plan for update:
-        # 1. Update 'TranscriptionText' property.
-        # 2. Update 'Summary' property and blocks.
-        # 3. Update 'Key Points' property and blocks.
-        # The existing `update_notion_note` already handles summary/key_points properties and blocks.
-        # It needs to handle 'TranscriptionText' property. (This needs to be added to `update_notion_note`)
-
-        # Let's assume `update_notion_note` is already capable of updating `TranscriptionText`.
-        # I will add `transcription` to the `update_notion_note` call.
-        # I need to modify `update_notion_note` to accept `transcription` and update the `TranscriptionText` property.
-        # And ideally, manage transcription blocks (though this was simplified).
-
-        # Given the complexity, I will first write `process_audio_for_note` as best as possible,
-        # and then make a small adjustment to `update_notion_note` to accept `transcription` for the property.
-
-        success = update_notion_note(
-            page_id=note_id,
-            # title=title, # Title update can be optional or based on if new title is provided
-            # content=content, # Content update is also optional
-            summary=summary,
-            key_points=key_points
-            # transcription=transcription # This will be added to update_notion_note later
-        )
-        # After this block, I will create a new diff for update_notion_note to handle transcription property.
-
-        # For now, let's assume `update_notion_note` will be enhanced to take `transcription`.
-        # So, I'll include it in the call.
-        if update_notion_note(page_id=note_id, summary=summary, key_points=key_points, transcription=transcription):
-            # The direct call to update transcription property is removed from here,
-            # as update_notion_note will now handle it.
-            return note_id
-        else:
-            return f"Failed to update note {note_id}"
+        finally:
+            # Clean up the downloaded file if it was actually downloaded to a temporary location
+            # and if downloaded_file_path is different from audio_source (i.e., it was a temp file).
+            # if downloaded_file_path and downloaded_file_path != audio_source and os.path.exists(downloaded_file_path):
+            #     try:
+            #         os.remove(downloaded_file_path)
+            #         print(f"Cleaned up temporary downloaded file: {downloaded_file_path}")
+            #     except Exception as e:
+            #         print(f"Error cleaning up temporary file {downloaded_file_path}: {e}")
+            pass # Placeholder for cleanup logic
 
     else:
-        print("Creating new Notion note.")
-        new_note_id = create_notion_note(
-            title=title,
-            content=content, # Main content if any, not the transcription itself
-            source=source,
+        print(f"Error: Unsupported source_type: {source_type}. Must be 'file' or 'recording_url'.")
+        return f"Error: Unsupported source_type: {source_type}"
+
+    if transcript is None or "Error:" in transcript or not transcript.strip():
+        error_message = transcript if transcript else "Transcription failed or resulted in empty text."
+        print(error_message)
+        return f"Transcription failed: {error_message}"
+
+    print("Transcription successful. Generating summary and key points...")
+    summary, key_points = summarize_transcript_gpt(transcript)
+
+    if summary is None and key_points is None:
+        print("Warning: Summarization failed for the audio transcript.")
+        # Proceed to create/update note without summary/key points, or handle as error
+
+    if existing_notion_note_id:
+        print(f"Updating existing Notion note: {existing_notion_note_id}")
+        success = update_notion_note(
+            page_id=existing_notion_note_id,
+            title=notion_note_title, # Optionally update title
+            content=notion_content,   # Optionally update main content body
+            # source=notion_source_text, # Notion 'Source' property is not typically updated this way, but could be added
             linked_task_id=linked_task_id,
             linked_event_id=linked_event_id,
-            transcription=transcription,
+            transcription=transcript,
             summary=summary,
             key_points=key_points
-            # audio_file_link can be added here if available
+            # audio_file_link is not directly part of update_notion_note's params.
+            # If it needs update, it should be added to update_notion_note or handled separately.
         )
-        return new_note_id
+        # Also update the Audio File Link property if it changed or is new
+        if success and actual_audio_file_link_for_notion:
+            try:
+                notion.pages.update(page_id=existing_notion_note_id, properties={"Audio File Link": {"url": actual_audio_file_link_for_notion}})
+                print(f"Updated Audio File Link property for note {existing_notion_note_id}")
+            except Exception as e:
+                print(f"Warning: Failed to update Audio File Link property for note {existing_notion_note_id}: {e}")
+
+        return existing_notion_note_id if success else f"Error: Failed to update Notion note {existing_notion_note_id}"
+
+    else:
+        print("Creating new Notion note for audio recording.")
+        new_note_id = create_notion_note(
+            title=notion_note_title,
+            content=notion_content,
+            source=notion_source_text,
+            linked_task_id=linked_task_id,
+            linked_event_id=linked_event_id,
+            transcription=transcript,
+            summary=summary,
+            key_points=key_points,
+            audio_file_link=actual_audio_file_link_for_notion
+        )
+        if new_note_id:
+            print(f"New Notion page created from audio recording: {new_note_id}")
+            return new_note_id
+        else:
+            print("Failed to create Notion page from audio recording.")
+            return "Error: Failed to create Notion page from audio recording."
 
 # --- Deepgram Transcription Function ---
 def transcribe_audio_deepgram(audio_file_path: str) -> str:
@@ -520,6 +524,290 @@ def transcribe_audio_deepgram(audio_file_path: str) -> str:
         print(error_message)
         return error_message
 
+
+# --- Deepgram Streaming Transcription (Conceptual Placeholder) ---
+def transcribe_audio_deepgram_stream(
+    audio_chunk_iterator,
+    on_transcript_segment_callback,
+    on_stream_error_callback,
+    on_stream_close_callback
+):
+    """
+    Conceptual placeholder for transcribing an audio stream using Deepgram.
+    This function simulates interaction with a streaming SDK.
+    """
+    if not deepgram_client:
+        err_msg = "Error: Deepgram client not initialized for streaming."
+        print(err_msg)
+        if on_stream_error_callback:
+            on_stream_error_callback({"error": err_msg, "type": "client_initialization"})
+        if on_stream_close_callback: # Ensure close is called if stream effectively doesn't open
+            on_stream_close_callback()
+        return
+
+    if not DEEPGRAM_API_KEY:
+        err_msg = "Error: DEEPGRAM_API_KEY not configured for streaming."
+        print(err_msg)
+        if on_stream_error_callback:
+            on_stream_error_callback({"error": err_msg, "type": "api_key_missing"})
+        if on_stream_close_callback:
+            on_stream_close_callback()
+        return
+
+    print("Attempting to start Deepgram streaming connection (simulated).")
+
+    # Conceptual: dg_connection = deepgram_client.listen.live(...)
+    # Simulate options that would be passed to such a method
+    stream_options = {
+        "model": "nova-2",
+        "smart_format": True,
+        "interim_results": True,
+        "punctuate": True,
+        "encoding": "linear16", # Example encoding
+        "sample_rate": 16000    # Example sample rate
+        # Potentially add language, keywords, tagging, etc.
+    }
+    print(f"Simulated Deepgram stream options: {stream_options}")
+
+    # Simulate event handlers
+    # In a real SDK, these would be like:
+    # dg_connection.on('open', on_open_handler)
+    # dg_connection.on('transcript', on_transcript_handler)
+    # dg_connection.on('error', on_error_handler)
+    # dg_connection.on('close', on_close_handler)
+
+    # Simulate 'open' event
+    print("Simulated Deepgram connection opened.")
+
+    try:
+        for i, chunk in enumerate(audio_chunk_iterator):
+            if chunk:
+                # Simulate sending chunk: dg_connection.send(chunk)
+                # print(f"Simulated sending audio chunk {i+1} of size {len(chunk)}")
+
+                # Simulate receiving a transcript segment (interim or final)
+                # This part is highly dependent on the actual SDK's behavior and callback structure.
+                # For this placeholder, we'll directly call the callback with dummy data.
+                # A real implementation would receive this from the SDK's event loop.
+                if (i + 1) % 5 == 0: # Simulate a transcript segment every 5 chunks
+                    is_final_segment = (i + 1) % 10 == 0 # Simulate some segments being final
+                    dummy_transcript_data = {
+                        "channel": {
+                            "alternatives": [{
+                                "transcript": f"Segment { (i+1)//5 } transcript part {'final' if is_final_segment else 'interim'}...",
+                                "words": [] # Placeholder for word-level details
+                            }]
+                        },
+                        "is_final": is_final_segment,
+                        "speech_final": is_final_segment, # Common attribute
+                        "metadata": {"request_id": "simulated_req_id"}
+                    }
+                    if on_transcript_segment_callback:
+                        on_transcript_segment_callback(MagicMock(**dummy_transcript_data)) # Use MagicMock to simulate dot-notation access
+            else:
+                print("Simulated received empty or null chunk, stopping iteration.")
+                break
+
+        # Simulate end of stream signal: dg_connection.finish()
+        print("Simulated sending finish signal to Deepgram stream.")
+
+    except Exception as e:
+        err_msg = f"Error during simulated audio chunk iteration or sending: {e}"
+        print(err_msg)
+        if on_stream_error_callback:
+            on_stream_error_callback({"error": err_msg, "type": "chunk_processing"})
+    finally:
+        # Simulate 'close' event
+        print("Simulated Deepgram connection closed.")
+        if on_stream_close_callback:
+            on_stream_close_callback()
+
+
+# --- Live Audio Processing for Notion ---
+def process_live_audio_for_notion(
+    platform_module,  # e.g., zoom_agent, teams_agent module
+    meeting_id: str,
+    notion_note_title: str,
+    notion_source: str,
+    linked_task_id: str = None,
+    linked_event_id: str = None
+):
+    """
+    Processes a live audio stream from a platform module, transcribes it,
+    summarizes, and creates a Notion note.
+    """
+    full_transcript_parts = []
+    accumulated_errors = []
+    stream_closed_event = threading.Event()
+
+    def handle_transcript_segment(transcript_data):
+        try:
+            # Accessing attributes via getattr for MagicMock compatibility in placeholder
+            transcript_text = getattr(getattr(getattr(transcript_data, 'channel', {}), 'alternatives', [{}])[0], 'transcript', '')
+            is_final = getattr(transcript_data, 'is_final', False) # Deepgram specific might be speech_final
+
+            if transcript_text:
+                full_transcript_parts.append(transcript_text)
+                if is_final: # Or use speech_final depending on Deepgram SDK version for live
+                    print(f"Live Interim Transcript (final segment): ... {transcript_text[-100:] if len(transcript_text) > 100 else transcript_text}")
+        except Exception as e:
+            print(f"Error processing transcript segment: {e} - Data: {transcript_data}")
+
+
+    def handle_stream_error(error_data):
+        err_str = f"Deepgram stream error: {error_data}"
+        print(err_str)
+        accumulated_errors.append(err_str)
+
+    def handle_stream_close():
+        print("Deepgram stream closed.")
+        stream_closed_event.set()
+
+    if not hasattr(platform_module, 'start_audio_capture') or not hasattr(platform_module, 'stop_audio_capture'):
+        print(f"Error: Provided platform_module does not have required audio capture methods.")
+        return None
+
+    audio_chunk_iterator = None
+    stream_thread = None
+
+    try:
+        print(f"Attempting to start audio capture for meeting: {meeting_id} via {platform_module}")
+        audio_chunk_iterator = platform_module.start_audio_capture(meeting_id)
+
+        if audio_chunk_iterator is None:
+            print(f"Error: Failed to start audio capture from platform_module for meeting {meeting_id}.")
+            return "Error: Audio capture could not be initiated."
+
+        print("Starting Deepgram transcription stream in a new thread.")
+        stream_thread = threading.Thread(
+            target=transcribe_audio_deepgram_stream,
+            args=(audio_chunk_iterator, handle_transcript_segment, handle_stream_error, handle_stream_close)
+        )
+        stream_thread.daemon = True # Allow main thread to exit even if this one is running
+        stream_thread.start()
+
+        print("Waiting for Deepgram stream to close (max 1 hour)...")
+        # Wait for the stream to close, or a timeout
+        stream_closed = stream_closed_event.wait(timeout=3600) # 1 hour timeout
+
+        if not stream_closed:
+            print("Warning: Stream did not close within the timeout period.")
+            # Potentially force stop the platform audio capture here if needed
+            # and trigger on_stream_close_callback if the stream is still technically open
+
+    except Exception as e:
+        print(f"Exception during live audio processing setup or waiting: {e}")
+        accumulated_errors.append(str(e))
+    finally:
+        print("Ensuring platform audio capture is stopped.")
+        if hasattr(platform_module, 'stop_audio_capture'):
+            try:
+                platform_module.stop_audio_capture()
+                print("Platform audio capture stopped.")
+            except Exception as e:
+                print(f"Error stopping platform audio capture: {e}")
+                accumulated_errors.append(f"Error stopping platform audio capture: {str(e)}")
+
+        if stream_thread and stream_thread.is_alive():
+            print("Waiting for transcription stream thread to join...")
+            stream_thread.join(timeout=10) # Wait for the thread to finish
+            if stream_thread.is_alive():
+                print("Warning: Transcription stream thread did not join in time.")
+
+    if accumulated_errors:
+        # Depending on severity, decide if to proceed or return an error
+        error_summary = "; ".join(accumulated_errors)
+        print(f"Errors accumulated during streaming: {error_summary}")
+        # For now, we'll try to process any transcript we got, but log errors.
+        # If no transcript, then it's a definite failure.
+
+    final_transcript = "".join(full_transcript_parts).strip()
+
+    if not final_transcript:
+        if not accumulated_errors: # No transcript and no specific errors means it just didn't get anything
+             print("No transcript was generated from the live audio stream.")
+             return "Error: No transcript generated from live audio."
+        else: # Errors occurred, and no transcript
+            return f"Error: Streaming failed with errors and no transcript: {error_summary}"
+
+
+    print(f"Final live transcript (first 200 chars): {final_transcript[:200]}")
+    print("Summarizing final live transcript...")
+    summary, key_points = summarize_transcript_gpt(final_transcript)
+
+    if summary is None and key_points is None:
+        print("Warning: Summarization failed for the live transcript.")
+        # Proceed to create note without summary/key points, or handle as error
+
+    print("Creating Notion note for live transcript...")
+    notion_page_id = create_notion_note(
+        title=notion_note_title,
+        content="Meeting Notes (Live Transcription)", # Default content preface
+        source=notion_source,
+        linked_task_id=linked_task_id,
+        linked_event_id=linked_event_id,
+        transcription=final_transcript,
+        summary=summary,
+        key_points=key_points
+    )
+
+    if notion_page_id:
+        print(f"Notion page created for live transcript: {notion_page_id}")
+    else:
+        print("Failed to create Notion page for live transcript.")
+        return "Error: Failed to create Notion page for live transcript."
+
+    return notion_page_id
+
+
+# --- Post-Meeting Transcript Processing for Notion ---
+def process_post_meeting_transcript_for_notion(
+    transcript_text: str,
+    notion_note_title: str,
+    notion_source: str,
+    linked_task_id: str = None,
+    linked_event_id: str = None,
+    audio_file_link: str = None # Link to original audio if available
+):
+    """
+    Processes a provided transcript text, summarizes it, and creates a Notion note.
+    """
+    if not transcript_text or not transcript_text.strip():
+        print("Error: Provided transcript_text is empty or whitespace.")
+        return None # Or raise an error, or return an error message string
+
+    print(f"Processing post-meeting transcript (length: {len(transcript_text)} chars).")
+    print("Summarizing transcript...")
+    summary, key_points = summarize_transcript_gpt(transcript_text)
+
+    if summary is None and key_points is None:
+        print("Warning: Summarization failed for the provided transcript.")
+        # Decide if to proceed without summary/key_points or return an error
+        # For now, proceeding.
+
+    print("Creating Notion note for post-meeting transcript...")
+    notion_page_id = create_notion_note(
+        title=notion_note_title,
+        content="Meeting Notes (Post-Transcript)", # Default content preface
+        source=notion_source,
+        linked_task_id=linked_task_id,
+        linked_event_id=linked_event_id,
+        transcription=transcript_text,
+        summary=summary,
+        key_points=key_points,
+        audio_file_link=audio_file_link
+    )
+
+    if notion_page_id:
+        print(f"Notion page created for post-meeting transcript: {notion_page_id}")
+    else:
+        print("Failed to create Notion page for post-meeting transcript.")
+        # Consider returning a more specific error message if create_notion_note indicates failure type
+        return "Error: Failed to create Notion page for post-meeting transcript."
+
+    return notion_page_id
+
+# --- GPT-based Summarization ---
 
 # --- GPT-based Summarization ---
 def summarize_transcript_gpt(transcript: str) -> tuple[str | None, str | None]:
