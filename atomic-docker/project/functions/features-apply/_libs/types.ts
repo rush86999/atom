@@ -1,5 +1,19 @@
 import { openAllEventVectorName } from "./constants"
 
+// --- Generic Skill Error and Response Types ---
+// (Mirrors the structure from other services/skills for consistency)
+export interface SkillError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+export interface FeaturesApplyResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: SkillError;
+}
+
 
 export type EmailType = {
     primary: boolean,

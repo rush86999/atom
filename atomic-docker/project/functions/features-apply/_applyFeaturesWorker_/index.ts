@@ -35,8 +35,15 @@ import {
     deleteTrainingDataById,     // updated
     addTrainingData             // added
 } from '@features_apply/_libs/api-helper';
-import { EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType, MeetingAssistAttendeeType, RemindersForEventType, BufferTimeObjectType, CategoryType, MeetingAssistType, ReturnValueForEachFutureMeetingAssistType, ValuesToReturnForBufferEventsType, TrainingEventSchema } from '@features_apply/_libs/types'; // Added TrainingEventSchema
-import { ReturnValueForEachMeetingAssistType } from '@features_apply/_libs/types';
+import {
+    EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType,
+    MeetingAssistAttendeeType, RemindersForEventType, BufferTimeObjectType,
+    CategoryType, MeetingAssistType, ReturnValueForEachFutureMeetingAssistType,
+    ValuesToReturnForBufferEventsType, TrainingEventSchema,
+    FeaturesApplyResponse, SkillError // Added for standardized error handling
+} from '@features_apply/_libs/types';
+// Remove redundant import of ReturnValueForEachMeetingAssistType if it's covered by the main import
+// import { ReturnValueForEachMeetingAssistType } from '@features_apply/_libs/types';
 
 import { processEventsForOptaPlanner } from '@features_apply/_libs/optaplanner/api-helper'
 
@@ -85,19 +92,19 @@ const processEventsForPlanning = async (
 
     for (const event of events) {
 
-      // get preferredTimeRanges
-      const preferredTimeRanges = await listPreferredTimeRangesForEvent(event?.id)
-      preferredTimeRanges?.map(pt => console.log(pt, ' preferredTimeRange inside processUserEventsForPlanning'))
-      if (preferredTimeRanges?.length > 0) {
-        preferredTimeRanges?.map(pt => console.log(pt, ' preferredTimeRange inside processUserEventsForPlanning'))
+      const preferredTimeRangesResponse = await listPreferredTimeRangesForEvent(event?.id);
+      if (!preferredTimeRangesResponse.ok) {
+        // Decide: throw, or log and continue with empty preferredTimeRanges?
+        // For now, logging and continuing as preferredTimeRanges might not be critical for all events.
+        console.warn(`Failed to get preferred time ranges for event ${event?.id}: ${preferredTimeRangesResponse.error?.message}`);
+        userModifiedEvents.push(event); // Add event without preferredTimeRanges
+      } else {
+        const preferredTimeRanges = preferredTimeRangesResponse.data || [];
         userModifiedEvents.push({
           ...event,
           preferredTimeRanges: preferredTimeRanges,
-        })
-      } else {
-        userModifiedEvents.push(event)
+        });
       }
-
     }
 
     const newHostReminders: RemindersForEventType[] = []
@@ -183,91 +190,77 @@ const processEachMeetingAssist = async (
   meetingId: string,
   meetingEvent: EventType,
   listedEvents: EventPlusType[],
-): Promise<ReturnValueForEachMeetingAssistType> => {
+): Promise<ReturnValueForEachMeetingAssistType> => { // This return type might need to become FeaturesApplyResponse as well if we want to propagate errors from it
   try {
-    const attendees = await listMeetingAssistAttendeesGivenMeetingId(meetingId)
+    const attendeesResponse = await listMeetingAssistAttendeesGivenMeetingId(meetingId);
+    if (!attendeesResponse.ok) throw new Error(`Failed to list attendees for meeting ${meetingId}: ${attendeesResponse.error?.message}`);
+    const attendees = attendeesResponse.data || [];
 
-    const externalAttendees = attendees.filter(a => !!a?.externalAttendee)
+    const externalAttendees = attendees.filter(a => !!a?.externalAttendee);
+    const internalAttendees = attendees.filter(a => !a?.externalAttendee);
 
-    const internalAttendees = attendees.filter(a => !a?.externalAttendee)
-    // original meeting asssit events
-    const meetingAssistEvents: MeetingAssistEventType[] = []
-    // events for each user
-    const events: EventType[] = []
-    // events with a meetingId
-    const meetingEvents: EventType[] = []
-    meetingEvents.push(meetingEvent)
-    // get events
-    if (externalAttendees?.length > 0) {
-      for (let i = 0; i < externalAttendees?.length; i++) {
-        const newMeetingAssistEvents = await listMeetingAssistEventsForAttendeeGivenDates(
-          externalAttendees[i].id,
-          windowStartDate,
-          windowEndDate,
-          externalAttendees[i].timezone,
-          hostTimezone,
-        )
+    const meetingAssistEvents: MeetingAssistEventType[] = [];
+    const events: EventType[] = [];
+    const meetingEvents: EventType[] = [meetingEvent]; // Start with the initial meeting event
 
-
-        const meetingAssistEventForMeeting = newMeetingAssistEvents?.find(m => (m?.meetingId === meetingId))
-        const filteredMeetingAssistEvents = newMeetingAssistEvents?.filter(e => (e?.meetingId !== meetingId))
-        
-        if (filteredMeetingAssistEvents?.length > 0) {
-          meetingAssistEvents.push(...filteredMeetingAssistEvents)
+    if (externalAttendees.length > 0) {
+      for (const attendee of externalAttendees) {
+        const extEventsResponse = await listMeetingAssistEventsForAttendeeGivenDates(
+          attendee.id, windowStartDate, windowEndDate, attendee.timezone, hostTimezone
+        );
+        if (!extEventsResponse.ok) {
+            console.warn(`Failed to list meeting assist events for external attendee ${attendee.id}: ${extEventsResponse.error?.message}`);
+            continue; // Skip this attendee or handle error more strictly
         }
+        const newMeetingAssistEvents = extEventsResponse.data || [];
+        const meetingAssistEventForMeeting = newMeetingAssistEvents.find(m => m?.meetingId === meetingId);
+        const filteredMeetingAssistEvents = newMeetingAssistEvents.filter(e => e?.meetingId !== meetingId);
         
-        if (meetingAssistEventForMeeting?.id) {
-          meetingEvents.push(convertMeetingAssistEventTypeToEventPlusType(meetingAssistEventForMeeting, externalAttendees[i]?.userId))
-        }
-
+        if (filteredMeetingAssistEvents.length > 0) meetingAssistEvents.push(...filteredMeetingAssistEvents);
+        if (meetingAssistEventForMeeting?.id) meetingEvents.push(convertMeetingAssistEventTypeToEventPlusType(meetingAssistEventForMeeting, attendee.userId));
       }
     }
 
-    for (let i = 0; i < internalAttendees.length; i++) {
-      const newEvents = await listEventsForUserGivenDates(
-        internalAttendees[i].userId,
-        windowStartDate,
-        windowEndDate,
-        internalAttendees[i].timezone,
-        hostTimezone,
-      )
-      const meetingAssistEventForMeeting = newEvents?.find(e => (e?.meetingId === meetingId))
-      const filteredNewEvents = newEvents?.filter(e => (e?.meetingId !== meetingId))
-      
-      if (filteredNewEvents?.length > 0) {
-        events.push(...filteredNewEvents)
+    for (const attendee of internalAttendees) {
+      const internalEventsResponse = await listEventsForUserGivenDates(
+        attendee.userId, windowStartDate, windowEndDate, attendee.timezone, hostTimezone
+      );
+      if (!internalEventsResponse.ok) {
+        console.warn(`Failed to list events for internal attendee ${attendee.userId}: ${internalEventsResponse.error?.message}`);
+        continue; // Skip this attendee
       }
+      const newEvents = internalEventsResponse.data || [];
+      const meetingEventForCurrentAttendee = newEvents.find(e => e?.meetingId === meetingId);
+      const filteredNewEvents = newEvents.filter(e => e?.meetingId !== meetingId);
       
-      if (meetingAssistEventForMeeting?.id) {
-        meetingEvents.push(meetingAssistEventForMeeting)
-      }
+      if (filteredNewEvents.length > 0) events.push(...filteredNewEvents);
+      if (meetingEventForCurrentAttendee?.id) meetingEvents.push(meetingEventForCurrentAttendee);
     }
 
-    const preferredTimesRanges = await listMeetingAssistPreferredTimeRangesGivenMeetingId(meetingId)
+    const preferredTimesRangesResponse = await listMeetingAssistPreferredTimeRangesGivenMeetingId(meetingId);
+    if (!preferredTimesRangesResponse.ok) {
+        console.warn(`Failed to list preferred time ranges for meeting ${meetingId}: ${preferredTimesRangesResponse.error?.message}`);
+    }
+    const preferredTimesRanges = (preferredTimesRangesResponse.ok && preferredTimesRangesResponse.data) ? preferredTimesRangesResponse.data : [];
 
-    const newUserModifiedMeetingEvents: EventMeetingPlusType[] = meetingEvents?.map(me => ({
+    const newUserModifiedMeetingEvents: EventMeetingPlusType[] = meetingEvents.map(me => ({
       ...me,
       preferredTimeRanges: preferredTimesRanges,
-    }))
+    }));
 
-    const userModifiedEvents: EventPlusType[] = []
-
+    const userModifiedEvents: EventPlusType[] = [];
     for (const event of events) {
-
-      // get preferredTimeRanges
-      const preferredTimeRanges = await listPreferredTimeRangesForEvent(event?.id)
-      if (preferredTimeRanges?.length > 0) {
-        preferredTimeRanges?.map(pt => console.log(pt, ' preferredTimeRange inside processUserEventsForPlanning'))
-        userModifiedEvents.push({
-          ...event,
-          preferredTimeRanges: preferredTimeRanges,
-        })
-      } else {
-        userModifiedEvents.push(event)
+      const eventPreferredTimeRangesResponse = await listPreferredTimeRangesForEvent(event?.id);
+      if (!eventPreferredTimeRangesResponse.ok) {
+          console.warn(`Failed to list preferred time ranges for event ${event.id}: ${eventPreferredTimeRangesResponse.error?.message}`);
+          userModifiedEvents.push(event); // Add with empty or no preferred time ranges
+          continue;
       }
+      const eventPreferredTimeRanges = (eventPreferredTimeRangesResponse.ok && eventPreferredTimeRangesResponse.data) ? eventPreferredTimeRangesResponse.data : [];
+      userModifiedEvents.push({ ...event, preferredTimeRanges: eventPreferredTimeRanges });
     }
 
-    const filteredEvents = userModifiedEvents?.map(e => {
+    const filteredEvents = userModifiedEvents.map(e => {
       const foundIndex = listedEvents?.findIndex(l => (l?.id === e?.id))
       if (foundIndex > -1) {
         return null
@@ -303,64 +296,66 @@ const processEachFutureMeetingAssist = async (
   listedEvents: EventType[],
 ): Promise<ReturnValueForEachFutureMeetingAssistType> => {
   try {
-    const meetingAssist = await getMeetingAssist(meetingId)
-    // const hostId = meetingAssist?.userId
-    const preferredTimesRanges = await listMeetingAssistPreferredTimeRangesGivenMeetingId(meetingId)
-    const attendees = await listMeetingAssistAttendeesGivenMeetingId(meetingId)
-    const hostTimezone = meetingAssist?.timezone
+    const meetingAssistResponse = await getMeetingAssist(meetingId);
+    if (!meetingAssistResponse.ok || !meetingAssistResponse.data) throw new Error(`Failed to get meeting assist ${meetingId}: ${meetingAssistResponse.error?.message}`);
+    const meetingAssist = meetingAssistResponse.data;
 
-    // fake generate events
-    const newMeetingEvents: EventMeetingPlusType[] = []
-    for (let i = 0; i < attendees.length; i++) {
-      let calendarId: string | null = null
-      if (!attendees?.[i]?.externalAttendee) {
-        calendarId = (await getGlobalCalendar(attendees?.[i]?.userId))?.id
+    const preferredTimesRangesResponse = await listMeetingAssistPreferredTimeRangesGivenMeetingId(meetingId);
+    if (!preferredTimesRangesResponse.ok) throw new Error(`Failed to list preferred time ranges for meeting ${meetingId}: ${preferredTimesRangesResponse.error?.message}`);
+    const preferredTimesRanges = preferredTimesRangesResponse.data || [];
+
+    const attendeesResponse = await listMeetingAssistAttendeesGivenMeetingId(meetingId);
+    if (!attendeesResponse.ok) throw new Error(`Failed to list attendees for meeting ${meetingId}: ${attendeesResponse.error?.message}`);
+    const attendees = attendeesResponse.data || [];
+
+    const hostTimezone = meetingAssist?.timezone;
+    if (!hostTimezone) throw new Error("Host timezone is missing from meeting assist data.");
+
+    const newMeetingEvents: EventMeetingPlusType[] = [];
+    for (const attendee of attendees) {
+      let calendarId: string | null = null;
+      if (!attendee?.externalAttendee) {
+        const globalCalendarResponse = await getGlobalCalendar(attendee?.userId);
+        if (!globalCalendarResponse.ok) {
+            console.warn(`Failed to get global calendar for attendee ${attendee.userId}: ${globalCalendarResponse.error?.message}`);
+        }
+        calendarId = (globalCalendarResponse.ok && globalCalendarResponse.data) ? globalCalendarResponse.data.id : null;
       }
       const newMeetingEvent = generateNewMeetingEventForAttendee(
-        attendees?.[i], meetingAssist, windowStartDate, windowEndDate, hostTimezone, calendarId, preferredTimesRanges?.[getRandomInt(0, preferredTimesRanges?.length)]
-      )
-      newMeetingEvents.push({ ...newMeetingEvent, preferredTimeRanges: preferredTimesRanges })
+        attendee, meetingAssist, windowStartDate, windowEndDate, hostTimezone, calendarId, preferredTimesRanges?.[getRandomInt(0, preferredTimesRanges.length)]
+      );
+      newMeetingEvents.push({ ...newMeetingEvent, preferredTimeRanges });
     }
 
-    const externalAttendees = attendees.filter(a => !!a?.externalAttendee)
+    const externalAttendees = attendees.filter(a => !!a?.externalAttendee);
+    const internalAttendees = attendees.filter(a => !a?.externalAttendee);
+    const meetingAssistEvents: MeetingAssistEventType[] = [];
+    const events: EventType[] = [];
 
-    const internalAttendees = attendees.filter(a => !a?.externalAttendee)
-
-    const meetingAssistEvents: MeetingAssistEventType[] = []
-    const events: EventType[] = []
-
-    // get events
-    if (externalAttendees?.length > 0) {
-      for (let i = 0; i < externalAttendees?.length; i++) {
-        const newMeetingAssistEvents = await listMeetingAssistEventsForAttendeeGivenDates(
-          externalAttendees[i].id,
-          windowStartDate,
-          windowEndDate,
-          externalAttendees[i].timezone,
-          hostTimezone,
-        )
-        
-        if (newMeetingAssistEvents?.length > 0) {
-          meetingAssistEvents.push(...newMeetingAssistEvents)
+    if (externalAttendees.length > 0) {
+      for (const attendee of externalAttendees) {
+        const extEventsResponse = await listMeetingAssistEventsForAttendeeGivenDates(
+          attendee.id, windowStartDate, windowEndDate, attendee.timezone, hostTimezone
+        );
+        if (!extEventsResponse.ok) {
+            console.warn(`Failed to list meeting assist events for external attendee ${attendee.id}: ${extEventsResponse.error?.message}`);
+            continue;
         }
-        
+        const newExtMeetingAssistEvents = extEventsResponse.data || [];
+        if (newExtMeetingAssistEvents.length > 0) meetingAssistEvents.push(...newExtMeetingAssistEvents);
       }
     }
 
-    // Host is part of internal attendees
-    for (let i = 0; i < internalAttendees.length; i++) {
-      const newEvents = await listEventsForUserGivenDates(
-        internalAttendees[i].userId,
-        windowStartDate,
-        windowEndDate,
-        internalAttendees[i].timezone,
-        hostTimezone,
-      )
-      
-      if (newEvents?.length > 0) {
-        events.push(...newEvents)
+    for (const attendee of internalAttendees) {
+      const internalEventsResponse = await listEventsForUserGivenDates(
+        attendee.userId, windowStartDate, windowEndDate, attendee.timezone, hostTimezone
+      );
+      if (!internalEventsResponse.ok) {
+        console.warn(`Failed to list events for internal attendee ${attendee.userId}: ${internalEventsResponse.error?.message}`);
+        continue;
       }
-      
+      const newInternalEvents = internalEventsResponse.data || [];
+      if (newInternalEvents.length > 0) events.push(...newInternalEvents);
     }
 
     const filteredEvents = events?.map(e => {
@@ -726,57 +721,73 @@ const processQueueMessage = async (body: ScheduleAssistWithMeetingQueueBodyType)
   try {
     const userId = body?.userId
     const windowStartDate = body?.windowStartDate
-    const windowEndDate = body?.windowEndDate
-    const timezone = body?.timezone
+    const windowEndDate = body?.windowEndDate;
+    const timezone = body?.timezone;
 
-    if (!userId) {
-      throw new Error('no userId provided inside atomic meeting assist')
+    // Centralized validation for the message body itself
+    if (!userId || !windowStartDate || !windowEndDate || !timezone) {
+      const missingParams = [
+        !userId && "userId",
+        !windowStartDate && "windowStartDate",
+        !windowEndDate && "windowEndDate",
+        !timezone && "timezone"
+      ].filter(Boolean).join(', ');
+      const error = new Error(`Invalid message payload: Missing ${missingParams}`);
+      // @ts-ignore // Add custom property for structured logging/handling if needed
+      error.code = 'MESSAGE_VALIDATION_ERROR';
+      throw error;
     }
 
-    if (!windowStartDate) {
-      throw new Error('no window start date provided inside atomic meeting assist')
-    }
+    return await processApplyFeatures(body); // Propagate result or error
 
-    if (!windowEndDate) {
-      throw new Error('no window end date provided inside atomic meeting assist ')
-    }
-
-    if (!timezone) {
-      throw new Error(' no timezone provided inside atomic meeting assist')
-    }
-
-    return processApplyFeatures(body)
-
-  } catch (e) {
-    console.log(e, ' unable to processQueueMessage inside atomic meeting assist')
+  } catch (e: any) { // Catch errors from processApplyFeatures or validation
+    console.error(`Error in processQueueMessage for userId ${body?.userId}: ${e.message}`, e);
+    // Re-throw the error to be caught by the Kafka consumer's eachMessage
+    throw e;
   }
 }
 
 const scheduleMeetingWorker = async () => {
   try {
-
-    const consumer = kafka.consumer({ groupId: kafkaFeaturesApplyGroupId })
-    await consumer.connect()
-
-    await consumer.subscribe({ topic: kafkaFeaturesApplyTopic })
+    const consumer = kafka.consumer({ groupId: kafkaFeaturesApplyGroupId });
+    await consumer.connect();
+    await consumer.subscribe({ topic: kafkaFeaturesApplyTopic });
 
     await consumer.run({
         eachMessage: async ({ topic, partition, message }) => {
             console.log({
-                    key: message?.key?.toString(),
-                    value: message?.value?.toString(),
-                    headers: message?.headers,
-                })
+                key: message?.key?.toString(),
+                value: message?.value?.toString(),
+                headers: message?.headers,
+            });
 
-                const body: ScheduleAssistWithMeetingQueueBodyType = JSON.parse(message?.value?.toString())
-                console.log(body, ' body')
-
-                await processQueueMessage(body)
+            let messagePayload: ScheduleAssistWithMeetingQueueBodyType | null = null;
+            try {
+                if (!message?.value) {
+                    // This error is about Kafka message integrity, not business logic validation
+                    throw new Error("Kafka message value is null or undefined.");
+                }
+                messagePayload = JSON.parse(message.value.toString());
+                console.log(messagePayload, ' messagePayload');
+                await processQueueMessage(messagePayload!);
+            } catch (e: any) {
+                console.error(`Failed to process Kafka message from topic ${topic}, partition ${partition}: ${e.message}`, {
+                    messageKey: message?.key?.toString(),
+                    errorMessage: e.message,
+                    errorCode: e.code,
+                    errorStack: e.stack,
+                    originalPayload: message?.value?.toString()
+                });
+                // Re-throw the error to utilize Kafka's retry/DLQ mechanisms if configured.
+                throw e;
             }
-    })
+        }
+    });
 
-  } catch (e) {
-    console.log(e, ' unable to assist for meeting')
+  } catch (e: any) {
+    console.error('Kafka consumer error in scheduleMeetingWorker:', e);
+    // This error is likely a connection or subscription issue with Kafka itself.
+    throw e; // Re-throw to make the worker crash and restart if managed by PM2/Kubernetes
   }
 };
 

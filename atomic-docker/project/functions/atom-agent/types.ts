@@ -75,6 +75,13 @@ export interface QBSkillResponse<T> {
   error?: SkillError;
 }
 
+// Generic response structure for Web Research skills.
+export interface WebResearchSkillResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: SkillError;
+}
+
 
 // --- Calendar Types ---
 export interface CalendarEvent {

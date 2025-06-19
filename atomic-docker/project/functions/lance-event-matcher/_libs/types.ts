@@ -2,7 +2,7 @@
 export interface EventRecord {
   id: string; // Primary key: eventId#calendarId
   userId: string;
-  vector: number[];
+  vector: number[]; // Should be Float32Array or number[] depending on lancedb library usage
   start_date: string; // ISO 8601 format
   end_date: string; // ISO 8601 format
   raw_event_text?: string; // Optional: summary:description
@@ -19,12 +19,28 @@ export interface SearchRequest {
   limit?: number;
 }
 
-// Response body for the search endpoint
+// --- Generic Skill Error and Response Types ---
+// (Mirrors the structure from project/functions/atom-agent/types.ts for consistency)
+export interface SkillError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+export interface LanceEventMatcherResponse<T> {
+  ok: boolean; // Changed from 'success' to 'ok' for consistency
+  data?: T;
+  error?: SkillError;
+}
+
+// Old SearchResponse, to be replaced by LanceEventMatcherResponse<AIProcessedEvent[]>
+/*
 export interface SearchResponse {
   success: boolean;
-  data: EventRecord[];
+  data: EventRecord[]; // Note: This was EventRecord[], the handler now returns AIProcessedEvent[]
   message?: string;
 }
+*/
 
 // For OpenAI client
 export interface OpenAIInterface {
@@ -35,7 +51,7 @@ export interface OpenAIInterface {
 export interface EventSchema {
     id: string;
     userId: string;
-    vector: number[];
+  vector: number[]; // Should be Float32Array or number[]
     start_date: string;
     end_date: string;
     raw_event_text?: string;
