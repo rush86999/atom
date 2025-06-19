@@ -40,6 +40,10 @@ export const ATOM_SLACK_BOT_TOKEN = process.env.ATOM_SLACK_BOT_TOKEN || '';
 // This must be set in the environment if Slack notifications for HubSpot actions are desired.
 export const ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID = process.env.ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID || '';
 
+// Default Slack Channel ID for "My Agenda" notifications, if user-specific DM is not used/available.
+// Can be overridden by environment variable.
+export const ATOM_DEFAULT_SLACK_CHANNEL_FOR_AGENDA = process.env.ATOM_DEFAULT_SLACK_CHANNEL_FOR_AGENDA || '';
+
 // HubSpot Portal ID
 // This must be set in the environment if generating direct links to HubSpot records (e.g., in Slack notifications).
 export const ATOM_HUBSPOT_PORTAL_ID = process.env.ATOM_HUBSPOT_PORTAL_ID || '';
