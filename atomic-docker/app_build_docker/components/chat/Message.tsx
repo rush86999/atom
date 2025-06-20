@@ -1,6 +1,7 @@
 import { UserChatType } from "@lib/dataTypes/Messaging/MessagingTypes";
 import { dayjs } from "@lib/date-utils";
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react"; // Added useEffect
+import { useAudioMode } from "@lib/contexts/AudioModeContext"; // Import useAudioMode
 import { ChatMessageActions } from "./chat-message-actions";
 import { EmailContentCopy } from "./email-content-copy";
 
@@ -13,7 +14,27 @@ type Props = {
 }
 
 function Message({ message, isLoading, formData, htmlEmail }: Props) {
-    const divRef = useRef<HTMLDivElement>(null)
+    const divRef = useRef<HTMLDivElement>(null);
+    const { isAudioModeEnabled, triggerReplyListen } = useAudioMode();
+
+    useEffect(() => {
+        if (isAudioModeEnabled && message.role === 'assistant' && message.content && !message.audioUrl) {
+            const ttsErrorMessages = [
+                "Failed to synthesize audio.", // From atom-agent TTS request failed (HTTP error)
+                "Error occurred during audio synthesis.", // From atom-agent TTS catch block
+                "TTS synthesis succeeded but no audio URL was returned." // From atom-agent if TTS result is missing audio_url
+            ];
+            // Check if the message content includes any known TTS error substrings
+            const isTtsError = ttsErrorMessages.some(errMsg => message.content.includes(errMsg));
+
+            if (isTtsError) {
+                console.log("Message.tsx: TTS error detected in Audio Mode, playing error sound for message:", message.content);
+                const errorAudio = new Audio('/assets/audio/tts_error.mp3'); // Path to the generic error sound
+                errorAudio.play().catch(e => console.error("Error playing TTS error sound:", e));
+            }
+        }
+    }, [message.content, message.role, message.audioUrl, isAudioModeEnabled]);
+
     return (
         <div className=" px-2">
             {
@@ -68,7 +89,13 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
                                             autoPlay
                                             controls={false}
                                             style={{ display: 'none' }}
-                                            onError={(e) => console.error('Error playing audio:', e)}
+                                            onEnded={() => {
+                                                if (isAudioModeEnabled && message.role === 'assistant') {
+                                                  console.log("Message.tsx: Audio ended, requesting listen for reply.");
+                                                  triggerReplyListen();
+                                                }
+                                              }}
+                                            onError={(e) => console.error('Error playing audio in Message.tsx:', e)}
                                         />
                                     )}
                                 </div>
