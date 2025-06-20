@@ -121,3 +121,5 @@ export const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY || '';
 export const PYTHON_RESEARCH_API_URL = process.env.PYTHON_RESEARCH_API_URL || '';
 // Example for local development: http://localhost:5057
 export const PYTHON_NOTE_API_URL = process.env.PYTHON_NOTE_API_URL || '';
+// Example for local development: http://localhost:5058
+export const PYTHON_TRAINING_API_URL = process.env.PYTHON_TRAINING_API_URL || '';

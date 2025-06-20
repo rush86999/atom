@@ -505,10 +505,55 @@ export const trainEventForPlanning = async (
             variables,
         }))?.data?.update_Event_by_pk
 
-        console.log(response, ' train event response')
+        console.log(response, ' train event response from Hasura')
         if (response) {
-            await addToSearchIndex(response)
-            return response
+            // await addToSearchIndex(response) // Removed this old call
+
+            // New: Call Python API to train event for similarity
+            if (response.id && response.userId) {
+                const event_text = `${response.summary || ''}: ${response.notes || ''}`.trim();
+                if (event_text === ":") { // Both summary and notes are null/empty
+                    console.warn(`Event ${response.id} has no summary or notes, skipping similarity training.`);
+                } else {
+                    try {
+                        // Import constants for Python API URL and OpenAI API Key
+                        // These should be configured in @lib/constants.ts and available in the environment
+                        const { PYTHON_TRAINING_API_URL, ATOM_OPENAI_API_KEY } = await import('@lib/constants');
+
+                        if (!PYTHON_TRAINING_API_URL) {
+                            console.error('PYTHON_TRAINING_API_URL is not configured. Cannot train event for similarity.');
+                        } else if (!ATOM_OPENAI_API_KEY) {
+                            console.error('ATOM_OPENAI_API_KEY is not configured. Cannot train event for similarity.');
+                        } else {
+                            const pythonApiPayload = {
+                                event_id: response.id,
+                                user_id: response.userId,
+                                event_text: event_text,
+                                openai_api_key: ATOM_OPENAI_API_KEY,
+                            };
+
+                            console.log('Calling Python API to train event for similarity:', pythonApiPayload.event_id);
+                            // Using axios which is already imported in this file.
+                            const pythonApiResponse = await axios.post(
+                                `${PYTHON_TRAINING_API_URL}/train-event-for-similarity`,
+                                pythonApiPayload,
+                                { headers: { 'Content-Type': 'application/json' } } // Token not needed if Python service is internal
+                            );
+
+                            if (pythonApiResponse.data?.ok) {
+                                console.log('Successfully trained event for similarity:', pythonApiResponse.data.data?.message);
+                            } else {
+                                console.error('Failed to train event for similarity:', pythonApiResponse.data?.error || 'Unknown error from Python service');
+                            }
+                        }
+                    } catch (apiError: any) {
+                        console.error('Error calling Python API for event similarity training:', apiError.response?.data || apiError.message || apiError);
+                    }
+                }
+            } else {
+                console.warn('Event ID or User ID missing in Hasura response, cannot train for similarity.', response);
+            }
+            return response; // Return the original Hasura response
         }
 
     } catch (error) {

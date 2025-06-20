@@ -164,6 +164,86 @@ class NoteSearchResult(TypedDict):
     user_id: Optional[str] # Include user_id from the record if needed
 
 
+# --- LanceDB Schema for Training Events ---
+class LanceDBTrainingEventSchema(LanceModel):
+    id: str  # Primary key, Google Calendar event ID (googleEventId)
+    userId: str # Changed from user_id, made non-optional to align with TS features-apply
+    vector: List[float] = vector(1536) # Assuming same embedding model as notes
+    source_event_text: Optional[str] = None # Store the text that was vectorized
+    created_at: datetime
+    # updated_at is not strictly needed if we delete and re-add on conflict
+
+def upsert_training_event_vector(
+    db_path: str,
+    event_id: str,
+    vector_embedding: List[float],
+    userId: str, # Changed from user_id, made non-optional
+    event_text: Optional[str] = None,
+    table_name: str = "training_data" # Aligned with lancedb_service.ts
+) -> dict:
+    """
+    Upserts a training event's vector into LanceDB.
+    Deletes any existing record with the same event_id before adding the new one.
+    """
+    if not db_path:
+        return {"status": "error", "message": "LanceDB path (LANCEDB_URI) is not configured.", "code": "LANCEDB_CONFIG_ERROR"}
+    if not event_id or not vector_embedding or not userId: # Added userId check
+        return {"status": "error", "message": "Missing required parameters: event_id, userId, or vector.", "code": "VALIDATION_ERROR"}
+
+    try:
+        db = lancedb.connect(db_path)
+        if "://" not in db_path:
+            db_dir = os.path.dirname(db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+
+        try:
+            table = db.open_table(table_name)
+        except FileNotFoundError:
+            table = db.create_table(table_name, schema=LanceDBTrainingEventSchema, mode="overwrite")
+            print(f"LanceDB table '{table_name}' created.")
+        except Exception as e: # Attempt to recreate if schema mismatch or other open errors
+            print(f"Error opening training_events table '{table_name}', attempting to recreate: {e}")
+            try:
+                table = db.create_table(table_name, schema=LanceDBTrainingEventSchema, mode="overwrite")
+            except Exception as create_e:
+                return {"status": "error", "message": f"Failed to create/recreate LanceDB table '{table_name}': {create_e}", "code": "LANCEDB_TABLE_ERROR"}
+
+        # Upsert logic: delete existing by event_id, then add new.
+        try:
+            # Check if table has any data before trying to delete, to avoid error on empty table query
+            # However, delete with a non-matching predicate on an empty table is usually fine.
+            # More robust: check if any record with this id exists.
+            # For simplicity, we just attempt delete. If it fails for a reason other than "not found", it's an issue.
+            # If the table is very large, querying first might be better.
+            table.delete(f"id = '{event_id}'")
+            print(f"Deleted existing records for event_id '{event_id}' in table '{table_name}'.")
+        except Exception as e:
+            # LanceDB might raise an error if the `where` condition matches no rows,
+            # or if the table is empty and delete is called. We can often ignore this.
+            # Or, it might be a more serious issue. For now, log and continue.
+            print(f"Note/Warning: Could not delete event_id '{event_id}' (may not exist, or other issue): {str(e)}")
+
+
+        current_time = datetime.now()
+        new_data = [{
+            "id": event_id,
+            "userId": userId, # Changed from user_id
+            "vector": vector_embedding,
+            "source_event_text": event_text,
+            "created_at": current_time
+        }]
+        table.add(new_data)
+        print(f"Successfully inserted vector for training event {event_id} into LanceDB table '{table_name}'.")
+        return {"status": "success", "message": "Training event vector inserted successfully.", "operation": "inserted"}
+
+    except Exception as e:
+        print(f"An error occurred in upsert_training_event_vector: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": f"LanceDB operation failed for training event: {str(e)}", "code": "LANCEDB_OPERATION_ERROR"}
+
+
 def search_similar_notes(
     db_path: str,
     query_vector: List[float],

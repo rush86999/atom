@@ -37,3 +37,9 @@ export const zoomAuthUrl = 'https://zoom.us/oauth/authorize'
 export const zoomIVForPass = process.env.ZOOM_IV_FOR_PASS
 export const zoomResourceName = 'zoom'
 export const zoomPassKey = process.env.ZOOM_PASS_KEY
+
+// Python API Service URLs (used by client-side calls if necessary)
+export const PYTHON_TRAINING_API_URL = process.env.NEXT_PUBLIC_PYTHON_TRAINING_API_URL;
+// Assuming OpenAI API key might be needed client-side for some reason, or passed through if helper is used server-side.
+// For direct client-to-Python-service calls that require this key, it must be exposed.
+export const ATOM_OPENAI_API_KEY = process.env.NEXT_PUBLIC_ATOM_OPENAI_API_KEY;
