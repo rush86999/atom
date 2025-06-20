@@ -4,6 +4,22 @@ import sys
 import logging
 import asyncio
 import uuid # Though taskId comes from message, good to have if worker needs to generate IDs
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json # Already imported, but good to note for HTTP server context
+
+# Sounddevice import - will be conditional
+try:
+    import sounddevice as sd
+    SOUNDDEVICE_AVAILABLE = True
+except Exception as e:
+    # Using a broad exception class as various issues can occur (missing library, portaudio issues)
+    # In a production system, more specific exception handling might be desired.
+    sd = None
+    SOUNDDEVICE_AVAILABLE = False
+    # Logging this at the point of use or server startup might be more relevant
+    # print(f"Warning: sounddevice library not available or failed to initialize: {e}", file=sys.stderr)
+
 
 # Adjust sys.path to allow imports from parent 'functions' directory
 FUNCTIONS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -32,24 +48,45 @@ except ImportError:
     print("WARNING: kafka-python library not found. Kafka worker cannot start.", file=sys.stderr)
 
 # Agent Imports
-ZoomAgent = None
-GoogleMeetAgent = None
-MSTeamsAgent = None
+ZoomAgent, GoogleMeetAgent, MSTeamsAgent = None, None, None
+# Agent specific exceptions (defined in agent modules)
+SoundDeviceNotAvailableError, AudioDeviceSelectionError = None, None
 try:
-    from agents.zoom_agent import ZoomAgent as ImportedZoomAgent
+    from agents.zoom_agent import ZoomAgent as ImportedZoomAgent, SoundDeviceNotAvailableError as ZoomSdnae, AudioDeviceSelectionError as ZoomAse
     ZoomAgent = ImportedZoomAgent
+    # Assuming exceptions are named consistently; take the first one found
+    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = ZoomSdnae
+    if not AudioDeviceSelectionError: AudioDeviceSelectionError = ZoomAse
 except ImportError as e:
-    print(f"Warning: ZoomAgent failed to import in worker: {e}", file=sys.stderr)
+    print(f"Warning: ZoomAgent or its specific exceptions failed to import in worker: {e}", file=sys.stderr)
 try:
-    from agents.google_meet_agent import GoogleMeetAgent as ImportedGoogleMeetAgent
+    from agents.google_meet_agent import GoogleMeetAgent as ImportedGoogleMeetAgent, SoundDeviceNotAvailableError as GMeetSdnae, AudioDeviceSelectionError as GMeetAse
     GoogleMeetAgent = ImportedGoogleMeetAgent
+    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = GMeetSdnae
+    if not AudioDeviceSelectionError: AudioDeviceSelectionError = GMeetAse
 except ImportError as e:
-    print(f"Warning: GoogleMeetAgent failed to import in worker: {e}", file=sys.stderr)
+    print(f"Warning: GoogleMeetAgent or its specific exceptions failed to import in worker: {e}", file=sys.stderr)
 try:
-    from agents.ms_teams_agent import MSTeamsAgent as ImportedMSTeamsAgent
+    from agents.ms_teams_agent import MSTeamsAgent as ImportedMSTeamsAgent, SoundDeviceNotAvailableError as TeamsSdnae, AudioDeviceSelectionError as TeamsAse
     MSTeamsAgent = ImportedMSTeamsAgent
+    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = TeamsSdnae
+    if not AudioDeviceSelectionError: AudioDeviceSelectionError = TeamsAse
 except ImportError as e:
-    print(f"Warning: MSTeamsAgent failed to import in worker: {e}", file=sys.stderr)
+    print(f"Warning: MSTeamsAgent or its specific exceptions failed to import in worker: {e}", file=sys.stderr)
+
+
+# psycopg2 for PostgreSQL connection
+try:
+    import psycopg2
+    from psycopg2 import sql
+    from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    psycopg2 = None
+    sql = None # Placeholder
+    RealDictCursor = None # Placeholder
+    PSYCOPG2_AVAILABLE = False
+    print("WARNING: psycopg2 library not found. Database status reporting will be disabled.", file=sys.stderr)
 
 # note_utils import
 note_utils_module = None
@@ -79,15 +116,189 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
+# --- PostgreSQL Status Reporting Functions ---
+DB_CONN_PARAMS = {
+    "host": os.environ.get("POSTGRES_HOST", "localhost"),
+    "port": os.environ.get("POSTGRES_PORT", "5432"),
+    "user": os.environ.get("POSTGRES_USER", "user"),
+    "password": os.environ.get("POSTGRES_PASSWORD", "password"),
+    "dbname": os.environ.get("POSTGRES_DB", "atomic_dev")
+}
+
+def get_db_connection():
+    if not PSYCOPG2_AVAILABLE:
+        return None
+    try:
+        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        return conn
+    except psycopg2.Error as e:
+        logger.error(f"DB Status: Failed to connect to PostgreSQL: {e}", exc_info=True)
+        return None
+
+def init_task_status(task_id: str, user_id: str, platform: str, meeting_identifier: str, initial_status: str):
+    if not PSYCOPG2_AVAILABLE:
+        logger.warning(f"DB Status (Task {task_id}): psycopg2 not available. Skipping init_task_status.")
+        return
+
+    conn = get_db_connection()
+    if not conn:
+        logger.error(f"DB Status (Task {task_id}): No DB connection. Skipping init_task_status.")
+        return
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO meeting_attendance_status
+                    (task_id, user_id, platform, meeting_identifier, status_timestamp, current_status_message)
+                VALUES (%s, %s, %s, %s, NOW(), %s)
+                ON CONFLICT (task_id) DO UPDATE SET
+                    user_id = EXCLUDED.user_id,
+                    platform = EXCLUDED.platform,
+                    meeting_identifier = EXCLUDED.meeting_identifier,
+                    status_timestamp = NOW(),
+                    current_status_message = EXCLUDED.current_status_message,
+                    final_notion_page_url = NULL,
+                    error_details = NULL;
+                """,
+                (task_id, user_id, platform, meeting_identifier, initial_status)
+            )
+        conn.commit()
+        logger.info(f"DB Status (Task {task_id}): Initialized/Reset status to '{initial_status}'.")
+    except psycopg2.Error as e:
+        logger.error(f"DB Status (Task {task_id}): Error initializing task status: {e}", exc_info=True)
+        if conn: conn.rollback()
+    finally:
+        if conn: conn.close()
+
+def update_task_status(task_id: str, status_message: str, error_details: Optional[str] = None, final_notion_page_url: Optional[str] = None):
+    if not PSYCOPG2_AVAILABLE:
+        logger.warning(f"DB Status (Task {task_id}): psycopg2 not available. Skipping update_task_status to '{status_message}'.")
+        return
+
+    conn = get_db_connection()
+    if not conn:
+        logger.error(f"DB Status (Task {task_id}): No DB connection. Skipping update_task_status to '{status_message}'.")
+        return
+
+    try:
+        with conn.cursor() as cur:
+            query = sql.SQL("""
+                UPDATE meeting_attendance_status SET
+                    status_timestamp = NOW(),
+                    current_status_message = %s,
+                    error_details = %s,
+                    final_notion_page_url = %s
+                WHERE task_id = %s;
+            """)
+            cur.execute(query, (status_message, error_details, final_notion_page_url, task_id))
+
+            if cur.rowcount == 0: # If no row was updated, maybe it was never inserted
+                logger.warning(f"DB Status (Task {task_id}): Update affected 0 rows for status '{status_message}'. Task might not have been initialized in DB.")
+                # Attempt to insert it with the current status, though some initial info might be missing.
+                # This is a fallback, ideally init_task_status is always called first.
+                # For simplicity, we're not calling init_task_status here to avoid complex parameter passing.
+                # The primary responsibility for init is at the start of process_live_meeting_message.
+            else:
+                 logger.info(f"DB Status (Task {task_id}): Updated status to '{status_message}'.")
+        conn.commit()
+    except psycopg2.Error as e:
+        logger.error(f"DB Status (Task {task_id}): Error updating task status to '{status_message}': {e}", exc_info=True)
+        if conn: conn.rollback()
+    finally:
+        if conn: conn.close()
+
+# --- End PostgreSQL Status Reporting Functions ---
+
+
+# --- HTTP Server for Audio Device Listing ---
+class AudioDeviceListHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/list_audio_devices':
+            if not SOUNDDEVICE_AVAILABLE:
+                self.send_response(503) # Service Unavailable
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "sounddevice library not available or failed to initialize.",
+                    "note": "Audio device listing is unavailable."
+                }).encode('utf-8'))
+                logger.warning("HTTP Request to /list_audio_devices: sounddevice not available.")
+                return
+
+            try:
+                devices = sd.query_devices()
+                input_devices = []
+                for i, device in enumerate(devices):
+                    # Standard check for an input device
+                    if device.get('max_input_channels', 0) > 0:
+                        input_devices.append({
+                            "index": i, # Original index from query_devices()
+                            "name": device.get('name', 'Unknown Device'),
+                            "hostapi_name": sd.query_hostapis(device.get('hostapi', -1))['name'] if device.get('hostapi', -1) != -1 else 'N/A',
+                            "max_input_channels": device.get('max_input_channels')
+                        })
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(input_devices).encode('utf-8'))
+                logger.info(f"HTTP Request to /list_audio_devices: Found {len(input_devices)} input devices.")
+
+            except Exception as e:
+                self.send_response(500) # Internal Server Error
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "Failed to query audio devices.",
+                    "details": str(e)
+                }).encode('utf-8'))
+                logger.error(f"HTTP Request to /list_audio_devices: Error querying devices: {e}", exc_info=True)
+        else:
+            self.send_response(404)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Not Found"}).encode('utf-8'))
+
+def start_http_server(host='0.0.0.0', port=8081): # Port can be configured as needed
+    """Starts the HTTP server in a separate thread."""
+    if not SOUNDDEVICE_AVAILABLE:
+        logger.warning("sounddevice not available. Audio device listing HTTP endpoint will indicate this.")
+        # Server still runs to provide the 503 error, which is informative.
+
+    try:
+        httpd = HTTPServer((host, port), AudioDeviceListHandler)
+        logger.info(f"Starting HTTP server for audio device listing on {host}:{port}...")
+        # To run indefinitely in a thread:
+        # httpd.serve_forever()
+        # For controlled shutdown, it's better to run httpd.serve_forever() in a thread
+        # that can be joined or signaled.
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True) # daemon=True allows main program to exit
+        thread.start()
+        logger.info("HTTP server thread started.")
+        return httpd, thread
+    except Exception as e:
+        logger.error(f"Could not start HTTP server: {e}", exc_info=True)
+        return None, None
+
+# --- End HTTP Server ---
+
+
 async def process_live_meeting_message(message_payload: dict):
     """
     Processes a single live meeting task message from Kafka.
     """
     task_id = message_payload.get('taskId', str(uuid.uuid4()))
-    logger.info(f"Task {task_id}: Received live meeting processing request.")
+    user_id = message_payload.get('userId') # Extract early for status reporting
+    platform = message_payload.get('platform', '').lower() # Extract early
+    meeting_identifier = message_payload.get('meetingIdentifier') # Extract early
+
+    logger.info(f"Task {task_id}: Received live meeting processing request for User {user_id}, Platform {platform}, Meeting {meeting_identifier}.")
+
+    # Initialize task status in DB
+    init_task_status(task_id, user_id, platform, meeting_identifier, "Task Received")
 
     # --- Extract data from payload ---
-    user_id = message_payload.get('userId')
     platform = message_payload.get('platform', '').lower()
     meeting_identifier = message_payload.get('meetingIdentifier')
     notion_note_title = message_payload.get('notionNoteTitle')
@@ -105,6 +316,18 @@ async def process_live_meeting_message(message_payload: dict):
     audio_device_specifier = audio_settings.get('audioDeviceSpecifier')
 
     # --- Validate essential parameters ---
+    # (Extracted earlier: user_id, platform, meeting_identifier)
+    notion_note_title = message_payload.get('notionNoteTitle')
+    notion_source = message_payload.get('notionSource', 'Live Meeting Transcription via Kafka Worker')
+    linked_event_id = message_payload.get('linkedEventId')
+    notion_db_id = message_payload.get('notionDbId') # Optional DB ID for the note
+    api_keys = message_payload.get('apiKeys', {})
+    notion_api_token = api_keys.get('notion')
+    deepgram_api_key = api_keys.get('deepgram')
+    openai_api_key = api_keys.get('openai')
+    audio_settings = message_payload.get('audioSettings', {})
+    audio_device_specifier = audio_settings.get('audioDeviceSpecifier')
+
     required_for_processing = {
         "userId": user_id, "platform": platform, "meetingIdentifier": meeting_identifier,
         "notionNoteTitle": notion_note_title, "notionApiKey": notion_api_token,
@@ -112,54 +335,71 @@ async def process_live_meeting_message(message_payload: dict):
     }
     missing_processing_params = [k for k,v in required_for_processing.items() if not v]
     if missing_processing_params:
-        logger.error(f"Task {task_id}: Missing critical parameters for processing: {', '.join(missing_processing_params)}. Payload: {message_payload}")
-        return # Cannot proceed
-
-    if not note_utils_module:
-        logger.error(f"Task {task_id}: note_utils module not available. Skipping processing.")
+        err_msg = f"Missing critical parameters for processing: {', '.join(missing_processing_params)}. Payload: {message_payload}"
+        logger.error(f"Task {task_id}: {err_msg}")
+        update_task_status(task_id, "Failed: Missing Parameters", error_details=err_msg)
         return
 
-    # --- Initialize Notion Client (per task for now, could be optimized) ---
+    if not note_utils_module:
+        err_msg = "note_utils module not available. Skipping processing."
+        logger.error(f"Task {task_id}: {err_msg}")
+        update_task_status(task_id, "Failed: Internal Error", error_details=err_msg)
+        return
+
+    update_task_status(task_id, "Initializing Notion")
     init_notion_resp = note_utils_module.init_notion(notion_api_token, database_id=notion_db_id)
     if init_notion_resp["status"] != "success":
-        logger.error(f"Task {task_id}: Failed to initialize Notion client. Error: {init_notion_resp.get('message')}. Details: {init_notion_resp.get('details')}")
+        err_msg = f"Failed to initialize Notion client. Error: {init_notion_resp.get('message')}. Details: {init_notion_resp.get('details')}"
+        logger.error(f"Task {task_id}: {err_msg}")
+        update_task_status(task_id, "Failed: Notion Initialization", error_details=err_msg)
         return
 
     # --- Agent Instantiation & Configuration ---
     agent = None
     platform_interface = None
+    agent_type_name = "UnknownAgent"
+
     try:
+        update_task_status(task_id, "Initializing Agent")
         if platform == "zoom":
             if not ZoomAgent: raise RuntimeError("ZoomAgent not imported/available.")
             agent = ZoomAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
+            agent_type_name = "ZoomAgent"
         elif platform in ["googlemeet", "google_meet"]:
             if not GoogleMeetAgent: raise RuntimeError("GoogleMeetAgent not imported/available.")
             agent = GoogleMeetAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
+            agent_type_name = "GoogleMeetAgent"
         elif platform in ["msteams", "microsoft_teams", "teams"]:
             if not MSTeamsAgent: raise RuntimeError("MSTeamsAgent not imported/available.")
             agent = MSTeamsAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
+            agent_type_name = "MSTeamsAgent"
         else:
-            logger.error(f"Task {task_id}: Platform '{platform}' is not supported. Supported: zoom, googlemeet, msteams.")
+            err_msg = f"Platform '{platform}' is not supported. Supported: zoom, googlemeet, msteams."
+            logger.error(f"Task {task_id}: {err_msg}")
+            update_task_status(task_id, "Failed: Unsupported Platform", error_details=err_msg)
             return
         platform_interface = agent
-
-        logger.info(f"Task {task_id}: Instantiated {type(agent).__name__} for user {user_id} on platform {platform}.")
+        logger.info(f"Task {task_id}: Instantiated {agent_type_name} for user {user_id} on platform {platform}.")
 
         # --- Meeting Lifecycle ---
+        update_task_status(task_id, "Joining Meeting")
         logger.info(f"Task {task_id}: Attempting to join meeting {meeting_identifier}...")
         join_success = platform_interface.join_meeting(meeting_identifier)
 
         if not join_success:
-            logger.error(f"Task {task_id}: Agent failed to launch/join meeting: {meeting_identifier} on platform {platform}.")
-            return # Cannot proceed if join fails
+            err_msg = f"Agent failed to launch/join meeting: {meeting_identifier} on platform {platform}."
+            logger.error(f"Task {task_id}: {err_msg}")
+            update_task_status(task_id, "Failed: Could Not Join Meeting", error_details=err_msg)
+            return
 
+        update_task_status(task_id, "Capturing Audio & Transcribing")
         logger.info(f"Task {task_id}: Successfully joined {meeting_identifier}. Starting live processing.")
 
         process_live_audio_func = getattr(note_utils_module, 'process_live_audio_for_notion')
         current_meeting_id = platform_interface.get_current_meeting_id() or meeting_identifier
 
         processing_result = await process_live_audio_func(
-            platform_module=platform_interface,
+            platform_module=platform_interface, # type: ignore
             meeting_id=current_meeting_id,
             notion_note_title=notion_note_title,
             deepgram_api_key=deepgram_api_key,
@@ -169,68 +409,91 @@ async def process_live_meeting_message(message_payload: dict):
             linked_event_id=linked_event_id
         )
 
-        if processing_result and processing_result.get("status") == "success":
-            logger.info(f"Task {task_id}: Successfully processed and created Notion note: {processing_result.get('data')}")
+        update_task_status(task_id, "Processing & Saving Note")
 
-            # --- Embed and Store Transcript in LanceDB ---
+        if processing_result and processing_result.get("status") == "success":
+            final_url = processing_result.get("data", {}).get("notion_page_url", None)
+            logger.info(f"Task {task_id}: Successfully processed and created Notion note: {processing_result.get('data')}")
+            update_task_status(task_id, "Completed", final_notion_page_url=final_url)
+
             notion_page_id = processing_result["data"].get("notion_page_id")
             full_transcript_text = processing_result["data"].get("full_transcript")
 
-            lancedb_uri_call = os.environ.get("LANCEDB_URI")
-
-            if notion_page_id and full_transcript_text and lancedb_uri_call:
-                logger.info(f"Task {task_id}: Attempting to embed transcript for Notion page {notion_page_id}")
-                try:
-                    # Meeting date: Pass None, so embed_and_store_transcript_in_lancedb uses current time.
-                    # Sourcing a more accurate meeting_date from linked_event_id is a future enhancement.
-                    meeting_date_iso_param = None
-
-                    embed_and_store_func = getattr(note_utils_module, 'embed_and_store_transcript_in_lancedb', None)
-                    if embed_and_store_func:
-                        # Note: embed_and_store_transcript_in_lancedb is synchronous in note_utils.py
-                        # If it were async, this would need `await` and the calling function `process_live_meeting_message`
-                        # would need to be consistently async (it already is).
-                        # For now, assuming it's synchronous as per current definition.
-                        # If it becomes async: embed_result = await embed_and_store_func(...)
-                        embed_result = embed_and_store_func(
-                            notion_page_id=notion_page_id,
-                            transcript_text=full_transcript_text,
-                            meeting_title=notion_note_title, # from original payload
-                            meeting_date_iso=meeting_date_iso_param,
-                            user_id=user_id, # from original payload
-                            openai_api_key_param=openai_api_key, # from original payload
-                            lancedb_uri_param=lancedb_uri_call
-                        )
-                        if embed_result.get("status") == "success":
-                            logger.info(f"Task {task_id}: Successfully embedded transcript for Notion page {notion_page_id}")
+            # --- Embed and Store Transcript in LanceDB ---
+            # This part is secondary to the main Notion processing result for status
+            if notion_page_id and full_transcript_text: # Ensure these exist before trying to embed
+                lancedb_uri_call = os.environ.get("LANCEDB_URI")
+                if lancedb_uri_call:
+                    logger.info(f"Task {task_id}: Attempting to embed transcript for Notion page {notion_page_id}")
+                    try:
+                        meeting_date_iso_param = None # As before
+                        embed_and_store_func = getattr(note_utils_module, 'embed_and_store_transcript_in_lancedb', None)
+                        if embed_and_store_func:
+                            embed_result = embed_and_store_func(
+                                notion_page_id=notion_page_id, transcript_text=full_transcript_text,
+                                meeting_title=notion_note_title, meeting_date_iso=meeting_date_iso_param,
+                                user_id=user_id, openai_api_key_param=openai_api_key,
+                                lancedb_uri_param=lancedb_uri_call
+                            )
+                            if embed_result.get("status") == "success":
+                                logger.info(f"Task {task_id}: Successfully embedded transcript for Notion page {notion_page_id}")
+                            else:
+                                logger.error(f"Task {task_id}: Failed to embed transcript for {notion_page_id}. Error: {embed_result.get('message')}")
                         else:
-                            logger.error(f"Task {task_id}: Failed to embed transcript for {notion_page_id}. Error: {embed_result.get('message')}")
-                    else:
-                        logger.error(f"Task {task_id}: 'embed_and_store_transcript_in_lancedb' not found in note_utils.")
-                except Exception as e:
-                    logger.error(f"Task {task_id}: Exception during transcript embedding for {notion_page_id}: {e}", exc_info=True)
-            elif not lancedb_uri_call:
-                logger.info(f"Task {task_id}: Skipping LanceDB embedding for {notion_page_id} as LANCEDB_URI is not set (checked at call time).")
-            elif not notion_page_id or not full_transcript_text:
-                logger.warning(f"Task {task_id}: Skipping LanceDB embedding for {notion_page_id if notion_page_id else 'Unknown Page'} due to missing notion_page_id or full_transcript.")
+                            logger.error(f"Task {task_id}: 'embed_and_store_transcript_in_lancedb' not found in note_utils.")
+                    except Exception as e:
+                        logger.error(f"Task {task_id}: Exception during transcript embedding for {notion_page_id}: {e}", exc_info=True)
+                else: # lancedb_uri_call is not set
+                    logger.info(f"Task {task_id}: Skipping LanceDB embedding for {notion_page_id} as LANCEDB_URI is not set.")
+            elif processing_result.get("status") == "success": # Ensure this log only if main processing was success but embedding info missing
+                 logger.warning(f"Task {task_id}: Skipping LanceDB embedding for {notion_page_id if notion_page_id else 'Unknown Page'} due to missing notion_page_id or full_transcript, though main processing was successful.")
 
-        else:
-            err_msg = processing_result.get("message", "Processing failed") if processing_result else "Processing function returned None."
-            err_code = processing_result.get("code", "PROCESSING_FAILED") if processing_result else "PROCESSING_RETURNED_NONE"
-            err_details = processing_result.get("details") if processing_result else None
-            logger.error(f"Task {task_id}: Live audio processing failed for {current_meeting_id}. Code: {err_code}, Msg: {err_msg}, Details: {err_details}")
+        else: # processing_result is None or status is not "success"
+            error_message = "Processing failed"
+            error_code = "PROCESSING_FAILED"
+            error_details_text = "Unknown processing error."
 
+            if processing_result: # If processing_result dict exists
+                error_message = processing_result.get("message", error_message)
+                error_code = processing_result.get("code", error_code)
+                error_details_text = f"Code: {error_code}, Msg: {error_message}, Details: {processing_result.get('details')}"
+            else: # processing_result itself is None
+                error_details_text = "Processing function returned None."
+
+            full_err_msg = f"Live audio processing failed for {current_meeting_id}. {error_details_text}"
+            logger.error(f"Task {task_id}: {full_err_msg}")
+            update_task_status(task_id, f"Failed: {error_message}", error_details=error_details_text)
+
+    except (SoundDeviceNotAvailableError, AudioDeviceSelectionError) as audio_err: # Catch specific agent audio errors
+        # These errors are now defined in agent modules and imported at the top of worker.py
+        err_msg = f"Audio device error for {agent_type_name}: {str(audio_err)}"
+        logger.error(f"Task {task_id}: {err_msg}", exc_info=True) # exc_info might be useful for original traceback
+        update_task_status(task_id, "Failed: Audio Device Error", error_details=err_msg)
+    except RuntimeError as rt_err: # Catch other runtime errors, e.g. agent already active, or PortAudioError
+        err_msg = f"Runtime error during processing with {agent_type_name}: {str(rt_err)}"
+        logger.error(f"Task {task_id}: {err_msg}", exc_info=True)
+        update_task_status(task_id, "Failed: Runtime Error", error_details=err_msg)
     except Exception as e:
-        logger.error(f"Task {task_id}: Unexpected error during processing: {str(e)}", exc_info=True)
+        err_msg = f"Unexpected error during processing with {agent_type_name if agent else 'N/A'}: {str(e)}"
+        logger.error(f"Task {task_id}: {err_msg}", exc_info=True)
+        update_task_status(task_id, "Failed: Unexpected Error", error_details=err_msg)
     finally:
-        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id:
+        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id: # Check current_meeting_id as it's set on successful join
             meeting_id_for_leave = agent.get_current_meeting_id()
-            logger.info(f"Task {task_id}: Ensuring agent leaves meeting {meeting_id_for_leave}.")
-            if hasattr(agent, 'leave_meeting') and asyncio.iscoroutinefunction(agent.leave_meeting):
-                await agent.leave_meeting()
-            elif hasattr(agent, 'leave_meeting'): # Should be async
-                agent.leave_meeting()
+            logger.info(f"Task {task_id}: Ensuring agent {agent_type_name} leaves meeting {meeting_id_for_leave}.")
+            try:
+                if hasattr(agent, 'leave_meeting') and asyncio.iscoroutinefunction(agent.leave_meeting):
+                    await agent.leave_meeting()
+                elif hasattr(agent, 'leave_meeting'): # Synchronous, though agents should ideally be async
+                     agent.leave_meeting()
+            except Exception as leave_err:
+                logger.error(f"Task {task_id}: Error during {agent_type_name}.leave_meeting(): {leave_err}", exc_info=True)
+                # Not updating DB status here as the primary task might have finished or already failed.
+                # This is a cleanup error.
         logger.info(f"Task {task_id}: Processing finished.")
+        # Final status should have been set by one of the update_task_status calls within try/except blocks.
+        # If it reached here without a specific failure reported, it might be an uncaught success/failure.
+        # However, the logic aims to set status explicitly for major outcomes.
 
 
 async def consume_live_meeting_tasks():
@@ -300,14 +563,34 @@ async def consume_live_meeting_tasks():
 
 if __name__ == '__main__':
     logger.info("Starting Live Meeting Worker...")
+
+    # Start the HTTP server for audio device listing
+    http_server, http_thread = start_http_server()
+    if http_server:
+        logger.info(f"HTTP server for audio devices is running in thread: {http_thread.name}")
+    else:
+        logger.error("HTTP server for audio devices failed to start. Proceeding without it.")
+
     # Ensure Python 3.7+ for asyncio.run
     if sys.version_info >= (3, 7):
         try:
             asyncio.run(consume_live_meeting_tasks())
         except KeyboardInterrupt:
             logger.info("Worker shutdown requested via KeyboardInterrupt.")
+            if http_server:
+                logger.info("Attempting to shut down HTTP server...")
+                http_server.shutdown() # Signal the server to stop
+                http_thread.join(timeout=5) # Wait for the thread to finish
+                if http_thread.is_alive():
+                    logger.warning("HTTP server thread did not terminate cleanly.")
+                else:
+                    logger.info("HTTP server shut down.")
         except Exception as e: # Catch errors from consume_live_meeting_tasks if it raises before loop
             logger.error(f"Critical error preventing worker from running: {e}", exc_info=True)
+            if http_server: # Also try to shutdown HTTP server on other critical errors
+                logger.info("Attempting to shut down HTTP server due to critical error...")
+                http_server.shutdown()
+                http_thread.join(timeout=5)
     else:
         logger.error("Python 3.7 or higher is required to run this worker.")
 
