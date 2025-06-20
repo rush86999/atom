@@ -45,7 +45,7 @@ class GoogleMeetAgent:
       `GOOGLE_MEET_AGENT_AUDIO_DEVICE_NAME_OR_ID` environment variable.
     Without proper audio routing, this agent will only capture microphone input.
     """
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, target_device_specifier_override: Optional[str] = None):
         self.user_id: str = user_id
         self.current_meeting_url: Optional[str] = None
 
