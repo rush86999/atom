@@ -1,96 +1,220 @@
-import openai # os is not directly needed here anymore for env vars
+import openai
 import json
 from serpapi import GoogleSearch, SerpApiClientException
 from project.functions import note_utils
+import os
+import lancedb
+from dotenv import load_dotenv
+import uuid
+from datetime import datetime, timezone
+
+# --- LanceDB Setup ---
+load_dotenv() # Load environment variables from .env file
+
+LANCEDB_URI = os.getenv("LANCEDB_RESEARCH_DB_URI", "../../lance_db/ltm_agent_data.lance") # Adjusted path for typical local dev
+DEFAULT_VECTOR_DIMENSION_PY = 768
+OPENAI_API_KEY_GLOBAL = os.getenv("OPENAI_API_KEY") # Load once
+SERPAPI_API_KEY_GLOBAL = os.getenv("SERPAPI_API_KEY") # Load once
+
+def log(message: str, level: str = "INFO"):
+    """Simple logger."""
+    print(f"[{level}] [{datetime.now(timezone.utc).isoformat()}] [ResearchAgent] {message}")
+
+_db_connection = None
+
+def get_lance_db_connection():
+    """Establishes or returns existing LanceDB connection."""
+    global _db_connection
+    if _db_connection:
+        return _db_connection
+    try:
+        log(f"Connecting to LanceDB at URI: {LANCEDB_URI}")
+        _db_connection = lancedb.connect(LANCEDB_URI)
+        log("Successfully connected to LanceDB.")
+        return _db_connection
+    except Exception as e:
+        log(f"Error connecting to LanceDB: {e}", level="ERROR")
+        return None
+
+def generate_embedding_py(text: str) -> list[float]:
+    """Placeholder for generating embeddings in Python."""
+    log(f"Generating dummy embedding for text (first 50 chars): {text[:50]}...")
+    if not text or not text.strip(): # Handle empty or whitespace-only text
+        log("Input text is empty, returning zero vector.", level="WARNING")
+        return [0.0] * DEFAULT_VECTOR_DIMENSION_PY
+    # Simple patterned random vector for dummy
+    return [float(i % 100 / 100.0) for i in range(DEFAULT_VECTOR_DIMENSION_PY)]
 
 
-def decompose_query_into_tasks_llm(user_query: str, openai_api_key: str) -> list[str]:
+_research_findings_table_checked = False
+
+def ensure_research_findings_table_exists(db_conn):
+    """Checks if the 'research_findings' table exists (read-only check)."""
+    global _research_findings_table_checked
+    if _research_findings_table_checked:
+        return
+
+    if not db_conn:
+        log("No DB connection to check for research_findings table.", level="ERROR")
+        return
+    try:
+        table_names = db_conn.table_names()
+        if 'research_findings' not in table_names:
+            log("Table 'research_findings' does not exist. It should be created by the Node.js part of the application. Python side will only add data.", level="WARNING")
+        else:
+            log("Table 'research_findings' confirmed to exist.")
+        _research_findings_table_checked = True
+    except Exception as e:
+        log(f"Error checking for research_findings table: {e}", level="ERROR")
+
+
+# --- End LanceDB Setup ---
+
+
+def search_past_research(original_query: str, top_k: int = 3) -> list[dict]:
+    """Searches past research findings in LanceDB based on the original query."""
+    db_conn = get_lance_db_connection()
+    if not db_conn:
+        log("Cannot search past research, LanceDB connection not available.", level="ERROR")
+        return []
+
+    if not original_query.strip():
+        log("Original query is empty, skipping past research search.", level="WARNING")
+        return []
+
+    try:
+        ensure_research_findings_table_exists(db_conn) # Ensure check has run
+
+        query_embedding = generate_embedding_py(original_query)
+
+        log(f"Searching 'research_findings' for query: {original_query[:100]}...")
+        research_table = db_conn.open_table('research_findings')
+
+        # Assuming 'query_embedding' is the vector column for the original queries in 'research_findings'
+        results = research_table.search(query_embedding, vector_column_name='query_embedding') \
+                                .limit(top_k) \
+                                .to_list()
+
+        log(f"Found {len(results)} past research items.")
+        return results
+    except Exception as e:
+        log(f"Error searching past research: {e}", level="ERROR")
+        return []
+
+
+def decompose_query_into_tasks_llm(user_query: str) -> list[str]:
     """Decomposes a user query into actionable sub-tasks using an LLM."""
-    if not openai_api_key:
-        print("Error: OpenAI API key not provided for task decomposition.")
-        # Returning empty list, caller should handle this as a failure to decompose.
+    if not OPENAI_API_KEY_GLOBAL:
+        log("Error: OpenAI API key not provided for task decomposition.", level="ERROR")
         return []
     try:
-        client = openai.OpenAI(api_key=openai_api_key)
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo-1106",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": "You are a research assistant. Given the user's research query, break it down into 3 to 5 specific, actionable sub-queries that can be independently searched on a web search engine. Each sub-query should be a concise string. Respond ONLY with a valid JSON object containing a single key 'tasks' which is a list of these string sub-queries. For example: {\\\"tasks\\\": [\\\"search query 1\\\", \\\"search query 2\\\", \\\"search query 3\\\"]}"},
-                {"role": "user", "content": user_query}
+        client = openai.OpenAI(api_key=OPENAI_API_KEY_GLOBAL)
+        response = client.chat.completions.create( # type: ignore
+            model="gpt-3.5-turbo-1106", # type: ignore
+            response_format={"type": "json_object"}, # type: ignore
+            messages=[ # type: ignore
+                {"role": "system", "content": "You are a research assistant. Given the user's research query, break it down into 3 to 5 specific, actionable sub-queries that can be independently searched on a web search engine. Each sub-query should be a concise string. Respond ONLY with a valid JSON object containing a single key 'tasks' which is a list of these string sub-queries. For example: {\\\"tasks\\\": [\\\"search query 1\\\", \\\"search query 2\\\", \\\"search query 3\\\"]}"}, # type: ignore
+                {"role": "user", "content": user_query} # type: ignore
             ],
-            temperature=0.2
+            temperature=0.2 # type: ignore
         )
         response_content = response.choices[0].message.content
         if response_content:
             data = json.loads(response_content)
             if isinstance(data.get("tasks"), list):
                 return [str(task) for task in data["tasks"] if isinstance(task, str)]
-        print("LLM response for task decomposition did not yield a valid task list.")
+        log("LLM response for task decomposition did not yield a valid task list.", level="WARNING")
         return []
     except Exception as e:
-        print(f"Error decomposing query with LLM: {e}")
+        log(f"Error decomposing query with LLM: {e}", level="ERROR")
         return []
 
 
-def initiate_research_project(user_query: str, user_id: str, project_db_id: str, task_db_id: str, openai_api_key: str) -> dict:
+def initiate_research_project(user_query: str, user_id: str, project_db_id: str, task_db_id: str) -> dict:
     """
     Initiates a research project by decomposing the query into tasks and creating corresponding Notion pages.
     Assumes Notion client (note_utils.notion) is already initialized by the caller.
     """
-    if not openai_api_key:
-        return {"status": "error", "message": "OpenAI API key not provided.", "code": "CONFIG_ERROR_OPENAI"}
+    if not OPENAI_API_KEY_GLOBAL:
+        return {"status": "error", "message": "OpenAI API key not configured.", "code": "CONFIG_ERROR_OPENAI"}
 
-    if not note_utils.notion:
+    if not note_utils.notion: # type: ignore
         return {"status": "error", "message": "Notion client not initialized in note_utils.", "code": "NOTION_CLIENT_ERROR"}
 
-    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID
+    db_conn = get_lance_db_connection()
+    if db_conn:
+        ensure_research_findings_table_exists(db_conn)
+    else:
+        log("LanceDB connection failed, proceeding without DB interaction for this initiation.", level="WARNING")
+
+    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID # type: ignore
     project_page_id = None
     try:
-        task_descriptions = decompose_query_into_tasks_llm(user_query, openai_api_key)
+        # Search for past research
+        past_findings = search_past_research(user_query)
+        if past_findings:
+            log(f"Found {len(past_findings)} potentially relevant past research items for query: {user_query}")
+
+        task_descriptions = decompose_query_into_tasks_llm(user_query)
         if not task_descriptions:
             return {"status": "error", "message": "Failed to decompose query into tasks (no tasks returned by LLM).", "code": "LLM_DECOMPOSITION_FAILED"}
 
-        note_utils.NOTION_NOTES_DATABASE_ID = project_db_id
+        note_utils.NOTION_NOTES_DATABASE_ID = project_db_id # type: ignore
         project_page_title = f"Research Project: {user_query[:100]}"
-        project_content = f"Original Query: {user_query}\nUser ID: {user_id}\nStatus: Pending"
 
-        project_creation_response = note_utils.create_notion_note(title=project_page_title, content=project_content, source="research_agent")
+        project_content = f"Original Query: {user_query}\nUser ID: {user_id}\nStatus: Pending\n\n"
 
-        if project_creation_response["status"] != "success":
-            return {"status": "error", "message": f"Failed to create project page in Notion DB {project_db_id}. Details: {project_creation_response.get('message')}", "code": "NOTION_PAGE_CREATION_FAILED"}
-        project_page_id = project_creation_response["data"] # Expects page_id here
+        if past_findings:
+            project_content += "--- Relevant Past Research ---\n"
+            for find in past_findings:
+                # Ensure find is a dict, as to_list() should return list of dicts
+                summary_text = find.get('summary', 'N/A')
+                if not isinstance(summary_text, str): # Handle cases where summary might not be a string
+                    summary_text = str(summary_text)
+                project_content += f"- ID: {find.get('finding_id', 'N/A')}, Summary: {summary_text[:100]}...\n"
+            project_content += "---\n\n"
+
+        # Note: The original code had project_content defined after task_descriptions.
+        # Moved it earlier to include past_findings before creating the Notion page.
+        # The content "Status: Pending" was part of the initial string, ensure it's handled correctly.
+        # The example in prompt shows it as part of initial string then other content.
+
+        project_creation_response = note_utils.create_notion_note(title=project_page_title, content=project_content.strip(), source="research_agent") # type: ignore
+
+        if project_creation_response["status"] != "success": # type: ignore
+            return {"status": "error", "message": f"Failed to create project page in Notion DB {project_db_id}. Details: {project_creation_response.get('message')}", "code": "NOTION_PAGE_CREATION_FAILED"} # type: ignore
+        project_page_id = project_creation_response["data"] # Expects page_id here # type: ignore
 
         created_task_page_ids = []
-        note_utils.NOTION_NOTES_DATABASE_ID = task_db_id
+        note_utils.NOTION_NOTES_DATABASE_ID = task_db_id # type: ignore
         for desc in task_descriptions:
             task_page_title = f"Task: {desc[:100]}"
-            task_creation_response = note_utils.create_notion_note(title=task_page_title, content=desc, source="research_agent_task", linked_event_id=project_page_id)
-            if task_creation_response["status"] == "success":
-                created_task_page_ids.append(task_creation_response["data"]) # Expects page_id
+            task_creation_response = note_utils.create_notion_note(title=task_page_title, content=desc, source="research_agent_task", linked_event_id=project_page_id) # type: ignore
+            if task_creation_response["status"] == "success": # type: ignore
+                created_task_page_ids.append(task_creation_response["data"]) # Expects page_id # type: ignore
             else:
-                print(f"Warning: Failed to create task page for description '{desc}' in Notion DB {task_db_id}. Details: {task_creation_response.get('message')}")
+                log(f"Warning: Failed to create task page for description '{desc}' in Notion DB {task_db_id}. Details: {task_creation_response.get('message')}", level="WARNING") # type: ignore
 
         return {"status": "success", "data": {"project_page_id": project_page_id, "task_page_ids": created_task_page_ids}}
     except Exception as e:
-        print(f"Unexpected error in initiate_research_project: {e}")
+        log(f"Unexpected error in initiate_research_project: {e}", level="ERROR")
         return {"status": "error", "message": f"Unexpected error: {str(e)}", "code": "UNEXPECTED_ERROR_INITIATE_RESEARCH"}
     finally:
-        if original_notes_db_id is not None : # Ensure it was set before trying to restore
-            note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id
+        if original_notes_db_id is not None :
+            note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id # type: ignore
 
 
-def python_search_web(query: str, api_key: str) -> dict:
+def python_search_web(query: str) -> dict:
     """
     Performs a web search using SerpApi.
     """
-    if not api_key:
+    if not SERPAPI_API_KEY_GLOBAL:
         return {"status": "error", "message": "Search API key is missing.", "code": "CONFIG_ERROR_SEARCH_KEY"}
 
-    params = { "q": query, "api_key": api_key, "engine": "google" }
-    search_results = []
+    params = { "q": query, "api_key": SERPAPI_API_KEY_GLOBAL, "engine": "google" }
+    search_results: list = []
     try:
-        search = GoogleSearch(params)
+        search = GoogleSearch(params) # type: ignore
         results_data = search.get_dict()
 
         if results_data.get("error"):
@@ -117,11 +241,11 @@ def python_search_web(query: str, api_key: str) -> dict:
             })
 
         if not search_results and not results_data.get("error"):
-            print(f"No organic results by SerpApi for query: {query}. State: {results_data.get('search_information', {}).get('organic_results_state', 'N/A')}")
+            log(f"No organic results by SerpApi for query: {query}. State: {results_data.get('search_information', {}).get('organic_results_state', 'N/A')}", level="INFO")
 
         return {"status": "success", "data": search_results}
 
-    except SerpApiClientException as e:
+    except SerpApiClientException as e: # type: ignore
         message = str(e)
         code = "SEARCH_API_ERROR"
         if "API_KEY_INVALID" in message or "forbidden" in message.lower() or "authorization" in message.lower():
@@ -129,25 +253,25 @@ def python_search_web(query: str, api_key: str) -> dict:
         elif "Request timed out" in message: code = "NETWORK_ERROR"
         return {"status": "error", "message": f"SerpApi client error: {message}", "code": code, "details": str(e)}
     except Exception as e:
-        print(f"Unexpected error during web search (SerpApi query '{query}'): {e}")
+        log(f"Unexpected error during web search (SerpApi query '{query}'): {e}", level="ERROR")
         return {"status": "error", "message": f"Unexpected error during web search: {str(e)}", "code": "UNKNOWN_SEARCH_ERROR", "details": str(e)}
 
 
-def execute_research_task(task_page_id: str, search_api_key: str) -> dict:
+def execute_research_task(task_page_id: str) -> dict:
     """
     Executes a single research task. Assumes Notion client is initialized.
     """
-    if not note_utils.notion:
+    if not note_utils.notion: # type: ignore
         return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
-    if not search_api_key:
+    if not SERPAPI_API_KEY_GLOBAL:
         return {"status": "error", "message": "Search API key not provided.", "code": "CONFIG_ERROR_SEARCH_KEY"}
 
-    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID
-    task_details_response = note_utils.get_notion_note(page_id=task_page_id) # Returns dict
+    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID # type: ignore
+    task_details_response = note_utils.get_notion_note(page_id=task_page_id) # Returns dict # type: ignore
 
-    if task_details_response["status"] != "success":
-        return {"status": "error", "message": f"Could not retrieve task details for page ID: {task_page_id}. Details: {task_details_response.get('message')}", "code": "NOTION_PAGE_RETRIEVAL_FAILED"}
-    task_details = task_details_response["data"] # page object
+    if task_details_response["status"] != "success": # type: ignore
+        return {"status": "error", "message": f"Could not retrieve task details for page ID: {task_page_id}. Details: {task_details_response.get('message')}", "code": "NOTION_PAGE_RETRIEVAL_FAILED"} # type: ignore
+    task_details = task_details_response["data"] # page object # type: ignore
 
     try:
         search_query = task_details.get("content", "").strip()
@@ -156,85 +280,91 @@ def execute_research_task(task_page_id: str, search_api_key: str) -> dict:
             if not search_query:
                 return {"status": "error", "message": f"Search query not found for page ID: {task_page_id}", "code": "QUERY_NOT_FOUND"}
 
-        print(f"Executing task {task_page_id}: Searching for '{search_query}'")
-        search_response = python_search_web(query=search_query, api_key=search_api_key)
+        log(f"Executing task {task_page_id}: Searching for '{search_query}'")
+        search_response = python_search_web(query=search_query)
 
         results_log_string = f"\n\n--- Search Task: {search_query} ---\n"
-        if search_response["status"] == "success":
-            search_results = search_response["data"]
+        search_links = [] # For LanceDB storage
+        if search_response["status"] == "success": # type: ignore
+            search_results = search_response["data"] # type: ignore
             if search_results:
-                for res in search_results: results_log_string += f"Title: {res['title']}\nLink: {res['link']}\nSnippet: {res['snippet']}\n---\n"
+                for res in search_results:
+                    results_log_string += f"Title: {res['title']}\nLink: {res['link']}\nSnippet: {res['snippet']}\n---\n"
+                    if res['link'] != "#": search_links.append(res['link'])
             else: results_log_string += "No results found for this query.\n"
         else:
             error_info = search_response
-            results_log_string += (f"Search failed: {error_info.get('message', 'Unknown error')}\n"
-                                   f"Error Code: {error_info.get('code', 'N/A')}\n"
-                                   f"Details: {str(error_info.get('details', 'N/A'))}\n---\n")
+            results_log_string += (f"Search failed: {error_info.get('message', 'Unknown error')}\n" # type: ignore
+                                   f"Error Code: {error_info.get('code', 'N/A')}\n" # type: ignore
+                                   f"Details: {str(error_info.get('details', 'N/A'))}\n---\n") # type: ignore
 
         current_content = task_details.get("content", "")
         updated_content = current_content + results_log_string
 
-        update_response = note_utils.update_notion_note(page_id=task_page_id, content=updated_content, linked_task_id="COMPLETED")
+        # Store search_links in the task page temporarily if needed, or pass them up
+        # For now, we'll rely on extracting from content later, or assume they are part of the snippet.
+        # A more robust way would be to add a property to the Notion page for structured data like URLs.
 
-        if update_response["status"] == "success":
+        update_response = note_utils.update_notion_note(page_id=task_page_id, content=updated_content, linked_task_id="COMPLETED") # type: ignore
+
+        if update_response["status"] == "success": # type: ignore
             return {"status": "success", "message": f"Task {task_page_id} processed. Results/errors saved."}
         else:
-            return {"status": "error", "message": f"Failed to update task {task_page_id} in Notion. Details: {update_response.get('message')}", "code": "NOTION_PAGE_UPDATE_FAILED"}
+            return {"status": "error", "message": f"Failed to update task {task_page_id} in Notion. Details: {update_response.get('message')}", "code": "NOTION_PAGE_UPDATE_FAILED"} # type: ignore
 
     except Exception as e:
-        print(f"Unexpected error executing research task {task_page_id}: {e}")
+        log(f"Unexpected error executing research task {task_page_id}: {e}", level="ERROR")
         if task_page_id:
             try:
-                # task_details might be None if error occurred before it was fetched
                 current_content_for_error = task_details.get("content", "Content not available.") if task_details else "Content not available."
                 error_update_content = current_content_for_error + f"\n\n--- ERROR DURING TASK EXECUTION ---\n{str(e)}\n---"
-                note_utils.update_notion_note(page_id=task_page_id, content=error_update_content, linked_task_id="ERROR_STATE")
+                note_utils.update_notion_note(page_id=task_page_id, content=error_update_content, linked_task_id="ERROR_STATE") # type: ignore
             except Exception as notion_update_err:
-                print(f"Additionally failed to update Notion page {task_page_id} with execution error: {notion_update_err}")
+                log(f"Additionally failed to update Notion page {task_page_id} with execution error: {notion_update_err}", level="ERROR")
         return {"status": "error", "message": f"Unexpected error executing task {task_page_id}: {str(e)}", "code": "UNEXPECTED_TASK_EXECUTION_ERROR"}
     finally:
         if original_notes_db_id is not None:
-             note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id
+             note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id # type: ignore
 
 
-def monitor_and_execute_tasks(task_db_id: str, project_db_id: str, search_api_key: str, openai_api_key: str) -> dict:
+def monitor_and_execute_tasks(task_db_id: str, project_db_id: str) -> dict:
     """
     Monitors Notion for pending tasks, executes them, and triggers synthesis.
     Assumes Notion client is initialized.
     """
-    if not search_api_key: return {"status": "error", "message": "Search API key not provided.", "code": "CONFIG_ERROR_SEARCH_KEY"}
-    if not openai_api_key: return {"status": "error", "message": "OpenAI API key not provided.", "code": "CONFIG_ERROR_OPENAI"}
-    if not note_utils.notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
+    if not SERPAPI_API_KEY_GLOBAL: return {"status": "error", "message": "Search API key not configured.", "code": "CONFIG_ERROR_SEARCH_KEY"}
+    if not OPENAI_API_KEY_GLOBAL: return {"status": "error", "message": "OpenAI API key not configured.", "code": "CONFIG_ERROR_OPENAI"}
+    if not note_utils.notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"} # type: ignore
 
-    print(f"Checking for pending tasks in database: {task_db_id}")
-    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID
+    log(f"Checking for pending tasks in database: {task_db_id}")
+    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID # type: ignore
     processed_tasks_count = 0; failed_tasks_count = 0
     try:
-        note_utils.NOTION_NOTES_DATABASE_ID = task_db_id
-        all_tasks_response = note_utils.search_notion_notes(query="", source="research_agent_task")
+        note_utils.NOTION_NOTES_DATABASE_ID = task_db_id # type: ignore
+        all_tasks_response = note_utils.search_notion_notes(query="", source="research_agent_task") # type: ignore
 
-        if all_tasks_response["status"] != "success":
-            return {"status": "error", "message": "Failed to retrieve tasks from Notion.", "code": "NOTION_SEARCH_FAILED", "details": all_tasks_response.get("message")}
+        if all_tasks_response["status"] != "success": # type: ignore
+            return {"status": "error", "message": "Failed to retrieve tasks from Notion.", "code": "NOTION_SEARCH_FAILED", "details": all_tasks_response.get("message")} # type: ignore
 
-        all_tasks_in_db = all_tasks_response["data"]
+        all_tasks_in_db = all_tasks_response["data"] # type: ignore
         pending_tasks = [t for t in all_tasks_in_db if t.get("source") == "research_agent_task" and t.get("linked_task_id") not in ["COMPLETED", "ERROR_STATE"]]
 
-        if not pending_tasks: print("No pending research tasks found.")
+        if not pending_tasks: log("No pending research tasks found.")
         else:
-            print(f"Found {len(pending_tasks)} pending tasks to process.")
+            log(f"Found {len(pending_tasks)} pending tasks to process.")
             for task_summary in pending_tasks:
                 task_page_id = task_summary["id"]
-                result = execute_research_task(task_page_id=task_page_id, search_api_key=search_api_key)
+                result = execute_research_task(task_page_id=task_page_id)
                 if result.get("status") == "success": processed_tasks_count += 1
-                else: failed_tasks_count += 1; print(f"Failed task {task_page_id}: {result.get('message')}")
+                else: failed_tasks_count += 1; log(f"Failed task {task_page_id}: {result.get('message')}", level="ERROR")
     except Exception as e:
-        print(f"Error during task monitoring/execution: {e}")
+        log(f"Error during task monitoring/execution: {e}", level="ERROR")
         return {"status": "error", "message": f"Error in task monitoring loop: {str(e)}", "code": "TASK_MONITORING_ERROR"}
     finally:
-        if original_notes_db_id is not None: note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id
+        if original_notes_db_id is not None: note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id # type: ignore
 
-    print("Proceeding to check for project completion and synthesis.")
-    synthesis_result = check_projects_for_completion_and_synthesize(project_db_id=project_db_id, task_db_id=task_db_id, openai_api_key=openai_api_key)
+    log("Proceeding to check for project completion and synthesis.")
+    synthesis_result = check_projects_for_completion_and_synthesize(project_db_id=project_db_id, task_db_id=task_db_id)
 
     return {"status": "success", "data": {
             "message": f"Task cycle finished. Processed: {processed_tasks_count}, Failed: {failed_tasks_count}.",
@@ -242,70 +372,124 @@ def monitor_and_execute_tasks(task_db_id: str, project_db_id: str, search_api_ke
             "synthesis_outcome": synthesis_result }}
 
 
-def synthesize_research_findings_llm(findings: list[str], original_query: str, openai_api_key: str) -> str:
+def synthesize_research_findings_llm(findings: list[str], original_query: str) -> str:
     """Synthesizes research findings using an LLM."""
-    if not openai_api_key: return "Error: OpenAI API key not provided for synthesis."
+    if not OPENAI_API_KEY_GLOBAL: return "Error: OpenAI API key not provided for synthesis."
     try:
-        client = openai.OpenAI(api_key=openai_api_key)
-        MAX_FINDINGS_LENGTH = 15000
-        concatenated_findings = "\n\n---\n\n".join(findings)
-        if len(concatenated_findings) > MAX_FINDINGS_LENGTH:
-            concatenated_findings = concatenated_findings[:MAX_FINDINGS_LENGTH] + "... (truncated)"
+        client = openai.OpenAI(api_key=OPENAI_API_KEY_GLOBAL)
+        MAX_FINDINGS_LENGTH = 15000 # type: ignore
+        concatenated_findings = "\n\n---\n\n".join(findings) # type: ignore
+        if len(concatenated_findings) > MAX_FINDINGS_LENGTH: # type: ignore
+            concatenated_findings = concatenated_findings[:MAX_FINDINGS_LENGTH] + "... (truncated)" # type: ignore
 
-        system_prompt = ("You are a research analyst. Based on the collected information and original query, synthesize a comprehensive report. "
+        system_prompt = ("You are a research analyst. Based on the collected information and original query, synthesize a comprehensive report. " # type: ignore
                          "Focus on addressing the query directly, using only the provided information. State if information is insufficient.")
-        user_message = f"Original Query: {original_query}\n\nCollected Information:\n{concatenated_findings}"
+        user_message = f"Original Query: {original_query}\n\nCollected Information:\n{concatenated_findings}" # type: ignore
 
-        response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=[ {"role": "system", "content": system_prompt}, {"role": "user", "content": user_message} ],
-            temperature=0.5 )
+        response = client.chat.completions.create( # type: ignore
+            model="gpt-4-turbo-preview", # type: ignore
+            messages=[ {"role": "system", "content": system_prompt}, {"role": "user", "content": user_message} ], # type: ignore
+            temperature=0.5 ) # type: ignore
         report = response.choices[0].message.content
         return report if report else "Synthesis LLM returned empty content."
     except Exception as e:
-        print(f"Error synthesizing research findings with LLM: {e}")
+        log(f"Error synthesizing research findings with LLM: {e}", level="ERROR")
         return f"Error during synthesis: {str(e)}"
 
+def extract_source_urls_from_findings(findings_text_list: list[str]) -> list[str]:
+    """Rudimentary extraction of URLs from a list of text strings."""
+    urls = set()
+    import re
+    url_pattern = re.compile(r'https?://[^\s/$.?#].[^\s]*') # Basic URL regex
+    for text_block in findings_text_list:
+        found = url_pattern.findall(text_block)
+        for url in found:
+            urls.add(url)
+    return list(urls)
 
-def check_projects_for_completion_and_synthesize(project_db_id: str, task_db_id: str, openai_api_key: str) -> dict:
-    """
-    Checks research projects for completion and triggers synthesis. Assumes Notion client initialized.
-    """
-    if not note_utils.notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
-    if not openai_api_key: return {"status": "error", "message": "OpenAI API key not provided for synthesis.", "code": "CONFIG_ERROR_OPENAI"}
+def store_research_findings_in_ltm(db_conn, project_page_id: str, original_query: str, report_content: str, completed_task_findings: list[str]):
+    """Stores the synthesized research findings into LanceDB."""
+    if not db_conn:
+        log("No LanceDB connection available for storing research findings.", level="ERROR")
+        return
 
-    print(f"Checking completable projects in DB: {project_db_id}")
-    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID
+    try:
+        log(f"Preparing to store research findings for project: {project_page_id}")
+        finding_id = str(uuid.uuid4())
+        query_embedding = generate_embedding_py(original_query)
+        summary_embedding = generate_embedding_py(report_content)
+
+        # Combine all task findings into a single details_text string
+        details_text = "\n\n---\n\n".join(completed_task_findings)
+
+        # Extract source references (rudimentary)
+        source_references = extract_source_urls_from_findings(completed_task_findings)
+
+        current_time_iso = datetime.now(timezone.utc).isoformat()
+
+        data_to_store = {
+            "finding_id": finding_id,
+            "query": original_query,
+            "query_embedding": query_embedding,
+            "summary": report_content,
+            "summary_embedding": summary_embedding,
+            "details_text": details_text,
+            "source_references": source_references, # This is now a list of strings
+            "project_page_id": project_page_id, # Notion page ID
+            "created_at": current_time_iso,
+            "updated_at": current_time_iso
+        }
+
+        research_table = db_conn.open_table("research_findings")
+        research_table.add([data_to_store])
+        log(f"Successfully stored research finding {finding_id} for project {project_page_id} in LanceDB.")
+
+    except Exception as e:
+        log(f"Error storing research finding for project {project_page_id} in LanceDB: {e}", level="ERROR")
+
+
+def check_projects_for_completion_and_synthesize(project_db_id: str, task_db_id: str) -> dict:
+    """
+    Checks research projects for completion, triggers synthesis, and stores results in LanceDB.
+    Assumes Notion client initialized.
+    """
+    if not note_utils.notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"} # type: ignore
+    if not OPENAI_API_KEY_GLOBAL: return {"status": "error", "message": "OpenAI API key not provided for synthesis.", "code": "CONFIG_ERROR_OPENAI"}
+
+    db_conn = get_lance_db_connection() # Get DB connection for storing results
+
+    log(f"Checking completable projects in DB: {project_db_id}")
+    original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID # type: ignore
     synthesis_attempts = 0; successful_synthesis_updates = 0
     try:
-        note_utils.NOTION_NOTES_DATABASE_ID = project_db_id
-        projects_response = note_utils.search_notion_notes(query="Status: Pending", source="research_agent") # Expects dict
+        note_utils.NOTION_NOTES_DATABASE_ID = project_db_id # type: ignore
+        projects_response = note_utils.search_notion_notes(query="Status: Pending", source="research_agent") # Expects dict # type: ignore
 
-        if projects_response["status"] != "success":
-            return {"status": "error", "message": f"Failed to search pending projects: {projects_response.get('message')}", "code": "NOTION_SEARCH_FAILED"}
+        if projects_response["status"] != "success": # type: ignore
+            return {"status": "error", "message": f"Failed to search pending projects: {projects_response.get('message')}", "code": "NOTION_SEARCH_FAILED"} # type: ignore
 
-        pending_projects = [p for p in projects_response["data"] if "Status: Pending" in p.get("content","")]
+        pending_projects = [p for p in projects_response["data"] if "Status: Pending" in p.get("content","")] # type: ignore
         if not pending_projects:
             return {"status": "success", "data": {"message": "No pending projects for synthesis.", "updated_projects": 0}}
 
         synthesis_attempts = len(pending_projects)
-        print(f"Found {synthesis_attempts} pending projects for synthesis check.")
+        log(f"Found {synthesis_attempts} pending projects for synthesis check.")
 
         for project in pending_projects:
             project_page_id = project["id"]
             original_query_match = [line for line in project.get("content","").split("\n") if line.startswith("Original Query: ")]
             original_query = original_query_match[0].replace("Original Query: ","").strip() if original_query_match else "Unknown Original Query"
 
-            note_utils.NOTION_NOTES_DATABASE_ID = task_db_id
-            tasks_response = note_utils.search_notion_notes(query="", source="research_agent_task") # Expects dict
-            if tasks_response["status"] != "success":
-                print(f"Failed to retrieve tasks for project {project_page_id}: {tasks_response.get('message')}")
+            note_utils.NOTION_NOTES_DATABASE_ID = task_db_id # type: ignore
+            tasks_response = note_utils.search_notion_notes(query="", source="research_agent_task") # Expects dict # type: ignore
+            if tasks_response["status"] != "success": # type: ignore
+                log(f"Failed to retrieve tasks for project {project_page_id}: {tasks_response.get('message')}", level="WARNING") # type: ignore
                 continue
 
-            project_tasks = [t for t in tasks_response["data"] if t.get("linked_event_id") == project_page_id]
-            if not project_tasks: print(f"No tasks for project {project_page_id}."); continue
+            project_tasks = [t for t in tasks_response["data"] if t.get("linked_event_id") == project_page_id] # type: ignore
+            if not project_tasks: log(f"No tasks for project {project_page_id}."); continue
 
-            all_tasks_processed = True; completed_task_findings = []
+            all_tasks_processed = True; completed_task_findings: list[str] = []
             for task in project_tasks:
                 task_status = task.get("linked_task_id")
                 if task_status == "COMPLETED": completed_task_findings.append(task.get("content", ""))
@@ -313,22 +497,30 @@ def check_projects_for_completion_and_synthesize(project_db_id: str, task_db_id:
                 else: all_tasks_processed = False; break
 
             if all_tasks_processed:
-                print(f"All tasks for project {project_page_id} processed. Synthesizing report...")
-                report_content = synthesize_research_findings_llm(completed_task_findings, original_query, openai_api_key) if completed_task_findings else "No findings from tasks."
+                log(f"All tasks for project {project_page_id} processed. Synthesizing report...")
+                report_content = synthesize_research_findings_llm(completed_task_findings, original_query) if completed_task_findings else "No findings from tasks."
 
-                note_utils.NOTION_NOTES_DATABASE_ID = project_db_id
+                # Store in LanceDB
+                if db_conn:
+                    store_research_findings_in_ltm(db_conn, project_page_id, original_query, report_content, completed_task_findings)
+                else:
+                    log(f"Skipping LanceDB storage for project {project_page_id} due to no DB connection.", level="WARNING")
+
+                # Update Notion
+                note_utils.NOTION_NOTES_DATABASE_ID = project_db_id # type: ignore
                 project_current_content = project.get("content","")
                 updated_project_content = project_current_content.replace("Status: Pending", "Status: Completed")
                 updated_project_content += f"\n\n--- Synthesized Report ---\n{report_content}"
 
-                update_response = note_utils.update_notion_note(page_id=project_page_id, content=updated_project_content, linked_task_id="COMPLETED_PROJECT") # Expects dict
-                if update_response["status"] == "success": successful_synthesis_updates +=1
-                else: print(f"Failed to update project {project_page_id}. Details: {update_response.get('message')}")
-            else: print(f"Project {project_page_id} has unprocessed tasks.")
+                update_response = note_utils.update_notion_note(page_id=project_page_id, content=updated_project_content, linked_task_id="COMPLETED_PROJECT") # Expects dict # type: ignore
+                if update_response["status"] == "success": successful_synthesis_updates +=1 # type: ignore
+                else: log(f"Failed to update project {project_page_id} in Notion. Details: {update_response.get('message')}", level="WARNING") # type: ignore
+            else: log(f"Project {project_page_id} has unprocessed tasks.")
     except Exception as e:
+        log(f"Unexpected error during synthesis check: {str(e)}", level="ERROR")
         return {"status": "error", "message": f"Unexpected error during synthesis check: {str(e)}", "code": "SYNTHESIS_CHECK_ERROR"}
     finally:
-        if original_notes_db_id is not None: note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id
+        if original_notes_db_id is not None: note_utils.NOTION_NOTES_DATABASE_ID = original_notes_db_id # type: ignore
 
     return {"status": "success", "data": {"message": f"Synthesis check finished. Attempted: {synthesis_attempts}, Succeeded: {successful_synthesis_updates}",
                                           "attempted_synthesis": synthesis_attempts, "successful_synthesis_updates": successful_synthesis_updates}}

@@ -3,13 +3,27 @@
 import { HandleMessageResponse } from './handler'; // Assuming handler.ts exports this
 
 const IDLE_TIMEOUT_MS = 30 * 1000; // 30 seconds
+const MAX_TURN_HISTORY_LENGTH = 10; // Limit for STM turn history
 
 interface ConversationState {
   isActive: boolean;
   isAgentResponding: boolean; // New state: true if agent is currently "speaking" or processing a response
   lastInteractionTime: number | null;
-  conversationHistory: Array<{ user: string; agent: HandleMessageResponse; timestamp: number }>;
+  conversationHistory: Array<{ user: string; agent: HandleMessageResponse; timestamp: number }>; // Retained for existing detailed history
   idleTimer: NodeJS.Timeout | null;
+
+  // New STM fields
+  currentIntent: string | null;
+  identifiedEntities: Record<string, any> | null;
+  userGoal: string | null;
+  turnHistory: Array<{
+    userInput: string;
+    agentResponse: any; // Consider using a more specific type if available, like HandleMessageResponse
+    intent?: string;
+    entities?: Record<string, any>;
+    timestamp: number;
+  }>;
+  ltmContext: any[] | null; // For storing results from LTM queries
 }
 
 // In-memory store for conversation state.
@@ -17,8 +31,15 @@ const globalConversationState: ConversationState = {
   isActive: false,
   isAgentResponding: false,
   lastInteractionTime: null,
-  conversationHistory: [],
+  conversationHistory: [], // Retained for existing detailed history
   idleTimer: null,
+
+  // Initialize STM fields
+  currentIntent: null,
+  identifiedEntities: null,
+  userGoal: null,
+  turnHistory: [],
+  ltmContext: null,
 };
 
 function log(message: string) {
@@ -63,7 +84,8 @@ export function deactivateConversation(reason: string = "timeout") {
     globalConversationState.isActive = false;
     globalConversationState.isAgentResponding = false; // Ensure this is also reset
     globalConversationState.lastInteractionTime = null;
-    log(`Conversation deactivated due to ${reason}.`);
+    globalConversationState.ltmContext = null; // Reset LTM context
+    log(`Conversation deactivated due to ${reason}. LTM context cleared.`);
   }
 }
 
@@ -89,13 +111,14 @@ export function activateConversation(): { status: string; active: boolean } {
   globalConversationState.isActive = true;
   globalConversationState.isAgentResponding = false; // Agent is not responding at point of activation
   globalConversationState.lastInteractionTime = Date.now();
+  globalConversationState.ltmContext = null; // Reset LTM context on new activation
   startIdleTimer();
 
   if (!wasActive) {
-    log("Conversation activated.");
+    log("Conversation activated. LTM context cleared.");
     return { status: "Conversation activated.", active: true };
   } else {
-    log("Conversation was already active. Interaction time and timer reset. Agent responding state ensured false.");
+    log("Conversation was already active. Interaction time and timer reset. Agent responding state ensured false. LTM context cleared.");
     return { status: "Conversation was already active. State reset for new interaction.", active: true };
   }
 }
@@ -114,21 +137,67 @@ export function recordUserInteraction(text: string) {
   log(`User interaction recorded. Time and timer reset. Text: "${text.substring(0, 50)}..."`);
 }
 
-export function recordAgentResponse(userText: string, agentResponse: HandleMessageResponse) {
-    // Find the last user interaction if needed, or just append.
-    // This is a more complete way to store history.
+export function recordAgentResponse(
+  userText: string,
+  agentResponse: HandleMessageResponse,
+  intent?: string,
+  entities?: Record<string, any>
+) {
+    // Record to existing conversationHistory
     globalConversationState.conversationHistory.push({
         user: userText,
         agent: agentResponse,
         timestamp: Date.now()
     });
-    // Limit history size if necessary
-    if (globalConversationState.conversationHistory.length > 20) { // Example limit
+    if (globalConversationState.conversationHistory.length > 20) { // Existing limit
         globalConversationState.conversationHistory.shift();
     }
-    log("Agent response recorded in history.");
+    log("Agent response recorded in detailed history.");
+
+    // Update new turnHistory for STM
+    const turn = {
+        userInput: userText,
+        agentResponse: agentResponse, // Or a summary/specific part of it
+        intent: intent,
+        entities: entities,
+        timestamp: Date.now()
+    };
+    globalConversationState.turnHistory.push(turn);
+    if (globalConversationState.turnHistory.length > MAX_TURN_HISTORY_LENGTH) {
+        globalConversationState.turnHistory.shift();
+    }
+    log(`Turn recorded in STM history. Current STM history length: ${globalConversationState.turnHistory.length}`);
+
+    // Potentially update currentIntent and identifiedEntities from the latest turn
+    if (intent) {
+        globalConversationState.currentIntent = intent;
+        log(`Current intent updated to: ${intent}`);
+    }
+    if (entities) {
+        globalConversationState.identifiedEntities = entities;
+        log(`Identified entities updated.`);
+    }
 }
 
+export function updateIntentAndEntities(intent: string | null, entities: Record<string, any> | null) {
+  globalConversationState.currentIntent = intent;
+  globalConversationState.identifiedEntities = entities;
+  log(`Intent and entities updated: Intent - ${intent}, Entities - ${JSON.stringify(entities)}`);
+}
+
+export function updateUserGoal(goal: string | null) {
+  globalConversationState.userGoal = goal;
+  log(`User goal updated to: ${goal}`);
+}
+
+export function updateLTMContext(context: any[] | null) {
+  globalConversationState.ltmContext = context;
+  if (context) {
+    log(`LTM context updated with ${context.length} items.`);
+  } else {
+    log('LTM context cleared.');
+  }
+}
 
 export function isConversationActive(): boolean {
   return globalConversationState.isActive;

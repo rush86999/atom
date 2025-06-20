@@ -1,0 +1,275 @@
+// Manages the interaction between Short-Term Memory (STM) and Long-Term Memory (LTM) stored in LanceDB.
+
+import * as lancedb from 'vectordb-lance'; // For LanceDB connection type
+import {
+  getConversationStateSnapshot, // Assuming this is how we might get a state if not passed directly
+  updateUserGoal,
+  updateIntentAndEntities,
+  // Add other relevant action imports from conversationState.ts as needed
+} from './conversationState'; // Adjust path as necessary
+import type { ConversationState } from './conversationState'; // Import type
+import { addRecord, searchTable } from './lanceDBManager'; // Import DB interaction functions
+import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
+
+const DEFAULT_VECTOR_DIMENSION = 768;
+
+function log(message: string, level: 'info' | 'error' = 'info', data?: any) {
+  const prefix = `[MemoryManager] ${new Date().toISOString()}`;
+  if (level === 'error') {
+    console.error(`${prefix} [ERROR]: ${message}`, data || '');
+  } else {
+    console.log(`${prefix}: ${message}`, data || '');
+  }
+}
+
+/**
+ * Placeholder for generating embeddings.
+ * In a real implementation, this would call an actual embedding model.
+ * @param text The text to embed.
+ * @returns A promise that resolves to a vector (array of numbers).
+ */
+export async function generateEmbedding(text: string): Promise<number[]> {
+  log(`Generating embedding for text (first 50 chars): "${text.substring(0, 50)}..."`);
+  // Return a dummy vector of the correct dimension
+  const dummyVector = Array(DEFAULT_VECTOR_DIMENSION).fill(0).map((_, i) => Math.random() * (i % 2 === 0 ? 1 : -1) * 0.1); // Simple patterned random vector
+  log(`Generated dummy embedding (first 3 dims): [${dummyVector.slice(0,3).join(', ')}...]`);
+  return dummyVector;
+}
+
+export interface LtmQueryResult {
+  id: string;
+  text: string; // Could be summary, fact, etc.
+  score: number; // Relevance score from vector search
+  metadata?: Record<string, any>;
+  table: string; // Source table
+}
+
+/**
+ * Processes Short-Term Memory (STM) and decides what to store in Long-Term Memory (LTM).
+ * @param userId The ID of the user.
+ * @param conversation The current conversation state.
+ * @param db The LanceDB connection object.
+ */
+export async function processSTMToLTM(userId: string, conversation: ConversationState, db: lancedb.Connection): Promise<void> {
+  log(`Processing STM to LTM for user: ${userId}`);
+  // log('Current conversation state received:', conversation); // Can be too verbose
+
+  if (!db) {
+    log('LanceDB connection not provided to processSTMToLTM.', 'error');
+    return Promise.reject(new Error('LanceDB connection not provided.'));
+  }
+
+  let summary = "";
+  if (conversation.userGoal) {
+    summary += `User Goal: ${conversation.userGoal}. `;
+  }
+
+  const recentTurns = conversation.turnHistory.slice(-2); // Last 2 turns
+  if (recentTurns.length > 0) {
+    summary += recentTurns.map(turn => `User: ${turn.userInput} | Agent: ${JSON.stringify(turn.agentResponse).substring(0, 150)}...`).join('; ');
+  }
+
+  if (!summary.trim()) {
+    log('No significant information found in STM to process for LTM.');
+    return;
+  }
+
+  log(`Generated summary for LTM: "${summary.substring(0, 200)}..."`);
+
+  try {
+    const embedding = await generateEmbedding(summary);
+    const currentTime = new Date().toISOString();
+
+    const kbData = {
+      fact_id: uuidv4(),
+      text_content: summary,
+      text_content_embedding: embedding,
+      source: `user_interaction_${userId}`,
+      metadata: JSON.stringify({
+        type: 'user_interaction_summary',
+        userId: userId,
+        goal: conversation.userGoal || null,
+        turnCount: conversation.turnHistory.length
+      }),
+      created_at: currentTime,
+      updated_at: currentTime,
+    };
+
+    log('Adding user interaction summary to knowledge_base LTM.', kbData);
+    await addRecord(db, 'knowledge_base', kbData);
+    log('Successfully processed and stored STM snapshot to LTM knowledge_base.');
+
+  } catch (error) {
+    log('Error during STM to LTM processing or LanceDB operation.', 'error', error);
+    // Optionally re-throw or handle as needed
+    // return Promise.reject(error);
+  }
+}
+
+/**
+ * Retrieves relevant information from Long-Term Memory (LTM) based on a query.
+ * @param queryText The query text to search for.
+ * @param userId The ID of the user, for context (can be null if not user-specific).
+ * @param db The LanceDB connection object.
+ * @param options Optional parameters like table name and topK results.
+ * @returns A promise that resolves to an array of LTM query results.
+ */
+export async function retrieveRelevantLTM(
+  queryText: string,
+  userId: string | null,
+  db: lancedb.Connection,
+  options?: { table?: string; topK?: number }
+): Promise<LtmQueryResult[]> {
+  log(`Retrieving relevant LTM for query: "${queryText}" (User: ${userId || 'N/A'})`, options);
+
+  if (!db) {
+    log('LanceDB connection not provided to retrieveRelevantLTM.', 'error');
+    return Promise.reject(new Error('LanceDB connection not provided.'));
+  }
+
+  if (!queryText.trim()) {
+    log('Query text is empty, skipping LTM retrieval.');
+    return [];
+  }
+
+  try {
+    const queryEmbedding = await generateEmbedding(queryText);
+    const topK = options?.topK || 5;
+
+    let targetTable = options?.table || 'knowledge_base';
+    let vectorColumnName = 'text_content_embedding'; // Default for knowledge_base
+    let filter: string | undefined = undefined;
+
+    if (targetTable === 'user_profiles') {
+      // Assuming 'interaction_history_embeddings' is preferred for specific interaction recall.
+      // 'interaction_summary_embeddings' might be for overall user profile similarity.
+      vectorColumnName = 'interaction_history_embeddings';
+      if (userId) {
+        filter = `user_id = '${userId}'`; // Exact match on user_id
+      } else {
+        // Searching user_profiles without a userId might not be typical for this function's intent,
+        // but if allowed, no filter is applied here.
+        log('Warning: Searching user_profiles without a specific userId.', 'info');
+      }
+    } else if (targetTable === 'knowledge_base' && userId) {
+      // Filter by source for user-specific interactions stored in knowledge_base
+      filter = `source = 'user_interaction_${userId}'`;
+    } else if (targetTable === 'research_findings') {
+        vectorColumnName = 'summary_embedding'; // Or 'query_embedding' depending on search intent
+    }
+    // Add more conditions for other tables or vector columns as needed
+
+    log(`Querying table '${targetTable}' with vector column '${vectorColumnName}', topK: ${topK}, filter: '${filter || 'None'}'`);
+
+    const searchResults = await searchTable(db, targetTable, queryEmbedding, topK, vectorColumnName, filter);
+
+    log(`Retrieved ${searchResults.length} results from LTM table '${targetTable}'.`);
+
+    return searchResults.map((item: any) => {
+      // Determine id and text based on table structure
+      let id = item.fact_id || item.user_id || item.finding_id || uuidv4();
+      let text = item.text_content || item.summary || (item.preferences ? JSON.stringify(item.preferences) : 'N/A');
+      if (targetTable === 'user_profiles') {
+        text = `User Profile: ${item.user_id}, Prefs: ${item.preferences}, Summaries: ${item.interaction_summaries?.join('; ')}`;
+      }
+
+
+      return {
+        id,
+        text,
+        score: item._distance, // LanceDB uses _distance
+        metadata: item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : { original_fields: item },
+        table: targetTable,
+      };
+    });
+
+  } catch (error) {
+    log('Error during LTM retrieval or LanceDB operation.', 'error', error);
+    return []; // Return empty array on error, or re-throw
+  }
+}
+
+// Define structure for actions that modify conversation state (STM)
+export interface ConversationStateActions { // Export if used by handler.ts directly
+  updateUserGoal: (goal: string | null) => void;
+  updateIntentAndEntities: (intent: string | null, entities: Record<string, any> | null) => void;
+  updateLtmRepoContext: (context: LtmQueryResult[] | null) => void; // New action
+}
+
+/**
+ * Loads retrieved LTM results into the Short-Term Memory (STM) or conversation state.
+ * @param results The LTM query results to load.
+ * @param conversationStateActions An object containing functions to update the conversation state.
+ */
+export async function loadLTMToSTM(
+  results: LtmQueryResult[],
+  conversationStateActions: ConversationStateActions
+): Promise<void> {
+  log('Loading LTM results into STM...');
+  if (!results || results.length === 0) {
+    log('No LTM results to load.');
+    conversationStateActions.updateLtmRepoContext(null); // Clear context if no results
+    return;
+  }
+
+  // Update the main LTM context in conversation state
+  conversationStateActions.updateLtmRepoContext(results);
+  log(`LTM context updated in conversation state with ${results.length} items.`);
+
+  // Example of further processing: update user goal based on the top LTM result
+  // This is illustrative and can be expanded.
+  const topResult = results[0];
+  if (topResult && topResult.table === 'user_profiles' && topResult.metadata?.goal) {
+    log(`Updating user goal from top LTM result: ${topResult.metadata.goal}`);
+    conversationStateActions.updateUserGoal(topResult.metadata.goal as string);
+  } else if (topResult && topResult.metadata?.summaryGoal) { // Check for a differently named field
+     log(`Updating user goal from top LTM result's summaryGoal: ${topResult.metadata.summaryGoal}`);
+    conversationStateActions.updateUserGoal(topResult.metadata.summaryGoal as string);
+  }
+  // Potentially update entities based on LTM results as well
+  // Example: if entities are directly stored or inferable from LTM text/metadata
+  // for (const result of results) {
+  //   if (result.metadata?.entities && typeof result.metadata.entities === 'object') {
+  //     log('Updating entities from LTM result:', result.metadata.entities);
+  //     conversationStateActions.updateIntentAndEntities(null, result.metadata.entities as Record<string, any>);
+  //     // Note: This might overwrite entities from NLU. Decide on merging strategy.
+  //   }
+  // }
+  log('Finished loading LTM results and potentially updating parts of STM.');
+}
+
+// Example of how this manager might be initialized and used (conceptual)
+/*
+async function mainMemoryCycle(userId: string, currentQuery?: string) {
+  log("Starting main memory cycle...");
+
+  // It's better to initialize DB once and pass the connection around.
+  // For this example, assume `dbConnection` is an already initialized lancedb.Connection object.
+  // const dbConnection = await initializeDB('agent_ltm_db');
+  // if (!dbConnection) {
+  //   log("Failed to initialize LanceDB. Aborting memory cycle.", 'error');
+  //   return;
+  // }
+
+  // 1. Potentially retrieve LTM based on current query to inform current turn
+  if (currentQuery && dbConnection) { // Make sure dbConnection is valid
+    const relevantLtm = await retrieveRelevantLTM(currentQuery, userId, dbConnection, { table: 'knowledge_base' });
+    if (relevantLtm.length > 0) {
+      await loadLTMToSTM(relevantLtm, {
+        updateUserGoal: updateUserGoal,
+        updateIntentAndEntities: updateIntentAndEntities,
+      });
+    }
+  }
+
+  // 2. After agent response and user interaction, process STM to LTM
+  const currentConversationState = getConversationStateSnapshot();
+  if (currentConversationState.isActive && dbConnection) { // Make sure dbConnection is valid
+    await processSTMToLTM(userId, currentConversationState, dbConnection);
+  }
+
+  log("Main memory cycle finished.");
+}
+*/
+
+log('MemoryManager module loaded with implemented LTM interaction functions.');

@@ -45,6 +45,7 @@
     "rrule": "^2.7.2",
     "url-join": "^5.0.0",
     "uuid": "^9.0.0",
+    "vectordb-lance": "^0.2.1",
     "winston": "^3.10.0",
     "ws": "^8.13.0",
     "@hubspot/api-client": "^11.1.0",
