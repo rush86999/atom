@@ -42,7 +42,8 @@ export class SemanticSearchSkills implements IAgentSkills {
         ];
     }
 
-    private async handleSearchMeetingNotes(args: SkillArgs): Promise<string> {
+    // Changed from private to public to allow standalone function to call it
+    public async handleSearchMeetingNotes(args: SkillArgs): Promise<string> {
         const userQuery = args.params?.query as string;
         const userId = args.user_id; // Passed by the agent framework
 
@@ -51,7 +52,6 @@ export class SemanticSearchSkills implements IAgentSkills {
         }
 
         if (!userId) {
-            // This should ideally be handled by the agent framework ensuring user_id is always available
             logger.error({
                 message: "User ID is missing in skill arguments for search_meeting_notes.",
                 skillArgs: args,
@@ -65,12 +65,6 @@ export class SemanticSearchSkills implements IAgentSkills {
         };
 
         try {
-            // Assuming the ApiHelper is configured with the base URL for the Python backend service.
-            // The first argument to post is the endpoint path.
-            // Replace 'python_backend_service_name' with the actual service identifier if apiHelper needs it,
-            // or if it's a direct URL construction, it might be `${PYTHON_SERVICE_URL}/semantic_search_meetings`
-            // For now, let's assume apiHelper.post knows where to send it based on a configured base URL.
-            // The endpoint name here is `/semantic_search_meetings`, which will be appended to a base URL.
             logger.info({
                 message: "Calling backend for semantic_search_meetings",
                 payload: payload,
@@ -78,7 +72,7 @@ export class SemanticSearchSkills implements IAgentSkills {
             });
 
             const response = await this.apiHelper.post<BackendSearchResponse>(
-                "/semantic_search_meetings", // This would typically be an endpoint on your Python service
+                "/semantic_search_meetings",
                 payload
             );
 
@@ -91,7 +85,6 @@ export class SemanticSearchSkills implements IAgentSkills {
             if (response && response.status === "success" && response.data) {
                 if (response.data.length > 0) {
                     const formattedResults = response.data.map(result => {
-                        // Ensure notion_page_id is valid before replacing dashes
                         const pageId = result.notion_page_id || "";
                         const notionLink = `notion://page/${pageId.replace(/-/g, "")}`;
 
@@ -145,10 +138,8 @@ export class SemanticSearchSkills implements IAgentSkills {
     }
 }
 
-// Example of how this might be registered in a main handler (illustrative)
-// import { Agent } from "../agent"; // Assuming an Agent class
-// import { ApiHelper } from "../apiHelper"; // Assuming an ApiHelper class
-//
-// const apiHelperInstance = new ApiHelper(); // With appropriate config
-// const agent = new Agent();
-// agent.registerSkills(new SemanticSearchSkills(apiHelperInstance));
+// Standalone handler function for easier integration with handler.ts switch statements
+export async function handleSemanticSearchMeetingNotesSkill(args: SkillArgs, apiHelper: ApiHelper): Promise<string> {
+    const skillInstance = new SemanticSearchSkills(apiHelper);
+    return skillInstance.handleSearchMeetingNotes(args);
+}

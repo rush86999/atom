@@ -48,6 +48,7 @@ import {
     updateUserGoal,
     updateIntentAndEntities
 } from './conversationState';
+import { handleSemanticSearchMeetingNotesSkill } from './skills/semanticSearchSkills';
 import { initializeDB as initializeLanceDB } from '../lanceDBManager'; // Renamed for clarity
 import * as lancedb from 'vectordb-lance'; // For lancedb.Connection type
 import {
@@ -989,6 +990,40 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
         }
         break;
       // --- End Autopilot Intents ---
+
+      /*
+            case "SemanticSearchMeetingNotes": // This intent needs to be defined in your NLU service
+              try {
+                // Construct SkillArgs. Ensure 'message' (original user input) is accessible in this scope.
+                // If 'message' is not in scope, args.raw_message might need to be omitted or sourced differently.
+                const skillArgs: SkillArgs = {
+                  command: "search_meeting_notes", // Command name for context
+                  params: nluResponse.entities || {}, // NLU entities, expecting 'query'
+                  user_id: userId, // userId is available in _internalHandleMessage
+                  raw_message: message // Assuming 'message' (raw user text) is in scope
+                };
+
+                // ApiHelper instance:
+                // handler.ts structure needs review for how ApiHelper is best provided to skill handlers.
+                // For this placeholder, we acknowledge it's needed.
+                // Example if an apiHelper instance was available:
+                // import { ApiHelper } from '../../_libs/api-helper'; // At top of file
+                // const apiHelper = new ApiHelper(); // Needs proper instantiation with config from agent's context
+                // textResponse = await handleSemanticSearchMeetingNotesSkill(skillArgs, apiHelper);
+
+                textResponse = "DEBUG: SemanticSearchMeetingNotes intent recognized. Handler needs ApiHelper to be properly instantiated and passed for full functionality.";
+                // logger.info(`[Handler] Intent "SemanticSearchMeetingNotes" recognized. Placeholder response. Entities: ${JSON.stringify(nluResponse.entities)}`);
+                // Using console.log if logger is not defined in this scope, or import it.
+                console.log(`[Handler] Intent "SemanticSearchMeetingNotes" recognized. Placeholder response. Entities: ${JSON.stringify(nluResponse.entities)}`);
+
+
+              } catch (error: any) {
+                // logger.error(`Error in NLU Intent "SemanticSearchMeetingNotes":`, error.message, error.stack);
+                console.error(`Error in NLU Intent "SemanticSearchMeetingNotes":`, error.message, error.stack);
+                textResponse = "Sorry, an error occurred while searching your meeting notes.";
+              }
+              break;
+      */
 
       default:
         if (nluResponse.error) {
