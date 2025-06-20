@@ -157,11 +157,118 @@ def upsert_note_vector(
 from typing import TypedDict
 
 class NoteSearchResult(TypedDict):
-    note_id: str
+    id: str  # Can be notion_page_id (for transcripts) or note_id (for general notes)
+    title: Optional[str] # e.g., meeting_title
+    date: Optional[str]  # e.g., meeting_date or updated_at (as ISO string)
     score: float # Similarity score (distance)
-    # text_content_snippet: Optional[str] # Not storing full text in LanceDB for this version
-    updated_at: Optional[str] # Store as ISO string for JSON compatibility
-    user_id: Optional[str] # Include user_id from the record if needed
+    user_id: Optional[str]
+
+
+# --- LanceDB Schema for Meeting Transcripts ---
+class MeetingTranscriptSchema(LanceModel):
+    notion_page_id: str
+    user_id: Optional[str] = None
+    meeting_title: str
+    meeting_date: datetime
+    transcript_chunk: str # The actual text content of the chunk
+    vector: List[float] = vector(1536) # Vector embedding of the transcript_chunk
+    created_at: datetime
+
+def create_meeting_transcripts_table_if_not_exists(
+    db_path: str,
+    table_name: str = "meeting_transcripts"
+) -> None:
+    """
+    Creates the meeting_transcripts LanceDB table if it doesn't already exist.
+    """
+    if not db_path:
+        print("Error: LanceDB path (LANCEDB_URI) is not configured. Cannot create meeting_transcripts table.")
+        # Or raise an error: raise ValueError("LanceDB path is required.")
+        return
+
+    try:
+        db = lancedb.connect(db_path)
+        # Ensure parent directory exists for local LanceDB
+        if "://" not in db_path: # Simple check for local path vs remote URI
+            db_dir = os.path.dirname(db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+                print(f"Created LanceDB directory for transcripts: {db_dir}")
+
+        table_names = db.table_names()
+        if table_name in table_names:
+            print(f"LanceDB table '{table_name}' already exists at {db_path}.")
+            # Optionally, open and verify schema, but for now, just check existence.
+            # table = db.open_table(table_name)
+            # print(f"Table '{table_name}' schema: {table.schema}")
+        else:
+            print(f"LanceDB table '{table_name}' not found at {db_path}. Creating new table.")
+            db.create_table(table_name, schema=MeetingTranscriptSchema, mode="create")
+            print(f"Table '{table_name}' with MeetingTranscriptSchema created successfully.")
+
+    except FileNotFoundError: # Should be caught by table_names check, but as a fallback for create_table itself
+        print(f"Error: Path for LanceDB not found at {db_path} during table creation for '{table_name}'.")
+        # Potentially re-raise or handle as a critical error
+        # raise
+    except Exception as e:
+        print(f"An error occurred while creating/checking LanceDB table '{table_name}': {e}")
+        import traceback
+        traceback.print_exc()
+        # Potentially re-raise
+        # raise
+
+
+def add_transcript_embedding(
+    db_path: str,
+    notion_page_id: str,
+    meeting_title: str,
+    meeting_date: datetime, # Expect datetime object
+    transcript_chunk: str,
+    vector_embedding: List[float],
+    user_id: Optional[str] = None,
+    table_name: str = "meeting_transcripts"
+) -> dict:
+    """
+    Adds a new meeting transcript chunk embedding to the specified LanceDB table.
+    Note: This function performs a simple add. It does not check for duplicates
+    or perform upsert operations based on notion_page_id or chunk content.
+    """
+    if not db_path:
+        return {"status": "error", "message": "LanceDB path (LANCEDB_URI) is not configured.", "code": "LANCEDB_CONFIG_ERROR"}
+    if not all([notion_page_id, meeting_title, meeting_date, transcript_chunk, vector_embedding]):
+        return {"status": "error", "message": "Missing one or more required parameters for transcript embedding.", "code": "VALIDATION_ERROR"}
+
+    try:
+        db = lancedb.connect(db_path)
+        try:
+            table = db.open_table(table_name)
+        except FileNotFoundError:
+            print(f"Error: LanceDB table '{table_name}' not found at {db_path}. Please ensure it's created first.")
+            return {"status": "error", "message": f"Table '{table_name}' does not exist. Cannot add embedding.", "code": "LANCEDB_TABLE_NOT_FOUND"}
+        except Exception as e:
+            print(f"Error opening LanceDB table '{table_name}': {e}")
+            return {"status": "error", "message": f"Failed to open LanceDB table '{table_name}': {str(e)}", "code": "LANCEDB_TABLE_ERROR"}
+
+        current_time = datetime.now()
+        new_data = [{
+            "notion_page_id": notion_page_id,
+            "user_id": user_id,
+            "meeting_title": meeting_title,
+            "meeting_date": meeting_date, # Store datetime object directly
+            "transcript_chunk": transcript_chunk,
+            "vector": vector_embedding,
+            "created_at": current_time
+        }]
+
+        table.add(new_data)
+        print(f"Successfully added transcript embedding for Notion page ID '{notion_page_id}' to table '{table_name}'.")
+        return {"status": "success", "message": "Transcript embedding added successfully."}
+
+    except Exception as e:
+        print(f"An error occurred in add_transcript_embedding: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": f"LanceDB operation failed to add transcript embedding: {str(e)}", "code": "LANCEDB_OPERATION_ERROR"}
 
 
 # --- LanceDB Schema for Training Events ---
@@ -278,18 +385,57 @@ def search_similar_notes(
 
         # Select specific columns to return. Add others if stored and needed.
         # 'vector' and 'text_content_hash' are usually not needed in search results.
-        search_query = search_query.select(["note_id", "user_id", "updated_at"]) # _distance is usually included by default
+        select_fields = ["user_id"] # Always include user_id and the implicit _distance (score)
+        if table_name == "meeting_transcripts":
+            select_fields.extend(["notion_page_id", "meeting_title", "meeting_date"])
+        elif table_name == "notes": # Default or explicit "notes" table
+            select_fields.extend(["note_id", "updated_at"])
+        else:
+            # For unknown table types, we might select common fields or minimal fields
+            # For now, let's assume specific handling or it defaults to just user_id + score
+            # Or, if a schema is strictly enforced elsewhere, this 'else' might not be needed.
+            # To be safe, if table_name is not recognized, select only user_id
+            # and expect other fields to be handled via .get() in formatting.
+            # However, the query will fail if fields don't exist.
+            # A better minimal set might be just user_id, or an error if table_name is unknown.
+            # For this iteration, we'll rely on the caller to use known table_names.
+            # If select_fields remains just ["user_id"], it's not very useful.
+            # Defaulting to "notes" schema fields if table_name is not "meeting_transcripts"
+            select_fields.extend(["note_id", "updated_at"])
 
-        results_raw = search_query.to_list() # Returns a list of dictionaries
 
-        # Transform results
-        # Each item in results_raw is a dict, e.g., {'note_id': '...', 'user_id': '...', 'updated_at': datetime_obj, '_distance': ...}
+        search_query = search_query.select(select_fields)
+        results_raw = search_query.to_list()
+
         formatted_results: List[NoteSearchResult] = []
         for record in results_raw:
+            item_id = ""
+            item_title = None
+            item_date_obj = None
+
+            if table_name == "meeting_transcripts":
+                item_id = record.get("notion_page_id", "")
+                item_title = record.get("meeting_title")
+                item_date_obj = record.get("meeting_date")
+            elif table_name == "notes":
+                item_id = record.get("note_id", "")
+                # "notes" table doesn't have a "title" field in its schema (LanceDBNoteSchema)
+                # It has text_content_hash, created_at, updated_at.
+                # We could potentially add a way to get a snippet or title if it were stored.
+                # For now, title will be None for "notes".
+                item_date_obj = record.get("updated_at")
+
+            item_date_iso = None
+            if isinstance(item_date_obj, datetime):
+                item_date_iso = item_date_obj.isoformat()
+            elif item_date_obj is not None: # If it's already a string (e.g. from older data or different source)
+                item_date_iso = str(item_date_obj)
+
             formatted_results.append({
-                "note_id": record["note_id"],
+                "id": item_id,
+                "title": item_title,
+                "date": item_date_iso,
                 "score": record["_distance"], # LanceDB uses _distance for similarity score
-                "updated_at": record["updated_at"].isoformat() if isinstance(record.get("updated_at"), datetime) else str(record.get("updated_at")),
                 "user_id": record.get("user_id")
             })
 
