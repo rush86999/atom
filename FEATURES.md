@@ -3,7 +3,7 @@
 Atom is designed to enhance your productivity through a comprehensive suite of AI-powered and integrated features.
 
 ### Core: AI-Powered Productivity Assistance
-*   **Conversational AI Agent:** Interact with Atom through a chat interface to manage tasks, schedule meetings, get information, and control integrations.
+*   **Conversational AI Agent:** Interact with Atom through a chat interface to manage tasks, schedule meetings, get information, and control integrations. The agent's Natural Language Understanding (NLU) has been enhanced for more robust interpretation of commands related to task management (create, query, update using a Notion backend), calendar scheduling (handling durations, specific time queries), and can now perform semantic searches across meeting transcripts.
 *   **User Onboarding:** Guided setup wizard to configure Atom, connect integrations, and set initial preferences (e.g., work day, default alarms, primary calendar).
 *   **User Authentication:** Secure login system for protecting your data and configurations.
 *   **Configurable Agent Settings:** Customize various aspects of the Atom agent's behavior and its interaction with integrated services.
@@ -28,22 +28,35 @@ Atom revolutionizes how you manage your time with a suite of AI-powered scheduli
 *   **GPT-Powered Meeting Assistance:**
     *   Automatically generate meeting agendas based on event details or prompts.
     *   Summarize your daily availability to simplify scheduling conversations.
+*   **Automated Action Item & Decision Logging:** Leveraging its summarization capabilities, Atom can process meeting transcripts (from live attendance or processed recordings) to identify and extract key decisions and action items. This structured information can be automatically saved into your Notion meeting notes, helping you keep track of important outcomes.
+*   NLU for calendar event creation and querying is now more robust, understanding specific durations (e.g., "schedule for 45 minutes") and more precise time-based questions (e.g., "Am I free at 3 PM on Friday?").
 *   **Event-Specific Time Preferences:** Set preferred meeting times for individual events, overriding global preferences where necessary.
 *   **Follow-up Event Creation:** Quickly create follow-up events based on existing meetings or tasks, ensuring timely next steps.
 
-### Task Management
-*   **Task Creation & Management:** Add, view, edit, and manage your tasks within Atom.
-*   **Automated Time Blocking for Tasks:** Atom can automatically find and block time on your calendar for tasks that have daily or weekly deadlines. It intelligently places these blocks based on task priority and your defined requirements (e.g., soft or hard deadlines).
-*   **Task Scheduling:** Define deadlines for your tasks and have Atom schedule them onto your calendar, integrating them with your other events.
-*   **GPT-Powered Task Assistance:**
-    *   Break down complex tasks into smaller, more manageable sub-tasks.
-    *   Receive "how-to" instructions or guidance for completing specific tasks.
+### Task Management (Voice-Powered with Notion Backend)
+Atom now offers comprehensive voice-powered task management, using a dedicated Notion database that you configure.
+*   **Task Creation:** Easily create new tasks using natural language (e.g., "Atom, add 'Draft Q4 report' to my work list due next Friday"). Atom captures the description, due date/time, priority, and can assign it to a specific list.
+*   **Task Querying:** Ask Atom about your tasks with various filters. For example: "What are my tasks for today?", "Show me overdue items on my shopping list," or "List high priority work tasks."
+*   **Task Updates:** Modify existing tasks using voice commands, such as marking them as complete (e.g., "Atom, mark 'buy groceries' as done") or changing their properties.
+*   **Flexible Task Properties:** Tasks are stored in Notion with properties like:
+    *   `Task Description` (Title type in Notion)
+    *   `Due Date` (Date type)
+    *   `Status` (Select type, e.g., "To Do", "In Progress", "Done")
+    *   `Priority` (Select type, e.g., "High", "Medium", "Low")
+    *   `List Name` (Text type, for categorizing tasks like "Work", "Personal")
+    *   `Notes` (Page content for additional details)
+*   **Configuration:** Requires the `ATOM_NOTION_TASKS_DATABASE_ID` environment variable to be set to the ID of your Notion tasks database. You'll need to create this database in Notion with the suggested properties.
 
 ### Integrated Note-Taking & Research
 Keep your knowledge organized and accessible with Atom's integrated capabilities:
 *   **Note-Taking (Notion & Audio):** Create text and audio notes directly. Audio notes are automatically transcribed (e.g., using Deepgram) and saved, typically within Notion. Your notes can be searched, updated, and linked to tasks or calendar events.
 *   **Multi-Agent Research System (Notion & LanceDB):** Initiate research projects based on simple queries. A lead AI agent decomposes your query into sub-tasks and assigns them to specialized sub-agents. These agents perform research (e.g., web searches, internal Notion searches using LanceDB for vector-based information retrieval) and log their findings in a dedicated Notion database. The lead agent then synthesizes this information into a comprehensive final report, also in Notion.
 *   **Python API for Notes & Research:** Backend handlers and APIs for managing notes and research processes programmatically.
+*   **Searchable Meeting Archive (Semantic Search):**
+    *   Unlock the knowledge in your past meetings. Transcripts stored in Notion (e.g., from live meeting processing or other sources) can be automatically converted into vector embeddings using AI models (like OpenAI).
+    *   These embeddings are stored in a LanceDB vector database, enabling powerful semantic search capabilities.
+    *   You can ask Atom natural language questions like, "What were the main points about the Q3 budget?" or "Find meetings where we discussed marketing collaborations," and Atom will search the content of your transcripts to find the most relevant discussions.
+    *   **Dependencies:** This feature requires a running LanceDB instance (configure via `LANCEDB_URI`), an `OPENAI_API_KEY` for generating embeddings, and the Python backend service to be operational.
 
 ### Automation & AI Capabilities
 Leverage Atom's advanced automation and AI functionalities:
@@ -53,6 +66,35 @@ Leverage Atom's advanced automation and AI functionalities:
 *   **Event-to-Vector Processing:** For semantic search and event matching, Atom processes event information into vectors, enabling more accurate matching and templating (uses LanceDB).
 *   **Live Meeting Attendance:** (If confirmed as fully functional) Atom can "attend" live meetings to perform tasks like automated note-taking or action item identification (details on this capability would be needed based on implementation).
 *   **Audio Processing:** Transcribe audio from various sources for notes, commands, or meeting recordings.
+
+### Dependencies & Setup Notes for Advanced Features
+
+To leverage some of Atom's more advanced capabilities, specific setup and configurations are required:
+
+*   **Notion Task Management:**
+    *   Create a dedicated database in your Notion workspace for tasks.
+    *   This database should have the following properties (case-sensitive names recommended for easier integration, types are Notion property types):
+        *   `Task Description` (Type: `Title`) - *Required*
+        *   `Due Date` (Type: `Date`) - *Optional*
+        *   `Status` (Type: `Select` with options like "To Do", "In Progress", "Done", "Blocked", "Cancelled") - *Required, defaults to "To Do"*
+        *   `Priority` (Type: `Select` with options like "High", "Medium", "Low") - *Optional*
+        *   `List Name` (Type: `Text`) - *Optional, for task categorization*
+    *   Set the `ATOM_NOTION_TASKS_DATABASE_ID` environment variable to the ID of this Notion database.
+
+*   **Meeting Transcript Semantic Search:**
+    *   Ensure your meeting transcripts are being stored in Notion (e.g., via Atom's live meeting processing or manual additions to a notes database).
+    *   Set up a LanceDB instance. This can be a local directory (e.g., `./lance_db`) or a connection to a remote LanceDB service.
+    *   Configure the `LANCEDB_URI` environment variable with the connection string for your LanceDB instance.
+    *   An `OPENAI_API_KEY` is required for generating the text embeddings stored in LanceDB.
+    *   The Python backend service (`python_api_service`) must be running and correctly configured, as it handles the embedding storage and search query processing.
+
+*   **Wake Word Detection:**
+    *   This feature is marked as `(If confirmed as fully functional)`.
+    *   It requires the setup of an external WebSocket-based Speech-to-Text (STT) service, referred to as the `audio_processor`. The URL for this service must be configured via `AUDIO_PROCESSOR_URL`. The implementation or specific choice of this STT service is currently up to the user.
+
+*   **Live Meeting Attendance:**
+    *   This feature is also marked as `(If confirmed as fully functional)`.
+    *   Its ability to reliably capture meeting audio (not just microphone input) is highly dependent on the user's operating system and system audio configuration. Users typically need to route their meeting application's output audio to a virtual input device that Atom can then listen to. Detailed platform-specific guides for this audio routing are recommended but not yet part of this documentation.
 
 ### Integrations
 Atom connects with a wide range of third-party services to create a unified productivity hub:

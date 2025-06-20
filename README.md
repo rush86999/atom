@@ -30,9 +30,11 @@ Atom is a powerful and flexible open-source AI assistant designed to streamline 
 Tired of juggling multiple apps and struggling to stay organized? Atom is here to help you reclaim your focus and boost your productivity. Here are a few ways Atom can simplify your work and personal life:
 
 *   **Effortless Meeting Coordination:** "Find a time next week for a 30-minute meeting with Sarah and John, prioritizing Wednesday afternoon." Atom will check everyone's availability (integrating with their calendars if permitted) and propose optimal times.
-*   **Smart Task Management:** "Remind me to draft the project proposal by end of day tomorrow and block out 2 hours for it in the morning." Atom can create reminders and automatically schedule focused work time.
+*   **Smart Task Management (Voice-Powered):** Use natural voice commands like "Atom, create a task: follow up with marketing by Friday" or "Atom, what are my tasks for today?" Atom manages these tasks in a dedicated Notion database you configure.
 *   **Automated Information Gathering:** "Research the latest trends in AI-powered personal assistants and summarize the key findings in a Notion document." Atom's research agents can browse, collect, and synthesize information, delivering it directly to your knowledge base.
 *   **Voice-Powered Note-Taking:** While commuting, you can say: "Atom, take an audio note: Idea for marketing campaign - focus on social media engagement and influencer collaborations." Atom will transcribe the audio and save it to Notion.
+*   **Automated Meeting Summaries & Action Items:** Atom can process your meeting transcripts (e.g., from live meeting attendance or uploaded recordings) and then automatically extract key decisions and action items directly into your Notion meeting notes.
+*   **Intelligent Information Retrieval:** Ask Atom "What did we decide about Project X?" or "Search my meetings for discussions on marketing strategy." Atom can semantically search through your transcribed meeting archives (stored in Notion & LanceDB) to find relevant information quickly.
 *   **Proactive Schedule Optimization:** With Autopilot, Atom can learn your work patterns and preferences. "My mornings are for deep work. Keep them as free of meetings as possible." Atom will then intelligently schedule new events accordingly.
 *   **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
 *   **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
@@ -51,16 +53,22 @@ Atom comes packed with a variety of features designed to enhance your productivi
 
 *   **Smart Scheduling & Time Management:** AI-powered tools to manage your calendar effectively.
 *   **Integrated Note-Taking & Research:** Seamlessly create notes and conduct research with AI assistance.
+*   Comprehensive voice-driven task management using a Notion database backend.
+*   Semantic search capabilities across your meeting transcript archive.
+*   Automated extraction of action items and decisions from meeting transcripts.
 
 For a detailed list and explanation of all features, please see our [Features Document](./FEATURES.md).
 
 ## Core Agent Capabilities & Commands
 
 The Atom Agent understands a variety of commands to interact with your integrated services. Commands are typically issued in a chat interface with the agent.
+The agent's natural language understanding (NLU) has been significantly enhanced, particularly for creating and querying calendar events and for managing tasks using voice commands.
 
 Atom provides a rich set of commands to manage your productivity. You can interact with Atom to:
 *   **Manage your calendar:** List, create, and modify events across Google Calendar and Microsoft Teams.
 *   **Handle CRM tasks:** Create and retrieve contacts in HubSpot.
+*   **Manage tasks in Notion:** Create, query, and update tasks in your designated Notion task database using natural language (e.g., "Atom, add 'buy milk' to my shopping list due tomorrow," "Atom, what are my work tasks for this week?").
+*   **Search meeting transcripts:** Perform semantic searches across your meeting notes (e.g., "Atom, find meetings where we discussed the Q3 budget").
 *   **Communicate via Slack:** Send messages and list channels.
 *   **Manage video meetings:** List and get details for Zoom and Google Meet events.
 *   **Process payments:** Interact with Stripe to list payments.
@@ -75,6 +83,11 @@ For a more detailed list of commands and their specific syntax, please refer to 
 The Atom Agent uses environment variables for its configuration and to connect to various third-party services.
 
 Atom requires various environment variables to be set for full functionality, including API keys for OpenAI, Notion, Deepgram, and credentials for integrated services like Google Calendar, HubSpot, Slack, Zoom, Microsoft Teams, Stripe, and QuickBooks Online. You will also need to configure settings for LanceDB storage and web search APIs.
+Additional important variables for new features include:
+*   `ATOM_NOTION_TASKS_DATABASE_ID`: The ID of your Notion database to be used for task management.
+*   `LANCEDB_URI`: The URI for your LanceDB instance (e.g., `./lance_db` for a local setup, or a remote URI if applicable). This is required for the semantic search of meeting transcripts.
+*   `PYTHON_API_SERVICE_BASE_URL`: (Optional) If your Python backend service runs on a different URL than the default (`http://localhost:8080`), specify it here.
+Remember to consult the `.env.example` file for a comprehensive list.
 
 For a comprehensive list of all environment variables and their setup, please refer to the `.env.example` file in the `atomic-docker/project/` directory and the detailed setup instructions in the deployment guides for [Local Docker Compose](./atomic-docker/README.md) and [AWS Cloud Deployment](./deployment/aws/README.md).
 
@@ -116,6 +129,7 @@ For local development, testing, and self-hosting on a single machine, the projec
 For a scalable and robust cloud environment, you can deploy the entire application stack to your own AWS account. This deployment is managed by the AWS Cloud Development Kit (CDK) and provisions all necessary infrastructure, including managed services for databases, messaging, and search where appropriate.
 
 -   **Features:** Deploys core application services, Optaplanner, a new `python-agent` service (for notes and research), and utilizes AWS S3, Amazon EFS (for LanceDB vector stores), and Amazon MSK Serverless. Amazon OpenSearch Service is no longer used.
+Note: The Python backend service (often named `python_api_service` or `python-agent` in deployment configurations) has been updated with new responsibilities. It now handles task management operations with Notion and semantic search queries using LanceDB, in addition to its previous roles. Ensure it is deployed with access to necessary configurations (Notion tokens, LanceDB URI) and that the `notion-client>=2.0.0` dependency is included in its environment.
 
 -   **Detailed Guide:** For prerequisites, setup instructions, deployment steps, and management, please refer to the comprehensive [AWS Deployment Guide](./deployment/aws/README.md).
 
