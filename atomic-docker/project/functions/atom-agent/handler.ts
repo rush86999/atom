@@ -76,6 +76,11 @@ import {
     getAuthUri as getQuickBooksAuthUri
 } from './skills/quickbooksSkills';
 import {
+    enableAutopilot,
+    disableAutopilot,
+    getAutopilotStatus
+} from './skills/autopilotSkills'; // Added Autopilot skills
+import {
     createSchedulingRule,
     blockCalendarTime,
     initiateTeamMeetingScheduling,
@@ -882,6 +887,108 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
             textResponse = "Sorry, an error occurred while fetching QuickBooks invoice details via NLU.";
         }
         break;
+
+      // --- Autopilot Intents ---
+      case "EnableAutopilot":
+        try {
+            console.log('[Handler] Intent: EnableAutopilot, Entities:', nluResponse.entities);
+            // The query for enableAutopilot might need a structured JSON string.
+            // For now, we'll try to use raw_query or stringify all entities.
+            // This part will need refinement based on NLU capabilities for Autopilot.
+            let autopilotQuery = "";
+            if (nluResponse.entities?.raw_query && typeof nluResponse.entities.raw_query === 'string') {
+                autopilotQuery = nluResponse.entities.raw_query;
+            } else if (nluResponse.entities) {
+                // Fallback: stringify all entities if raw_query isn't specific enough or available
+                // This assumes `parseQuery` in autopilotSkills can handle it or it's a simple ID.
+                autopilotQuery = JSON.stringify(nluResponse.entities);
+            }
+
+            const autopilotEnableResponse = await enableAutopilot(userId, autopilotQuery);
+            if (autopilotEnableResponse.ok && autopilotEnableResponse.data) {
+                textResponse = `Autopilot enabled successfully. Details: ${JSON.stringify(autopilotEnableResponse.data)}`;
+            } else {
+                textResponse = `Failed to enable Autopilot. Error: ${autopilotEnableResponse.error?.message || 'Unknown error'}`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "EnableAutopilot":`, error.message, error.stack);
+            textResponse = "Sorry, there was an unexpected issue enabling Autopilot.";
+        }
+        break;
+
+      case "DisableAutopilot":
+        try {
+            console.log('[Handler] Intent: DisableAutopilot, Entities:', nluResponse.entities);
+            // Query for disable should ideally be the autopilotId/eventId
+            let autopilotQuery = "";
+            if (nluResponse.entities?.raw_query && typeof nluResponse.entities.raw_query === 'string') {
+                autopilotQuery = nluResponse.entities.raw_query;
+            } else if (nluResponse.entities?.autopilot_id && typeof nluResponse.entities.autopilot_id === 'string') {
+                autopilotQuery = nluResponse.entities.autopilot_id;
+            } else if (nluResponse.entities?.event_id && typeof nluResponse.entities.event_id === 'string') {
+                autopilotQuery = nluResponse.entities.event_id; // Assuming event_id can be used as query
+            } else if (nluResponse.entities) {
+                 autopilotQuery = JSON.stringify(nluResponse.entities); // Fallback
+            }
+
+            if (!autopilotQuery) {
+                textResponse = "Could not disable Autopilot: Missing ID in your request. Please specify the Autopilot ID or event ID.";
+            } else {
+                const autopilotDisableResponse = await disableAutopilot(userId, autopilotQuery);
+                if (autopilotDisableResponse.ok && autopilotDisableResponse.data?.success) {
+                    textResponse = "Autopilot disabled successfully.";
+                } else {
+                    textResponse = `Failed to disable Autopilot. Error: ${autopilotDisableResponse.error?.message || 'Unknown error or already disabled'}`;
+                }
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "DisableAutopilot":`, error.message, error.stack);
+            textResponse = "Sorry, there was an unexpected issue disabling Autopilot.";
+        }
+        break;
+
+      case "GetAutopilotStatus":
+        try {
+            console.log('[Handler] Intent: GetAutopilotStatus, Entities:', nluResponse.entities);
+            // Query for status can be empty (all for user) or specific autopilotId/eventId
+            let autopilotQuery = "";
+            if (nluResponse.entities?.raw_query && typeof nluResponse.entities.raw_query === 'string') {
+                autopilotQuery = nluResponse.entities.raw_query;
+            } else if (nluResponse.entities?.autopilot_id && typeof nluResponse.entities.autopilot_id === 'string') {
+                autopilotQuery = nluResponse.entities.autopilot_id;
+            } else if (nluResponse.entities?.event_id && typeof nluResponse.entities.event_id === 'string') {
+                autopilotQuery = nluResponse.entities.event_id; // Assuming event_id can be used as query
+            }
+            // If autopilotQuery is empty, getAutopilotStatus skill should handle it by listing all for the user.
+
+            const autopilotStatusResponse = await getAutopilotStatus(userId, autopilotQuery);
+            if (autopilotStatusResponse.ok && autopilotStatusResponse.data) {
+                // Data could be AutopilotType or AutopilotType[]
+                const statusData = autopilotStatusResponse.data;
+                if (Array.isArray(statusData)) {
+                    if (statusData.length === 0) {
+                        textResponse = "No Autopilot configurations found for you.";
+                    } else {
+                        textResponse = `Found ${statusData.length} Autopilot configurations:\n`;
+                        statusData.forEach(ap => {
+                            textResponse += `- ID: ${ap.id}, Scheduled at: ${ap.scheduleAt}, Timezone: ${ap.timezone}\n`;
+                        });
+                    }
+                } else { // Single AutopilotType object
+                     textResponse = `Autopilot Status (ID: ${statusData.id}): Scheduled at ${statusData.scheduleAt} in ${statusData.timezone}. Payload: ${JSON.stringify(statusData.payload, null, 2)}`;
+                }
+            } else if (autopilotStatusResponse.ok && !autopilotStatusResponse.data) {
+                 textResponse = "No specific Autopilot configuration found for the given query, or no configurations exist.";
+            }
+            else {
+                textResponse = `Failed to get Autopilot status. Error: ${autopilotStatusResponse.error?.message || 'Unknown error'}`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "GetAutopilotStatus":`, error.message, error.stack);
+            textResponse = "Sorry, there was an unexpected issue fetching Autopilot status.";
+        }
+        break;
+      // --- End Autopilot Intents ---
 
       default:
         if (nluResponse.error) {

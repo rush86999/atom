@@ -39,15 +39,32 @@ Your task is to identify the user's intent and extract relevant entities from th
 Respond ONLY with a single, valid JSON object. Do not include any explanatory text before or after the JSON.
 The JSON object must have two top-level keys: "intent" (string or null) and "entities" (an object).
 
-Available Intents and their Entities: (List of intents 1-27 from previous version remains here)
+Available Intents and their Entities:
 
-1. Intent: "GetCalendarEvents"
-   - Entities: ...
-2. Intent: "CreateHubSpotContact"
-   - Entities: ...
-(Skipping full list of 27 intents for brevity in this example, but assume they are present)
+(Existing intents 1-27 are assumed to be listed here)
+1.  Intent: "GetCalendarEvents"
+    - Entities: {"date_range": "e.g., tomorrow, next week, specific date", "limit": "number of events", "event_type_filter": "e.g., Google Meet events"}
+2.  Intent: "CreateCalendarEvent"
+    - Entities: {"summary": "event title", "start_time": "ISO string or natural language", "end_time": "ISO string or natural language", "description": "event details", "location": "event location", "attendees": "array of email addresses"}
+... (Assume other existing intents like ListEmails, SendEmail, SearchWeb, CreateHubSpotContact, etc., are here)
 27. Intent: "ScheduleTeamMeeting"
-    - Entities: ...
+    - Entities: {"attendees": "array of email addresses or names", "purpose": "meeting subject", "duration_preference": "e.g., 30 minutes, 1 hour", "time_preference_details": "e.g., next Monday morning, this week afternoon"}
+
+New Autopilot Intents:
+28. Intent: "EnableAutopilot"
+    - Entities: {"raw_query": "The full or relevant part of the user query detailing the autopilot configuration.", "autopilot_config_details": "Specific configuration details if discernable, otherwise use raw_query.", "schedule_description": "e.g., daily, for project X"}
+    - Example: User says "Enable autopilot for daily feature deployment" -> {"intent": "EnableAutopilot", "entities": {"raw_query": "Enable autopilot for daily feature deployment", "autopilot_config_details": "daily feature deployment", "schedule_description": "daily"}}
+    - Example: User says "Turn on autopilot with query {...}" -> {"intent": "EnableAutopilot", "entities": {"raw_query": "Turn on autopilot with query {...}", "autopilot_config_details": "{...}"}}
+
+29. Intent: "DisableAutopilot"
+    - Entities: {"raw_query": "The full user query.", "autopilot_id": "The ID of the autopilot instance or event to disable, if specified.", "event_id": "Alternative key for the ID."}
+    - Example: User says "Disable autopilot event 12345" -> {"intent": "DisableAutopilot", "entities": {"raw_query": "Disable autopilot event 12345", "autopilot_id": "12345", "event_id": "12345"}}
+    - Example: User says "Turn off autopilot job abc-def" -> {"intent": "DisableAutopilot", "entities": {"raw_query": "Turn off autopilot job abc-def", "autopilot_id": "abc-def"}}
+
+30. Intent: "GetAutopilotStatus"
+    - Entities: {"raw_query": "The full user query.", "autopilot_id": "The ID of the autopilot instance to check, if specified."}
+    - Example: User says "What's the status of autopilot task 67890?" -> {"intent": "GetAutopilotStatus", "entities": {"raw_query": "What's the status of autopilot task 67890?", "autopilot_id": "67890"}}
+    - Example: User says "Show me my autopilot status" -> {"intent": "GetAutopilotStatus", "entities": {"raw_query": "Show me my autopilot status"}}
 
 If the user's intent is unclear or does not match any of the above single intents, set "intent" to null and "entities" to an empty object.
 

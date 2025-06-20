@@ -9,6 +9,8 @@ import { understandMessage } from './skills/nluService';
 import * as calendarSkills from './skills/calendarSkills';
 import * as quickbooksSkills from './skills/quickbooksSkills';
 // ... other skill imports if needed for NLU testing
+import * as autopilotSkills from './skills/autopilotSkills'; // Added for Autopilot
+
 
 // Mock NLU Service
 const mockedUnderstandMessage = jest.fn();
@@ -22,6 +24,9 @@ const mockedCreateHubSpotContact = jest.fn(); // Already defined in previous Hub
 const mockedSendSlackMessage = jest.fn();   // Already defined
 const mockedListQuickBooksInvoices = jest.fn();
 const mockedGetQuickBooksInvoiceDetails = jest.fn();
+const mockedEnableAutopilot = jest.fn(); // Added for Autopilot
+const mockedDisableAutopilot = jest.fn(); // Added for Autopilot
+const mockedGetAutopilotStatus = jest.fn(); // Added for Autopilot
 // Add mocks for other skills as NLU intents are tested for them e.g. Stripe, Zoom, Calendly, MS Teams
 
 jest.mock('./skills/calendarSkills', () => ({
@@ -41,6 +46,12 @@ jest.mock('./skills/quickbooksSkills', () => ({
   ...jest.requireActual('./skills/quickbooksSkills'),
   listQuickBooksInvoices: mockedListQuickBooksInvoices,
   getQuickBooksInvoiceDetails: mockedGetQuickBooksInvoiceDetails,
+}));
+jest.mock('./skills/autopilotSkills', () => ({ // Added for Autopilot
+  ...jest.requireActual('./skills/autopilotSkills'),
+  enableAutopilot: mockedEnableAutopilot,
+  disableAutopilot: mockedDisableAutopilot,
+  getAutopilotStatus: mockedGetAutopilotStatus,
 }));
 
 // Mock constants module - ensure all constants used by the handler are defined
@@ -93,6 +104,9 @@ describe('handleMessage - NLU Intent Handling', () => {
     mockedSendSlackMessage.mockReset();   // Use the module-level mock
     mockedListQuickBooksInvoices.mockReset();
     mockedGetQuickBooksInvoiceDetails.mockReset();
+    mockedEnableAutopilot.mockReset(); // Added for Autopilot
+    mockedDisableAutopilot.mockReset(); // Added for Autopilot
+    mockedGetAutopilotStatus.mockReset(); // Added for Autopilot
     // Reset other mocked skill functions here
 
     // Spy on console methods
@@ -266,7 +280,7 @@ describe('handleMessage - NLU Intent Handling', () => {
       error: 'NLU Service is down for maintenance.', intent: null, entities: {}, originalMessage: "any message"
     });
     const result = await handleMessage("any message");
-    expect(result).toContain("Sorry, I'm having trouble understanding requests right now. Please try again later.");
+    expect(result.text).toContain("Sorry, I'm having trouble understanding requests right now. Please try again later.");
   });
 
   it('should return message for NLU recognized but not implemented intent', async () => {
@@ -274,9 +288,164 @@ describe('handleMessage - NLU Intent Handling', () => {
       intent: 'OrderPizza', entities: { size: 'large', topping: 'pepperoni' }, originalMessage: "order a large pepperoni pizza", error: undefined
     });
     const result = await handleMessage("order a large pepperoni pizza");
-    expect(result).toContain("I understood your intent as 'OrderPizza'");
-    expect(result).toContain("not fully set up to handle that specific request conversationally yet");
+    expect(result.text).toContain("I understood your intent as 'OrderPizza'");
+    expect(result.text).toContain("not fully set up to handle that specific request conversationally yet");
   });
+
+  // --- Autopilot Intent Tests ---
+  describe('Autopilot Intents', () => {
+    const mockUserId = "mock_user_id_from_handler"; // Matching what handler's getCurrentUserId returns
+    const ttsAudioUrl = "http://tts.service/audio.mp3"; // Mock TTS response
+
+    beforeEach(() => {
+        // Mock global fetch for TTS calls, assuming handleMessage will call TTS
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ audio_url: ttsAudioUrl, status: "success" }),
+        } as Response);
+    });
+
+    afterEach(() => {
+        // delete global.fetch; // Or restore original fetch if saved
+    });
+
+    it('should handle EnableAutopilot intent successfully', async () => {
+      const nluEntities = { raw_query: "enable autopilot for daily tasks", autopilot_config_details: "daily tasks" };
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'EnableAutopilot',
+        entities: nluEntities,
+        originalMessage: "enable autopilot for daily tasks",
+        error: undefined
+      });
+      mockedEnableAutopilot.mockResolvedValue({
+        ok: true,
+        data: { id: 'ap-123', userId: mockUserId, scheduleAt: 'tomorrow', payload: nluEntities.autopilot_config_details } as any
+      });
+
+      const result = await handleMessage("enable autopilot for daily tasks");
+
+      expect(mockedUnderstandMessage).toHaveBeenCalledWith("enable autopilot for daily tasks", undefined, null); // LTM context is null by default in this test path
+      expect(mockedEnableAutopilot).toHaveBeenCalledWith(mockUserId, JSON.stringify(nluEntities));
+      expect(result.text).toContain('Autopilot enabled successfully.');
+      expect(result.text).toContain('ap-123');
+    });
+
+    it('should handle EnableAutopilot intent failure', async () => {
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'EnableAutopilot',
+        entities: { raw_query: "enable autopilot" },
+        originalMessage: "enable autopilot",
+        error: undefined
+      });
+      mockedEnableAutopilot.mockResolvedValue({
+        ok: false,
+        error: { code: 'API_ERROR', message: 'Failed to create trigger' }
+      });
+
+      const result = await handleMessage("enable autopilot");
+      expect(mockedEnableAutopilot).toHaveBeenCalledWith(mockUserId, JSON.stringify({ raw_query: "enable autopilot" }));
+      expect(result.text).toContain('Failed to enable Autopilot. Error: Failed to create trigger');
+    });
+
+    it('should handle DisableAutopilot intent successfully', async () => {
+      const nluEntities = { raw_query: "disable autopilot event ap-123", autopilot_id: "ap-123" };
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'DisableAutopilot',
+        entities: nluEntities,
+        originalMessage: "disable autopilot event ap-123",
+        error: undefined
+      });
+      mockedDisableAutopilot.mockResolvedValue({
+        ok: true,
+        data: { success: true }
+      });
+
+      const result = await handleMessage("disable autopilot event ap-123");
+      expect(mockedDisableAutopilot).toHaveBeenCalledWith(mockUserId, "ap-123"); // Query becomes the ID
+      expect(result.text).toContain('Autopilot disabled successfully.');
+    });
+
+    it('should handle DisableAutopilot intent when autopilot_id is missing in NLU', async () => {
+      const nluEntities = { raw_query: "disable autopilot" }; // No ID provided
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'DisableAutopilot',
+        entities: nluEntities,
+        originalMessage: "disable autopilot",
+        error: undefined
+      });
+      // The skill itself would return an error if ID is missing, handler passes empty query from stringified empty entities
+      // Or, if we expect the handler to catch this (it currently doesn't explicitly, relies on skill)
+      // For this test, we assume the skill handles the missing ID logic.
+      // The handler will pass `JSON.stringify(nluEntities)` which is `{"raw_query":"disable autopilot"}`
+      // The skill's `parseQuery` will result in no eventId.
+      mockedDisableAutopilot.mockResolvedValue({
+        ok: false,
+        error: { code: 'VALIDATION_ERROR', message: 'eventId (autopilotId) is required in query to disable Autopilot.'}
+      });
+
+
+      const result = await handleMessage("disable autopilot");
+      expect(mockedDisableAutopilot).toHaveBeenCalledWith(mockUserId, JSON.stringify(nluEntities));
+      expect(result.text).toContain('Failed to disable Autopilot. Error: eventId (autopilotId) is required');
+    });
+
+
+    it('should handle GetAutopilotStatus intent for a specific ID', async () => {
+      const nluEntities = { raw_query: "status for autopilot ap-123", autopilot_id: "ap-123" };
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'GetAutopilotStatus',
+        entities: nluEntities,
+        originalMessage: "status for autopilot ap-123",
+        error: undefined
+      });
+      mockedGetAutopilotStatus.mockResolvedValue({
+        ok: true,
+        data: { id: 'ap-123', userId: mockUserId, scheduleAt: 'daily', payload: {} } as any
+      });
+
+      const result = await handleMessage("status for autopilot ap-123");
+      expect(mockedGetAutopilotStatus).toHaveBeenCalledWith(mockUserId, "ap-123");
+      expect(result.text).toContain('Autopilot Status (ID: ap-123): Scheduled at daily');
+    });
+
+    it('should handle GetAutopilotStatus intent for all statuses for a user', async () => {
+      const nluEntities = { raw_query: "get my autopilot status" };
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'GetAutopilotStatus',
+        entities: nluEntities,
+        originalMessage: "get my autopilot status",
+        error: undefined
+      });
+      // Simulate skill returning a single status (as per current listAutopilotsGivenUserId behavior)
+      mockedGetAutopilotStatus.mockResolvedValue({
+        ok: true,
+        data: { id: 'ap-user-default', userId: mockUserId, scheduleAt: 'weekly', payload: {} } as any
+      });
+
+      const result = await handleMessage("get my autopilot status");
+      // Query will be empty string as autopilot_id is not in nluEntities after JSON.stringify and then parsed by skill.
+      // The handler passes JSON.stringify(nluEntities) -> `{"raw_query":"get my autopilot status"}`
+      // The skill's `parseQuery` will result in an empty autopilotId if not explicitly passed.
+      expect(mockedGetAutopilotStatus).toHaveBeenCalledWith(mockUserId, JSON.stringify(nluEntities));
+      expect(result.text).toContain('Autopilot Status (ID: ap-user-default): Scheduled at weekly');
+    });
+     it('should handle GetAutopilotStatus when no configurations are found', async () => {
+      mockedUnderstandMessage.mockResolvedValue({
+        intent: 'GetAutopilotStatus',
+        entities: { raw_query: "get my autopilot status" },
+        originalMessage: "get my autopilot status",
+        error: undefined
+      });
+      mockedGetAutopilotStatus.mockResolvedValue({
+        ok: true,
+        data: null // Simulate no data found
+      });
+      const result = await handleMessage("get my autopilot status");
+      expect(result.text).toContain("No specific Autopilot configuration found for the given query, or no configurations exist.");
+    });
+
+  });
+  // --- End Autopilot Intent Tests ---
 });
 
 // Keep the existing default fallback test, but ensure its expected message matches the new help text.
