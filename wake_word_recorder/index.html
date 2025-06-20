@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atom Wake Word Recorder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Atom Wake Word Recorder</h1>
+
+    <div id="instructions">
+        <p>Please say the word 'Atom' clearly into your microphone.</p>
+        <p>Aim for a quiet environment for the best results.</p>
+        <p>Speak naturally, as if you were activating the agent.</p>
+        <p>You can record several samples if needed. Each recording will be available for download.</p>
+    </div>
+
+    <div id="controls">
+        <button id="startButton">Start Recording</button>
+        <button id="stopButton" disabled>Stop Recording</button>
+        <button id="playButton" disabled>Play Last Recording</button>
+        <button id="downloadButton" disabled>Download Last Recording</button>
+    </div>
+
+    <div id="statusArea">
+        <p id="statusMessages">Status: Idle. Click "Start Recording" to begin.</p>
+    </div>
+
+    <div id="audioPlaybackArea">
+        <h2>Last Recording:</h2>
+        <audio id="audioPlayback" controls></audio>
+    </div>
+
+    <div id="recordingsListArea">
+        <h2>Previous Recordings:</h2>
+        <ul id="recordingsList">
+            <!-- Recordings will be listed here -->
+        </ul>
+    </div>
+
+    <script src="recorder.js" defer></script>
+</body>
+</html>
