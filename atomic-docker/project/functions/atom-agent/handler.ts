@@ -1,71 +1,77 @@
 import * as conversationManager from './conversationState'; // Added for conversation management
-import { listUpcomingEvents, createCalendarEvent } from './skills/calendarSkills';
-import { listRecentEmails, readEmail, sendEmail, EmailDetails } from './skills/emailSkills';
-import { searchWeb } from './skills/webResearchSkills';
-import { triggerZap, ZapData } from './skills/zapierSkills';
+// import { listUpcomingEvents, createCalendarEvent } from './skills/calendarSkills'; // Will be re-imported with others
+// import { listRecentEmails, readEmail, sendEmail, EmailDetails } from './skills/emailSkills'; // Will be re-imported
+// import { searchWeb } from './skills/webResearchSkills'; // Will be re-imported
+// import { triggerZap, ZapData } from './skills/zapierSkills'; // Will be re-imported
+
 import {
   CalendarEvent, CreateEventResponse,
-  Email, ReadEmailResponse, SendEmailResponse,
+  Email, ReadEmailResponse, SendEmailResponse, EmailDetails,
   SearchResult,
-  ZapTriggerResponse,
+  ZapTriggerResponse, ZapData,
   HubSpotContactProperties,
   CreateHubSpotContactResponse,
   HubSpotContact,
-  // Calendly Types - Assuming they are exported from types.ts or directly from calendlySkills
   ListCalendlyEventTypesResponse,
   ListCalendlyScheduledEventsResponse,
-  CalendlyEventType,
-  CalendlyScheduledEvent,
-  // Zoom Types
   ListZoomMeetingsResponse,
   GetZoomMeetingDetailsResponse,
   ZoomMeeting,
-  // Google Meet types are already in CalendarEvent and new response types
   ListGoogleMeetEventsResponse,
   GetGoogleMeetEventDetailsResponse,
-  // MS Teams Types
   ListMSTeamsMeetingsResponse,
   GetMSTeamsMeetingDetailsResponse,
   MSGraphEvent,
-  // Stripe Types
   ListStripePaymentsResponse,
   GetStripePaymentDetailsResponse,
   StripePaymentIntent,
-  // QuickBooks Types
   ListQuickBooksInvoicesResponse,
   GetQuickBooksInvoiceDetailsResponse,
   QuickBooksInvoice,
-  // NLU
   ProcessedNLUResponse,
-  LtmQueryResult, // Assuming LtmQueryResult might be defined in types.ts or memoryManager exports it
-} from '../types'; // Adjust if LtmQueryResult comes from memoryManager directly
+  LtmQueryResult,
+  // Task Management Types
+  CreateNotionTaskParams,
+  QueryNotionTasksParams,
+  UpdateNotionTaskParams,
+  NotionTask,
+  NotionTaskStatus,
+  NotionTaskPriority,
+  TaskQueryResponse, // Response type for queryNotionTasks skill
+  SkillResponse, // Generic skill response
+  CreateTaskData, // Data type for CreateTask skill response
+  UpdateTaskData, // Data type for UpdateTask skill response
+} from '../types';
 
-// Conversation State and LTM
-import * as conversationManager from './conversationState';
+// import * as conversationManager from './conversationState'; // Already imported at the top
 import {
     getConversationStateSnapshot,
-    updateLTMContext, // Renamed as per instructions
+    updateLTMContext,
     updateUserGoal,
     updateIntentAndEntities
 } from './conversationState';
 import { handleSemanticSearchMeetingNotesSkill } from './skills/semanticSearchSkills';
-import { initializeDB as initializeLanceDB } from '../lanceDBManager'; // Renamed for clarity
-import * as lancedb from 'vectordb-lance'; // For lancedb.Connection type
+import {
+    createNotionTask,
+    queryNotionTasks,
+    updateNotionTask
+} from './skills/notionAndResearchSkills'; // Added Task functions
+import { initializeDB as initializeLanceDB } from '../lanceDBManager';
+import * as lancedb from 'vectordb-lance';
 import {
     retrieveRelevantLTM,
     loadLTMToSTM,
     processSTMToLTM,
-    ConversationStateActions // Import type for actions
+    ConversationStateActions
 } from './memoryManager';
-
 
 import { createHubSpotContact, getHubSpotContactByEmail } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
 import {
-    listUpcomingEvents,
-    createCalendarEvent,
+    listUpcomingEvents, // Already imported but ensure it's covered
+    createCalendarEvent, // Already imported
     listUpcomingGoogleMeetEvents,
     getGoogleMeetEventDetails
 } from './skills/calendarSkills';
@@ -80,7 +86,7 @@ import {
     enableAutopilot,
     disableAutopilot,
     getAutopilotStatus
-} from './skills/autopilotSkills'; // Added Autopilot skills
+} from './skills/autopilotSkills';
 import {
     createSchedulingRule,
     blockCalendarTime,
@@ -90,8 +96,17 @@ import {
     NLUScheduleTeamMeetingEntities,
     SchedulingResponse
 } from './skills/schedulingSkills';
-import { understandMessage } from './skills/nluService'; // Added NLU Service
-import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID, ATOM_QB_TOKEN_FILE_PATH } from '../_libs/constants';
+import { understandMessage } from './skills/nluService';
+import {
+    ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID,
+    ATOM_HUBSPOT_PORTAL_ID,
+    ATOM_QB_TOKEN_FILE_PATH,
+    ATOM_NOTION_TASKS_DATABASE_ID // Added for Notion Tasks
+} from '../_libs/constants';
+import { searchWeb } from './skills/webResearchSkills'; // Added missing import
+import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; // Added missing import
+import { triggerZap } from './skills/zapierSkills'; // Added missing import
+
 
 // Define the TTS service URL
 const AUDIO_PROCESSOR_TTS_URL = process.env.AUDIO_PROCESSOR_BASE_URL
@@ -103,13 +118,7 @@ let ltmDbConnection: lancedb.Connection | null = null;
 
 async function initializeLtmDatabase(): Promise<void> {
   try {
-    // Using a distinct name for the DB file for TS side, or ensure paths resolve correctly if shared.
-    // For now, using "ltm_agent_data_ts" to distinguish if needed, or use the same name as Python if they share.
-    // The Python side uses: "../../lance_db/ltm_agent_data.lance"
-    // Node.js side (lanceDBManager.ts) uses: "./lance_db/" prefix.
-    // If handler.ts is in 'atom-agent' and lanceDBManager is one level up, then '../lance_db/' might be right.
-    // Let's assume lanceDBManager handles its path relative to its own location, so "ltm_agent_data" is fine.
-    ltmDbConnection = await initializeLanceDB("ltm_agent_data"); // Or "ltm_agent_data_ts"
+    ltmDbConnection = await initializeLanceDB("ltm_agent_data");
     if (ltmDbConnection) {
       console.log('[Handler] LanceDB LTM connection initialized successfully.');
     } else {
@@ -117,16 +126,12 @@ async function initializeLtmDatabase(): Promise<void> {
     }
   } catch (error) {
     console.error('[Handler] Error initializing LanceDB LTM connection:', error);
-    ltmDbConnection = null; // Ensure it's null on failure
+    ltmDbConnection = null;
   }
 }
 
-// Call initialization at module startup
 initializeLtmDatabase();
-// --- End LanceDB Initialization ---
 
-
-// Define the new return type for handleMessage
 export interface HandleMessageResponse {
   text: string;
   audioUrl?: string;
@@ -137,60 +142,40 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
   let textResponse: string;
   let conversationLtmContext: LtmQueryResult[] | null = null;
 
-  // 2. LTM Retrieval (Moved before NLU to potentially inform NLU)
-  // Note: The subtask asked to call understandMessage then retrieve LTM.
-  // However, to *use* LTM in understandMessage, retrieval must happen first,
-  // or NLU must be called again after LTM retrieval if LTM should influence NLU.
-  // For this iteration, LTM retrieval happens, then NLU is called with LTM context.
-  // Then, later, the response is augmented with LTM.
   if (ltmDbConnection) {
     try {
-      // For now, let's retrieve general knowledge. Table could be dynamic.
       const relevantLtm = await retrieveRelevantLTM(message, userId, ltmDbConnection, { table: 'knowledge_base' });
-
       if (relevantLtm && relevantLtm.length > 0) {
         console.log(`[Handler] Retrieved ${relevantLtm.length} items from LTM for query: ${message}. Storing in conversation state.`);
-        // Store LTM results in conversation state so NLU and response generation can use it.
-        // This uses the new updateLTMContext directly.
-        // loadLTMToSTM also calls this, but calling it here ensures context is available for NLU.
         updateLTMContext(relevantLtm);
-        conversationLtmContext = relevantLtm; // Keep a local copy for this function's scope
-
-        // If loadLTMToSTM has other side effects (like updating goal), call it too.
-        // Or, ensure those side effects are explicitly handled here or in NLU service.
+        conversationLtmContext = relevantLtm;
         const conversationStateActions: ConversationStateActions = {
             updateUserGoal: updateUserGoal,
             updateIntentAndEntities: updateIntentAndEntities,
-            updateLtmRepoContext: updateLTMContext // This will be called again, which is fine.
+            updateLtmRepoContext: updateLTMContext
         };
         await loadLTMToSTM(relevantLtm, conversationStateActions);
-
       } else {
-        // Ensure LTM context is cleared if nothing relevant is found
         updateLTMContext(null);
         conversationLtmContext = null;
       }
     } catch (error) {
       console.error('[Handler] Error retrieving or loading LTM:', error);
-      updateLTMContext(null); // Clear on error too
+      updateLTMContext(null);
       conversationLtmContext = null;
     }
   } else {
     console.warn('[Handler] LTM DB connection not available, skipping LTM retrieval.');
-    updateLTMContext(null); // Ensure context is null if DB is not available
+    updateLTMContext(null);
     conversationLtmContext = null;
   }
 
-  // 1. NLU Processing (Now with LTM context)
   const nluResponse: ProcessedNLUResponse = await understandMessage(message, undefined, conversationLtmContext);
   console.log('[InternalHandleMessage] NLU Response (with LTM context consideration):', JSON.stringify(nluResponse, null, 2));
 
-
-  // 3. Intent Handling & Skill Execution
   if (nluResponse.error && !nluResponse.intent) {
     console.error('[InternalHandleMessage] NLU service critical error:', nluResponse.error);
     textResponse = "Sorry, I'm having trouble understanding requests right now. Please try again later.";
-    // Even with NLU error, try to augment with LTM if context is available
     const currentConvStateOnError = getConversationStateSnapshot();
     const ltmContextForErrorResponse = currentConvStateOnError.ltmContext;
     if (ltmContextForErrorResponse && ltmContextForErrorResponse.length > 0) {
@@ -205,11 +190,11 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
   }
 
   if (nluResponse.intent) {
+    const entities = nluResponse.entities || {};
     switch (nluResponse.intent) {
       case "GetCalendarEvents":
         try {
-            const entities = nluResponse.entities || {};
-            let limit = 7; // Default limit
+            let limit = 7;
             if (entities.limit) {
                 if (typeof entities.limit === 'number') {
                     limit = entities.limit;
@@ -218,27 +203,15 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                     if (!isNaN(parsedLimit)) limit = parsedLimit;
                 }
             }
-
             const date_range = entities.date_range as string | undefined;
             const event_type_filter = entities.event_type_filter as string | undefined;
             const time_query = entities.time_query as string | undefined;
             const query_type = entities.query_type as string | undefined;
 
-
-            if (date_range) {
-                console.log(`[Handler] GetCalendarEvents: date_range found - ${date_range}.`);
-            }
-            if (event_type_filter) {
-                console.log(`[Handler] GetCalendarEvents: event_type_filter found - ${event_type_filter}.`);
-            }
-            if (time_query) {
-                console.log(`[Handler] GetCalendarEvents: time_query found - ${time_query}`);
-            }
-            if (query_type) {
-                console.log(`[Handler] GetCalendarEvents: query_type found - ${query_type}`);
-            }
-            // Note: listUpcomingEvents skill currently only uses userId and limit.
-            // Other extracted entities are logged for now, future skill enhancement needed.
+            if (time_query) console.log(`[Handler] GetCalendarEvents: time_query found - ${time_query}`);
+            if (query_type) console.log(`[Handler] GetCalendarEvents: query_type found - ${query_type}`);
+            if (date_range) console.log(`[Handler] GetCalendarEvents: date_range found - ${date_range}.`);
+            if (event_type_filter) console.log(`[Handler] GetCalendarEvents: event_type_filter found - ${event_type_filter}.`);
 
             const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
             if (!events || events.length === 0) {
@@ -257,7 +230,6 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
 
       case "CreateCalendarEvent":
         try {
-            const entities = nluResponse.entities || {};
             const { summary, start_time, end_time, description, location, attendees } = entities;
             const duration = entities.duration as string | undefined;
 
@@ -265,14 +237,13 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = "Event summary is required to create an event via NLU.";
             } else if (!start_time || typeof start_time !== 'string') {
                 textResponse = "Event start time is required to create an event via NLU.";
-            } else if (!end_time && !duration) { // Require end_time OR duration
+            } else if (!end_time && !duration) {
                 textResponse = "Event end time or duration is required to create an event via NLU.";
-            }
-             else {
-                const eventDetails: Partial<CalendarEvent & { duration?: string }> = { // Add duration to type if not already there
+            } else {
+                const eventDetails: Partial<CalendarEvent & { duration?: string }> = {
                     summary: summary as string,
                     startTime: start_time as string,
-                    endTime: end_time as string | undefined, // Can be undefined if duration is provided
+                    endTime: end_time as string | undefined,
                     description: typeof description === 'string' ? description : undefined,
                     location: typeof location === 'string' ? location : undefined,
                     attendees: Array.isArray(attendees) ? attendees.filter(att => typeof att === 'string') : undefined,
@@ -280,10 +251,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 if (duration) {
                     eventDetails.duration = duration;
                     console.log(`[Handler] CreateCalendarEvent: duration found - ${duration}`);
-                    // Note: createCalendarEvent skill might not use duration yet. This passes it.
                 }
-
-
                 const response: CreateEventResponse = await createCalendarEvent(userId, eventDetails);
                 if (response.success) {
                     textResponse = `Event created: ${response.message || 'Successfully created event.'} (ID: ${response.eventId || 'N/A'})${response.htmlLink ? ` Link: ${response.htmlLink}` : ''}`;
@@ -297,10 +265,116 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
         }
         break;
 
-      // ... (Apply similar pattern: assign to textResponse, then break) ...
-      // For brevity, I will only show a few more, the rest should follow this pattern.
+      // Add cases for CreateTask, QueryTasks, UpdateTask
+      case "CreateTask":
+        try {
+            const task_description = entities.task_description as string | undefined;
+            if (!task_description) {
+                textResponse = "Please provide a description for the task.";
+            } else {
+                const createTaskParams: CreateNotionTaskParams = {
+                    description: task_description,
+                    dueDate: entities.due_date_time as string | undefined,
+                    priority: entities.priority as NotionTaskPriority | undefined,
+                    listName: entities.list_name as string | undefined,
+                    notes: entities.notes as string | undefined,
+                    notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
+                };
+                console.log(`[Handler] CreateTask: Calling createNotionTask with params:`, createTaskParams);
+                const taskResponse: SkillResponse<CreateTaskData> = await createNotionTask(userId, createTaskParams);
+                if (taskResponse.ok && taskResponse.data) {
+                    textResponse = `Task created: "${task_description}" (ID: ${taskResponse.data.taskId}). You can view it at ${taskResponse.data.taskUrl}`;
+                } else {
+                    textResponse = `Failed to create task: ${taskResponse.error?.message || 'Unknown error'}`;
+                }
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "CreateTask":`, error.message, error.stack);
+            textResponse = "Sorry, an error occurred while creating your task.";
+        }
+        break;
 
-      case "ListEmails":
+      case "QueryTasks":
+        try {
+            const queryTaskParams: QueryNotionTasksParams = {
+                dateQuery: entities.date_range as string | undefined,
+                listName: entities.list_name as string | undefined,
+                status: entities.status as NotionTaskStatus | undefined,
+                priority: entities.priority as NotionTaskPriority | undefined,
+                descriptionContains: entities.description_contains as string | undefined,
+                limit: typeof entities.limit === 'number' ? entities.limit : undefined,
+                notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
+            };
+            console.log(`[Handler] QueryTasks: Calling queryNotionTasks with params:`, queryTaskParams);
+            const queryResponse: TaskQueryResponse = await queryNotionTasks(userId, queryTaskParams);
+            if (queryResponse.success && queryResponse.tasks.length > 0) {
+                textResponse = "Found these tasks:\n";
+                queryResponse.tasks.forEach(task => {
+                    textResponse += `- ${task.description} (Due: ${task.dueDate || 'N/A'}, Status: ${task.status}, Priority: ${task.priority || 'N/A'})\n`;
+                });
+            } else if (queryResponse.success) {
+                textResponse = "No tasks found matching your criteria.";
+            } else {
+                textResponse = `Failed to query tasks: ${queryResponse.error || 'Unknown error'}`;
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "QueryTasks":`, error.message, error.stack);
+            textResponse = "Sorry, an error occurred while querying your tasks.";
+        }
+        break;
+
+      case "UpdateTask":
+        try {
+            const task_identifier = entities.task_identifier as string | undefined;
+            if (!task_identifier) {
+                textResponse = "Please specify which task you want to update by its description or ID.";
+            } else {
+                const updateTaskParams: UpdateNotionTaskParams = {
+                    taskId: task_identifier,
+                    description: entities.new_description as string | undefined,
+                    dueDate: entities.new_due_date_time as string | undefined,
+                    status: entities.new_status as NotionTaskStatus | undefined,
+                    priority: entities.new_priority as NotionTaskPriority | undefined,
+                    listName: entities.new_list_name as string | undefined,
+                    notes: entities.new_notes as string | undefined,
+                };
+
+                Object.keys(updateTaskParams).forEach(keyStr => {
+                    const key = keyStr as keyof UpdateNotionTaskParams;
+                    if (updateTaskParams[key] === undefined) {
+                        delete updateTaskParams[key];
+                    }
+                });
+
+                if (Object.keys(updateTaskParams).length <= 1 && !entities.update_action?.includes('complete')) {
+                     textResponse = "What changes would you like to make to the task? For example, set a new due date, description, or mark it as complete.";
+                } else {
+                    if (entities.update_action === 'complete') {
+                        updateTaskParams.status = 'Done';
+                    } else if (entities.update_action === 'set_due_date' && !updateTaskParams.dueDate) {
+                        textResponse = "Please provide the new due date for the task.";
+                    }
+                    // Further specific action handling might be needed here or in the skill
+
+                    console.log(`[Handler] UpdateTask: Calling updateNotionTask with params:`, updateTaskParams);
+                    const updateResponse: SkillResponse<UpdateTaskData> = await updateNotionTask(userId, updateTaskParams);
+                    if (updateResponse.ok && updateResponse.data) {
+                        textResponse = `Task "${task_identifier}" updated. Properties changed: ${updateResponse.data.updatedProperties.join(', ')}.`;
+                    } else {
+                        textResponse = `Failed to update task "${task_identifier}": ${updateResponse.error?.message || 'Unknown error'}`;
+                    }
+                }
+            }
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "UpdateTask":`, error.message, error.stack);
+            textResponse = "Sorry, an error occurred while updating your task.";
+        }
+        break;
+
+      // ... (other existing cases like ListEmails, SendEmail, etc. remain here) ...
+      // Make sure to place the new cases before the SemanticSearchMeetingNotes placeholder and default
+
+        case "ListEmails":
         try {
             let limit = 10; // Default limit
             if (nluResponse.entities?.limit) {
@@ -469,9 +543,6 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
             textResponse = "Sorry, an error occurred while processing your agenda for Slack (NLU path).";
         }
         break;
-
-      // ... (Ensure all other case statements are updated similarly to set textResponse and break) ...
-
       case "ListCalendlyEventTypes":
         try {
             const calendlyUserId = nluResponse.entities?.user_id && typeof nluResponse.entities.user_id === 'string' ? nluResponse.entities.user_id : userId;
@@ -1011,67 +1082,6 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
         }
         break;
       // --- End Autopilot Intents ---
-
-      case "CreateTask":
-        try {
-            const entities = nluResponse.entities || {};
-            const task_description = entities.task_description as string | undefined;
-            const due_date_time = entities.due_date_time as string | undefined;
-            const priority = entities.priority as string | undefined;
-            const list_name = entities.list_name as string | undefined;
-
-            let taskResponse = `Task to create: "${task_description || 'No description'}"`;
-            if (due_date_time) taskResponse += ` due by ${due_date_time}`;
-            if (priority) taskResponse += ` with priority ${priority}`;
-            if (list_name) taskResponse += ` for list "${list_name}"`;
-            console.log(`[Handler] CreateTask: ${taskResponse}`);
-            textResponse = `Okay, I've noted that you want to create the task: ${task_description || 'unspecified task'}. Full task management is still under development.`;
-        } catch (error: any) {
-            console.error(`Error in NLU Intent "CreateTask":`, error.message, error.stack);
-            textResponse = "Sorry, an error occurred while creating your task.";
-        }
-        break;
-
-      case "QueryTasks":
-        try {
-            const entities = nluResponse.entities || {};
-            const date_range = entities.date_range as string | undefined;
-            const list_name = entities.list_name as string | undefined;
-            const status = entities.status as string | undefined;
-
-            let queryResponse = "Query for tasks with filters:";
-            if (date_range) queryResponse += ` DateRange: ${date_range}`;
-            if (list_name) queryResponse += ` List: ${list_name}`;
-            if (status) queryResponse += ` Status: ${status}`;
-            console.log(`[Handler] QueryTasks: ${queryResponse}`);
-            textResponse = "You asked to query tasks. This feature is being developed!";
-        } catch (error: any) {
-            console.error(`Error in NLU Intent "QueryTasks":`, error.message, error.stack);
-            textResponse = "Sorry, an error occurred while querying your tasks.";
-        }
-        break;
-
-      case "UpdateTask":
-        try {
-            const entities = nluResponse.entities || {};
-            const task_identifier = entities.task_identifier as string | undefined;
-            const update_action = entities.update_action as string | undefined;
-            // const new_due_date_time = entities.new_due_date_time as string | undefined;
-            // const new_description = entities.new_description as string | undefined;
-            // const new_priority = entities.new_priority as string | undefined;
-
-            let updateResponse = `Task update request for "${task_identifier || 'Unknown task'}" with action "${update_action || 'Unknown action'}"`;
-            // Add more details if other entities like new_due_date_time exist
-            // if (new_due_date_time) updateResponse += ` New DueDate: ${new_due_date_time}`;
-            // if (new_description) updateResponse += ` New Description: ${new_description}`;
-            // if (new_priority) updateResponse += ` New Priority: ${new_priority}`;
-            console.log(`[Handler] UpdateTask: ${updateResponse}`);
-            textResponse = `You want to update task "${task_identifier || 'an unspecified task'}". This part of task management is still being built.`;
-        } catch (error: any) {
-            console.error(`Error in NLU Intent "UpdateTask":`, error.message, error.stack);
-            textResponse = "Sorry, an error occurred while updating your task.";
-        }
-        break;
 
       /*
             case "SemanticSearchMeetingNotes": // This intent needs to be defined in your NLU service

@@ -7,10 +7,19 @@ import {
   ProcessResearchQueueData,
   CreateNoteData,
   NotionSearchResultData,
+  // New Task Management Types
+  CreateNotionTaskParams,
+  QueryNotionTasksParams,
+  TaskQueryResponse, // Used directly by queryNotionTasks
+  UpdateNotionTaskParams,
+  CreateTaskData,    // For SkillResponse<CreateTaskData>
+  UpdateTaskData,    // For SkillResponse<UpdateTaskData>
+  NotionTask,        // For TaskQueryResponse.tasks and PythonApiResponse<NotionTask[]>
 } from '../types';
 import {
   PYTHON_RESEARCH_API_URL,
   PYTHON_NOTE_API_URL,
+  ATOM_NOTION_TASKS_DATABASE_ID, // Added for default tasks DB
   NOTION_API_TOKEN,
   NOTION_NOTES_DATABASE_ID, // Default general notes DB
   NOTION_RESEARCH_PROJECTS_DB_ID,
@@ -82,6 +91,118 @@ export async function initiateResearch(
       error: {
         code: axiosError.isAxiosError ? `HTTP_${axiosError.response?.status || 'NETWORK_ERROR'}` : 'SKILL_INTERNAL_ERROR',
         message: `Failed to initiate research: ${axiosError.message}`,
+        details: axiosError.response?.data || axiosError.message,
+      },
+    };
+  }
+}
+
+// --- Notion Task Management Skills ---
+
+export async function createNotionTask(
+  userId: string, // For logging and consistency
+  params: CreateNotionTaskParams
+): Promise<SkillResponse<CreateTaskData>> {
+  if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
+  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!params.notionTasksDbId && !ATOM_NOTION_TASKS_DATABASE_ID) {
+      return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion Tasks Database ID is not configured.'}};
+  }
+
+  try {
+    const payload = {
+      ...params, // description, dueDate, status, priority, listName, notes
+      user_id: userId,
+      notion_api_token: NOTION_API_TOKEN,
+      notion_db_id: params.notionTasksDbId || ATOM_NOTION_TASKS_DATABASE_ID
+    };
+
+    const response = await axios.post<PythonApiResponse<CreateTaskData>>(
+      `${PYTHON_NOTE_API_URL}/create-notion-task`,
+      payload
+    );
+    return handlePythonApiResponse(response.data, 'CreateNotionTask');
+  } catch (error: any) {
+    const axiosError = error as AxiosError;
+    return {
+      ok: false,
+      error: {
+        code: axiosError.isAxiosError ? `HTTP_${axiosError.response?.status || 'NETWORK_ERROR'}` : 'SKILL_INTERNAL_ERROR',
+        message: `Failed to create Notion task: ${axiosError.message}`,
+        details: axiosError.response?.data || axiosError.message,
+      },
+    };
+  }
+}
+
+export async function queryNotionTasks(
+  userId: string,
+  params: QueryNotionTasksParams
+): Promise<TaskQueryResponse> { // Direct use of TaskQueryResponse
+  if (!PYTHON_NOTE_API_URL) return { success: false, tasks: [], error: 'Python Note API URL is not configured.', message: 'Configuration error.' };
+  if (!NOTION_API_TOKEN) return { success: false, tasks: [], error: 'Notion API token is not configured.', message: 'Configuration error.' };
+  if (!params.notionTasksDbId && !ATOM_NOTION_TASKS_DATABASE_ID) {
+      return { success: false, tasks: [], error: 'Notion Tasks Database ID is not configured.', message: 'Configuration error.'};
+  }
+
+  try {
+    const payload = {
+      ...params,
+      user_id: userId, // Include userId for consistency, Python backend may or may not use it for filtering
+      notion_api_token: NOTION_API_TOKEN,
+      notion_db_id: params.notionTasksDbId || ATOM_NOTION_TASKS_DATABASE_ID
+    };
+
+    const response = await axios.post<PythonApiResponse<NotionTask[]>>(
+      `${PYTHON_NOTE_API_URL}/query-notion-tasks`,
+      payload
+    );
+
+    if (response.data.ok && response.data.data) {
+        return { success: true, tasks: response.data.data, message: response.data.message || 'Tasks queried successfully.' };
+    } else if (response.data.error) {
+        return { success: false, tasks: [], error: response.data.error.message, message: response.data.error.details as string|undefined };
+    }
+    return { success: false, tasks: [], error: 'Unexpected response from queryNotionTasks backend.', message: 'Backend communication error.'};
+
+  } catch (error: any) {
+    const axiosError = error as AxiosError;
+    console.error(`Failed to query Notion tasks: ${axiosError.message}`, axiosError.response?.data || axiosError.message);
+    return {
+      success: false,
+      tasks: [],
+      error: `Failed to query Notion tasks: ${axiosError.message}`,
+    };
+  }
+}
+
+export async function updateNotionTask(
+  userId: string,
+  params: UpdateNotionTaskParams
+): Promise<SkillResponse<UpdateTaskData>> {
+  if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
+  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!params.taskId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Task ID (taskId) is required for update.' }};
+
+  try {
+    const payload = {
+      ...params,
+      user_id: userId,
+      notion_api_token: NOTION_API_TOKEN
+    };
+
+    const response = await axios.post<PythonApiResponse<UpdateTaskData>>(
+      `${PYTHON_NOTE_API_URL}/update-notion-task`,
+      payload
+    );
+    return handlePythonApiResponse(response.data, 'UpdateNotionTask');
+  } catch (error: any) {
+    const axiosError = error as AxiosError;
+    return {
+      ok: false,
+      error: {
+        code: axiosError.isAxiosError ? `HTTP_${axiosError.response?.status || 'NETWORK_ERROR'}` : 'SKILL_INTERNAL_ERROR',
+        message: `Failed to update Notion task: ${axiosError.message}`,
         details: axiosError.response?.data || axiosError.message,
       },
     };

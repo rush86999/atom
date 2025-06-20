@@ -588,4 +588,85 @@ export interface ZoomMeeting {
   [key: string]: any;
 }
 
+// --- Notion Task Management Types ---
+
+export type NotionTaskStatus = "To Do" | "In Progress" | "Done" | "Blocked" | "Cancelled";
+
+export type NotionTaskPriority = "High" | "Medium" | "Low";
+
+export interface NotionTask {
+  id: string; // Notion Page ID
+  description: string;
+  dueDate?: string | null; // ISO date string or null
+  status: NotionTaskStatus;
+  priority?: NotionTaskPriority | null;
+  listName?: string | null;
+  createdDate: string; // ISO date string (from Notion's created_time)
+  url: string; // Notion page URL
+  notes?: string | null;
+}
+
+export interface CreateNotionTaskParams {
+  description: string;
+  dueDate?: string | null;
+  status?: NotionTaskStatus;
+  priority?: NotionTaskPriority | null;
+  listName?: string | null;
+  notes?: string | null;
+  notionTasksDbId: string;
+}
+
+export interface NotionTaskResponse {
+  success: boolean;
+  message: string;
+  taskId?: string;
+  taskUrl?: string;
+  error?: string;
+}
+
+export interface QueryNotionTasksParams {
+  status?: NotionTaskStatus | NotionTaskStatus[];
+  dueDateBefore?: string | null;
+  dueDateAfter?: string | null;
+  dateQuery?: string | null; // For NLU like "today", "next week" to be parsed by backend
+  priority?: NotionTaskPriority | null;
+  listName?: string | null;
+  descriptionContains?: string | null;
+  notionTasksDbId: string;
+  limit?: number;
+}
+
+export interface TaskQueryResponse {
+  success: boolean;
+  tasks: NotionTask[];
+  message?: string;
+  error?: string;
+}
+
+export interface UpdateNotionTaskParams {
+  taskId: string;
+  description?: string;
+  dueDate?: string | null;
+  status?: NotionTaskStatus;
+  priority?: NotionTaskPriority | null;
+  listName?: string | null;
+  notes?: string | null;
+  // notionTasksDbId: string; // Usually not needed for page update by ID
+}
+
+// Specific data types for responses from Python backend for task operations
+// These align with the 'data' field within PythonApiResponse<T>
+
+export interface CreateTaskData {
+  taskId: string; // Notion Page ID of the created task
+  taskUrl: string; // URL to the Notion task page
+  message?: string; // Optional success message from backend
+}
+
+export interface UpdateTaskData {
+  taskId: string; // Notion Page ID of the updated task
+  updatedProperties: string[]; // List of properties that were actually changed
+  message?: string; // Optional success message from backend
+}
+
 [end of atomic-docker/project/functions/atom-agent/types.ts]
