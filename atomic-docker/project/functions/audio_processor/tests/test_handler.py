@@ -535,3 +535,233 @@ def test_serve_generated_audio_not_found(mock_send_from_directory, client):
         'nonexistentfile.mp3',
         as_attachment=False
     )
+
+# ---- Tests for /stt_stream WebSocket endpoint ----
+
+# Helper to manage mock Deepgram LiveTranscriptionConnection and its event handlers
+class MockLiveTranscriptionConnection:
+    def __init__(self):
+        self.handlers = {}
+        self.send_buffer = []
+        self.is_started = False
+        self.is_finished = False
+        self.start_options = None
+
+    def on(self, event_name, callback):
+        # Store the callback for the event name
+        # For simplicity, LiveTranscriptionEvents.Open etc. are strings here
+        if event_name not in self.handlers:
+            self.handlers[event_name] = []
+        self.handlers[event_name].append(callback)
+        # print(f"MockLive: Registered handler for event '{event_name}'")
+
+    def start(self, options, **kwargs):
+        self.is_started = True
+        self.start_options = options
+        # print(f"MockLive: Connection started with options: {options}")
+        # Simulate 'Open' event upon start
+        if 'Open' in self.handlers:
+            for handler in self.handlers['Open']:
+                # The handler expects (self, open, **kwargs) - self is dg_connection, open is the event data
+                handler(self, {"event": "Open", "message": "Mock Deepgram connection opened"})
+        return True # Indicate success
+
+    def send(self, data):
+        self.send_buffer.append(data)
+        # print(f"MockLive: Received data: {len(data)} bytes")
+
+    def finish(self, **kwargs):
+        self.is_finished = True
+        # print("MockLive: Connection finished.")
+        # Simulate 'Close' event upon finish
+        if 'Close' in self.handlers:
+             for handler in self.handlers['Close']:
+                handler(self, {"event": "Close", "message": "Mock Deepgram connection closed by finish()"})
+
+
+    # Methods to simulate Deepgram emitting events to our application
+    def simulate_transcript_event(self, transcript_text, is_final):
+        if 'Transcript' in self.handlers:
+            # Construct payload similar to what Deepgram SDK provides
+            # Based on handler.py: result.channel.alternatives[0].transcript and result.is_final
+            payload = MagicMock() # Use MagicMock to allow attribute access
+            payload.is_final = is_final
+            payload.channel.alternatives = [MagicMock()]
+            payload.channel.alternatives[0].transcript = transcript_text
+
+            for handler in self.handlers['Transcript']:
+                handler(self, payload) # Pass self as first arg (dg_connection)
+        else:
+            print("MockLive Warning: No handler registered for Transcript event")
+
+
+    def simulate_error_event(self, error_message):
+        if 'Error' in self.handlers:
+            payload = MagicMock()
+            payload.message = error_message # Or whatever structure the error object has
+            for handler in self.handlers['Error']:
+                handler(self, payload) # Pass self as first arg
+        else:
+            print("MockLive Warning: No handler registered for Error event")
+
+    def simulate_close_event(self): # Server initiated close
+        if 'Close' in self.handlers:
+            for handler in self.handlers['Close']:
+                handler(self, {"event": "Close", "message": "Mock Deepgram connection closed by server"})
+        else:
+            print("MockLive Warning: No handler registered for Close event")
+
+
+@pytest.fixture
+def mock_deepgram_live_connection(mocker): # Changed from mocker to patch style for consistency
+    mock_connection = MockLiveTranscriptionConnection()
+
+    # Path to DeepgramClient in the handler.py module
+    # This assumes 'from deepgram import DeepgramClient' in handler.py
+    # and 'deepgram = DeepgramClient(...)'
+    # If 'deepgram' instance is directly used, patch its methods.
+    # The current handler.py creates a 'deepgram' global instance.
+    # So we patch the 'listen.live.v("1")' method of that instance.
+
+    # Patching the global 'deepgram' instance's live transcription capability
+    # This requires 'audio_processor.handler.deepgram' to be the actual DeepgramClient instance
+    # If 'deepgram' is not initialized (e.g. no API key), this patch won't work as expected for those tests.
+    # For tests where 'deepgram' is expected to be valid, this is okay.
+
+    # Path where 'deepgram' instance is located and its method is called
+    patcher = patch('audio_processor.handler.deepgram.listen.live.v')
+    mock_live_v1 = patcher.start()
+    mock_live_v1.return_value = mock_connection
+
+    yield mock_connection # Provide the connection mock to the test
+
+    patcher.stop()
+
+
+@patch.dict(os.environ, {"DEEPGRAM_API_KEY": "test_key_for_stt_stream"}, clear=True)
+def test_stt_stream_successful_connection(client, mock_deepgram_live_connection):
+    with client.websocket_connect('/stt_stream') as ws:
+        # Connection itself is the test, check if Deepgram was started
+        pass # Context manager handles connect/close
+
+    assert mock_deepgram_live_connection.is_started, "Deepgram connection should have been started"
+    # Check if options were passed (example option check)
+    assert mock_deepgram_live_connection.start_options.model == "nova-2"
+    assert mock_deepgram_live_connection.is_finished, "Deepgram connection should be finished when WebSocket closes"
+
+
+@patch.dict(os.environ, {"DEEPGRAM_API_KEY": "test_key_for_stt_stream"}, clear=True)
+def test_stt_stream_audio_forwarding(client, mock_deepgram_live_connection):
+    with client.websocket_connect('/stt_stream') as ws:
+        test_audio_data = b'\x01\x02\x03\x04'
+        ws.send(test_audio_data)
+        # Add a small delay or check for send_buffer, as send is async from client perspective
+        # For unit test, if send is blocking or if we can poll, it's fine.
+        # Here, we assume the handler processes it quickly.
+        # To be very sure, you might need a loop with timeout to check send_buffer.
+        # For now, let's assume it's processed.
+        # ws.receive(timeout=0.1) # Try to ensure send is processed if there was a confirmation msg
+
+    assert mock_deepgram_live_connection.is_started
+    assert len(mock_deepgram_live_connection.send_buffer) > 0, "Audio data should have been sent to Deepgram"
+    assert mock_deepgram_live_connection.send_buffer[0] == test_audio_data
+    assert mock_deepgram_live_connection.is_finished
+
+
+@patch.dict(os.environ, {"DEEPGRAM_API_KEY": "test_key_for_stt_stream"}, clear=True)
+def test_stt_stream_transcript_forwarding(client, mock_deepgram_live_connection):
+    with client.websocket_connect('/stt_stream') as ws:
+        assert mock_deepgram_live_connection.is_started # Should be started by on_open
+
+        # Simulate Deepgram sending an interim transcript
+        mock_deepgram_live_connection.simulate_transcript_event("hello", False)
+        received_interim = ws.receive(timeout=1)
+        assert json.loads(received_interim) == {"transcript": "hello", "is_final": False}
+
+        # Simulate Deepgram sending a final transcript
+        mock_deepgram_live_connection.simulate_transcript_event("world", True)
+        received_final = ws.receive(timeout=1)
+        assert json.loads(received_final) == {"transcript": "world", "is_final": True}
+
+    assert mock_deepgram_live_connection.is_finished
+
+
+@patch.dict(os.environ, {"DEEPGRAM_API_KEY": "test_key_for_stt_stream"}, clear=True)
+def test_stt_stream_deepgram_error(client, mock_deepgram_live_connection):
+    with client.websocket_connect('/stt_stream') as ws:
+        assert mock_deepgram_live_connection.is_started
+
+        mock_deepgram_live_connection.simulate_error_event("Test Deepgram Error")
+
+        # The handler should send an error message over WebSocket
+        received_error = ws.receive(timeout=1)
+        error_data = json.loads(received_error)
+        assert "error" in error_data
+        assert "Test Deepgram Error" in error_data["error"]
+
+        # Connection might be kept open by handler, or closed.
+        # The current handler.py doesn't explicitly close WebSocket on Deepgram error,
+        # but Deepgram itself might close, which would trigger on_close.
+        # For this test, we only check the error message is sent.
+
+    # Depending on chosen strategy, is_finished might be true or false.
+    # If Deepgram error causes its own Close event, then it would be finished.
+    # Let's assume for now the test ensures the error is passed to client.
+
+
+@patch.dict(os.environ, {"DEEPGRAM_API_KEY": "test_key_for_stt_stream"}, clear=True)
+def test_stt_stream_client_disconnect(client, mock_deepgram_live_connection):
+    # This test relies on the WebSocket context manager exiting to simulate client disconnect
+    with client.websocket_connect('/stt_stream') as ws:
+        assert mock_deepgram_live_connection.is_started
+        # ws client disconnects when 'with' block exits
+
+    # Check that Deepgram connection was finished
+    assert mock_deepgram_live_connection.is_finished, "Deepgram connection should be finished after client disconnects"
+
+
+@patch.dict(os.environ, {"DEEPGRAM_API_KEY": "test_key_for_stt_stream"}, clear=True)
+def test_stt_stream_deepgram_closes_connection(client, mock_deepgram_live_connection):
+    with client.websocket_connect('/stt_stream') as ws:
+        assert mock_deepgram_live_connection.is_started
+
+        # Simulate Deepgram closing the connection
+        mock_deepgram_live_connection.simulate_close_event()
+
+        # Check if WebSocket receives a close frame or if receive() times out / raises error
+        try:
+            # Depending on flask-sock, a closed connection might raise an error on receive
+            # or return a specific close message/None.
+            # For now, we'll assume the client's receive will detect the closure.
+            # A more direct way is to check ws.closed if the test client supports it.
+            ws.receive(timeout=1) # Should ideally indicate closure
+        except Exception as e: # Catching broad exception as behavior might vary
+            print(f"WebSocket behavior on remote close: {e}")
+            pass # Expected if connection is hard closed
+
+    assert mock_deepgram_live_connection.is_finished, "Deepgram connection finish method should have been called"
+
+
+@patch.dict(os.environ, {}, clear=True) # No DEEPGRAM_API_KEY
+@patch('audio_processor.handler.DEEPGRAM_API_KEY', None) # Ensure handler sees it as None
+@patch('audio_processor.handler.deepgram', None) # Simulate deepgram client not being initialized
+def test_stt_stream_deepgram_not_initialized(client, mock_deepgram_live_connection):
+    # mock_deepgram_live_connection fixture might not be strictly needed if 'deepgram' is None,
+    # but patching it ensures it doesn't interfere.
+    # The @patch for deepgram.listen.live.v might not even be hit if 'deepgram' is None.
+
+    with client.websocket_connect('/stt_stream') as ws:
+        response = ws.receive(timeout=1)
+        data = json.loads(response)
+        assert "error" in data
+        assert "Deepgram client not initialized" in data["error"]
+
+    # In this case, deepgram connection should not have been started
+    assert not mock_deepgram_live_connection.is_started
+    assert not mock_deepgram_live_connection.is_finished
+
+# Note: LiveTranscriptionEvents.Open, etc. are part of deepgram-sdk.
+# For tests, it's fine to use string representations like 'Open', 'Transcript'
+# if the mock `on` method stores handlers by string names.
+# If using the actual Enum members, ensure they are imported or accessible in test.
+# from deepgram import LiveTranscriptionEvents # If needed for mock_connection.on
