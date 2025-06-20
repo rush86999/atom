@@ -13,6 +13,12 @@ AGENTS_DIR = os.path.join(FUNCTIONS_DIR, 'agents') # If agents are in functions/
 if AGENTS_DIR not in sys.path:
      sys.path.append(AGENTS_DIR)
 
+# LanceDB service import
+try:
+    from _utils.lancedb_service import create_meeting_transcripts_table_if_not_exists
+except ImportError as e:
+    print(f"Warning: Failed to import lancedb_service: {e}", file=sys.stderr)
+    create_meeting_transcripts_table_if_not_exists = None # Placeholder
 
 # Kafka Consumer (using kafka-python)
 try:
@@ -165,6 +171,49 @@ async def process_live_meeting_message(message_payload: dict):
 
         if processing_result and processing_result.get("status") == "success":
             logger.info(f"Task {task_id}: Successfully processed and created Notion note: {processing_result.get('data')}")
+
+            # --- Embed and Store Transcript in LanceDB ---
+            notion_page_id = processing_result["data"].get("notion_page_id")
+            full_transcript_text = processing_result["data"].get("full_transcript")
+
+            lancedb_uri_call = os.environ.get("LANCEDB_URI")
+
+            if notion_page_id and full_transcript_text and lancedb_uri_call:
+                logger.info(f"Task {task_id}: Attempting to embed transcript for Notion page {notion_page_id}")
+                try:
+                    # Meeting date: Pass None, so embed_and_store_transcript_in_lancedb uses current time.
+                    # Sourcing a more accurate meeting_date from linked_event_id is a future enhancement.
+                    meeting_date_iso_param = None
+
+                    embed_and_store_func = getattr(note_utils_module, 'embed_and_store_transcript_in_lancedb', None)
+                    if embed_and_store_func:
+                        # Note: embed_and_store_transcript_in_lancedb is synchronous in note_utils.py
+                        # If it were async, this would need `await` and the calling function `process_live_meeting_message`
+                        # would need to be consistently async (it already is).
+                        # For now, assuming it's synchronous as per current definition.
+                        # If it becomes async: embed_result = await embed_and_store_func(...)
+                        embed_result = embed_and_store_func(
+                            notion_page_id=notion_page_id,
+                            transcript_text=full_transcript_text,
+                            meeting_title=notion_note_title, # from original payload
+                            meeting_date_iso=meeting_date_iso_param,
+                            user_id=user_id, # from original payload
+                            openai_api_key_param=openai_api_key, # from original payload
+                            lancedb_uri_param=lancedb_uri_call
+                        )
+                        if embed_result.get("status") == "success":
+                            logger.info(f"Task {task_id}: Successfully embedded transcript for Notion page {notion_page_id}")
+                        else:
+                            logger.error(f"Task {task_id}: Failed to embed transcript for {notion_page_id}. Error: {embed_result.get('message')}")
+                    else:
+                        logger.error(f"Task {task_id}: 'embed_and_store_transcript_in_lancedb' not found in note_utils.")
+                except Exception as e:
+                    logger.error(f"Task {task_id}: Exception during transcript embedding for {notion_page_id}: {e}", exc_info=True)
+            elif not lancedb_uri_call:
+                logger.info(f"Task {task_id}: Skipping LanceDB embedding for {notion_page_id} as LANCEDB_URI is not set (checked at call time).")
+            elif not notion_page_id or not full_transcript_text:
+                logger.warning(f"Task {task_id}: Skipping LanceDB embedding for {notion_page_id if notion_page_id else 'Unknown Page'} due to missing notion_page_id or full_transcript.")
+
         else:
             err_msg = processing_result.get("message", "Processing failed") if processing_result else "Processing function returned None."
             err_code = processing_result.get("code", "PROCESSING_FAILED") if processing_result else "PROCESSING_RETURNED_NONE"
@@ -197,6 +246,21 @@ async def consume_live_meeting_tasks():
     if not note_utils_module:
         logger.error("note_utils module is not available. Worker cannot process tasks.")
         return
+
+    # --- Initialize LanceDB Table for Meeting Transcripts ---
+    lancedb_uri_env = os.environ.get("LANCEDB_URI")
+    if not lancedb_uri_env:
+        logger.warning("LANCEDB_URI environment variable not set. LanceDB operations for meeting transcripts will be skipped.")
+    elif not create_meeting_transcripts_table_if_not_exists:
+        logger.warning("create_meeting_transcripts_table_if_not_exists function not available. LanceDB table initialization skipped.")
+    else:
+        try:
+            # This function is synchronous
+            create_meeting_transcripts_table_if_not_exists(db_path=lancedb_uri_env)
+            logger.info(f"Ensured LanceDB table 'meeting_transcripts' exists at {lancedb_uri_env}")
+        except Exception as e:
+            logger.error(f"Failed to initialize LanceDB table 'meeting_transcripts': {e}", exc_info=True)
+            # Worker will continue, but embedding will likely fail if table is needed.
 
     consumer = None
     try:

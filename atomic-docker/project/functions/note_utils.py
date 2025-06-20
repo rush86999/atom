@@ -13,6 +13,10 @@ from deepgram import (
 )
 import openai # For OpenAI
 import asyncio # For live streaming
+from typing import Optional, List # Ensure List is imported if not already
+from datetime import datetime # For handling meeting_date
+
+from ._utils.lancedb_service import add_transcript_embedding
 
 # --- Global Clients (to be initialized by functions or handlers) ---
 notion: Client | None = None
@@ -343,7 +347,14 @@ async def process_live_audio_for_notion(
     if create_note_resp["status"] == "error":
         return {"status": "error", "message": "Failed to create Notion note for live transcript.", "code": "NOTION_SAVE_ERROR", "details": create_note_resp.get("message")}
 
-    return {"status": "success", "data": {"notion_page_id": create_note_resp["data"]["page_id"], "url": create_note_resp["data"]["url"], "summary": summary, "key_points": key_points, "full_transcript_preview": final_transcript[:200]}}
+    return {"status": "success", "data": {
+        "notion_page_id": create_note_resp["data"]["page_id"],
+        "url": create_note_resp["data"]["url"],
+        "summary": summary,
+        "key_points": key_points,
+        "full_transcript": final_transcript, # Added full transcript
+        "full_transcript_preview": final_transcript[:200]
+    }}
 
 
 # --- Other pre-existing functions (transcribe_audio_deepgram - for pre-recorded, summarize_transcript_gpt, process_audio_url_for_notion, get_text_embedding_openai) ---
@@ -453,5 +464,67 @@ def get_text_embedding_openai(text_to_embed: str, openai_api_key_param: str = No
     except openai.RateLimitError as e: return {"status": "error", "message": f"OpenAI API rate limit exceeded: {e}", "code": "OPENAI_RATE_LIMIT_ERROR", "details": str(e)}
     except openai.APIStatusError as e: return {"status": "error", "message": f"OpenAI API status error (HTTP {e.status_code}): {e.response.text}", "code": f"OPENAI_API_STATUS_{e.status_code}", "details": e.response.text if e.response else str(e)}
     except Exception as e: return {"status": "error", "message": f"Unexpected error generating OpenAI embedding: {e}", "code": "OPENAI_EMBEDDING_ERROR", "details": str(e)}
+
+
+def embed_and_store_transcript_in_lancedb(
+    notion_page_id: str,
+    transcript_text: str,
+    meeting_title: str,
+    meeting_date_iso: Optional[str], # Expect ISO date string or None
+    user_id: Optional[str] = None,
+    openai_api_key_param: Optional[str] = None, # For OpenAI
+    lancedb_uri_param: Optional[str] = None # For LanceDB
+) -> dict:
+    """
+    Generates embedding for the transcript text and stores it in LanceDB
+    along with metadata.
+    """
+    db_path = lancedb_uri_param or os.environ.get("LANCEDB_URI")
+    if not db_path:
+        return {"status": "error", "message": "LanceDB URI not configured.", "code": "LANCEDB_CONFIG_ERROR"}
+
+    if not notion_page_id or not transcript_text or not meeting_title:
+        return {"status": "error", "message": "Missing required fields: notion_page_id, transcript_text, or meeting_title.", "code": "VALIDATION_ERROR"}
+
+    # Handle meeting_date
+    parsed_meeting_date: datetime
+    if meeting_date_iso:
+        try:
+            # Attempt to parse ISO format, handling potential 'Z' for UTC
+            if meeting_date_iso.endswith("Z"):
+                parsed_meeting_date = datetime.fromisoformat(meeting_date_iso[:-1] + "+00:00")
+            else:
+                parsed_meeting_date = datetime.fromisoformat(meeting_date_iso)
+        except ValueError:
+            print(f"Warning: Could not parse meeting_date_iso '{meeting_date_iso}'. Defaulting to now.")
+            parsed_meeting_date = datetime.now()
+    else:
+        parsed_meeting_date = datetime.now()
+        print("Warning: meeting_date_iso not provided. Defaulting to now.")
+
+    # Generate Text Embedding
+    embedding_response = get_text_embedding_openai(
+        transcript_text,
+        openai_api_key_param=openai_api_key_param
+    )
+
+    if embedding_response["status"] == "error":
+        return embedding_response # Propagate error from embedding function
+
+    vector_embedding = embedding_response["data"]
+
+    # Store in LanceDB
+    store_result = add_transcript_embedding(
+        db_path=db_path,
+        notion_page_id=notion_page_id,
+        meeting_title=meeting_title,
+        meeting_date=parsed_meeting_date, # Pass datetime object
+        transcript_chunk=transcript_text, # Using full transcript as one chunk for now
+        vector_embedding=vector_embedding,
+        user_id=user_id
+        # table_name defaults to "meeting_transcripts" in add_transcript_embedding
+    )
+
+    return store_result
 
 [end of atomic-docker/project/functions/note_utils.py]

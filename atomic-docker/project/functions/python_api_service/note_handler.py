@@ -14,7 +14,23 @@ except ImportError as e:
     print(f"sys.path: {sys.path}", file=sys.stderr)
     raise
 
+# Try to import search_routes blueprint
+try:
+    from .search_routes import search_routes_bp
+except ImportError as e:
+    print(f"Warning: Could not import search_routes_bp: {e}. Search routes will not be available.", file=sys.stderr)
+    search_routes_bp = None
+
+
 app = Flask(__name__)
+
+# Register the search blueprint if successfully imported
+if search_routes_bp:
+    app.register_blueprint(search_routes_bp, url_prefix='/api')
+    print("Successfully registered search_routes_bp with /api prefix.")
+else:
+    print("Search routes blueprint (search_routes_bp) not registered as it failed to import.")
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):

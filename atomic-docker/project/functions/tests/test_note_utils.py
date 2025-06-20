@@ -13,8 +13,11 @@ from note_utils import (
     summarize_transcript_gpt,
     create_notion_note,
     process_live_audio_for_notion,
-    init_notion # For setting up Notion client in tests
+    init_notion, # For setting up Notion client in tests
+    embed_and_store_transcript_in_lancedb, # Function to test
+    get_text_embedding_openai # Also in note_utils, but will be mocked
 )
+from datetime import datetime # For datetime objects in tests
 import requests # For requests.exceptions.HTTPError
 
 # --- Fixtures ---
@@ -266,3 +269,150 @@ if not hasattr(requests, 'exceptions') or not hasattr(requests.exceptions, 'HTTP
     if not hasattr(sys.modules['requests'], 'exceptions'):
         sys.modules['requests'].exceptions = MagicMock()
     sys.modules['requests'].exceptions.HTTPError = RequestsHTTPError
+
+
+# --- Tests for embed_and_store_transcript_in_lancedb ---
+
+@pytest.fixture
+def mock_lancedb_env():
+    """Fixture to mock LANCEDB_URI environment variable."""
+    with patch.dict(os.environ, {"LANCEDB_URI": "dummy_lancedb_uri"}):
+        yield
+
+@patch('note_utils.add_transcript_embedding')
+@patch('note_utils.get_text_embedding_openai')
+def test_embed_and_store_transcript_success(
+    mock_get_embedding, mock_add_embedding, mock_lancedb_env, mock_env_keys_and_init_notion
+):
+    mock_get_embedding.return_value = {"status": "success", "data": [0.01] * 1536}
+    mock_add_embedding.return_value = {"status": "success", "message": "Stored successfully."}
+
+    page_id = "test_page_id"
+    transcript = "This is a full transcript."
+    title = "Test Meeting Title"
+    date_iso = "2024-01-15T10:00:00Z"
+    user = "test_user_123"
+    openai_key = "test_openai_key" # Matches mock_env_keys_and_init_notion
+
+    expected_datetime = datetime.fromisoformat(date_iso[:-1] + "+00:00")
+
+    result = embed_and_store_transcript_in_lancedb(
+        notion_page_id=page_id,
+        transcript_text=transcript,
+        meeting_title=title,
+        meeting_date_iso=date_iso,
+        user_id=user,
+        openai_api_key_param=openai_key # Passed to get_text_embedding_openai
+    )
+
+    mock_get_embedding.assert_called_once_with(transcript, openai_api_key_param=openai_key)
+    mock_add_embedding.assert_called_once_with(
+        db_path="dummy_lancedb_uri",
+        notion_page_id=page_id,
+        meeting_title=title,
+        meeting_date=expected_datetime,
+        transcript_chunk=transcript,
+        vector_embedding=[0.01] * 1536,
+        user_id=user
+    )
+    assert result == {"status": "success", "message": "Stored successfully."}
+
+@patch('note_utils.add_transcript_embedding')
+@patch('note_utils.get_text_embedding_openai')
+@patch.dict(os.environ, clear=True) # Ensure LANCEDB_URI is not set from other tests
+def test_embed_and_store_lancedb_uri_missing(mock_get_embedding, mock_add_embedding):
+    # os.environ.get("LANCEDB_URI") will return None
+
+    result = embed_and_store_transcript_in_lancedb(
+        notion_page_id="p1", transcript_text="t1", meeting_title="m1", meeting_date_iso=None
+    )
+
+    assert result["status"] == "error"
+    assert result["message"] == "LanceDB URI not configured."
+    assert result["code"] == "LANCEDB_CONFIG_ERROR"
+    mock_get_embedding.assert_not_called()
+    mock_add_embedding.assert_not_called()
+
+@patch('note_utils.add_transcript_embedding')
+@patch('note_utils.get_text_embedding_openai')
+def test_embed_and_store_embedding_failure(
+    mock_get_embedding, mock_add_embedding, mock_lancedb_env, mock_env_keys_and_init_notion
+):
+    mock_get_embedding.return_value = {"status": "error", "message": "Embedding process failed.", "code": "EMBED_FAIL"}
+
+    result = embed_and_store_transcript_in_lancedb(
+        notion_page_id="p1", transcript_text="t1", meeting_title="m1", meeting_date_iso=None,
+        openai_api_key_param="some_key"
+    )
+
+    assert result["status"] == "error"
+    assert result["message"] == "Embedding process failed."
+    assert result["code"] == "EMBED_FAIL"
+    mock_get_embedding.assert_called_once_with("t1", openai_api_key_param="some_key")
+    mock_add_embedding.assert_not_called()
+
+@patch('note_utils.add_transcript_embedding')
+@patch('note_utils.get_text_embedding_openai')
+def test_embed_and_store_storage_failure(
+    mock_get_embedding, mock_add_embedding, mock_lancedb_env, mock_env_keys_and_init_notion
+):
+    mock_get_embedding.return_value = {"status": "success", "data": [0.02] * 1536}
+    mock_add_embedding.return_value = {"status": "error", "message": "Failed to store in LanceDB.", "code": "DB_STORE_FAIL"}
+
+    result = embed_and_store_transcript_in_lancedb(
+        notion_page_id="p1", transcript_text="t1", meeting_title="m1", meeting_date_iso=None
+    )
+
+    assert result["status"] == "error"
+    assert result["message"] == "Failed to store in LanceDB."
+    assert result["code"] == "DB_STORE_FAIL"
+    mock_get_embedding.assert_called_once()
+    mock_add_embedding.assert_called_once()
+
+
+@patch('note_utils.add_transcript_embedding')
+@patch('note_utils.get_text_embedding_openai')
+@patch('note_utils.datetime') # Mock the datetime class in note_utils module
+@patch('builtins.print') # To capture warning print
+def test_embed_and_store_date_parsing(
+    mock_print, mock_datetime, mock_get_embedding, mock_add_embedding, mock_lancedb_env, mock_env_keys_and_init_notion
+):
+    mock_get_embedding.return_value = {"status": "success", "data": [0.03] * 1536}
+    mock_add_embedding.return_value = {"status": "success"}
+
+    fixed_now = datetime(2024, 7, 4, 10, 0, 0)
+    mock_datetime.now.return_value = fixed_now
+
+    # Test with valid ISO string
+    valid_iso = "2024-07-15T14:30:00Z"
+    expected_parsed_valid_iso = datetime.fromisoformat(valid_iso[:-1] + "+00:00")
+    mock_datetime.fromisoformat.return_value = expected_parsed_valid_iso # Ensure fromisoformat returns what we expect
+
+    embed_and_store_transcript_in_lancedb(
+        notion_page_id="p_valid_date", transcript_text="text", meeting_title="title", meeting_date_iso=valid_iso
+    )
+    args, kwargs = mock_add_embedding.call_args
+    assert kwargs["meeting_date"] == expected_parsed_valid_iso
+    mock_print.assert_not_called() # No warning for valid date
+
+    # Test with invalid ISO string
+    mock_add_embedding.reset_mock()
+    mock_datetime.fromisoformat.side_effect = ValueError("Invalid ISO format") # Make fromisoformat fail for this call
+
+    embed_and_store_transcript_in_lancedb(
+        notion_page_id="p_invalid_date", transcript_text="text", meeting_title="title", meeting_date_iso="invalid-date-string"
+    )
+    args, kwargs = mock_add_embedding.call_args
+    assert kwargs["meeting_date"] == fixed_now # Should default to datetime.now()
+    mock_print.assert_any_call("Warning: Could not parse meeting_date_iso 'invalid-date-string'. Defaulting to now.")
+
+    # Test with meeting_date_iso = None
+    mock_add_embedding.reset_mock()
+    mock_print.reset_mock() # Reset print mock for this specific assertion
+
+    embed_and_store_transcript_in_lancedb(
+        notion_page_id="p_none_date", transcript_text="text", meeting_title="title", meeting_date_iso=None
+    )
+    args, kwargs = mock_add_embedding.call_args
+    assert kwargs["meeting_date"] == fixed_now # Should default to datetime.now()
+    mock_print.assert_any_call("Warning: meeting_date_iso not provided. Defaulting to now.")
