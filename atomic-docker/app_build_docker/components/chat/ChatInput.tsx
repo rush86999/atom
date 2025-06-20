@@ -11,9 +11,6 @@ import { IconPlus, IconArrowElbow, IconMic, IconMicOff } from '@components/chat/
 import { useEnterSubmit } from '@lib/Chat/hooks/use-enter-submit'
 import { useAudioMode } from '@lib/contexts/AudioModeContext';
 
-// Placeholder for Meyda type until it's actually used and imported
-// type Meyda = any; // Meyda is now directly imported
-
 type Props = {
     sendMessage: (text: string) => void,
     isNewSession: boolean,
@@ -24,6 +21,10 @@ const WAKE_WORD_MODEL_URL = '/models/atom_wake_word/model.json';
 const WAKE_WORD_THRESHOLD = 0.7;
 const SILENCE_THRESHOLD_MS = 2000;
 const MIN_RECORDING_DURATION_MS = 500;
+const MEYDA_BUFFER_SIZE = 512;
+const MEYDA_FEATURE_EXTRACTORS = ["mfcc"];
+const MEYDA_MFCC_COEFFS = 13;
+const WAKE_WORD_EXPECTED_FRAMES = 43;
 
 const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
     const [text, setText] = useState<string>('');
@@ -42,193 +43,30 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
     const [wakeWordStatus, setWakeWordStatus] = useState<string>("Audio Mode Disabled");
     const [tfModel, setTfModel] = useState<tf.GraphModel | tf.LayersModel | null>(null);
 
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const micStreamRef = useRef<MediaStream | null>(null); // For wake word's own stream
-    const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const wwAudioContextRef = useRef<AudioContext | null>(null); // Dedicated for Wake Word
+    const wwMicStreamRef = useRef<MediaStream | null>(null);
+    const wwMediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
     const meydaRef = useRef<Meyda | null>(null);
     const featureBufferRef = useRef<number[][]>([]);
 
-    const expectedFeatureFrames = 43;
-    const numMfccCoeffs = 13;
-
-    // Silence Detection for STT
-    const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const lastSpeechTimeRef = useRef<number>(0);
     const recordingStartTimeRef = useRef<number>(0);
+    const lastSpeechTimeRef = useRef<number>(0);
+    const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    useEffect(() => {
-        if (inputRef.current) {
-          inputRef.current.focus()
-        }
-      }, []);
-    
-    // Cleanup STT resources on unmount
-    useEffect(() => {
+    useEffect(() => { if (inputRef.current) inputRef.current.focus() }, []);
+
+    useEffect(() => { // Cleanup STT resources
         return () => {
             sttStreamRef.current?.getTracks().forEach(track => track.stop());
-            if (sttMediaRecorderRef.current && sttMediaRecorderRef.current.state === "recording") {
-                sttMediaRecorderRef.current.stop();
-            }
+            if (sttMediaRecorderRef.current?.state === "recording") sttMediaRecorderRef.current.stop();
         };
     }, []);
 
-    const onChangeText = (e: { currentTarget: { value: React.SetStateAction<string>; }; }) => (setText(e.currentTarget.value))
+    const onChangeText = (e: { currentTarget: { value: React.SetStateAction<string>; }; }) => setText(e.currentTarget.value);
 
-    // --- Wake Word Engine Functions ---
-    const processFeaturesAndPredict = useCallback(async (features: any) => {
-        if (!tfModel || !isAudioModeEnabled || isSttRecording || !features.mfcc || features.mfcc.length !== numMfccCoeffs) {
-            return;
-        }
-
-        featureBufferRef.current.push(features.mfcc);
-        if (featureBufferRef.current.length > expectedFeatureFrames) {
-            featureBufferRef.current.shift();
-        }
-
-        if (featureBufferRef.current.length === expectedFeatureFrames) {
-            const inputTensor = tf.tensor([featureBufferRef.current]);
-            try {
-                const prediction = tfModel.predict(inputTensor) as tf.Tensor;
-                const predictionData = await prediction.data();
-
-                if (predictionData[0] > WAKE_WORD_THRESHOLD) {
-                    console.log("Atom detected!");
-                    // Status will be set by startVoiceCapture as it's called immediately
-                    if(meydaRef.current?.isRunning()){
-                       meydaRef.current.stop();
-                       setWakeWordStatus("Atom detected! Pausing WW..."); // Indicate Meyda is paused
-                    }
-                    await startVoiceCapture(true); // isWakeWordFollowUp = true
-                }
-                tf.dispose([inputTensor, prediction]);
-            } catch (error) {
-                console.error("Error during wake word prediction:", error);
-                setWakeWordStatus("Error: Wake word prediction failed. Try toggling Audio Mode.");
-                tf.dispose(inputTensor);
-            }
-        }
-    }, [tfModel, isAudioModeEnabled, isSttRecording]); // Added startVoiceCapture to deps later, will fix if issue
-
-    const stopWakeWordEngineInternal = useCallback(() => {
-        console.log("stopWakeWordEngineInternal: Cleaning up wake word resources.");
-        meydaRef.current?.stop();
-        micStreamRef.current?.getTracks().forEach(track => track.stop());
-        micStreamRef.current = null;
-        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-            audioContextRef.current.close().catch(e => console.error("Error closing WW AudioContext:", e));
-            audioContextRef.current = null;
-        }
-        tfModel?.dispose();
-        setTfModel(null);
-
-        meydaRef.current = null;
-        mediaStreamSourceRef.current = null;
-        featureBufferRef.current = [];
-    }, [tfModel]);
-
-    const initializeWakeWordEngine = useCallback(async () => {
-        if (!isAudioModeEnabled || tfModel) { // Don't re-initialize if model already loaded or mode is off
-            if(tfModel && isAudioModeEnabled && !isSttRecording && !meydaRef.current?.isRunning()){
-                // Model loaded, audio mode on, not recording, meyda not running -> just start meyda
-                console.log("initializeWakeWordEngine: Meyda instance exists but not running. Starting it.");
-                 if (audioContextRef.current && audioContextRef.current.state === 'running' &&
-                    micStreamRef.current && micStreamRef.current.active &&
-                    mediaStreamSourceRef.current && meydaRef.current) {
-                    meydaRef.current.start();
-                    setWakeWordStatus("Listening for Atom");
-                } else {
-                     console.log("Wake word audio resources seem invalid for simple Meyda start, attempting full re-init.");
-                     // Fall through to full re-initialization by first stopping everything cleanly
-                     stopWakeWordEngineInternal();
-                     // Then the rest of this function will try to re-initialize
-                }
-            } else if (tfModel && isAudioModeEnabled && !isSttRecording && meydaRef.current?.isRunning()) {
-                // Already initialized and running
-                setWakeWordStatus("Listening for Atom");
-                return;
-            } else if (!isAudioModeEnabled) {
-                return; // Explicitly do nothing if audio mode is off
-            }
-        }
-
-        console.log("Initializing Wake Word Engine (Full Setup)...");
-        setWakeWordStatus("Initializing Engine...");
-        let modelError = false, micError = false, audioProcessorError = false;
-
-        try {
-            if (!tfModel) { // Only load model if not already loaded
-                try {
-                    const loadedModel = await tf.loadGraphModel(WAKE_WORD_MODEL_URL);
-                    setTfModel(loadedModel);
-                    console.log("Wake word model loaded.");
-                } catch (e) { modelError = true; throw e; }
-            }
-
-            let stream;
-            try {
-                if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-                    audioContextRef.current = new AudioContext();
-                    console.log("New AudioContext created for wake word.");
-                }
-                if (!micStreamRef.current || !micStreamRef.current.active) {
-                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    micStreamRef.current = stream;
-                    console.log("New media stream for wake word.");
-                } else {
-                    stream = micStreamRef.current;
-                }
-            } catch (e) { micError = true; throw e; }
-
-            const context = audioContextRef.current;
-            if (!context) throw new Error("AudioContext not available for wake word.");
-
-            if (!mediaStreamSourceRef.current || mediaStreamSourceRef.current.context.state === 'closed' || mediaStreamSourceRef.current.mediaStream !== stream ) {
-                 mediaStreamSourceRef.current = context.createMediaStreamSource(stream);
-                 console.log("New MediaStreamAudioSourceNode for wake word.");
-            }
-            const source = mediaStreamSourceRef.current;
-
-            if (meydaRef.current) meydaRef.current.stop();
-            try {
-                meydaRef.current = new Meyda({
-                    audioContext: context, source: source,
-                    bufferSize: 512, featureExtractors: ["mfcc"],
-                    callback: processFeaturesAndPredict
-                });
-                meydaRef.current.start();
-                console.log("Meyda instance created and started.");
-            } catch (e) { audioProcessorError = true; throw e; }
-
-            featureBufferRef.current = [];
-            setWakeWordStatus("Listening for Atom");
-        } catch (e: any) {
-            console.error("Wake Word Engine Initialization Error:", e.message);
-            if (modelError) setWakeWordStatus("Error: Model load failed.");
-            else if (micError) setWakeWordStatus("Error: Mic permission denied for WW.");
-            else if (audioProcessorError) setWakeWordStatus("Error: Audio processor setup failed for WW.");
-            else setWakeWordStatus("Error: Engine init failed.");
-
-            if (isAudioModeEnabled) toggleAudioMode(); // Auto-disable mode on critical error
-            else stopWakeWordEngineInternal(); // Ensure cleanup if mode was already off
-        }
-    }, [isAudioModeEnabled, toggleAudioMode, tfModel, processFeaturesAndPredict, stopWakeWordEngineInternal]);
-
-    const stopWakeWordEngine = useCallback(() => {
-        console.log("stopWakeWordEngine called.");
-        stopWakeWordEngineInternal();
-        setWakeWordStatus("Audio Mode Disabled");
-        if (isSttRecording && sttMediaRecorderRef.current) {
-            console.log("Audio mode disabled during STT, stopping STT.");
-            sttMediaRecorderRef.current.stop();
-        }
-    }, [isSttRecording, stopWakeWordEngineInternal]);
-
-    // --- STT Logic ---
-    const audioChunksRef = useRef<Blob[]>([]);
-    useEffect(() => { audioChunksRef.current = audioChunks; }, [audioChunks]);
-
+    // Memoized stopVoiceCapture for STT
     const stopVoiceCapture = useCallback(() => {
-        console.log("stopVoiceCapture called. Current STT MediaRecorder state:", sttMediaRecorderRef.current?.state);
+        console.log("stopVoiceCapture called. STT MediaRecorder state:", sttMediaRecorderRef.current?.state);
         if (sttMediaRecorderRef.current && sttMediaRecorderRef.current.state === "recording") {
             sttMediaRecorderRef.current.stop();
         }
@@ -241,11 +79,134 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         }
     }, [isSttRecording]);
 
-    const startVoiceCapture = useCallback(async (isWakeWordFollowUp: boolean = false) => {
-        if (isSttRecording) {
-            console.log("startVoiceCapture called but already recording STT.");
+    // processFeaturesAndPredict needs startVoiceCapture, so define startVoiceCapture first or pass as ref if circular.
+    // For simplicity, ensure startVoiceCapture is defined before processFeaturesAndPredict if directly called.
+    // However, processFeaturesAndPredict is a callback for Meyda.
+    // We'll use a forward declaration pattern by defining startVoiceCapture later, and ensure it's memoized.
+
+    const processFeaturesAndPredict = useCallback(async (features: any) => {
+        if (!tfModel || !isAudioModeEnabled || isSttRecording || !meydaRef.current?.isRunning() || !features.mfcc || features.mfcc.length !== MEYDA_MFCC_COEFFS) {
             return;
         }
+        featureBufferRef.current.push(features.mfcc);
+        if (featureBufferRef.current.length > WAKE_WORD_EXPECTED_FRAMES) featureBufferRef.current.shift();
+
+        if (featureBufferRef.current.length === WAKE_WORD_EXPECTED_FRAMES) {
+            const inputTensor = tf.tensor3d([featureBufferRef.current], [1, WAKE_WORD_EXPECTED_FRAMES, MEYDA_MFCC_COEFFS]);
+            try {
+                const prediction = tfModel.predict(inputTensor) as tf.Tensor;
+                const predictionData = await prediction.data() as Float32Array; // Ensure type
+                if (predictionData[0] > WAKE_WORD_THRESHOLD) {
+                    console.log("Atom detected with confidence:", predictionData[0]);
+                    if(meydaRef.current?.isRunning()) meydaRef.current.stop();
+
+                    // Fully stop wake word audio resources before STT
+                    wwMicStreamRef.current?.getTracks().forEach(track => track.stop());
+                    wwMicStreamRef.current = null;
+                    if (wwAudioContextRef.current && wwAudioContextRef.current.state !== 'closed') {
+                       await wwAudioContextRef.current.close();
+                    }
+                    wwAudioContextRef.current = null;
+                    wwMediaStreamSourceRef.current = null;
+
+                    setWakeWordStatus("Atom detected! Listening for command...");
+                    await startVoiceCapture(true); // isWakeWordFollowUp = true
+                }
+                tf.dispose([inputTensor, prediction]);
+            } catch (error) {
+                console.error("Error during wake word prediction:", error);
+                setWakeWordStatus("Error: Wake word prediction failed.");
+                tf.dispose(inputTensor);
+            }
+        }
+    }, [tfModel, isAudioModeEnabled, isSttRecording, startVoiceCapture]); // Added startVoiceCapture
+
+    const stopWakeWordEngineInternal = useCallback(() => {
+        console.log("stopWakeWordEngineInternal: Cleaning up wake word resources.");
+        meydaRef.current?.stop();
+        micStreamRef.current?.getTracks().forEach(track => track.stop());
+        micStreamRef.current = null;
+        if (wwAudioContextRef.current && wwAudioContextRef.current.state !== 'closed') {
+            wwAudioContextRef.current.close().catch(e => console.error("Error closing WW AudioContext:", e));
+        }
+        wwAudioContextRef.current = null;
+        tfModel?.dispose();
+        setTfModel(null);
+        meydaRef.current = null;
+        wwMediaStreamSourceRef.current = null;
+        featureBufferRef.current = [];
+    }, [tfModel]);
+
+    const initializeWakeWordEngine = useCallback(async () => {
+        if (!isAudioModeEnabled) { console.log("Attempted to init WW engine, but Audio Mode is off."); return; }
+        if (tfModel && meydaRef.current?.isRunning()) { console.log("WW engine already initialized and running."); return; }
+
+        console.log("Initializing Wake Word Engine...");
+        setWakeWordStatus("Audio Mode: Initializing engine...");
+        let modelError = false, micError = false, audioProcessorError = false;
+
+        try {
+            if (!tfModel) {
+                try {
+                    const loadedModel = await tf.loadGraphModel(WAKE_WORD_MODEL_URL);
+                    setTfModel(loadedModel); console.log("Wake word model loaded.");
+                } catch (e) { modelError = true; throw e; }
+            }
+            let stream;
+            try {
+                if (!wwAudioContextRef.current || wwAudioContextRef.current.state === 'closed') {
+                    wwAudioContextRef.current = new AudioContext(); console.log("New AudioContext for WW.");
+                }
+                if (!micStreamRef.current || !micStreamRef.current.active) {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    micStreamRef.current = stream; console.log("New media stream for WW.");
+                } else { stream = micStreamRef.current; }
+            } catch (e) { micError = true; throw e; }
+
+            const context = wwAudioContextRef.current;
+            if (!context) throw new Error("AudioContext not available for WW.");
+
+            if (!wwMediaStreamSourceRef.current || wwMediaStreamSourceRef.current.context.state === 'closed' || wwMediaStreamSourceRef.current.mediaStream !== stream ) {
+                 wwMediaStreamSourceRef.current = context.createMediaStreamSource(stream); console.log("New MediaStreamAudioSourceNode for WW.");
+            }
+            const source = wwMediaStreamSourceRef.current;
+
+            if (meydaRef.current) meydaRef.current.stop();
+            try {
+                meydaRef.current = new Meyda({
+                    audioContext: context, source: source,
+                    bufferSize: MEYDA_BUFFER_SIZE, featureExtractors: MEYDA_FEATURE_EXTRACTORS,
+                    callback: processFeaturesAndPredict
+                });
+                meydaRef.current.start(); console.log("Meyda instance created and started for WW.");
+            } catch (e) { audioProcessorError = true; throw e; }
+
+            featureBufferRef.current = [];
+            setWakeWordStatus("Audio Mode: Listening for 'Atom'...");
+        } catch (e: any) {
+            console.error("Wake Word Engine Initialization Error:", e.message);
+            if (modelError) setWakeWordStatus("Error: Wake word model failed to load. Please try again.");
+            else if (micError) setWakeWordStatus("Error: Microphone access denied for wake word. Please check permissions.");
+            else if (audioProcessorError) setWakeWordStatus("Error: Audio feature setup failed. Please try again.");
+            else setWakeWordStatus("Error: Engine init failed.");
+
+            if (isAudioModeEnabled) toggleAudioMode(); // Auto-disable mode
+            else stopWakeWordEngineInternal(); // Ensure cleanup if mode was already off
+        }
+    }, [isAudioModeEnabled, toggleAudioMode, tfModel, processFeaturesAndPredict, stopWakeWordEngineInternal]);
+
+    const stopWakeWordEngine = useCallback(() => {
+        console.log("stopWakeWordEngine called.");
+        stopWakeWordEngineInternal();
+        setWakeWordStatus("Audio Mode: Disabled.");
+        if (isSttRecording && sttMediaRecorderRef.current) {
+            console.log("Audio mode disabled/stopped during STT, stopping STT.");
+            sttMediaRecorderRef.current.stop();
+        }
+    }, [isSttRecording, stopWakeWordEngineInternal]);
+
+    const startVoiceCapture = useCallback(async (isWakeWordFollowUp: boolean = false) => {
+        if (isSttRecording) { console.log("startVoiceCapture called but already recording STT."); return; }
 
         if (isAudioModeEnabled && !isWakeWordFollowUp && meydaRef.current?.isRunning()) {
             console.log("Manually starting STT capture, pausing wake word listening.");
@@ -253,13 +214,13 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         }
 
         setIsSttRecording(true);
-        setAudioChunks([]);
-        audioChunksRef.current = [];
+        setSttAudioChunks([]);
+        sttAudioChunksRef.current = [];
 
         if (isWakeWordFollowUp) {
             setWakeWordStatus("Atom detected! Listening for command...");
         } else if (isAudioModeEnabled) {
-            setWakeWordStatus("Listening (STT in Audio Mode)...");
+            setWakeWordStatus("Audio Mode: Listening for your reply/command...");
         } else {
             setWakeWordStatus("Listening (STT)...");
         }
@@ -267,15 +228,13 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             sttStreamRef.current = stream;
-
             const recorder = new MediaRecorder(stream);
             sttMediaRecorderRef.current = recorder;
-
             recordingStartTimeRef.current = Date.now();
             lastSpeechTimeRef.current = Date.now();
 
             recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+                if (event.data.size > 0) sttAudioChunksRef.current.push(event.data);
                 if (isAudioModeEnabled && isSttRecording) {
                     lastSpeechTimeRef.current = Date.now();
                     if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
@@ -295,12 +254,12 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                 if (silenceTimeoutRef.current) { clearTimeout(silenceTimeoutRef.current); silenceTimeoutRef.current = null; }
 
                 setIsTranscribing(true);
-                setWakeWordStatus("Transcribing...");
-                const currentAudioChunks = audioChunksRef.current;
+                setWakeWordStatus("Audio Mode: Transcribing speech...");
+                const currentAudioChunks = sttAudioChunksRef.current;
                 const audioBlob = new Blob(currentAudioChunks, { type: 'audio/webm' });
 
-                audioChunksRef.current = [];
-                setAudioChunks([]);
+                sttAudioChunksRef.current = [];
+                setSttAudioChunks([]);
 
                 if (audioBlob.size > 0) {
                     const audioFile = new File([audioBlob], "voice_input.webm", { type: 'audio/webm' });
@@ -316,7 +275,7 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                         if (result.transcription) {
                             setText(prevText => prevText ? `${prevText} ${result.transcription}` : result.transcription);
                             if (inputRef.current) inputRef.current.focus();
-                            if (isAudioModeEnabled) setWakeWordStatus("Agent is processing...");
+                            if (isAudioModeEnabled) setWakeWordStatus("Audio Mode: Agent is processing...");
                             else setWakeWordStatus("Transcription complete.");
                         } else if (result.error) {
                             alert(`Transcription Error: ${result.error}`);
@@ -352,9 +311,10 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
             console.error("Error starting STT voice capture:", error);
             alert("Could not access microphone for STT. Please check permissions.");
             setIsSttRecording(false);
-            setWakeWordStatus(isAudioModeEnabled ? "Error: Mic for STT." : "Audio Mode Disabled");
+            setWakeWordStatus(isAudioModeEnabled ? "Error: Microphone access denied for STT. Please check permissions." : "Audio Mode Disabled");
+            if(isAudioModeEnabled) toggleAudioMode();
         }
-    }, [isAudioModeEnabled, isSttRecording, stopVoiceCapture, tfModel]); // Added tfModel as it's checked in onstop implicitly
+    }, [isAudioModeEnabled, isSttRecording, stopVoiceCapture, setText, toggleAudioMode, tfModel]); // tfModel added as initializeWakeWordEngine is in its onStop path indirectly
 
     const handleManualSttToggle = () => {
         if (isSttRecording) {
@@ -363,12 +323,12 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
             startVoiceCapture(false);
         }
     };
-    
-    // Effect for Audio Mode ON/OFF
+
+    // Effect for Audio Mode ON/OFF (Master effect for wake word engine)
     useEffect(() => {
         if (isAudioModeEnabled) {
             if (isSttRecording) {
-                console.log("Audio Mode enabled, but STT is active. Deferring WW init.");
+                console.log("Audio Mode enabled, but STT is active. Deferring WW init until STT completes.");
             } else {
                 initializeWakeWordEngine();
             }
@@ -378,7 +338,7 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         return () => {
             stopWakeWordEngine();
         };
-    }, [isAudioModeEnabled, initializeWakeWordEngine, stopWakeWordEngine]); // isSttRecording removed
+    }, [isAudioModeEnabled, initializeWakeWordEngine, stopWakeWordEngine]);
 
     // Effect for handling reply requests from context
     useEffect(() => {
@@ -390,52 +350,38 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
             }
             sttStreamRef.current?.getTracks().forEach(track => track.stop());
             if (sttMediaRecorderRef.current?.state === "recording") sttMediaRecorderRef.current.stop();
-            setAudioChunks([]); audioChunksRef.current = [];
-            startVoiceCapture(false); // isWakeWordFollowUp = false, this is a reply, status will be set by startVoiceCapture
+            setSttAudioChunks([]);
+            audioChunksRef.current = [];
+            startVoiceCapture(false);
         }
     }, [replyRequestCount, isAudioModeEnabled, isSttRecording, startVoiceCapture]);
 
-    // Effect to manage Meyda's running state (wake word listening)
+    // Effect to manage Meyda's running state (wake word listening) based on other states
     useEffect(() => {
         if (isAudioModeEnabled && !isSttRecording && tfModel) {
-            if (!meydaRef.current) {
-                console.log("ChatInput Effect: Meyda not initialized. Calling initializeWakeWordEngine.");
+            if (!meydaRef.current?.isRunning()) { // Check if not already running
+                console.log("ChatInput Effect: Conditions met to listen for wake word. Starting/Re-initializing Meyda.");
                 initializeWakeWordEngine();
-            } else if (!meydaRef.current.isRunning()) {
-                console.log("ChatInput Effect: Meyda exists and is paused. Starting Meyda for wake word detection.");
-                if (audioContextRef.current && audioContextRef.current.state === 'running' &&
-                    micStreamRef.current && micStreamRef.current.active &&
-                    mediaStreamSourceRef.current) {
-                    meydaRef.current.start();
-                    setWakeWordStatus("Listening for Atom");
-                } else {
-                    console.log("ChatInput Effect: Wake word audio resources seem invalid, re-initializing.");
-                    initializeWakeWordEngine();
-                }
             } else {
-                 if(wakeWordStatus !== "Atom detected! Listening for command..." &&
-                    wakeWordStatus !== "Listening for your reply..." &&
-                    wakeWordStatus !== "Atom heard, listening..." &&
-                    wakeWordStatus !== "Initializing Engine..." &&
-                    wakeWordStatus !== "Error: Mic permission denied for WW." &&
-                    wakeWordStatus !== "Error: Model load failed." &&
-                    wakeWordStatus !== "Error: Audio feature extractor setup failed for WW." &&
-                    wakeWordStatus !== "Error: Engine init failed." &&
-                    wakeWordStatus !== "Error: Prediction failed.") {
-                    setWakeWordStatus("Listening for Atom");
+                 if (wakeWordStatus !== "Audio Mode: Listening for 'Atom'..." &&
+                     !wakeWordStatus.startsWith("Atom detected") &&
+                     !wakeWordStatus.startsWith("Listening for") &&
+                     !wakeWordStatus.startsWith("Initializing") &&
+                     !wakeWordStatus.startsWith("Error")) {
+                    setWakeWordStatus("Audio Mode: Listening for 'Atom'...");
                  }
             }
         } else if (meydaRef.current?.isRunning() && (!isAudioModeEnabled || isSttRecording)) {
             console.log("ChatInput Effect: Audio Mode off OR STT recording active. Pausing Meyda.");
             meydaRef.current.stop();
         }
-    }, [isAudioModeEnabled, isSttRecording, tfModel, wakeWordStatus, initializeWakeWordEngine, stopWakeWordEngine]);
+    }, [isAudioModeEnabled, isSttRecording, tfModel, wakeWordStatus, initializeWakeWordEngine]);
+
 
     const sttMicButtonDisabled = isTranscribing || (
         isAudioModeEnabled &&
         !(wakeWordStatus === "Atom detected! Listening for command..." ||
-          wakeWordStatus === "Listening for your reply..." ||
-          wakeWordStatus === "Atom heard, listening..." ||
+          wakeWordStatus === "Audio Mode: Listening for your reply/command..." ||
           wakeWordStatus === "Listening (STT in Audio Mode)...")
     );
 
@@ -498,7 +444,7 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                                     type="button"
                                     size="icon"
                                     variant={isSttRecording ? "destructive" : "outline"}
-                                    onClick={handleManualSttToggle} // Renamed handler
+                                    onClick={handleManualSttToggle}
                                     className="h-8 w-8 rounded-full p-0 mr-2"
                                     disabled={sttMicButtonDisabled}
                                 >
@@ -524,7 +470,7 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
     )
 }
 
-export default ChatInput
+export default ChatInput;
 
 // --- Placeholder Icons (if not available in ui/icons.tsx) ---
 // Assuming IconMic and IconMicOff are defined in @components/chat/ui/icons.tsx
