@@ -208,25 +208,37 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
     switch (nluResponse.intent) {
       case "GetCalendarEvents":
         try {
+            const entities = nluResponse.entities || {};
             let limit = 7; // Default limit
-            if (nluResponse.entities?.limit) {
-                if (typeof nluResponse.entities.limit === 'number') {
-                    limit = nluResponse.entities.limit;
-                } else if (typeof nluResponse.entities.limit === 'string') {
-                    const parsedLimit = parseInt(nluResponse.entities.limit, 10);
+            if (entities.limit) {
+                if (typeof entities.limit === 'number') {
+                    limit = entities.limit;
+                } else if (typeof entities.limit === 'string') {
+                    const parsedLimit = parseInt(entities.limit, 10);
                     if (!isNaN(parsedLimit)) limit = parsedLimit;
                 }
             }
 
-            const date_range = nluResponse.entities?.date_range as string | undefined;
-            const event_type_filter = nluResponse.entities?.event_type_filter as string | undefined;
+            const date_range = entities.date_range as string | undefined;
+            const event_type_filter = entities.event_type_filter as string | undefined;
+            const time_query = entities.time_query as string | undefined;
+            const query_type = entities.query_type as string | undefined;
+
 
             if (date_range) {
-                console.log(`NLU Intent "GetCalendarEvents" received date_range: ${date_range}. This is not yet used by the skill.`);
+                console.log(`[Handler] GetCalendarEvents: date_range found - ${date_range}.`);
             }
             if (event_type_filter) {
-                console.log(`NLU Intent "GetCalendarEvents" received event_type_filter: ${event_type_filter}. This is not yet used by the skill directly for general events.`);
+                console.log(`[Handler] GetCalendarEvents: event_type_filter found - ${event_type_filter}.`);
             }
+            if (time_query) {
+                console.log(`[Handler] GetCalendarEvents: time_query found - ${time_query}`);
+            }
+            if (query_type) {
+                console.log(`[Handler] GetCalendarEvents: query_type found - ${query_type}`);
+            }
+            // Note: listUpcomingEvents skill currently only uses userId and limit.
+            // Other extracted entities are logged for now, future skill enhancement needed.
 
             const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
             if (!events || events.length === 0) {
@@ -245,23 +257,32 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
 
       case "CreateCalendarEvent":
         try {
-            const { summary, start_time, end_time, description, location, attendees } = nluResponse.entities;
+            const entities = nluResponse.entities || {};
+            const { summary, start_time, end_time, description, location, attendees } = entities;
+            const duration = entities.duration as string | undefined;
 
             if (!summary || typeof summary !== 'string') {
                 textResponse = "Event summary is required to create an event via NLU.";
             } else if (!start_time || typeof start_time !== 'string') {
                 textResponse = "Event start time is required to create an event via NLU.";
-            } else if (!end_time || typeof end_time !== 'string') {
-                textResponse = "Event end time is required to create an event via NLU.";
-            } else {
-                const eventDetails: Partial<CalendarEvent> = {
-                    summary,
-                    startTime: start_time,
-                    endTime: end_time,
+            } else if (!end_time && !duration) { // Require end_time OR duration
+                textResponse = "Event end time or duration is required to create an event via NLU.";
+            }
+             else {
+                const eventDetails: Partial<CalendarEvent & { duration?: string }> = { // Add duration to type if not already there
+                    summary: summary as string,
+                    startTime: start_time as string,
+                    endTime: end_time as string | undefined, // Can be undefined if duration is provided
                     description: typeof description === 'string' ? description : undefined,
                     location: typeof location === 'string' ? location : undefined,
                     attendees: Array.isArray(attendees) ? attendees.filter(att => typeof att === 'string') : undefined,
                 };
+                if (duration) {
+                    eventDetails.duration = duration;
+                    console.log(`[Handler] CreateCalendarEvent: duration found - ${duration}`);
+                    // Note: createCalendarEvent skill might not use duration yet. This passes it.
+                }
+
 
                 const response: CreateEventResponse = await createCalendarEvent(userId, eventDetails);
                 if (response.success) {
@@ -990,6 +1011,67 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
         }
         break;
       // --- End Autopilot Intents ---
+
+      case "CreateTask":
+        try {
+            const entities = nluResponse.entities || {};
+            const task_description = entities.task_description as string | undefined;
+            const due_date_time = entities.due_date_time as string | undefined;
+            const priority = entities.priority as string | undefined;
+            const list_name = entities.list_name as string | undefined;
+
+            let taskResponse = `Task to create: "${task_description || 'No description'}"`;
+            if (due_date_time) taskResponse += ` due by ${due_date_time}`;
+            if (priority) taskResponse += ` with priority ${priority}`;
+            if (list_name) taskResponse += ` for list "${list_name}"`;
+            console.log(`[Handler] CreateTask: ${taskResponse}`);
+            textResponse = `Okay, I've noted that you want to create the task: ${task_description || 'unspecified task'}. Full task management is still under development.`;
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "CreateTask":`, error.message, error.stack);
+            textResponse = "Sorry, an error occurred while creating your task.";
+        }
+        break;
+
+      case "QueryTasks":
+        try {
+            const entities = nluResponse.entities || {};
+            const date_range = entities.date_range as string | undefined;
+            const list_name = entities.list_name as string | undefined;
+            const status = entities.status as string | undefined;
+
+            let queryResponse = "Query for tasks with filters:";
+            if (date_range) queryResponse += ` DateRange: ${date_range}`;
+            if (list_name) queryResponse += ` List: ${list_name}`;
+            if (status) queryResponse += ` Status: ${status}`;
+            console.log(`[Handler] QueryTasks: ${queryResponse}`);
+            textResponse = "You asked to query tasks. This feature is being developed!";
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "QueryTasks":`, error.message, error.stack);
+            textResponse = "Sorry, an error occurred while querying your tasks.";
+        }
+        break;
+
+      case "UpdateTask":
+        try {
+            const entities = nluResponse.entities || {};
+            const task_identifier = entities.task_identifier as string | undefined;
+            const update_action = entities.update_action as string | undefined;
+            // const new_due_date_time = entities.new_due_date_time as string | undefined;
+            // const new_description = entities.new_description as string | undefined;
+            // const new_priority = entities.new_priority as string | undefined;
+
+            let updateResponse = `Task update request for "${task_identifier || 'Unknown task'}" with action "${update_action || 'Unknown action'}"`;
+            // Add more details if other entities like new_due_date_time exist
+            // if (new_due_date_time) updateResponse += ` New DueDate: ${new_due_date_time}`;
+            // if (new_description) updateResponse += ` New Description: ${new_description}`;
+            // if (new_priority) updateResponse += ` New Priority: ${new_priority}`;
+            console.log(`[Handler] UpdateTask: ${updateResponse}`);
+            textResponse = `You want to update task "${task_identifier || 'an unspecified task'}". This part of task management is still being built.`;
+        } catch (error: any) {
+            console.error(`Error in NLU Intent "UpdateTask":`, error.message, error.stack);
+            textResponse = "Sorry, an error occurred while updating your task.";
+        }
+        break;
 
       /*
             case "SemanticSearchMeetingNotes": // This intent needs to be defined in your NLU service
