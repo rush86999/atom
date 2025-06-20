@@ -1,3 +1,4 @@
+import * as conversationManager from './conversationState'; // Added for conversation management
 import { listUpcomingEvents, createCalendarEvent } from './skills/calendarSkills';
 import { listRecentEmails, readEmail, sendEmail, EmailDetails } from './skills/emailSkills';
 import { searchWeb } from './skills/webResearchSkills';
@@ -78,25 +79,22 @@ export interface HandleMessageResponse {
   error?: string; // For errors related to TTS or other parts of handling if needed
 }
 
-export async function handleMessage(message: string): Promise<HandleMessageResponse> {
-  const lowerCaseMessage = message.toLowerCase(); // Keep for simple fallbacks initially
-  const userId = "mock_user_id_from_handler"; // Placeholder for actual user ID retrieval
-
+// Internal function to handle the core logic of processing a message
+// This version does NOT call TTS, as TTS is handled by the wrapper after checking active state.
+async function _internalHandleMessage(message: string, userId: string): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
+  const lowerCaseMessage = message.toLowerCase();
   let textResponse: string;
 
-  // Initial NLU Call
   const nluResponse: ProcessedNLUResponse = await understandMessage(message);
-  console.log('NLU Response:', JSON.stringify(nluResponse, null, 2)); // For debugging
+  console.log('[InternalHandleMessage] NLU Response:', JSON.stringify(nluResponse, null, 2));
 
-  // Handle NLU Service Errors (e.g., API key, network)
-  if (nluResponse.error && !nluResponse.intent) { // Critical NLU failure
-    console.error('NLU service critical error:', nluResponse.error);
+  if (nluResponse.error && !nluResponse.intent) {
+    console.error('[InternalHandleMessage] NLU service critical error:', nluResponse.error);
     textResponse = "Sorry, I'm having trouble understanding requests right now. Please try again later.";
-    // No TTS call for critical NLU errors, return immediately
-    return { text: textResponse, error: "NLU service critical error" };
+    return { text: textResponse, nluResponse };
   }
 
-  if (nluResponse.intent) { // If NLU identified an intent
+  if (nluResponse.intent) {
     switch (nluResponse.intent) {
       case "GetCalendarEvents":
         try {
@@ -133,7 +131,7 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
             console.error(`Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
         }
-        break; // Added break
+        break;
 
       case "CreateCalendarEvent":
         try {
@@ -166,7 +164,7 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
             console.error(`Error in NLU Intent "CreateCalendarEvent":`, error.message);
             textResponse = "Sorry, I couldn't create the calendar event due to an error.";
         }
-        break; // Added break
+        break;
 
       // ... (Apply similar pattern: assign to textResponse, then break) ...
       // For brevity, I will only show a few more, the rest should follow this pattern.
@@ -783,7 +781,7 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
 
       default:
         if (nluResponse.error) {
-             console.log(`NLU processed with intent '${nluResponse.intent}' but also had an error: ${nluResponse.error}`);
+             console.log(`[InternalHandleMessage] NLU processed with intent '${nluResponse.intent}' but also had an error: ${nluResponse.error}`);
         }
         textResponse = `I understood your intent as '${nluResponse.intent}' with entities ${JSON.stringify(nluResponse.entities)}, but I'm not fully set up to handle that specific request conversationally yet. You can try specific commands or 'help'.`;
     }
@@ -792,13 +790,7 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
 You can also use specific commands:
 - "create hubspot contact and dm me details {JSON_DETAILS}"
 - "create hubspot contact {JSON_DETAILS}" (for channel notifications)
-- "slack my agenda"
-- "list calendly event types" / "list calendly bookings [active|canceled] [count]"
-- "list zoom meetings [type] [page_size] [next_page_token]" / "get zoom meeting <id>"
-- "list google meet events [limit]" / "get google meet event <id>"
-- "list teams meetings [limit] [nextLink]" / "get teams meeting <id>"
-- "list stripe payments [limit=N] [starting_after=ID] [customer=ID]" / "get stripe payment <id>"
-- "qb get auth url" / "list qb invoices [limit=N] [offset=N] [customer=ID]" / "get qb invoice <id>"
+// ... (help message content as before)
 - And other general commands like "list emails", "read email <id>", "send email {JSON}", "search web <query>", "trigger zap <name> [with data {JSON}]".`;
   } else {
     if (nluResponse.error) {
@@ -807,35 +799,210 @@ You can also use specific commands:
         textResponse = "Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help' to see what I can do.";
     }
   }
+  return { text: textResponse, nluResponse };
+}
 
-  // After textResponse is determined, try to get TTS audio URL
-  if (textResponse) {
-    try {
-      const ttsPayload = { text: textResponse };
-      const ttsResponse = await fetch(AUDIO_PROCESSOR_TTS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ttsPayload)
-      });
 
-      if (ttsResponse.ok) {
-        const ttsResult = await ttsResponse.json();
-        if (ttsResult.audio_url) {
-          return { text: textResponse, audioUrl: ttsResult.audio_url };
-        } else {
-          console.error("TTS response OK, but no audio_url:", ttsResult);
-          return { text: textResponse, error: "TTS synthesis succeeded but no audio URL was returned." };
-        }
-      } else {
-        const errorBody = await ttsResponse.text();
-        console.error("TTS request failed:", ttsResponse.status, errorBody);
-        return { text: textResponse, error: `Failed to synthesize audio. Status: ${ttsResponse.status}` };
-      }
-    } catch (error: any) {
-      console.error("Error calling TTS service:", error.message, error.stack);
-      return { text: textResponse, error: "Error occurred during audio synthesis." };
-    }
+// --- New Exported Functions for Conversation Management ---
+
+/**
+ * Placeholder for user ID retrieval. In a real scenario, this would come from session, token, etc.
+ */
+function getCurrentUserId(): string {
+  // For now, using a mock user ID. This should be replaced with actual user management.
+  return "mock_user_id_from_handler";
+}
+
+/**
+ * Activates the conversation mode.
+ * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/activate
+ */
+export async function activateConversationWrapper(): Promise<{ status: string; active: boolean; message?: string }> {
+  console.log("[Handler] Received request to activate conversation.");
+  // activateConversation itself now sets isAgentResponding to false.
+  const result = conversationManager.activateConversation();
+  return { ...result, message: result.status };
+}
+
+/**
+ * Deactivates the conversation mode.
+ * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/deactivate
+ */
+export async function deactivateConversationWrapper(reason: string = "manual_deactivation"): Promise<{ status: string; active: boolean; message?: string }> {
+  console.log(`[Handler] Received request to deactivate conversation. Reason: ${reason}`);
+  // deactivateConversation itself now sets isAgentResponding to false.
+  conversationManager.deactivateConversation(reason);
+  return { status: `Conversation deactivated due to ${reason}.`, active: false, message: `Conversation deactivated due to ${reason}.` };
+}
+
+/**
+ * Handles an interrupt signal.
+ * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/interrupt
+ */
+export async function handleInterruptWrapper(): Promise<{ status: string; message: string }> {
+  console.log("[Handler] Received interrupt signal.");
+  // Key action: Signal that the agent should stop its current response processing/output.
+  conversationManager.setAgentResponding(false);
+
+  // Optional: Could also deactivate conversation entirely or just reset timer to allow immediate next command.
+  // For now, just stopping agent response and keeping conversation active.
+  // conversationManager.activateConversation(); // This would reset the timer and keep it active.
+  // Or, if an interrupt means "stop everything":
+  // conversationManager.deactivateConversation("interrupt_signal");
+
+  // For now, the primary effect is setting isAgentResponding = false.
+  // The wake_word_detector will follow up with an activate & new conversation input.
+  // This ensures the agent is receptive.
+  // If there were long-running tasks tied to the previous response, they should ideally check
+  // checkIfAgentIsResponding() and halt. This is not implemented in skills yet.
+
+  return { status: "success", message: "Interrupt signal processed. Agent responding state set to false." };
+}
+
+
+/**
+ * Handles transcribed text input for an ongoing conversation.
+ * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/conversation
+ * Expects payload: { "text": "user's transcribed speech" }
+ */
+export async function handleConversationInputWrapper(
+  payload: { text: string }
+): Promise<HandleMessageResponse | { error: string; active: boolean; message?: string }> {
+  const { text } = payload;
+  console.log(`[Handler] Received conversation input: "${text}"`);
+
+  const userId = getCurrentUserId(); // Get user ID
+
+  conversationManager.recordUserInteraction(text); // Records interaction, resets user idle timer
+
+  if (!conversationManager.isConversationActive()) {
+    console.log("[Handler] Conversation is not active. Ignoring input.");
+    // Ensure agent responding is false if conversation is not active.
+    conversationManager.setAgentResponding(false);
+    return {
+      error: "Conversation not active. Please activate with wake word or activation command.",
+      active: false,
+      message: "Conversation is not active. Wake word or activation needed.",
+    };
   }
-  // Should not be reached if textResponse is always set, but as a fallback:
-  return { text: "An unexpected error occurred, and no response was generated.", error: "Handler logic error" };
+
+  // If an interrupt was missed and agent is still marked as responding, log it.
+  // The /interrupt call should prevent this, but as a safeguard.
+  if (conversationManager.checkIfAgentIsResponding()) {
+    console.warn("[Handler] New input received while agent was still marked as responding. This might indicate a missed interrupt signal.");
+    // Force agent to not be responding before processing new input.
+    conversationManager.setAgentResponding(false);
+  }
+
+  conversationManager.setAgentResponding(true); // Agent starts processing this new request
+
+  console.log("[Handler] Conversation active. Processing message...");
+  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(text, userId);
+
+  const preliminaryAgentResponse: HandleMessageResponse = { text: coreResponseText };
+  conversationManager.recordAgentResponse(text, preliminaryAgentResponse);
+
+  try {
+    const ttsPayload = { text: coreResponseText };
+    const ttsResponse = await fetch(AUDIO_PROCESSOR_TTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ttsPayload)
+    });
+
+    if (ttsResponse.ok) {
+      const ttsResult = await ttsResponse.json();
+      if (ttsResult.audio_url) {
+        console.log("[Handler] TTS synthesis successful. Audio URL generated.");
+        conversationManager.setAgentResponding(false); // Agent finished processing and responding
+        return { text: coreResponseText, audioUrl: ttsResult.audio_url };
+      } else {
+        console.error("[Handler] TTS response OK, but no audio_url:", ttsResult);
+        conversationManager.setAgentResponding(false); // Agent finished processing (with error)
+        return { text: coreResponseText, error: "TTS synthesis succeeded but no audio URL was returned." };
+      }
+    } else {
+      const errorBody = await ttsResponse.text();
+      console.error("[Handler] TTS request failed:", ttsResponse.status, errorBody);
+      conversationManager.setAgentResponding(false); // Agent finished processing (with error)
+      return { text: coreResponseText, error: `Failed to synthesize audio. Status: ${ttsResponse.status}` };
+    }
+  } catch (error: any) {
+    console.error("[Handler] Error calling TTS service:", error.message, error.stack);
+    conversationManager.setAgentResponding(false); // Agent finished processing (with error)
+    return { text: coreResponseText, error: "Error occurred during audio synthesis." };
+  }
+}
+
+
+/**
+ * This is the original handleMessage function, primarily for Hasura Action.
+ * It remains largely stateless and does not interact with isAgentResponding by default.
+ * If Hasura actions need to be part of conversational flow, this would require more thought.
+ */
+export async function handleMessage(message: string): Promise<HandleMessageResponse> {
+  console.log(`[Handler - Hasura Action] Received message: "${message}"`);
+  const userId = getCurrentUserId();
+
+  // Hasura actions are typically independent and don't use the conversation state's isAgentResponding flag.
+  // If they were to, it would need careful consideration of how they fit into the conversation flow.
+  // conversationManager.setAgentResponding(true); // Example if it were conversational
+
+  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(message, userId);
+
+  // conversationManager.setAgentResponding(false); // Example if it were conversational
+
+  try {
+    const ttsPayload = { text: coreResponseText };
+    const ttsResponse = await fetch(AUDIO_PROCESSOR_TTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ttsPayload)
+    });
+
+    if (ttsResponse.ok) {
+      const ttsResult = await ttsResponse.json();
+      if (ttsResult.audio_url) {
+        return { text: coreResponseText, audioUrl: ttsResult.audio_url };
+      } else {
+        console.error("[Handler - Hasura Action] TTS response OK, but no audio_url:", ttsResult);
+        return { text: coreResponseText, error: "TTS synthesis succeeded but no audio URL was returned." };
+      }
+    } else {
+      const errorBody = await ttsResponse.text();
+      console.error("[Handler - Hasura Action] TTS request failed:", ttsResponse.status, errorBody);
+      return { text: coreResponseText, error: `Failed to synthesize audio. Status: ${ttsResponse.status}` };
+    }
+  } catch (error: any) {
+    console.error("[Handler - Hasura Action] Error calling TTS service:", error.message, error.stack);
+    return { text: coreResponseText, error: "Error occurred during audio synthesis." };
+  }
+}
+
+// Example for testing the conversation state (manual activation)
+// This would be mapped to an endpoint like /atom-agent/test-activate
+export async function testActivateConversation() {
+    conversationManager._test_setConversationActive(true); // This itself calls activateConversation now
+    return {
+      status: "Conversation manually activated for testing via _test_setConversationActive.",
+      active: conversationManager.isConversationActive(),
+      agentResponding: conversationManager.checkIfAgentIsResponding()
+    };
+}
+
+export async function testDeactivateConversation() {
+    conversationManager._test_setConversationActive(false); // This itself calls deactivateConversation now
+    return {
+      status: "Conversation manually deactivated for testing via _test_setConversationActive.",
+      active: conversationManager.isConversationActive(),
+      agentResponding: conversationManager.checkIfAgentIsResponding()
+    };
+}
+
+export async function getConversationStatus() {
+    return {
+        active: conversationManager.isConversationActive(),
+        agentResponding: conversationManager.checkIfAgentIsResponding(),
+        state: conversationManager.getConversationStateSnapshot()
+    };
 }

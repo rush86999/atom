@@ -1,3 +1,6 @@
 openai>=1.0.0
 requests>=2.0.0
-deepgram-sdk>=0.11,<0.14
+deepgram-sdk>=3.3.2,<4.0.0
+flask-sock>=0.6.0
+pvporcupine>=3.0.0,<3.1.0
+websockets>=12.0,<13.0
