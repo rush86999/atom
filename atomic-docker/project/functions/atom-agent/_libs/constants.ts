@@ -110,6 +110,7 @@ export const NOTION_API_TOKEN = process.env.NOTION_API_TOKEN || '';
 export const NOTION_NOTES_DATABASE_ID = process.env.NOTION_NOTES_DATABASE_ID || ''; // General notes
 export const NOTION_RESEARCH_PROJECTS_DB_ID = process.env.NOTION_RESEARCH_PROJECTS_DB_ID || '';
 export const NOTION_RESEARCH_TASKS_DB_ID = process.env.NOTION_RESEARCH_TASKS_DB_ID || '';
+export const ATOM_NOTION_TASKS_DATABASE_ID = process.env.ATOM_NOTION_TASKS_DATABASE_ID || ''; // For task management
 
 // Deepgram API Key for Transcription
 // This must be set for audio transcription features.
