@@ -3,7 +3,7 @@ import os
 import sys
 import importlib
 import traceback
-import asyncio # For running async functions from sync Flask route if needed
+import asyncio
 
 # Add parent 'functions' directory to sys.path for sibling imports
 PACKAGE_PARENT = '..'
@@ -14,32 +14,33 @@ if FUNCTIONS_DIR_PATH not in sys.path:
 
 # --- Module Imports & Initializations ---
 ZoomAgent = None
-note_utils_module = None # Keep a reference to the module
-# process_live_audio_for_notion will be fetched from note_utils_module
-
-# Remove direct os.environ.setdefault for API keys here.
-# API keys will be passed in via request payload to the handler, then to note_utils functions.
+GoogleMeetAgent = None
+note_utils_module = None
 
 try:
     from agents.zoom_agent import ZoomAgent as ImportedZoomAgent
     ZoomAgent = ImportedZoomAgent
-
-    # Import note_utils once and use the module reference
-    import note_utils as nu_module # Initial import
-    note_utils_module = nu_module
-
-    if ZoomAgent is None:
-        print("Error: ZoomAgent failed to import.", file=sys.stderr)
-    if note_utils_module is None or not hasattr(note_utils_module, 'process_live_audio_for_notion'):
-        print("Error: note_utils module or process_live_audio_for_notion not found.", file=sys.stderr)
-
 except ImportError as e:
-    print(f"Critical Import Error in attend_live_meeting handler: {e}", file=sys.stderr)
-    # In a real deployment, this might cause the server to fail startup if not handled by WSGI server.
+    print(f"Warning: ZoomAgent failed to import: {e}", file=sys.stderr)
+
+try:
+    from agents.google_meet_agent import GoogleMeetAgent as ImportedGoogleMeetAgent
+    GoogleMeetAgent = ImportedGoogleMeetAgent
+except ImportError as e:
+    print(f"Warning: GoogleMeetAgent failed to import: {e}", file=sys.stderr)
+
+try:
+    import note_utils as nu_module
+    note_utils_module = nu_module
+    if not hasattr(note_utils_module, 'process_live_audio_for_notion'):
+        print("Error: process_live_audio_for_notion not found in note_utils module.", file=sys.stderr)
+        note_utils_module = None # Mark as unavailable
+except ImportError as e:
+    print(f"Critical Import Error for note_utils in attend_live_meeting handler: {e}", file=sys.stderr)
+
 
 app = flask.Flask(__name__)
 
-# Standardized error response helper
 def make_error_response(code: str, message: str, details: any = None, http_status: int = 500):
     return flask.jsonify({
         "ok": False,
@@ -47,54 +48,48 @@ def make_error_response(code: str, message: str, details: any = None, http_statu
     }), http_status
 
 @app.route('/', methods=['POST'])
-async def attend_live_meeting_route(): # Made async
-    if ZoomAgent is None or note_utils_module is None or not hasattr(note_utils_module, 'process_live_audio_for_notion'):
-        return make_error_response("SERVICE_UNAVAILABLE", "Agent components not loaded.", http_status=503)
-
+async def attend_live_meeting_route():
     payload = {}
+    agent = None # Ensure agent is defined for the finally block
     try:
         payload = flask.request.get_json()
         if not payload:
             return make_error_response("INVALID_PAYLOAD", "Request must be JSON.", http_status=400)
 
         action_input = payload.get('action_input', {})
-        session_variables = payload.get('session_variables', {}) # For user_id
-        # API keys should now come from the payload for per-request security/flexibility
+        session_variables = payload.get('session_variables', {})
         handler_input = payload.get('handler_input', {})
 
-        platform = action_input.get('platform')
+        platform = action_input.get('platform', '').lower()
         meeting_identifier = action_input.get('meeting_identifier')
         notion_note_title = action_input.get('notion_note_title')
 
-        # Optional params from action_input
         notion_source = action_input.get('notion_source', 'Live Meeting Transcription')
         linked_event_id = action_input.get('linked_event_id')
-        notion_db_id = action_input.get('notion_db_id') # Optional DB ID for the note
+        notion_db_id = action_input.get('notion_db_id')
 
         user_id = session_variables.get('x-hasura-user-id')
 
-        # API Keys from handler_input (passed securely by caller)
         notion_api_token = handler_input.get('notion_api_token')
         deepgram_api_key = handler_input.get('deepgram_api_key')
         openai_api_key = handler_input.get('openai_api_key')
+        # platform_module_name is less relevant now we explicitly check platform
+        # platform_module_name = action_input.get('platform_module_name')
+
 
         required_params_map = {
             "platform": platform, "meeting_identifier": meeting_identifier,
-            "notion_note_title": notion_note_title,
-            "user_id (from session)": user_id,
-            "notion_api_token (from handler_input)": notion_api_token,
-            "deepgram_api_key (from handler_input)": deepgram_api_key,
-            "openai_api_key (from handler_input)": openai_api_key,
+            "notion_note_title": notion_note_title, "user_id": user_id,
+            "notion_api_token": notion_api_token, "deepgram_api_key": deepgram_api_key,
+            "openai_api_key": openai_api_key,
         }
         missing_params = [k for k, v in required_params_map.items() if not v]
         if missing_params:
             return make_error_response("VALIDATION_ERROR", f"Missing required parameters: {', '.join(missing_params)}", http_status=400)
 
-        if platform.lower() != "zoom":
-            return make_error_response("NOT_IMPLEMENTED", f"Platform '{platform}' is not supported.", http_status=400)
+        if not note_utils_module: # Check if note_utils itself or key function failed to load
+             return make_error_response("SERVICE_UNAVAILABLE", "Core note processing utilities are not loaded.", http_status=503)
 
-        # Initialize Notion client via note_utils for this request
-        # This sets the global `notion` client and default DB ID in `note_utils`
         init_notion_resp = note_utils_module.init_notion(notion_api_token, database_id=notion_db_id)
         if init_notion_resp["status"] != "success":
             return make_error_response(
@@ -103,63 +98,78 @@ async def attend_live_meeting_route(): # Made async
                 init_notion_resp.get('details')
             )
 
-        agent = ZoomAgent(user_id=user_id)
-        processing_result = None # Define to ensure it's available in finally
+        platform_interface = None # This will be the agent instance
 
-        try:
-            print(f"Handler: Attempting to join meeting {meeting_identifier} for user {user_id}", file=sys.stderr)
-            join_success = agent.join_meeting(meeting_identifier)
+        if platform == "zoom":
+            if ZoomAgent is None:
+                return make_error_response("SERVICE_UNAVAILABLE", "ZoomAgent component not loaded.", http_status=503)
+            agent = ZoomAgent(user_id=user_id)
+            platform_interface = agent
+        elif platform == "googlemeet" or platform == "google_meet":
+            if GoogleMeetAgent is None:
+                return make_error_response("SERVICE_UNAVAILABLE", "GoogleMeetAgent component not loaded.", http_status=503)
+            agent = GoogleMeetAgent(user_id=user_id)
+            platform_interface = agent
+        else:
+            # Fallback for other platform_module_name or if specific agent not found
+            # This section might need review: if platform is "zoom" but ZoomAgent is None, it's caught above.
+            # If platform is something else, this is the "not supported" path.
+            # The MockPlatformModule logic from previous version is removed as it's confusing here.
+            # If a platform is specified, its agent must be available.
+            return make_error_response("NOT_IMPLEMENTED", f"Platform '{platform}' is not supported or its agent is unavailable.", http_status=400)
 
-            if not join_success:
-                # join_meeting logs its own errors, this is for the HTTP response
-                return make_error_response("JOIN_MEETING_FAILED", f"Agent failed to launch/join meeting: {meeting_identifier}.", http_status=500)
+        print(f"Handler: Attempting to join meeting {meeting_identifier} via {platform} for user {user_id}", file=sys.stderr)
+        join_success = platform_interface.join_meeting(meeting_identifier)
 
-            print(f"Handler: Successfully joined {meeting_identifier}. Starting live processing.", file=sys.stderr)
+        if not join_success:
+            return make_error_response("JOIN_MEETING_FAILED", f"Agent failed to launch/join meeting: {meeting_identifier} on platform {platform}.", http_status=500)
 
-            # Fetch the async function from the module
-            process_live_audio_func = getattr(note_utils_module, 'process_live_audio_for_notion')
+        print(f"Handler: Successfully joined {meeting_identifier}. Starting live processing.", file=sys.stderr)
 
-            processing_result = await process_live_audio_func(
-                platform_module=agent, # ZoomAgent instance
-                meeting_id=agent.current_meeting_id or meeting_identifier, # Use ID set by join_meeting
-                notion_note_title=notion_note_title,
-                deepgram_api_key=deepgram_api_key, # Pass key
-                openai_api_key=openai_api_key,     # Pass key
-                notion_db_id=notion_db_id,         # Pass optional DB ID (init_notion might have set default)
-                notion_source=notion_source,
-                linked_event_id=linked_event_id
-            )
+        process_live_audio_func = getattr(note_utils_module, 'process_live_audio_for_notion')
+        if not process_live_audio_func: # Should have been caught at startup, but defensive check
+             return make_error_response("SERVICE_UNAVAILABLE", "Live audio processing function not available in note_utils.", http_status=503)
 
-            if processing_result and processing_result.get("status") == "success":
-                print(f"Handler: Notion page processed: {processing_result.get('data')}", file=sys.stderr)
-                return flask.jsonify({"ok": True, "data": processing_result.get("data")}), 200
-            else:
-                err_msg = processing_result.get("message", "Processing failed") if processing_result else "Processing function returned None."
-                err_code = processing_result.get("code", "PROCESSING_FAILED") if processing_result else "PROCESSING_RETURNED_NONE"
-                err_details = processing_result.get("details") if processing_result else None
-                print(f"Handler: Processing finished with error: {err_msg}", file=sys.stderr)
-                return make_error_response(f"PYTHON_ERROR_{err_code}", err_msg, err_details, http_status=500)
+        current_meeting_id = platform_interface.get_current_meeting_id() or meeting_identifier
 
-        finally:
-            if agent and agent.current_meeting_id: # Ensure agent was initialized and joined a meeting
-                print(f"Handler: Live processing ended for {agent.current_meeting_id}. Ensuring agent leaves.", file=sys.stderr)
-                await agent.leave_meeting() # This is now async
+        processing_result = await process_live_audio_func(
+            platform_module=platform_interface,
+            meeting_id=current_meeting_id,
+            notion_note_title=notion_note_title,
+            deepgram_api_key=deepgram_api_key,
+            openai_api_key=openai_api_key,
+            notion_db_id=notion_db_id,
+            notion_source=notion_source,
+            linked_event_id=linked_event_id
+        )
+
+        if processing_result and processing_result.get("status") == "success":
+            print(f"Handler: Notion page processed: {processing_result.get('data')}", file=sys.stderr)
+            return flask.jsonify({"ok": True, "data": processing_result.get("data")}), 200
+        else:
+            err_msg = processing_result.get("message", "Processing failed") if processing_result else "Processing function returned None."
+            err_code = processing_result.get("code", "PROCESSING_FAILED") if processing_result else "PROCESSING_RETURNED_NONE"
+            err_details = processing_result.get("details") if processing_result else None
+            print(f"Handler: Processing finished with error for {current_meeting_id}: {err_msg}", file=sys.stderr)
+            return make_error_response(f"PYTHON_ERROR_{err_code}", err_msg, err_details, http_status=500)
 
     except Exception as e:
         print(f"Critical error in attend_live_meeting_route: {str(e)}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)
         return make_error_response("INTERNAL_SERVER_ERROR", f"An internal error occurred: {str(e)}", http_status=500)
+    finally:
+        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id:
+            # Check if agent was instantiated and joined a meeting
+            meeting_id_for_leave = agent.get_current_meeting_id()
+            print(f"Handler: Live processing ended for {meeting_id_for_leave}. Ensuring agent leaves.", file=sys.stderr)
+            if hasattr(agent, 'leave_meeting') and asyncio.iscoroutinefunction(agent.leave_meeting):
+                await agent.leave_meeting()
+            elif hasattr(agent, 'leave_meeting'):
+                agent.leave_meeting() # If not async for some reason (though it should be)
+
 
 if __name__ == '__main__':
-    # For local testing, ensure an ASGI server like hypercorn is used for async routes.
-    # Example: hypercorn handler:app -b 0.0.0.0:5000
-    # Flask's built-in dev server has limited support for async that might work for simple tests,
-    # but for true ASGI, a dedicated server is needed.
     print("Starting local Flask server for attend_live_meeting (async) handler on port 5000...", file=sys.stderr)
-
-    # This basic app.run is for development and simple testing.
-    # For production, use an ASGI server like Hypercorn: `hypercorn handler:app`
-    # Flask 2.x+ can run async routes with its dev server.
     app.run(port=int(os.environ.get("FLASK_PORT", 5000)), debug=True)
 
 [end of atomic-docker/project/functions/attend_live_meeting/handler.py]
