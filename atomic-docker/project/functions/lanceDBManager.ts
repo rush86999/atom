@@ -3,7 +3,7 @@ import * as lancedb from 'vectordb-lance';
 import { Schema, Field, Float32, Utf8, Timestamp, List, FixedSizeList } from '@lancedb/lancedb/dist/arrow'; // Adjust path if necessary based on actual package structure
 
 const LTM_DB_PATH_PREFIX = './lance_db/'; // Example base path, can be configured
-const DEFAULT_VECTOR_DIMENSION = 768;
+const DEFAULT_VECTOR_DIMENSION = 1536;
 
 function log(message: string, level: 'info' | 'error' = 'info') {
   const prefix = `[LanceDBManager] ${new Date().toISOString()}`;
