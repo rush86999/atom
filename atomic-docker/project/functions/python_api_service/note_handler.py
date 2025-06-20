@@ -21,6 +21,13 @@ except ImportError as e:
     print(f"Warning: Could not import search_routes_bp: {e}. Search routes will not be available.", file=sys.stderr)
     search_routes_bp = None
 
+# Try to import task_routes blueprint
+try:
+    from .task_routes import task_bp
+except ImportError as e:
+    print(f"Warning: Could not import task_bp: {e}. Task routes will not be available.", file=sys.stderr)
+    task_bp = None
+
 
 app = Flask(__name__)
 
@@ -30,6 +37,13 @@ if search_routes_bp:
     print("Successfully registered search_routes_bp with /api prefix.")
 else:
     print("Search routes blueprint (search_routes_bp) not registered as it failed to import.")
+
+# Register the task blueprint if successfully imported
+if task_bp:
+    app.register_blueprint(task_bp, url_prefix='/api') # Using same /api prefix for now
+    print("Successfully registered task_bp with /api prefix.")
+else:
+    print("Task routes blueprint (task_bp) not registered as it failed to import.")
 
 
 @app.errorhandler(Exception)

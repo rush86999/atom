@@ -8,3 +8,4 @@ lancedb>=0.5.3
 serpapi
 python-dotenv
 uuid
+notion-client>=2.0.0
