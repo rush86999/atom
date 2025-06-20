@@ -1,5 +1,7 @@
-import { ISkill, IAgentSkills, SkillArgs, ApiHelper } from "../types"; // Adjust path as needed
-import { logger } from "../../_utils/logger"; // Assuming a shared logger utility
+import { ISkill, IAgentSkills, SkillArgs } from "../types"; // ApiHelper removed
+import { logger } from "../../_utils/logger";
+import axios, { AxiosError } from 'axios'; // Added axios
+import { PYTHON_API_SERVICE_BASE_URL } from '../../_libs/constants'; // Added constant import
 
 // Define the expected structure of a single search result from the backend
 interface MeetingSearchResult {
@@ -16,13 +18,16 @@ interface BackendSearchResponse {
     status: "success" | "error";
     data?: MeetingSearchResult[];
     message?: string;
+    // Added ok and error for PythonApiResponse compatibility if that's what backend returns
+    ok?: boolean;
+    error?: { code: string; message: string; details?: any };
 }
 
 export class SemanticSearchSkills implements IAgentSkills {
-    private apiHelper: ApiHelper;
+    // private apiHelper: ApiHelper; // Removed
 
-    constructor(apiHelper: ApiHelper) {
-        this.apiHelper = apiHelper;
+    constructor() { // Constructor no longer takes ApiHelper
+        // this.apiHelper = apiHelper; // Removed
     }
 
     getSkills(): ISkill[] {
@@ -67,24 +72,33 @@ export class SemanticSearchSkills implements IAgentSkills {
         try {
             logger.info({
                 message: "Calling backend for semantic_search_meetings",
+                url: `${PYTHON_API_SERVICE_BASE_URL}/api/semantic_search_meetings`,
                 payload: payload,
                 userId: userId,
             });
 
-            const response = await this.apiHelper.post<BackendSearchResponse>(
-                "/semantic_search_meetings",
+            const axiosResponse = await axios.post<BackendSearchResponse>( // Using axios.post
+                `${PYTHON_API_SERVICE_BASE_URL}/api/semantic_search_meetings`,
                 payload
             );
 
+            const backendData = axiosResponse.data; // This is BackendSearchResponse
+
             logger.info({
                 message: "Received response from semantic_search_meetings backend",
-                response: response,
+                response: backendData,
                 userId: userId,
             });
 
-            if (response && response.status === "success" && response.data) {
-                if (response.data.length > 0) {
-                    const formattedResults = response.data.map(result => {
+            // Assuming backend returns { status: "success" | "error", data?: ..., message?: ... }
+            // OR { ok: true/false, data?: ..., error?: ... }
+            // The BackendSearchResponse type might need adjustment based on Python actual response.
+            // For now, let's assume it aligns with { status: ..., data: ..., message: ... }
+            // And also check for 'ok' field if PythonApiResponse is used directly.
+
+            if (backendData && backendData.status === "success" && backendData.data) {
+                if (backendData.data.length > 0) {
+                    const formattedResults = backendData.data.map(result => {
                         const pageId = result.notion_page_id || "";
                         const notionLink = `notion://page/${pageId.replace(/-/g, "")}`;
 
@@ -109,27 +123,36 @@ export class SemanticSearchSkills implements IAgentSkills {
                 } else {
                     return "Sorry, I couldn't find any meeting notes matching your query.";
                 }
-            } else if (response && response.status === "error" && response.message) {
+            } else if (backendData && backendData.status === "error" && backendData.message) {
                 logger.error({
                     message: "Error response from semantic_search_meetings backend",
-                    error: response.message,
+                    error: backendData.message,
                     userId: userId,
                 });
-                return `I encountered an error while searching: ${response.message}`;
-            } else {
+                return `I encountered an error while searching: ${backendData.message}`;
+            } else if (backendData && backendData.ok === false && backendData.error) { // Handling PythonApiResponse structure
+                 logger.error({
+                    message: "Error response from semantic_search_meetings backend (PythonApiResponse format)",
+                    error: backendData.error,
+                    userId: userId,
+                });
+                return `I encountered an error while searching: ${backendData.error.message}`;
+            }
+            else {
                 logger.error({
                     message: "Invalid or unexpected response from semantic_search_meetings backend",
-                    response: response,
+                    response: backendData,
                     userId: userId,
                 });
                 return "I received an unexpected response from the search service. Please try again later.";
             }
         } catch (error: any) {
+            const axiosError = error as AxiosError;
             logger.error({
-                message: "Exception calling semantic_search_meetings backend",
-                error: error,
-                errorMessage: error.message,
-                errorStack: error.stack,
+                message: "Exception calling semantic_search_meetings backend with axios",
+                error: axiosError.isAxiosError ? axiosError.toJSON() : error,
+                errorMessage: axiosError.message,
+                responseData: axiosError.response?.data,
                 payload: payload,
                 userId: userId,
             });
@@ -139,7 +162,7 @@ export class SemanticSearchSkills implements IAgentSkills {
 }
 
 // Standalone handler function for easier integration with handler.ts switch statements
-export async function handleSemanticSearchMeetingNotesSkill(args: SkillArgs, apiHelper: ApiHelper): Promise<string> {
-    const skillInstance = new SemanticSearchSkills(apiHelper);
+export async function handleSemanticSearchMeetingNotesSkill(args: SkillArgs): Promise<string> { // ApiHelper removed
+    const skillInstance = new SemanticSearchSkills(); // Constructor is now empty
     return skillInstance.handleSearchMeetingNotes(args);
 }

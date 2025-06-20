@@ -124,3 +124,6 @@ export const PYTHON_RESEARCH_API_URL = process.env.PYTHON_RESEARCH_API_URL || ''
 export const PYTHON_NOTE_API_URL = process.env.PYTHON_NOTE_API_URL || '';
 // Example for local development: http://localhost:5058
 export const PYTHON_TRAINING_API_URL = process.env.PYTHON_TRAINING_API_URL || '';
+
+// Base URL for the main Python API service (which might consolidate note_handler, task_handler, etc.)
+export const PYTHON_API_SERVICE_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:8080';
