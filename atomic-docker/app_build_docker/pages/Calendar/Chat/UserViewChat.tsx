@@ -355,12 +355,23 @@ function UserViewChat() {
                     throw new Error(errorData.error || `API Error: ${response.status}`);
                 }
 
-                const data = await response.json();
+                const data = await response.json(); // data is expected to be { text: string, audioUrl?: string, error?: string }
+
+                let content = data.text;
+                if (!content) {
+                    if (data.error) {
+                        content = `Error: ${data.error}`;
+                    } else {
+                        content = "Atom didn't provide a text response.";
+                    }
+                }
+
                 const atomResponse: UserChatType = {
-                    id: chatHistory.length + 1, // Or a more robust ID generation
-                    content: data.response || "Atom didn't provide a response.",
-                    role: 'assistant', // Atom is an assistant
+                    id: chatHistory.length + 1, // Or a more robust ID generation, consider uuid
+                    content: content,
+                    role: 'assistant',
                     date: dayjs().format(),
+                    audioUrl: data.audioUrl, // Add the audioUrl from the response
                 };
                 setChatHistory(prevChatHistory => [...prevChatHistory, atomResponse]);
 
