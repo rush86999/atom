@@ -1,315 +1,268 @@
 import os
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import json
+import asyncio
 
 # Add project root to sys.path to allow importing note_utils
-# This might need adjustment based on how tests are run in the actual environment
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Functions to test (assuming they are in note_utils.py directly in functions folder)
-from note_utils import summarize_transcript_gpt, process_audio_for_note #, transcribe_audio_deepgram
+# Functions to test
+from note_utils import (
+    summarize_transcript_gpt,
+    create_notion_note,
+    process_live_audio_for_notion,
+    init_notion # For setting up Notion client in tests
+)
+import requests # For requests.exceptions.HTTPError
 
+# --- Fixtures ---
+
+@pytest.fixture(scope="function")
+def mock_env_keys_and_init_notion():
+    """Sets environment variables and initializes Notion with a mock client."""
+    env_vars = {
+        "OPENAI_API_KEY": "test_openai_key",
+        "OPENAI_API_ENDPOINT": "https://fakeopenai.com/v1/chat/completions",
+        "GPT_MODEL_NAME": "gpt-test",
+        "DEEPGRAM_API_KEY": "test_deepgram_key", # Though not directly tested here, good for consistency
+        "NOTION_API_TOKEN": "test_notion_token",
+        "NOTION_NOTES_DATABASE_ID": "test_db_id"
+    }
+    with patch.dict(os.environ, env_vars):
+        # This patch ensures that when init_notion is called, it uses a MagicMock for the Notion Client
+        with patch('note_utils.Client', new_callable=MagicMock) as MockNotionClientGlobal:
+            # Configure the instance that will be created by init_notion
+            mock_notion_instance = MockNotionClientGlobal.return_value
+            init_notion(api_token="test_notion_token", database_id="test_db_id")
+            # Yield the instance if tests need to configure its methods like pages.create
+            yield mock_notion_instance
+
+
+@pytest.fixture
+def sample_transcript_text():
+    return "This is a test transcript. It discusses important project updates and action items. Decision 1 was made. John to follow up by Friday."
 
 # --- Tests for summarize_transcript_gpt ---
 
-@pytest.fixture
-def mock_env_openai_key():
-    with patch.dict(os.environ, {"OPENAI_API_KEY": "test_api_key", "OPENAI_API_ENDPOINT": "https://fakeapi.com/v1/chat/completions", "GPT_MODEL_NAME": "gpt-test"}):
-        yield
-
-@pytest.fixture
-def sample_transcript():
-    return "This is a test transcript. It discusses important project updates and action items."
-
-def test_summarize_transcript_gpt_success(mock_env_openai_key, sample_transcript):
+def test_summarize_transcript_gpt_success_structured(mock_env_keys_and_init_notion, sample_transcript_text):
     mock_response = MagicMock()
     mock_response.status_code = 200
-    # The content from the API is a JSON string, which itself contains a JSON object for summary and key_points
-    expected_summary = "Test summary of the transcript."
-    expected_key_points_list = ["Point 1", "Point 2"]
-    api_content_json_str = json.dumps({
+    expected_summary = "Test summary."
+    expected_decisions = ["Decision 1.", "Decision 2."]
+    expected_action_items = ["Action item 1.", "Action item 2 for Bob."]
+
+    gpt_output_dict = {
         "summary": expected_summary,
-        "key_points": expected_key_points_list
-    })
+        "decisions": expected_decisions,
+        "action_items": expected_action_items
+    }
     mock_response.json.return_value = {
-        "choices": [{
-            "message": {"content": api_content_json_str}
-        }]
+        "choices": [{"message": {"content": json.dumps(gpt_output_dict)}}]
     }
 
     with patch('requests.post', return_value=mock_response) as mock_post:
-        summary, key_points_str = summarize_transcript_gpt(sample_transcript)
+        result = summarize_transcript_gpt(sample_transcript_text, openai_api_key_param="test_openai_key")
 
         mock_post.assert_called_once()
-        # print(mock_post.call_args.kwargs['json']) # For debugging the payload
-        assert summary == expected_summary
-        assert key_points_str == "- Point 1\n- Point 2"
+        assert result["status"] == "success"
+        data = result["data"]
+        assert data["summary"] == expected_summary
+        assert data["decisions"] == expected_decisions
+        assert data["action_items"] == expected_action_items
+        assert data["key_points"] == "- Action item 1.\n- Action item 2 for Bob."
 
-def test_summarize_transcript_gpt_api_error(mock_env_openai_key, sample_transcript):
+def test_summarize_transcript_gpt_missing_fields(mock_env_keys_and_init_notion, sample_transcript_text):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    gpt_output_dict = {"summary": "Only summary provided."}
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": json.dumps(gpt_output_dict)}}]
+    }
+    with patch('requests.post', return_value=mock_response):
+        result = summarize_transcript_gpt(sample_transcript_text, openai_api_key_param="test_openai_key")
+        assert result["status"] == "success"
+        data = result["data"]
+        assert data["summary"] == "Only summary provided."
+        assert data["decisions"] == []
+        assert data["action_items"] == []
+        assert data["key_points"] == ""
+
+def test_summarize_transcript_gpt_invalid_list_fields(mock_env_keys_and_init_notion, sample_transcript_text):
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    gpt_output_dict = {
+        "summary": "Summary present.",
+        "decisions": "This should be a list",
+        "action_items": {"item": "This should also be a list"}
+    }
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": json.dumps(gpt_output_dict)}}]
+    }
+    with patch('requests.post', return_value=mock_response):
+        result = summarize_transcript_gpt(sample_transcript_text, openai_api_key_param="test_openai_key")
+        assert result["status"] == "success"
+        data = result["data"]
+        assert data["summary"] == "Summary present."
+        assert data["decisions"] == []
+        assert data["action_items"] == []
+        assert data["key_points"] == ""
+
+def test_summarize_transcript_gpt_empty_transcript_input(mock_env_keys_and_init_notion):
+    result = summarize_transcript_gpt("", openai_api_key_param="test_openai_key")
+    assert result["status"] == "success"
+    data = result["data"]
+    assert data["summary"] == "Transcript was empty."
+    assert data["decisions"] == []
+    assert data["action_items"] == []
+    assert data["key_points"] == ""
+
+def test_summarize_transcript_gpt_api_error(mock_env_keys_and_init_notion, sample_transcript_text):
     mock_response = MagicMock()
     mock_response.status_code = 500
     mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("API Error")
 
-    with patch('requests.post', return_value=mock_response) as mock_post:
-        summary, key_points = summarize_transcript_gpt(sample_transcript)
-        assert summary is None
-        assert key_points is None
+    with patch('requests.post', return_value=mock_response):
+        result = summarize_transcript_gpt(sample_transcript_text, openai_api_key_param="test_openai_key")
+        assert result["status"] == "error"
+        assert "OpenAI API request error" in result["message"]
 
-def test_summarize_transcript_gpt_invalid_json_content(mock_env_openai_key, sample_transcript):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "choices": [{"message": {"content": "This is not valid JSON"}}]
-    }
-    with patch('requests.post', return_value=mock_response) as mock_post:
-        summary, key_points = summarize_transcript_gpt(sample_transcript)
-        assert summary is None
-        assert key_points is None
+def test_summarize_transcript_gpt_no_api_key(sample_transcript_text): # No mock_env_keys
+    with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+        result = summarize_transcript_gpt(sample_transcript_text) # Use env key
+        assert result["status"] == "error"
+        assert "OpenAI API key not set or invalid" in result["message"]
 
-def test_summarize_transcript_gpt_unexpected_structure(mock_env_openai_key, sample_transcript):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"unexpected_key": "unexpected_value"} # Missing 'choices'
-    with patch('requests.post', return_value=mock_response) as mock_post:
-        summary, key_points = summarize_transcript_gpt(sample_transcript)
-        assert summary is None
-        assert key_points is None
+# --- Tests for create_notion_note ---
 
-def test_summarize_transcript_gpt_malformed_parsed_content(mock_env_openai_key, sample_transcript):
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    # Correct outer JSON, but inner content JSON is malformed for expectations
-    api_content_json_str = json.dumps({
-        "summary_wrong_key": "Some summary",
-        "key_points_list": ["Point A"]
-    })
-    mock_response.json.return_value = {
-        "choices": [{"message": {"content": api_content_json_str}}]
-    }
-    with patch('requests.post', return_value=mock_response) as mock_post:
-        summary, key_points = summarize_transcript_gpt(sample_transcript)
-        assert summary is None
-        assert key_points is None
+def test_create_notion_note_with_decisions_and_actions(mock_env_keys_and_init_notion):
+    # mock_env_keys_and_init_notion has already initialized note_utils.notion with a MagicMock instance
+    mock_notion_instance = mock_env_keys_and_init_notion # The fixture yields the mocked notion instance
+    mock_pages_create = mock_notion_instance.pages.create
+    mock_pages_create.return_value = {"id": "new_page_id", "url": "https://notion.so/new_page_id"}
 
+    decisions_list = ["Decision Alpha", "Decision Beta"]
+    action_items_list = ["Action Item 1", "Action Item 2"]
 
-def test_summarize_transcript_gpt_no_api_key(sample_transcript):
-    with patch.dict(os.environ, {"OPENAI_API_KEY": ""}): # Simulate no API key
-        summary, key_points = summarize_transcript_gpt(sample_transcript)
-        assert summary is None
-        assert key_points is None
-
-def test_summarize_transcript_gpt_empty_transcript(mock_env_openai_key):
-    summary, key_points = summarize_transcript_gpt("")
-    assert summary is None
-    assert key_points is None
-    summary, key_points = summarize_transcript_gpt("   ")
-    assert summary is None
-    assert key_points is None
-
-
-# --- Placeholder for process_audio_for_note tests ---
-# These will be more complex due to multiple mocks
-
-@patch('note_utils.transcribe_audio_deepgram')
-@patch('note_utils.summarize_transcript_gpt')
-@patch('note_utils.create_notion_note')
-@patch('note_utils.update_notion_note')
-def test_process_audio_for_note_create_new_success(
-    mock_update_notion_note, mock_create_notion_note,
-    mock_summarize_transcript_gpt, mock_transcribe_audio_deepgram
-):
-    mock_transcribe_audio_deepgram.return_value = "Test transcription."
-    mock_summarize_transcript_gpt.return_value = ("Test summary.", "Test key points.")
-    mock_create_notion_note.return_value = "new_note_123"
-
-    audio_path = "dummy/audio.mp3"
-    title = "New Audio Note"
-    content = "Initial content for note."
-    source = "Test case"
-
-    result = process_audio_for_note(
-        audio_file_path=audio_path,
-        title=title,
-        content=content,
-        source=source
+    result = create_notion_note(
+        title="Test Note",
+        content="Sample content.",
+        decisions=decisions_list,
+        action_items=action_items_list
     )
 
-    mock_transcribe_audio_deepgram.assert_called_once_with(audio_path)
-    mock_summarize_transcript_gpt.assert_called_once_with("Test transcription.")
-    mock_create_notion_note.assert_called_once_with(
-        title=title,
-        content=content,
-        source=source,
-        transcription="Test transcription.",
-        summary="Test summary.",
-        key_points="Test key points.",
-        linked_task_id=None, # Ensuring defaults are passed
-        linked_event_id=None,
-        audio_file_link=None # Assuming not passed if not provided
+    assert result["status"] == "success"
+    assert result["data"]["page_id"] == "new_page_id"
+    mock_pages_create.assert_called_once()
+
+    args, kwargs = mock_pages_create.call_args
+    properties = kwargs["properties"]
+
+    assert "Decisions Logged" in properties
+    assert properties["Decisions Logged"]["rich_text"][0]["text"]["content"] == "- Decision Alpha\n- Decision Beta"
+
+    assert "Action Items Logged" in properties
+    assert properties["Action Items Logged"]["rich_text"][0]["text"]["content"] == "- Action Item 1\n- Action Item 2"
+
+def test_create_notion_note_empty_decisions_actions(mock_env_keys_and_init_notion):
+    mock_notion_instance = mock_env_keys_and_init_notion
+    mock_pages_create = mock_notion_instance.pages.create
+    mock_pages_create.return_value = {"id": "new_page_id2"}
+
+    result = create_notion_note(
+        title="Test Note Empty",
+        content="Sample content.",
+        decisions=[],
+        action_items=None
     )
-    mock_update_notion_note.assert_not_called()
-    assert result == "new_note_123"
+    assert result["status"] == "success"
+    mock_pages_create.assert_called_once()
+    args, kwargs = mock_pages_create.call_args
+    properties = kwargs["properties"]
 
-@patch('note_utils.transcribe_audio_deepgram')
-@patch('note_utils.summarize_transcript_gpt')
-@patch('note_utils.create_notion_note')
-@patch('note_utils.update_notion_note')
-def test_process_audio_for_note_update_existing_success(
-    mock_update_notion_note, mock_create_notion_note,
-    mock_summarize_transcript_gpt, mock_transcribe_audio_deepgram
-):
-    existing_note_id = "existing_note_456"
-    mock_transcribe_audio_deepgram.return_value = "Updated transcription."
-    mock_summarize_transcript_gpt.return_value = ("Updated summary.", "Updated key points.")
-    mock_update_notion_note.return_value = True # Assuming update_notion_note returns boolean for success
+    assert "Decisions Logged" not in properties
+    assert "Action Items Logged" not in properties
 
-    audio_path = "dummy/audio_update.mp3"
+# --- Tests for process_live_audio_for_notion ---
 
-    result = process_audio_for_note(
-        audio_file_path=audio_path,
-        note_id=existing_note_id
-        # title, content, source etc., are optional for update in process_audio_for_note
-    )
+class MockAsyncIterator: # Helper for mocking async iterators
+    def __init__(self, items):
+        self._items = items
+        self._iter = iter(self._items)
 
-    mock_transcribe_audio_deepgram.assert_called_once_with(audio_path)
-    mock_summarize_transcript_gpt.assert_called_once_with("Updated transcription.")
-    mock_update_notion_note.assert_called_once_with(
-        page_id=existing_note_id,
-        summary="Updated summary.",
-        key_points="Updated key points.",
-        transcription="Updated transcription."
-        # title=None, content=None, linked_task_id=None, linked_event_id=None are default in update_notion_note
-    )
-    mock_create_notion_note.assert_not_called()
-    assert result == existing_note_id
+    def __aiter__(self):
+        return self
 
+    async def __anext__(self):
+        try:
+            return next(self._iter)
+        except StopIteration:
+            raise StopAsyncIteration
 
-@patch('note_utils.transcribe_audio_deepgram')
-def test_process_audio_for_note_transcription_fails(mock_transcribe_audio_deepgram):
-    mock_transcribe_audio_deepgram.return_value = "Error: Transcription failed"
+@pytest.mark.asyncio
+async def test_process_live_audio_for_notion_data_flow(mock_env_keys_and_init_notion):
+    # mock_env_keys_and_init_notion sets up env vars and initializes Notion client (mocked)
 
-    result = process_audio_for_note(audio_file_path="dummy/audio.mp3")
+    mock_platform_module = MagicMock()
+    mock_platform_module.start_audio_capture = MagicMock(return_value=MockAsyncIterator([b"chunk1", b"chunk2"]))
+    mock_platform_module.stop_audio_capture = MagicMock()
 
-    assert result == "Transcription failed: Error: Transcription failed"
-    mock_transcribe_audio_deepgram.assert_called_once_with("dummy/audio.mp3")
+    with patch('note_utils.transcribe_audio_deepgram_stream', new_callable=AsyncMock) as mock_transcribe, \
+         patch('note_utils.summarize_transcript_gpt') as mock_summarize, \
+         patch('note_utils.create_notion_note') as mock_create_note_func: # Mock the function, not the client method here
 
-@patch('note_utils.transcribe_audio_deepgram')
-@patch('note_utils.summarize_transcript_gpt')
-@patch('note_utils.create_notion_note')
-def test_process_audio_for_note_summarization_fails(
-    mock_create_notion_note, mock_summarize_transcript_gpt, mock_transcribe_audio_deepgram
-):
-    mock_transcribe_audio_deepgram.return_value = "Good transcription."
-    mock_summarize_transcript_gpt.return_value = (None, None) # Summarization returns None
-    mock_create_notion_note.return_value = "new_note_789"
+        mock_transcribe.return_value = {"status": "success", "data": {"full_transcript": "Live transcript."}}
 
-    audio_path = "dummy/audio_no_summary.mp3"
-    title = "Note without summary"
+        expected_summary_text = "Live summary text."
+        expected_decisions_list = ["Live Decision 1", "Live Decision 2"]
+        expected_action_items_list = ["Live Action 1", "Live Action 2"]
+        expected_key_points_string = "- Live Action 1\n- Live Action 2"
 
-    result = process_audio_for_note(audio_file_path=audio_path, title=title)
+        mock_summarize.return_value = {
+            "status": "success",
+            "data": {
+                "summary": expected_summary_text,
+                "decisions": expected_decisions_list,
+                "action_items": expected_action_items_list,
+                "key_points": expected_key_points_string
+            }
+        }
+        # This mock is for the create_notion_note FUNCTION, not the client method directly
+        mock_create_note_func.return_value = {"status": "success", "data": {"page_id": "live_page_123", "url": "http://notion.live"}}
 
-    mock_create_notion_note.assert_called_once_with(
-        title=title,
-        content="", # Default
-        source="Audio Upload", # Default
-        transcription="Good transcription.",
-        summary=None, # Passed as None
-        key_points=None, # Passed as None
-        linked_task_id=None,
-        linked_event_id=None,
-        audio_file_link=None
-    )
-    assert result == "new_note_789"
-
-
-# It's good practice to import requests inside the test function or fixture
-# where it's needed, especially if the module itself doesn't import it at the top level.
-# However, for mocking 'requests.post', it's fine if it's globally available for the mock target.
-# For this structure, I'll assume 'requests' would be imported in note_utils.py if needed.
-# For test_summarize_transcript_gpt_api_error, we need requests.exceptions.HTTPError
-try:
-    import requests.exceptions
-except ImportError:
-    # Create a dummy exception if requests is not installed in the test environment
-    # This allows tests to be defined but they might not run correctly if requests is truly missing
-    # when note_utils.summarize_transcript_gpt actually tries to use it.
-    class RequestsHTTPError(Exception): pass
-    if 'requests' not in sys.modules: # Avoid overriding if requests was imported by other means
-        # Mocking the module itself if it's not available
-        mock_requests_module = MagicMock()
-        mock_requests_module.exceptions.HTTPError = RequestsHTTPError
-        sys.modules['requests'] = mock_requests_module
-        sys.modules['requests.exceptions'] = mock_requests_module.exceptions
-
-# Minimal test for transcribe_audio_deepgram (can be expanded)
-@patch('note_utils.DeepgramClient')
-@patch('os.path.exists')
-def test_transcribe_audio_deepgram_basic(mock_os_exists, MockDeepgramClient):
-    # Setup DeepgramClient mock
-    mock_deepgram_instance = MockDeepgramClient.return_value
-    mock_transcribe_method = mock_deepgram_instance.listen.prerecorded.v("1").transcribe_file
-    mock_transcribe_method.return_value = MagicMock(
-        results=MagicMock(
-            channels=[
-                MagicMock(alternatives=[MagicMock(transcript="Deepgram test transcript")])
-            ]
+        result = await process_live_audio_for_notion(
+            platform_module=mock_platform_module,
+            meeting_id="live_meeting_xyz",
+            notion_note_title="Live Meeting Note Title",
+            deepgram_api_key="dg_key_param", # Passed as param
+            openai_api_key="oai_key_param"    # Passed as param
+            # notion_db_id, notion_source, etc., will use defaults or values from mock_env_keys if relevant
         )
-    )
-    mock_os_exists.return_value = True # File exists
 
-    # Simulate DEEPGRAM_API_KEY being set
-    with patch.dict(os.environ, {"DEEPGRAM_API_KEY": "fake_dg_key"}):
-        # Re-initialize deepgram_client within note_utils if it's initialized at module level based on env var
-        # For simplicity, assuming note_utils.deepgram_client is accessible or re-initialized.
-        # If note_utils.py initializes deepgram_client at import time, this test needs careful setup
-        # or the function should take the client as an argument, or re-initialize it.
-        # For this test, we'll assume the function can get a working client if API key is set.
-        # This part is tricky without seeing the exact DeepgramClient initialization in note_utils.py
-        # Let's assume note_utils.transcribe_audio_deepgram internally gets/checks the client.
+        assert result["status"] == "success"
+        assert result["data"]["notion_page_id"] == "live_page_123"
 
-        # If note_utils.py initializes deepgram_client globally like:
-        # deepgram_client = DeepgramClient(DEEPGRAM_API_KEY) if DEEPGRAM_API_KEY else None
-        # We need to reload note_utils or patch note_utils.deepgram_client itself.
-        # Patching note_utils.deepgram_client to be our mock_deepgram_instance
-        with patch('note_utils.deepgram_client', mock_deepgram_instance):
-             from note_utils import transcribe_audio_deepgram # Re-import or ensure it uses the patched client
-             transcript = transcribe_audio_deepgram("dummy/audio.wav")
-             assert transcript == "Deepgram test transcript"
-             mock_os_exists.assert_called_once_with("dummy/audio.wav")
-             # Check if transcribe_file was called (payload might be complex to assert fully)
-             mock_transcribe_method.assert_called_once()
+        mock_platform_module.start_audio_capture.assert_called_once_with("live_meeting_xyz")
+        mock_transcribe.assert_called_once() # Basic check, arg checking can be complex for streams
+        mock_summarize.assert_called_once_with("Live transcript.", openai_api_key_param="oai_key_param")
 
-def test_transcribe_audio_deepgram_no_api_key():
-    with patch.dict(os.environ, {"DEEPGRAM_API_KEY": ""}):
-        # Similar to above, this depends on how deepgram_client is handled.
-        # Assuming the function checks the key or client internally.
-        with patch('note_utils.deepgram_client', None): # Ensure client is None
-            from note_utils import transcribe_audio_deepgram
-            result = transcribe_audio_deepgram("dummy/audio.wav")
-            assert "Error: Deepgram client not initialized" in result or "DEEPGRAM_API_KEY not configured" in result
+        mock_create_note_func.assert_called_once()
+        call_args = mock_create_note_func.call_args
+        assert call_args.kwargs["title"] == "Live Meeting Note Title"
+        assert call_args.kwargs["summary"] == expected_summary_text
+        assert call_args.kwargs["decisions"] == expected_decisions_list # Key assertion
+        assert call_args.kwargs["action_items"] == expected_action_items_list # Key assertion
+        assert call_args.kwargs["key_points"] == expected_key_points_string
+        assert call_args.kwargs["transcription"] == "Live transcript."
 
-@patch('os.path.exists')
-def test_transcribe_audio_deepgram_file_not_found(mock_os_exists):
-    mock_os_exists.return_value = False
-    with patch.dict(os.environ, {"DEEPGRAM_API_KEY": "fake_dg_key"}):
-        with patch('note_utils.deepgram_client', MagicMock()): # Provide a dummy client
-            from note_utils import transcribe_audio_deepgram
-            result = transcribe_audio_deepgram("non_existent_file.wav")
-            assert "Error: Audio file not found" in result
-            mock_os_exists.assert_called_once_with("non_existent_file.wav")
-
-# (Need to import requests for the HTTPError in summarize_transcript_gpt_api_error)
-import requests
-# This should ideally be at the top, but placed here to ensure the dummy exception logic
-# for requests.exceptions.HTTPError is processed if 'requests' isn't installed.
-# If 'requests' is a hard dependency for the project, it should be in requirements.txt
-# and this try-except for HTTPError might be simplified.
-
-# Ensure the dummy exception is used if requests wasn't really imported
+# Fallback for requests.exceptions.HTTPError if requests is not installed
+# This was in the original file, keeping for consistency, though test environment should have dependencies.
 if not hasattr(requests, 'exceptions') or not hasattr(requests.exceptions, 'HTTPError'):
-    # This means requests was probably mocked, so we use the dummy from earlier
     class RequestsHTTPError(Exception): pass
-    requests.exceptions = MagicMock()
-    requests.exceptions.HTTPError = RequestsHTTPError
+    if 'requests' not in sys.modules:
+        mock_requests_module = MagicMock()
+        sys.modules['requests'] = mock_requests_module
+    if not hasattr(sys.modules['requests'], 'exceptions'):
+        sys.modules['requests'].exceptions = MagicMock()
+    sys.modules['requests'].exceptions.HTTPError = RequestsHTTPError

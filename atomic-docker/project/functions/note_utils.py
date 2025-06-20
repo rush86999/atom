@@ -49,13 +49,16 @@ def init_notion(api_token: str, database_id: str = None) -> dict:
 def create_notion_note(
     title: str, content: str, notion_db_id: str = None, source: str = None,
     linked_task_id: str = None, linked_event_id: str = None, transcription: str = None,
-    audio_file_link: str = None, summary: str = None, key_points: str = None
+    audio_file_link: str = None, summary: str = None, key_points: str = None,
+    decisions: list = None, action_items: list = None
 ) -> dict:
     if not notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
     db_id_to_use = notion_db_id or NOTION_NOTES_DATABASE_ID_GLOBAL
     if not db_id_to_use: return {"status": "error", "message": "Notion database ID not configured.", "code": "NOTION_CONFIG_ERROR"}
     if not title: return {"status": "error", "message": "Title is required.", "code": "VALIDATION_ERROR"}
+
     properties = {"Title": {"title": [{"text": {"content": title}}]}}
+
     if content and len(content.strip()) > 0 : properties["ContentText"] = {"rich_text": [{"text": {"content": content[:1999]}}]}
     if source: properties["Source"] = {"rich_text": [{"text": {"content": source}}]}
     if linked_task_id: properties["Linked Task ID"] = {"rich_text": [{"text": {"content": linked_task_id}}]}
@@ -64,6 +67,20 @@ def create_notion_note(
     if audio_file_link: properties["Audio File Link"] = {"url": audio_file_link}
     if summary and len(summary.strip()) > 0 : properties["Summary"] = {"rich_text": [{"text": {"content": summary[:1999]}}]}
     if key_points and len(key_points.strip()) > 0: properties["Key Points"] = {"rich_text": [{"text": {"content": key_points[:1999]}}]}
+
+    formatted_decisions = ""
+    if decisions and isinstance(decisions, list) and len(decisions) > 0:
+        formatted_decisions = "\n".join([f"- {str(item)}" for item in decisions])
+
+    formatted_action_items = ""
+    if action_items and isinstance(action_items, list) and len(action_items) > 0:
+        formatted_action_items = "\n".join([f"- {str(item)}" for item in action_items])
+
+    if formatted_decisions:
+        properties["Decisions Logged"] = {"rich_text": [{"text": {"content": formatted_decisions[:1999]}}]}
+
+    if formatted_action_items:
+        properties["Action Items Logged"] = {"rich_text": [{"text": {"content": formatted_action_items[:1999]}}]}
     page_content_blocks = []
     if content:
         for i in range(0, len(content), 2000): page_content_blocks.append({"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": content[i:i+2000]}}]}})
@@ -302,12 +319,16 @@ async def process_live_audio_for_notion(
 
     summarize_resp = summarize_transcript_gpt(final_transcript, openai_api_key_param=openai_api_key)
     summary, key_points = None, None
+    decisions_list = []
+    action_items_list = []
     if summarize_resp["status"] == "success":
-        summary = summarize_resp["data"]["summary"]
-        key_points = summarize_resp["data"]["key_points"]
+        summary = summarize_resp["data"].get("summary")
+        key_points = summarize_resp["data"].get("key_points") # Backward compatible key_points string
+        decisions_list = summarize_resp["data"].get("decisions", [])
+        action_items_list = summarize_resp["data"].get("action_items", [])
     else:
         print(f"Warning: Summarization failed for live transcript of {meeting_id}: {summarize_resp['message']}")
-        # Proceed to save note even if summarization fails
+        # Proceed to save note even if summarization fails, decisions/action_items will be empty
 
     create_note_resp = create_notion_note(
         title=notion_note_title,
@@ -315,7 +336,8 @@ async def process_live_audio_for_notion(
         notion_db_id=notion_db_id,
         source=notion_source,
         linked_task_id=linked_task_id, linked_event_id=linked_event_id,
-        transcription=final_transcript, summary=summary, key_points=key_points
+        transcription=final_transcript, summary=summary, key_points=key_points,
+        decisions=decisions_list, action_items=action_items_list
     )
 
     if create_note_resp["status"] == "error":
@@ -344,9 +366,16 @@ def transcribe_audio_deepgram(audio_file_path: str, deepgram_api_key_param: str 
 def summarize_transcript_gpt(transcript: str, openai_api_key_param: str = None, gpt_model_param: str = None) -> dict:
     oai_key_to_use = openai_api_key_param or OPENAI_API_KEY_GLOBAL; model_to_use = gpt_model_param or GPT_MODEL_NAME_GLOBAL
     if not oai_key_to_use or not oai_key_to_use.startswith('sk-'): return {"status": "error", "message": "OpenAI API key not set or invalid.", "code": "OPENAI_CONFIG_ERROR"}
-    if not transcript or not transcript.strip(): return {"status": "success", "data": {"summary": "Transcript was empty.", "key_points": ""}}
-    system_prompt = "You are an expert summarizer. Given the meeting transcript, provide a concise summary and a list of key bullet points. Respond ONLY with a valid JSON object with two keys: \"summary\" (string) and \"key_points\" (list of strings). Example: {\"summary\": \"The meeting was about X...\", \"key_points\": [\"Point 1 about Y\", \"Point 2 about Z\"]}"
-    user_prompt = f"Transcript:\n\n{transcript}\n\nPlease provide summary and key points in JSON format."
+    if not transcript or not transcript.strip(): return {"status": "success", "data": {"summary": "Transcript was empty.", "decisions": [], "action_items": [], "key_points": ""}}
+    system_prompt = (
+        "You are an expert meeting summarizer. Given the meeting transcript, "
+        "provide a concise summary, a list of decisions made, and a list of action items. "
+        "Respond ONLY with a valid JSON object with three keys: "
+        "\"summary\" (string), \"decisions\" (list of strings), and \"action_items\" (list of strings). "
+        "Each action item should include potential assignees and deadlines if mentioned. "
+        "Example: {\"summary\": \"The meeting was about X...\", \"decisions\": [\"Decision 1 about Y was made.\", \"It was agreed to proceed with Z.\"], \"action_items\": [\"Action: John to complete report by Friday.\", \"Action: Sarah to investigate new tool.\"]}"
+    )
+    user_prompt = f"Transcript:\n\n{transcript}\n\nPlease provide summary, decisions, and action items in the specified JSON format."
     headers = {"Authorization": f"Bearer {oai_key_to_use}", "Content-Type": "application/json"}
     payload = {"model": model_to_use, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}], "response_format": {"type": "json_object"}, "temperature": 0.3}
     try:
@@ -354,11 +383,32 @@ def summarize_transcript_gpt(transcript: str, openai_api_key_param: str = None, 
         response.raise_for_status(); gpt_response_json = response.json()
         message_content_str = gpt_response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
         if not message_content_str: return {"status": "error", "message": "OpenAI response content empty.", "code": "OPENAI_EMPTY_RESPONSE", "details": gpt_response_json}
+
         parsed_content = json.loads(message_content_str)
-        summary = parsed_content.get("summary"); key_points_list = parsed_content.get("key_points")
-        if not isinstance(summary, str) or not isinstance(key_points_list, list): raise ValueError("Parsed content structure mismatch.")
-        key_points_str = "\n".join([f"- {item}" for item in key_points_list if isinstance(item, str)])
-        return {"status": "success", "data": {"summary": summary, "key_points": key_points_str}}
+
+        summary = parsed_content.get("summary", "")
+        decisions = parsed_content.get("decisions", [])
+        action_items = parsed_content.get("action_items", [])
+
+        if not isinstance(summary, str): summary = "" # Ensure summary is a string
+        if not isinstance(decisions, list): decisions = [] # Ensure decisions is a list
+        if not isinstance(action_items, list): action_items = [] # Ensure action_items is a list
+
+        # Ensure all items in decisions and action_items are strings
+        decisions = [str(item) for item in decisions]
+        action_items = [str(item) for item in action_items]
+
+        key_points_str = "\n".join([f"- {item}" for item in action_items if isinstance(item, str)])
+
+        return {
+            "status": "success",
+            "data": {
+                "summary": summary,
+                "decisions": decisions,
+                "action_items": action_items,
+                "key_points": key_points_str # For backward compatibility
+            }
+        }
     except requests.exceptions.RequestException as e: return {"status": "error", "message": f"OpenAI API request error: {e}", "code": "OPENAI_API_REQUEST_ERROR"}
     except (json.JSONDecodeError, KeyError, ValueError) as e: return {"status": "error", "message": f"Error processing OpenAI response: {e}", "code": "OPENAI_RESPONSE_ERROR", "details": message_content_str if 'message_content_str' in locals() else str(gpt_response_json if 'gpt_response_json' in locals() else "")}
     except Exception as e: return {"status": "error", "message": f"Unexpected error in GPT summarization: {e}", "code": "INTERNAL_ERROR"}
