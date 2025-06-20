@@ -15,6 +15,7 @@ if FUNCTIONS_DIR_PATH not in sys.path:
 # --- Module Imports & Initializations ---
 ZoomAgent = None
 GoogleMeetAgent = None
+MSTeamsAgent = None # Added MSTeamsAgent
 note_utils_module = None
 
 try:
@@ -30,11 +31,17 @@ except ImportError as e:
     print(f"Warning: GoogleMeetAgent failed to import: {e}", file=sys.stderr)
 
 try:
+    from agents.ms_teams_agent import MSTeamsAgent as ImportedMSTeamsAgent # Import MSTeamsAgent
+    MSTeamsAgent = ImportedMSTeamsAgent
+except ImportError as e:
+    print(f"Warning: MSTeamsAgent failed to import: {e}", file=sys.stderr)
+
+try:
     import note_utils as nu_module
     note_utils_module = nu_module
     if not hasattr(note_utils_module, 'process_live_audio_for_notion'):
         print("Error: process_live_audio_for_notion not found in note_utils module.", file=sys.stderr)
-        note_utils_module = None # Mark as unavailable
+        note_utils_module = None
 except ImportError as e:
     print(f"Critical Import Error for note_utils in attend_live_meeting handler: {e}", file=sys.stderr)
 
@@ -50,7 +57,7 @@ def make_error_response(code: str, message: str, details: any = None, http_statu
 @app.route('/', methods=['POST'])
 async def attend_live_meeting_route():
     payload = {}
-    agent = None # Ensure agent is defined for the finally block
+    agent = None
     try:
         payload = flask.request.get_json()
         if not payload:
@@ -73,9 +80,6 @@ async def attend_live_meeting_route():
         notion_api_token = handler_input.get('notion_api_token')
         deepgram_api_key = handler_input.get('deepgram_api_key')
         openai_api_key = handler_input.get('openai_api_key')
-        # platform_module_name is less relevant now we explicitly check platform
-        # platform_module_name = action_input.get('platform_module_name')
-
 
         required_params_map = {
             "platform": platform, "meeting_identifier": meeting_identifier,
@@ -87,7 +91,7 @@ async def attend_live_meeting_route():
         if missing_params:
             return make_error_response("VALIDATION_ERROR", f"Missing required parameters: {', '.join(missing_params)}", http_status=400)
 
-        if not note_utils_module: # Check if note_utils itself or key function failed to load
+        if not note_utils_module:
              return make_error_response("SERVICE_UNAVAILABLE", "Core note processing utilities are not loaded.", http_status=503)
 
         init_notion_resp = note_utils_module.init_notion(notion_api_token, database_id=notion_db_id)
@@ -98,25 +102,25 @@ async def attend_live_meeting_route():
                 init_notion_resp.get('details')
             )
 
-        platform_interface = None # This will be the agent instance
+        platform_interface = None
 
         if platform == "zoom":
             if ZoomAgent is None:
-                return make_error_response("SERVICE_UNAVAILABLE", "ZoomAgent component not loaded.", http_status=503)
+                return make_error_response("SERVICE_UNAVAILABLE", "ZoomAgent component not loaded for 'zoom' platform.", http_status=503)
             agent = ZoomAgent(user_id=user_id)
             platform_interface = agent
         elif platform == "googlemeet" or platform == "google_meet":
             if GoogleMeetAgent is None:
-                return make_error_response("SERVICE_UNAVAILABLE", "GoogleMeetAgent component not loaded.", http_status=503)
+                return make_error_response("SERVICE_UNAVAILABLE", "GoogleMeetAgent component not loaded for 'googlemeet' platform.", http_status=503)
             agent = GoogleMeetAgent(user_id=user_id)
             platform_interface = agent
+        elif platform in ["msteams", "microsoft_teams", "teams"]: # Added MSTeams
+            if MSTeamsAgent is None:
+                return make_error_response("SERVICE_UNAVAILABLE", "MSTeamsAgent component not loaded for 'msteams' platform.", http_status=503)
+            agent = MSTeamsAgent(user_id=user_id)
+            platform_interface = agent
         else:
-            # Fallback for other platform_module_name or if specific agent not found
-            # This section might need review: if platform is "zoom" but ZoomAgent is None, it's caught above.
-            # If platform is something else, this is the "not supported" path.
-            # The MockPlatformModule logic from previous version is removed as it's confusing here.
-            # If a platform is specified, its agent must be available.
-            return make_error_response("NOT_IMPLEMENTED", f"Platform '{platform}' is not supported or its agent is unavailable.", http_status=400)
+            return make_error_response("NOT_IMPLEMENTED", f"Platform '{platform}' is not supported. Supported platforms: zoom, googlemeet, msteams.", http_status=400)
 
         print(f"Handler: Attempting to join meeting {meeting_identifier} via {platform} for user {user_id}", file=sys.stderr)
         join_success = platform_interface.join_meeting(meeting_identifier)
@@ -127,7 +131,7 @@ async def attend_live_meeting_route():
         print(f"Handler: Successfully joined {meeting_identifier}. Starting live processing.", file=sys.stderr)
 
         process_live_audio_func = getattr(note_utils_module, 'process_live_audio_for_notion')
-        if not process_live_audio_func: # Should have been caught at startup, but defensive check
+        if not process_live_audio_func:
              return make_error_response("SERVICE_UNAVAILABLE", "Live audio processing function not available in note_utils.", http_status=503)
 
         current_meeting_id = platform_interface.get_current_meeting_id() or meeting_identifier
@@ -158,14 +162,14 @@ async def attend_live_meeting_route():
         print(traceback.format_exc(), file=sys.stderr)
         return make_error_response("INTERNAL_SERVER_ERROR", f"An internal error occurred: {str(e)}", http_status=500)
     finally:
-        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id:
-            # Check if agent was instantiated and joined a meeting
-            meeting_id_for_leave = agent.get_current_meeting_id()
+        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id :
+            # Check if agent was instantiated and successfully joined (current_meeting_id would be set)
+            meeting_id_for_leave = agent.get_current_meeting_id() # Use the method now
             print(f"Handler: Live processing ended for {meeting_id_for_leave}. Ensuring agent leaves.", file=sys.stderr)
             if hasattr(agent, 'leave_meeting') and asyncio.iscoroutinefunction(agent.leave_meeting):
                 await agent.leave_meeting()
-            elif hasattr(agent, 'leave_meeting'):
-                agent.leave_meeting() # If not async for some reason (though it should be)
+            elif hasattr(agent, 'leave_meeting'): # Fallback for potential non-async leave_meeting
+                agent.leave_meeting()
 
 
 if __name__ == '__main__':
