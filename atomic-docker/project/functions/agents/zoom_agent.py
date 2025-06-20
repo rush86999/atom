@@ -41,7 +41,7 @@ class ZoomAgent:
       agent to use that virtual input device via the `ZOOM_AGENT_AUDIO_DEVICE_NAME_OR_ID` environment variable.
     Without proper audio routing, this agent will only capture microphone input, not the meeting's output audio.
     """
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, target_device_specifier_override: Optional[str] = None):
         self.user_id: str = user_id
         self.current_meeting_id: Optional[str] = None
 
@@ -53,8 +53,8 @@ class ZoomAgent:
         self.channels: int = 1
         self.dtype: str = 'int16'
 
-        self.target_device_specifier: Optional[str] = os.environ.get('ZOOM_AGENT_AUDIO_DEVICE_NAME_OR_ID')
-        print(f"ZoomAgent initialized for user_id: {self.user_id}. Sounddevice available: {SOUNDDEVICE_AVAILABLE}. Target device spec: '{self.target_device_specifier}'")
+        self.target_device_specifier: Optional[str] = target_device_specifier_override or os.environ.get('ZOOM_AGENT_AUDIO_DEVICE_NAME_OR_ID')
+        print(f"ZoomAgent initialized for user_id: {self.user_id}. Sounddevice available: {SOUNDDEVICE_AVAILABLE}. Target device spec: '{self.target_device_specifier}' (Override was: '{target_device_specifier_override}')")
 
     def _parse_meeting_id(self, meeting_url_or_id: str) -> Optional[str]:
         """Extracts meeting ID from a URL or returns the ID directly."""
@@ -107,8 +107,8 @@ class ZoomAgent:
         Starts capturing audio and yields audio chunks as an async generator.
 
         Audio Device Selection:
-        - If `ZOOM_AGENT_AUDIO_DEVICE_NAME_OR_ID` env var is set, it attempts to use that device.
-          The value can be a device name (substring match) or an integer index.
+        - If `ZOOM_AGENT_AUDIO_DEVICE_NAME_OR_ID` env var is set (or override provided to __init__),
+          it attempts to use that device. The value can be a device name (substring match) or an integer index.
         - If not set, it uses the system's default input device.
         - **CRITICAL:** For capturing Zoom meeting audio (not just microphone), system audio
           routing (e.g., Stereo Mix, VB-Cable, BlackHole) must be configured to route
@@ -134,14 +134,14 @@ class ZoomAgent:
         chosen_device_info = None
         try:
             devices = sd.query_devices()
-            host_api_names = [api['name'] for api in sd.query_hostapis()] # For more informative logging
+            host_api_names = [api['name'] for api in sd.query_hostapis()]
 
             if self.target_device_specifier:
                 print(f"ZoomAgent: Attempting to use specified audio device: '{self.target_device_specifier}'")
-                try: # Is it an index?
+                try:
                     dev_idx = int(self.target_device_specifier)
                     if 0 <= dev_idx < len(devices): chosen_device_info = devices[dev_idx]
-                except ValueError: # Not an index, try as name
+                except ValueError:
                     for dev in devices:
                         if self.target_device_specifier.lower() in dev.get('name', '').lower() and dev.get('max_input_channels', 0) > 0:
                             chosen_device_info = dev; break
@@ -155,7 +155,7 @@ class ZoomAgent:
                 print("For Zoom meeting audio, ensure system audio (Zoom's output) is routed to this", file=sys.stdout)
                 print("default input (e.g., via Stereo Mix, Loopback software). See agent documentation.", file=sys.stdout)
                 print("*************************************************************************************", file=sys.stdout)
-                default_input_idx = sd.default.device[0] # Default input device index
+                default_input_idx = sd.default.device[0]
                 if default_input_idx == -1 or default_input_idx >= len(devices) or devices[default_input_idx].get('max_input_channels', 0) == 0:
                     msg = "No suitable default audio input device found."
                     print(f"ZoomAgent: {msg} Default input index: {default_input_idx}. Available: {devices}", file=sys.stderr); raise ValueError(msg)
@@ -163,13 +163,13 @@ class ZoomAgent:
 
             if not chosen_device_info: raise ValueError("Could not determine a suitable audio input device.")
 
-            device_id_for_stream = chosen_device_info['index'] # Use index for sd.RawInputStream
+            device_id_for_stream = chosen_device_info['index']
             device_name_for_log = chosen_device_info.get('name', f"Index {device_id_for_stream}")
             host_api_idx = chosen_device_info.get('hostapi', -1)
             host_api_name = host_api_names[host_api_idx] if 0 <= host_api_idx < len(host_api_names) else "UnknownAPI"
             print(f"ZoomAgent: Selected audio device: '{device_name_for_log}' (Index: {device_id_for_stream}, HostAPI: {host_api_name}, MaxInputChannels: {chosen_device_info.get('max_input_channels')})")
 
-        except Exception as e: # Catch errors from query_devices or device selection logic
+        except Exception as e:
             msg = f"ZoomAgent: Error selecting audio device: {e}"
             print(msg, file=sys.stderr); raise ValueError(msg)
 
@@ -182,7 +182,7 @@ class ZoomAgent:
             self.audio_stream = sd.RawInputStream(
                 samplerate=self.sample_rate, channels=self.channels, dtype=self.dtype,
                 device=device_id_for_stream, callback=self._sd_callback,
-                blocksize=int(self.sample_rate * 0.1) # 100ms chunks (e.g. 1600 frames at 16kHz)
+                blocksize=int(self.sample_rate * 0.1)
             )
             self.audio_stream.start()
             print(f"ZoomAgent: Audio stream active. Device: '{device_name_for_log}', Samplerate: {self.audio_stream.samplerate} Hz, Channels: {self.audio_stream.channels}")
@@ -206,7 +206,7 @@ class ZoomAgent:
             msg = f"ZoomAgent: Error during audio capture stream for {self.current_meeting_id} on device '{device_name_for_log}': {e}"
             print(msg, file=sys.stderr)
             self.is_capturing = False; self.audio_stream = None
-            raise RuntimeError(msg) # Re-raise to signal failure to consumer
+            raise RuntimeError(msg)
         finally:
             print(f"ZoomAgent: Cleaning up audio stream for {self.current_meeting_id} (Device: '{device_name_for_log}')...")
             if self.audio_stream:

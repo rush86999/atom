@@ -1,9 +1,17 @@
 import flask
 import os
 import sys
-import importlib
+import json # For Kafka message serialization
+import uuid # For generating taskId
 import traceback
-import asyncio
+from kafka.errors import KafkaError # Specific Kafka errors
+# Assuming kafka-python is the library. If another, imports would change.
+try:
+    from kafka import KafkaProducer
+except ImportError:
+    KafkaProducer = None # Allow file to load if kafka-python is not installed yet
+    print("WARNING: kafka-python library not found. Kafka functionality will be disabled.", file=sys.stderr)
+
 
 # Add parent 'functions' directory to sys.path for sibling imports
 PACKAGE_PARENT = '..'
@@ -12,38 +20,47 @@ FUNCTIONS_DIR_PATH = os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT))
 if FUNCTIONS_DIR_PATH not in sys.path:
     sys.path.append(FUNCTIONS_DIR_PATH)
 
-# --- Module Imports & Initializations ---
-ZoomAgent = None
-GoogleMeetAgent = None
-MSTeamsAgent = None # Added MSTeamsAgent
-note_utils_module = None
-
+# Import constants
 try:
-    from agents.zoom_agent import ZoomAgent as ImportedZoomAgent
-    ZoomAgent = ImportedZoomAgent
-except ImportError as e:
-    print(f"Warning: ZoomAgent failed to import: {e}", file=sys.stderr)
+    from _utils import constants as app_constants
+except ImportError:
+    # Fallback if _utils.constants is not found (e.g. local test without full structure)
+    class MockAppConstants:
+        KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
+        KAFKA_LIVE_MEETING_TOPIC = "atom_live_meeting_tasks"
+    app_constants = MockAppConstants()
+    print("Warning: Could not import shared constants. Using fallback values for Kafka.", file=sys.stderr)
 
-try:
-    from agents.google_meet_agent import GoogleMeetAgent as ImportedGoogleMeetAgent
-    GoogleMeetAgent = ImportedGoogleMeetAgent
-except ImportError as e:
-    print(f"Warning: GoogleMeetAgent failed to import: {e}", file=sys.stderr)
 
-try:
-    from agents.ms_teams_agent import MSTeamsAgent as ImportedMSTeamsAgent # Import MSTeamsAgent
-    MSTeamsAgent = ImportedMSTeamsAgent
-except ImportError as e:
-    print(f"Warning: MSTeamsAgent failed to import: {e}", file=sys.stderr)
+# Kafka Producer - Initialize lazily or per request for Flask simplicity
+# For high-throughput, a shared global instance with proper connection management is better.
+kafka_producer: KafkaProducer | None = None
 
-try:
-    import note_utils as nu_module
-    note_utils_module = nu_module
-    if not hasattr(note_utils_module, 'process_live_audio_for_notion'):
-        print("Error: process_live_audio_for_notion not found in note_utils module.", file=sys.stderr)
-        note_utils_module = None
-except ImportError as e:
-    print(f"Critical Import Error for note_utils in attend_live_meeting handler: {e}", file=sys.stderr)
+def get_kafka_producer() -> KafkaProducer:
+    global kafka_producer
+    if kafka_producer is None and KafkaProducer is not None: # Check if library was imported
+        try:
+            kafka_producer = KafkaProducer(
+                bootstrap_servers=app_constants.KAFKA_BOOTSTRAP_SERVERS.split(','), # Allow comma-separated list
+                client_id="attend-live-meeting-producer",
+                retries=3, # Retry sending a few times
+                value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+                key_serializer=lambda k: k.encode('utf-8') if k else None
+            )
+            print("KafkaProducer initialized successfully.", file=sys.stderr)
+        except KafkaError as e: # More specific Kafka connection errors
+            print(f"Failed to initialize KafkaProducer: {e}", file=sys.stderr)
+            kafka_producer = None # Ensure it's None if init fails
+            raise # Re-raise to signal failure to the route
+        except Exception as e: # Other unexpected errors during init
+            print(f"Unexpected error initializing KafkaProducer: {e}", file=sys.stderr)
+            kafka_producer = None
+            raise
+    if kafka_producer is None and KafkaProducer is None:
+        raise RuntimeError("KafkaProducer library (kafka-python) not available.")
+    if kafka_producer is None: # If initialization failed previously
+        raise RuntimeError("KafkaProducer failed to initialize. Check Kafka server and configuration.")
+    return kafka_producer
 
 
 app = flask.Flask(__name__)
@@ -55,9 +72,11 @@ def make_error_response(code: str, message: str, details: any = None, http_statu
     }), http_status
 
 @app.route('/', methods=['POST'])
-async def attend_live_meeting_route():
+async def attend_live_meeting_route(): # Remains async for consistency, though core is sync now
+    if KafkaProducer is None: # Check if kafka-python is even installed
+        return make_error_response("SERVICE_UNAVAILABLE", "Kafka client library not available on server.", http_status=503)
+
     payload = {}
-    agent = None
     try:
         payload = flask.request.get_json()
         if not payload:
@@ -81,6 +100,11 @@ async def attend_live_meeting_route():
         deepgram_api_key = handler_input.get('deepgram_api_key')
         openai_api_key = handler_input.get('openai_api_key')
 
+        # Extract audio settings, specifically the device specifier
+        audio_settings = handler_input.get('audio_settings', {})
+        audio_device_specifier = audio_settings.get('audio_device_specifier')
+
+
         required_params_map = {
             "platform": platform, "meeting_identifier": meeting_identifier,
             "notion_note_title": notion_note_title, "user_id": user_id,
@@ -91,89 +115,71 @@ async def attend_live_meeting_route():
         if missing_params:
             return make_error_response("VALIDATION_ERROR", f"Missing required parameters: {', '.join(missing_params)}", http_status=400)
 
-        if not note_utils_module:
-             return make_error_response("SERVICE_UNAVAILABLE", "Core note processing utilities are not loaded.", http_status=503)
+        # --- Construct Kafka Message ---
+        task_id = str(uuid.uuid4())
+        kafka_message_payload = {
+            "taskId": task_id,
+            "userId": user_id,
+            "platform": platform,
+            "meetingIdentifier": meeting_identifier,
+            "notionNoteTitle": notion_note_title,
+            "notionSource": notion_source,
+            "linkedEventId": linked_event_id,
+            "notionDbId": notion_db_id,
+            "apiKeys": {
+                "notion": notion_api_token,
+                "deepgram": deepgram_api_key,
+                "openai": openai_api_key,
+            },
+            "audioSettings": {
+                "audioDeviceSpecifier": audio_device_specifier
+            }
+        }
 
-        init_notion_resp = note_utils_module.init_notion(notion_api_token, database_id=notion_db_id)
-        if init_notion_resp["status"] != "success":
-            return make_error_response(
-                f"NOTION_INIT_ERROR_{init_notion_resp.get('code', 'UNKNOWN')}",
-                init_notion_resp.get('message', "Failed to initialize Notion client."),
-                init_notion_resp.get('details')
+        # --- Publish to Kafka ---
+        try:
+            producer = get_kafka_producer() # Get or initialize producer
+            future = producer.send(
+                app_constants.KAFKA_LIVE_MEETING_TOPIC,
+                key=task_id, # Key is already encoded by serializer
+                value=kafka_message_payload # Value is JSON serialized by serializer
             )
+            # Wait for the send to complete with a timeout
+            record_metadata = future.get(timeout=10)
+            print(f"Successfully published task {task_id} to Kafka topic '{record_metadata.topic}' partition {record_metadata.partition} offset {record_metadata.offset}", file=sys.stderr)
 
-        platform_interface = None
+            return flask.jsonify({
+                "ok": True,
+                "data": {"message": "Meeting processing request accepted.", "taskId": task_id}
+            }), 202 # HTTP 202 Accepted
 
-        if platform == "zoom":
-            if ZoomAgent is None:
-                return make_error_response("SERVICE_UNAVAILABLE", "ZoomAgent component not loaded for 'zoom' platform.", http_status=503)
-            agent = ZoomAgent(user_id=user_id)
-            platform_interface = agent
-        elif platform == "googlemeet" or platform == "google_meet":
-            if GoogleMeetAgent is None:
-                return make_error_response("SERVICE_UNAVAILABLE", "GoogleMeetAgent component not loaded for 'googlemeet' platform.", http_status=503)
-            agent = GoogleMeetAgent(user_id=user_id)
-            platform_interface = agent
-        elif platform in ["msteams", "microsoft_teams", "teams"]: # Added MSTeams
-            if MSTeamsAgent is None:
-                return make_error_response("SERVICE_UNAVAILABLE", "MSTeamsAgent component not loaded for 'msteams' platform.", http_status=503)
-            agent = MSTeamsAgent(user_id=user_id)
-            platform_interface = agent
-        else:
-            return make_error_response("NOT_IMPLEMENTED", f"Platform '{platform}' is not supported. Supported platforms: zoom, googlemeet, msteams.", http_status=400)
+        except KafkaError as e: # Specific Kafka errors (e.g., KafkaTimeoutError if broker down)
+            error_message = f"Failed to publish task to Kafka: {e}"
+            print(error_message, file=sys.stderr)
+            return make_error_response("KAFKA_PUBLISH_FAILED", error_message, {"kafka_error": str(e)}, http_status=500)
+        except Exception as e: # Other exceptions during send (e.g., serializer error if payload not dict)
+            error_message = f"An unexpected error occurred during Kafka publish: {e}"
+            print(error_message, file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
+            return make_error_response("KAFKA_PUBLISH_UNEXPECTED_ERROR", error_message, {"exception_type": type(e).__name__}, http_status=500)
 
-        print(f"Handler: Attempting to join meeting {meeting_identifier} via {platform} for user {user_id}", file=sys.stderr)
-        join_success = platform_interface.join_meeting(meeting_identifier)
-
-        if not join_success:
-            return make_error_response("JOIN_MEETING_FAILED", f"Agent failed to launch/join meeting: {meeting_identifier} on platform {platform}.", http_status=500)
-
-        print(f"Handler: Successfully joined {meeting_identifier}. Starting live processing.", file=sys.stderr)
-
-        process_live_audio_func = getattr(note_utils_module, 'process_live_audio_for_notion')
-        if not process_live_audio_func:
-             return make_error_response("SERVICE_UNAVAILABLE", "Live audio processing function not available in note_utils.", http_status=503)
-
-        current_meeting_id = platform_interface.get_current_meeting_id() or meeting_identifier
-
-        processing_result = await process_live_audio_func(
-            platform_module=platform_interface,
-            meeting_id=current_meeting_id,
-            notion_note_title=notion_note_title,
-            deepgram_api_key=deepgram_api_key,
-            openai_api_key=openai_api_key,
-            notion_db_id=notion_db_id,
-            notion_source=notion_source,
-            linked_event_id=linked_event_id
-        )
-
-        if processing_result and processing_result.get("status") == "success":
-            print(f"Handler: Notion page processed: {processing_result.get('data')}", file=sys.stderr)
-            return flask.jsonify({"ok": True, "data": processing_result.get("data")}), 200
-        else:
-            err_msg = processing_result.get("message", "Processing failed") if processing_result else "Processing function returned None."
-            err_code = processing_result.get("code", "PROCESSING_FAILED") if processing_result else "PROCESSING_RETURNED_NONE"
-            err_details = processing_result.get("details") if processing_result else None
-            print(f"Handler: Processing finished with error for {current_meeting_id}: {err_msg}", file=sys.stderr)
-            return make_error_response(f"PYTHON_ERROR_{err_code}", err_msg, err_details, http_status=500)
-
-    except Exception as e:
-        print(f"Critical error in attend_live_meeting_route: {str(e)}", file=sys.stderr)
+    except Exception as e: # Catch-all for validation, JSON parsing, or other unexpected errors
+        print(f"Critical error in attend_live_meeting_route before Kafka publish: {str(e)}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)
         return make_error_response("INTERNAL_SERVER_ERROR", f"An internal error occurred: {str(e)}", http_status=500)
-    finally:
-        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id :
-            # Check if agent was instantiated and successfully joined (current_meeting_id would be set)
-            meeting_id_for_leave = agent.get_current_meeting_id() # Use the method now
-            print(f"Handler: Live processing ended for {meeting_id_for_leave}. Ensuring agent leaves.", file=sys.stderr)
-            if hasattr(agent, 'leave_meeting') and asyncio.iscoroutinefunction(agent.leave_meeting):
-                await agent.leave_meeting()
-            elif hasattr(agent, 'leave_meeting'): # Fallback for potential non-async leave_meeting
-                agent.leave_meeting()
-
+    # No 'finally' block needed for agent.leave_meeting() as agent interaction is removed
 
 if __name__ == '__main__':
-    print("Starting local Flask server for attend_live_meeting (async) handler on port 5000...", file=sys.stderr)
-    app.run(port=int(os.environ.get("FLASK_PORT", 5000)), debug=True)
+    print(f"Starting local Flask server for attend_live_meeting (Kafka publisher) handler on port {os.environ.get('FLASK_PORT', 5000)}...", file=sys.stderr)
+    # Note: KafkaProducer should ideally be closed on app shutdown.
+    # For Flask dev server, this is tricky. For prod WSGI, use app context or atexit.
+    try:
+        app.run(port=int(os.environ.get("FLASK_PORT", 5000)), debug=True)
+    finally:
+        if kafka_producer:
+            print("Closing Kafka producer...", file=sys.stderr)
+            kafka_producer.flush()
+            kafka_producer.close()
+            print("Kafka producer closed.", file=sys.stderr)
 
 [end of atomic-docker/project/functions/attend_live_meeting/handler.py]

@@ -44,7 +44,7 @@ class MSTeamsAgent:
       `MS_TEAMS_AGENT_AUDIO_DEVICE_NAME_OR_ID` environment variable.
     Without proper audio routing, this agent will only capture microphone input.
     """
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, target_device_specifier_override: Optional[str] = None):
         self.user_id: str = user_id
         self.current_meeting_url: Optional[str] = None
 
@@ -59,8 +59,8 @@ class MSTeamsAgent:
         self.dtype: str = 'int16' # Data type
         self.blocksize: int = int(self.sample_rate * 0.04) # 40ms chunks (640 frames at 16kHz)
 
-        self.target_device_specifier: Optional[str] = os.environ.get('MS_TEAMS_AGENT_AUDIO_DEVICE_NAME_OR_ID')
-        logger.info(f"MSTeamsAgent initialized for user_id: {self.user_id}. Sounddevice available: {SOUNDDEVICE_AVAILABLE}. Target device spec: '{self.target_device_specifier}'")
+        self.target_device_specifier: Optional[str] = target_device_specifier_override or os.environ.get('MS_TEAMS_AGENT_AUDIO_DEVICE_NAME_OR_ID')
+        logger.info(f"MSTeamsAgent initialized for user_id: {self.user_id}. Sounddevice available: {SOUNDDEVICE_AVAILABLE}. Target device spec: '{self.target_device_specifier}' (Override was: '{target_device_specifier_override}')")
 
     def join_meeting(self, meeting_url: str) -> bool:
         """
