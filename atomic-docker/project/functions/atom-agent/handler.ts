@@ -36,9 +36,29 @@ import {
   GetQuickBooksInvoiceDetailsResponse,
   QuickBooksInvoice,
   // NLU
-  ProcessedNLUResponse
-} from '../types';
-import { createHubSpotContact, getHubSpotContactByEmail } from './skills/hubspotSkills'; // Added getHubSpotContactByEmail
+  ProcessedNLUResponse,
+  LtmQueryResult, // Assuming LtmQueryResult might be defined in types.ts or memoryManager exports it
+} from '../types'; // Adjust if LtmQueryResult comes from memoryManager directly
+
+// Conversation State and LTM
+import * as conversationManager from './conversationState';
+import {
+    getConversationStateSnapshot,
+    updateLTMContext, // Renamed as per instructions
+    updateUserGoal,
+    updateIntentAndEntities
+} from './conversationState';
+import { initializeDB as initializeLanceDB } from '../lanceDBManager'; // Renamed for clarity
+import * as lancedb from 'vectordb-lance'; // For lancedb.Connection type
+import {
+    retrieveRelevantLTM,
+    loadLTMToSTM,
+    processSTMToLTM,
+    ConversationStateActions // Import type for actions
+} from './memoryManager';
+
+
+import { createHubSpotContact, getHubSpotContactByEmail } from './skills/hubspotSkills';
 import { sendSlackMessage } from './skills/slackSkills';
 import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './skills/calendlySkills';
 import { listZoomMeetings, getZoomMeetingDetails } from './skills/zoomSkills';
@@ -70,27 +90,111 @@ import { ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, ATOM_HUBSPOT_PORTAL_ID, ATO
 // Define the TTS service URL
 const AUDIO_PROCESSOR_TTS_URL = process.env.AUDIO_PROCESSOR_BASE_URL
     ? `${process.env.AUDIO_PROCESSOR_BASE_URL}/tts`
-    : 'http://localhost:8080/tts'; // Default for local dev if not set
+    : 'http://localhost:8080/tts';
+
+// --- LanceDB Initialization ---
+let ltmDbConnection: lancedb.Connection | null = null;
+
+async function initializeLtmDatabase(): Promise<void> {
+  try {
+    // Using a distinct name for the DB file for TS side, or ensure paths resolve correctly if shared.
+    // For now, using "ltm_agent_data_ts" to distinguish if needed, or use the same name as Python if they share.
+    // The Python side uses: "../../lance_db/ltm_agent_data.lance"
+    // Node.js side (lanceDBManager.ts) uses: "./lance_db/" prefix.
+    // If handler.ts is in 'atom-agent' and lanceDBManager is one level up, then '../lance_db/' might be right.
+    // Let's assume lanceDBManager handles its path relative to its own location, so "ltm_agent_data" is fine.
+    ltmDbConnection = await initializeLanceDB("ltm_agent_data"); // Or "ltm_agent_data_ts"
+    if (ltmDbConnection) {
+      console.log('[Handler] LanceDB LTM connection initialized successfully.');
+    } else {
+      console.error('[Handler] LanceDB LTM connection failed to initialize (returned null).');
+    }
+  } catch (error) {
+    console.error('[Handler] Error initializing LanceDB LTM connection:', error);
+    ltmDbConnection = null; // Ensure it's null on failure
+  }
+}
+
+// Call initialization at module startup
+initializeLtmDatabase();
+// --- End LanceDB Initialization ---
+
 
 // Define the new return type for handleMessage
 export interface HandleMessageResponse {
   text: string;
   audioUrl?: string;
-  error?: string; // For errors related to TTS or other parts of handling if needed
+  error?: string;
 }
 
-// Internal function to handle the core logic of processing a message
-// This version does NOT call TTS, as TTS is handled by the wrapper after checking active state.
 async function _internalHandleMessage(message: string, userId: string): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
-  const lowerCaseMessage = message.toLowerCase();
   let textResponse: string;
+  let conversationLtmContext: LtmQueryResult[] | null = null;
 
-  const nluResponse: ProcessedNLUResponse = await understandMessage(message);
-  console.log('[InternalHandleMessage] NLU Response:', JSON.stringify(nluResponse, null, 2));
+  // 2. LTM Retrieval (Moved before NLU to potentially inform NLU)
+  // Note: The subtask asked to call understandMessage then retrieve LTM.
+  // However, to *use* LTM in understandMessage, retrieval must happen first,
+  // or NLU must be called again after LTM retrieval if LTM should influence NLU.
+  // For this iteration, LTM retrieval happens, then NLU is called with LTM context.
+  // Then, later, the response is augmented with LTM.
+  if (ltmDbConnection) {
+    try {
+      // For now, let's retrieve general knowledge. Table could be dynamic.
+      const relevantLtm = await retrieveRelevantLTM(message, userId, ltmDbConnection, { table: 'knowledge_base' });
 
+      if (relevantLtm && relevantLtm.length > 0) {
+        console.log(`[Handler] Retrieved ${relevantLtm.length} items from LTM for query: ${message}. Storing in conversation state.`);
+        // Store LTM results in conversation state so NLU and response generation can use it.
+        // This uses the new updateLTMContext directly.
+        // loadLTMToSTM also calls this, but calling it here ensures context is available for NLU.
+        updateLTMContext(relevantLtm);
+        conversationLtmContext = relevantLtm; // Keep a local copy for this function's scope
+
+        // If loadLTMToSTM has other side effects (like updating goal), call it too.
+        // Or, ensure those side effects are explicitly handled here or in NLU service.
+        const conversationStateActions: ConversationStateActions = {
+            updateUserGoal: updateUserGoal,
+            updateIntentAndEntities: updateIntentAndEntities,
+            updateLtmRepoContext: updateLTMContext // This will be called again, which is fine.
+        };
+        await loadLTMToSTM(relevantLtm, conversationStateActions);
+
+      } else {
+        // Ensure LTM context is cleared if nothing relevant is found
+        updateLTMContext(null);
+        conversationLtmContext = null;
+      }
+    } catch (error) {
+      console.error('[Handler] Error retrieving or loading LTM:', error);
+      updateLTMContext(null); // Clear on error too
+      conversationLtmContext = null;
+    }
+  } else {
+    console.warn('[Handler] LTM DB connection not available, skipping LTM retrieval.');
+    updateLTMContext(null); // Ensure context is null if DB is not available
+    conversationLtmContext = null;
+  }
+
+  // 1. NLU Processing (Now with LTM context)
+  const nluResponse: ProcessedNLUResponse = await understandMessage(message, undefined, conversationLtmContext);
+  console.log('[InternalHandleMessage] NLU Response (with LTM context consideration):', JSON.stringify(nluResponse, null, 2));
+
+
+  // 3. Intent Handling & Skill Execution
   if (nluResponse.error && !nluResponse.intent) {
     console.error('[InternalHandleMessage] NLU service critical error:', nluResponse.error);
     textResponse = "Sorry, I'm having trouble understanding requests right now. Please try again later.";
+    // Even with NLU error, try to augment with LTM if context is available
+    const currentConvStateOnError = getConversationStateSnapshot();
+    const ltmContextForErrorResponse = currentConvStateOnError.ltmContext;
+    if (ltmContextForErrorResponse && ltmContextForErrorResponse.length > 0) {
+        const firstLtmItem = ltmContextForErrorResponse[0] as LtmQueryResult;
+        if (firstLtmItem && firstLtmItem.text) {
+            let ltmPreamble = `I recall from our records that: "${firstLtmItem.text.substring(0, 150)}${firstLtmItem.text.length > 150 ? '...' : ''}". `;
+            textResponse = ltmPreamble + textResponse;
+            console.log(`[Handler] Augmented error response with LTM context: ${ltmPreamble}`);
+        }
+    }
     return { text: textResponse, nluResponse };
   }
 
@@ -799,6 +903,21 @@ You can also use specific commands:
         textResponse = "Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help' to see what I can do.";
     }
   }
+
+  // 4. Augment response with LTM context (New)
+  console.log("[Handler] Future enhancement: Implement relevance check for LTM items before augmenting response.");
+  const currentConvState = getConversationStateSnapshot();
+  const ltmContextForResponse = currentConvState.ltmContext;
+
+  if (ltmContextForResponse && ltmContextForResponse.length > 0) {
+      const firstLtmItem = ltmContextForResponse[0] as LtmQueryResult; // Type assertion
+      if (firstLtmItem && firstLtmItem.text) {
+          let ltmPreamble = `I recall from our records that: "${firstLtmItem.text.substring(0, 150)}${firstLtmItem.text.length > 150 ? '...' : ''}". `;
+          textResponse = ltmPreamble + textResponse;
+          console.log(`[Handler] Augmented response with LTM context: ${ltmPreamble}`);
+      }
+  }
+
   return { text: textResponse, nluResponse };
 }
 
@@ -871,13 +990,12 @@ export async function handleConversationInputWrapper(
   const { text } = payload;
   console.log(`[Handler] Received conversation input: "${text}"`);
 
-  const userId = getCurrentUserId(); // Get user ID
+  const userId = getCurrentUserId();
 
-  conversationManager.recordUserInteraction(text); // Records interaction, resets user idle timer
+  conversationManager.recordUserInteraction(text);
 
   if (!conversationManager.isConversationActive()) {
     console.log("[Handler] Conversation is not active. Ignoring input.");
-    // Ensure agent responding is false if conversation is not active.
     conversationManager.setAgentResponding(false);
     return {
       error: "Conversation not active. Please activate with wake word or activation command.",
@@ -886,22 +1004,38 @@ export async function handleConversationInputWrapper(
     };
   }
 
-  // If an interrupt was missed and agent is still marked as responding, log it.
-  // The /interrupt call should prevent this, but as a safeguard.
   if (conversationManager.checkIfAgentIsResponding()) {
-    console.warn("[Handler] New input received while agent was still marked as responding. This might indicate a missed interrupt signal.");
-    // Force agent to not be responding before processing new input.
+    console.warn("[Handler] New input received while agent was still marked as responding.");
     conversationManager.setAgentResponding(false);
   }
 
-  conversationManager.setAgentResponding(true); // Agent starts processing this new request
+  conversationManager.setAgentResponding(true);
 
   console.log("[Handler] Conversation active. Processing message...");
   const { text: coreResponseText, nluResponse } = await _internalHandleMessage(text, userId);
 
-  const preliminaryAgentResponse: HandleMessageResponse = { text: coreResponseText };
-  conversationManager.recordAgentResponse(text, preliminaryAgentResponse);
+  // Record agent's core text response (before TTS) into conversation history
+  // NLU results (intent, entities) from this turn can also be added to turnHistory here.
+  const currentTurnIntent = nluResponse?.intent || undefined;
+  const currentTurnEntities = nluResponse?.entities || undefined;
+  conversationManager.recordAgentResponse(text, { text: coreResponseText }, currentTurnIntent, currentTurnEntities);
 
+
+  // STM to LTM Processing (Fire-and-forget for now)
+  if (ltmDbConnection) {
+    try {
+      const currentConversationState = getConversationStateSnapshot();
+      processSTMToLTM(userId, currentConversationState, ltmDbConnection)
+        .then(() => console.log('[Handler] STM to LTM processing initiated.'))
+        .catch(err => console.error('[Handler] Error in STM to LTM processing:', err));
+    } catch (error) {
+      console.error('[Handler] Error initiating STM to LTM processing:', error);
+    }
+  } else {
+      console.warn('[Handler] LTM DB connection not available, skipping STM to LTM processing.');
+  }
+
+  // TTS Synthesis (as before)
   try {
     const ttsPayload = { text: coreResponseText };
     const ttsResponse = await fetch(AUDIO_PROCESSOR_TTS_URL, {

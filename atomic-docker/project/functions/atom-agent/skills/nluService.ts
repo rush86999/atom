@@ -7,7 +7,8 @@ import {
 import {
   NLUResponseData,
   ProcessedNLUResponse,
-} from '../types';
+  LtmQueryResult, // Import LtmQueryResult
+} from '../../types'; // Adjusted path assuming types.ts is in functions/types.ts
 
 let openAIClient: OpenAI | null = null;
 
@@ -82,7 +83,11 @@ Ensure sub_task intents are chosen from the list of available simple intents.
 Example for no matching intent: {"intent": null, "entities": {}}
 Example for GetCalendarEvents: {"intent": "GetCalendarEvents", "entities": {"date_range": "tomorrow", "limit": 3, "event_type_filter": "Google Meet events"}}`;
 
-export async function understandMessage(message: string, conversationHistory?: ChatCompletionMessageParam[]): Promise<ProcessedNLUResponse> {
+export async function understandMessage(
+  message: string,
+  conversationHistory?: ChatCompletionMessageParam[],
+  ltmContext?: LtmQueryResult[] | null // Added ltmContext parameter
+): Promise<ProcessedNLUResponse> {
   const client = getOpenAIClient();
   if (!client) {
     return { originalMessage: message, intent: null, entities: {}, error: 'NLU service not configured: OpenAI API Key is missing.' };
@@ -90,6 +95,14 @@ export async function understandMessage(message: string, conversationHistory?: C
   if (!message || message.trim() === '') {
     return { originalMessage: message, intent: null, entities: {}, error: 'Input message is empty.' };
   }
+
+  if (ltmContext && ltmContext.length > 0) {
+    console.log(`[NLU Service] Received LTM context with ${ltmContext.length} items. First item (summary): ${JSON.stringify(ltmContext[0].text?.substring(0,100))}... Potential use: Augment prompts to NLU provider.`);
+    // console.log('[NLU Service] Full LTM Context:', JSON.stringify(ltmContext, null, 2)); // Optional: for more detail
+  }
+  // TODO: Future enhancement - incorporate ltmContext into the prompt for the NLU model.
+  // This might involve creating a summarized version of ltmContext to fit token limits
+  // or selecting the most relevant pieces of context.
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT },
