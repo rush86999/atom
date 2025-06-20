@@ -36,6 +36,19 @@ except ImportError:
         logger.warning("Could not import _linux_audio_utils. Linux app audio auto-detection will be skipped for MSTeamsAgent.")
     _get_linux_app_monitor_source = None
 
+# --- Custom Exceptions ---
+class SoundDeviceError(Exception):
+    """Base class for sound device related errors in this agent."""
+    pass
+
+class SoundDeviceNotAvailableError(SoundDeviceError):
+    """Raised when the sounddevice library is not available or fails to initialize."""
+    pass
+
+class AudioDeviceSelectionError(SoundDeviceError):
+    """Raised when a suitable audio input device cannot be selected."""
+    pass
+# --- End Custom Exceptions ---
 
 class MSTeamsAgent:
     """
@@ -93,11 +106,12 @@ class MSTeamsAgent:
 
     async def start_audio_capture(self, meeting_url_to_confirm: str) -> AsyncIterator[bytes]:
         if not SOUNDDEVICE_AVAILABLE:
-            logger.error("MSTeamsAgent: Sounddevice not available. Cannot capture audio.");
-            if False: yield b''; return
+            err_msg = "MSTeamsAgent: sounddevice library is not available or failed to initialize. Cannot start audio capture."
+            logger.critical(err_msg)
+            raise SoundDeviceNotAvailableError(err_msg)
 
         if self.current_meeting_url != meeting_url_to_confirm:
-            msg = f"Meeting URL mismatch. Current: '{self.current_meeting_url}', requested: '{meeting_url_to_confirm}'.";
+            msg = f"MSTeamsAgent: Meeting URL mismatch. Current: '{self.current_meeting_url}', requested: '{meeting_url_to_confirm}'.";
             logger.error(msg); raise ValueError(msg)
 
         if self.is_capturing or self.audio_stream:
@@ -106,43 +120,90 @@ class MSTeamsAgent:
 
         self.selected_audio_device_info = None; device_id_for_stream = None; device_name_for_log = "Unknown"
         try:
-            all_devices = sd.query_devices();
-            if not all_devices: raise ValueError("No audio devices found by sounddevice.")
+            all_devices = sd.query_devices()
+            if not all_devices:
+                err_msg = "MSTeamsAgent: No audio devices found by sounddevice."
+                logger.error(err_msg)
+                raise AudioDeviceSelectionError(err_msg)
             host_api_names = [api.get('name', 'UnknownAPI') for api in sd.query_hostapis()]
 
             if self.target_device_specifier:
-                logger.info(f"Attempting specified audio device: '{self.target_device_specifier}'")
+                logger.info(f"MSTeamsAgent: Attempting to use specified audio device: '{self.target_device_specifier}'")
                 try:
                     dev_idx = int(self.target_device_specifier)
-                    if 0 <= dev_idx < len(all_devices): self.selected_audio_device_info = all_devices[dev_idx]
+                    if 0 <= dev_idx < len(all_devices):
+                        candidate_device = all_devices[dev_idx]
+                        if candidate_device.get('max_input_channels', 0) > 0:
+                            self.selected_audio_device_info = candidate_device
+                        else:
+                            logger.warning(f"MSTeamsAgent: Device at index {dev_idx} ('{candidate_device.get('name')}') is not an input device. Max input channels: {candidate_device.get('max_input_channels', 0)}.")
+                    else:
+                        logger.warning(f"MSTeamsAgent: Specified device index {dev_idx} is out of range (0-{len(all_devices)-1}).")
                 except ValueError:
-                    self.selected_audio_device_info = next((d for d in all_devices if self.target_device_specifier.lower() in d.get('name','').lower() and d.get('max_input_channels',0)>0), None)
-                if not self.selected_audio_device_info or self.selected_audio_device_info.get('max_input_channels',0)==0:
-                    msg = f"Specified device '{self.target_device_specifier}' not found/valid input."; logger.error(f"{msg} Available: {all_devices}"); raise ValueError(msg)
+                    for dev in all_devices:
+                        if self.target_device_specifier.lower() in dev.get('name', '').lower() and dev.get('max_input_channels', 0) > 0:
+                            self.selected_audio_device_info = dev
+                            logger.info(f"MSTeamsAgent: Matched specified name to input device: '{dev.get('name')}'")
+                            break
+
+                if not self.selected_audio_device_info:
+                    err_msg = f"MSTeamsAgent: Specified audio device '{self.target_device_specifier}' not found as a valid input device."
+                    detailed_device_list = "\n".join([f"  - Index {i}: {d.get('name')} (Inputs: {d.get('max_input_channels',0)})" for i,d in enumerate(all_devices)])
+                    logger.error(f"{err_msg}\nAvailable devices:\n{detailed_device_list}")
+                    raise AudioDeviceSelectionError(err_msg)
 
             elif sys.platform.startswith('linux') and _get_linux_app_monitor_source:
-                logger.info(f"Linux: Attempting auto-detect for MS Teams (app/browser): {self.target_linux_process_names}")
+                logger.info(f"MSTeamsAgent (Linux): Attempting auto-detect for MS Teams (app/browser): {self.target_linux_process_names}")
                 monitor_name = _get_linux_app_monitor_source(self.target_linux_process_names, logger)
                 if monitor_name:
-                    self.selected_audio_device_info = next((d for d in all_devices if monitor_name == d['name'] and d.get('max_input_channels',0)>0), None)
-                    if self.selected_audio_device_info: logger.info(f"Auto-detected Linux monitor source: '{self.selected_audio_device_info['name']}'")
-                    else: logger.warning(f"Detected monitor '{monitor_name}' not found/valid in sounddevice. Falling back.")
-                else: logger.info("Could not auto-detect MS Teams audio monitor. Falling back.")
+                    found_device_info = next((d for d in all_devices if monitor_name == d['name'] and d.get('max_input_channels',0)>0), None)
+                    if found_device_info:
+                        self.selected_audio_device_info = found_device_info
+                        logger.info(f"MSTeamsAgent (Linux): Auto-detected and validated monitor source: '{self.selected_audio_device_info['name']}'")
+                    else:
+                        logger.warning(f"MSTeamsAgent (Linux): Auto-detected monitor source '{monitor_name}' not found or not a valid input device via sounddevice. Falling back to default device.")
+                else:
+                    logger.info("MSTeamsAgent (Linux): Could not auto-detect MS Teams audio monitor source. Falling back to default device.")
 
             if not self.selected_audio_device_info: # Fallback to default
-                logger.warning("Using system default input. This captures microphone. For meeting audio, configure system audio routing (see class docs).")
-                default_idx = sd.default.device[0]
-                if default_idx == -1 or default_idx >= len(all_devices) or all_devices[default_idx].get('max_input_channels',0)==0:
-                    msg = "No suitable default input device."; logger.error(f"{msg} Default idx: {default_idx}. All: {all_devices}"); raise ValueError(msg)
-                self.selected_audio_device_info = all_devices[default_idx]
+                logger.warning("*************************************************************************************")
+                logger.warning("MSTeamsAgent: WARNING: Using system default input device. This typically captures MICROPHONE audio.")
+                logger.warning("For capturing MS Teams AUDIO OUTPUT, ensure system audio (what you hear) is routed")
+                logger.warning("to this default input (e.g., via 'Stereo Mix' on Windows, or Loopback software).")
+                logger.warning("*************************************************************************************")
+                try:
+                    default_input_device = sd.query_devices(kind='input')
+                except ValueError as e:
+                     logger.warning(f"MSTeamsAgent: Could not query default input device directly ({e}). Checking all default devices.")
+                     default_input_idx = sd.default.device[0]
+                     if default_input_idx != -1 and default_input_idx < len(all_devices) and all_devices[default_input_idx].get('max_input_channels', 0) > 0:
+                         default_input_device = all_devices[default_input_idx]
+                     else: default_input_device = None
 
-            if not self.selected_audio_device_info: raise ValueError("Audio device selection ultimately failed.")
+                if not default_input_device or default_input_device.get('max_input_channels', 0) == 0:
+                    err_msg = "MSTeamsAgent: No suitable default audio input device found or default device is not an input device."
+                    detailed_device_list = "\n".join([f"  - Index {i}: {d.get('name')} (Inputs: {d.get('max_input_channels',0)})" for i,d in enumerate(all_devices)])
+                    logger.error(f"{err_msg}\nDefault device query result: {default_input_device}\nAvailable devices:\n{detailed_device_list}")
+                    raise AudioDeviceSelectionError(err_msg)
+                self.selected_audio_device_info = default_input_device
+                logger.info(f"MSTeamsAgent: Successfully selected default input device: '{self.selected_audio_device_info.get('name')}'")
+
+
+            if not self.selected_audio_device_info:
+                err_msg = "MSTeamsAgent: Audio device selection process failed unexpectedly."
+                logger.error(err_msg)
+                raise AudioDeviceSelectionError(err_msg)
+
             device_id_for_stream = self.selected_audio_device_info['index']
             device_name_for_log = self.selected_audio_device_info.get('name', f"Index {device_id_for_stream}")
             host_api_idx = self.selected_audio_device_info.get('hostapi',-1); host_api_name = host_api_names[host_api_idx] if 0<=host_api_idx<len(host_api_names) else "N/A"
-            logger.info(f"MSTeamsAgent: Final selected device: '{device_name_for_log}' (Index: {device_id_for_stream}, API: {host_api_name}, Inputs: {self.selected_audio_device_info.get('max_input_channels')})")
+            logger.info(f"MSTeamsAgent: Final selected audio device for capture: '{device_name_for_log}' (Sounddevice Index: {device_id_for_stream}, HostAPI: {host_api_name}, Inputs: {self.selected_audio_device_info.get('max_input_channels')})")
+        except AudioDeviceSelectionError: raise
+        except SoundDeviceNotAvailableError: raise
         except Exception as e:
-            msg = f"MSTeamsAgent: Error selecting audio device: {e}"; logger.error(msg, exc_info=True); raise ValueError(msg)
+            err_msg = f"MSTeamsAgent: An unexpected error occurred during audio device selection: {e}"
+            logger.error(err_msg, exc_info=True)
+            raise AudioDeviceSelectionError(err_msg)
 
         self.is_capturing = True
         while not self.audio_queue.empty(): self.audio_queue.get_nowait(); self.audio_queue.task_done()

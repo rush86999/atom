@@ -36,6 +36,20 @@ except ImportError: # Handle if run standalone or path issues
 
 logger = logging.getLogger(__name__) # Initialize logger for this module
 
+# --- Custom Exceptions ---
+class SoundDeviceError(Exception):
+    """Base class for sound device related errors in this agent."""
+    pass
+
+class SoundDeviceNotAvailableError(SoundDeviceError):
+    """Raised when the sounddevice library is not available or fails to initialize."""
+    pass
+
+class AudioDeviceSelectionError(SoundDeviceError):
+    """Raised when a suitable audio input device cannot be selected."""
+    pass
+# --- End Custom Exceptions ---
+
 class ZoomAgent:
     """
     ZoomAgent aims to interact with Zoom meetings. Its primary functionalities include:
@@ -112,8 +126,9 @@ class ZoomAgent:
 
     async def start_audio_capture(self, meeting_id_to_confirm: str) -> AsyncIterator[bytes]:
         if not SOUNDDEVICE_AVAILABLE:
-            logger.error("ZoomAgent: Sounddevice not available. Cannot start real audio capture.")
-            if False: yield b'' ; return
+            err_msg = "ZoomAgent: sounddevice library is not available or failed to initialize. Cannot start audio capture."
+            logger.critical(err_msg) # Changed to critical
+            raise SoundDeviceNotAvailableError(err_msg)
 
         if self.current_meeting_id != meeting_id_to_confirm:
             msg = f"ZoomAgent: Meeting ID mismatch. Current: '{self.current_meeting_id}', requested: '{meeting_id_to_confirm}'."
@@ -129,57 +144,99 @@ class ZoomAgent:
 
         try:
             all_devices = sd.query_devices()
-            if not all_devices: raise ValueError("No audio devices found by sounddevice.")
+            if not all_devices:
+                err_msg = "ZoomAgent: No audio devices found by sounddevice."
+                logger.error(err_msg)
+                raise AudioDeviceSelectionError(err_msg)
             host_api_names = [api.get('name', 'UnknownAPI') for api in sd.query_hostapis()]
 
             if self.target_device_specifier:
-                logger.info(f"Attempting to use specified audio device: '{self.target_device_specifier}'")
+                logger.info(f"ZoomAgent: Attempting to use specified audio device: '{self.target_device_specifier}'")
                 try:
+                    # Try interpreting as an index first
                     dev_idx = int(self.target_device_specifier)
-                    if 0 <= dev_idx < len(all_devices): self.selected_audio_device_info = all_devices[dev_idx]
+                    if 0 <= dev_idx < len(all_devices):
+                        candidate_device = all_devices[dev_idx]
+                        if candidate_device.get('max_input_channels', 0) > 0:
+                            self.selected_audio_device_info = candidate_device
+                        else:
+                            logger.warning(f"ZoomAgent: Device at index {dev_idx} ('{candidate_device.get('name')}') is not an input device. Max input channels: {candidate_device.get('max_input_channels', 0)}.")
+                    else:
+                        logger.warning(f"ZoomAgent: Specified device index {dev_idx} is out of range (0-{len(all_devices)-1}).")
                 except ValueError:
+                    # Interpret as a name (substring match)
                     for dev in all_devices:
                         if self.target_device_specifier.lower() in dev.get('name', '').lower() and dev.get('max_input_channels', 0) > 0:
-                            self.selected_audio_device_info = dev; break
-                if not self.selected_audio_device_info or self.selected_audio_device_info.get('max_input_channels', 0) == 0:
-                    msg = f"Specified audio device '{self.target_device_specifier}' not found or not an input device."
-                    logger.error(f"{msg} Available: {all_devices}"); raise ValueError(msg)
+                            self.selected_audio_device_info = dev
+                            logger.info(f"ZoomAgent: Matched specified name to input device: '{dev.get('name')}'")
+                            break
+
+                if not self.selected_audio_device_info:
+                    err_msg = f"ZoomAgent: Specified audio device '{self.target_device_specifier}' not found as a valid input device."
+                    detailed_device_list = "\n".join([f"  - Index {i}: {d.get('name')} (Inputs: {d.get('max_input_channels',0)})" for i,d in enumerate(all_devices)])
+                    logger.error(f"{err_msg}\nAvailable devices:\n{detailed_device_list}")
+                    raise AudioDeviceSelectionError(err_msg)
 
             elif sys.platform.startswith('linux') and _get_linux_app_monitor_source is not None:
-                logger.info("Linux platform: Attempting to auto-detect Zoom audio monitor source via pactl...")
+                logger.info("ZoomAgent (Linux): Attempting to auto-detect Zoom audio monitor source via pactl...")
                 monitor_name_from_pactl = _get_linux_app_monitor_source(self.target_linux_process_names, logger)
                 if monitor_name_from_pactl:
                     found_device_info = next((d for d in all_devices if monitor_name_from_pactl == d['name'] and d['max_input_channels'] > 0), None)
                     if found_device_info:
                         self.selected_audio_device_info = found_device_info
-                        logger.info(f"Auto-detected and validated Linux monitor source: '{self.selected_audio_device_info['name']}'")
+                        logger.info(f"ZoomAgent (Linux): Auto-detected and validated monitor source: '{self.selected_audio_device_info['name']}'")
                     else:
-                        logger.warning(f"Auto-detected monitor source '{monitor_name_from_pactl}' not found/valid via sounddevice. Falling back.")
+                        logger.warning(f"ZoomAgent (Linux): Auto-detected monitor source '{monitor_name_from_pactl}' not found or not a valid input device via sounddevice. Falling back to default device.")
                 else:
-                    logger.info("Could not auto-detect Zoom audio monitor source. Falling back.")
+                    logger.info("ZoomAgent (Linux): Could not auto-detect Zoom audio monitor source. Falling back to default device.")
 
-            if not self.selected_audio_device_info: # Fallback to default if no specifier or auto-detection failed
+            if not self.selected_audio_device_info: # Fallback to default if no specifier or auto-detection failed/skipped
                 logger.warning("*************************************************************************************")
-                logger.warning("WARNING: Using system default input device. This will typically capture microphone audio.")
-                logger.warning("For Zoom meeting audio output, ensure system audio is routed to this default input")
-                logger.warning("(e.g., via Stereo Mix, Loopback software like BlackHole/VB-Cable). See agent docs.")
+                logger.warning("ZoomAgent: WARNING: Using system default input device. This will typically capture MICROPHONE audio.")
+                logger.warning("For capturing Zoom meeting AUDIO OUTPUT, ensure system audio (what you hear) is routed")
+                logger.warning("to this default input (e.g., via 'Stereo Mix' on Windows, or Loopback software like")
+                logger.warning("BlackHole/VB-Cable on macOS/Linux). Refer to agent documentation for details.")
                 logger.warning("*************************************************************************************")
-                default_input_idx = sd.default.device[0]
-                if default_input_idx == -1 or default_input_idx >= len(all_devices) or all_devices[default_input_idx].get('max_input_channels', 0) == 0:
-                    msg = "No suitable default audio input device found."
-                    logger.error(f"{msg} Default idx: {default_input_idx}. Available: {all_devices}"); raise ValueError(msg)
-                self.selected_audio_device_info = all_devices[default_input_idx]
 
-            if not self.selected_audio_device_info: raise ValueError("Audio device selection failed.") # Should be caught by earlier checks
+                try:
+                    default_input_device = sd.query_devices(kind='input')
+                except ValueError as e: # Handle cases where kind='input' might not be supported by dummy sd or older versions
+                     logger.warning(f"ZoomAgent: Could not query default input device directly ({e}). Checking all default devices.")
+                     default_input_idx = sd.default.device[0] # Index for default input
+                     if default_input_idx != -1 and default_input_idx < len(all_devices) and all_devices[default_input_idx].get('max_input_channels', 0) > 0:
+                         default_input_device = all_devices[default_input_idx]
+                     else: default_input_device = None
 
-            device_id_for_stream = self.selected_audio_device_info['index']
+                if not default_input_device or default_input_device.get('max_input_channels', 0) == 0:
+                    err_msg = "ZoomAgent: No suitable default audio input device found or default device is not an input device."
+                    detailed_device_list = "\n".join([f"  - Index {i}: {d.get('name')} (Inputs: {d.get('max_input_channels',0)})" for i,d in enumerate(all_devices)])
+                    logger.error(f"{err_msg}\nDefault device query result: {default_input_device}\nAvailable devices:\n{detailed_device_list}")
+                    raise AudioDeviceSelectionError(err_msg)
+                self.selected_audio_device_info = default_input_device
+                logger.info(f"ZoomAgent: Successfully selected default input device: '{self.selected_audio_device_info.get('name')}'")
+
+
+            # Final check, though previous logic should ensure this
+            if not self.selected_audio_device_info:
+                # This case should ideally be unreachable if logic above is correct
+                err_msg = "ZoomAgent: Audio device selection process failed unexpectedly."
+                logger.error(err_msg)
+                raise AudioDeviceSelectionError(err_msg)
+
+            device_id_for_stream = self.selected_audio_device_info['index'] # sd.query_devices() adds 'index'
             device_name_for_log = self.selected_audio_device_info.get('name', f"Index {device_id_for_stream}")
             host_api_idx = self.selected_audio_device_info.get('hostapi', -1)
             host_api_name = host_api_names[host_api_idx] if 0 <= host_api_idx < len(host_api_names) else "UnknownAPI"
-            logger.info(f"ZoomAgent: Final selected audio device: '{device_name_for_log}' (Index: {device_id_for_stream}, HostAPI: {host_api_name}, MaxInputChannels: {self.selected_audio_device_info.get('max_input_channels')})")
+            logger.info(f"ZoomAgent: Final selected audio device for capture: '{device_name_for_log}' (Sounddevice Index: {device_id_for_stream}, HostAPI: {host_api_name}, MaxInputChannels: {self.selected_audio_device_info.get('max_input_channels')})")
 
-        except Exception as e:
-            msg = f"ZoomAgent: Fatal error during audio device selection: {e}"; logger.error(msg, exc_info=True); raise ValueError(msg)
+        except AudioDeviceSelectionError: # Re-raise specific errors
+            raise
+        except SoundDeviceNotAvailableError: # Re-raise specific errors
+             raise
+        except Exception as e: # Catch other unexpected errors during selection
+            err_msg = f"ZoomAgent: An unexpected error occurred during audio device selection: {e}"
+            logger.error(err_msg, exc_info=True)
+            raise AudioDeviceSelectionError(err_msg) # Wrap in our specific error type
 
         self.is_capturing = True
         while not self.audio_queue.empty(): self.audio_queue.get_nowait(); self.audio_queue.task_done()
