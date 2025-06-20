@@ -287,6 +287,113 @@ if __name__ == '__main__':
     flask_port = int(os.environ.get("NOTE_HANDLER_PORT", 5057))
     app.run(host='0.0.0.0', port=flask_port, debug=True)
 
+# Note: For live transcription, the platform_module providing audio is conceptual.
+# This endpoint assumes such a module can be resolved and used by note_utils.
+# The actual audio capture mechanism is outside the scope of this handler.
+import asyncio # For running async process_live_audio_for_notion
+
+@app.route('/create-live-audio-note', methods=['POST'])
+async def create_live_audio_note_route(): # Made async
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    required_params = [
+        'meeting_id', 'title', 'platform_module_name', # platform_module_name to dynamically import
+        'notion_api_token', 'deepgram_api_key', 'openai_api_key'
+    ]
+    missing_params = [param for param in required_params if param not in data]
+    if missing_params:
+        return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": f"Missing parameters: {', '.join(missing_params)}"}}), 400
+
+    # Initialize Notion (Deepgram is initialized within transcribe_audio_deepgram_stream)
+    init_error = _init_clients_from_request_data(data)
+    if init_error: return jsonify(init_error), 500
+
+    platform_module_name = data['platform_module_name']
+    meeting_id = data['meeting_id']
+    title = data['title']
+    notion_db_id = data.get('notion_db_id')
+    notion_source = data.get('notion_source', 'Live Meeting Transcription')
+    linked_task_id = data.get('linked_task_id')
+    linked_event_id = data.get('linked_event_id')
+    deepgram_api_key = data['deepgram_api_key']
+    openai_api_key = data['openai_api_key']
+
+    # --- Conceptual Platform Module Import ---
+    # This is a placeholder for how a real system might load the correct audio source.
+    # In a real scenario, this might involve a registry or more secure import mechanism.
+    platform_module = None
+    if platform_module_name == "conceptual_zoom_agent_module": # Example
+        # from project.functions.agents import zoom_agent # Example import
+        # platform_module = zoom_agent.ZoomAudioCaptureModule() # Conceptual
+        # For this test, we'll mock it if it's not a real module.
+        try:
+            # Attempt to import if it's a real, accessible module path
+            # This is generally not safe for arbitrary strings.
+            # A fixed mapping or registry would be better.
+            # import importlib
+            # platform_module = importlib.import_module(platform_module_name)
+            pass # For now, we don't have a real module to import here
+        except ImportError:
+            print(f"Warning: Could not import platform module '{platform_module_name}'. Live transcription will likely fail unless note_utils has a fallback mock.")
+            # Allow to proceed if note_utils has a test/mock mode not requiring real module
+
+    if platform_module is None:
+        # If no real module, use a mock that simulates an empty async iterator
+        # This allows testing the flow of process_live_audio_for_notion without a real audio source.
+        class MockPlatformModule:
+            async def start_audio_capture(self, meeting_id_ignored):
+                print("MockPlatformModule: Simulating start_audio_capture with no audio data.")
+                # Yield nothing to simulate an empty or immediately finished stream
+                if False: # Ensure it's an async generator
+                    yield b''
+            def stop_audio_capture(self):
+                print("MockPlatformModule: Simulating stop_audio_capture.")
+                pass
+        platform_module = MockPlatformModule()
+    # --- End Conceptual Platform Module ---
+
+    try:
+        # Run the async function using asyncio.run() or ensure Flask is async compatible (e.g. Quart, or run in thread)
+        # For simplicity with standard Flask, run in a new event loop if needed,
+        # though ideally Flask itself would be async (e.g. Quart).
+        # For this subtask, we'll assume the environment can call asyncio.run or similar.
+        # If this handler is part of a larger async app, direct await might be fine.
+        # A simple way for standard Flask:
+        # result = asyncio.run(note_utils.process_live_audio_for_notion(...))
+        # However, Flask routes are typically synchronous.
+        # To call async code from sync Flask, you might use:
+        # loop = asyncio.new_event_loop()
+        # asyncio.set_event_loop(loop)
+        # result = loop.run_until_complete(note_utils.process_live_audio_for_notion(...))
+        # loop.close()
+        # This can be problematic with nested loops or existing loops.
+        # For now, let's assume the calling environment/WSGI server handles async properly or this is simplified.
+        # The `await` keyword suggests this handler itself is async.
+
+        result = await note_utils.process_live_audio_for_notion(
+            platform_module=platform_module, # Pass the conceptual or mock module
+            meeting_id=meeting_id,
+            notion_note_title=title,
+            deepgram_api_key=deepgram_api_key,
+            openai_api_key=openai_api_key,
+            notion_db_id=notion_db_id,
+            notion_source=notion_source,
+            linked_task_id=linked_task_id,
+            linked_event_id=linked_event_id
+        )
+
+        if result["status"] == "success":
+            return jsonify({"ok": True, "data": result.get("data")}), 201
+        else:
+            return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{result.get('code', 'LIVE_AUDIO_NOTE_FAILED')}", "message": result.get("message"), "details": result.get("details")}}), 500
+
+    except Exception as e:
+        # This will be caught by the generic app.errorhandler if not more specific
+        print(f"Exception in /create-live-audio-note route: {e}")
+        raise
+
 
 @app.route('/search-similar-notes', methods=['POST'])
 def search_similar_notes_route():
