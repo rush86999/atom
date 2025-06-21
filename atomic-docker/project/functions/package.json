@@ -54,7 +54,9 @@
     "@azure/msal-node": "^2.6.3",
     "stripe": "^15.8.0",
     "intuit-oauth": "^4.0.0",
-    "node-quickbooks": "^2.0.43"
+    "node-quickbooks": "^2.0.43",
+    "agenda": "^5.0.0",
+    "mongodb": "^5.0.0"
   },
   "type": "module",
   "devDependencies": {
