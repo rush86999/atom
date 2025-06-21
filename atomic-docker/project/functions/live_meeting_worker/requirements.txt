@@ -1,0 +1,6 @@
+kafka-python
+psycopg2-binary
+sounddevice
+PyJWT
+# numpy is often a dependency of sounddevice or other audio libraries, adding it proactively.
+numpy

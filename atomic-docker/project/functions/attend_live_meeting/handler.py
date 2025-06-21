@@ -100,6 +100,13 @@ async def attend_live_meeting_route(): # Remains async for consistency, though c
         deepgram_api_key = handler_input.get('deepgram_api_key')
         openai_api_key = handler_input.get('openai_api_key')
 
+        # --- Zoom SDK Credentials from handler_input ---
+        # These are expected to be passed by the client calling this Flask endpoint
+        # if a Zoom meeting using the NewZoomSdkAgent is intended.
+        zoom_sdk_key = handler_input.get('zoom_sdk_key')
+        zoom_sdk_secret = handler_input.get('zoom_sdk_secret')
+        # --- End Zoom SDK Credentials ---
+
         # Extract audio settings, specifically the device specifier
         audio_settings = handler_input.get('audio_settings', {})
         audio_device_specifier = audio_settings.get('audio_device_specifier')
@@ -130,11 +137,23 @@ async def attend_live_meeting_route(): # Remains async for consistency, though c
                 "notion": notion_api_token,
                 "deepgram": deepgram_api_key,
                 "openai": openai_api_key,
+                # Add Zoom SDK keys if they were provided in the handler_input
+                "zoom_sdk_key": zoom_sdk_key,
+                "zoom_sdk_secret": zoom_sdk_secret,
             },
             "audioSettings": {
                 "audioDeviceSpecifier": audio_device_specifier
             }
         }
+
+        # --- Publish to Kafka ---
+        # Log if Zoom SDK keys are being included
+        if zoom_sdk_key and zoom_sdk_secret:
+            print(f"Task {task_id}: Including Zoom SDK Key (found in handler_input) in Kafka message.", file=sys.stderr)
+        elif platform == "zoom": # Log warning if platform is zoom but keys are missing from input
+            # This warning is for the handler; the worker will make the final decision
+            # if keys are strictly required based on USE_NEW_ZOOM_SDK_AGENT.
+            print(f"Task {task_id}: Zoom platform specified, but Zoom SDK Key or Secret not found in handler_input. New SDK agent might fail if configured.", file=sys.stderr)
 
         # --- Publish to Kafka ---
         try:

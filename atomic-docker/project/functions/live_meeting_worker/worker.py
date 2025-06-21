@@ -48,21 +48,33 @@ except ImportError:
     print("WARNING: kafka-python library not found. Kafka worker cannot start.", file=sys.stderr)
 
 # Agent Imports
-ZoomAgent, GoogleMeetAgent, MSTeamsAgent = None, None, None
-# Agent specific exceptions (defined in agent modules)
-SoundDeviceNotAvailableError, AudioDeviceSelectionError = None, None
+OldZoomAgent, GoogleMeetAgent, MSTeamsAgent = None, None, None # Renamed OldZoomAgent
+NewZoomSdkAgent = None
+# Agent specific exceptions
+SoundDeviceNotAvailableError, AudioDeviceSelectionError = None, None # For non-SDK agents
+ZoomSdkAuthError, ZoomSdkAgentError, ZoomSdkMeetingError = None, None, None # For NewZoomSdkAgent
+
 try:
-    from agents.zoom_agent import ZoomAgent as ImportedZoomAgent, SoundDeviceNotAvailableError as ZoomSdnae, AudioDeviceSelectionError as ZoomAse
-    ZoomAgent = ImportedZoomAgent
-    # Assuming exceptions are named consistently; take the first one found
-    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = ZoomSdnae
-    if not AudioDeviceSelectionError: AudioDeviceSelectionError = ZoomAse
+    from agents.zoom_agent import ZoomAgent as ImportedOldZoomAgent, SoundDeviceNotAvailableError as OldZoomSdnae, AudioDeviceSelectionError as OldZoomAse
+    OldZoomAgent = ImportedOldZoomAgent
+    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = OldZoomSdnae
+    if not AudioDeviceSelectionError: AudioDeviceSelectionError = OldZoomAse
 except ImportError as e:
-    print(f"Warning: ZoomAgent or its specific exceptions failed to import in worker: {e}", file=sys.stderr)
+    print(f"Warning: Old ZoomAgent (zoom_agent.py) failed to import: {e}", file=sys.stderr)
+
+try:
+    from agents.NewZoomSdkAgent import NewZoomSdkAgent as ImportedNewZoomSdkAgent, ZoomSdkAuthError as NewZoomAuthErr, ZoomSdkAgentError as NewZoomAgentErr, ZoomSdkMeetingError as NewZoomMeetingErr
+    NewZoomSdkAgent = ImportedNewZoomSdkAgent
+    ZoomSdkAuthError = NewZoomAuthErr
+    ZoomSdkAgentError = NewZoomAgentErr
+    ZoomSdkMeetingError = NewZoomMeetingErr
+except ImportError as e:
+    print(f"Warning: NewZoomSdkAgent failed to import: {e}", file=sys.stderr)
+
 try:
     from agents.google_meet_agent import GoogleMeetAgent as ImportedGoogleMeetAgent, SoundDeviceNotAvailableError as GMeetSdnae, AudioDeviceSelectionError as GMeetAse
     GoogleMeetAgent = ImportedGoogleMeetAgent
-    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = GMeetSdnae
+    if not SoundDeviceNotAvailableError: SoundDeviceNotAvailableError = GMeetSdnae # Still needed for these agents
     if not AudioDeviceSelectionError: AudioDeviceSelectionError = GMeetAse
 except ImportError as e:
     print(f"Warning: GoogleMeetAgent or its specific exceptions failed to import in worker: {e}", file=sys.stderr)
@@ -358,19 +370,68 @@ async def process_live_meeting_message(message_payload: dict):
     agent = None
     platform_interface = None
     agent_type_name = "UnknownAgent"
+    use_new_zoom_sdk_agent = os.environ.get("USE_NEW_ZOOM_SDK_AGENT", "false").lower() == "true"
+
 
     try:
         update_task_status(task_id, "Initializing Agent")
         if platform == "zoom":
-            if not ZoomAgent: raise RuntimeError("ZoomAgent not imported/available.")
-            agent = ZoomAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
-            agent_type_name = "ZoomAgent"
+            if use_new_zoom_sdk_agent:
+                if not NewZoomSdkAgent:
+                    logger.error(f"Task {task_id}: NewZoomSdkAgent is configured for use but not imported.")
+                    update_task_status(task_id, "Failed: Configuration Error", error_details="NewZoomSdkAgent not available.")
+                    return
+
+                zoom_sdk_key = api_keys.get('zoom_sdk_key')
+                zoom_sdk_secret = api_keys.get('zoom_sdk_secret')
+
+                if not zoom_sdk_key or not zoom_sdk_secret:
+                    err_msg = "Zoom SDK Key or Secret not provided in task payload for NewZoomSdkAgent."
+                    logger.error(f"Task {task_id}: {err_msg}")
+                    update_task_status(task_id, "Failed: Zoom SDK credentials missing", error_details=err_msg)
+                    return
+                try:
+                    agent = NewZoomSdkAgent(
+                        user_id=user_id,
+                        zoom_sdk_key=zoom_sdk_key,
+                        zoom_sdk_secret=zoom_sdk_secret,
+                        logger_instance=logger # Pass main worker logger
+                    )
+                    agent_type_name = "NewZoomSdkAgent"
+                    if audio_device_specifier:
+                        logger.info(f"Task {task_id}: audio_device_specifier ('{audio_device_specifier}') provided for Zoom SDK task. Note: This is ignored as audio is managed by the SDK helper's environment.")
+                except ZoomSdkAuthError as e: # Specific error from NewZoomSdkAgent init
+                    logger.error(f"Task {task_id}: NewZoomSdkAgent authentication error during init: {e}", exc_info=True)
+                    update_task_status(task_id, "Failed: Zoom SDK Auth Error", error_details=str(e))
+                    return
+                except ValueError as ve: # Catch missing SDK key/secret from NewZoomSdkAgent init
+                    logger.error(f"Task {task_id}: NewZoomSdkAgent initialization error: {ve}", exc_info=True)
+                    update_task_status(task_id, "Failed: Zoom SDK Config Error", error_details=str(ve))
+                    return
+                except Exception as e: # Catch other init errors for NewZoomSdkAgent
+                    logger.error(f"Task {task_id}: Error instantiating NewZoomSdkAgent: {e}", exc_info=True)
+                    update_task_status(task_id, "Failed: Agent Instantiation Error", error_details=str(e))
+                    return
+            else: # Use old ZoomAgent
+                if not OldZoomAgent:
+                    logger.error(f"Task {task_id}: Old ZoomAgent (zoom_agent.py) is configured for use but not imported.")
+                    update_task_status(task_id, "Failed: Configuration Error", error_details="Old ZoomAgent not available.")
+                    return
+                agent = OldZoomAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
+                agent_type_name = "OldZoomAgent"
+
         elif platform in ["googlemeet", "google_meet"]:
-            if not GoogleMeetAgent: raise RuntimeError("GoogleMeetAgent not imported/available.")
+            if not GoogleMeetAgent:
+                logger.error(f"Task {task_id}: GoogleMeetAgent not imported.")
+                update_task_status(task_id, "Failed: Configuration Error", error_details="GoogleMeetAgent not available.")
+                return
             agent = GoogleMeetAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
             agent_type_name = "GoogleMeetAgent"
         elif platform in ["msteams", "microsoft_teams", "teams"]:
-            if not MSTeamsAgent: raise RuntimeError("MSTeamsAgent not imported/available.")
+            if not MSTeamsAgent:
+                logger.error(f"Task {task_id}: MSTeamsAgent not imported.")
+                update_task_status(task_id, "Failed: Configuration Error", error_details="MSTeamsAgent not available.")
+                return
             agent = MSTeamsAgent(user_id=user_id, target_device_specifier_override=audio_device_specifier)
             agent_type_name = "MSTeamsAgent"
         else:
@@ -464,36 +525,57 @@ async def process_live_meeting_message(message_payload: dict):
             logger.error(f"Task {task_id}: {full_err_msg}")
             update_task_status(task_id, f"Failed: {error_message}", error_details=error_details_text)
 
-    except (SoundDeviceNotAvailableError, AudioDeviceSelectionError) as audio_err: # Catch specific agent audio errors
-        # These errors are now defined in agent modules and imported at the top of worker.py
+    # Specific exceptions for NewZoomSdkAgent
+    except (ZoomSdkAuthError, ZoomSdkAgentError, ZoomSdkMeetingError) as zoom_sdk_ex:
+        err_msg = f"Zoom SDK Agent error ({agent_type_name}): {str(zoom_sdk_ex)}"
+        logger.error(f"Task {task_id}: {err_msg}", exc_info=True)
+        # Determine a more specific status message if possible
+        status_msg_prefix = "Failed: Zoom SDK Error"
+        if isinstance(zoom_sdk_ex, ZoomSdkAuthError):
+            status_msg_prefix = "Failed: Zoom SDK Auth Error"
+        elif isinstance(zoom_sdk_ex, ZoomSdkMeetingError):
+            status_msg_prefix = "Failed: Zoom SDK Meeting Error"
+        update_task_status(task_id, status_msg_prefix, error_details=err_msg)
+
+    # Specific exceptions for other agents (sounddevice based)
+    except (SoundDeviceNotAvailableError, AudioDeviceSelectionError) as audio_err:
         err_msg = f"Audio device error for {agent_type_name}: {str(audio_err)}"
-        logger.error(f"Task {task_id}: {err_msg}", exc_info=True) # exc_info might be useful for original traceback
+        logger.error(f"Task {task_id}: {err_msg}", exc_info=True)
         update_task_status(task_id, "Failed: Audio Device Error", error_details=err_msg)
-    except RuntimeError as rt_err: # Catch other runtime errors, e.g. agent already active, or PortAudioError
+
+    # General runtime errors (could be from any agent or processing step)
+    except RuntimeError as rt_err:
         err_msg = f"Runtime error during processing with {agent_type_name}: {str(rt_err)}"
         logger.error(f"Task {task_id}: {err_msg}", exc_info=True)
         update_task_status(task_id, "Failed: Runtime Error", error_details=err_msg)
+
+    # Catch-all for any other unexpected exceptions
     except Exception as e:
         err_msg = f"Unexpected error during processing with {agent_type_name if agent else 'N/A'}: {str(e)}"
         logger.error(f"Task {task_id}: {err_msg}", exc_info=True)
         update_task_status(task_id, "Failed: Unexpected Error", error_details=err_msg)
+
     finally:
-        if agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id: # Check current_meeting_id as it's set on successful join
+        if agent and hasattr(agent, 'is_active') and agent.is_active(): # For NewZoomSdkAgent
+             logger.info(f"Task {task_id}: Ensuring agent {agent_type_name} (SDK type) leaves meeting if active...")
+             await agent.leave_meeting()
+        elif agent and hasattr(agent, 'current_meeting_id') and agent.current_meeting_id: # For older agents
             meeting_id_for_leave = agent.get_current_meeting_id()
             logger.info(f"Task {task_id}: Ensuring agent {agent_type_name} leaves meeting {meeting_id_for_leave}.")
             try:
+                # All agents should have an async leave_meeting now or be callable this way
                 if hasattr(agent, 'leave_meeting') and asyncio.iscoroutinefunction(agent.leave_meeting):
                     await agent.leave_meeting()
-                elif hasattr(agent, 'leave_meeting'): # Synchronous, though agents should ideally be async
-                     agent.leave_meeting()
+                elif hasattr(agent, 'leave_meeting'): # If not async, log warning but call
+                     logger.warning(f"Task {task_id}: Agent {agent_type_name} has a synchronous leave_meeting method. Calling it.")
+                     agent.leave_meeting() # type: ignore
             except Exception as leave_err:
                 logger.error(f"Task {task_id}: Error during {agent_type_name}.leave_meeting(): {leave_err}", exc_info=True)
-                # Not updating DB status here as the primary task might have finished or already failed.
-                # This is a cleanup error.
+        elif agent and platform == "zoom" and use_new_zoom_sdk_agent: # If NewZoomSdkAgent was attempted but failed before join
+             logger.info(f"Task {task_id}: Ensuring NewZoomSdkAgent cleanup is called if it was instantiated but might not be 'active'.")
+             await agent.leave_meeting() # leave_meeting on NewZoomSdkAgent handles null process
+
         logger.info(f"Task {task_id}: Processing finished.")
-        # Final status should have been set by one of the update_task_status calls within try/except blocks.
-        # If it reached here without a specific failure reported, it might be an uncaught success/failure.
-        # However, the logic aims to set status explicitly for major outcomes.
 
 
 async def consume_live_meeting_tasks():
@@ -503,9 +585,13 @@ async def consume_live_meeting_tasks():
     if not KAFKA_AVAILABLE:
         logger.error("Kafka client library (kafka-python) not available. Worker cannot start.")
         return
-    if not ZoomAgent and not GoogleMeetAgent and not MSTeamsAgent:
-        logger.error("No meeting agent implementations (Zoom, GoogleMeet, MSTeams) are available. Worker cannot effectively process tasks.")
+
+    # Check if at least one agent type is available
+    agent_available = OldZoomAgent or NewZoomSdkAgent or GoogleMeetAgent or MSTeamsAgent
+    if not agent_available:
+        logger.error("No meeting agent implementations (OldZoomAgent, NewZoomSdkAgent, GoogleMeetAgent, MSTeamsAgent) are available. Worker cannot effectively process tasks.")
         return
+
     if not note_utils_module:
         logger.error("note_utils module is not available. Worker cannot process tasks.")
         return

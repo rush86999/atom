@@ -1,0 +1,151 @@
+# Use a suitable Ubuntu base image that is compatible with Zoom Linux SDK
+# (Refer to Zoom SDK documentation for recommended base images if specified)
+FROM ubuntu:20.04
+
+LABEL maintainer="Atom Team"
+LABEL description="Docker environment for Atom Live Meeting Worker with Zoom SDK support."
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+# Set default LANG to prevent locale errors with some tools
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+
+# Install system dependencies required by Zoom Linux SDK, C++ build tools, and Python
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    # Build tools for C++ helper (if compiling in Docker, otherwise not needed for pre-compiled)
+    build-essential \
+    cmake \
+    pkg-config \
+    # Zoom SDK runtime dependencies (based on Zoom's typical lists for Ubuntu)
+    libx11-xcb1 \
+    libxcb-xfixes0 \
+    libxcb-shape0 \
+    libxcb-shm0 \
+    libxcb-randr0 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-xtest0 \
+    libdbus-1-3 \
+    libglib2.0-0 \
+    libgbm1 \
+    libxfixes3 \
+    libgl1 \
+    libdrm2 \
+    libgssapi-krb5-2 \
+    # libcurl4-openssl-dev # Usually for building, libcurl4 is runtime
+    libcurl4 \
+    openssl \
+    ca-certificates \
+    # PulseAudio
+    pulseaudio \
+    pulseaudio-utils \
+    # Python
+    python3.9 \
+    python3.9-venv \
+    python3-pip \
+    # Other utilities
+    curl \
+    git \
+    jq \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create a Python virtual environment
+RUN python3.9 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip and install wheel
+RUN pip install --no-cache-dir --upgrade pip wheel
+
+WORKDIR /app
+
+# --- Python Application Setup ---
+# Assuming requirements.txt is in the same context as this Dockerfile
+# or in the live_meeting_worker directory. Adjust path as needed.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the worker application code
+# Adjust source path if Dockerfile is not in live_meeting_worker directory
+COPY . .
+# If C++ helper source is part of this build context and compiled here:
+# COPY ./project/functions/agents/zoom_sdk_cpp_helper /app/zoom_sdk_cpp_helper_src
+# RUN cd /app/zoom_sdk_cpp_helper_src && mkdir -p build && cd build && cmake .. && make && cp zoom_sdk_helper /app/zoom_sdk_cpp_helper_bin/
+
+
+# --- Zoom SDK and C++ Helper Setup ---
+
+# Create directories for Zoom SDK libraries and the C++ helper binary
+RUN mkdir -p /opt/zoom_sdk_linux_x86_64/lib \
+             /opt/zoom_sdk_linux_x86_64/h \
+             /app/zoom_sdk_cpp_helper_bin
+
+# ** IMPORTANT: Manually Download Zoom Linux SDK **
+# You need to download the Zoom Linux Raw Data SDK (e.g., meetingsdk-linux-raw-recording-sample)
+# from the Zoom Marketplace (https://marketplace.zoom.us/)
+# and extract its contents.
+#
+# Then, place the required .so library files into a 'zoom_sdk_libs_context' directory
+# and header files into 'zoom_sdk_headers_context' in your Docker build context.
+# For example:
+# zoom_sdk_libs_context/libmeetingsdk.so
+# zoom_sdk_libs_context/libzoom_rawdata.so
+# ... (and other .so files like libjson, libssl, libcrypto if bundled and needed)
+# zoom_sdk_headers_context/meetingsdk_linux_raw_data_protocol.h
+# ... (all other .h files from the SDK's 'h' or 'include' directory)
+
+# Placeholder COPY commands:
+# Replace these with actual paths to your downloaded SDK files in the build context.
+# COPY zoom_sdk_libs_context/*.so /opt/zoom_sdk_linux_x86_64/lib/
+# COPY zoom_sdk_headers_context/*.h /opt/zoom_sdk_linux_x86_64/h/
+RUN echo "Warning: Zoom SDK libraries and headers are not copied in this build. \
+    This Dockerfile expects them to be in 'zoom_sdk_libs_context' and 'zoom_sdk_headers_context' \
+    in the build context. The C++ helper will fail if not compiled with actual SDK or if libs are missing at runtime."
+
+# Copy the pre-compiled C++ helper binary
+# Assume it's built outside and placed in 'cpp_helper_bin_context' in the build context
+# COPY cpp_helper_bin_context/zoom_sdk_helper /app/zoom_sdk_cpp_helper_bin/zoom_sdk_helper
+RUN echo "Warning: Pre-compiled zoom_sdk_helper binary is not copied. \
+    Place it in 'cpp_helper_bin_context' or build from source above."
+# Ensure it's executable
+RUN chmod +x /app/zoom_sdk_cpp_helper_bin/zoom_sdk_helper || true # Allow to fail if not present
+
+# Set LD_LIBRARY_PATH to include Zoom SDK libraries
+ENV LD_LIBRARY_PATH=/opt/zoom_sdk_linux_x86_64/lib:${LD_LIBRARY_PATH}
+
+# Copy PulseAudio setup script and make it executable
+COPY setup_pulseaudio_docker.sh /app/setup_pulseaudio_docker.sh
+RUN chmod +x /app/setup_pulseaudio_docker.sh
+
+# --- Runtime ---
+# Create a non-root user (optional but good practice)
+# RUN useradd --create-home --shell /bin/bash appuser && \
+#     chown -R appuser:appuser /app && \
+#     chown -R appuser:appuser /opt/venv
+# USER appuser
+# ENV HOME=/home/appuser
+# The PulseAudio config in setup_pulseaudio_docker.sh would need to reflect $HOME of appuser.
+
+# Default command to run the worker (adjust if your main script is different)
+# The setup_pulseaudio_docker.sh script will execute this command using 'exec "$@"'
+ENTRYPOINT ["/app/setup_pulseaudio_docker.sh"]
+CMD ["python3", "worker.py"]
+
+# Expose ports if needed (e.g., for the /list_audio_devices endpoint from worker.py)
+EXPOSE 8081
+# Expose other ports if the worker or SDK needs them
+# EXPOSE 1099 # Example for Zoom SDK media channel (check SDK docs if specific ports needed)
+
+# Healthcheck (optional)
+# HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+#   CMD curl --fail http://localhost:8081/_health || exit 1 # Assuming worker has a health endpoint
+# Or check if python process is running:
+# HEALTHCHECK CMD ps aux | grep worker.py | grep -v grep || exit 1
+
+# Volume for PulseAudio runtime files (optional, might help with some PA issues)
+# VOLUME /tmp/pulse:/run/pulse # Or /var/run/pulse, or $HOME/.pulse
+# Ensure PulseAudio server is configured to use this path if specified.
+# The default is often /var/run/user/<uid>/pulse or ~/.config/pulse.
+# For root, it might be /var/run/pulse or /root/.config/pulse.
+# This step often requires careful permission management.
