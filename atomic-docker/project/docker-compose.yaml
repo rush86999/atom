@@ -88,6 +88,19 @@ services:
       HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
       HASURA_GRAPHQL_LOG_LEVEL: debug
       HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+
+  mongo:
+    image: mongo:5.0
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    # environment: # Optional: Add if MongoDB authentication is needed
+    #   MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-mongoadmin} # Example default
+    #   MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-secretmongo} # Example default
+
   functions:
     build: ../functions_build_docker
     container_name: 'functions'
@@ -98,6 +111,7 @@ services:
       - optaplanner
       - postgres
       - graphql-engine
+      - mongo # Added mongo dependency
     environment:
       BASIC_AUTH: ${BASIC_AUTH}
       FUNCTION_SERVER_URL: ${FUNCTION_SERVER_URL}
@@ -386,3 +400,4 @@ services:
 volumes:
   project_node_modules:
   functions_node_modules:
+  mongo-data: {}

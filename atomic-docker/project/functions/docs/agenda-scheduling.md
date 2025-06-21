@@ -45,6 +45,11 @@ The system uses `Agenda`, a Node.js job scheduling library, to manage and execut
 
 ## Local Development
 
-*   Ensure a MongoDB instance is running and accessible.
-*   Set the `MONGODB_URI` and `AGENT_INTERNAL_INVOKE_URL` environment variables for the `functions` service.
-*   The `agendaService.ts` needs to be started (e.g. `startAgenda()`) as part of the application's bootstrap process to begin processing jobs.
+*   **MongoDB Setup**:
+    *   MongoDB is configured as a service (`mongo`) in the main `docker-compose.yaml` file (`atomic-docker/project/docker-compose.yaml`).
+    *   It will be started automatically when you run `docker-compose up`.
+    *   Data is persisted in a Docker volume named `mongo-data`.
+*   **Environment Variables**:
+    *   If `MONGODB_URI` is not set in your environment, `agendaService.ts` defaults to `mongodb://mongo:27017/atomicAgentJobs`, allowing the `functions` container to connect to the `mongo` container on the Docker network.
+    *   Set the `AGENT_INTERNAL_INVOKE_URL` environment variable for the `functions` service (e.g., in your `.env` file).
+*   **Starting Agenda**: The `agendaService.ts` needs to have its `startAgenda()` function called as part of the `functions` application's bootstrap process to begin processing jobs.

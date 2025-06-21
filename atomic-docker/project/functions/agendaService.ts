@@ -11,7 +11,7 @@ export interface ScheduledAgentTaskData {
 }
 
 // Default MongoDB connection string - replace with your actual URI in production
-const mongoConnectionString = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/atomicAgentJobs';
+const mongoConnectionString = process.env.MONGODB_URI || 'mongodb://mongo:27017/atomicAgentJobs';
 
 // URL for the agent's internal invocation endpoint
 const AGENT_INTERNAL_INVOKE_URL = process.env.AGENT_INTERNAL_INVOKE_URL || 'http://localhost:7071/api/agentMessageHandler'; // Adjust if your agent runs elsewhere or on a different port
