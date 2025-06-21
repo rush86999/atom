@@ -94,7 +94,9 @@ import {
     NLUCreateTimePreferenceRuleEntities,
     NLUBlockTimeSlotEntities,
     NLUScheduleTeamMeetingEntities,
-    SchedulingResponse
+    SchedulingResponse,
+    ScheduleTaskParams, // Added for scheduleTask
+    scheduleTask // Added for scheduleTask
 } from './skills/schedulingSkills';
 import { understandMessage } from './skills/nluService';
 import {
@@ -1082,6 +1084,59 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
         }
         break;
       // --- End Autopilot Intents ---
+
+      case "SCHEDULE_TASK": // Updated case for Agenda-based scheduling
+        try {
+          // NLU should provide entities like:
+          // entities.when_value (e.g., "2024-08-15T10:00:00Z", "tomorrow at 10am", "every Monday at 9am")
+          // entities.task_intent (e.g., "SEND_EMAIL")
+          // entities.task_entities (e.g., { to: "user@example.com", subject: "Meeting Reminder" })
+          // entities.task_description (e.g., "Send a reminder email to Bob about the project deadline")
+          // entities.is_recurring (boolean, e.g., true if "every Monday")
+          // entities.repeat_interval (e.g., "1 week", "every day", "0 0 * * 1" - cron for every Monday at midnight)
+          // entities.repeat_timezone (e.g., "America/New_York")
+
+          const whenParam = entities.when_value as string | Date | undefined;
+          const originalIntentParam = entities.task_intent as string | undefined;
+          const taskEntitiesParam = (entities.task_entities || {}) as Record<string, any>;
+          const taskDescriptionParam = entities.task_description as string | undefined;
+          const isRecurringParam = entities.is_recurring as boolean | undefined ?? false;
+          const repeatIntervalParam = entities.repeat_interval as string | undefined;
+          const repeatTimezoneParam = entities.repeat_timezone as string | undefined;
+
+          // Attempt to get conversationId from conversationManager if available and needed
+          // const currentConversationState = getConversationStateSnapshot();
+          // const conversationIdParam = currentConversationState?.conversationId; // Assuming it exists on state
+
+          if (!whenParam && (!isRecurringParam || !repeatIntervalParam)) {
+            textResponse = "Please specify when the task should run or provide a valid recurrence rule.";
+            break;
+          }
+          if (!originalIntentParam) {
+            textResponse = "Please specify what task you want to schedule (e.g., the intent of the task).";
+            break;
+          }
+
+          const scheduleParams: ScheduleTaskParams = {
+            when: whenParam as string | Date, // NLU must ensure this is a type Agenda accepts
+            originalUserIntent: originalIntentParam,
+            entities: taskEntitiesParam,
+            userId: userId, // userId is from _internalHandleMessage scope
+                            // conversationId: conversationIdParam, // Pass if available and used by jobs
+            taskDescription: taskDescriptionParam || `Scheduled: ${originalIntentParam}`,
+            isRecurring: isRecurringParam,
+            repeatInterval: repeatIntervalParam,
+            repeatTimezone: repeatTimezoneParam,
+          };
+
+          console.log(`[Handler] SCHEDULE_TASK: Calling scheduleTask (Agenda) with params:`, JSON.stringify(scheduleParams, null, 2));
+          textResponse = await scheduleTask(scheduleParams);
+
+        } catch (error: any) {
+          console.error(`Error in NLU Intent "SCHEDULE_TASK" (Agenda):`, error.message, error.stack);
+          textResponse = `Sorry, an error occurred while scheduling your task: ${error.message}`;
+        }
+        break;
 
       case "SemanticSearchMeetingNotes": // This intent needs to be defined and recognized by your NLU service
         try {
