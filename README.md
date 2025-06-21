@@ -53,7 +53,7 @@ Atom comes packed with a variety of features designed to enhance your productivi
 
 *   **Smart Scheduling & Time Management:** AI-powered tools to manage your calendar effectively.
 *   **Integrated Note-Taking & Research:** Seamlessly create notes and conduct research with AI assistance.
-*   **Live Meeting Attendance and Transcription:** Atom can join Zoom, Google Meet, and Microsoft Teams meetings, transcribe them in real-time, and save the notes to Notion. Includes status tracking and audio device selection.
+*   **Live Meeting Attendance and Transcription:** Atom can join Zoom, Google Meet, and Microsoft Teams meetings, transcribe them in real-time, and save the notes to Notion. Includes status tracking and audio device selection (in development).
 *   Comprehensive voice-driven task management using a Notion database backend.
 *   Semantic search capabilities across your meeting transcript archive.
 *   Automated extraction of action items and decisions from meeting transcripts.
