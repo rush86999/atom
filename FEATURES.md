@@ -32,6 +32,7 @@ Atom revolutionizes how you manage your time with a suite of AI-powered scheduli
 *   NLU for calendar event creation and querying is now more robust, understanding specific durations (e.g., "schedule for 45 minutes") and more precise time-based questions (e.g., "Am I free at 3 PM on Friday?").
 *   **Event-Specific Time Preferences:** Set preferred meeting times for individual events, overriding global preferences where necessary.
 *   **Follow-up Event Creation:** Quickly create follow-up events based on existing meetings or tasks, ensuring timely next steps.
+*   **Task Scheduling (Future & Recurring)**: Atom can schedule tasks or actions for future execution. You can ask the agent to perform a task at a specific date and time, or set up recurring tasks (e.g., "remind me every Monday at 9 AM to check emails"). This uses a persistent, internal scheduling system (Agenda with MongoDB) to ensure tasks are reliably executed even if the system restarts.
 
 ### Task Management (Voice-Powered with Notion Backend)
 Atom now offers comprehensive voice-powered task management, using a dedicated Notion database that you configure.
