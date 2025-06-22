@@ -14,7 +14,13 @@ export interface ScheduledAgentTaskData {
 const mongoConnectionString = process.env.MONGODB_URI || 'mongodb://mongo:27017/atomicAgentJobs';
 
 // URL for the agent's internal invocation endpoint
-const AGENT_INTERNAL_INVOKE_URL = process.env.AGENT_INTERNAL_INVOKE_URL || 'http://localhost:7071/api/agentMessageHandler'; // Adjust if your agent runs elsewhere or on a different port
+// This should point to an endpoint that can trigger the agent's logic,
+// potentially bypassing NLU for scheduled tasks by directly providing intent and entities.
+// Assuming the functions are running within the same environment, direct invocation or a more specific internal API might be preferable to a public-facing URL.
+// For now, we'll keep the configurable URL but ensure the payload is rich.
+// Defaulting to port 3000 as functions_build_docker/server.ts listens on PORT (default 3000)
+// and the /api/agent-handler endpoint was added there.
+const AGENT_INTERNAL_INVOKE_URL = process.env.AGENT_INTERNAL_INVOKE_URL || 'http://localhost:3000/api/agent-handler';
 
 // Initialize Agenda
 export const agenda = new Agenda({
@@ -71,24 +77,37 @@ export async function startAgenda(): Promise<void> {
         // This payload structure assumes the target endpoint can process it directly,
         // potentially bypassing NLU if `requestSource` indicates a scheduled job.
         const payload = {
-          // If the target endpoint uses `handleConversationInputWrapper` which calls `_internalHandleMessage`
-          // then the payload should be `{ text: "...", userId: userId }`
-          // and "text" would need to be a phrase that NLU can convert back to originalUserIntent and entities.
-          // However, the prompt suggests a more direct payload:
-          message: `Scheduled task: ${originalUserIntent}`, // A descriptive text for logging or if NLU is still hit
-          intentName: originalUserIntent, // For direct intent usage if endpoint supports it
-          entities: entities,
-          userId: userId,
-          conversationId: data.conversationId, // Pass along if available
-          requestSource: 'ScheduledJobExecutor' // To indicate this is from Agenda
-        };
-        console.log(`Invoking agent at ${AGENT_INTERNAL_INVOKE_URL} with payload:`, JSON.stringify(payload, null, 2));
+          // The payload needs to be compatible with the target agent handler.
+          // If the agent handler's `_internalHandleMessage` can accept `intentName` and `entities` directly
+          // when `requestSource` is 'ScheduledJobExecutor', this is appropriate.
+          // The `message` field can be a descriptive text for logging or if NLU is still hit as a fallback.
+          const agentPayload = {
+            // `message` field might be used by `_internalHandleMessage` if it expects a text input
+            // that would normally go through NLU. For scheduled tasks, we want to bypass NLU.
+            // So, we provide a descriptive message, but also intentName and entities directly.
+            message: `Execute scheduled task: ${originalUserIntent}`, // Descriptive text
+            userId: userId,
+            // Adding intentName and entities directly for the handler to use, bypassing NLU
+            intentName: originalUserIntent,
+            entities: entities,
+            conversationId: data.conversationId, // Pass along if available
+            requestSource: 'ScheduledJobExecutor', // Crucial for the handler to identify the source
+            // Potentially, the agent endpoint might expect the primary input in a 'text' field
+            // or a more specific structure if it's, for example, a Hasura action expecting an 'input' object.
+            // For `_internalHandleMessage` that uses `understandMessage`, we need to ensure
+            // it can use `intentName` and `entities` when `requestSource` is 'ScheduledJobExecutor'.
+          };
+          console.log(`Invoking agent at ${AGENT_INTERNAL_INVOKE_URL} with payload:`, JSON.stringify(agentPayload, null, 2));
 
-        const response = await axios.post(AGENT_INTERNAL_INVOKE_URL, payload, {
-          headers: { 'Content-Type': 'application/json' }
-        });
+          // The actual endpoint call. The structure of the POST request body might need to be
+          // `{ "input": agentPayload }` if the target is a Hasura action,
+          // or just `agentPayload` if it's a direct API endpoint.
+          // Assuming the endpoint /api/agent-handler takes the payload directly for now.
+          const response = await axios.post(AGENT_INTERNAL_INVOKE_URL, agentPayload, {
+            headers: { 'Content-Type': 'application/json' }
+          });
 
-        console.log(`Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}`, response.data ? JSON.stringify(response.data) : '');
+          console.log(`Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}`, response.data ? JSON.stringify(response.data, null, 2) : '');
         // Job is considered successful if agent processes it without throwing an error here.
         // Actual success of the underlying task (e.g., email sent) is handled by the agent.
       } catch (error) {

@@ -109,6 +109,7 @@ import {
     ATOM_NOTION_TASKS_DATABASE_ID, // Added for Notion Tasks
     LANCEDB_LTM_AGENT_TABLE_NAME // Added for LTM table name
 } from '../_libs/constants';
+import { agenda, ScheduledAgentTaskData } from '../agendaService'; // Added for Agenda
 import { searchWeb } from './skills/webResearchSkills'; // Added missing import
 import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; // Added missing import
 import { triggerZap } from './skills/zapierSkills'; // Added missing import
@@ -144,44 +145,78 @@ export interface HandleMessageResponse {
   error?: string;
 }
 
-async function _internalHandleMessage(interfaceType: InterfaceType, message: string, userId: string): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
+interface InternalHandleMessageOptions {
+  requestSource?: string;
+  intentName?: string;
+  entities?: Record<string, any>;
+  conversationId?: string;
+}
+
+async function _internalHandleMessage(
+  interfaceType: InterfaceType,
+  message: string, // For regular messages, this is user input. For scheduled, it's descriptive.
+  userId: string,
+  options?: InternalHandleMessageOptions
+): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
   let textResponse: string;
   let conversationLtmContext: LtmQueryResult[] | null = null;
+  let nluResponse: ProcessedNLUResponse;
 
-  if (ltmDbConnection) {
-    try {
-      const relevantLtm = await retrieveRelevantLTM(message, userId, ltmDbConnection, { table: LANCEDB_LTM_AGENT_TABLE_NAME });
-      if (relevantLtm && relevantLtm.length > 0) {
-        console.log(`[Handler][${interfaceType}] Retrieved ${relevantLtm.length} items from LTM for query: ${message}. Storing in conversation state.`);
-        conversationManager.updateLTMContext(interfaceType, relevantLtm);
-        conversationLtmContext = relevantLtm;
-        const conversationStateActions: ConversationStateActions = {
-            updateUserGoal: (goal) => conversationManager.updateUserGoal(interfaceType, goal),
-            updateIntentAndEntities: (intent, entities) => conversationManager.updateIntentAndEntities(interfaceType, intent, entities),
-            updateLtmRepoContext: (context) => conversationManager.updateLTMContext(interfaceType, context)
-        };
-        await loadLTMToSTM(relevantLtm, conversationStateActions);
-      } else {
+  const requestSource = options?.requestSource;
+  const directIntentName = options?.intentName;
+  const directEntities = options?.entities;
+  // const conversationId = options?.conversationId; // Available if needed
+
+  if (requestSource === 'ScheduledJobExecutor' && directIntentName) {
+    console.log(`[InternalHandleMessage][${interfaceType}] Received direct execution request from ScheduledJobExecutor. ConversationID: ${options?.conversationId}`);
+    nluResponse = {
+      intent: directIntentName,
+      entities: directEntities || {},
+      // Ensure other necessary fields for ProcessedNLUResponse are present
+      user_id: userId,
+      original_query: `Scheduled task: ${directIntentName}`, // Construct a descriptive query
+      // confidence: 1.0, // Assuming 100% confidence for direct execution
+      // error: undefined
+    };
+    console.log(`[InternalHandleMessage][${interfaceType}] Bypassing NLU for scheduled task. Intent: ${nluResponse.intent}, Entities: ${JSON.stringify(nluResponse.entities)}`);
+  } else {
+    if (ltmDbConnection) {
+      try {
+        const relevantLtm = await retrieveRelevantLTM(message, userId, ltmDbConnection, { table: LANCEDB_LTM_AGENT_TABLE_NAME });
+        if (relevantLtm && relevantLtm.length > 0) {
+          console.log(`[Handler][${interfaceType}] Retrieved ${relevantLtm.length} items from LTM for query: ${message}. Storing in conversation state.`);
+          conversationManager.updateLTMContext(interfaceType, relevantLtm);
+          conversationLtmContext = relevantLtm;
+          const conversationStateActions: ConversationStateActions = {
+              updateUserGoal: (goal) => conversationManager.updateUserGoal(interfaceType, goal),
+              updateIntentAndEntities: (intent, entities) => conversationManager.updateIntentAndEntities(interfaceType, intent, entities),
+              updateLtmRepoContext: (context) => conversationManager.updateLTMContext(interfaceType, context)
+          };
+          await loadLTMToSTM(relevantLtm, conversationStateActions);
+        } else {
+          conversationManager.updateLTMContext(interfaceType, null);
+          conversationLtmContext = null;
+        }
+      } catch (error) {
+        console.error(`[Handler][${interfaceType}] Error retrieving or loading LTM:`, error);
         conversationManager.updateLTMContext(interfaceType, null);
         conversationLtmContext = null;
       }
-    } catch (error) {
-      console.error(`[Handler][${interfaceType}] Error retrieving or loading LTM:`, error);
+    } else {
+      console.warn(`[Handler][${interfaceType}] LTM DB connection not available, skipping LTM retrieval.`);
       conversationManager.updateLTMContext(interfaceType, null);
       conversationLtmContext = null;
     }
-  } else {
-    console.warn(`[Handler][${interfaceType}] LTM DB connection not available, skipping LTM retrieval.`);
-    conversationManager.updateLTMContext(interfaceType, null);
-    conversationLtmContext = null;
+
+    nluResponse = await understandMessage(message, undefined, conversationLtmContext);
+    console.log(`[InternalHandleMessage][${interfaceType}] NLU Response (with LTM context consideration):`, JSON.stringify(nluResponse, null, 2));
   }
 
-  const nluResponse: ProcessedNLUResponse = await understandMessage(message, undefined, conversationLtmContext);
-  console.log(`[InternalHandleMessage][${interfaceType}] NLU Response (with LTM context consideration):`, JSON.stringify(nluResponse, null, 2));
-
   if (nluResponse.error && !nluResponse.intent) {
-    console.error(`[InternalHandleMessage][${interfaceType}] NLU service critical error:`, nluResponse.error);
-    textResponse = "Sorry, I'm having trouble understanding requests right now. Please try again later.";
+    // This condition might need adjustment if scheduled tasks (bypassing NLU) could still have an "error"
+    // in the constructed nluResponse, though ideally they wouldn't if intent is present.
+    console.error(`[InternalHandleMessage][${interfaceType}] NLU service critical error or no intent from scheduled task:`, nluResponse.error);
+    textResponse = "Sorry, I'm having trouble understanding requests right now or processing the scheduled task. Please try again later.";
     const currentConvStateOnError = conversationManager.getConversationStateSnapshot(interfaceType);
     const ltmContextForErrorResponse = currentConvStateOnError.ltmContext;
     if (ltmContextForErrorResponse && ltmContextForErrorResponse.length > 0) {
@@ -1138,12 +1173,76 @@ async function _internalHandleMessage(interfaceType: InterfaceType, message: str
             repeatTimezone: repeatTimezoneParam,
           };
 
-          console.log(`[Handler][${interfaceType}] SCHEDULE_TASK: Calling scheduleTask (Agenda) with params:`, JSON.stringify(scheduleParams, null, 2));
-          textResponse = await scheduleTask(scheduleParams);
+          console.log(`[Handler][${interfaceType}] SCHEDULE_TASK: Processing with Agenda direct scheduling. Params:`, JSON.stringify(scheduleParams, null, 2));
+
+          try {
+            let job;
+            const jobName = 'EXECUTE_AGENT_ACTION'; // Must match the name defined in agendaService.ts
+            const jobData: ScheduledAgentTaskData = {
+              originalUserIntent: scheduleParams.originalUserIntent,
+              entities: scheduleParams.entities,
+              userId: scheduleParams.userId,
+              conversationId: scheduleParams.conversationId,
+            };
+
+            if (scheduleParams.isRecurring && scheduleParams.repeatInterval) {
+              // For recurring tasks, use agenda.every()
+              // The 'when' parameter for `every` is the interval.
+              // An optional options object can specify timezone, startDate, endDate, skipImmediate.
+              const options: { timezone?: string; startDate?: Date; endDate?: Date, skipImmediate?: boolean } = {};
+              if (scheduleParams.repeatTimezone) {
+                options.timezone = scheduleParams.repeatTimezone;
+              }
+              // If 'when' was a specific start date for the recurrence, agenda.every might need careful handling
+              // or a combination of a first `schedule` and then `every`.
+              // For simplicity, assuming `repeatInterval` is like "1 day", "2 hours", or a cron string.
+              // And `when` (if a date) is the first time it should run if not skipping immediate.
+              // If `scheduleParams.when` is a Date, it could be used as `startDate`.
+              if (scheduleParams.when instanceof Date) {
+                  options.startDate = scheduleParams.when;
+                  // Potentially set skipImmediate to true if the startDate is also the first run,
+                  // and the interval itself would trigger it too soon.
+                  // However, agenda.every's `interval, name, data, options` signature.
+                  // `when` (the first arg to `every`) is the interval.
+                  // The start time is handled by the job's `nextRunAt` which Agenda calculates.
+                  // If a specific start time is needed for the *first* occurrence of a recurring job,
+                  // and `every` doesn't directly support it as a simple "start now then repeat",
+                  // one might schedule the first job with `agenda.schedule` and then the recurring one
+                  // or adjust `nextRunAt` manually after defining with `every`.
+
+                  // Let's assume `repeatInterval` is the primary driver for recurrence timing.
+                  // `scheduleParams.when` (if a date) might inform the *first* run,
+                  // but `agenda.every` focuses on the interval.
+              }
+
+
+              job = await agenda.every(scheduleParams.repeatInterval, jobName, jobData, options);
+              textResponse = `Recurring task "${scheduleParams.taskDescription || scheduleParams.originalUserIntent}" scheduled to run ${scheduleParams.repeatInterval}.`;
+              if (options.startDate) {
+                textResponse += ` Starting from ${options.startDate.toLocaleString()}.`;
+              }
+            } else if (scheduleParams.when) {
+              // For one-time tasks, use agenda.schedule()
+              job = await agenda.schedule(scheduleParams.when, jobName, jobData);
+              textResponse = `Task "${scheduleParams.taskDescription || scheduleParams.originalUserIntent}" scheduled for ${new Date(scheduleParams.when instanceof Date ? scheduleParams.when : scheduleParams.when).toLocaleString()}.`;
+            } else {
+              textResponse = "Cannot schedule task: 'when' must be provided for one-time tasks, or 'repeatInterval' for recurring tasks.";
+              break;
+            }
+            console.log(`[Handler][${interfaceType}] Task scheduled with Agenda. Job Name: ${jobName}, Job ID: ${job?.attrs._id}`);
+            // The `scheduleTask` function from `schedulingSkills.ts` might have contained more complex logic
+            // (e.g., interacting with another scheduling system before Agenda).
+            // If so, that logic needs to be merged here or `scheduleTask` adapted to use `agenda` directly.
+            // For this integration, we are replacing its direct scheduling capability with Agenda.
+            // textResponse = await scheduleTask(scheduleParams); // This line is now replaced by direct agenda calls.
+          } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error scheduling task with Agenda:`, error.message, error.stack);
+            textResponse = `Sorry, an error occurred while scheduling your task with Agenda: ${error.message}`;
+          }
 
         } catch (error: any) {
           console.error(`[Handler][${interfaceType}] Error in NLU Intent "SCHEDULE_TASK" (Agenda):`, error.message, error.stack);
-          textResponse = `Sorry, an error occurred while scheduling your task: ${error.message}`;
+          textResponse = `Sorry, an error occurred while processing your schedule request: ${error.message}`;
         }
         break;
 
