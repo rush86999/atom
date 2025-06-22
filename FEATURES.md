@@ -124,6 +124,15 @@ Atom connects with a wide range of third-party services to create a unified prod
 *   **Transcription Services:**
     *   Deepgram (High-quality transcription for audio notes and other audio inputs)
 *   **Push Notifications:** Generic support for sending push notifications to keep users updated on calendar changes or important tasks.
+*   **Gmail Account Integration (Read-Only & AI-Powered Querying):**
+    *   **Secure Connection:** Connect your personal Gmail account via OAuth 2.0 for secure, read-only access. Tokens are encrypted at rest.
+    *   **Natural Language Email Search:** Ask the agent in natural language to find emails (e.g., "find emails from Jane about the Q3 report sent last week"). The agent uses an LLM to understand complex queries, resolve relative dates, and identify key search parameters.
+    *   **Targeted Information Extraction:** Request specific information from found emails (e.g., "What was the contract end date mentioned in the email from XYZ?"). The agent uses an LLM to read the email content and extract the requested details. (Note: Accuracy depends on LLM capabilities and prompt engineering).
+    *   **Agent Skills:** Core agent skills updated to search emails and read email content via the Gmail API.
+    *   **User Interface:**
+        *   Settings page to connect/disconnect Gmail account and view connection status.
+        *   Proof-of-concept UI for direct Gmail searching.
+    *   **Developer Documentation:** Comprehensive guide for setup, API details, and agent integration logic.
 
 ### User Settings & Preferences
 Tailor Atom to your specific needs with a range of customizable settings:
