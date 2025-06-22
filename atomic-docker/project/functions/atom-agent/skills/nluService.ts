@@ -69,8 +69,40 @@ New Autopilot Intents:
     - Example: User says "What's the status of autopilot task 67890?" -> {"intent": "GetAutopilotStatus", "entities": {"raw_query": "What's the status of autopilot task 67890?", "autopilot_id": "67890"}}
     - Example: User says "Show me my autopilot status" -> {"intent": "GetAutopilotStatus", "entities": {"raw_query": "Show me my autopilot status"}}
 
+New Email Querying and Action Intent:
+31. Intent: "QueryEmails"
+    - Purpose: To find specific emails based on various criteria and potentially perform an action on them (like extracting information or summarizing).
+    - Entities:
+        - "from_sender": (string, optional) Email address or name of the sender. Example: "Jane Doe", "alerts@example.com"
+        - "to_recipient": (string, optional) Email address or name of the recipient. Example: "me", "support team"
+        - "subject_keywords": (string, optional) Keywords to search in the email subject. Example: "contract renewal", "important update"
+        - "body_keywords": (string, optional) Keywords or phrases to search within the email body. Example: "action items", "summary attached"
+        - "label": (string, optional) Gmail label to filter by. Example: "work", "starred", "important"
+        - "date_query": (string, optional) Natural language description of the date or date range. Example: "last week", "yesterday", "in July", "since Monday", "between March 1st and April 15th 2023"
+        - "has_attachment": (boolean, optional) True if emails must have attachments.
+        - "is_unread": (boolean, optional) True if emails must be unread.
+        - "exact_phrase_search": (string, optional) An exact phrase to search for in the email.
+        - "action_on_email": (string, optional, defaults to just finding/listing if not specified) The action to perform on the found email(s). Values:
+            - "FIND_SPECIFIC_INFO": Extract specific details. Requires "information_to_extract_keywords".
+            - "GET_SENDER": Get the sender.
+            - "GET_SUBJECT": Get the subject.
+            - "GET_DATE": Get the date of the email.
+            - "GET_FULL_CONTENT": Get the full body content.
+            - "SUMMARIZE_EMAIL": Summarize the email content (future capability).
+        - "information_to_extract_keywords": (array of strings, optional) Required if "action_on_email" is "FIND_SPECIFIC_INFO". Example: ["contract end date", "invoice amount"]
+        - "target_email_id": (string, optional) If the user is referring to a specific email by its ID.
+    - Examples:
+        - User: "Find emails from XYZ about the contract sent a few months ago and tell me when the contract ends."
+          Response: {"intent": "QueryEmails", "entities": {"from_sender": "XYZ", "subject_keywords": "contract", "body_keywords": "contract", "date_query": "a few months ago", "action_on_email": "FIND_SPECIFIC_INFO", "information_to_extract_keywords": ["contract end date"]}}
+        - User: "Did I get any emails from support@company.com yesterday?"
+          Response: {"intent": "QueryEmails", "entities": {"from_sender": "support@company.com", "date_query": "yesterday"}}
+        - User: "Show me unread emails with attachments from 'Project Alpha'."
+          Response: {"intent": "QueryEmails", "entities": {"is_unread": true, "has_attachment": true, "body_keywords": "Project Alpha"}}
+        - User: "What was the subject of email ID 123abc456?"
+          Response: {"intent": "QueryEmails", "entities": {"target_email_id": "123abc456", "action_on_email": "GET_SUBJECT"}}
+
 New Task Management Intents:
-31. Intent: "CreateTask"
+32. Intent: "CreateTask"
     - Entities: {"task_description": "string, required - The full description of the task.", "due_date_time": "string, optional - e.g., tomorrow, next Friday 5pm, specific date/time", "priority": "string, optional - e.g., high, medium, low", "list_name": "string, optional - e.g., work, personal, shopping list"}
     - Example: User says "Atom, remind me to submit the TPS report by end of day Friday" -> {"intent": "CreateTask", "entities": {"task_description": "submit the TPS report", "due_date_time": "Friday end of day"}}
     - Example: User says "add a task to call the plumber" -> {"intent": "CreateTask", "entities": {"task_description": "call the plumber"}}
@@ -196,8 +228,49 @@ export async function understandMessage(
           processed.entities.original_query = parsedResponse.entities.original_query;
         }
       }
+
+      // Conceptual Post-Processing for QueryEmails intent:
+      // If processed.intent === "QueryEmails", this is where you would transform
+      // the raw entities from the LLM into the more structured
+      // ParsedNluEmailRequest object expected by email_command_handler.ts.
+      // This involves:
+      // 1. Date Resolution:
+      //    - const dateQuery = processed.entities.date_query;
+      //    - if (dateQuery) {
+      //    -   // Use a date parsing library (e.g., Chronic, date-fns, custom logic)
+      //    -   // to convert dateQuery into { after: "YYYY/MM/DD", before: "YYYY/MM/DD" }
+      //    -   // and add these to a searchParameters object.
+      //    -   // Example: processed.entities.search_after_date = resolvedAfterDate;
+      //    -   //          processed.entities.search_before_date = resolvedBeforeDate;
+      //    -   console.log("NLU TODO: Resolve date_query '"+dateQuery+"' into after/before dates.");
+      //    - }
+      // 2. Entity Mapping to StructuredEmailQuery:
+      //    - const searchParams = {
+      //    -   from: processed.entities.from_sender,
+      //    -   subject: processed.entities.subject_keywords,
+      //    -   bodyKeywords: processed.entities.body_keywords,
+      //    -   // ... and so on for other fields of StructuredEmailQuery
+      //    -   after: processed.entities.search_after_date, // from date resolution
+      //    -   before: processed.entities.search_before_date, // from date resolution
+      //    -   label: processed.entities.label,
+      //    -   hasAttachment: processed.entities.has_attachment,
+      //    -   exactPhrase: processed.entities.exact_phrase_search,
+      //    -   excludeChats: processed.entities.is_unread === false, // Example logic
+      //    - };
+      //    - processed.entities.structured_search_params = searchParams; // Store for handler
+      // 3. Action Mapping to EmailActionRequest:
+      //    - const actionRequest = {
+      //    -    actionType: processed.entities.action_on_email || "GET_FULL_CONTENT", // Default action
+      //    -    infoKeywords: processed.entities.information_to_extract_keywords
+      //    - };
+      //    - processed.entities.structured_action_request = actionRequest; // Store for handler
+      //
+      // The email_command_handler.ts would then expect these structured entities.
+      // For now, the handler might need to do some of this mapping itself if NLU only provides raw LLM entities.
+
       return processed;
     } catch (jsonError: any) {
+      console.error(`Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`);
       return { originalMessage: message, intent: null, entities: {}, error: `Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}` };
     }
   } catch (error: any) {

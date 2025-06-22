@@ -88,6 +88,17 @@ type Props = {
 const googleButtonPressed = googleButtonPressedLightNormal
 const googleButtonNormal = googleButtonLightNormal
 
+import { gql } from '@apollo/client'; // Import gql
+
+// Define the GraphQL mutation for generating Gmail Auth URL
+const GENERATE_GMAIL_AUTH_URL_MUTATION = gql`
+  mutation GenerateGmailAuthUrl {
+    generateGmailAuthUrl {
+      authorizationUrl
+    }
+  }
+`;
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '@config/backendConfig'
@@ -259,6 +270,34 @@ function UserViewCalendarAndContactIntegrations() {
     // const [integrations, setIntegrations] = useState<CalendarIntegrationType[]>(oldIntegrations)
 
     console.log(integrations, ' integrations')
+
+    // Gmail Connection Handler
+    const handleConnectGmail = async () => {
+      setLoading(true); // Reuse existing loading state
+      try {
+        const response = await client.mutate({
+          mutation: GENERATE_GMAIL_AUTH_URL_MUTATION,
+        });
+
+        if (response.data?.generateGmailAuthUrl?.authorizationUrl) {
+          window.location.href = response.data.generateGmailAuthUrl.authorizationUrl;
+        } else {
+          console.error('Failed to get Gmail authorization URL from mutation response:', response);
+          throw new Error('Failed to get Gmail authorization URL.');
+        }
+      } catch (error) {
+        console.error('Error initiating Gmail connection:', error);
+        toast({
+          title: 'Error Connecting Gmail',
+          description: (error as Error).message || 'Could not initiate Gmail connection. Please try again.',
+          status: 'error',
+          duration: 9000,
+          isClosable: true,
+        });
+        setLoading(false);
+      }
+      // setLoading(false) might not be reached if window.location.href happens
+    };
   
   // just in case
  
@@ -626,6 +665,27 @@ function UserViewCalendarAndContactIntegrations() {
                 ): (
                   null
                 )}
+
+              {/* Gmail Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l">
+                <Text variant="optionHeader" style={{ color: palette.darkGray, marginBottom: 10 }}>
+                  Gmail Integration
+                </Text>
+                {/*
+                  TODO: Add logic to check if Gmail is already connected.
+                  If connected, show "Gmail Connected" and a "Disconnect" button.
+                  For now, always showing the "Connect" button.
+                */}
+                <Pressable onPress={handleConnectGmail} disabled={loading || googleIntegrationLoading}>
+                  <Image
+                      src={googleButtonNormal} // Using Google button for now, replace with specific Gmail button if available
+                      style={{ width: 240, height: 50 }}
+                      alt={'Connect Gmail button'}
+                  />
+                </Pressable>
+                {(loading || googleIntegrationLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
+              </Box>
+
             </Box>
         ) : (
           <Box flex={1} justifyContent="center" alignItems="center">

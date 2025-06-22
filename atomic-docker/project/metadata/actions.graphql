@@ -1,3 +1,4 @@
+# Existing Input/Output types
 type ProcessAudioForNoteOutput {
   note_id: String
   status: String!
@@ -14,11 +15,6 @@ input ProcessAudioForNoteInput {
   linked_event_id: String
 }
 
-type Mutation {
-  processAudioForNote (input: ProcessAudioForNoteInput!): ProcessAudioForNoteOutput
-  attendLiveMeeting(input: AttendLiveMeetingInput!): AttendLiveMeetingOutput
-}
-
 input AttendLiveMeetingInput {
   platform: String!
   meeting_identifier: String!
@@ -31,4 +27,171 @@ type AttendLiveMeetingOutput {
   status: String!
   note_id: String
   error_message: String
+}
+
+# New Gmail Integration Input/Output types
+"""Output for generating the Gmail authorization URL."""
+type GenerateGmailAuthUrlOutput {
+  """The URL to redirect the user to for Google OAuth consent."""
+  authorizationUrl: String
+}
+
+"""Input for handling the Gmail OAuth callback."""
+input HandleGmailAuthCallbackInput {
+  """The authorization code returned by Google."""
+  code: String!
+}
+
+"""Output for handling the Gmail OAuth callback."""
+type HandleGmailAuthCallbackOutput {
+  """Indicates whether the operation was successful."""
+  success: Boolean!
+  """A message describing the outcome."""
+  message: String
+}
+
+"""Output for refreshing a user's Gmail access token."""
+type RefreshUserGmailTokenOutput {
+  """Indicates whether the operation was successful."""
+  success: Boolean!
+  """A message describing the outcome."""
+  message: String
+  """The number of seconds until the new access token expires."""
+  expires_in: Int
+}
+
+# Consolidated Mutation Type
+type Mutation {
+  # Existing Actions (assuming they are mutations)
+  processAudioForNote (input: ProcessAudioForNoteInput!): ProcessAudioForNoteOutput
+  attendLiveMeeting(input: AttendLiveMeetingInput!): AttendLiveMeetingOutput
+
+  # New Gmail Actions
+  """Action to generate the Google OAuth URL for Gmail integration."""
+  generateGmailAuthUrl: GenerateGmailAuthUrlOutput
+
+  """Action to handle the OAuth callback from Google after user authorization for Gmail."""
+  handleGmailAuthCallback(input: HandleGmailAuthCallbackInput!): HandleGmailAuthCallbackOutput
+
+  """Action to refresh a user's Gmail access token using a stored refresh token."""
+  refreshUserGmailToken: RefreshUserGmailTokenOutput
+
+  """Searches the authenticated user's Gmail account."""
+  searchUserGmail(input: GmailSearchQueryInput!): GmailSearchOutput
+
+  """Fetches the content of a specific email from the user's Gmail account."""
+  getUserGmailContent(input: GetUserGmailContentInput!): GetUserGmailContentOutput
+}
+
+# Types for Gmail Search API
+"""Input for Gmail search."""
+input GmailSearchQueryInput {
+  """
+  Plain text query string, following Gmail's search syntax.
+  Example: "from:xyz@example.com subject:contract after:2023-01-01"
+  """
+  query: String!
+  """Maximum number of results to return. Defaults to 10 if not provided."""
+  maxResults: Int
+}
+
+"""Represents a single email message found from a Gmail search."""
+type GmailSearchResultItem {
+  """The immutable ID of the message."""
+  id: String!
+  """The ID of the thread the message belongs to."""
+  threadId: String
+  """A short snippet of the message text."""
+  snippet: String
+  """The subject of the email (placeholder - would require fetching message details)."""
+  subject: String
+  """The sender of the email (placeholder - would require fetching message details)."""
+  from: String
+  """The date the email was sent/received (placeholder - would require fetching message details)."""
+  date: String # Consider using a DateTime scalar if available/appropriate
+}
+
+"""Output for the Gmail search action."""
+type GmailSearchOutput {
+  """Indicates whether the search operation was successful at a high level."""
+  success: Boolean!
+  """Optional message, e.g., an error message if success is false."""
+  message: String
+  """List of email messages found. Can be empty if no results or on error."""
+  results: [GmailSearchResultItem!]
+}
+
+# Types for GetUserGmailContent Action
+
+"""Input for fetching specific Gmail message content."""
+input GetUserGmailContentInput {
+  """The ID of the Gmail message to fetch."""
+  emailId: String!
+}
+
+"""Represents a header in a Gmail message part."""
+type GmailMessagePayloadHeader {
+  name: String
+  value: String
+}
+
+"""Represents the body of a Gmail message part."""
+type GmailMessagePartBody {
+  """The size of the body in bytes."""
+  size: Int
+  """The body data, typically base64url encoded for binary content, or plain text for text/* parts."""
+  data: String
+  """Attachment ID if this part is an attachment."""
+  attachmentId: String
+}
+
+"""Represents a part of a Gmail message, which can be nested."""
+type GmailMessagePart {
+  """The unique ID of the part within the message."""
+  partId: String
+  """The MIME type of the part."""
+  mimeType: String
+  """The filename of the part, if it's an attachment."""
+  filename: String
+  """List of headers for this part."""
+  headers: [GmailMessagePayloadHeader!]
+  """The body of this part."""
+  body: GmailMessagePartBody
+  """Sub-parts, if this is a multipart message (e.g., multipart/alternative, multipart/mixed)."""
+  parts: [GmailMessagePart!]
+}
+
+"""Represents the detailed content of a fetched Gmail message."""
+type GmailMessageContent {
+  """The immutable ID of the message."""
+  id: String!
+  """The ID of the thread the message belongs to."""
+  threadId: String
+  """List of IDs of labels applied to this message."""
+  labelIds: [String!]
+  """A short snippet of the message text."""
+  snippet: String
+  """The history ID of the message."""
+  historyId: String
+  """The internal UTIME (seconds since epoch) of the message in the user's mailbox."""
+  internalDate: String # Consider custom scalar for DateTime or Long
+  """
+  The parsed email structure. Contains the payload of the message,
+  including parts, headers, and body.
+  """
+  payload: GmailMessagePart
+  """Estimated size in bytes of the message."""
+  sizeEstimate: Int
+  """The entire email message in RFC 2822 format, base64url encoded."""
+  raw: String
+}
+
+"""Output for fetching specific Gmail message content."""
+type GetUserGmailContentOutput {
+  """Indicates whether the operation was successful."""
+  success: Boolean!
+  """Optional message, e.g., an error message if success is false."""
+  message: String
+  """The fetched email content, if successful."""
+  email: GmailMessageContent
 }

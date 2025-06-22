@@ -143,6 +143,13 @@ array_relationships:
         table:
           name: User_Preference
           schema: public
+  - name: UserGmailTokens
+    using:
+      foreign_key_constraint_on:
+        column: user_id # This is the column in user_gmail_tokens
+        table:
+          name: user_gmail_tokens # The table name
+          schema: public
 insert_permissions:
   - role: user
     permission:
