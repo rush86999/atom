@@ -161,3 +161,85 @@ async function testUnderstander() {
 }
 // testUnderstander();
 */
+
+// NLU for Sending Emails - Placeholder for future implementation
+
+import { EmailDetails } from './emailSkills'; // Assuming EmailDetails is exported from emailSkills.ts
+
+const SEND_EMAIL_SYSTEM_PROMPT_EXAMPLE = `
+You are an expert system that converts a user's natural language command to send an email into a structured JSON object.
+The user's command will be provided. You need to extract the recipient(s) (to, cc, bcc), the subject, and the body of the email.
+Respond ONLY with a single, valid JSON object. Do not include any explanatory text before or after the JSON.
+The JSON object should conform to the following TypeScript interface 'EmailDetails':
+interface EmailDetails {
+  to: string; // Primary recipient's email address. If multiple, use the first and suggest user clarifies for others or use cc.
+  subject: string; // Subject line of the email.
+  body: string; // Main content of the email (plain text).
+  cc?: string[]; // Array of CC recipients' email addresses.
+  bcc?: string[]; // Array of BCC recipients' email addresses.
+  htmlBody?: string; // Optional: if user specifies HTML content or if it's easily derivable.
+}
+
+Guidelines:
+- "to [email/name]": Extract as 'to'. If name, NLU should have a way to resolve to email or ask for clarification.
+- "cc [email/name]": Extract as 'cc' array.
+- "bcc [email/name]": Extract as 'bcc' array.
+- "subject [text]": Extract as 'subject'.
+- "body [text]", "message [text]", "saying [text]": Extract as 'body'. The body content might be longer and span multiple sentences.
+- If multiple "to" recipients are mentioned directly, try to capture them if possible, perhaps the primary one in 'to' and others in 'cc'.
+- If the user says "send an email to John Doe <john.doe@example.com> and CC Jane <jane@example.com> subject Hello body Hi team",
+  your response should be:
+  {
+    "to": "john.doe@example.com",
+    "cc": ["jane@example.com"],
+    "subject": "Hello",
+    "body": "Hi team"
+  }
+- If any field is not clearly provided, omit it from the JSON or set to null if appropriate for the target interface.
+  However, 'to', 'subject', and 'body' are generally essential. If missing, the calling handler should request them.
+`;
+
+/**
+ * (Placeholder) Uses an LLM to understand a natural language command for sending an email
+ * and transform it into an EmailDetails object.
+ * @param rawUserQuery The user's natural language command for sending an email.
+ * @returns A Promise resolving to a Partial<EmailDetails> object.
+ * @throws Error if LLM call fails or parsing is unsuccessful.
+ */
+export async function understandEmailSendCommandLLM(rawUserQuery: string): Promise<Partial<EmailDetails>> {
+  console.warn(
+    'Placeholder function understandEmailSendCommandLLM called. ' +
+    'This NLU capability needs to be fully implemented using an LLM with a proper prompt, ' +
+    'intent classification, and entity extraction for sending emails.'
+  );
+
+  // --- ACTUAL LLM IMPLEMENTATION WOULD GO HERE ---
+  // This would involve:
+  // 1. Getting an OpenAI client.
+  // 2. Using a system prompt like SEND_EMAIL_SYSTEM_PROMPT_EXAMPLE.
+  // 3. Sending the rawUserQuery to the LLM.
+  // 4. Parsing the LLM's JSON response into Partial<EmailDetails>.
+  // 5. Performing validation and cleanup.
+
+  // For now, returning a mock based on a very simple keyword parse for demonstration.
+  // This is NOT robust NLU.
+  if (rawUserQuery.toLowerCase().includes("email john subject test body hello")) {
+    return {
+      to: "john.doe@example.com",
+      subject: "Test Email from Agent",
+      body: "Hello John, this is a test email sent by the agent based on a command.",
+    };
+  }
+  if (rawUserQuery.toLowerCase().includes("send to jane@example.com subject important body check this out")) {
+    return {
+      to: "jane@example.com",
+      subject: "Important",
+      body: "Check this out",
+    };
+  }
+
+  // If no simple match, return empty or throw an error indicating NLU couldn't parse.
+  // Throwing an error might be better to signal that the NLU part is missing.
+  console.error(`understandEmailSendCommandLLM: Could not parse for sending: "${rawUserQuery}". Needs full NLU implementation.`);
+  throw new Error(`Sorry, I couldn't understand the details for the email you want to send. Please try phrasing it clearly, for example: "Email user@example.com subject Your Subject body Your message."`);
+}

@@ -247,4 +247,18 @@ export const ENV = {
   // get AUTH_SKIP_SERVE() {
   //   return castBooleanEnv('AUTH_SKIP_SERVE', false);
   // },
+
+  // AWS SES
+  get AWS_ACCESS_KEY_ID() {
+    return castStringEnv('AWS_ACCESS_KEY_ID');
+  },
+  get AWS_SECRET_ACCESS_KEY() {
+    return castStringEnv('AWS_SECRET_ACCESS_KEY');
+  },
+  get AWS_REGION() {
+    return castStringEnv('AWS_REGION');
+  },
+  get SES_SOURCE_EMAIL() {
+    return castStringEnv('SES_SOURCE_EMAIL');
+  },
 };

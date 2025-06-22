@@ -6,6 +6,9 @@ import { searchMyEmails, readEmail, extractContractEndDate, Email } from '../ski
 import { extractInformationFromEmailBody } from '../skills/emailSkills';
 import { understandEmailSearchQueryLLM } from '../skills/llm_email_query_understander'; // Import LLM query understander
 
+import { searchMyEmails, readEmail, Email, sendEmail as sendEmailSkill, EmailDetails, SendEmailResponse } from '../skills/emailSkills'; // Added sendEmailSkill, EmailDetails, SendEmailResponse
+import { logger } from '../../_utils/logger'; // Assuming logger is available
+
 // Define the types for what the NLU service should provide to this handler
 export type EmailActionType =
   | "GET_FULL_CONTENT"
@@ -13,7 +16,8 @@ export type EmailActionType =
   | "GET_SUBJECT"
   | "GET_DATE"
   | "FIND_SPECIFIC_INFO" // For targeted extraction
-  | "SUMMARIZE_EMAIL"; // Future capability
+  | "SUMMARIZE_EMAIL" // Future capability
+  | "SEND_EMAIL"; // New action type
 
 export interface EmailActionRequest {
   actionType: EmailActionType;
@@ -29,6 +33,12 @@ export interface ParsedNluEmailRequest {
   rawEmailSearchQuery: string; // e.g., "emails from Jane about Q3 report last week"
   actionRequested: EmailActionRequest;
   targetEmailId?: string; // Optional: if NLU identified a specific email ID directly
+}
+
+// Interface for a "send email" request from NLU
+export interface ParsedNluSendEmailRequest {
+  userId: string;
+  emailDetails: EmailDetails; // Reusing EmailDetails from emailSkills.ts
 }
 
 /**
@@ -243,3 +253,39 @@ async function mainAgentLogic(userId: string, parsedNluResult: any) {
     }
 }
 */
+
+/**
+ * Handles a request to send an email.
+ */
+export async function handleSendEmailRequest(request: ParsedNluSendEmailRequest): Promise<string> {
+  const { userId, emailDetails } = request;
+  let messageToUser = "";
+
+  logger.info(`Agent: Attempting to send email for user ${userId} with details:`, emailDetails);
+
+  if (!emailDetails.to || !emailDetails.subject || (!emailDetails.body && !emailDetails.htmlBody)) {
+    messageToUser = "I'm sorry, but I'm missing some crucial information to send the email. I need at least a recipient, a subject, and a body content.";
+    logger.warn(`Agent: Missing details for send email request for user ${userId}. Details:`, emailDetails);
+    return messageToUser;
+  }
+
+  try {
+    const sendResponse: SendEmailResponse = await sendEmailSkill(emailDetails);
+
+    if (sendResponse.success) {
+      messageToUser = `Okay, I've sent the email to ${emailDetails.to} with the subject "${emailDetails.subject}".`;
+      if (sendResponse.emailId) {
+        messageToUser += ` (Message ID: ${sendResponse.emailId})`;
+      }
+      logger.info(`Agent: Email sent successfully for user ${userId}. Response:`, sendResponse);
+    } else {
+      messageToUser = `I tried to send the email, but something went wrong. ${sendResponse.message || "An unknown error occurred."}`;
+      logger.error(`Agent: Failed to send email for user ${userId}. Response:`, sendResponse);
+    }
+  } catch (error: any) {
+    logger.error(`Agent: Critical error in handleSendEmailRequest for user ${userId}:`, error);
+    messageToUser = `I encountered a critical error while trying to send the email: ${error.message || 'Unknown error'}`;
+  }
+
+  return messageToUser;
+}
