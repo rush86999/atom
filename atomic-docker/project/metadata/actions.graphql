@@ -81,6 +81,9 @@ type Mutation {
 
   """Fetches the content of a specific email from the user's Gmail account."""
   getUserGmailContent(input: GetUserGmailContentInput!): GetUserGmailContentOutput
+
+  """Disconnects the user's Gmail account by deleting their stored tokens."""
+  disconnectGmailAccount: DisconnectGmailAccountOutput
 }
 
 # Types for Gmail Search API
@@ -195,3 +198,33 @@ type GetUserGmailContentOutput {
   """The fetched email content, if successful."""
   email: GmailMessageContent
 }
+
+# Types for Gmail Connection Status
+type GmailConnectionStatusOutput {
+  """True if the user has connected their Gmail account and tokens are present."""
+  isConnected: Boolean!
+  """The email address associated with the connected Gmail account, if available."""
+  userEmail: String # Optional: could be fetched when tokens are first stored or from a profile API call
+}
+
+# Add to Query type if it exists, otherwise create it.
+# Assuming Query type might not exist yet, let's define it.
+# If it does exist, these should be merged.
+type Query {
+  """Gets the status of the user's Gmail account connection."""
+  getGmailConnectionStatus: GmailConnectionStatusOutput
+}
+
+# Types for Disconnecting Gmail Account
+type DisconnectGmailAccountOutput {
+  """Indicates whether the disconnection was successful."""
+  success: Boolean!
+  """Optional message describing the outcome."""
+  message: String
+}
+
+# Add to existing Mutation type
+# type Mutation {
+#   """Disconnects the user's Gmail account by deleting their stored tokens."""
+#   disconnectGmailAccount: DisconnectGmailAccountOutput
+# }

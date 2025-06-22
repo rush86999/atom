@@ -91,20 +91,89 @@ export async function searchMyEmails(userId: string, searchQuery: string, limit:
   }
 }
 
-// Helper to find and decode text/plain body from Gmail payload
-function extractTextPlainBody(part: any): string | null {
+// Helper to find and decode text/plain or text/html body from Gmail payload
+function extractReadableBody(part: any, preferredType: 'text/plain' | 'text/html' = 'text/plain'): string | null {
     if (!part) return null;
 
-    if (part.mimeType === 'text/plain' && part.body?.data) {
-        return Buffer.from(part.body.data, 'base64url').toString('utf8');
+    let foundHtmlBody: string | null = null;
+
+    // If this part is the preferred type
+    if (part.mimeType === preferredType && part.body?.data) {
+        const decodedBody = Buffer.from(part.body.data, 'base64url').toString('utf8');
+        if (preferredType === 'text/html') {
+            // Basic HTML stripping if we are forced to use HTML.
+            // A library would be much better for this.
+            return decodedBody
+                .replace(/<style[^>]*>.*?<\/style>/gs, '') // Remove style blocks
+                .replace(/<script[^>]*>.*?<\/script>/gs, '') // Remove script blocks
+                .replace(/<[^>]+>/g, ' ') // Remove all other tags, replace with space
+                .replace(/\s+/g, ' ') // Condense multiple spaces
+                .trim();
+        }
+        return decodedBody;
     }
 
+    // If this part is HTML and we are looking for plain (store it as fallback)
+    if (part.mimeType === 'text/html' && part.body?.data) {
+        const decodedHtml = Buffer.from(part.body.data, 'base64url').toString('utf8');
+        // Basic HTML stripping
+        foundHtmlBody = decodedHtml
+            .replace(/<style[^>]*>.*?<\/style>/gs, '')
+            .replace(/<script[^>]*>.*?<\/script>/gs, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // If this part is multipart/alternative, search its subparts, prioritizing text/plain
+    if (part.mimeType === 'multipart/alternative' && part.parts && part.parts.length > 0) {
+        let plainTextVersion: string | null = null;
+        let htmlVersion: string | null = null;
+        for (const subPart of part.parts) {
+            if (subPart.mimeType === 'text/plain' && subPart.body?.data) {
+                plainTextVersion = Buffer.from(subPart.body.data, 'base64url').toString('utf8');
+                break; // Found plain text, prefer this
+            }
+            if (subPart.mimeType === 'text/html' && subPart.body?.data) {
+                 const decodedHtml = Buffer.from(subPart.body.data, 'base64url').toString('utf8');
+                 htmlVersion = decodedHtml
+                    .replace(/<style[^>]*>.*?<\/style>/gs, '')
+                    .replace(/<script[^>]*>.*?<\/script>/gs, '')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+        }
+        if (plainTextVersion) return plainTextVersion;
+        if (htmlVersion) return htmlVersion; // Fallback to stripped HTML
+    }
+
+    // For other multipart types (e.g., multipart/related, multipart/mixed) or if the desired type is not found at this level,
+    // recursively search subparts.
     if (part.parts && part.parts.length > 0) {
         for (const subPart of part.parts) {
-            const body = extractTextPlainBody(subPart);
+            // Try to find preferred type first
+            const body = extractReadableBody(subPart, preferredType);
             if (body) return body;
         }
+        // If preferred type not found in any subpart, try to find HTML as a fallback in subparts
+        if (preferredType === 'text/plain' && foundHtmlBody) {
+            return foundHtmlBody; // Return HTML found at current level if no plain text in subparts
+        }
+         // If still nothing, and preferred was text/plain, broaden search in subparts for text/html
+        if (preferredType === 'text/plain') {
+            for (const subPart of part.parts) {
+                const htmlBody = extractReadableBody(subPart, 'text/html');
+                if (htmlBody) return htmlBody; // Return the first stripped HTML found
+            }
+        }
     }
+
+    // Fallback to HTML body found at this level if preferred was plain and nothing else found
+    if (preferredType === 'text/plain' && foundHtmlBody) {
+        return foundHtmlBody;
+    }
+
     return null;
 }
 
@@ -164,8 +233,8 @@ export async function readEmail(userId: string, emailId: string): Promise<ReadEm
     // A more robust date parsing would be needed if internalDate is not directly usable
     const timestamp = fetchedEmail.internalDate ? new Date(parseInt(fetchedEmail.internalDate)).toISOString() : new Date().toISOString();
 
-    // Extract text body
-    const body = extractTextPlainBody(fetchedEmail.payload) || fetchedEmail.snippet || '';
+    // Use the enhanced body extraction logic
+    const body = extractReadableBody(fetchedEmail.payload) || fetchedEmail.snippet || '';
 
 
     const email: Email = {
