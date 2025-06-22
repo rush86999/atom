@@ -1,4 +1,5 @@
 import * as conversationManager from './conversationState'; // Added for conversation management
+import type { InterfaceType } from './conversationState';
 // import { listUpcomingEvents, createCalendarEvent } from './skills/calendarSkills'; // Will be re-imported with others
 // import { listRecentEmails, readEmail, sendEmail, EmailDetails } from './skills/emailSkills'; // Will be re-imported
 // import { searchWeb } from './skills/webResearchSkills'; // Will be re-imported
@@ -30,6 +31,7 @@ import {
   QuickBooksInvoice,
   ProcessedNLUResponse,
   LtmQueryResult,
+  SkillArgs, // Added for SemanticSearchMeetingNotes
   // Task Management Types
   CreateNotionTaskParams,
   QueryNotionTasksParams,
@@ -44,12 +46,13 @@ import {
 } from '../types';
 
 // import * as conversationManager from './conversationState'; // Already imported at the top
-import {
-    getConversationStateSnapshot,
-    updateLTMContext,
-    updateUserGoal,
-    updateIntentAndEntities
-} from './conversationState';
+// No longer importing individual functions directly, will use conversationManager.
+// import {
+// getConversationStateSnapshot,
+// updateLTMContext,
+// updateUserGoal,
+// updateIntentAndEntities
+// } from './conversationState';
 import { handleSemanticSearchMeetingNotesSkill } from './skills/semanticSearchSkills';
 import {
     createNotionTask,
@@ -103,7 +106,8 @@ import {
     ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID,
     ATOM_HUBSPOT_PORTAL_ID,
     ATOM_QB_TOKEN_FILE_PATH,
-    ATOM_NOTION_TASKS_DATABASE_ID // Added for Notion Tasks
+    ATOM_NOTION_TASKS_DATABASE_ID, // Added for Notion Tasks
+    LANCEDB_LTM_AGENT_TABLE_NAME // Added for LTM table name
 } from '../_libs/constants';
 import { searchWeb } from './skills/webResearchSkills'; // Added missing import
 import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; // Added missing import
@@ -140,59 +144,64 @@ export interface HandleMessageResponse {
   error?: string;
 }
 
-async function _internalHandleMessage(message: string, userId: string): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
+async function _internalHandleMessage(interfaceType: InterfaceType, message: string, userId: string): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
   let textResponse: string;
   let conversationLtmContext: LtmQueryResult[] | null = null;
 
   if (ltmDbConnection) {
     try {
-      const relevantLtm = await retrieveRelevantLTM(message, userId, ltmDbConnection, { table: 'knowledge_base' });
+      const relevantLtm = await retrieveRelevantLTM(message, userId, ltmDbConnection, { table: LANCEDB_LTM_AGENT_TABLE_NAME });
       if (relevantLtm && relevantLtm.length > 0) {
-        console.log(`[Handler] Retrieved ${relevantLtm.length} items from LTM for query: ${message}. Storing in conversation state.`);
-        updateLTMContext(relevantLtm);
+        console.log(`[Handler][${interfaceType}] Retrieved ${relevantLtm.length} items from LTM for query: ${message}. Storing in conversation state.`);
+        conversationManager.updateLTMContext(interfaceType, relevantLtm);
         conversationLtmContext = relevantLtm;
         const conversationStateActions: ConversationStateActions = {
-            updateUserGoal: updateUserGoal,
-            updateIntentAndEntities: updateIntentAndEntities,
-            updateLtmRepoContext: updateLTMContext
+            updateUserGoal: (goal) => conversationManager.updateUserGoal(interfaceType, goal),
+            updateIntentAndEntities: (intent, entities) => conversationManager.updateIntentAndEntities(interfaceType, intent, entities),
+            updateLtmRepoContext: (context) => conversationManager.updateLTMContext(interfaceType, context)
         };
         await loadLTMToSTM(relevantLtm, conversationStateActions);
       } else {
-        updateLTMContext(null);
+        conversationManager.updateLTMContext(interfaceType, null);
         conversationLtmContext = null;
       }
     } catch (error) {
-      console.error('[Handler] Error retrieving or loading LTM:', error);
-      updateLTMContext(null);
+      console.error(`[Handler][${interfaceType}] Error retrieving or loading LTM:`, error);
+      conversationManager.updateLTMContext(interfaceType, null);
       conversationLtmContext = null;
     }
   } else {
-    console.warn('[Handler] LTM DB connection not available, skipping LTM retrieval.');
-    updateLTMContext(null);
+    console.warn(`[Handler][${interfaceType}] LTM DB connection not available, skipping LTM retrieval.`);
+    conversationManager.updateLTMContext(interfaceType, null);
     conversationLtmContext = null;
   }
 
   const nluResponse: ProcessedNLUResponse = await understandMessage(message, undefined, conversationLtmContext);
-  console.log('[InternalHandleMessage] NLU Response (with LTM context consideration):', JSON.stringify(nluResponse, null, 2));
+  console.log(`[InternalHandleMessage][${interfaceType}] NLU Response (with LTM context consideration):`, JSON.stringify(nluResponse, null, 2));
 
   if (nluResponse.error && !nluResponse.intent) {
-    console.error('[InternalHandleMessage] NLU service critical error:', nluResponse.error);
+    console.error(`[InternalHandleMessage][${interfaceType}] NLU service critical error:`, nluResponse.error);
     textResponse = "Sorry, I'm having trouble understanding requests right now. Please try again later.";
-    const currentConvStateOnError = getConversationStateSnapshot();
+    const currentConvStateOnError = conversationManager.getConversationStateSnapshot(interfaceType);
     const ltmContextForErrorResponse = currentConvStateOnError.ltmContext;
     if (ltmContextForErrorResponse && ltmContextForErrorResponse.length > 0) {
-        const firstLtmItem = ltmContextForErrorResponse[0] as LtmQueryResult;
-        if (firstLtmItem && firstLtmItem.text) {
+        const firstLtmItem = ltmContextForErrorResponse[0] as LtmQueryResult; // Type assertion still needed
+        if (firstLtmItem && firstLtmItem.text) { // Check if text property exists
             let ltmPreamble = `I recall from our records that: "${firstLtmItem.text.substring(0, 150)}${firstLtmItem.text.length > 150 ? '...' : ''}". `;
             textResponse = ltmPreamble + textResponse;
-            console.log(`[Handler] Augmented error response with LTM context: ${ltmPreamble}`);
+            console.log(`[Handler][${interfaceType}] Augmented error response with LTM context: ${ltmPreamble}`);
         }
     }
     return { text: textResponse, nluResponse };
   }
 
+  // Process NLU response and execute skills
+  // All console logs within this block should also be prefixed with [interfaceType]
   if (nluResponse.intent) {
     const entities = nluResponse.entities || {};
+    // Log intent and entities with interfaceType
+    console.log(`[Handler][${interfaceType}] Intent: ${nluResponse.intent}, Entities: ${JSON.stringify(entities)}`);
+
     switch (nluResponse.intent) {
       case "GetCalendarEvents":
         try {
@@ -210,10 +219,10 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
             const time_query = entities.time_query as string | undefined;
             const query_type = entities.query_type as string | undefined;
 
-            if (time_query) console.log(`[Handler] GetCalendarEvents: time_query found - ${time_query}`);
-            if (query_type) console.log(`[Handler] GetCalendarEvents: query_type found - ${query_type}`);
-            if (date_range) console.log(`[Handler] GetCalendarEvents: date_range found - ${date_range}.`);
-            if (event_type_filter) console.log(`[Handler] GetCalendarEvents: event_type_filter found - ${event_type_filter}.`);
+            if (time_query) console.log(`[Handler][${interfaceType}] GetCalendarEvents: time_query found - ${time_query}`);
+            if (query_type) console.log(`[Handler][${interfaceType}] GetCalendarEvents: query_type found - ${query_type}`);
+            if (date_range) console.log(`[Handler][${interfaceType}] GetCalendarEvents: date_range found - ${date_range}.`);
+            if (event_type_filter) console.log(`[Handler][${interfaceType}] GetCalendarEvents: event_type_filter found - ${event_type_filter}.`);
 
             const events: CalendarEvent[] = await listUpcomingEvents(userId, limit);
             if (!events || events.length === 0) {
@@ -225,7 +234,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Upcoming calendar events:\n${eventList}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetCalendarEvents":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
         }
         break;
@@ -252,7 +261,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 };
                 if (duration) {
                     eventDetails.duration = duration;
-                    console.log(`[Handler] CreateCalendarEvent: duration found - ${duration}`);
+                    console.log(`[Handler][${interfaceType}] CreateCalendarEvent: duration found - ${duration}`);
                 }
                 const response: CreateEventResponse = await createCalendarEvent(userId, eventDetails);
                 if (response.success) {
@@ -262,7 +271,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "CreateCalendarEvent":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateCalendarEvent":`, error.message);
             textResponse = "Sorry, I couldn't create the calendar event due to an error.";
         }
         break;
@@ -282,7 +291,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                     notes: entities.notes as string | undefined,
                     notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
                 };
-                console.log(`[Handler] CreateTask: Calling createNotionTask with params:`, createTaskParams);
+                console.log(`[Handler][${interfaceType}] CreateTask: Calling createNotionTask with params:`, createTaskParams);
                 const taskResponse: SkillResponse<CreateTaskData> = await createNotionTask(userId, createTaskParams);
                 if (taskResponse.ok && taskResponse.data) {
                     textResponse = `Task created: "${task_description}" (ID: ${taskResponse.data.taskId}). You can view it at ${taskResponse.data.taskUrl}`;
@@ -291,7 +300,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "CreateTask":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateTask":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while creating your task.";
         }
         break;
@@ -307,7 +316,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 limit: typeof entities.limit === 'number' ? entities.limit : undefined,
                 notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
             };
-            console.log(`[Handler] QueryTasks: Calling queryNotionTasks with params:`, queryTaskParams);
+            console.log(`[Handler][${interfaceType}] QueryTasks: Calling queryNotionTasks with params:`, queryTaskParams);
             const queryResponse: TaskQueryResponse = await queryNotionTasks(userId, queryTaskParams);
             if (queryResponse.success && queryResponse.tasks.length > 0) {
                 textResponse = "Found these tasks:\n";
@@ -320,7 +329,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Failed to query tasks: ${queryResponse.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "QueryTasks":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "QueryTasks":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while querying your tasks.";
         }
         break;
@@ -358,7 +367,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                     }
                     // Further specific action handling might be needed here or in the skill
 
-                    console.log(`[Handler] UpdateTask: Calling updateNotionTask with params:`, updateTaskParams);
+                    console.log(`[Handler][${interfaceType}] UpdateTask: Calling updateNotionTask with params:`, updateTaskParams);
                     const updateResponse: SkillResponse<UpdateTaskData> = await updateNotionTask(userId, updateTaskParams);
                     if (updateResponse.ok && updateResponse.data) {
                         textResponse = `Task "${task_identifier}" updated. Properties changed: ${updateResponse.data.updatedProperties.join(', ')}.`;
@@ -368,7 +377,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "UpdateTask":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "UpdateTask":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while updating your task.";
         }
         break;
@@ -396,7 +405,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Recent emails (via NLU):\n${emailList}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListEmails":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListEmails":`, error.message);
             textResponse = "Sorry, I couldn't fetch recent emails due to an error (NLU path).";
         }
         break;
@@ -416,7 +425,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ReadEmail":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ReadEmail":`, error.message);
             textResponse = "Sorry, I couldn't read the specified email due to an error (NLU path).";
         }
         break;
@@ -440,7 +449,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "SendEmail":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SendEmail":`, error.message);
             textResponse = "Sorry, I couldn't send the email due to an error (NLU path).";
         }
         break;
@@ -462,7 +471,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "SearchWeb":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SearchWeb":`, error.message);
             textResponse = "Sorry, I couldn't perform the web search due to an error (NLU path).";
         }
         break;
@@ -482,7 +491,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "TriggerZap":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "TriggerZap":`, error.message);
             textResponse = "Sorry, I couldn't trigger the Zap due to an error (NLU path).";
         }
         break;
@@ -506,7 +515,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
               }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetHubSpotContactByEmail":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetHubSpotContactByEmail":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while trying to retrieve the HubSpot contact.";
         }
         break;
@@ -541,7 +550,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "SlackMyAgenda":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SlackMyAgenda":`, error.message);
             textResponse = "Sorry, an error occurred while processing your agenda for Slack (NLU path).";
         }
         break;
@@ -564,7 +573,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching Calendly event types (via NLU): ${response.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListCalendlyEventTypes":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListCalendlyEventTypes":`, error.message);
             textResponse = "Sorry, an unexpected error occurred while fetching your Calendly event types (NLU path).";
         }
         break;
@@ -592,7 +601,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching Calendly bookings (via NLU): ${response.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListCalendlyScheduledEvents":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListCalendlyScheduledEvents":`, error.message);
             textResponse = "Sorry, an unexpected error occurred while fetching your Calendly bookings (NLU path).";
         }
         break;
@@ -620,7 +629,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching Zoom meetings (via NLU): ${response.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListZoomMeetings":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListZoomMeetings":`, error.message);
             textResponse = "Sorry, an unexpected error occurred while fetching your Zoom meetings (NLU path).";
         }
         break;
@@ -640,7 +649,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetZoomMeetingDetails":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetZoomMeetingDetails":`, error.message);
             textResponse = `Sorry, an unexpected error occurred while fetching details for Zoom meeting ${nluResponse.entities.meeting_id} (NLU path).`;
         }
         break;
@@ -662,7 +671,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching Google Meet events (via NLU): ${response.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListGoogleMeetEvents":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListGoogleMeetEvents":`, error.message);
             textResponse = "Sorry, an unexpected error occurred while fetching your Google Meet events (NLU path).";
         }
         break;
@@ -689,7 +698,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetGoogleMeetEventDetails":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetGoogleMeetEventDetails":`, error.message);
             textResponse = `Sorry, an unexpected error occurred while fetching details for event ${nluResponse.entities.event_id} (NLU path).`;
         }
         break;
@@ -716,7 +725,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching Microsoft Teams meetings (via NLU): ${response.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListMicrosoftTeamsMeetings":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListMicrosoftTeamsMeetings":`, error.message);
             textResponse = "Sorry, an unexpected error occurred while fetching your Microsoft Teams meetings (NLU path).";
         }
         break;
@@ -741,7 +750,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetMicrosoftTeamsMeetingDetails":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetMicrosoftTeamsMeetingDetails":`, error.message);
             textResponse = `Sorry, an unexpected error occurred while fetching details for Teams meeting ${nluResponse.entities.event_id} (NLU path).`;
         }
         break;
@@ -769,7 +778,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching Stripe payments (via NLU): ${response.error || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListStripePayments":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListStripePayments":`, error.message);
             textResponse = "Sorry, an unexpected error occurred while fetching Stripe payments (NLU path).";
         }
         break;
@@ -792,7 +801,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetStripePaymentDetails":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetStripePaymentDetails":`, error.message);
             textResponse = `Sorry, an unexpected error occurred while fetching Stripe payment details for ${nluResponse.entities.payment_intent_id} (NLU path).`;
         }
         break;
@@ -806,7 +815,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = "Could not generate QuickBooks authorization URL (via NLU). Please check server configuration.";
             }
         } catch (error: any) {
-            console.error('Error in NLU Intent "GetQuickBooksAuthUrl":', error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetQuickBooksAuthUrl":`, error.message);
             textResponse = "Sorry, an error occurred while generating the QuickBooks authorization URL (NLU path).";
         }
         break;
@@ -827,7 +836,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = response.message;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "CreateTimePreferenceRule":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateTimePreferenceRule":`, error.message, error.stack);
             textResponse = "Sorry, there was an issue processing your time preference rule request.";
         }
         break;
@@ -849,7 +858,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = response.message;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "BlockTimeSlot":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "BlockTimeSlot":`, error.message, error.stack);
             textResponse = "Sorry, there was an issue processing your time blocking request.";
         }
         break;
@@ -870,7 +879,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = response.message;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ScheduleTeamMeeting":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ScheduleTeamMeeting":`, error.message, error.stack);
             textResponse = "Sorry, there was an issue processing your team meeting request.";
         }
         break;
@@ -904,7 +913,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "CreateHubSpotContact":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateHubSpotContact":`, error.message);
             textResponse = "Sorry, there was an issue creating the HubSpot contact based on your request.";
         }
         break;
@@ -925,7 +934,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any).
-            console.error(`Error in NLU Intent "SendSlackMessage":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SendSlackMessage":`, error.message);
             textResponse = "Sorry, there was an issue sending your Slack message.";
         }
         break;
@@ -943,7 +952,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                  else if (typeof nluOffset === 'string') { const parsed = parseInt(nluOffset, 10); if (!isNaN(parsed)) options.offset = parsed; }
             }
             if (customer_id && typeof customer_id === 'string') options.customerId = customer_id;
-            if (status && typeof status === 'string') console.log(`NLU: ListQuickBooksInvoices received status filter: ${status}. Currently illustrative, skill may not filter by it.`);
+            if (status && typeof status === 'string') console.log(`[Handler][${interfaceType}] NLU: ListQuickBooksInvoices received status filter: ${status}. Currently illustrative, skill may not filter by it.`);
             const response: ListQuickBooksInvoicesResponse = await listQuickBooksInvoices(options);
              if (response.ok && response.invoices && response.invoices.length > 0) {
                 let output = "QuickBooks Invoices (via NLU):\n";
@@ -958,7 +967,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Error fetching QuickBooks invoices via NLU: ${response.error || 'Unknown error'}. Ensure QuickBooks is connected and authorized.`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "ListQuickBooksInvoices":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ListQuickBooksInvoices":`, error.message);
             textResponse = "Sorry, an error occurred while fetching QuickBooks invoices via NLU.";
         }
         break;
@@ -978,7 +987,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetQuickBooksInvoiceDetails":`, error.message);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetQuickBooksInvoiceDetails":`, error.message);
             textResponse = "Sorry, an error occurred while fetching QuickBooks invoice details via NLU.";
         }
         break;
@@ -986,7 +995,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
       // --- Autopilot Intents ---
       case "EnableAutopilot":
         try {
-            console.log('[Handler] Intent: EnableAutopilot, Entities:', nluResponse.entities);
+            console.log(`[Handler][${interfaceType}] Intent: EnableAutopilot, Entities:`, nluResponse.entities);
             // The query for enableAutopilot might need a structured JSON string.
             // For now, we'll try to use raw_query or stringify all entities.
             // This part will need refinement based on NLU capabilities for Autopilot.
@@ -1006,14 +1015,14 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Failed to enable Autopilot. Error: ${autopilotEnableResponse.error?.message || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "EnableAutopilot":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "EnableAutopilot":`, error.message, error.stack);
             textResponse = "Sorry, there was an unexpected issue enabling Autopilot.";
         }
         break;
 
       case "DisableAutopilot":
         try {
-            console.log('[Handler] Intent: DisableAutopilot, Entities:', nluResponse.entities);
+            console.log(`[Handler][${interfaceType}] Intent: DisableAutopilot, Entities:`, nluResponse.entities);
             // Query for disable should ideally be the autopilotId/eventId
             let autopilotQuery = "";
             if (nluResponse.entities?.raw_query && typeof nluResponse.entities.raw_query === 'string') {
@@ -1037,14 +1046,14 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 }
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "DisableAutopilot":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "DisableAutopilot":`, error.message, error.stack);
             textResponse = "Sorry, there was an unexpected issue disabling Autopilot.";
         }
         break;
 
       case "GetAutopilotStatus":
         try {
-            console.log('[Handler] Intent: GetAutopilotStatus, Entities:', nluResponse.entities);
+            console.log(`[Handler][${interfaceType}] Intent: GetAutopilotStatus, Entities:`, nluResponse.entities);
             // Query for status can be empty (all for user) or specific autopilotId/eventId
             let autopilotQuery = "";
             if (nluResponse.entities?.raw_query && typeof nluResponse.entities.raw_query === 'string') {
@@ -1079,7 +1088,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
                 textResponse = `Failed to get Autopilot status. Error: ${autopilotStatusResponse.error?.message || 'Unknown error'}`;
             }
         } catch (error: any) {
-            console.error(`Error in NLU Intent "GetAutopilotStatus":`, error.message, error.stack);
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetAutopilotStatus":`, error.message, error.stack);
             textResponse = "Sorry, there was an unexpected issue fetching Autopilot status.";
         }
         break;
@@ -1105,7 +1114,7 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
           const repeatTimezoneParam = entities.repeat_timezone as string | undefined;
 
           // Attempt to get conversationId from conversationManager if available and needed
-          // const currentConversationState = getConversationStateSnapshot();
+          // const currentConversationState = conversationManager.getConversationStateSnapshot(interfaceType);
           // const conversationIdParam = currentConversationState?.conversationId; // Assuming it exists on state
 
           if (!whenParam && (!isRecurringParam || !repeatIntervalParam)) {
@@ -1129,11 +1138,11 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
             repeatTimezone: repeatTimezoneParam,
           };
 
-          console.log(`[Handler] SCHEDULE_TASK: Calling scheduleTask (Agenda) with params:`, JSON.stringify(scheduleParams, null, 2));
+          console.log(`[Handler][${interfaceType}] SCHEDULE_TASK: Calling scheduleTask (Agenda) with params:`, JSON.stringify(scheduleParams, null, 2));
           textResponse = await scheduleTask(scheduleParams);
 
         } catch (error: any) {
-          console.error(`Error in NLU Intent "SCHEDULE_TASK" (Agenda):`, error.message, error.stack);
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "SCHEDULE_TASK" (Agenda):`, error.message, error.stack);
           textResponse = `Sorry, an error occurred while scheduling your task: ${error.message}`;
         }
         break;
@@ -1150,24 +1159,24 @@ async function _internalHandleMessage(message: string, userId: string): Promise<
           if (!skillArgs.params.query || typeof skillArgs.params.query !== 'string' || skillArgs.params.query.trim() === '') {
               textResponse = "Please specify what you'd like to search for in your meeting notes.";
           } else {
-              console.log(`[Handler] Calling handleSemanticSearchMeetingNotesSkill with query: "${skillArgs.params.query}" for user ${userId}`);
+              console.log(`[Handler][${interfaceType}] Calling handleSemanticSearchMeetingNotesSkill with query: "${skillArgs.params.query}" for user ${userId}`);
               textResponse = await handleSemanticSearchMeetingNotesSkill(skillArgs); // No ApiHelper needed now
           }
 
-          console.log(`[Handler] SemanticSearchMeetingNotes response: ${textResponse.substring(0, 200)}...`);
+          console.log(`[Handler][${interfaceType}] SemanticSearchMeetingNotes response: ${textResponse.substring(0, 200)}...`);
         } catch (error: any) {
-          console.error(`Error in NLU Intent "SemanticSearchMeetingNotes":`, error.message, error.stack);
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "SemanticSearchMeetingNotes":`, error.message, error.stack);
           textResponse = "Sorry, an error occurred while searching your meeting notes.";
         }
         break;
 
       default:
         if (nluResponse.error) {
-             console.log(`[InternalHandleMessage] NLU processed with intent '${nluResponse.intent}' but also had an error: ${nluResponse.error}`);
+             console.log(`[InternalHandleMessage][${interfaceType}] NLU processed with intent '${nluResponse.intent}' but also had an error: ${nluResponse.error}`);
         }
         textResponse = `I understood your intent as '${nluResponse.intent}' with entities ${JSON.stringify(nluResponse.entities)}, but I'm not fully set up to handle that specific request conversationally yet. You can try specific commands or 'help'.`;
     }
-  } else if (lowerCaseMessage === 'help' || lowerCaseMessage === '?') {
+  } else if (message.toLowerCase() === 'help' || message.toLowerCase() === '?') { // Check lowerCaseMessage for 'help'
      textResponse = `I can understand natural language for tasks like listing calendar events, creating HubSpot contacts, or sending Slack messages. Try "show me my next 3 meetings" or "create hubspot contact for jane@example.com name Jane Doe".
 You can also use specific commands:
 - "create hubspot contact and dm me details {JSON_DETAILS}"
@@ -1183,16 +1192,16 @@ You can also use specific commands:
   }
 
   // 4. Augment response with LTM context (New)
-  console.log("[Handler] Future enhancement: Implement relevance check for LTM items before augmenting response.");
-  const currentConvState = getConversationStateSnapshot();
+  console.log(`[Handler][${interfaceType}] Future enhancement: Implement relevance check for LTM items before augmenting response.`);
+  const currentConvState = conversationManager.getConversationStateSnapshot(interfaceType);
   const ltmContextForResponse = currentConvState.ltmContext;
 
   if (ltmContextForResponse && ltmContextForResponse.length > 0) {
-      const firstLtmItem = ltmContextForResponse[0] as LtmQueryResult; // Type assertion
-      if (firstLtmItem && firstLtmItem.text) {
+      const firstLtmItem = ltmContextForResponse[0] as LtmQueryResult; // Type assertion still needed
+      if (firstLtmItem && firstLtmItem.text) { // Check if text property exists
           let ltmPreamble = `I recall from our records that: "${firstLtmItem.text.substring(0, 150)}${firstLtmItem.text.length > 150 ? '...' : ''}". `;
           textResponse = ltmPreamble + textResponse;
-          console.log(`[Handler] Augmented response with LTM context: ${ltmPreamble}`);
+          console.log(`[Handler][${interfaceType}] Augmented response with LTM context: ${ltmPreamble}`);
       }
   }
 
@@ -1215,9 +1224,9 @@ function getCurrentUserId(): string {
  * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/activate
  */
 export async function activateConversationWrapper(): Promise<{ status: string; active: boolean; message?: string }> {
-  console.log("[Handler] Received request to activate conversation.");
+  console.log(`[Handler][voice] Received request to activate conversation (assumed for voice).`);
   // activateConversation itself now sets isAgentResponding to false.
-  const result = conversationManager.activateConversation();
+  const result = conversationManager.activateConversation('voice');
   return { ...result, message: result.status };
 }
 
@@ -1226,9 +1235,10 @@ export async function activateConversationWrapper(): Promise<{ status: string; a
  * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/deactivate
  */
 export async function deactivateConversationWrapper(reason: string = "manual_deactivation"): Promise<{ status: string; active: boolean; message?: string }> {
-  console.log(`[Handler] Received request to deactivate conversation. Reason: ${reason}`);
+  console.log(`[Handler][voice] Received request to deactivate conversation. Reason: ${reason}`);
   // deactivateConversation itself now sets isAgentResponding to false.
-  conversationManager.deactivateConversation(reason);
+  // Deactivates 'voice' by default. If text needs separate deactivation, it needs its own endpoint/logic.
+  conversationManager.deactivateConversation('voice', reason);
   return { status: `Conversation deactivated due to ${reason}.`, active: false, message: `Conversation deactivated due to ${reason}.` };
 }
 
@@ -1237,23 +1247,24 @@ export async function deactivateConversationWrapper(reason: string = "manual_dea
  * Assumed to be mapped to an HTTP endpoint like POST /atom-agent/interrupt
  */
 export async function handleInterruptWrapper(): Promise<{ status: string; message: string }> {
-  console.log("[Handler] Received interrupt signal.");
+  console.log("[Handler][voice] Received interrupt signal.");
   // Key action: Signal that the agent should stop its current response processing/output.
-  conversationManager.setAgentResponding(false);
+  // Primarily for voice interface, as text doesn't usually have an agent "speaking" state to interrupt.
+  conversationManager.setAgentResponding('voice', false);
 
   // Optional: Could also deactivate conversation entirely or just reset timer to allow immediate next command.
   // For now, just stopping agent response and keeping conversation active.
-  // conversationManager.activateConversation(); // This would reset the timer and keep it active.
+  // conversationManager.activateConversation('voice'); // This would reset the timer and keep it active.
   // Or, if an interrupt means "stop everything":
-  // conversationManager.deactivateConversation("interrupt_signal");
+  // conversationManager.deactivateConversation('voice', "interrupt_signal");
 
-  // For now, the primary effect is setting isAgentResponding = false.
-  // The wake_word_detector will follow up with an activate & new conversation input.
+  // For now, the primary effect is setting isAgentResponding = false for 'voice'.
+  // The wake_word_detector will follow up with an activate & new conversation input for 'voice'.
   // This ensures the agent is receptive.
   // If there were long-running tasks tied to the previous response, they should ideally check
-  // checkIfAgentIsResponding() and halt. This is not implemented in skills yet.
+  // conversationManager.checkIfAgentIsResponding('voice') and halt. This is not implemented in skills yet.
 
-  return { status: "success", message: "Interrupt signal processed. Agent responding state set to false." };
+  return { status: "success", message: "Interrupt signal processed for voice interface. Agent responding state set to false." };
 }
 
 
@@ -1265,49 +1276,51 @@ export async function handleInterruptWrapper(): Promise<{ status: string; messag
 export async function handleConversationInputWrapper(
   payload: { text: string }
 ): Promise<HandleMessageResponse | { error: string; active: boolean; message?: string }> {
+  const interfaceType: InterfaceType = 'voice'; // This wrapper is for voice interactions
   const { text } = payload;
-  console.log(`[Handler] Received conversation input: "${text}"`);
+  console.log(`[Handler][${interfaceType}] Received conversation input: "${text}"`);
 
   const userId = getCurrentUserId();
 
-  conversationManager.recordUserInteraction(text);
+  conversationManager.recordUserInteraction(interfaceType, text);
 
-  if (!conversationManager.isConversationActive()) {
-    console.log("[Handler] Conversation is not active. Ignoring input.");
-    conversationManager.setAgentResponding(false);
+  if (!conversationManager.isConversationActive(interfaceType)) {
+    console.log(`[Handler][${interfaceType}] Conversation is not active. Ignoring input.`);
+    conversationManager.setAgentResponding(interfaceType, false);
     return {
       error: "Conversation not active. Please activate with wake word or activation command.",
-      active: false,
+      active: conversationManager.isConversationActive(interfaceType),
       message: "Conversation is not active. Wake word or activation needed.",
     };
   }
 
-  if (conversationManager.checkIfAgentIsResponding()) {
-    console.warn("[Handler] New input received while agent was still marked as responding.");
-    conversationManager.setAgentResponding(false);
+  if (conversationManager.checkIfAgentIsResponding(interfaceType)) {
+    console.warn(`[Handler][${interfaceType}] New input received while agent was still marked as responding.`);
+    // This implies an interruption, so agent should stop current response.
+    conversationManager.setAgentResponding(interfaceType, false);
   }
 
-  conversationManager.setAgentResponding(true);
+  conversationManager.setAgentResponding(interfaceType, true);
 
-  console.log("[Handler] Conversation active. Processing message...");
-  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(text, userId);
+  console.log(`[Handler][${interfaceType}] Conversation active. Processing message...`);
+  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(interfaceType, text, userId);
 
   // Record agent's core text response (before TTS) into conversation history
   // NLU results (intent, entities) from this turn can also be added to turnHistory here.
   const currentTurnIntent = nluResponse?.intent || undefined;
   const currentTurnEntities = nluResponse?.entities || undefined;
-  conversationManager.recordAgentResponse(text, { text: coreResponseText }, currentTurnIntent, currentTurnEntities);
+  conversationManager.recordAgentResponse(interfaceType, text, { text: coreResponseText }, currentTurnIntent, currentTurnEntities);
 
 
   // STM to LTM Processing (Fire-and-forget for now)
   if (ltmDbConnection) {
     try {
-      const currentConversationState = getConversationStateSnapshot();
+      const currentConversationState = conversationManager.getConversationStateSnapshot(interfaceType);
       processSTMToLTM(userId, currentConversationState, ltmDbConnection)
-        .then(() => console.log('[Handler] STM to LTM processing initiated.'))
-        .catch(err => console.error('[Handler] Error in STM to LTM processing:', err));
+        .then(() => console.log(`[Handler][${interfaceType}] STM to LTM processing initiated.`))
+        .catch(err => console.error(`[Handler][${interfaceType}] Error in STM to LTM processing:`, err));
     } catch (error) {
-      console.error('[Handler] Error initiating STM to LTM processing:', error);
+      console.error(`[Handler][${interfaceType}] Error initiating STM to LTM processing:`, error);
     }
   } else {
       console.warn('[Handler] LTM DB connection not available, skipping STM to LTM processing.');
@@ -1325,23 +1338,23 @@ export async function handleConversationInputWrapper(
     if (ttsResponse.ok) {
       const ttsResult = await ttsResponse.json();
       if (ttsResult.audio_url) {
-        console.log("[Handler] TTS synthesis successful. Audio URL generated.");
-        conversationManager.setAgentResponding(false); // Agent finished processing and responding
+        console.log(`[Handler][${interfaceType}] TTS synthesis successful. Audio URL generated.`);
+        conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing and responding
         return { text: coreResponseText, audioUrl: ttsResult.audio_url };
       } else {
-        console.error("[Handler] TTS response OK, but no audio_url:", ttsResult);
-        conversationManager.setAgentResponding(false); // Agent finished processing (with error)
+        console.error(`[Handler][${interfaceType}] TTS response OK, but no audio_url:`, ttsResult);
+        conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing (with error)
         return { text: coreResponseText, error: "TTS synthesis succeeded but no audio URL was returned." };
       }
     } else {
       const errorBody = await ttsResponse.text();
-      console.error("[Handler] TTS request failed:", ttsResponse.status, errorBody);
-      conversationManager.setAgentResponding(false); // Agent finished processing (with error)
+      console.error(`[Handler][${interfaceType}] TTS request failed:`, ttsResponse.status, errorBody);
+      conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing (with error)
       return { text: coreResponseText, error: `Failed to synthesize audio. Status: ${ttsResponse.status}` };
     }
   } catch (error: any) {
-    console.error("[Handler] Error calling TTS service:", error.message, error.stack);
-    conversationManager.setAgentResponding(false); // Agent finished processing (with error)
+    console.error(`[Handler][${interfaceType}] Error calling TTS service:`, error.message, error.stack);
+    conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing (with error)
     return { text: coreResponseText, error: "Error occurred during audio synthesis." };
   }
 }
@@ -1353,68 +1366,81 @@ export async function handleConversationInputWrapper(
  * If Hasura actions need to be part of conversational flow, this would require more thought.
  */
 export async function handleMessage(message: string): Promise<HandleMessageResponse> {
-  console.log(`[Handler - Hasura Action] Received message: "${message}"`);
+  const interfaceType: InterfaceType = 'text'; // This handler is for text-based interactions (e.g., Hasura)
+  console.log(`[Handler][${interfaceType}] Received message: "${message}"`);
   const userId = getCurrentUserId();
 
   // Hasura actions are typically independent and don't use the conversation state's isAgentResponding flag.
   // If they were to, it would need careful consideration of how they fit into the conversation flow.
-  // conversationManager.setAgentResponding(true); // Example if it were conversational
+  // conversationManager.setAgentResponding(interfaceType, true);
 
-  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(message, userId);
-
-  // conversationManager.setAgentResponding(false); // Example if it were conversational
-
-  try {
-    const ttsPayload = { text: coreResponseText };
-    const ttsResponse = await fetch(AUDIO_PROCESSOR_TTS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ttsPayload)
-    });
-
-    if (ttsResponse.ok) {
-      const ttsResult = await ttsResponse.json();
-      if (ttsResult.audio_url) {
-        return { text: coreResponseText, audioUrl: ttsResult.audio_url };
-      } else {
-        console.error("[Handler - Hasura Action] TTS response OK, but no audio_url:", ttsResult);
-        return { text: coreResponseText, error: "TTS synthesis succeeded but no audio URL was returned." };
-      }
-    } else {
-      const errorBody = await ttsResponse.text();
-      console.error("[Handler - Hasura Action] TTS request failed:", ttsResponse.status, errorBody);
-      return { text: coreResponseText, error: `Failed to synthesize audio. Status: ${ttsResponse.status}` };
-    }
-  } catch (error: any) {
-    console.error("[Handler - Hasura Action] Error calling TTS service:", error.message, error.stack);
-    return { text: coreResponseText, error: "Error occurred during audio synthesis." };
+  // Activate conversation for this interaction if not already active (for LTM context, etc.)
+  // This is a simplified model; a more robust system might have explicit session management for text.
+  if (!conversationManager.isConversationActive(interfaceType)) {
+    conversationManager.activateConversation(interfaceType);
   }
+  conversationManager.recordUserInteraction(interfaceType, message);
+
+  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(interfaceType, message, userId);
+
+  // Record agent's response
+  const currentTurnIntent = nluResponse?.intent || undefined;
+  const currentTurnEntities = nluResponse?.entities || undefined;
+  conversationManager.recordAgentResponse(interfaceType, message, { text: coreResponseText }, currentTurnIntent, currentTurnEntities);
+
+  // STM to LTM Processing for text interface as well
+  if (ltmDbConnection) {
+    try {
+      const currentConversationState = conversationManager.getConversationStateSnapshot(interfaceType);
+      processSTMToLTM(userId, currentConversationState, ltmDbConnection)
+        .then(() => console.log(`[Handler][${interfaceType}] STM to LTM processing initiated.`))
+        .catch(err => console.error(`[Handler][${interfaceType}] Error in STM to LTM processing:`, err));
+    } catch (error) {
+      console.error(`[Handler][${interfaceType}] Error initiating STM to LTM processing:`, error);
+    }
+  }
+
+  // For 'text' interface, we do NOT call TTS.
+  // conversationManager.setAgentResponding(interfaceType, false); // Agent has finished.
+
+  // Deactivate after single text interaction, unless a longer session is desired.
+  // For now, let's assume single interaction for Hasura.
+  conversationManager.deactivateConversation(interfaceType, "completed_text_interaction");
+
+
+  return { text: coreResponseText }; // No audioUrl or error from TTS for text interface.
 }
 
 // Example for testing the conversation state (manual activation)
 // This would be mapped to an endpoint like /atom-agent/test-activate
 export async function testActivateConversation() {
-    conversationManager._test_setConversationActive(true); // This itself calls activateConversation now
+  // Test with 'voice' interface by default for this test wrapper
+    conversationManager._test_setConversationActive('voice', true); // This itself calls activateConversation now
     return {
-      status: "Conversation manually activated for testing via _test_setConversationActive.",
-      active: conversationManager.isConversationActive(),
-      agentResponding: conversationManager.checkIfAgentIsResponding()
+      status: "Conversation manually activated for testing (voice interface) via _test_setConversationActive.",
+      active: conversationManager.isConversationActive('voice'),
+      agentResponding: conversationManager.checkIfAgentIsResponding('voice')
     };
 }
 
 export async function testDeactivateConversation() {
-    conversationManager._test_setConversationActive(false); // This itself calls deactivateConversation now
+    // Test with 'voice' interface by default
+    conversationManager._test_setConversationActive('voice', false); // This itself calls deactivateConversation now
     return {
-      status: "Conversation manually deactivated for testing via _test_setConversationActive.",
-      active: conversationManager.isConversationActive(),
-      agentResponding: conversationManager.checkIfAgentIsResponding()
+      status: "Conversation manually deactivated for testing (voice interface) via _test_setConversationActive.",
+      active: conversationManager.isConversationActive('voice'),
+      agentResponding: conversationManager.checkIfAgentIsResponding('voice')
     };
 }
 
 export async function getConversationStatus() {
+    // Provide status for both interfaces
     return {
-        active: conversationManager.isConversationActive(),
-        agentResponding: conversationManager.checkIfAgentIsResponding(),
-        state: conversationManager.getConversationStateSnapshot()
+        voice_active: conversationManager.isConversationActive('voice'),
+        voice_agentResponding: conversationManager.checkIfAgentIsResponding('voice'),
+        text_active: conversationManager.isConversationActive('text'),
+        text_agentResponding: conversationManager.checkIfAgentIsResponding('text'),
+        voice_state: conversationManager.getConversationStateSnapshot('voice'),
+        text_state: conversationManager.getConversationStateSnapshot('text')
     };
 }
