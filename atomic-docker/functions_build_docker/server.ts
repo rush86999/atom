@@ -11,6 +11,12 @@ import qs from 'qs'
 import * as jose from 'jose'
 import http from 'http'
 
+// Agenda imports
+import { startAgenda, stopAgenda } from '../../project/functions/agendaService' // Adjust path if needed
+import { _internalHandleMessage } from '../../project/functions/atom-agent/handler' // Adjust path if needed
+import type { InterfaceType } from '../../project/functions/atom-agent/conversationState' // Adjust path if needed
+
+
 const PORT = 3000
 
 const PORT2 = 3030
@@ -404,14 +410,83 @@ const main = async () => {
 
   await Promise.all(workerHandlers?.map(handler => handler()))
 
+  // Start Agenda
+  await startAgenda().catch(error => {
+    console.error('Failed to start Agenda:', error)
+    // Optionally exit or handle critical failure
+  });
+
+  // Define the /api/agent-handler endpoint
+  // This endpoint is called by Agenda jobs to execute scheduled tasks.
+  // It should be protected if exposed externally, but here assuming it's internal or appropriately firewalled.
+  // The main app `app` uses port 3000, `app2` uses 3030.
+  // We'll add this to `app` which listens on PORT (3000 by default).
+  // The AGENT_INTERNAL_INVOKE_URL in agendaService.ts was set to 'http://localhost:3001/api/agent-handler'.
+  // This needs to align. If this server.ts runs on 3000, then AGENT_INTERNAL_INVOKE_URL should be 3000.
+  // For now, I'll add the handler to `app` (PORT 3000).
+  // If AGENT_INTERNAL_INVOKE_URL is meant to be a different port, this needs adjustment.
+  app.post('/api/agent-handler', async (req: Request, res) => {
+    console.log('[/api/agent-handler] Received request from Agenda job runner');
+    const { message, userId, intentName, entities, requestSource, conversationId } = req.body;
+
+    if (!userId || !intentName || !requestSource || requestSource !== 'ScheduledJobExecutor') {
+      console.error('[/api/agent-handler] Invalid payload:', req.body);
+      return res.status(400).json({ error: 'Invalid payload for scheduled task' });
+    }
+
+    try {
+      // Determine interfaceType. For scheduled tasks, 'text' or a dedicated type.
+      const interfaceType: InterfaceType = 'text'; // Or 'scheduled' if defined in InterfaceType
+
+      const options = {
+        requestSource,
+        intentName,
+        entities,
+        conversationId
+      };
+
+      // `message` from payload is the descriptive one like "Execute scheduled task: ${originalUserIntent}"
+      const result = await _internalHandleMessage(interfaceType, message, userId, options);
+
+      console.log('[/api/agent-handler] Task processed. Result:', result.text);
+      // The response to Agenda job doesn't need to be complex, just indicate success/failure.
+      // The actual outcome of the task (e.g., email sent) is handled by the skill.
+      return res.status(200).json({ success: true, message: "Task processed", details: result.text });
+    } catch (error: any) {
+      console.error('[/api/agent-handler] Error processing scheduled task:', error);
+      return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    }
+  });
+
+
   httpServer.listen(PORT, () => {
-    console.log(`Listening on port ${PORT}`)
+    console.log(`HTTP Server with Agent Handler listening on port ${PORT}`)
   })
 
   httpServer2.listen(PORT2, () => {
-    console.log(`Listening on port ${PORT2}`)
+    console.log(`HTTP Server 2 listening on port ${PORT2}`)
   })
+
+  // Graceful shutdown
+  const shutdown = async (signal: string) => {
+    console.log(`\n${signal} received. Shutting down...`);
+    await stopAgenda();
+    // Add any other cleanup here
+    httpServer.close(() => {
+      console.log('HTTP server closed.');
+      httpServer2.close(() => {
+        console.log('HTTP server 2 closed.');
+        process.exit(0);
+      });
+    });
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 }
 
-main()
+main().catch(error => {
+  console.error("Error during main execution:", error);
+  process.exit(1);
+});
