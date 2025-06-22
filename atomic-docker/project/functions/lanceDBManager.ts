@@ -2,7 +2,7 @@
 import * as lancedb from 'vectordb-lance';
 import { Schema, Field, Float32, Utf8, Timestamp, List, FixedSizeList } from '@lancedb/lancedb/dist/arrow'; // Adjust path if necessary based on actual package structure
 
-const LTM_DB_PATH_PREFIX = './lance_db/'; // Example base path, can be configured
+const DEFAULT_LTM_DB_PATH_PREFIX = './lance_db/'; // Default base path if LANCEDB_URI is not set
 const DEFAULT_VECTOR_DIMENSION = 1536;
 
 function log(message: string, level: 'info' | 'error' = 'info') {
@@ -26,9 +26,9 @@ function log(message: string, level: 'info' | 'error' = 'info') {
 const userProfilesSchema = new Schema([
   new Field('user_id', new Utf8(), false), // Not nullable (Primary Key)
   new Field('preferences', new Utf8(), true), // JSON string
-  new Field('interaction_summary_embeddings', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true),
-  new Field('interaction_history_embeddings', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true), // Placeholder, see LTM_SCHEMAS.md
-  new Field('interaction_summaries', new List(new Field('item', new Utf8(), true)), true),
+  new Field('interaction_summary_embeddings', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true), // Embedding of a holistic summary of all user interactions
+  // interaction_history_embeddings field removed as individual interaction history is stored in knowledge_base table
+  new Field('interaction_summaries', new List(new Field('item', new Utf8(), true)), true), // Curated list of key textual interaction summaries
   new Field('created_at', new Timestamp('ms'), true),
   new Field('updated_at', new Timestamp('ms'), true),
 ]);
@@ -42,6 +42,8 @@ const knowledgeBaseSchema = new Schema([
   new Field('metadata', new Utf8(), true), // JSON string for tags, categories, etc.
   new Field('created_at', new Timestamp('ms'), true),
   new Field('updated_at', new Timestamp('ms'), true),
+  new Field('feedback_status', new Utf8(), true), // e.g., 'verified', 'unreviewed', 'flagged_inaccurate', 'flagged_outdated'
+  new Field('feedback_notes', new Utf8(), true), // Optional textual notes for feedback
 ]);
 
 // ResearchFindings Schema
@@ -56,26 +58,46 @@ const researchFindingsSchema = new Schema([
   new Field('project_page_id', new Utf8(), true), // Optional link to Notion page
   new Field('created_at', new Timestamp('ms'), true),
   new Field('updated_at', new Timestamp('ms'), true),
+  new Field('feedback_status', new Utf8(), true), // e.g., 'verified', 'unreviewed', 'flagged_inaccurate', 'flagged_outdated'
+  new Field('feedback_notes', new Utf8(), true), // Optional textual notes for feedback
 ]);
 
 
 /**
- * Initializes and connects to a LanceDB database.
+ * Initializes and connects to a LanceDB database using the LANCEDB_URI environment variable if set,
+ * otherwise defaults to a local path.
  * If the database does not exist at the given path, it will be created.
- * After successful connection, it ensures all necessary tables exist.
- * @param dbName The name of the database (e.g., 'ltm_agent_data').
+ * After successful connection, it ensures all necessary LTM tables exist.
+ * @param dbName The name of the database (e.g., 'ltm_agent_data'). This is appended to the path.
  * @returns A promise that resolves to the database connection object or null if connection fails.
  */
 export async function initializeDB(dbName: string): Promise<lancedb.Connection | null> {
-  const dbPath = `${LTM_DB_PATH_PREFIX}${dbName}.lance`;
+  const lanceDbUriFromEnv = process.env.LANCEDB_URI;
+  let dbPath: string;
+
+  if (lanceDbUriFromEnv) {
+    // Assuming LANCEDB_URI is a directory path. Append dbName.lance to it.
+    // Ensure it ends with a slash if it's a directory.
+    const baseUri = lanceDbUriFromEnv.endsWith('/') ? lanceDbUriFromEnv : `${lanceDbUriFromEnv}/`;
+    dbPath = `${baseUri}${dbName}.lance`;
+    log(`Using LANCEDB_URI from environment: ${baseUri}`);
+  } else {
+    dbPath = `${DEFAULT_LTM_DB_PATH_PREFIX}${dbName}.lance`;
+    log(`LANCEDB_URI not set in environment. Using default path prefix: ${DEFAULT_LTM_DB_PATH_PREFIX}`, 'info');
+  }
+
   log(`Initializing LanceDB at path: ${dbPath}`);
   try {
+    // Ensure the directory exists before connecting (lancedb.connect might not create it)
+    // This part might need adjustment based on OS and permissions.
+    // For simplicity, assuming the directory structure is managed externally or lancedb handles it.
+    // For local file-based DBs, make sure the path is writable.
     const db = await lancedb.connect(dbPath);
     log(`Successfully connected to LanceDB: ${dbPath}`);
     await ensureTablesExist(db);
     return db;
-  } catch (error) {
-    log(`Error connecting to or creating LanceDB at ${dbPath}: ${error}`, 'error');
+  } catch (error: any) {
+    log(`Error connecting to or creating LanceDB at ${dbPath}: ${error.message || error}`, 'error');
     return null;
   }
 }
@@ -314,4 +336,137 @@ async function setupDatabase() {
 // setupDatabase().then(() => log("Example setup finished.")).catch(e => log(`Example setup failed: ${e}`, 'error'));
 */
 
-log('LanceDBManager module loaded with table creation logic.');
+/**
+ * Updates one or more records in the specified LanceDB table that match a filter.
+ * Note: LanceDB's Node.js API for updates might be evolving.
+ * This function assumes a conceptual `table.update(values, filter)` method or similar.
+ * As of `vectordb-lance@0.2.2`, direct updates based on a filter are not explicitly documented
+ * in the same way as `delete(filter)`. This might require a delete-then-add pattern if direct
+ * conditional update isn't available or efficient.
+ * For simplicity, this example will use `table.mergeInsert` if applicable, or simulate by delete+add.
+ * A more robust solution would depend on the exact capabilities of the LanceDB version.
+ *
+ * This function will update the `updated_at` timestamp automatically.
+ *
+ * **Important:** This implementation uses a delete-then-add pattern as a workaround for
+ * potential limitations in direct conditional updates in some LanceDB Node.js versions.
+ * This means the operation is **not atomic** and could lead to data loss if an error
+ * occurs after deletion but before re-insertion. Use with caution or ensure the LanceDB
+ * version in use supports a more direct and atomic update method.
+ *
+ * @param db The LanceDB connection object.
+ * @param tableName The name of the table to update records in.
+ * @param recordIdField The name of the field to identify the record(s) (e.g., 'fact_id', 'user_id').
+ * @param recordIdValue The value of the identifier for the record(s) to update.
+ * @param updatedFields An object containing the fields to update and their new values.
+ *                      Do not include the recordIdField in updatedFields.
+ */
+export async function updateRecord(
+  db: lancedb.Connection,
+  tableName: string,
+  recordIdField: string,
+  recordIdValue: string,
+  updatedFields: Record<string, any>
+): Promise<void> {
+  if (!db) {
+    log('Database connection not provided to updateRecord.', 'error');
+    return Promise.reject(new Error('Database connection not provided.'));
+  }
+  if (!tableName || !recordIdField || !recordIdValue) {
+    log('Table name, recordIdField, or recordIdValue not provided to updateRecord.', 'error');
+    return Promise.reject(new Error('Table name, recordIdField, or recordIdValue not provided.'));
+  }
+  if (!updatedFields || Object.keys(updatedFields).length === 0) {
+    log('No fields to update provided to updateRecord.', 'error');
+    return Promise.reject(new Error('No fields to update provided.'));
+  }
+  if (updatedFields.hasOwnProperty(recordIdField)) {
+    log(`Cannot update the record ID field ('${recordIdField}') itself.`, 'error');
+    return Promise.reject(new Error(`Cannot update the record ID field ('${recordIdField}') itself.`));
+  }
+
+  const filter = `${recordIdField} = '${recordIdValue}'`;
+  log(`Attempting to update record(s) in table '${tableName}' where ${filter}.`);
+
+  try {
+    const table = await db.openTable(tableName);
+
+    // Add/update the 'updated_at' timestamp
+    const finalUpdatedFields = {
+      ...updatedFields,
+      updated_at: new Date().toISOString(),
+    };
+
+    // LanceDB's `update` method (added in later versions, e.g., 0.4.x for Python, check Node.js specifics)
+    // If table.update(finalUpdatedFields, filter) exists and works:
+    // await table.update(finalUpdatedFields, filter);
+    // log(`Successfully initiated update for record(s) in table '${tableName}' where ${filter}.`);
+
+    // Workaround if direct update is not available/suitable: Delete and Add.
+    // This is less efficient and not atomic.
+    // 1. Fetch the records to be updated.
+    const recordsToUpdate = await table.search().where(filter).execute();
+    if (recordsToUpdate.length === 0) {
+      log(`No records found in table '${tableName}' matching filter '${filter}'. Nothing to update.`);
+      return;
+    }
+    log(`Found ${recordsToUpdate.length} record(s) to update. Performing delete and add.`);
+
+    // 2. Delete the old records.
+    await table.delete(filter);
+    log(`Deleted ${recordsToUpdate.length} old record(s).`);
+
+    // 3. Prepare new records with updated fields.
+    const newRecords = recordsToUpdate.map(record => {
+      const { _distance, ...oldRecordFields } = record; // Remove _distance if present
+      return { ...oldRecordFields, ...finalUpdatedFields };
+    });
+
+    // 4. Add the updated records.
+    await table.add(newRecords);
+    log(`Added ${newRecords.length} updated record(s) to table '${tableName}'.`);
+
+  } catch (error: any) {
+    log(`Error updating record(s) in table '${tableName}': ${error.message}`, 'error');
+    // console.error("Full error object:", error); // For debugging
+    return Promise.reject(error);
+  }
+}
+
+/**
+ * Deletes one or more records from the specified LanceDB table based on a filter.
+ * @param db The LanceDB connection object.
+ * @param tableName The name of the table to delete records from.
+ * @param recordIdField The name of the field to identify the record(s) (e.g., 'fact_id', 'user_id').
+ * @param recordIdValue The value of the identifier for the record(s) to delete.
+ */
+export async function deleteRecord(
+  db: lancedb.Connection,
+  tableName: string,
+  recordIdField: string,
+  recordIdValue: string
+): Promise<void> {
+  if (!db) {
+    log('Database connection not provided to deleteRecord.', 'error');
+    return Promise.reject(new Error('Database connection not provided.'));
+  }
+  if (!tableName || !recordIdField || !recordIdValue) {
+    log('Table name, recordIdField, or recordIdValue not provided to deleteRecord.', 'error');
+    return Promise.reject(new Error('Table name, recordIdField, or recordIdValue not provided.'));
+  }
+
+  const filter = `${recordIdField} = '${recordIdValue}'`;
+  log(`Attempting to delete record(s) from table '${tableName}' where ${filter}.`);
+
+  try {
+    const table = await db.openTable(tableName);
+    await table.delete(filter);
+    log(`Successfully deleted record(s) (if they existed) from table '${tableName}' where ${filter}.`);
+  } catch (error: any) {
+    log(`Error deleting record(s) from table '${tableName}': ${error.message}`, 'error');
+    // console.error("Full error object:", error); // For debugging
+    return Promise.reject(error);
+  }
+}
+
+log('LanceDBManager module loaded with table creation and CRUD logic.');

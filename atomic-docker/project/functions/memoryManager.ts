@@ -85,9 +85,13 @@ export interface LtmQueryResult {
 
 /**
  * Processes Short-Term Memory (STM) and decides what to store in Long-Term Memory (LTM).
+ * If successful, resolves the promise. If a critical error occurs during LTM storage (e.g., DB error),
+ * the promise is rejected. Failure to generate an embedding logs an error but does not cause a rejection.
  * @param userId The ID of the user.
  * @param conversation The current conversation state.
  * @param db The LanceDB connection object.
+ * @returns A promise that resolves if processing is successful or if embedding fails (with logged error),
+ *          and rejects if there's a critical error during LTM storage.
  */
 export async function processSTMToLTM(userId: string, conversation: ConversationState, db: lancedb.Connection): Promise<void> {
   log(`Processing STM to LTM for user: ${userId}`);
@@ -119,6 +123,10 @@ export async function processSTMToLTM(userId: string, conversation: Conversation
     const embedding = await generateEmbedding(summary);
     if (!embedding) {
       log('Failed to generate embedding for STM summary. Skipping LTM storage for this cycle.', 'error');
+      // If embedding generation itself fails, we might not want to reject the whole process,
+      // as it could be a transient issue with the embedding service.
+      // However, if processing stops here, the caller won't know unless inspecting logs.
+      // For now, returning (not rejecting) to maintain previous behavior for this specific case.
       return;
     }
     const currentTime = new Date().toISOString();
@@ -126,7 +134,7 @@ export async function processSTMToLTM(userId: string, conversation: Conversation
     const kbData = {
       fact_id: uuidv4(),
       text_content: summary,
-      text_content_embedding: embedding, // Now correctly typed as number[] | null
+      text_content_embedding: embedding,
       source: `user_interaction_${userId}`,
       metadata: JSON.stringify({
         type: 'user_interaction_summary',
@@ -139,29 +147,44 @@ export async function processSTMToLTM(userId: string, conversation: Conversation
     };
 
     log('Adding user interaction summary to knowledge_base LTM.', kbData);
-    await addRecord(db, 'knowledge_base', kbData);
+    await addRecord(db, 'knowledge_base', kbData); // This returns Promise.reject on failure
     log('Successfully processed and stored STM snapshot to LTM knowledge_base.');
 
   } catch (error) {
     log('Error during STM to LTM processing or LanceDB operation.', 'error', error);
-    // Optionally re-throw or handle as needed
-    // return Promise.reject(error);
+    // Re-throw the error to allow the caller to handle LTM storage failures.
+    return Promise.reject(error);
   }
 }
 
 /**
  * Retrieves relevant information from Long-Term Memory (LTM) based on a query.
+ * Supports basic keyword filtering and optional recency boosting for results.
  * @param queryText The query text to search for.
  * @param userId The ID of the user, for context (can be null if not user-specific).
  * @param db The LanceDB connection object.
- * @param options Optional parameters like table name and topK results.
- * @returns A promise that resolves to an array of LTM query results.
+ * @param options Optional parameters to control retrieval:
+ *   @param table - The LTM table to search (default: 'knowledge_base').
+ *   @param topK - The number of results to return (default: 5).
+ *   @param keywords - An array of keywords to filter by (uses LIKE '%keyword%'). Applied alongside vector search.
+ *                     Primarily effective on 'text_content' (knowledge_base) or 'summary' (research_findings).
+ *   @param boostRecency - If true, re-ranks results to balance similarity and recency (default: false).
+ *   @param recencyWeight - Weight for recency score during re-ranking (0 to 1, default: 0.3). Only if boostRecency is true.
+ *   @param similarityWeight - Weight for similarity score during re-ranking (0 to 1, default: 0.7). Only if boostRecency is true.
+ * @returns A promise that resolves to an array of LTM query results, sorted by relevance.
  */
 export async function retrieveRelevantLTM(
   queryText: string,
   userId: string | null,
   db: lancedb.Connection,
-  options?: { table?: string; topK?: number }
+  options?: {
+    table?: string;
+    topK?: number;
+    keywords?: string[]; // Keywords for basic filtering
+    boostRecency?: boolean; // Flag to enable recency boosting
+    recencyWeight?: number; // Weight for recency score (0 to 1), applies if boostRecency is true
+    similarityWeight?: number; // Weight for similarity score (0 to 1), applies if boostRecency is true
+  }
 ): Promise<LtmQueryResult[]> {
   log(`Retrieving relevant LTM for query: "${queryText}" (User: ${userId || 'N/A'})`, options);
 
@@ -179,56 +202,124 @@ export async function retrieveRelevantLTM(
     const queryEmbedding = await generateEmbedding(queryText);
     if (!queryEmbedding) {
       log('Failed to generate query embedding. Cannot retrieve from LTM.', 'error');
-      return []; // Return empty array or reject promise as per desired error handling
+      return [];
     }
-    const topK = options?.topK || 5;
+
+    const initialTopK = options?.topK || 5;
+    // If boosting recency, fetch more results initially for re-ranking
+    const fetchTopK = options?.boostRecency ? initialTopK * 3 : initialTopK;
 
     let targetTable = options?.table || 'knowledge_base';
     let vectorColumnName = 'text_content_embedding'; // Default for knowledge_base
-    let filter: string | undefined = undefined;
+    let baseFilter: string | undefined = undefined;
 
+    // Determine base filter and vector column based on table
     if (targetTable === 'user_profiles') {
-      // Assuming 'interaction_history_embeddings' is preferred for specific interaction recall.
-      // 'interaction_summary_embeddings' might be for overall user profile similarity.
-      vectorColumnName = 'interaction_history_embeddings';
+      vectorColumnName = 'interaction_summary_embeddings'; // Corrected based on Step 1 analysis
       if (userId) {
-        filter = `user_id = '${userId}'`; // Exact match on user_id
+        baseFilter = `user_id = '${userId}'`;
       } else {
-        // Searching user_profiles without a userId might not be typical for this function's intent,
-        // but if allowed, no filter is applied here.
         log('Warning: Searching user_profiles without a specific userId.', 'info');
       }
     } else if (targetTable === 'knowledge_base' && userId) {
-      // Filter by source for user-specific interactions stored in knowledge_base
-      filter = `source = 'user_interaction_${userId}'`;
+      baseFilter = `source = 'user_interaction_${userId}'`;
     } else if (targetTable === 'research_findings') {
-        vectorColumnName = 'summary_embedding'; // Or 'query_embedding' depending on search intent
+      vectorColumnName = 'summary_embedding'; // Or 'query_embedding' or both, field needs to exist
     }
     // Add more conditions for other tables or vector columns as needed
 
-    log(`Querying table '${targetTable}' with vector column '${vectorColumnName}', topK: ${topK}, filter: '${filter || 'None'}'`);
+    // Incorporate keywords into the filter (Basic Hybrid Search)
+    let combinedFilter = baseFilter;
+    if (options?.keywords && options.keywords.length > 0) {
+      const keywordConditions = options.keywords.map(kw => {
+        let textFieldToSearch = 'text_content'; // Default for knowledge_base
+        if (targetTable === 'research_findings') {
+          textFieldToSearch = 'summary'; // Could also search 'details_text'
+        } else if (targetTable === 'user_profiles') {
+          // User profiles might not have a single 'text_content' field for keyword search.
+          // This part needs careful consideration. For now, let's assume keywords are less relevant for 'user_profiles'
+          // or would apply to a specific text field if one exists (e.g., a bio).
+          // Sticking to knowledge_base and research_findings for keyword search for now.
+          if (targetTable !== 'knowledge_base' && targetTable !== 'research_findings') return null;
+        }
+        return `${textFieldToSearch} LIKE '%${kw.replace(/'/g, "''")}%'`;
+      }).filter(Boolean).join(' AND '); // filter(Boolean) removes nulls
 
-    const searchResults = await searchTable(db, targetTable, queryEmbedding, topK, vectorColumnName, filter);
+      if (keywordConditions) {
+        if (combinedFilter) {
+          combinedFilter = `(${combinedFilter}) AND (${keywordConditions})`;
+        } else {
+          combinedFilter = keywordConditions;
+        }
+      }
+    }
 
-    log(`Retrieved ${searchResults.length} results from LTM table '${targetTable}'.`);
+    log(`Querying table '${targetTable}' with vector column '${vectorColumnName}', limit ${fetchTopK}, filter: '${combinedFilter || 'None'}'`);
 
-    return searchResults.map((item: any) => {
-      // Determine id and text based on table structure
+    const rawSearchResults = await searchTable(db, targetTable, queryEmbedding, fetchTopK, vectorColumnName, combinedFilter);
+    log(`Retrieved ${rawSearchResults.length} raw results from LTM table '${targetTable}'.`);
+
+    let finalResults = rawSearchResults.map((item: any) => {
       let id = item.fact_id || item.user_id || item.finding_id || uuidv4();
       let text = item.text_content || item.summary || (item.preferences ? JSON.stringify(item.preferences) : 'N/A');
       if (targetTable === 'user_profiles') {
         text = `User Profile: ${item.user_id}, Prefs: ${item.preferences}, Summaries: ${item.interaction_summaries?.join('; ')}`;
       }
-
-
       return {
         id,
         text,
-        score: item._distance, // LanceDB uses _distance
+        score: item._distance, // LanceDB vector search distance (lower is better)
         metadata: item.metadata ? (typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata) : { original_fields: item },
         table: targetTable,
+        updated_at: item.updated_at, // Ensure updated_at is selected and available
       };
     });
+
+    // Post-retrieval Re-ranking for Recency Boost
+    if (options?.boostRecency && finalResults.length > 0) {
+      log('Applying recency boost re-ranking...');
+      const similarityWeight = options.similarityWeight !== undefined ? options.similarityWeight : 0.7;
+      const recencyWeight = options.recencyWeight !== undefined ? options.recencyWeight : 0.3;
+
+      // Get min/max timestamps for normalization (only from the current batch)
+      const timestamps = finalResults.map(r => new Date(r.updated_at).getTime()).filter(t => !isNaN(t));
+      const minTimestamp = Math.min(...timestamps);
+      const maxTimestamp = Math.max(...timestamps);
+
+      finalResults.forEach(result => {
+        // Normalize similarity score (1 - distance, so higher is better)
+        const normalizedSimilarity = 1 - result.score;
+
+        // Normalize recency score (0 to 1, higher is more recent)
+        let normalizedRecency = 0.5; // Default if only one item or no valid date
+        if (maxTimestamp > minTimestamp) {
+          const itemTimestamp = new Date(result.updated_at).getTime();
+          if (!isNaN(itemTimestamp)) {
+            normalizedRecency = (itemTimestamp - minTimestamp) / (maxTimestamp - minTimestamp);
+          }
+        } else if (timestamps.length === 1) { // if all items have the exact same timestamp or only one item
+            normalizedRecency = 1;
+        }
+
+
+        // Combined score
+        result.score = (similarityWeight * normalizedSimilarity) + (recencyWeight * normalizedRecency);
+        // log(`Re-ranking: ID ${result.id}, OrigDist: ${1-normalizedSimilarity}, NormSim: ${normalizedSimilarity}, NormRec: ${normalizedRecency}, NewScore: ${result.score}`);
+      });
+
+      // Sort by the new combined score in descending order (higher is better)
+      finalResults.sort((a, b) => b.score - a.score);
+      log(`Re-ranking complete. Top score after re-ranking: ${finalResults[0]?.score}`);
+    } else {
+        // If not boosting recency, ensure score is similarity (1-distance)
+        finalResults.forEach(result => {
+            result.score = 1 - result.score; // Higher is better
+        });
+        finalResults.sort((a, b) => b.score - a.score); // Sort by similarity
+    }
+
+
+    return finalResults.slice(0, initialTopK);
 
   } catch (error) {
     log('Error during LTM retrieval or LanceDB operation.', 'error', error);
