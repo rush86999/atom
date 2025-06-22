@@ -113,6 +113,41 @@ actions:
       - role: user
     comment: "Fetches the detailed content of a specific Gmail message for the authenticated user."
 
+  - name: get_gmail_connection_status # This is a Query action
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-gmail-connection-status" # Ensure this path matches deployment
+      # Request transform for queries might be simpler if no specific input args are needed beyond session
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "session_variables": {{ $.session_variables }}
+          }
+      # output_type is inferred from actions.graphql (GmailConnectionStatusOutput)
+      # type is inferred as query from actions.graphql
+    permissions:
+      - role: user
+    comment: "Gets the status of the user's Gmail account connection."
+
+  - name: disconnect_gmail_account
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/disconnect-gmail-account" # Ensure this path matches deployment
+      request_transform: # No specific input args beyond session variables for a simple disconnect
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "session_variables": {{ $.session_variables }}
+          }
+      # output_type is inferred from actions.graphql (DisconnectGmailAccountOutput)
+      # type is inferred as mutation from actions.graphql
+    permissions:
+      - role: user
+    comment: "Disconnects the user's Gmail account by deleting their stored OAuth tokens."
+
 custom_types:
   enums: []
   input_objects:
@@ -132,6 +167,8 @@ custom_types:
     - name: GmailMessagePayloadHeader # New
     - name: GmailMessagePartBody # New
     - name: GmailMessagePart # New
-    - name: GmailMessageContent # New
-    - name: GetUserGmailContentOutput # New
+    - name: GmailMessageContent
+    - name: GetUserGmailContentOutput
+    - name: GmailConnectionStatusOutput
+    - name: DisconnectGmailAccountOutput # New
   scalars: []

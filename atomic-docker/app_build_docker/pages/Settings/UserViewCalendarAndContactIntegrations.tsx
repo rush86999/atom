@@ -99,6 +99,26 @@ const GENERATE_GMAIL_AUTH_URL_MUTATION = gql`
   }
 `;
 
+// GraphQL for Gmail Connection Status and Disconnect
+const GET_GMAIL_CONNECTION_STATUS_QUERY = gql`
+  query GetGmailConnectionStatus {
+    getGmailConnectionStatus {
+      isConnected
+      userEmail
+    }
+  }
+`;
+
+const DISCONNECT_GMAIL_ACCOUNT_MUTATION = gql`
+  mutation DisconnectGmailAccount {
+    disconnectGmailAccount {
+      success
+      message
+    }
+  }
+`;
+
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '@config/backendConfig'
@@ -243,6 +263,12 @@ function UserViewCalendarAndContactIntegrations() {
     const [isGoogleCalendarList, setIsGoogleCalendarList] = useState<boolean>(false)
     const [googleToken, setGoogleToken] = useState<string>()
 
+    // State for Gmail Integration
+    const [isGmailConnected, setIsGmailConnected] = useState<boolean>(false);
+    const [gmailUserEmail, setGmailUserEmail] = useState<string | null>(null);
+    const [isGmailStatusLoading, setIsGmailStatusLoading] = useState<boolean>(true);
+
+
     const googleCalendarElement = useRef<any>()
     const toast = useToast()
     // const dark = useColorScheme() === 'dark'
@@ -301,6 +327,68 @@ function UserViewCalendarAndContactIntegrations() {
   
   // just in case
  
+  useEffect(() => {
+    // Fetch Gmail connection status on mount
+    setIsGmailStatusLoading(true);
+    client.query({ query: GET_GMAIL_CONNECTION_STATUS_QUERY, fetchPolicy: 'network-only' }) // fetchPolicy to ensure fresh data
+      .then(response => {
+        const status = response.data?.getGmailConnectionStatus;
+        if (status) {
+          setIsGmailConnected(status.isConnected);
+          setGmailUserEmail(status.userEmail || null);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching Gmail connection status:", err);
+        toast({
+          title: 'Error Fetching Gmail Status',
+          description: err.message || "Could not fetch Gmail connection details.",
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        // Assume not connected on error, or keep current state? For now, assume not connected.
+        setIsGmailConnected(false);
+        setGmailUserEmail(null);
+      })
+      .finally(() => {
+        setIsGmailStatusLoading(false);
+      });
+  }, [client, toast]); // Add client and toast to dependency array
+
+  const handleDisconnectGmail = async () => {
+    setLoading(true); // Reuse general loading state, or use a specific one for Gmail disconnect
+    try {
+      const response = await client.mutate({
+        mutation: DISCONNECT_GMAIL_ACCOUNT_MUTATION,
+      });
+      if (response.data?.disconnectGmailAccount?.success) {
+        toast({
+          title: 'Gmail Disconnected',
+          description: response.data.disconnectGmailAccount.message || 'Successfully disconnected your Gmail account.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        setIsGmailConnected(false);
+        setGmailUserEmail(null);
+      } else {
+        throw new Error(response.data?.disconnectGmailAccount?.message || 'Failed to disconnect Gmail account.');
+      }
+    } catch (error) {
+      console.error('Error disconnecting Gmail:', error);
+      toast({
+        title: 'Error Disconnecting Gmail',
+        description: (error as Error).message || 'Could not disconnect Gmail. Please try again.',
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
         if (googleCalendarEnabled) {
             toast({
@@ -672,18 +760,33 @@ function UserViewCalendarAndContactIntegrations() {
                   Gmail Integration
                 </Text>
                 {/*
-                  TODO: Add logic to check if Gmail is already connected.
-                  If connected, show "Gmail Connected" and a "Disconnect" button.
-                  For now, always showing the "Connect" button.
-                */}
-                <Pressable onPress={handleConnectGmail} disabled={loading || googleIntegrationLoading}>
-                  <Image
-                      src={googleButtonNormal} // Using Google button for now, replace with specific Gmail button if available
-                      style={{ width: 240, height: 50 }}
-                      alt={'Connect Gmail button'}
-                  />
-                </Pressable>
-                {(loading || googleIntegrationLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
+                  Gmail Integration
+                </Text>
+                {isGmailStatusLoading ? (
+                  <ActivityIndicator size="small" color={palette.primary} style={{ marginTop: 10 }} />
+                ) : isGmailConnected ? (
+                  <Box alignItems="center">
+                    <Text variant="body" mb="s">
+                      {gmailUserEmail ? `Connected as: ${gmailUserEmail}` : "Gmail is connected."}
+                    </Text>
+                    <Button
+                      label="Disconnect Gmail"
+                      onClick={handleDisconnectGmail}
+                      variant="warning" // Assuming Button component can take a variant for styling
+                      disabled={loading} // General loading state for button presses
+                    />
+                  </Box>
+                ) : (
+                  <Pressable onPress={handleConnectGmail} disabled={loading || googleIntegrationLoading}>
+                    <Image
+                        src={googleButtonNormal} // Using Google button for now
+                        style={{ width: 240, height: 50 }}
+                        alt={'Connect Gmail button'}
+                    />
+                  </Pressable>
+                )}
+                {/* Show general loading indicator if connect/disconnect is in progress and not covered by isGmailStatusLoading */}
+                {(loading && !isGmailStatusLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
               </Box>
 
             </Box>

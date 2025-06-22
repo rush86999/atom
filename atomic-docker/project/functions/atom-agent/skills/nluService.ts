@@ -268,6 +268,108 @@ export async function understandMessage(
       // The email_command_handler.ts would then expect these structured entities.
       // For now, the handler might need to do some of this mapping itself if NLU only provides raw LLM entities.
 
+      // --- BEGIN Date Resolution and Entity Structuring for QueryEmails ---
+      if (processed.intent === "QueryEmails" && processed.entities) {
+        const { date_query, ...otherEntities } = processed.entities;
+        const resolvedDates: { after?: string; before?: string } = {};
+
+        if (date_query && typeof date_query === 'string') {
+          console.log(`[NLU Service] Raw date_query from LLM: "${date_query}"`);
+          // TODO: Replace this with a robust date parsing library (e.g., date-fns, dayjs, chrono-node)
+          // This is a very basic placeholder for date resolution.
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
+
+          // Helper to format date as YYYY/MM/DD
+          const formatDate = (d: Date) => `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
+
+          const lcDateQuery = date_query.toLowerCase();
+
+          if (lcDateQuery === "today") {
+            resolvedDates.after = formatDate(new Date(now.setHours(0, 0, 0, 0)));
+            resolvedDates.before = formatDate(new Date(now.setHours(23, 59, 59, 999)));
+          } else if (lcDateQuery === "yesterday") {
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+            resolvedDates.after = formatDate(new Date(yesterday.setHours(0, 0, 0, 0)));
+            resolvedDates.before = formatDate(new Date(yesterday.setHours(23, 59, 59, 999)));
+          } else if (lcDateQuery.includes("last week")) {
+            const dayOfWeek = now.getDay(); // 0 (Sun) - 6 (Sat)
+            const lastMonday = new Date(now);
+            lastMonday.setDate(now.getDate() - dayOfWeek - 6); // Go to previous Monday (start of last week)
+            lastMonday.setHours(0,0,0,0);
+            const lastSunday = new Date(lastMonday);
+            lastSunday.setDate(lastMonday.getDate() + 6);
+            lastSunday.setHours(23,59,59,999);
+            resolvedDates.after = formatDate(lastMonday);
+            resolvedDates.before = formatDate(lastSunday);
+          } else if (lcDateQuery.includes("this week")) {
+            const dayOfWeek = now.getDay();
+            const currentMonday = new Date(now);
+            currentMonday.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) ); // Adjust for Sunday being 0
+            currentMonday.setHours(0,0,0,0);
+            const currentSunday = new Date(currentMonday);
+            currentSunday.setDate(currentMonday.getDate() + 6);
+            currentSunday.setHours(23,59,59,999);
+            resolvedDates.after = formatDate(currentMonday);
+            resolvedDates.before = formatDate(currentSunday);
+          } else if (lcDateQuery.includes("last month")) {
+            const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0); // Day 0 of current month is last day of previous
+            resolvedDates.after = formatDate(firstDayLastMonth);
+            resolvedDates.before = formatDate(lastDayLastMonth);
+          } else if (lcDateQuery.includes("this month")) {
+            const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDayThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            resolvedDates.after = formatDate(firstDayThisMonth);
+            resolvedDates.before = formatDate(lastDayThisMonth);
+          }
+          // Add more specific parsing for "in July", "a few months ago", "since Monday" etc.
+          // This requires a more sophisticated date parsing logic or library.
+          // For "a few months ago" (e.g. 3 months), LLM might provide this directly, or NLU needs to interpret.
+          // Example: if LLM says "3 months ago" -> calculate after/before for that month.
+
+          if (resolvedDates.after || resolvedDates.before) {
+            processed.entities.resolved_date_range = resolvedDates;
+            console.log(`[NLU Service] Resolved date_query "${date_query}" to:`, resolvedDates);
+          } else {
+            console.log(`[NLU Service] Could not resolve date_query "${date_query}" with basic logic. Passing raw.`);
+            // Keep raw date_query if not resolved, llm_email_query_understander might handle it.
+          }
+        }
+        // The email_command_handler.ts will now receive entities including resolved_date_range (if successful)
+        // and the raw entities from the LLM. It will then call llm_email_query_understander.ts
+        // which should ideally use these pre-resolved dates if available.
+
+        // Further prepare entities for email_command_handler.ts
+        // The handler expects: rawEmailSearchQuery and actionRequested
+        if (processed.intent === "QueryEmails" && processed.entities) {
+            // The raw_email_search_query is already expected from the LLM for this intent.
+            // Ensure it's passed through or explicitly set.
+            if (!processed.entities.raw_email_search_query && message) {
+                // Fallback if LLM didn't isolate it, use the original user message.
+                // This might happen if the prompt for QueryEmails isn't perfectly followed by the LLM.
+                // Ideally, the LLM for QueryEmails intent should always return raw_email_search_query.
+                processed.entities.raw_email_search_query = message;
+                console.warn("[NLU Service] LLM did not explicitly return 'raw_email_search_query' for QueryEmails intent. Using original message as fallback.");
+            }
+
+            // Construct the actionRequested object for email_command_handler
+            const actionTypeFromLLM = processed.entities.action_on_email as (EmailActionType | undefined);
+            processed.entities.structured_action_request = {
+                actionType: actionTypeFromLLM || "GET_FULL_CONTENT", // Default if not specified
+                infoKeywords: processed.entities.information_to_extract_keywords || undefined,
+                naturalLanguageQuestion: processed.entities.natural_language_question_about_email || undefined,
+            };
+            // Remove raw action fields from top-level entities if they are now in structured_action_request
+            // to avoid redundancy, or keep them if useful for logging/debugging.
+            // delete processed.entities.action_on_email;
+            // delete processed.entities.information_to_extract_keywords;
+            // delete processed.entities.natural_language_question_about_email;
+        }
+      }
+      // --- END Date Resolution and Entity Structuring ---
+
       return processed;
     } catch (jsonError: any) {
       console.error(`Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`);
