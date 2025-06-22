@@ -1,6 +1,11 @@
 // Manages LanceDB connections and table initializations for LTM
-import * as lancedb from 'vectordb-lance';
-import { Schema, Field, Float32, Utf8, Timestamp, List, FixedSizeList } from '@lancedb/lancedb/dist/arrow'; // Adjust path if necessary based on actual package structure
+import * as lancedb from '@lancedb/lancedb';
+// Schema, Field, etc. should be directly available from '@lancedb/lancedb/arrow' or similar if exposed,
+// or directly from the main package if re-exported.
+// For now, assuming they are directly available or re-exported by '@lancedb/lancedb'
+// If not, this will need adjustment based on the actual package structure of '@lancedb/lancedb'.
+import { Schema, Field, Float32, Utf8, Timestamp, List, FixedSizeList } from '@lancedb/lancedb/arrow';
+
 
 const DEFAULT_LTM_DB_PATH_PREFIX = './lance_db/'; // Default base path if LANCEDB_URI is not set
 const DEFAULT_VECTOR_DIMENSION = 1536;
@@ -116,15 +121,22 @@ export async function createUserProfilesTable(db: lancedb.Connection): Promise<v
     log(`Attempting to create table: ${tableName}.`);
     // Provide an empty array of the correct type for schema creation if no initial data.
     // LanceDB uses Arrow schema, which can be explicitly defined.
-    await db.createTable(tableName, userProfilesSchema, { mode: 'create' });
-    log(`Table '${tableName}' created successfully or already exists.`);
-  } catch (error: any) {
-    if (error.message && error.message.includes('already exists')) { // Error message might vary
-      log(`Table '${tableName}' already exists. No action taken.`);
-    } else {
-      log(`Error creating table '${tableName}': ${error}`, 'error');
-      // console.error(error); // For more detailed error object
+    // The `lancedb` package (version 0.8.0) uses `createTable(name, data)` or `createTable(name, schema)`
+    // and `openTable(name)` or `openTable(name, schema)`.
+    // `createTable` with mode 'create' should attempt to create.
+    // If it fails because it exists, we catch that.
+    try {
+        await db.openTable(tableName);
+        log(`Table '${tableName}' already exists. No action taken.`);
+    } catch (e) {
+        // Assuming error means table does not exist
+        log(`Table '${tableName}' does not exist. Attempting to create.`);
+        await db.createTable(tableName, userProfilesSchema); // Removed mode, as it might not be supported or needed if openTable fails for non-existence
+        log(`Table '${tableName}' created successfully.`);
     }
+  } catch (error: any) {
+    // This outer catch is for errors during the creation attempt itself, not for "already exists"
+    log(`Error during table creation process for '${tableName}': ${error.message || error}`, 'error');
   }
 }
 
@@ -140,14 +152,16 @@ export async function createKnowledgeBaseTable(db: lancedb.Connection): Promise<
   const tableName = 'knowledge_base';
   try {
     log(`Attempting to create table: ${tableName}.`);
-    await db.createTable(tableName, knowledgeBaseSchema, { mode: 'create' });
-    log(`Table '${tableName}' created successfully or already exists.`);
-  } catch (error: any) {
-    if (error.message && error.message.includes('already exists')) {
-      log(`Table '${tableName}' already exists. No action taken.`);
-    } else {
-      log(`Error creating table '${tableName}': ${error}`, 'error');
+    try {
+        await db.openTable(tableName);
+        log(`Table '${tableName}' already exists. No action taken.`);
+    } catch (e) {
+        log(`Table '${tableName}' does not exist. Attempting to create.`);
+        await db.createTable(tableName, knowledgeBaseSchema);
+        log(`Table '${tableName}' created successfully.`);
     }
+  } catch (error: any) {
+    log(`Error during table creation process for '${tableName}': ${error.message || error}`, 'error');
   }
 }
 
@@ -163,14 +177,16 @@ export async function createResearchFindingsTable(db: lancedb.Connection): Promi
   const tableName = 'research_findings';
   try {
     log(`Attempting to create table: ${tableName}.`);
-    await db.createTable(tableName, researchFindingsSchema, { mode: 'create' });
-    log(`Table '${tableName}' created successfully or already exists.`);
-  } catch (error: any) {
-    if (error.message && error.message.includes('already exists')) {
-      log(`Table '${tableName}' already exists. No action taken.`);
-    } else {
-      log(`Error creating table '${tableName}': ${error}`, 'error');
+    try {
+        await db.openTable(tableName);
+        log(`Table '${tableName}' already exists. No action taken.`);
+    } catch (e) {
+        log(`Table '${tableName}' does not exist. Attempting to create.`);
+        await db.createTable(tableName, researchFindingsSchema);
+        log(`Table '${tableName}' created successfully.`);
     }
+  } catch (error: any) {
+    log(`Error during table creation process for '${tableName}': ${error.message || error}`, 'error');
   }
 }
 

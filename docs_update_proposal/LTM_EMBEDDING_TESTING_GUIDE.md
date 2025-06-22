@@ -133,7 +133,7 @@ Create a temporary test script or use an existing entry point for TypeScript exe
 // You might need to compile this to JS first (e.g. using tsc)
 import { initializeDB } from './lanceDBManager'; // Adjust path if needed
 import { retrieveRelevantLTM } from './atom-agent/memoryManager'; // Adjust path
-import * as lancedb from 'vectordb-lance'; // For lancedb.Connection type
+import * as lancedb from '@lancedb/lancedb'; // For lancedb.Connection type
 
 async function testRetrieveFromPython() {
   console.log("TypeScript test: Attempting to retrieve data stored by Python...");
@@ -177,7 +177,7 @@ Use a test script to invoke `processSTMToLTM`.
 import { initializeDB } from './lanceDBManager'; // Adjust path
 import { processSTMToLTM } from './atom-agent/memoryManager'; // Adjust path
 import { ConversationState } from './atom-agent/conversationState'; // Adjust path
-import * as lancedb from 'vectordb-lance';
+import * as lancedb from '@lancedb/lancedb';
 
 async function testStoreTypeScriptData() {
   console.log("TypeScript test: Storing sample conversation summary...");

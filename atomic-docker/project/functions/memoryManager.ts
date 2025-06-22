@@ -1,6 +1,6 @@
 // Manages the interaction between Short-Term Memory (STM) and Long-Term Memory (LTM) stored in LanceDB.
 
-import * as lancedb from 'vectordb-lance'; // For LanceDB connection type
+import * as lancedb from '@lancedb/lancedb'; // For LanceDB connection type
 import {
   getConversationStateSnapshot, // Assuming this is how we might get a state if not passed directly
   updateUserGoal,
