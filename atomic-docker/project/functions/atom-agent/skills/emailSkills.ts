@@ -396,20 +396,95 @@ export interface EmailDetails {
   body: string;
   cc?: string[];
   bcc?: string[];
+  htmlBody?: string; // Optional HTML body
+}
+
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { ENV } from '../../_utils/env'; // Updated path
+import { logger } from '../../_utils/logger'; // Updated path
+
+let sesClient: SESClient | null = null;
+
+function getSESClient(): SESClient {
+  if (sesClient) {
+    return sesClient;
+  }
+  if (!ENV.AWS_REGION || !ENV.AWS_ACCESS_KEY_ID || !ENV.AWS_SECRET_ACCESS_KEY) {
+    logger.error('AWS SES environment variables not fully configured (AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).');
+    throw new Error('AWS SES environment variables not fully configured.');
+  }
+  sesClient = new SESClient({
+    region: ENV.AWS_REGION,
+    credentials: {
+      accessKeyId: ENV.AWS_ACCESS_KEY_ID,
+      secretAccessKey: ENV.AWS_SECRET_ACCESS_KEY,
+    },
+  });
+  return sesClient;
 }
 
 export async function sendEmail(emailDetails: EmailDetails): Promise<SendEmailResponse> {
-  console.log('Sending email with details:', emailDetails);
-  // In a real implementation, this would use a service like Nodemailer (as seen in _utils/email/email.ts)
-  // For now, we just log and return a mock success.
-  if (!emailDetails.to || !emailDetails.subject || !emailDetails.body) {
-    return Promise.resolve({ success: false, message: 'Missing required email details (to, subject, body).' });
+  logger.info('Attempting to send email via AWS SES with details:', emailDetails);
+
+  if (!emailDetails.to || !emailDetails.subject || (!emailDetails.body && !emailDetails.htmlBody)) {
+    logger.warn('Missing required email details (to, subject, and at least one of body or htmlBody).', emailDetails);
+    return { success: false, message: 'Missing required email details (to, subject, and body/htmlBody).' };
   }
-  const newEmailId = `mockSentEmail_${Date.now()}`;
-  console.log(`Mock email sent with ID: ${newEmailId} to ${emailDetails.to}`);
-  // Here you would typically call the actual email sending utility from _utils/email/email.ts
-  // For example:
-  // import { sendEmail as actualSendEmail } from '../../../_utils/email/email';
-  // await actualSendEmail({ template: 'generic-email', locals: { body: emailDetails.body, subject: emailDetails.subject, ... }, message: { to: emailDetails.to }});
-  return Promise.resolve({ success: true, emailId: newEmailId, message: 'Email sent successfully (mock).' });
+  if (!ENV.SES_SOURCE_EMAIL) {
+    logger.error('SES_SOURCE_EMAIL environment variable is not set. Cannot send email.');
+    return { success: false, message: 'Email sending is not configured (missing source email).' };
+  }
+
+  const client = getSESClient();
+
+  const destination = {
+    ToAddresses: [emailDetails.to],
+    CcAddresses: emailDetails.cc || [],
+    BccAddresses: emailDetails.bcc || [],
+  };
+
+  // Construct message body
+  const messageBody = {} as any; // SES.Body
+  if (emailDetails.body) {
+    messageBody.Text = {
+      Charset: 'UTF-8',
+      Data: emailDetails.body,
+    };
+  }
+  if (emailDetails.htmlBody) {
+    messageBody.Html = {
+      Charset: 'UTF-8',
+      Data: emailDetails.htmlBody,
+    };
+  }
+
+
+  const params = {
+    Destination: destination,
+    Message: {
+      Body: messageBody,
+      Subject: {
+        Charset: 'UTF-8',
+        Data: emailDetails.subject,
+      },
+    },
+    Source: ENV.SES_SOURCE_EMAIL,
+    // ReplyToAddresses: [ENV.SES_SOURCE_EMAIL], // Optional: Set reply-to if different
+  };
+
+  try {
+    logger.info(`Sending email to ${emailDetails.to} via SES from ${ENV.SES_SOURCE_EMAIL}`);
+    const command = new SendEmailCommand(params);
+    const data = await client.send(command);
+    logger.info('Email sent successfully via SES.', { messageId: data.MessageId });
+    return { success: true, emailId: data.MessageId, message: 'Email sent successfully via AWS SES.' };
+  } catch (error: any) {
+    logger.error('Error sending email via AWS SES:', {
+      errorMessage: error.message,
+      errorStack: error.stack,
+      errorDetails: error,
+      recipient: emailDetails.to,
+    });
+    return { success: false, message: `Failed to send email via AWS SES: ${error.message}` };
+  }
 }
