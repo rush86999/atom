@@ -73,71 +73,143 @@ export async function handleEmailInquiry(request: ParsedNluEmailRequest): Promis
         console.log("Agent response: ", messageToUser);
         return messageToUser;
       }
-      // TODO: Implement clarification if emailsFound.length > 1. For now, use the first.
-      const firstFoundEmailSummary = emailsFound[0];
-      console.log(`Agent: Found email ID ${firstFoundEmailSummary.id}. Subject: "${firstFoundEmailSummary.subject}". Fetching details...`);
 
-      const emailDetailsResponse = await readEmail(userId, firstFoundEmailSummary.id);
+      if (emailsFound.length > 1) {
+        // Multiple emails found, ask for clarification.
+        messageToUser = "I found a few emails matching your criteria:\n";
+        emailsFound.slice(0, 3).forEach((email, index) => { // Show up to 3
+          messageToUser += `${index + 1}. Subject: "${email.subject || 'No Subject'}" (ID: ...${email.id.slice(-6)})\n`;
+        });
+        if (emailsFound.length > 3) {
+          messageToUser += `And ${emailsFound.length - 3} more.\n`;
+        }
+        messageToUser += "Which one are you interested in? You can tell me the number or provide more details to narrow it down.";
+        console.log("Agent needs clarification: ", messageToUser);
+        // In a full dialogue system, the agent would set a state expecting clarification.
+        // For now, returning this message means the current interaction path stops here.
+        return messageToUser;
+      }
+
+      // Only one email found, or clarification has led to one.
+      const singleEmailSummary = emailsFound[0];
+      console.log(`Agent: Found email ID ${singleEmailSummary.id}. Subject: "${singleEmailSummary.subject}". Fetching details...`);
+
+      // Voice-friendly update:
+      // console.log(`Agent: Found email ID ${singleEmailSummary.id}. Subject: "${singleEmailSummary.subject}". Fetching details...`);
+      // Consider a spoken confirmation: sendAgentResponse(userId, `Okay, I found an email titled "${singleEmailSummary.subject}". Let me get the details.`);
+
+      const emailDetailsResponse = await readEmail(userId, singleEmailSummary.id);
       if (emailDetailsResponse.success && emailDetailsResponse.email) {
         targetEmail = emailDetailsResponse.email;
       } else {
-        messageToUser = `Sorry, I found an email summary but couldn't read its full details. ${emailDetailsResponse.message}`;
+        messageToUser = `I found an email titled "${singleEmailSummary.subject}", but I'm having trouble loading its full content right now. The error was: ${emailDetailsResponse.message || 'Unknown error'}.`;
         console.log("Agent response: ", messageToUser);
         return messageToUser;
       }
     }
 
     if (!targetEmail) {
-        messageToUser = "Could not identify a target email to process.";
+        messageToUser = "I couldn't identify a specific email to process with the information provided. Could you try searching again with different terms?";
         console.log("Agent response: ", messageToUser);
         return messageToUser;
     }
 
     // Step 2: Perform the requested action on the targetEmail
+    const emailSubjectForResponse = targetEmail.subject || "this email"; // Use "this email" if subject is empty for more natural response
+    const emailIdShortForResponse = targetEmail.id.slice(-6); // For concise ID reference if needed
+
     switch (actionRequested.actionType) {
       case "GET_FULL_CONTENT":
-        messageToUser = `Full content of email "${targetEmail.subject}":\n${targetEmail.body}`;
+        const bodyPreview = targetEmail.body
+          ? (targetEmail.body.length > 200 ? targetEmail.body.substring(0, 200) + "..." : targetEmail.body)
+          : "it appears to have no readable body content.";
+        messageToUser = `The email titled "${emailSubjectForResponse}" begins with: "${bodyPreview}". Is there a specific part you're interested in, or would you like me to try and find something particular in it?`;
         break;
       case "GET_SENDER":
-        messageToUser = `The sender of email "${targetEmail.subject}" is: ${targetEmail.sender}.`;
+        messageToUser = `The sender of "${emailSubjectForResponse}" is: ${targetEmail.sender || 'not specified'}.`;
         break;
       case "GET_SUBJECT":
-        messageToUser = `The subject of the email (ID: ${targetEmail.id}) is: "${targetEmail.subject}".`;
+        messageToUser = `The subject of the email (ID ending in ...${emailIdShortForResponse}) is: "${targetEmail.subject || 'No Subject'}".`;
         break;
       case "GET_DATE":
-        messageToUser = `The email "${targetEmail.subject}" was received on: ${new Date(targetEmail.timestamp).toLocaleString()}.`;
+        const dateOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+        const formattedDate = targetEmail.timestamp ? new Date(targetEmail.timestamp).toLocaleDateString(undefined, dateOptions) : 'an unknown date';
+        messageToUser = `The email "${emailSubjectForResponse}" was received on ${formattedDate}.`;
         break;
       case "FIND_SPECIFIC_INFO":
         if (!targetEmail.body) {
-          messageToUser = `The email "${targetEmail.subject}" doesn't seem to have a body content to analyze.`;
+          messageToUser = `The email "${emailSubjectForResponse}" doesn't seem to have any text content for me to analyze for that.`;
           break;
         }
-        if (!actionRequested.infoKeywords || actionRequested.infoKeywords.length === 0) {
-          messageToUser = `You asked me to find specific information in "${targetEmail.subject}", but didn't specify what to look for.`;
-          break;
+        const keywordsToExtract = actionRequested.infoKeywords || [];
+        const nlQuestion = actionRequested.naturalLanguageQuestion;
+
+        if (keywordsToExtract.length === 0 && !nlQuestion) {
+             messageToUser = `You asked me to find specific information in "${emailSubjectForResponse}", but didn't specify what to look for.`;
+             break;
         }
-        const extractedInfo = await extractInformationFromEmailBody(targetEmail.body, actionRequested.infoKeywords);
+
+        // Prefer natural language question if provided to the LLM extractor, otherwise use keywords.
+        // The current LLM extractor is designed for keywords, so we'll pass keywords.
+        // If a naturalLanguageQuestion was provided, the NLU service should ideally convert it to infoKeywords.
+        // For this example, we'll assume infoKeywords is populated correctly by the NLU layer.
+
+        const extractionInputKeywords = keywordsToExtract.length > 0 ? keywordsToExtract : (nlQuestion ? [nlQuestion] : []);
+
+        if (extractionInputKeywords.length === 0) {
+             messageToUser = `You asked me to find specific information in "${emailSubjectForResponse}", but didn't specify what to look for.`;
+             break;
+        }
+
+        const extractedInfo = await extractInformationFromEmailBody(targetEmail.body, extractionInputKeywords);
         let foundAny = false;
-        let responseParts: string[] = [`Regarding email "${targetEmail.subject}":`];
-        for (const keyword of actionRequested.infoKeywords) {
-          if (extractedInfo[keyword]) {
-            responseParts.push(`- For "${keyword}", I found: ${extractedInfo[keyword]}`);
-            foundAny = true;
-          } else {
-            responseParts.push(`- I couldn't find information about "${keyword}".`);
-          }
+        let responseParts: string[] = [];
+
+        // Construct a more conversational response
+        if (extractionInputKeywords.length === 1) { // Single piece of info requested
+            const singleKeyword = extractionInputKeywords[0];
+            const resultValue = extractedInfo[singleKeyword];
+            if (resultValue) {
+                if (resultValue.startsWith("Keyword \"") && resultValue.endsWith("\" found. (Further analysis needed for specific value).")) {
+                    messageToUser = `The email "${emailSubjectForResponse}" mentions "${singleKeyword}".`;
+                } else {
+                    messageToUser = `Regarding "${singleKeyword}" in the email "${emailSubjectForResponse}", I found: ${resultValue}.`;
+                }
+                foundAny = true;
+            } else {
+                 messageToUser = `I checked the email "${emailSubjectForResponse}" for "${singleKeyword}", but I couldn't find that specific information.`;
+            }
+        } else { // Multiple pieces of info requested
+            responseParts.push(`In the email "${emailSubjectForResponse}":`);
+            for (const keyword of extractionInputKeywords) {
+              const resultValue = extractedInfo[keyword];
+              if (resultValue) {
+                if (resultValue.startsWith("Keyword \"") && resultValue.endsWith("\" found. (Further analysis needed for specific value).")) {
+                  responseParts.push(`- It mentions "${keyword}".`);
+                } else {
+                  responseParts.push(`- For "${keyword}", I found: ${resultValue}.`);
+                }
+                foundAny = true;
+              } else {
+                responseParts.push(`- I couldn't find specific information about "${keyword}".`);
+              }
+            }
+            if (!foundAny) {
+                messageToUser = `I scanned "${emailSubjectForResponse}" for information related to "${extractionInputKeywords.join(', ')}", but couldn't find those specific details.`;
+            } else {
+                messageToUser = responseParts.join('\n');
+            }
         }
-        messageToUser = foundAny ? responseParts.join('\n') : `I checked the email "${targetEmail.subject}" but couldn't find the requested information for: ${actionRequested.infoKeywords.join(', ')}.`;
         break;
       case "SUMMARIZE_EMAIL":
-        // TODO: Implement summarization skill call
-        messageToUser = `Summarization for email "${targetEmail.subject}" is not implemented yet.`;
+        // TODO: Implement LLM-based summarization skill call
+        messageToUser = `I can't summarize emails yet, but I found the one titled "${emailSubjectForResponse}".`;
         break;
       default:
-        messageToUser = `I found the email "${targetEmail.subject}", but I'm not sure what to do with the action: ${actionRequested.actionType}.`;
+        messageToUser = `I found the email "${emailSubjectForResponse}". I'm not sure how to handle the action: ${actionRequested.actionType}.`;
     }
 
-    console.log("Agent final response: ", messageToUser);
+    console.log("Agent final voice-friendlier response: ", messageToUser);
     return messageToUser;
 
   } catch (error: any) {

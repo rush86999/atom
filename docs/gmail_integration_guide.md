@@ -130,13 +130,22 @@ Located under `atomic-docker/project/functions/atom-agent/`.
 
 ### 3.3. Agent Command Handler (`command_handlers/email_command_handler.ts`)
 
-*   **`handleEmailInquiry(request: ParsedNluEmailRequest)`**:
-    *   Receives `ParsedNluEmailRequest` (containing `userId`, `rawEmailSearchQuery`, `actionRequested`).
-    *   Calls `understandEmailSearchQueryLLM` to get structured search parameters.
-    *   Calls `buildGmailSearchQuery`.
-    *   Calls `searchMyEmails`, then `readEmail`.
-    *   Performs action based on `actionRequested.actionType` (e.g., calls LLM-powered `extractInformationFromEmailBody` for `FIND_SPECIFIC_INFO`).
-    *   Formats response.
+    *   **`handleEmailInquiry(request: ParsedNluEmailRequest): Promise<string>`**
+    *   **Orchestration Flow:**
+        1.  Receives `ParsedNluEmailRequest` (which includes `userId`, `rawEmailSearchQuery` from the main NLU service, and an `actionRequested` object detailing what to do with the email).
+        2.  If a specific `targetEmailId` is provided in the request (e.g., if the user is referring to a known email), it directly calls the `readEmail` skill.
+        3.  Otherwise (for new searches):
+            *   It first calls `understandEmailSearchQueryLLM` (from `llm_email_query_understander.ts`) with the `rawEmailSearchQuery`. This specialized LLM call translates the natural language query into a `StructuredEmailQuery` object (with resolved dates, identified senders, keywords, etc.).
+            *   Then, it calls `buildGmailSearchQuery` (from `nlu_email_helper.ts`) with this `StructuredEmailQuery` to get the final Gmail API-compatible query string.
+            *   It calls the `searchMyEmails` skill to find relevant emails.
+            *   **Disambiguation Logic:** If `searchMyEmails` returns multiple results, `handleEmailInquiry` now formulates a message asking the user for clarification (e.g., listing the first few subjects/senders and asking to choose by number or provide more details). The current interaction path ends here, awaiting the user's clarifying input, which would typically trigger a new interaction cycle with the agent.
+            *   If only one email is found (or after successful clarification in a more complete dialogue system), it proceeds to call the `readEmail` skill for the selected email.
+        4.  Based on the `actionRequested.actionType` from the NLU result:
+            *   For simple getter actions like `GET_SENDER`, `GET_SUBJECT`, `GET_DATE`, it extracts the information directly from the fetched `Email` object.
+            *   For `GET_FULL_CONTENT`, it provides a snippet of the email body and may ask if the user wants more, to be more suitable for voice interaction.
+            *   For `FIND_SPECIFIC_INFO`, it calls the LLM-powered `extractInformationFromEmailBody` skill, passing the email body and the `infoKeywords` (or a natural language question if that enhancement is made to the skill and NLU).
+        5.  **Voice-Friendly Responses:** The handler now formats its textual responses throughout the flow to be more concise and natural-sounding, making them better suited for Text-to-Speech (TTS) delivery in a voice interaction context.
+    *   **Purpose:** This handler orchestrates the NLU inputs and various email skills. It demonstrates how to use the LLM-powered query understanding and information extraction modules and includes foundational conversational elements like disambiguation. (Note: Full multi-turn conversation state management would typically reside in a higher-level agent dialogue manager not implemented here).
 
 ---
 
@@ -156,7 +165,14 @@ Located in `atomic-docker/app_build_docker/pages/`.
 *   Handles redirect from Google, calls `handle_gmail_auth_callback` action, displays status, redirects to settings.
 
 ### 4.3. Proof-of-Concept Search UI (`Gmail/UserGmailSearch.tsx`)
-*   Basic UI to test `search_user_gmail` action.
+*   **Functionality:**
+    *   Provides an input field for raw Gmail search queries.
+    *   Calls the `search_user_gmail` Hasura Action to fetch a list of matching email snippets/IDs.
+    *   Displays search results in a list.
+    *   **Click-to-View Details:** Each search result item is pressable. Clicking an item calls the `get_user_gmail_content` action to fetch the full email details.
+    *   **Modal Display:** The fetched full email content (ID, Subject, From, Date, Snippet, Body) is displayed in a modal view.
+    *   Includes loading states and error handling for both search and detail fetching.
+*   **Authentication:** Includes `getServerSideProps` for session validation.
 
 ---
 

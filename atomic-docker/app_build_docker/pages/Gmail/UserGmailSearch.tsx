@@ -4,7 +4,7 @@ import Box from '@components/common/Box';
 import Text from '@components/common/Text';
 import Button from '@components/Button';
 import TextField from '@components/TextField';
-import { ActivityIndicator, FlatList, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, View, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
 import { palette } from '@lib/theme/theme';
 import { useToast } from '@chakra-ui/react';
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -12,7 +12,6 @@ import supertokensNode from 'supertokens-node';
 import Session from 'supertokens-node/recipe/session';
 import { backendConfig } from '@config/backendConfig';
 
-// getServerSideProps for session validation (standard for pages needing auth)
 export async function getServerSideProps({ req, res }: { req: NextApiRequest, res: NextApiResponse }) {
   supertokensNode.init(backendConfig());
   let session;
@@ -24,7 +23,7 @@ export async function getServerSideProps({ req, res }: { req: NextApiRequest, re
     if (err.type === Session.Error.TRY_REFRESH_TOKEN) {
       return { props: { fromSupertokens: 'needs-refresh' } };
     } else if (err.type === Session.Error.UNAUTHORISED) {
-      return { props: { fromSupertokens: 'needs-refresh' } }; // Will force frontend to redirect to login
+      return { props: { fromSupertokens: 'needs-refresh' } };
     }
     throw err;
   }
@@ -32,14 +31,13 @@ export async function getServerSideProps({ req, res }: { req: NextApiRequest, re
   if (!session?.getUserId()) {
     return {
       redirect: {
-        destination: '/User/Login/UserLogin', // Adjust to your login path
+        destination: '/User/Login/UserLogin',
         permanent: false,
       },
     };
   }
-  return { props: { userId: session.getUserId() } }; // Pass userId if needed, or just let page render
+  return { props: { userId: session.getUserId() } };
 }
-
 
 const SEARCH_USER_GMAIL_MUTATION = gql`
   mutation SearchUserGmail($input: GmailSearchQueryInput!) {
@@ -58,6 +56,34 @@ const SEARCH_USER_GMAIL_MUTATION = gql`
   }
 `;
 
+const GET_USER_GMAIL_CONTENT_MUTATION = gql`
+  mutation GetUserGmailContent($input: GetUserGmailContentInput!) {
+    getUserGmailContent(input: $input) {
+      success
+      message
+      email {
+        id
+        threadId
+        snippet
+        subject
+        from
+        date
+        body
+      }
+    }
+  }
+`;
+
+interface DetailedEmailContent {
+  id: string;
+  threadId?: string | null;
+  subject?: string | null;
+  from?: string | null;
+  date?: string | null;
+  body?: string | null;
+  snippet?: string | null;
+}
+
 interface GmailSearchResultItemFE {
   id: string;
   threadId?: string | null;
@@ -72,14 +98,18 @@ const UserGmailSearchPage = () => {
   const [searchResults, setSearchResults] = useState<GmailSearchResultItemFE[]>([]);
   const toast = useToast();
 
-  const [searchGmailMutation, { loading, error }] = useMutation(SEARCH_USER_GMAIL_MUTATION, {
+  const [selectedEmail, setSelectedEmail] = useState<DetailedEmailContent | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState<boolean>(false);
+  const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+
+  const [searchGmailMutation, { loading: searchLoading, error: searchError }] = useMutation(SEARCH_USER_GMAIL_MUTATION, {
     onCompleted: (data) => {
       if (data.searchUserGmail.success) {
         const results = data.searchUserGmail.results || [];
         setSearchResults(results);
-        if (results.length === 0 && searchQuery.trim() !== '') { // Only show no results if a search was made
+        if (results.length === 0 && searchQuery.trim() !== '') {
           toast({
-            title: 'No Results',
+            title: 'No Search Results',
             description: 'Your search did not return any emails.',
             status: 'info',
             duration: 3000,
@@ -109,6 +139,49 @@ const UserGmailSearchPage = () => {
     },
   });
 
+  const [
+    getGmailContentMutation,
+    { loading: detailFetchLoading, error: detailFetchError },
+  ] = useMutation(GET_USER_GMAIL_CONTENT_MUTATION, {
+    onCompleted: (data) => {
+      setIsDetailLoading(false);
+      if (data.getUserGmailContent.success && data.getUserGmailContent.email) {
+        const emailData = data.getUserGmailContent.email;
+        setSelectedEmail({
+          id: emailData.id,
+          threadId: emailData.threadId || null,
+          subject: emailData.subject || null,
+          from: emailData.from || null,
+          date: emailData.date || null,
+          body: emailData.body || null,
+          snippet: emailData.snippet || null,
+        });
+      } else {
+        toast({
+          title: 'Error Fetching Email Details',
+          description: data.getUserGmailContent.message || 'Could not load email details.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        setSelectedEmail(null);
+        setShowDetailModal(false);
+      }
+    },
+    onError: (err) => {
+      setIsDetailLoading(false);
+      toast({
+        title: 'Error Fetching Email Details',
+        description: err.message || 'An unexpected error occurred.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setSelectedEmail(null);
+      setShowDetailModal(false);
+    },
+  });
+
   const handleSearch = () => {
     if (searchQuery.trim() === '') {
       toast({
@@ -120,19 +193,29 @@ const UserGmailSearchPage = () => {
       });
       return;
     }
-    setSearchResults([]); // Clear previous results before new search
+    setShowDetailModal(false); // Close detail modal on new search
+    setSelectedEmail(null);
+    setSearchResults([]);
     searchGmailMutation({ variables: { input: { query: searchQuery, maxResults: 20 } } });
   };
 
+  const handleViewDetails = (emailId: string) => {
+    if (!emailId) return;
+    setSelectedEmail(null);
+    setIsDetailLoading(true);
+    setShowDetailModal(true);
+    getGmailContentMutation({ variables: { input: { emailId } } });
+  };
+
   const renderItem = ({ item }: { item: GmailSearchResultItemFE }) => (
-    <View style={styles.itemContainer}>
+    <Pressable onPress={() => handleViewDetails(item.id)} style={styles.itemContainer}>
       <Text style={styles.itemTextStrong}>ID: {item.id}</Text>
-      {item.threadId && <Text style={styles.itemText}>Thread ID: {item.threadId}</Text>}
-      {item.snippet && <Text style={styles.itemText}>Snippet: {item.snippet}</Text>}
+      {item.snippet && <Text style={styles.itemText} numberOfLines={2}>Snippet: {item.snippet}</Text>}
       {item.subject && <Text style={styles.itemText}>Subject: {item.subject}</Text>}
       {item.from && <Text style={styles.itemText}>From: {item.from}</Text>}
       {item.date && <Text style={styles.itemText}>Date: {item.date}</Text>}
-    </View>
+      <Text style={styles.viewDetailsLink}>View Details</Text>
+    </Pressable>
   );
 
   return (
@@ -144,23 +227,20 @@ const UserGmailSearchPage = () => {
           placeholder="e.g., from:name@example.com subject:contract"
           value={searchQuery}
           onChangeText={setSearchQuery}
-          // Consider adding a specific style or ensuring TextField fits theme
         />
       </Box>
 
-      <Button label="Search Emails" onClick={handleSearch} disabled={loading}
-        // Ensure Button component takes simple label or children
-      />
+      <Button label="Search Emails" onClick={handleSearch} disabled={searchLoading} />
 
-      {loading && <ActivityIndicator size="large" color={palette.primary} style={styles.activityIndicator} />}
+      {searchLoading && <ActivityIndicator size="large" color={palette.primary} style={styles.activityIndicator} />}
 
-      {error && (
+      {searchError && (
         <Text color="error" mt="m" style={styles.errorText}>
-          Error: {error.message}
+          Error searching: {searchError.message}
         </Text>
       )}
 
-      {!loading && searchResults.length > 0 && (
+      {!searchLoading && searchResults.length > 0 && (
         <FlatList
           data={searchResults}
           renderItem={renderItem}
@@ -168,48 +248,174 @@ const UserGmailSearchPage = () => {
           style={styles.listStyle}
         />
       )}
-       {!loading && !error && searchResults.length === 0 && searchQuery !== '' && !loading && (
+       {!searchLoading && !searchError && searchResults.length === 0 && searchQuery !== '' && (
          <Text mt="m" style={styles.itemText}>No results found for your query.</Text>
        )}
+
+      {showDetailModal && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showDetailModal}
+          onRequestClose={() => {
+            setShowDetailModal(false);
+            setSelectedEmail(null);
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <ScrollView>
+                {isDetailLoading && <ActivityIndicator size="large" color={palette.primary} />}
+                {detailFetchError && <Text color="error">Error loading details: {detailFetchError.message}</Text>}
+                {selectedEmail && !isDetailLoading && (
+                  <>
+                    <Text style={styles.modalTitle}>Email Details</Text>
+                    <Text style={styles.modalTextStrong}>ID:</Text>
+                    <Text style={styles.modalText}>{selectedEmail.id}</Text>
+
+                    <Text style={styles.modalTextStrong}>Subject:</Text>
+                    <Text style={styles.modalText}>{selectedEmail.subject || 'N/A'}</Text>
+
+                    <Text style={styles.modalTextStrong}>From:</Text>
+                    <Text style={styles.modalText}>{selectedEmail.from || 'N/A'}</Text>
+
+                    <Text style={styles.modalTextStrong}>Date:</Text>
+                    <Text style={styles.modalText}>{selectedEmail.date || 'N/A'}</Text>
+
+                    <Text style={styles.modalTextStrong}>Snippet:</Text>
+                    <Text style={styles.modalText}>{selectedEmail.snippet || 'N/A'}</Text>
+
+                    <Text style={styles.modalTextStrong}>Body:</Text>
+                    <Text style={styles.modalTextBody}>{selectedEmail.body || '(No body content)'}</Text>
+                  </>
+                )}
+              </ScrollView>
+              <Pressable
+                style={styles.closeButton}
+                onPress={() => {
+                  setShowDetailModal(false);
+                  setSelectedEmail(null);
+                }}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
     </Box>
   );
 };
 
 const styles = StyleSheet.create({
   pageContainer: {
-    paddingTop: 20, // Add some padding at the top
+    paddingTop: 20,
   },
   headerText: {
-    color: palette.text, // Example, adjust to your theme
+    color: palette.text,
   },
   itemContainer: {
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: palette.mediumGray, // Use theme color
-    backgroundColor: palette.white, // Example item background
+    borderBottomColor: palette.mediumGray,
+    backgroundColor: palette.white,
     borderRadius: 5,
     marginVertical: 5,
   },
   itemText: {
     fontSize: 14,
-    color: palette.text, // Example text color
+    color: palette.text,
+    marginBottom: 3,
   },
   itemTextStrong: {
     fontSize: 14,
     fontWeight: 'bold',
     color: palette.text,
+    marginBottom: 3,
+  },
+  viewDetailsLink: {
+    fontSize: 14,
+    color: palette.primary, // Use primary color for link
+    marginTop: 5,
+    textDecorationLine: 'underline',
   },
   activityIndicator: {
     marginTop: 20,
   },
   errorText: {
     fontSize: 14,
+    color: palette.error, // Ensure palette has an error color
   },
   listStyle: {
     width: '100%',
     maxWidth: 600,
     marginTop: 20,
-  }
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)', // Semi-transparent background
+  },
+  modalContainer: {
+    width: '90%',
+    maxWidth: 600,
+    maxHeight: '80%',
+    backgroundColor: palette.white,
+    borderRadius: 10,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: palette.text,
+    textAlign: 'center',
+  },
+  modalTextStrong: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginTop: 10,
+    color: palette.text,
+  },
+  modalText: {
+    fontSize: 14,
+    marginBottom: 5,
+    color: palette.textSecondary, // Assuming a secondary text color
+  },
+  modalTextBody: {
+    fontSize: 14,
+    marginBottom: 5,
+    color: palette.textSecondary,
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: palette.lightGray, // Assuming lightGray
+    padding: 10,
+    borderRadius: 3,
+    maxHeight: 200, // Make body scrollable if too long, but ScrollView handles this
+  },
+  closeButton: {
+    marginTop: 20,
+    backgroundColor: palette.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    alignSelf: 'center',
+  },
+  closeButtonText: {
+    color: palette.white,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
 });
 
 export default UserGmailSearchPage;
