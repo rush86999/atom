@@ -4,7 +4,7 @@
  */
 import { _internalHandleMessage } from '../atom-agent/handler';
 import { agenda } from '../agendaService'; // Actual agenda instance
-import * { conversationManager } from '../atom-agent/conversationState';
+import * as conversationManager from '../atom-agent/conversationState';
 
 // Mock agenda methods
 jest.mock('../agendaService', () => ({

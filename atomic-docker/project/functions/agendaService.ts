@@ -14,12 +14,6 @@ export interface ScheduledAgentTaskData {
 const mongoConnectionString = process.env.MONGODB_URI || 'mongodb://mongo:27017/atomicAgentJobs';
 
 // URL for the agent's internal invocation endpoint
-// This should point to an endpoint that can trigger the agent's logic,
-// potentially bypassing NLU for scheduled tasks by directly providing intent and entities.
-// Assuming the functions are running within the same environment, direct invocation or a more specific internal API might be preferable to a public-facing URL.
-// For now, we'll keep the configurable URL but ensure the payload is rich.
-// Defaulting to port 3000 as functions_build_docker/server.ts listens on PORT (default 3000)
-// and the /api/agent-handler endpoint was added there.
 const AGENT_INTERNAL_INVOKE_URL = process.env.AGENT_INTERNAL_INVOKE_URL || 'http://localhost:3000/api/agent-handler';
 
 // Initialize Agenda
@@ -27,37 +21,19 @@ export const agenda = new Agenda({
   db: { address: mongoConnectionString, collection: 'agentScheduledTasks' },
   processEvery: '1 minute', // How often Agenda checks for jobs
   maxConcurrency: 20,      // Max number of jobs to run at once
-  // defaultLockLifetime: 10000, // 10 seconds, time before a job is considered timed out & re-queued
 });
 
-/**
- * Defines a job with Agenda.
- * @param name - The name of the job.
- * @param handler - The async function to execute for the job. It receives the job object as an argument.
- *
- * Example:
- * defineJob('send-welcome-email', async (job: Job) => {
- *   const { userId } = job.attrs.data;
- *   await sendEmail(userId, 'Welcome!');
- * });
- */
 export function defineJob<T>(name: string, handler: (job: Job<T>) => Promise<void>): void {
   agenda.define<T>(name, handler);
   console.log(`Job defined: ${name}`);
 }
 
-/**
- * Starts the Agenda instance.
- * This should be called when the application starts.
- * It connects to MongoDB and starts processing jobs.
- */
 export async function startAgenda(): Promise<void> {
   try {
     console.log('Attempting to start Agenda...');
-    await agenda.start(); // This connects to MongoDB and starts job processing
+    await agenda.start();
     console.log('Agenda started successfully.');
 
-    // Define the job processor for executing scheduled agent actions
     agenda.define<ScheduledAgentTaskData>('EXECUTE_AGENT_ACTION', async (job) => {
       const data = job.attrs.data;
       if (!data) {
@@ -73,43 +49,21 @@ export async function startAgenda(): Promise<void> {
       console.log(`Entities: ${JSON.stringify(entities)}`);
 
       try {
-        // Construct the payload for the agent's internal handler
-        // This payload structure assumes the target endpoint can process it directly,
-        // potentially bypassing NLU if `requestSource` indicates a scheduled job.
-        const payload = {
-          // The payload needs to be compatible with the target agent handler.
-          // If the agent handler's `_internalHandleMessage` can accept `intentName` and `entities` directly
-          // when `requestSource` is 'ScheduledJobExecutor', this is appropriate.
-          // The `message` field can be a descriptive text for logging or if NLU is still hit as a fallback.
-          const agentPayload = {
-            // `message` field might be used by `_internalHandleMessage` if it expects a text input
-            // that would normally go through NLU. For scheduled tasks, we want to bypass NLU.
-            // So, we provide a descriptive message, but also intentName and entities directly.
-            message: `Execute scheduled task: ${originalUserIntent}`, // Descriptive text
+        const agentPayload = {
+            message: `Execute scheduled task: ${originalUserIntent}`,
             userId: userId,
-            // Adding intentName and entities directly for the handler to use, bypassing NLU
             intentName: originalUserIntent,
             entities: entities,
-            conversationId: data.conversationId, // Pass along if available
-            requestSource: 'ScheduledJobExecutor', // Crucial for the handler to identify the source
-            // Potentially, the agent endpoint might expect the primary input in a 'text' field
-            // or a more specific structure if it's, for example, a Hasura action expecting an 'input' object.
-            // For `_internalHandleMessage` that uses `understandMessage`, we need to ensure
-            // it can use `intentName` and `entities` when `requestSource` is 'ScheduledJobExecutor'.
+            conversationId: data.conversationId,
+            requestSource: 'ScheduledJobExecutor',
           };
-          console.log(`Invoking agent at ${AGENT_INTERNAL_INVOKE_URL} with payload:`, JSON.stringify(agentPayload, null, 2));
+        console.log(`Invoking agent at ${AGENT_INTERNAL_INVOKE_URL} with payload:`, JSON.stringify(agentPayload, null, 2));
 
-          // The actual endpoint call. The structure of the POST request body might need to be
-          // `{ "input": agentPayload }` if the target is a Hasura action,
-          // or just `agentPayload` if it's a direct API endpoint.
-          // Assuming the endpoint /api/agent-handler takes the payload directly for now.
-          const response = await axios.post(AGENT_INTERNAL_INVOKE_URL, agentPayload, {
-            headers: { 'Content-Type': 'application/json' }
-          });
+        const response = await axios.post(AGENT_INTERNAL_INVOKE_URL, agentPayload, {
+          headers: { 'Content-Type': 'application/json' }
+        });
 
-          console.log(`Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}`, response.data ? JSON.stringify(response.data, null, 2) : '');
-        // Job is considered successful if agent processes it without throwing an error here.
-        // Actual success of the underlying task (e.g., email sent) is handled by the agent.
+        console.log(`Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}, response data: ${response.data ? JSON.stringify(response.data, null, 2) : ''}`);
       } catch (error) {
         let errorMessage = 'Failed to execute agent action via HTTP.';
         if (axios.isAxiosError(error)) {
@@ -119,45 +73,18 @@ export async function startAgenda(): Promise<void> {
         }
         console.error(`Error executing scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId}: ${errorMessage}`, error.stack);
         job.fail(errorMessage);
-        // job.attrs.lastRunAt = new Date(); // Agenda updates this automatically
-        // job.attrs.failedAt = new Date(); // Agenda updates this
-        // job.attrs.failReason = errorMessage; // Agenda updates this
-        await job.save(); // Persist failure information to the job
-        // No re-throw, let Agenda handle retry based on its configuration for the job definition if any.
+        await job.save();
       }
     });
 
-    // Example job definition (can be moved to where tasks are actually defined)
-    // defineJob<{ userId: string }>('example-task', async job => {
-    //   const { userId } = job.attrs.data;
-    //   console.log(`Executing example-task for userId: ${userId} at ${new Date()}`);
-    //   // Simulate some work
-    //   await new Promise(resolve => setTimeout(resolve, 2000));
-    //   console.log(`Finished example-task for userId: ${userId}`);
-    // });
-
-    // Schedule an example job to see it in action (optional, for testing)
-    // if (process.env.NODE_ENV !== 'production') {
-    //   agenda.every('2 minutes', 'example-task', { userId: 'test-user-agenda' });
-    //   console.log('Scheduled example-task to run every 2 minutes.');
-    // }
-
   } catch (error) {
     console.error('Failed to start Agenda:', error);
-    // Depending on application requirements, might want to throw error or exit process
-    // throw error;
   }
 }
 
-/**
- * Stops the Agenda instance gracefully.
- * This should be called on application shutdown to allow currently running jobs to complete.
- */
 export async function stopAgenda(): Promise<void> {
   try {
     console.log('Attempting to stop Agenda...');
-    // agenda.stop() waits for all currently running jobs to complete
-    // and then disconnects from the database.
     await agenda.stop();
     console.log('Agenda stopped successfully.');
   } catch (error) {
@@ -165,14 +92,9 @@ export async function stopAgenda(): Promise<void> {
   }
 }
 
-// Optional: Event listeners for Agenda can be useful for logging/monitoring
 agenda.on('ready', () => console.log('Agenda ready and connected to MongoDB.'));
 agenda.on('error', (err: Error) => console.error('Agenda connection error:', err));
-
 agenda.on('start', (job: Job) => console.log(`Job ${job.attrs.name} starting. ID: ${job.attrs._id}`));
 agenda.on('complete', (job: Job) => console.log(`Job ${job.attrs.name} completed. ID: ${job.attrs._id}`));
 agenda.on('success', (job: Job) => console.log(`Job ${job.attrs.name} succeeded. ID: ${job.attrs._id}`));
 agenda.on('fail', (err: Error, job: Job) => console.error(`Job ${job.attrs.name} failed with error: ${err.message}. ID: ${job.attrs._id}`));
-
-// Export the agenda instance directly if needed for advanced use cases (e.g., scheduling from elsewhere)
-// export const getAgendaInstance = () => agenda;

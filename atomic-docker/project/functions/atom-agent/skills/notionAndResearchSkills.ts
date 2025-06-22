@@ -7,6 +7,7 @@ import {
   ProcessResearchQueueData,
   CreateNoteData,
   NotionSearchResultData,
+  NotionSimilarNoteResult, // Added this missing type
   // New Task Management Types
   CreateNotionTaskParams,
   QueryNotionTasksParams,

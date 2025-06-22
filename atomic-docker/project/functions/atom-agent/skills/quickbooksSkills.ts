@@ -117,7 +117,7 @@ async function getStoredQBTokens(userId: string): Promise<QBSkillResponse<QuickB
     };
     return { ok: true, data: tokens };
   } catch (error: any) {
-    console.error(`Exception during getStoredQBTokens for user ${userId}:`, error);
+    console.error(`Exception during getStoredQBTokens for userId ${userId}:`, error);
     const skillError: SkillError = {
       code: 'TOKEN_FETCH_FAILED', message: `Failed to retrieve QuickBooks Online tokens.`, details: error.message,
     };
@@ -233,7 +233,7 @@ function mapQBInvoiceToInternal(qbInvoice: any): QuickBooksInvoice { /* ... as b
     };
 }
 
-export async function listQuickBooksInvoices( /* ... as before ... */ ): Promise<QBSkillResponse<ListQBInvoicesData>> {
+export async function listQuickBooksInvoices(userId: string, options?: { limit?: number; offset?: number; customerId?: string; status?: string; }): Promise<QBSkillResponse<ListQBInvoicesData>> {
   const qboClientResponse = await getQboClient(userId);
   if (!qboClientResponse.ok || !qboClientResponse.data) {
     return { ok: false, error: qboClientResponse.error || { code: 'QBO_INIT_FAILED', message: 'QBO client init failed for listing invoices.'} };
@@ -269,7 +269,7 @@ export async function listQuickBooksInvoices( /* ... as before ... */ ): Promise
   });
 }
 
-export async function getQuickBooksInvoiceDetails( /* ... as before ... */ ): Promise<QBSkillResponse<QuickBooksInvoice | null>> {
+export async function getQuickBooksInvoiceDetails(userId: string, invoiceId: string): Promise<QBSkillResponse<QuickBooksInvoice | null>> {
   const qboClientResponse = await getQboClient(userId);
   if (!qboClientResponse.ok || !qboClientResponse.data) {
     return { ok: false, error: qboClientResponse.error || { code: 'QBO_INIT_FAILED', message: 'QBO client init failed for invoice details.'} };
@@ -384,5 +384,3 @@ export async function handleQuickBooksCallback(
     }
   };
 }
-
-[end of atomic-docker/project/functions/atom-agent/skills/quickbooksSkills.ts]

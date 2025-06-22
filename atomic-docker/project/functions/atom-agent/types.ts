@@ -203,11 +203,12 @@ export interface CreateEventResponse {
   htmlLink?: string;
 }
 
-export interface SkillResponse {
-  success: boolean;
-  message: string;
-  data?: any;
+export interface SkillResponse<T = any> { // Default T to any if not specified
+  ok: boolean;
+  data?: T;
+  error?: SkillError;
 }
+
 
 // --- Email Types ---
 export interface Email {
@@ -359,6 +360,14 @@ export interface SlackMessageData {
   };
 }
 
+export interface SlackMessageResponse { // Added this type
+  ok: boolean;
+  ts?: string;
+  channel?: string;
+  error?: string; // Matches WebClient's possible error response structure
+}
+
+
 export interface ListSlackChannelsData {
   channels?: SlackChannel[];
   nextPageCursor?: string;
@@ -446,11 +455,11 @@ export interface NLUResponseData {
 }
 
 export interface ProcessedNLUResponse extends NLUResponseData {
-  originalMessage: string;
+  originalMessage: string; // Changed from originalMessage?: string to ensure it's always present
   error?: string;
   requires_clarification?: boolean;
   clarification_question?: string;
-  conversation_context?: any;
+  conversation_context?: any; // Consider making this more specific if possible
   sub_tasks?: Array<{intent: string | null; entities: Record<string, any>; summary_for_sub_task?: string;}>;
 }
 
@@ -459,31 +468,32 @@ export interface QuickBooksAuthTokens {
   accessToken: string;
   refreshToken: string;
   realmId: string;
-  accessTokenExpiresAt: number;
-  refreshTokenExpiresAt: number;
-  createdAt: number;
+  accessTokenExpiresAt: number; // Milliseconds since epoch
+  refreshTokenExpiresAt: number; // Milliseconds since epoch
+  tokenCreatedAt: number; // Milliseconds since epoch when these tokens (or the original ones they were refreshed from) were created
 }
+
 
 export interface ListQBInvoicesData {
   invoices: QuickBooksInvoice[];
-  queryResponse?: any;
+  queryResponse?: any; // Raw response from QB for pagination etc.
 }
 
 export interface QuickBooksInvoice {
   Id: string;
   DocNumber?: string;
-  TxnDate?: string;
-  DueDate?: string;
+  TxnDate?: string; // YYYY-MM-DD
+  DueDate?: string;  // YYYY-MM-DD
   CustomerRef?: { value: string; name?: string; };
   BillEmail?: { Address: string; };
   TotalAmt?: number;
   Balance?: number;
-  CurrencyRef?: { value: string; name?: string; };
-  Line?: any[];
+  CurrencyRef?: { value: string; name?: string; }; // e.g., { value: "USD", name: "United States Dollar" }
+  Line?: any[]; // Can be complex, define further if needed
   PrivateNote?: string;
   CustomerMemo?: string;
-  EmailStatus?: 'EmailSent' | 'NotSet' | string;
-  [key: string]: any;
+  EmailStatus?: 'EmailSent' | 'NotSet' | string; // Other statuses like 'Pending', 'Void' might exist
+  [key: string]: any; // Allow other properties
 }
 
 // --- Stripe Types ---
@@ -497,7 +507,7 @@ export interface StripeCharge {
   amount: number;
   currency: string;
   status: 'succeeded' | 'pending' | 'failed';
-  created: number;
+  created: number; // Unix timestamp
   receipt_url?: string | null;
   description?: string | null;
 }
@@ -507,28 +517,28 @@ export interface StripePaymentIntent {
   amount: number;
   currency: string;
   status: 'succeeded' | 'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'canceled';
-  created: number;
-  customer?: string | null;
+  created: number; // Unix timestamp
+  customer?: string | null; // Customer ID
   description?: string | null;
-  latest_charge?: StripeCharge | null;
+  latest_charge?: StripeCharge | string | null; // Can be an ID or an expanded object
 }
 
 // --- Microsoft Graph / Teams Types ---
-export interface ListMSGraphEventsData {
+export interface ListMSTeamsMeetingsData { // Renamed from ListMSGraphEventsData for clarity
   events: MSGraphEvent[];
   nextLink?: string;
 }
 
 export interface MSGraphDateTimeTimeZone {
-  dateTime: string;
-  timeZone: string;
+  dateTime: string; // ISO 8601 format
+  timeZone: string; // e.g., "Pacific Standard Time"
 }
 
 export interface MSGraphOnlineMeetingInfo {
   joinUrl?: string | null;
   conferenceId?: string | null;
   tollNumber?: string | null;
-  [key: string]: any;
+  [key: string]: any; // Allow other properties
 }
 
 export interface MSGraphEvent {
@@ -546,22 +556,22 @@ export interface MSGraphEvent {
   location?: { displayName?: string | null; locationType?: 'default' | 'conferenceRoom' | 'homeAddress' | 'businessAddress' | string; uniqueId?: string | null; address?: any; coordinates?: any; } | null;
   locations?: any[];
   organizer?: { emailAddress?: { name?: string | null; address?: string | null; }; } | null;
-  [key: string]: any;
+  [key: string]: any; // Allow other properties
 }
 
 export interface MSGraphTokenResponse {
   token_type: string;
-  expires_in: number;
-  ext_expires_in?: number;
+  expires_in: number; // Seconds
+  ext_expires_in?: number; // Seconds
   access_token: string;
 }
 
 // --- Zoom Types ---
 export interface ZoomTokenResponse {
   access_token: string;
-  token_type: string;
-  expires_in: number;
-  scope: string;
+  token_type: string; // Typically "bearer"
+  expires_in: number; // Typically 3600 seconds (1 hour)
+  scope: string; // e.g., "meeting:read meeting:write user:read"
 }
 
 export interface ListZoomMeetingsData {
@@ -575,17 +585,17 @@ export interface ListZoomMeetingsData {
 
 export interface ZoomMeeting {
   uuid: string;
-  id: string;
+  id: string; // Numeric meeting ID
   host_id?: string;
   topic: string;
-  type: number;
-  start_time?: string;
-  duration?: number;
+  type: number; // 1: Instant, 2: Scheduled, 3: Recurring no fixed time, 8: Recurring fixed time
+  start_time?: string; // ISO 8601 date-time string
+  duration?: number; // In minutes
   timezone?: string;
   agenda?: string;
-  created_at: string;
+  created_at: string; // ISO 8601 date-time string
   join_url: string;
-  [key: string]: any;
+  [key: string]: any; // Allow other properties
 }
 
 // --- Notion Task Management Types ---
@@ -600,10 +610,10 @@ export interface NotionTask {
   dueDate?: string | null; // ISO date string or null
   status: NotionTaskStatus;
   priority?: NotionTaskPriority | null;
-  listName?: string | null;
+  listName?: string | null; // Corresponds to a custom "List" or "Project" property in Notion
   createdDate: string; // ISO date string (from Notion's created_time)
   url: string; // Notion page URL
-  notes?: string | null;
+  notes?: string | null; // Additional text content or a summary from the page body
 }
 
 export interface CreateNotionTaskParams {
@@ -613,10 +623,10 @@ export interface CreateNotionTaskParams {
   priority?: NotionTaskPriority | null;
   listName?: string | null;
   notes?: string | null;
-  notionTasksDbId: string;
+  notionTasksDbId: string; // ID of the Notion database for tasks
 }
 
-export interface NotionTaskResponse {
+export interface NotionTaskResponse { // Kept for potential direct Notion API calls, but Python responses are preferred
   success: boolean;
   message: string;
   taskId?: string;
@@ -625,26 +635,26 @@ export interface NotionTaskResponse {
 }
 
 export interface QueryNotionTasksParams {
-  status?: NotionTaskStatus | NotionTaskStatus[];
-  dueDateBefore?: string | null;
-  dueDateAfter?: string | null;
-  dateQuery?: string | null; // For NLU like "today", "next week" to be parsed by backend
+  status?: NotionTaskStatus | NotionTaskStatus[]; // Allow single or multiple statuses
+  dueDateBefore?: string | null; // ISO Date string
+  dueDateAfter?: string | null;  // ISO Date string
+  dateQuery?: string | null;     // For NLU like "today", "next week" to be parsed by backend
   priority?: NotionTaskPriority | null;
   listName?: string | null;
   descriptionContains?: string | null;
-  notionTasksDbId: string;
+  notionTasksDbId: string; // ID of the Notion database for tasks
   limit?: number;
 }
 
-export interface TaskQueryResponse {
+export interface TaskQueryResponse { // This is returned by the queryNotionTasks skill
   success: boolean;
   tasks: NotionTask[];
   message?: string;
-  error?: string;
+  error?: string; // Error message if success is false
 }
 
 export interface UpdateNotionTaskParams {
-  taskId: string;
+  taskId: string; // Notion Page ID of the task to update
   description?: string;
   dueDate?: string | null;
   status?: NotionTaskStatus;
@@ -668,5 +678,11 @@ export interface UpdateTaskData {
   updatedProperties: string[]; // List of properties that were actually changed
   message?: string; // Optional success message from backend
 }
-
-[end of atomic-docker/project/functions/atom-agent/types.ts]
+// Add EmailActionType if not already defined
+export type EmailActionType =
+  | "FIND_SPECIFIC_INFO"
+  | "GET_SENDER"
+  | "GET_SUBJECT"
+  | "GET_DATE"
+  | "GET_FULL_CONTENT"
+  | "SUMMARIZE_EMAIL";

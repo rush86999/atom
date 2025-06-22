@@ -483,7 +483,7 @@ export async function slackMyAgenda(userId: string, limit: number = 5): Promise<
     const slackChannelId = userId || ATOM_DEFAULT_SLACK_CHANNEL_FOR_AGENDA;
      if (!slackChannelId) {
       console.warn('No Slack channel ID could be determined. Cannot send "no events" message.');
-      return { ok: true, message: 'No events found, and no Slack channel to report to.' }; // Not strictly an error
+      return { ok: false, error: 'No Slack channel ID to send the "no events" message to.' };
     }
     return await sendSlackMessage(userId, slackChannelId, noEventsMessage);
   }
@@ -526,5 +526,3 @@ export async function slackMyAgenda(userId: string, limit: number = 5): Promise<
     return { ok: false, error: `Failed to send agenda to Slack: ${slackError.message}` };
   }
 }
-
-[end of atomic-docker/project/functions/atom-agent/skills/calendarSkills.ts]

@@ -123,5 +123,3 @@ export async function searchWeb(query: string): Promise<WebResearchSkillResponse
   // Call the actual search implementation
   return await performActualWebSearch(query, apiKey);
 }
-
-[end of atomic-docker/project/functions/atom-agent/skills/webResearchSkills.ts]

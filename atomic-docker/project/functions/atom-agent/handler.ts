@@ -60,7 +60,7 @@ import {
     updateNotionTask
 } from './skills/notionAndResearchSkills'; // Added Task functions
 import { initializeDB as initializeLanceDB } from '../lanceDBManager';
-import * as lancedb from 'vectordb-lance';
+import * as lancedb from '@lancedb/lancedb';
 import {
     retrieveRelevantLTM,
     loadLTMToSTM,
@@ -968,7 +968,7 @@ async function _internalHandleMessage(
                     textResponse = `Failed to send Slack message to ${slack_channel} via NLU. Error: ${slackResponse.error}`;
                 }
             }
-        } catch (error: any).
+        } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "SendSlackMessage":`, error.message);
             textResponse = "Sorry, there was an issue sending your Slack message.";
         }
