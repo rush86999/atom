@@ -1,0 +1,53 @@
+table:
+  name: user_gmail_tokens
+  schema: public
+object_relationships:
+  - name: User
+    using:
+      foreign_key_constraint_on: user_id
+# Permissions will be defined later.
+# It's likely that only backend roles (e.g., 'admin') will have direct write access.
+# User roles might get read access to a limited set of non-sensitive fields
+# (e.g., to know if an integration exists), but not the tokens themselves.
+
+# Example for admin role (adjust role name if different)
+# insert_permissions:
+#   - role: admin
+#     permission:
+#       check: {} # Or specific checks if needed
+#       columns:
+#         - id
+#         - user_id
+#         - encrypted_access_token
+#         - encrypted_refresh_token
+#         - token_expiry_timestamp
+#         - scopes
+#         - created_at
+#         - updated_at
+# select_permissions:
+#   - role: admin
+#     permission:
+#       columns:
+#         - id
+#         - user_id
+#         - encrypted_access_token
+#         - encrypted_refresh_token
+#         - token_expiry_timestamp
+#         - scopes
+#         - created_at
+#         - updated_at
+#       filter: {}
+# update_permissions:
+#   - role: admin
+#     permission:
+#       columns:
+#         - encrypted_access_token
+#         - encrypted_refresh_token
+#         - token_expiry_timestamp
+#         - scopes
+#         - updated_at
+#       filter: {} # Allow updates on any row by admin
+# delete_permissions:
+#   - role: admin
+#     permission:
+#       filter: {}

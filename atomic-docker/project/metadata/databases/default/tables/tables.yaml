@@ -26,6 +26,7 @@
 - "!include public_User.yaml"
 - "!include public_User_Contact_Info.yaml"
 - "!include public_User_Preference.yaml"
+- "!include public_user_gmail_tokens.yaml"
 - "!include public_admin_user.yaml"
 - "!include public_event_optaplanner.yaml"
 - "!include public_event_part_optaplanner.yaml"
