@@ -180,6 +180,20 @@ custom_types:
     - name: SlackSearchOutput
     - name: SlackMessageOutput
     - name: SlackPermalinkOutput
+    # MS Teams Types
+    - name: GenerateMSTeamsAuthUrlOutput
+    - name: HandleMSTeamsAuthCallbackInput
+    - name: HandleMSTeamsAuthCallbackOutput
+    - name: SearchMSTeamsMessagesInput
+    - name: MSTeamsMessageAttachmentObject
+    - name: MSTeamsMentionedUserObject
+    - name: MSTeamsMentionObject
+    - name: MSTeamsMessageObject
+    - name: SearchMSTeamsMessagesOutput
+    - name: GetMSTeamsMessageDetailInput
+    - name: GetMSTeamsMessageWebUrlInput
+    - name: GetMSTeamsMessageDetailOutput
+    - name: GetMSTeamsMessageWebUrlOutput
   scalars: []
 actions:
   - name: processAudioForNote
@@ -379,3 +393,84 @@ actions:
     permissions:
       - role: user
     comment: "Gets a permalink for a specific Slack message."
+
+  # Microsoft Teams Actions
+  - name: generateMSTeamsAuthUrl
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/generate-msteams-auth-url" # Placeholder
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input | default({}) }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Generates the Microsoft OAuth URL for Teams integration (delegated)."
+
+  - name: handleMSTeamsAuthCallback
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/handle-msteams-auth-callback" # Placeholder
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Handles the OAuth callback from Microsoft after user authorization for Teams."
+
+  - name: searchUserMSTeamsMessages
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/search-user-msteams-messages" # Placeholder
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Searches messages in the user's Microsoft Teams environment."
+
+  - name: getMSTeamsMessageDetail
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-msteams-message-detail" # Placeholder
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Fetches the detailed content of a specific Microsoft Teams message."
+
+  - name: getMSTeamsMessageWebUrl
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-msteams-message-weburl" # Placeholder
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Gets a webUrl (permalink) for a specific Microsoft Teams message."
