@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": false, // Set to false as class properties might be initialized by DI or lifecycle methods not visible to TS constructor analysis
+
+    /* Module Resolution */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": "./",
+    "paths": { // Example: Allows imports like import { getGraphQLClient } from "@utils/hasura-client";
+      "@utils/*": ["../_utils/*"]
+    },
+
+    /* Output Formatting */
+    "pretty": true,
+
+    /* Emitting Files */
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "removeComments": true,
+
+    /* Linting */
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "../_utils/**/*.ts" // Make sure TS compiler sees these for type checking if using paths
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests" // Often exclude tests from main compilation if they have separate tsconfig or are handled by Jest
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    },
+    "require": ["tsconfig-paths/register"] // If using ts-node with path aliases
+  }
+}

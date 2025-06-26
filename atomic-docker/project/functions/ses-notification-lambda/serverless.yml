@@ -1,0 +1,134 @@
+service: ses-notification-lambda-service
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+
+  environment:
+    NODE_OPTIONS: --enable-source-maps
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    HASURA_GRAPHQL_ENDPOINT_URL: ${env:HASURA_GRAPHQL_ENDPOINT_URL, "http://host.docker.internal:8080/v1/graphql"} # Replace with your actual dev/prod Hasura URL via env vars
+    HASURA_ADMIN_SECRET_ARN: ${env:HASURA_ADMIN_SECRET_ARN} # e.g., arn:aws:secretsmanager:us-east-1:123456789012:secret:hasura/admin-secret-xxxxxx
+    SES_SENDER_EMAIL: ${env:SES_SENDER_EMAIL} # e.g., noreply@example.com
+    # LOG_LEVEL: ${env:LOG_LEVEL, "INFO"}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-*:*"
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: "*" # For production, scope this down to specific SES identities (e.g., arn:aws:ses:us-east-1:123456789012:identity/example.com)
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource: ${env:HASURA_ADMIN_SECRET_ARN} # Ensures Lambda can fetch the Hasura admin secret
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: true # Recommended for dev, can be 'external' or false for prod to reduce package size
+    sourcesContent: false # Do not include source content in sourcemaps for production
+    platform: 'node'
+    target: 'node18'
+    packager: 'npm' # or 'yarn'
+    # If using path aliases from tsconfig.json like "@utils/*":
+    # tsconfig: 'tsconfig.json' # Ensure serverless-esbuild reads tsconfig for paths, may need plugin for resolution
+    # watch: # For 'sls offline' hot-reloading
+    #   pattern:
+    #     - src/**/*.ts
+    #     - ../_utils/**/*.ts # Watch shared utilities too
+    #   ignore: ['node_modules/**', '.serverless/**', '.esbuild/**']
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline # Optional: for local HTTP server testing
+  # - serverless-iam-roles-per-function # Optional: for per-function IAM roles
+
+functions:
+  sesNotificationHandler:
+    handler: src/index.handler # Path to file (src/index.ts -> .esbuild/.build/src/index.js) and exported function
+    name: ${self:service}-${sls:stage}-ses-notifier # Recommended: use ${sls:stage} for consistency
+    description: Sends scheduling result notifications via SES, triggered by Hasura.
+    # memorySize: 256 # Default: 1024 MB, uncomment to override
+    # timeout: 15 # Default: 6 seconds for AWS provider, uncomment to override
+    # iamRoleStatements: # Example for per-function IAM roles if plugin is used
+    #   - Effect: Allow
+    #     Action: [ ... ]
+    #     Resource: "..."
+    events:
+      - httpApi: # AWS API Gateway HTTP API (v2) - simpler & cheaper
+          path: /hasura/event/ses-notification # This is the URL Hasura will call
+          method: post
+          # Example of securing HTTP API with a Lambda Authorizer (JWT or custom)
+          # authorizer:
+          #   name: myLambdaAuthorizer # Name of another Lambda function defined in this serverless.yml or its ARN
+          #   type: request # Or 'jwt' if using Cognito User Pools or other JWT issuer
+          #   enableSimpleResponses: true # For request authorizer
+          #   identitySource: $request.header.Authorization # Where to find the token
+          #
+          # For simple API Key auth with HTTP API, it's often managed via Usage Plans + API Keys
+          # outside the direct httpApi event config, or by a custom authorizer checking a key.
+          # If using REST API (v1) for more direct API Key support:
+          # - http:
+          #     path: /hasura/event/ses-notification
+          #     method: post
+          #     private: true # This makes the endpoint require an API Key
+
+# (Optional) Define other AWS resources like API Keys for REST APIs if needed
+# resources:
+#   Resources:
+#     MyApiKey:
+#       Type: AWS::ApiGateway::ApiKey
+#       Properties:
+#         Name: hasura-event-trigger-key
+#         Enabled: true
+#     MyUsagePlan:
+#       Type: AWS::ApiGateway::UsagePlan
+#       Properties:
+#         ApiStages:
+#           - ApiId: !Ref ApiGatewayRestApi # Default API Gateway created by Serverless for 'http' events
+#             Stage: ${sls:stage}
+#         UsagePlanName: hasura-triggers-usage-plan
+#     MyUsagePlanKey:
+#       Type: AWS::ApiGateway::UsagePlanKey
+#       Properties:
+#         KeyId: !Ref MyApiKey
+#         KeyType: API_KEY
+#         UsagePlanId: !Ref MyUsagePlan
+
+# Outputs: # (Optional) CloudFormation outputs
+#   SesNotificationApiEndpoint:
+#     Description: "API Gateway endpoint URL for the SES Notification Lambda"
+#     Value:
+#       Fn::Join:
+#         - ""
+#         - - "https://"
+#           - !GetAtt HttpApi.ApiId # !GetAtt works for HTTP API, for REST API it's !Ref ApiGatewayRestApi
+#           - ".execute-api.${self:provider.region}.amazonaws.com"
+#           # Stage is not part of HttpApi endpoint URL by default unless base path mapping is used
+#           # For REST API: - "/${self:provider.stage}"
+#           - "/hasura/event/ses-notification" # Path needs to be appended
+```
+
+**Key updates in this version:**
+*   Used `${sls:stage}` for consistency in function naming and potentially resource naming.
+*   Clarified IAM resource ARN for CloudWatch Logs: `arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-*:*`.
+*   Noted that `serverless-esbuild` might need `tsconfig: 'tsconfig.json'` in its `custom.esbuild` config if path aliases are used and need to be resolved from `tsconfig.json`.
+*   Provided more detailed examples for securing the `httpApi` endpoint (Lambda authorizer) and contrasted with `http` (REST API) for API Key usage.
+*   Commented out the `resources` section for API Keys/Usage Plans as `httpApi` (v2) handles API keys differently (usually via API Gateway console or further IaC for usage plans associated with HTTP APIs). If REST API (`http`) with `private: true` is used, that section becomes more relevant.
+*   Adjusted the `Outputs` section to be more robust for `httpApi` endpoint URL construction (though this can be tricky and often `sls info` is used to get the final URL).
+
+This `serverless.yml` provides a good starting point for the SES Lambda. Similar files would be created for Slack and Teams Lambdas, adjusting names, handlers, specific IAM permissions (e.g., different Secrets Manager ARNs for Slack/Teams tokens), and any environment variables unique to them.
