@@ -134,6 +134,17 @@ Atom connects with a wide range of third-party services to create a unified prod
         *   Proof-of-concept UI for direct Gmail searching.
     *   **Developer Documentation:** Comprehensive guide for setup, API details, and agent integration logic.
 
+*   **Slack Workspace Integration (Enhanced AI-Powered Querying & Interaction):**
+    *   **Secure Connection:** Connect your Slack workspace using a Bot User OAuth Token with necessary permissions.
+    *   **Natural Language Message Search:** Ask the agent in natural language to find Slack messages (e.g., "find messages from Bob about the project update in #general yesterday"). The agent uses an LLM to understand complex queries, resolve relative dates/users/channels, and identify key search parameters for Slack's API.
+    *   **Targeted Information Extraction:** Request specific information from found Slack messages (e.g., "What was the deadline mentioned in the message from Alice in #design?"). The agent uses an LLM to read the message content and extract the requested details.
+    *   **Message Content Retrieval:** Fetch and display content of specific Slack messages.
+    *   **Permalink Generation:** Get direct links to Slack messages.
+    *   **Agent Skills:** Core agent skills updated to search Slack messages, read their content, extract information, and get permalinks via the Slack API.
+    *   **Basic Operations:** Continues to support sending messages and listing channels.
+    *   **Configuration:** Requires `ATOM_SLACK_BOT_TOKEN` with appropriate scopes (see Slack integration guide).
+    *   **Developer Documentation:** Comprehensive guide for setup, API details, required scopes, and agent integration logic.
+
 ### User Settings & Preferences
 Tailor Atom to your specific needs with a range of customizable settings:
 *   **General Preferences:** Configure core settings during onboarding and later, such as your typical workday hours, default alarm/reminder times, and primary calendar selection.

@@ -523,6 +523,56 @@ export interface StripePaymentIntent {
   latest_charge?: StripeCharge | string | null; // Can be an ID or an expanded object
 }
 
+// --- Slack Message Type for Agent ---
+export interface SlackMessageFile {
+  id: string;
+  created: number;
+  timestamp: number;
+  name: string;
+  title: string;
+  mimetype: string;
+  filetype: string;
+  pretty_type: string;
+  user?: string; // User ID of uploader
+  editable?: boolean; // Optional as not all file objects might have it
+  size: number;
+  mode?: string; // Optional
+  is_external?: boolean; // Optional
+  external_type?: string; // Optional
+  is_public?: boolean; // Optional
+  public_url_shared?: boolean; // Optional
+  display_as_bot?: boolean; // Optional
+  username?: string; // Optional
+  url_private?: string;
+  url_private_download?: string;
+  permalink?: string;
+  permalink_public?: string;
+  // Potentially more fields like 'thumb_64', 'thumb_80', etc. for images
+}
+
+export interface SlackMessageReaction {
+  name: string; // Emoji name, e.g., "thumbsup"
+  users: string[]; // Array of user IDs who reacted
+  count: number;
+}
+
+export interface SlackMessage {
+  id: string; // Slack message 'ts' (timestamp) is used as the primary ID
+  threadId?: string; // 'thread_ts' if part of a thread
+  userId?: string; // User ID of the sender (e.g., "U012ABCDEF")
+  userName?: string; // User's display name or real name (needs resolution or comes from API)
+  botId?: string; // Bot ID if message is from a bot
+  channelId?: string; // Channel ID (e.g., "C012AB3CD")
+  channelName?: string; // Channel name (e.g., "general") (needs resolution or comes from API)
+  text?: string; // Message text content
+  blocks?: any[]; // Slack Block Kit structure, if present
+  files?: SlackMessageFile[]; // Array of attached files
+  reactions?: SlackMessageReaction[]; // Array of reactions
+  timestamp: string; // ISO 8601 string representation of the 'ts'
+  permalink?: string; // Permalink to the message
+  raw?: any; // Store the original raw Slack message object for extensibility
+}
+
 // --- Microsoft Graph / Teams Types ---
 export interface ListMSTeamsMeetingsData { // Renamed from ListMSGraphEventsData for clarity
   events: MSGraphEvent[];

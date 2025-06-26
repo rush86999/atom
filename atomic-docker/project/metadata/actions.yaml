@@ -171,4 +171,211 @@ custom_types:
     - name: GetUserGmailContentOutput
     - name: GmailConnectionStatusOutput
     - name: DisconnectGmailAccountOutput # New
+    # Slack Types
+    - name: SlackSearchQueryInput
+    - name: SlackMessageIdentifierInput
+    - name: SlackMessageFileObject
+    - name: SlackMessageReactionObject
+    - name: SlackMessageObject
+    - name: SlackSearchOutput
+    - name: SlackMessageOutput
+    - name: SlackPermalinkOutput
   scalars: []
+actions:
+  - name: processAudioForNote
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/audio_processor"
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+      # Ensure output_type and args are not needed if inferred from actions.graphql
+      # permissions are defined in actions.graphql now typically, but can be here too.
+      permissions:
+        - role: user
+    comment: "Processes an audio file, transcribes it, summarizes it, and creates or updates a Notion note."
+
+  - name: attendLiveMeeting
+    definition:
+      kind: synchronous
+      handler: '{{FUNCTIONS_BASE_URL}}/attend_live_meeting'
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Instructs an agent to attend a live meeting (e.g., Zoom) and process audio for notes."
+
+  - name: generate_gmail_auth_url
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/generate-gmail-auth-url" # Ensure this path matches deployment
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input | default({}) }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Generates the Google OAuth URL for Gmail integration."
+
+  - name: handle_gmail_auth_callback
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/handle-gmail-auth-callback" # Ensure this path matches deployment
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user # Callback is initiated by user session
+    comment: "Handles the OAuth callback from Google after user authorization for Gmail."
+
+  - name: refresh_user_gmail_token
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/refresh-user-gmail-token" # Ensure this path matches deployment
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input | default({}) }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user # User can refresh their own token
+    comment: "Refreshes a user's Gmail access token using a stored refresh token."
+
+  - name: search_user_gmail # Snake case for action name is conventional
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/search-user-gmail" # Ensure this path matches deployment
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Searches the authenticated user's Gmail messages."
+
+  - name: get_user_gmail_content # Snake case for action name
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-user-gmail-content" # Ensure this path matches deployment
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Fetches the detailed content of a specific Gmail message for the authenticated user."
+
+  - name: get_gmail_connection_status # This is a Query action
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-gmail-connection-status" # Ensure this path matches deployment
+      # Request transform for queries might be simpler if no specific input args are needed beyond session
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "session_variables": {{ $.session_variables }}
+          }
+      # output_type is inferred from actions.graphql (GmailConnectionStatusOutput)
+      # type is inferred as query from actions.graphql
+    permissions:
+      - role: user
+    comment: "Gets the status of the user's Gmail account connection."
+
+  - name: disconnect_gmail_account
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/disconnect-gmail-account" # Ensure this path matches deployment
+      request_transform: # No specific input args beyond session variables for a simple disconnect
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "session_variables": {{ $.session_variables }}
+          }
+      # output_type is inferred from actions.graphql (DisconnectGmailAccountOutput)
+      # type is inferred as mutation from actions.graphql
+    permissions:
+      - role: user
+    comment: "Disconnects the user's Gmail account by deleting their stored OAuth tokens."
+
+  # Slack Actions
+  - name: searchUserSlackMessages
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/search-user-slack-messages" # Placeholder URL
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Searches messages in the user's connected Slack workspace."
+
+  - name: getSlackMessageDetail
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-slack-message-detail" # Placeholder URL
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Fetches the detailed content of a specific Slack message."
+
+  - name: getSlackMessagePermalink
+    definition:
+      kind: synchronous
+      handler: "{{FUNCTIONS_BASE_URL}}/get-slack-message-permalink" # Placeholder URL
+      request_transform:
+        version: 2
+        template_engine: Kriti
+        body: |
+          {
+            "input": {{ $.args.input }},
+            "session_variables": {{ $.session_variables }}
+          }
+    permissions:
+      - role: user
+    comment: "Gets a permalink for a specific Slack message."
