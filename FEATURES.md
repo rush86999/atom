@@ -145,6 +145,17 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   **Configuration:** Requires `ATOM_SLACK_BOT_TOKEN` with appropriate scopes (see Slack integration guide).
     *   **Developer Documentation:** Comprehensive guide for setup, API details, required scopes, and agent integration logic.
 
+*   **Microsoft Teams Integration (Enhanced AI-Powered Chat Interaction & Delegated Permissions):**
+    *   **Secure User-Contextual Connection:** Connect on behalf of the user via OAuth 2.0 (delegated permissions) to access their Microsoft Teams environment. User-specific tokens are securely stored.
+    *   **Natural Language Message Search:** Ask the agent in natural language to find Teams messages (e.g., "find Teams messages from Alex about the Q1 budget in our 'Strategy Chat' from last week"). The agent uses an LLM to understand complex queries and map them to Microsoft Graph Search API queries.
+    *   **Targeted Information Extraction:** Request specific information from found Teams messages (e.g., "What action items were assigned to me in the Teams message from Lee in the 'Project Phoenix' channel?"). The agent uses an LLM to read message content and extract details.
+    *   **Message Content Retrieval:** Fetch and display content of specific Teams chat or channel messages the user has access to.
+    *   **Permalink (WebURL) Generation:** Get direct links to Teams messages.
+    *   **Agent Skills:** Core agent skills developed to search Teams messages, read content, extract information, and get webUrls via the Microsoft Graph API, operating within the user's permissions.
+    *   **Existing Functionality:** Continues to support integration for calendar events and online meetings (details may vary based on app or delegated permissions for calendar access).
+    *   **Configuration:** Requires Azure AD App Registration with appropriate delegated permissions (e.g., `Chat.Read`, `ChannelMessage.Read.All`, `User.Read`, `offline_access`) and corresponding environment variables (see MS Teams integration guide).
+    *   **Developer Documentation:** New comprehensive guide (`docs/msteams_integration_guide.md`) for setup, Azure AD configuration, API details, required delegated scopes, and agent integration logic.
+
 ### User Settings & Preferences
 Tailor Atom to your specific needs with a range of customizable settings:
 *   **General Preferences:** Configure core settings during onboarding and later, such as your typical workday hours, default alarm/reminder times, and primary calendar selection.

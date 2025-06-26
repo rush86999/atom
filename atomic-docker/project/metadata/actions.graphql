@@ -327,4 +327,126 @@ extend type Mutation {
 
   """Gets a permalink for a specific Slack message."""
   getSlackMessagePermalink(input: SlackMessageIdentifierInput!): SlackPermalinkOutput
+
+  # MS Teams Actions
+  """(Placeholder) Action to generate the Microsoft OAuth URL for Teams integration (delegated)."""
+  generateMSTeamsAuthUrl: GenerateMSTeamsAuthUrlOutput
+
+  """(Placeholder) Action to handle the OAuth callback from Microsoft after user authorization for Teams."""
+  handleMSTeamsAuthCallback(input: HandleMSTeamsAuthCallbackInput!): HandleMSTeamsAuthCallbackOutput
+
+  """Searches messages in the user's Microsoft Teams environment."""
+  searchUserMSTeamsMessages(input: SearchMSTeamsMessagesInput!): SearchMSTeamsMessagesOutput
+
+  """Fetches the detailed content of a specific Microsoft Teams message."""
+  getMSTeamsMessageDetail(input: GetMSTeamsMessageDetailInput!): GetMSTeamsMessageDetailOutput
+
+  """Gets a webUrl (permalink) for a specific Microsoft Teams message."""
+  getMSTeamsMessageWebUrl(input: GetMSTeamsMessageWebUrlInput!): GetMSTeamsMessageWebUrlOutput
+}
+
+# --- Microsoft Teams Integration Types ---
+
+"""(Placeholder) Output for generating MS Teams authorization URL."""
+type GenerateMSTeamsAuthUrlOutput {
+  authorizationUrl: String
+}
+
+"""(Placeholder) Input for handling MS Teams OAuth callback."""
+input HandleMSTeamsAuthCallbackInput {
+  code: String! # Authorization code
+}
+
+"""(Placeholder) Output for handling MS Teams OAuth callback."""
+type HandleMSTeamsAuthCallbackOutput {
+  success: Boolean!
+  message: String
+}
+
+"""Input for searching Microsoft Teams messages."""
+input SearchMSTeamsMessagesInput {
+  """Keyword Query Language (KQL) string or natural language query for Graph Search API."""
+  query: String!
+  """Maximum number of results to return. Defaults to 20."""
+  maxResults: Int
+}
+
+"""Represents an attachment in an MS Teams message."""
+type MSTeamsMessageAttachmentObject {
+  id: String!
+  name: String
+  contentType: String
+  contentUrl: String
+  size: Int
+}
+
+"""Represents a user mentioned in an MS Teams message."""
+type MSTeamsMentionedUserObject {
+  id: String      # AAD User ID
+  displayName: String
+  userIdentityType: String # e.g., "aadUser"
+}
+
+"""Represents a mention in an MS Teams message."""
+type MSTeamsMentionObject {
+  id: Int! # Numeric ID of the mention within the message
+  mentionText: String
+  mentioned: MSTeamsMentionedUserObject # Simplified to user mention for now
+}
+
+"""Represents an MS Teams message for agent interactions."""
+type MSTeamsMessageObject {
+  id: String! # Message ID from Graph
+  chatId: String
+  teamId: String
+  channelId: String
+  replyToId: String
+  userId: String # Sender's AAD User ID
+  userName: String # Sender's display name
+  content: String!
+  contentType: String! # 'html' or 'text'
+  createdDateTime: String! # ISO 8601
+  lastModifiedDateTime: String
+  webUrl: String
+  attachments: [MSTeamsMessageAttachmentObject!]
+  mentions: [MSTeamsMentionObject!]
+  # raw: JSON # Consider if needed
+}
+
+"""Output for searching MS Teams messages."""
+type SearchMSTeamsMessagesOutput {
+  success: Boolean!
+  message: String
+  results: [MSTeamsMessageObject!]
+}
+
+"""Input for fetching details or webUrl of a specific MS Teams message."""
+input GetMSTeamsMessageDetailInput {
+  messageId: String!
+  chatId: String      # Required if it's a chat message
+  teamId: String      # Required with channelId if it's a channel message
+  channelId: String   # Required with teamId if it's a channel message
+}
+
+# Input for getMSTeamsMessageWebUrl (can reuse GetMSTeamsMessageDetailInput)
+input GetMSTeamsMessageWebUrlInput {
+  messageId: String!
+  chatId: String
+  teamId: String
+  channelId: String
+}
+
+
+"""Output for fetching MS Teams message details."""
+type GetMSTeamsMessageDetailOutput {
+  success: Boolean!
+  message: String
+  msTeamsMessage: MSTeamsMessageObject
+}
+
+"""Output for fetching MS Teams message webUrl."""
+type GetMSTeamsMessageWebUrlOutput {
+  success: Boolean!
+  message: String
+  webUrl: String
 }

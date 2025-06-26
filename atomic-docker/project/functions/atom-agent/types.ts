@@ -616,6 +616,51 @@ export interface MSGraphTokenResponse {
   access_token: string;
 }
 
+// --- Microsoft Teams Message Types for Agent ---
+export interface MSTeamsMessageAttachment {
+  id: string;
+  name?: string | null;
+  contentType?: string | null;
+  contentUrl?: string | null; // Direct link to the content if available
+  size?: number | null;
+  // Add other relevant fields from Graph API's attachment resource type if needed
+}
+
+export interface MSTeamsMessageMentionedUser {
+  id?: string | null; // User's AAD ID if available from mention object
+  displayName?: string | null;
+  userIdentityType?: string | null; // e.g., "aadUser"
+}
+export interface MSTeamsMessageMention {
+  id: number; // The ID of the mention in the message.
+  mentionText?: string | null; // The display text of the mention.
+  mentioned?: { // Details of the entity mentioned.
+    user?: MSTeamsMessageMentionedUser | null;
+    application?: any | null; // if an app is mentioned
+    conversation?: any | null; // if a channel/chat is mentioned
+    tag?: any | null; // if a tag is mentioned
+  } | null;
+}
+
+export interface MSTeamsMessage {
+  id: string; // Message ID from Graph API
+  chatId?: string | null; // ID of the 1:1 or group chat (if applicable)
+  teamId?: string | null; // ID of the Team (if a channel message)
+  channelId?: string | null; // ID of the Channel (if a channel message)
+  replyToId?: string | null; // ID of the parent message if this is a reply
+  userId?: string | null; // Sender's AAD User ID
+  userName?: string | null; // Sender's display name
+  content: string; // Message body content (HTML or text)
+  contentType: 'html' | 'text';
+  createdDateTime: string; // ISO 8601 timestamp
+  lastModifiedDateTime?: string | null; // ISO 8601 timestamp
+  webUrl?: string | null; // Permalink to the message
+  attachments?: MSTeamsMessageAttachment[] | null;
+  mentions?: MSTeamsMessageMention[] | null;
+  raw?: any; // Store the original raw Graph API message object for extensibility
+}
+
+
 // --- Zoom Types ---
 export interface ZoomTokenResponse {
   access_token: string;
