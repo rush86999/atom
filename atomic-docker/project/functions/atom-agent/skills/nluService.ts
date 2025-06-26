@@ -124,6 +124,43 @@ New Task Management Intents:
     - Example: User says "update task 'call client' to 'call client about new quote'" -> {"intent": "UpdateTask", "entities": {"task_identifier": "call client", "update_action": "change_description", "new_description": "call client about new quote"}}
     - Example: User says "set priority for 'finish report' to high" -> {"intent": "UpdateTask", "entities": {"task_identifier": "finish report", "update_action": "set_priority", "new_priority": "high"}}
 
+New Intent for Scheduling from Email Content:
+34. Intent: "ScheduleMeetingFromEmail"
+    - Purpose: To parse the content of an email (typically the body) to schedule a new meeting.
+    - Entities:
+        - "attendees": (array of strings, required) Names or email addresses of people to invite. Example: ["Sarah", "John Doe", "team@example.com"]
+        - "duration": (string, optional) Duration of the meeting. Example: "30 minutes", "1 hour". If not specified, a default might be assumed by the scheduling skill (e.g., 30 or 60 minutes).
+        - "timing_preferences": (string, optional) Natural language description of preferred timing. Example: "next week", "Wednesday afternoon", "tomorrow morning around 10 AM".
+        - "meeting_summary": (string, required) A brief title or summary for the meeting. This should be derived from the email's subject or key phrases in the body.
+        - "original_email_body": (string, optional but recommended) The full plain text body of the email.
+        - "original_email_subject": (string, optional but recommended) The subject line of the email.
+    - Context: This intent is used when the agent processes an email that is a request to schedule a meeting. The user's message to the NLU will be the content of that email.
+    - Example: Input email body is "Can we find a time next week for a 30-minute meeting with Sarah and John? Let's prioritize Wednesday afternoon. Subject: Project Kickoff"
+      Response: {
+        "intent": "ScheduleMeetingFromEmail",
+        "entities": {
+          "attendees": ["Sarah", "John"],
+          "duration": "30 minutes",
+          "timing_preferences": "next week, prioritizing Wednesday afternoon",
+          "meeting_summary": "Project Kickoff",
+          "original_email_body": "Can we find a time next week for a 30-minute meeting with Sarah and John? Let's prioritize Wednesday afternoon. Subject: Project Kickoff",
+          "original_email_subject": "Project Kickoff"
+        }
+      }
+    - Example: Input email body is "Hi Atom, please schedule a 1-hour sync with the design team for Friday if possible. Title it 'Weekly Design Sync'. Original subject: Quick Question"
+      Response: {
+        "intent": "ScheduleMeetingFromEmail",
+        "entities": {
+          "attendees": ["design team"],
+          "duration": "1 hour",
+          "timing_preferences": "Friday if possible",
+          "meeting_summary": "Weekly Design Sync",
+          "original_email_body": "Hi Atom, please schedule a 1-hour sync with the design team for Friday if possible. Title it 'Weekly Design Sync'. Original subject: Quick Question",
+          "original_email_subject": "Quick Question"
+        }
+      }
+
+
 If the user's intent is unclear or does not match any of the above single intents, set "intent" to null and "entities" to an empty object.
 
 If the user's intent is ambiguous or critical information is missing for a recognized single intent, set "intent" to "NeedsClarification",

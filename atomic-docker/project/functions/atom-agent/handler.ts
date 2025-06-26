@@ -43,7 +43,10 @@ import {
   SkillResponse, // Generic skill response
   CreateTaskData, // Data type for CreateTask skill response
   UpdateTaskData, // Data type for UpdateTask skill response
+  SkillError, // For getUserIdByEmail
 } from '../types';
+
+import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
 
 // import * as conversationManager from './conversationState'; // Already imported at the top
 // No longer importing individual functions directly, will use conversationManager.
@@ -113,6 +116,8 @@ import { agenda, ScheduledAgentTaskData } from '../agendaService'; // Added for 
 import { searchWeb } from './skills/webResearchSkills'; // Added missing import
 import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; // Added missing import
 import { triggerZap } from './skills/zapierSkills'; // Added missing import
+import { resolveAttendees } from './skills/contactSkills'; // For ScheduleMeetingFromEmail
+// import { invokeOptaPlannerScheduling } from './skills/schedulingSkills'; // Will be added to schedulingSkills
 
 
 // Define the TTS service URL
@@ -1266,6 +1271,95 @@ async function _internalHandleMessage(
         } catch (error: any) {
           console.error(`[Handler][${interfaceType}] Error in NLU Intent "SemanticSearchMeetingNotes":`, error.message, error.stack);
           textResponse = "Sorry, an error occurred while searching your meeting notes.";
+        }
+        break;
+
+      case "ScheduleMeetingFromEmail":
+        try {
+            const {
+                attendees: attendeeStrings, // string[] from NLU
+                duration: durationString, // e.g., "30 minutes"
+                timing_preferences: timingPreferences, // e.g., "next week Wednesday afternoon"
+                meeting_summary: meetingSummary,
+                original_email_body: originalEmailBody,
+                original_email_subject: originalEmailSubject
+            } = entities;
+
+            if (!attendeeStrings || !Array.isArray(attendeeStrings) || attendeeStrings.length === 0) {
+                textResponse = "Please specify who to invite to the meeting.";
+                break;
+            }
+            if (!meetingSummary || typeof meetingSummary !== 'string') {
+                textResponse = "Please provide a summary or title for the meeting.";
+                break;
+            }
+
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Received request. Attendees: ${attendeeStrings.join(', ')}, Summary: ${meetingSummary}`);
+
+            // 1. Resolve Attendees
+            const resolvedAttendeesResponse = await resolveAttendees(attendeeStrings as string[], userId);
+            if (!resolvedAttendeesResponse.ok || !resolvedAttendeesResponse.data) {
+                textResponse = `I had trouble finding contact details for some attendees: ${resolvedAttendeesResponse.error?.message || 'Unknown error'}`;
+                break;
+            }
+            const resolvedAttendeesList = resolvedAttendeesResponse.data;
+            const internalAttendeeUserIds = resolvedAttendeesList.filter(a => a.userId && a.source === 'atom_user').map(a => a.userId!);
+
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Resolved attendees:`, resolvedAttendeesList);
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Internal Atom user IDs for availability check:`, internalAttendeeUserIds);
+
+            // 2. Get Availability for internal users
+            // Define a scheduling window (e.g., next 2 weeks from now)
+            // This should ideally be derived from `timing_preferences` or be a sensible default.
+            const now = new Date();
+            const windowStart = now.toISOString();
+            const windowEnd = new Date(now.setDate(now.getDate() + 14)).toISOString(); // Default to 2 weeks window
+
+            let usersAvailabilityData = [];
+            if (internalAttendeeUserIds.length > 0) {
+                const availabilityResponse = await getUsersAvailability(internalAttendeeUserIds, windowStart, windowEnd);
+                if (!availabilityResponse.ok || !availabilityResponse.data) {
+                    textResponse = `Could not fetch availability for some users: ${availabilityResponse.error?.message || 'Unknown error'}`;
+                    // Decide if to proceed with partial data or fail. For now, proceed.
+                    console.warn(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Failed to get availability for some users.`);
+                } else {
+                    usersAvailabilityData = availabilityResponse.data;
+                }
+            }
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Availability data for internal users:`, usersAvailabilityData);
+
+            // 3. Construct PostTableRequestBody for OptaPlanner
+            // This is a complex object. Refer to `atomic-scheduler-api-guide.md`
+            // For simplicity, some fields will be hardcoded or derived simply.
+            // A dedicated helper function to build this would be good in a real scenario.
+
+            const postTableRequestBody = {
+                singletonId: `email-sched-${Date.now()}-${Math.random().toString(36).substring(2,9)}`, // Unique ID for this request
+                hostId: userId, // Requester's user ID
+                timeslots: [], // This needs to be populated based on the scheduling window and preferences
+                userList: [], // Populate with ResolvedAttendee data and fetched availability
+                eventParts: [], // Define the meeting event part here
+                fileKey: `email-command-${userId}-${new Date().toISOString()}`, // Tracking key
+                delay: 30000, // Delay before callback (e.g., 30 seconds)
+                callBackUrl: `${process.env.API_BASE_URL}/atom-agent/scheduler-callback`, // Agent's callback endpoint
+            };
+
+            // TODO: Populate timeslots (e.g., working hours within the window for the involved users)
+            // TODO: Populate userList with User objects (id, hostId, workTimes, preferences)
+            // TODO: Populate eventParts with EventPart objects (groupId, eventId, summary, duration, attendees, preferences like "Wednesday afternoon")
+
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Prepared PostTableRequestBody (structure only):`, JSON.stringify(postTableRequestBody, null, 2).substring(0, 500) + "...");
+
+
+            // 4. (Placeholder) Call OptaPlanner scheduling skill
+            // textResponse = await invokeOptaPlannerScheduling(postTableRequestBody);
+            textResponse = `Okay, I've received the request to schedule a meeting: "${meetingSummary}" with ${attendeeStrings.join(', ')}. I will work on finding a time and will notify you. (OptaPlanner call is a TODO).`;
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] TODO: Call invokeOptaPlannerScheduling with the request body.`);
+
+
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ScheduleMeetingFromEmail":`, error.message, error.stack);
+            textResponse = "Sorry, I encountered an error while trying to schedule the meeting from the email.";
         }
         break;
 
