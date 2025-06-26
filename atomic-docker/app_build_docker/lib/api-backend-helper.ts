@@ -11,6 +11,8 @@ import { googleColorUrl } from "./calendarLib/constants"
 import { colorResponseType } from "./calendarLib/types"
 import { type Credentials } from 'google-auth-library/build/src/auth/credentials'
 import { googlePeopleSyncUrl } from "./contactLib/constants"
+import { ScheduleMeetingRequestType } from "./dataTypes/ScheduleMeetingRequestType"
+import { SCHEDULER_API_URL } from "./constants"
 
 
 const oauth2Client = new google.auth.OAuth2(
@@ -893,3 +895,39 @@ export const updateGoogleIntegration = async (
         console.log(e, ' unable to update google integration')
     }
 }
+
+export const scheduleMeeting = async (
+    payload: ScheduleMeetingRequestType,
+    // TODO: Add userId and token once auth is figured out for this endpoint
+): Promise<any> => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    try {
+        const url = `${SCHEDULER_API_URL}/timeTable/user/scheduleMeeting`;
+        console.log('scheduleMeeting called with url: ', url, ' and payload: ', payload);
+
+        const response = await got.post(url, {
+            json: payload,
+            headers: {
+                'Content-Type': 'application/json',
+                // TODO: Add Authorization header if required by the scheduler API
+                // 'Authorization': `Bearer ${token}`,
+            },
+        }).json();
+
+        console.log('scheduleMeeting response: ', response);
+        return response;
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        console.error('Error calling scheduleMeeting API:', e?.response?.body || e?.message || e);
+        // It's good practice to throw the error or return a structured error response
+        // For now, rethrowing the error or a processed version of it.
+        if (e?.response?.body) {
+            try {
+                const errorBody = JSON.parse(e.response.body);
+                throw new Error(`API Error: ${errorBody.message || e.response.body}`);
+            } catch (parseError) {
+                // If parsing fails, throw the original body content
+                throw new Error(`API Error: ${e.response.body}`);
+            }
+        }
+        throw new Error(e.message || 'Failed to schedule meeting due to an unknown error');
+    }
+};

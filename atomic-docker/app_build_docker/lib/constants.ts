@@ -43,3 +43,6 @@ export const PYTHON_TRAINING_API_URL = process.env.NEXT_PUBLIC_PYTHON_TRAINING_A
 // Assuming OpenAI API key might be needed client-side for some reason, or passed through if helper is used server-side.
 // For direct client-to-Python-service calls that require this key, it must be exposed.
 export const ATOM_OPENAI_API_KEY = process.env.NEXT_PUBLIC_ATOM_OPENAI_API_KEY;
+
+// Scheduler API URL
+export const SCHEDULER_API_URL = process.env.NEXT_PUBLIC_SCHEDULER_API_URL || 'http://localhost:8080';
