@@ -67,4 +67,6 @@
 - "!include public_supertokens_userid_mapping.yaml"
 - "!include public_timeslot_optaplanner.yaml"
 - "!include public_user_optaplanner.yaml"
+- "!include public_user_slack_configurations.yaml"
+- "!include public_user_msteams_configurations.yaml"
 - "!include public_worktime_optaplanner.yaml"

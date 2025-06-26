@@ -1,0 +1,76 @@
+table:
+  name: user_msteams_configurations
+  schema: public
+object_relationships:
+  - name: User
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      columns:
+        - user_id
+        - notification_type
+        - msteams_webhook_url
+        - graph_api_tenant_id
+        - graph_api_client_id
+        - graph_api_client_secret_arn
+        - target_type
+        - target_id
+        - is_active
+      set:
+        user_id: X-Hasura-User-Id
+select_permissions:
+  - role: user
+    permission:
+      columns: # User can see non-sensitive parts of their config
+        - id
+        - user_id
+        - notification_type
+        - target_type
+        - target_id
+        - is_active
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+  - role: service_lambda # Role for backend Lambdas
+    permission:
+      columns: # Lambdas can read all necessary fields
+        - id
+        - user_id
+        - notification_type
+        - msteams_webhook_url
+        - graph_api_tenant_id
+        - graph_api_client_id
+        - graph_api_client_secret_arn
+        - target_type
+        - target_id
+        - is_active
+      filter: {}
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - msteams_webhook_url
+        - graph_api_tenant_id
+        - graph_api_client_id
+        - graph_api_client_secret_arn
+        - target_type
+        - target_id
+        - is_active
+        - notification_type
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
