@@ -7,6 +7,9 @@ const logger = {
 };
 
 import { sendSlackMessage } from '../skills/slackSkills';
+import { createCalendarEvent } from '../skills/calendarSkills';
+import { sendEmail as sendEmailSkill } from '../skills/emailSkills'; // Renamed to avoid conflict
+import { CalendarEvent, EmailDetails, ResolvedAttendee } from '../types'; // Import necessary types
 
 // --- Type Definitions for Scheduler Callback Payload (TimeTableSolutionDto) ---
 // Based on API_GUIDE.md. These might be moved to a shared types file later.

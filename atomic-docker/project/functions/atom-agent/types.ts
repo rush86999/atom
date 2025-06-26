@@ -686,3 +686,33 @@ export type EmailActionType =
   | "GET_DATE"
   | "GET_FULL_CONTENT"
   | "SUMMARIZE_EMAIL";
+
+// --- Contact / Attendee Resolution Types ---
+export interface ResolvedAttendee {
+  email: string; // Mandatory
+  name?: string;
+  userId?: string; // Atom user ID, if applicable
+  source: "atom_user" | "google_contact" | "hubspot_contact" | "email_direct" | "unresolved";
+  status?: "found" | "not_found" | "error_resolving";
+  errorMessage?: string;
+}
+
+export interface ContactSkillResponse<T> {
+  ok: boolean;
+  data?: T;
+  error?: SkillError;
+}
+
+// --- User Availability Types (for OptaPlanner) ---
+export interface UserWorkTime {
+  dayOfWeek: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+  startTime: string; // Format: HH:MM or HH:MM:SS
+  endTime: string;   // Format: HH:MM or HH:MM:SS
+  // userId?: string; // Link to user, might be implicit if nested under UserAvailability
+}
+
+export interface UserAvailability {
+  userId: string;
+  workTimes: UserWorkTime[];
+  calendarEvents: CalendarEvent[]; // Existing events in the queried window
+}

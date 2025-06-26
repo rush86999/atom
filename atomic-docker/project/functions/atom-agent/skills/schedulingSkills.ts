@@ -52,36 +52,14 @@ export async function scheduleTask(params: ScheduleTaskParams): Promise<string> 
   };
 
   try {
-    // Ensure agenda is actually running. This is typically done at application bootstrap,
-    // but a check or specific call here might be desired if agenda could be down.
-    // For now, we assume agenda is started elsewhere.
-    // if (!agenda.isRunning) { // agenda.isRunning is not a public property.
-    //   console.warn("Agenda service does not seem to be running. Attempting to start it.");
-    //   // await startAgenda(); // startAgenda() should be called at app level.
-    //   // If agenda is not started, .schedule or .every might fail or queue indefinitely without processing.
-    // }
-
     let jobDetailsMessage: string;
 
     if (isRecurring && repeatInterval) {
-      // For recurring tasks using agenda.every()
-      // 'repeatInterval' can be a human-readable string like "every 2 hours" or a cron string.
-      // 'when' in this case might be an optional start date/time for the recurrence,
-      // but agenda.every() primarily uses the interval.
-      // If 'when' is a Date or date string, it can act as the first run time for `every`.
       const options: { timezone?: string; startDate?: Date } = {};
       if (repeatTimezone) {
         options.timezone = repeatTimezone;
       }
       if (when instanceof Date || (typeof when === 'string' && !when.includes('*') && !when.toLowerCase().startsWith('every'))) {
-         // If 'when' looks like a specific date/time for the first run rather than an interval string itself.
-         // Agenda's 'every' can take a startDate in options.
-         // However, the first param of 'every' is the interval.
-         // If 'when' is meant to be the start date, and repeatInterval is the actual interval.
-         // This part might need more sophisticated handling of 'when' vs 'repeatInterval' for 'every'.
-         // For now, we assume repeatInterval is the primary definition for recurrence.
-         // Let's assume `repeatInterval` is the cron/interval string, and `when` is not used by `every` directly
-         // unless `every`'s first param is a date (which is not its typical use for defining interval).
       }
 
       await agenda.every(repeatInterval, 'EXECUTE_AGENT_ACTION', jobData, options);
@@ -89,8 +67,6 @@ export async function scheduleTask(params: ScheduleTaskParams): Promise<string> 
       console.log(`Recurring task for intent '${originalUserIntent}' for user '${userId}' scheduled. Interval: ${repeatInterval}. Data:`, JSON.stringify(jobData));
 
     } else {
-      // For one-time tasks using agenda.schedule()
-      // 'when' should be a Date object or a date string Agenda understands (e.g., ISO format, "tomorrow at 9am").
       if (typeof when !== 'string' && !(when instanceof Date)) {
         return "Invalid 'when' parameter for a one-time task. Must be a date string or Date object.";
       }
@@ -108,15 +84,11 @@ export async function scheduleTask(params: ScheduleTaskParams): Promise<string> 
   }
 }
 
-// Other scheduling-related utility functions could be added here if needed.
-// e.g., listScheduledTasks, cancelScheduledTask etc.
-// These would also use the `agenda` instance.
 export interface CancelTaskParams {
-  jobId?: string; // Database ID of the job
-  jobName?: string; // Name of the job (e.g., EXECUTE_AGENT_ACTION)
-  // Need criteria to find the job(s)
-  userId?: string; // To scope cancellation by user
-  originalUserIntent?: string; // To scope by intent
+  jobId?: string;
+  jobName?: string;
+  userId?: string;
+  originalUserIntent?: string;
 }
 
 export async function cancelTask(params: CancelTaskParams): Promise<string> {
@@ -132,22 +104,9 @@ export async function cancelTask(params: CancelTaskParams): Promise<string> {
             query['data.originalUserIntent'] = params.originalUserIntent;
         }
 
-        // If a specific job ID is provided, it's more direct
-        // However, Agenda's cancel method uses a query. If we have the _id,
-        // we can use { _id: new ObjectId(params.jobId) } if using mongodb ObjectId directly.
-        // Agenda's types for query in cancel are not explicitly ObjectId-aware in its simplified type definition.
-        // For now, let's assume cancellation is based on properties in `data` or `name`.
-        // A more robust cancel by _id might need to ensure ObjectId conversion if jobs are found that way.
-        // The `agenda.cancel` method takes a query object.
         if (Object.keys(query).length === 0 && !params.jobId) {
             return "No criteria provided to cancel tasks. Please specify jobName, userId, or originalUserIntent.";
         }
-
-        // If jobId is provided and it's a valid MongoDB ObjectId string,
-        // we could construct a query for it.
-        // For this example, we'll rely on cancelling based on other data properties for simplicity.
-        // If a unique `jobId` (e.g. a custom one stored in `data`) is available, query by `data.customJobId`.
-        // Agenda's own `_id` is an ObjectId.
 
         const numRemoved = await agenda.cancel(query);
 
@@ -161,4 +120,148 @@ export async function cancelTask(params: CancelTaskParams): Promise<string> {
         console.error('Error cancelling task(s):', errorMessage, error);
         return `Failed to cancel task(s): ${errorMessage}`;
     }
+}
+
+
+// --- User Availability Functions ---
+import {
+    UserAvailability,
+    UserWorkTime,
+    CalendarEvent,
+    SkillResponse,
+    SkillError,
+    // Types for NLU entities if needed for scheduling functions
+    NLUCreateTimePreferenceRuleEntities,
+    NLUBlockTimeSlotEntities,
+    NLUScheduleTeamMeetingEntities,
+    SchedulingResponse,
+    SkillResponse // Added for invokeOptaPlannerScheduling
+} from '../types';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
+import { ATOM_OPTAPLANNER_API_BASE_URL } from '../_libs/constants'; // For OptaPlanner URL
+import axios from 'axios'; // For making HTTP requests to OptaPlanner
+import { listUpcomingEvents } from './calendarSkills';
+import { HASURA_GRAPHQL_URL, HASURA_ADMIN_SECRET } from '../_libs/constants';
+
+
+async function _fetchUserWorkTimes(userId: string): Promise<UserWorkTime[]> {
+    console.log(`[_fetchUserWorkTimes] Fetching work times for user ${userId}`);
+    if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+        console.error("[_fetchUserWorkTimes] GraphQL client not configured.");
+        return [];
+    }
+
+    const query = `
+        query GetUserWorkPreferences($userId: String!) {
+            user_work_preferences(where: {user_id: {_eq: $userId}}) {
+                day_of_week
+                start_time
+                end_time
+            }
+        }
+    `;
+    const variables = { userId };
+    const operationName = 'GetUserWorkPreferences';
+
+    try {
+        const response = await executeGraphQLQuery<{ user_work_preferences: Array<{ day_of_week: string; start_time: string; end_time: string }> }>(
+            query,
+            variables,
+            operationName,
+            userId
+        );
+
+        if (response && response.user_work_preferences) {
+            return response.user_work_preferences.map(pref => ({
+                dayOfWeek: pref.day_of_week.toUpperCase() as UserWorkTime['dayOfWeek'],
+                startTime: pref.start_time,
+                endTime: pref.end_time,
+            }));
+        }
+        return [];
+    } catch (error: any) {
+        console.error(`[_fetchUserWorkTimes] Error fetching work times for user ${userId}:`, error);
+        return [];
+    }
+}
+
+export async function getUsersAvailability(
+    userIds: string[],
+    windowStart: string,
+    windowEnd: string
+): Promise<SkillResponse<UserAvailability[]>> {
+    console.log(`[schedulingSkills] Getting availability for users: ${userIds.join(', ')} within window: ${windowStart} to ${windowEnd}`);
+    const allUsersAvailability: UserAvailability[] = [];
+    const errors: SkillError[] = [];
+
+    for (const userId of userIds) {
+        try {
+            const workTimes = await _fetchUserWorkTimes(userId);
+            const eventsResponse = await listUpcomingEvents(userId, 250);
+            let relevantEvents: CalendarEvent[] = [];
+
+            if (eventsResponse.ok && eventsResponse.data) {
+                const windowStartTime = new Date(windowStart).getTime();
+                const windowEndTime = new Date(windowEnd).getTime();
+                relevantEvents = eventsResponse.data.filter(event => {
+                    try {
+                        const eventStart = new Date(event.startTime).getTime();
+                        const eventEnd = new Date(event.endTime).getTime();
+                        return eventStart < windowEndTime && eventEnd > windowStartTime;
+                    } catch (dateParseError) {
+                        console.warn(`[getUsersAvailability] Could not parse event dates for event ID ${event.id}, user ${userId}:`, dateParseError);
+                        return false;
+                    }
+                });
+            } else {
+                console.warn(`[getUsersAvailability] Could not fetch calendar events for user ${userId}: ${eventsResponse.error?.message}`);
+                errors.push({
+                    code: "CALENDAR_FETCH_FAILED",
+                    message: `Failed to fetch calendar events for user ${userId}.`,
+                    details: eventsResponse.error
+                });
+            }
+
+            allUsersAvailability.push({
+                userId,
+                workTimes,
+                calendarEvents: relevantEvents,
+            });
+
+        } catch (error: any) {
+            console.error(`[getUsersAvailability] Critical error getting availability for user ${userId}: ${error.message}`);
+            errors.push({
+                code: "AVAILABILITY_FETCH_ERROR",
+                message: `Failed to get availability for user ${userId}.`,
+                details: error.message
+            });
+        }
+    }
+
+    if (errors.length > 0 && allUsersAvailability.length === 0) {
+        return { ok: false, error: errors[0] };
+    }
+
+    return { ok: true, data: allUsersAvailability };
+}
+
+// TODO: Implement these functions based on NLU intents if they are still needed
+// For now, they are placeholders as the primary focus is on the new email scheduling flow.
+export async function createSchedulingRule(userId: string, ruleDetails: NLUCreateTimePreferenceRuleEntities): Promise<SchedulingResponse> {
+    console.log("createSchedulingRule called with:", userId, ruleDetails);
+    // Placeholder
+    return { success: false, message: "createSchedulingRule not implemented." };
+}
+
+export async function blockCalendarTime(userId: string, blockDetails: NLUBlockTimeSlotEntities): Promise<SchedulingResponse> {
+    console.log("blockCalendarTime called with:", userId, blockDetails);
+    // Placeholder
+    return { success: false, message: "blockCalendarTime not implemented." };
+}
+
+export async function initiateTeamMeetingScheduling(userId: string, meetingDetails: NLUScheduleTeamMeetingEntities): Promise<SchedulingResponse> {
+    console.log("initiateTeamMeetingScheduling called with:", userId, meetingDetails);
+    // This is where the call to OptaPlanner or similar scheduling AI would be made.
+    // Placeholder
+    return { success: false, message: "initiateTeamMeetingScheduling not implemented yet. This would call OptaPlanner." };
 }
