@@ -228,3 +228,103 @@ type DisconnectGmailAccountOutput {
 #   """Disconnects the user's Gmail account by deleting their stored tokens."""
 #   disconnectGmailAccount: DisconnectGmailAccountOutput
 # }
+
+# --- Slack Integration Types ---
+
+"""Input for searching Slack messages."""
+input SlackSearchQueryInput {
+  """Plain text query string, following Slack's search syntax."""
+  query: String!
+  """Maximum number of results to return. Defaults to 20 if not provided."""
+  maxResults: Int
+}
+
+"""Represents a file attached to a Slack message, mirroring agent's SlackMessageFile type."""
+type SlackMessageFileObject {
+  id: String!
+  created: Int # Unix timestamp
+  timestamp: Int # Unix timestamp
+  name: String
+  title: String
+  mimetype: String
+  filetype: String
+  pretty_type: String
+  user: String # User ID of uploader
+  editable: Boolean
+  size: Int
+  mode: String
+  is_external: Boolean
+  external_type: String
+  is_public: Boolean
+  public_url_shared: Boolean
+  display_as_bot: Boolean
+  username: String
+  url_private: String
+  url_private_download: String
+  permalink: String
+  permalink_public: String
+}
+
+"""Represents a reaction to a Slack message, mirroring agent's SlackMessageReaction type."""
+type SlackMessageReactionObject {
+  name: String! # Emoji name
+  users: [String!] # Array of user IDs
+  count: Int!
+}
+
+"""Represents a Slack message, mirroring agent's SlackMessage type for search results and details."""
+type SlackMessageObject {
+  id: String! # Slack message 'ts'
+  threadId: String
+  userId: String
+  userName: String
+  botId: String
+  channelId: String
+  channelName: String
+  text: String
+  # blocks: [JSON] # Representing Slack Block Kit structure (JSON scalar might be needed)
+  files: [SlackMessageFileObject!]
+  reactions: [SlackMessageReactionObject!]
+  timestamp: String! # ISO 8601 string
+  permalink: String
+  # raw: JSON # Store the original raw Slack message object (JSON scalar might be needed)
+}
+
+"""Output for the Slack search action."""
+type SlackSearchOutput {
+  success: Boolean!
+  message: String
+  results: [SlackMessageObject!]
+}
+
+"""Input for fetching a specific Slack message's details or permalink."""
+input SlackMessageIdentifierInput {
+  channelId: String!
+  messageTs: String! # The 'ts' of the message
+}
+
+"""Output for fetching specific Slack message content."""
+type SlackMessageOutput {
+  success: Boolean!
+  message: String
+  slackMessage: SlackMessageObject # Full message object
+}
+
+"""Output for fetching a Slack message permalink."""
+type SlackPermalinkOutput {
+  success: Boolean!
+  message: String
+  permalink: String
+}
+
+# --- Extend existing Mutation type for Slack Actions ---
+extend type Mutation {
+  """Searches the user's connected Slack workspace for messages."""
+  searchUserSlackMessages(input: SlackSearchQueryInput!): SlackSearchOutput
+
+  """Fetches the detailed content of a specific Slack message."""
+  getSlackMessageDetail(input: SlackMessageIdentifierInput!): SlackMessageOutput
+
+  """Gets a permalink for a specific Slack message."""
+  getSlackMessagePermalink(input: SlackMessageIdentifierInput!): SlackPermalinkOutput
+}
