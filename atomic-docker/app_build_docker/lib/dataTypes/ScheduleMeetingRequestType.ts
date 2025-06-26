@@ -2,5 +2,6 @@ export interface ScheduleMeetingRequestType {
   participantNames: string[];
   durationMinutes: number;
   preferredDate: string; // YYYY-MM-DD
-  preferredTime: string; // HH:MM:SS
+  preferredStartTimeFrom: string; // HH:MM:SS
+  preferredStartTimeTo: string; // HH:MM:SS
 }

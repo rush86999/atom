@@ -21,12 +21,14 @@ describe('ScheduleHelper', () => {
       const mockParticipantNames = ['Alice', 'Bob'];
       const mockDurationMinutes = 60;
       const mockPreferredDate = '2024-08-15';
-      const mockPreferredTime = '10:00:00';
+      const mockPreferredStartTimeFrom = '10:00:00';
+      const mockPreferredStartTimeTo = '11:00:00';
       const expectedPayload = {
         participantNames: mockParticipantNames,
         durationMinutes: mockDurationMinutes,
         preferredDate: mockPreferredDate,
-        preferredTime: mockPreferredTime,
+        preferredStartTimeFrom: mockPreferredStartTimeFrom,
+        preferredStartTimeTo: mockPreferredStartTimeTo,
       };
 
       (apiBackendHelper.scheduleMeeting as jest.Mock).mockResolvedValueOnce({ success: true });
@@ -37,7 +39,8 @@ describe('ScheduleHelper', () => {
         mockParticipantNames,
         mockDurationMinutes,
         mockPreferredDate,
-        mockPreferredTime
+        mockPreferredStartTimeFrom,
+        mockPreferredStartTimeTo
       );
 
       expect(apiBackendHelper.scheduleMeeting).toHaveBeenCalledTimes(1);
@@ -54,7 +57,8 @@ describe('ScheduleHelper', () => {
         ['Alice'],
         30,
         '2024-08-16',
-        '14:00:00'
+        '14:00:00',
+        '15:00:00'
       );
 
       expect(result).toEqual(mockResponse);
@@ -71,7 +75,8 @@ describe('ScheduleHelper', () => {
           ['Bob'],
           45,
           '2024-08-17',
-          '09:00:00'
+          '09:00:00',
+          '10:00:00'
         )
       ).rejects.toThrow('API Failure');
     });

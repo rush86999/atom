@@ -33,16 +33,18 @@ export const requestScheduleMeeting = async (
     participantNames: string[],
     durationMinutes: number,
     preferredDate: string,
-    preferredTime: string,
+    preferredStartTimeFrom: string,
+    preferredStartTimeTo: string,
 ): Promise<any> => { // eslint-disable-line @typescript-eslint/no-explicit-any
     try {
-        console.log(`requestScheduleMeeting called by userId: ${userId} with params:`, { participantNames, durationMinutes, preferredDate, preferredTime });
+        console.log(`requestScheduleMeeting called by userId: ${userId} with params:`, { participantNames, durationMinutes, preferredDate, preferredStartTimeFrom, preferredStartTimeTo });
 
         const payload: ScheduleMeetingRequestType = {
             participantNames,
             durationMinutes,
             preferredDate,
-            preferredTime,
+            preferredStartTimeFrom,
+            preferredStartTimeTo,
         };
 
         // Note: The current `callScheduleMeetingApi` in api-backend-helper.ts doesn't take userId or client.

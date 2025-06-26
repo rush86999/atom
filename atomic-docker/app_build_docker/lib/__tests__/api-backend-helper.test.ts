@@ -14,7 +14,8 @@ describe('api-backend-helper', () => {
       participantNames: ['Alice', 'Bob'],
       durationMinutes: 30,
       preferredDate: '2024-07-25',
-      preferredTime: '10:00:00',
+      preferredStartTimeFrom: '10:00:00',
+      preferredStartTimeTo: '11:00:00',
     };
     const expectedUrl = `${SCHEDULER_API_URL}/timeTable/user/scheduleMeeting`;
 
