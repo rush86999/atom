@@ -4,19 +4,19 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  # runtime: nodejs18.x # Removed: Runtime is defined by the Docker image
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
 
-  environment:
+  environment: # Global environment variables, also available to the Docker container
     NODE_OPTIONS: --enable-source-maps
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
-    HASURA_GRAPHQL_ENDPOINT_URL: ${env:HASURA_GRAPHQL_ENDPOINT_URL, "http://host.docker.internal:8080/v1/graphql"} # Replace with your actual dev/prod Hasura URL via env vars
-    HASURA_ADMIN_SECRET_ARN: ${env:HASURA_ADMIN_SECRET_ARN} # e.g., arn:aws:secretsmanager:us-east-1:123456789012:secret:hasura/admin-secret-xxxxxx
-    SES_SENDER_EMAIL: ${env:SES_SENDER_EMAIL} # e.g., noreply@example.com
+    HASURA_GRAPHQL_ENDPOINT_URL: ${env:HASURA_GRAPHQL_ENDPOINT_URL, "http://host.docker.internal:8080/v1/graphql"}
+    HASURA_ADMIN_SECRET_ARN: ${env:HASURA_ADMIN_SECRET_ARN}
+    SES_SENDER_EMAIL: ${env:SES_SENDER_EMAIL}
     # LOG_LEVEL: ${env:LOG_LEVEL, "INFO"}
 
-  iam:
+  iam: # Global IAM role statements
     role:
       statements:
         - Effect: Allow
@@ -24,19 +24,34 @@ provider:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
-          Resource: "arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${self:provider.stage}-*:*"
+          Resource: "arn:aws:logs:${aws:region}:${aws:accountId}:log-group:/aws/lambda/${self:service}-${sls:stage}-*:*"
         - Effect: Allow
           Action:
             - ses:SendEmail
             - ses:SendRawEmail
-          Resource: "*" # For production, scope this down to specific SES identities (e.g., arn:aws:ses:us-east-1:123456789012:identity/example.com)
+          Resource: "*" # Scope down in production
         - Effect: Allow
           Action:
             - secretsmanager:GetSecretValue
-          Resource: ${env:HASURA_ADMIN_SECRET_ARN} # Ensures Lambda can fetch the Hasura admin secret
+          Resource: ${env:HASURA_ADMIN_SECRET_ARN}
+        # Permissions needed by Serverless Framework to manage ECR if it creates the repo
+        # These are for the *deploying IAM user/role*, not the Lambda execution role.
+        # However, sometimes people add ecr:GetAuthorizationToken to Lambda if it dynamically pulls images,
+        # but for this push-based model, it's mainly deploy-time permissions for the deployer.
+        # If Serverless Framework creates the ECR repo, the deployer needs:
+        # - ecr:CreateRepository
+        # - ecr:DescribeRepositories
+        # The Lambda execution role itself does not need ECR permissions to *run* from an image.
+
+  ecr: # ECR configuration for Docker image deployments
+    images:
+      sesnotificationlambdaimage: # Logical name for this image configuration
+        path: ./ # Path to the directory containing Dockerfile (root of this service)
+        # file: Dockerfile # Optional: if Dockerfile is named differently
+        # platform: linux/amd64 # Optional: specify platform if needed for cross-compilation builds
 
 custom:
-  esbuild:
+  esbuild: # serverless-esbuild will still build the JS code that goes INTO the Docker image
     bundle: true
     minify: true
     sourcemap: true # Recommended for dev, can be 'external' or false for prod to reduce package size
@@ -54,23 +69,27 @@ custom:
 
 plugins:
   - serverless-esbuild
-  - serverless-offline # Optional: for local HTTP server testing
-  # - serverless-iam-roles-per-function # Optional: for per-function IAM roles
+  - serverless-offline
+  # - serverless-iam-roles-per-function
 
 functions:
   sesNotificationHandler:
-    handler: src/index.handler # Path to file (src/index.ts -> .esbuild/.build/src/index.js) and exported function
-    name: ${self:service}-${sls:stage}-ses-notifier # Recommended: use ${sls:stage} for consistency
-    description: Sends scheduling result notifications via SES, triggered by Hasura.
-    # memorySize: 256 # Default: 1024 MB, uncomment to override
-    # timeout: 15 # Default: 6 seconds for AWS provider, uncomment to override
-    # iamRoleStatements: # Example for per-function IAM roles if plugin is used
-    #   - Effect: Allow
-    #     Action: [ ... ]
-    #     Resource: "..."
+    # handler: src/index.handler # Not needed when 'image' is specified
+                                 # The handler is specified by CMD in Dockerfile or Lambda config
+    name: ${self:service}-${sls:stage}-ses-notifier
+    description: Sends scheduling result notifications via SES (Docker image), triggered by Hasura.
+    # memorySize: 256
+    # timeout: 15
+    image:
+      name: sesnotificationlambdaimage # Refers to the logical image name in provider.ecr.images
+      # command: [ "src/index.handler" ] # Optional: Override CMD in Dockerfile. Format depends on base image.
+                                        # For AWS base images, this is often how you specify your handler.
+      # entryPoint: [ "/usr/bin/custom-entrypoint.sh" ] # Optional
+      # workingDirectory: "/var/task" # Optional
+
     events:
-      - httpApi: # AWS API Gateway HTTP API (v2) - simpler & cheaper
-          path: /hasura/event/ses-notification # This is the URL Hasura will call
+      - httpApi:
+          path: /hasura/event/ses-notification
           method: post
           # Example of securing HTTP API with a Lambda Authorizer (JWT or custom)
           # authorizer:
