@@ -1,0 +1,66 @@
+table:
+  name: user_slack_configurations
+  schema: public
+object_relationships:
+  - name: User
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      columns:
+        - user_id
+        - notification_type
+        - slack_webhook_url
+        - slack_bot_token_secret_arn
+        - slack_channel_id
+        - is_active
+      set:
+        user_id: X-Hasura-User-Id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - notification_type
+        - slack_channel_id # Webhook URL and secret ARN are intentionally omitted for user role select
+        - is_active
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+  - role: service_lambda # Role for backend Lambdas
+    permission:
+      columns: # Lambdas can read all necessary fields
+        - id
+        - user_id
+        - notification_type
+        - slack_webhook_url
+        - slack_bot_token_secret_arn
+        - slack_channel_id
+        - is_active
+      filter: {} # No filter, can access all configurations
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - slack_webhook_url
+        - slack_bot_token_secret_arn
+        - slack_channel_id
+        - is_active
+        - notification_type
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
