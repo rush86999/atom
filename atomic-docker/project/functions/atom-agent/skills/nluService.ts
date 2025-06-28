@@ -394,6 +394,78 @@ New Intent for Scheduling from Email Content:
             }
           }
 
+38. Intent: "CreateTaskFromChatMessage"
+    - Purpose: To create a task in a task management system (e.g., Notion) based on the content of a specific chat message from platforms like Slack or Teams.
+    - Entities:
+        - "chat_message_reference": {
+            "description": "Information to identify the specific chat message. This could be a direct link to the message, or a descriptive reference like 'the message from John about the UI bug in #dev channel yesterday'.",
+            "type": "string",
+            "required": true
+        },
+        - "source_platform": {
+            "description": "The platform where the chat message originated.",
+            "type": "string",
+            "enum": ["slack", "msteams", "gmail_thread_item"],
+            "required": true,
+            "example": "slack", "the message from Teams"
+        },
+        - "task_description_override": {
+            "description": "Optional explicit description for the task. If not provided, the task description will be derived from the chat message content.",
+            "type": "string",
+            "optional": true
+        },
+        - "target_task_list_or_project": {
+            "description": "The name or ID of the target list, project, or database where the task should be created (e.g., 'Engineering Bugs DB', 'Client Follow-ups'). Defaults to a general task list if not specified.",
+            "type": "string",
+            "optional": true
+        },
+        - "assignee": {
+            "description": "Optional suggested assignee for the task (e.g., 'me', 'Alice', 'dev_team@example.com').",
+            "type": "string",
+            "optional": true
+        },
+        - "due_date": {
+            "description": "Optional suggested due date for the task (e.g., 'tomorrow', 'next Friday', '2024-12-31').",
+            "type": "string",
+            "optional": true
+        },
+        - "priority": {
+            "description": "Optional priority for the task.",
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "optional": true
+        }
+    - Examples:
+        - User: "Create a task from that last Slack message in #support about the login error for the 'Support Tickets' list."
+          Response: {
+            "intent": "CreateTaskFromChatMessage",
+            "entities": {
+              "chat_message_reference": "last Slack message in #support about the login error",
+              "source_platform": "slack",
+              "target_task_list_or_project": "Support Tickets"
+            }
+          }
+        - User: "Make a task from Bob's Teams message: https://teams.microsoft.com/l/message/channel_id/message_id. Call it 'Review proposal' and assign it to me for tomorrow."
+          Response: {
+            "intent": "CreateTaskFromChatMessage",
+            "entities": {
+              "chat_message_reference": "https://teams.microsoft.com/l/message/channel_id/message_id",
+              "source_platform": "msteams",
+              "task_description_override": "Review proposal",
+              "assignee": "me",
+              "due_date": "tomorrow"
+            }
+          }
+        - User: "Add this email item from Jane as a high priority task: [link_or_id_to_email_item]"
+          Response: {
+            "intent": "CreateTaskFromChatMessage",
+            "entities": {
+              "chat_message_reference": "[link_or_id_to_email_item]",
+              "source_platform": "gmail_thread_item",
+              "priority": "high"
+            }
+          }
+
 
 If the user's intent is unclear or does not match any of the above single intents, set "intent" to null and "entities" to an empty object.
 

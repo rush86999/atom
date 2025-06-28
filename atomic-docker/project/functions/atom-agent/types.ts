@@ -1156,3 +1156,92 @@ export interface DailyBriefingData {
 
 // Potential structure for the skill's output
 export interface GetDailyPriorityBriefingSkillResponse extends SkillResponse<DailyBriefingData> {}
+
+// --- Smart Task Creation from Chat Message Use Case Types ---
+
+/**
+ * Represents the parsed entities from the NLU service for a CreateTaskFromChatMessage intent.
+ * Aligns with intent #38 in nluService.ts.
+ */
+export interface CreateTaskFromChatMessageNluEntities {
+  chat_message_reference: string;
+  source_platform: 'slack' | 'msteams' | 'gmail_thread_item'; // Reflects enum in NLU
+  task_description_override?: string;
+  target_task_list_or_project?: string;
+  assignee?: string;
+  due_date?: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Represents the fetched content of a chat message from Slack, Teams, or a Gmail item.
+ * This structure would be populated by a skill that retrieves the message.
+ */
+export interface ChatMessageContent {
+  platform: 'slack' | 'msteams' | 'gmail_thread_item';
+  message_id?: string; // Original message ID from the platform (e.g., Slack ts, Teams message ID, Gmail message ID)
+  channel_id?: string; // Optional, e.g., Slack channel ID, Teams channel/chat ID
+  thread_id?: string; // Optional, if it's part of a thread
+  sender_id?: string;
+  sender_name?: string;
+  text_content: string; // The main textual content of the message
+  html_content?: string; // Optional HTML version
+  message_url?: string; // Permalink to the message/item
+  timestamp: string; // ISO 8601 timestamp of when the message was sent
+  attachments?: Array<{ name?: string; url?: string; type?: string }>; // Simplified attachment info
+}
+
+/**
+ * Represents the result of attempting to create a task.
+ * This would be part of the skill's output.
+ */
+export interface TaskCreationResultFromMessage {
+  success: boolean;
+  message: string; // e.g., "Task created successfully" or error message
+  taskId?: string; // Notion Page ID or ID from other task system
+  taskUrl?: string; // Link to the created task
+  taskTitle?: string; // The actual title/description used for the task
+  original_message_link_included?: boolean;
+}
+
+// Potential structure for the skill's output for this use case
+export interface CreateTaskFromChatMessageSkillResponse extends SkillResponse<TaskCreationResultFromMessage> {}
+
+// --- Complex Task Orchestration Types (e.g., for Use Case 5: Voice-Activated Info & Action Relay) ---
+
+/**
+ * Represents the NLU structure for a sub-task within a ComplexTask.
+ * This is already part of ProcessedNLUResponse's sub_tasks definition,
+ * but defined here for clarity in the context of execution results.
+ */
+export interface ComplexTaskSubTaskNlu {
+  intent: string | null;
+  entities: Record<string, any>;
+  summary_for_sub_task?: string;
+}
+
+/**
+ * Represents the result of executing a single sub-task identified within a ComplexTask.
+ */
+export interface ExecutedSubTaskResult {
+  sub_task_nlu: ComplexTaskSubTaskNlu;
+  execution_order: number;
+  status: 'success' | 'failure' | 'skipped' | 'partial_success';
+  message_from_handler?: string; // User-facing message from the specific handler for this sub-task
+  error_details?: string;
+  returned_data?: any; // Data returned by the sub-task's handler (e.g., an ID, a list of items)
+}
+
+/**
+ * Represents the overall report of an orchestrated ComplexTask execution.
+ * This would be constructed by the logic handling the main ComplexTask intent.
+ */
+export interface OrchestratedComplexTaskReport {
+  original_user_query: string;
+  overall_status: 'completed_fully' | 'completed_partially' | 'failed_entirely' | 'clarification_needed_mid_sequence';
+  final_summary_message_for_user?: string; // Overall summary message for the user
+  sub_task_results: ExecutedSubTaskResult[];
+  // Optional context passed between tasks, managed by the orchestrator.
+  // Example: output of sub-task 1 (e.g., an email ID) could be stored here to be used as input for sub-task 2.
+  inter_task_context?: Record<string, any>;
+}
