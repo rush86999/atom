@@ -160,6 +160,240 @@ New Intent for Scheduling from Email Content:
         }
       }
 
+35. Intent: "RequestMeetingPreparation"
+    - Purpose: To gather and compile relevant information from various sources in preparation for a specific meeting identified by the user.
+    - Entities:
+        - "meeting_reference": {
+            "description": "Natural language phrase identifying the meeting. This could include title, attendees, relative time, or specific time.",
+            "type": "string",
+            "required": true,
+            "example": "my meeting with Client X tomorrow about the Q3 proposal", "the 10 AM project sync", "next week's budget review with the finance team"
+        },
+        - "information_requests": {
+            "description": "An array of specific information gathering tasks from different sources.",
+            "type": "array",
+            "required": true,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "source": {
+                        "description": "The data source to query.",
+                        "type": "string",
+                        "enum": ["gmail", "slack", "notion", "calendar_events"],
+                        "required": true
+                    },
+                    "search_parameters": {
+                        "description": "Parameters specific to the data source to guide the search. Note to LLM: For search_parameters, only include keys relevant to the specified 'source'. Example for source: \"gmail\": { \"from_sender\": \"...\", \"subject_keywords\": \"...\" }",
+                        "type": "object",
+                        "required": true
+                        /* Conceptual properties for each source type for LLM guidance:
+                        "properties_gmail": {
+                            "from_sender": "string (e.g., 'john.doe@example.com', 'Jane Doe')",
+                            "subject_keywords": "string (e.g., 'Q3 report', 'contract details')",
+                            "body_keywords": "string (e.g., 'action items', 'next steps', 'budget discussion')",
+                            "date_query": "string (e.g., 'last 7 days', 'since last Monday', 'in July')",
+                            "has_attachment_only": "boolean (true if only emails with attachments are desired)"
+                        },
+                        "properties_slack": {
+                            "channel_name": "string (e.g., '#project-alpha', 'Direct message with Bob')",
+                            "from_user": "string (e.g., 'Alice', '@bob')",
+                            "text_keywords": "string (e.g., 'key decision', 'blocker', 'feedback received')",
+                            "date_query": "string (e.g., 'yesterday', 'this week')",
+                            "mentions_user": "string (e.g., 'me', '@current_user')"
+                        },
+                        "properties_notion": {
+                            "database_name_or_id": "string (e.g., 'Meeting Notes DB', 'Project Wiki')",
+                            "page_title_keywords": "string (e.g., 'Q3 Planning', 'Client X Onboarding')",
+                            "content_keywords": "string (e.g., 'decision log', 'requirements list')",
+                            "filter_by_meeting_reference_context": "boolean (true if Notion search should be contextually linked to the meeting_reference, e.g., search pages linked to this meeting or its attendees)"
+                        },
+                        "properties_calendar_events": {
+                            "related_to_attendees_of_meeting_reference": "boolean (true to find past/future events with same attendees as the main meeting_reference)",
+                            "keywords_in_summary_or_description": "string (e.g., 'follow-up', 'preparation for')\",
+                            "date_query_lookback": "string (e.g., 'past month', 'last 3 meetings with X')\",
+                            "type_filter": "string (e.g., 'past_events', 'future_events', 'all_related_events')"
+                        }
+                        */
+                    }
+                }
+            }
+        },
+        "overall_lookback_period": {
+            "description": "A general lookback period to apply if not specified per information_request. Can be overridden by a more specific date_query within an information_request.",
+            "type": "string",
+            "optional": true,
+            "example": "last 7 days", "since our last major sync"
+        }
+    - Examples:
+        - User: "Prep for my meeting with Sales Team about Q4 strategy. Check emails from sales_lead@example.com on this, Slack in #sales channel, and Notion docs titled 'Q4 Strategy'."
+          Response: {
+            "intent": "RequestMeetingPreparation",
+            "entities": {
+              "meeting_reference": "meeting with Sales Team about Q4 strategy",
+              "information_requests": [
+                {"source": "gmail", "search_parameters": {"from_sender": "sales_lead@example.com", "body_keywords": "Q4 strategy"}},
+                {"source": "slack", "search_parameters": {"channel_name": "#sales", "text_keywords": "Q4 strategy"}},
+                {"source": "notion", "search_parameters": {"page_title_keywords": "Q4 Strategy"}}
+              ]
+            }
+          }
+        - User: "Get me ready for the 10am client call with Acme Corp tomorrow. Find recent emails with 'Acme Corp' and any notes from our Notion project page for 'Acme Project'. Also, see what our last calendar event with them was about."
+          Response: {
+            "intent": "RequestMeetingPreparation",
+            "entities": {
+              "meeting_reference": "10am client call with Acme Corp tomorrow",
+              "information_requests": [
+                {"source": "gmail", "search_parameters": {"body_keywords": "Acme Corp", "date_query": "recent"}},
+                {"source": "notion", "search_parameters": {"page_title_keywords": "Acme Project", "content_keywords": "Acme Corp"}},
+                {"source": "calendar_events", "search_parameters": {"related_to_attendees_of_meeting_reference": true, "type_filter": "past_events"}}
+              ],
+              "overall_lookback_period": "recent"
+            }
+          }
+
+36. Intent: "ProcessMeetingOutcomes"
+    - Purpose: To process the outcomes of a specified meeting (e.g., from a transcript or notes) and perform actions like summarizing decisions, drafting follow-up emails, or creating tasks.
+    - Entities:
+        - "meeting_reference": {
+            "description": "Identifier for the meeting whose outcomes are to be processed. Can be a meeting title, a reference to a transcript, a calendar event, or a recent meeting.",
+            "type": "string",
+            "required": true,
+            "example": "the Project Phoenix Debrief transcript", "my last meeting with Acme Corp", "the strategy session from yesterday"
+        },
+        - "source_document_id": {
+            "description": "Optional specific ID of the source document containing the meeting outcomes (e.g., a transcript ID, a Notion page ID, or a file ID if applicable). If not provided, the system may try to infer from meeting_reference.",
+            "type": "string",
+            "optional": true
+        },
+        - "outcome_source_type": {
+            "description": "The type of source material for the outcomes.",
+            "type": "string",
+            "enum": ["transcript", "meeting_notes", "audio_recording_summary"],
+            "optional": true, "default": "transcript"
+        },
+        - "requested_actions": {
+            "description": "An array specifying the actions to be performed on the meeting outcomes.",
+            "type": "array",
+            "required": true,
+            "items": {
+                "type": "string",
+                "enum": ["SUMMARIZE_KEY_DECISIONS", "EXTRACT_ACTION_ITEMS", "DRAFT_FOLLOW_UP_EMAIL", "CREATE_TASKS_IN_NOTION"]
+            }
+        },
+        - "email_draft_details": {
+            "description": "Details for drafting a follow-up email. Required if 'DRAFT_FOLLOW_UP_EMAIL' is in requested_actions.",
+            "type": "object",
+            "optional": true,
+            "properties": {
+                "recipients": "array of strings (e.g., ['attendees', 'john.doe@example.com', 'Sales Team']) or a string (e.g., 'all meeting attendees')",
+                "additional_instructions": "string (e.g., 'Keep it concise', 'Focus on deliverables')"
+            }
+        },
+        - "task_creation_details": {
+            "description": "Details for creating tasks. Relevant if 'CREATE_TASKS_IN_NOTION' or 'EXTRACT_ACTION_ITEMS' (with intent to create tasks) is in requested_actions.",
+            "type": "object",
+            "optional": true,
+            "properties": {
+                "notion_database_id": "string (Optional ID of the Notion database for tasks; defaults to user's primary task DB if not specified)",
+                "default_assignee": "string (Optional default assignee for new tasks, e.g., 'me', 'project_lead@example.com')"
+            }
+        }
+    - Examples:
+        - User: "For the 'Q1 Review meeting', summarize decisions, extract action items, and draft an email to attendees."
+          Response: {
+            "intent": "ProcessMeetingOutcomes",
+            "entities": {
+              "meeting_reference": "Q1 Review meeting",
+              "requested_actions": ["SUMMARIZE_KEY_DECISIONS", "EXTRACT_ACTION_ITEMS", "DRAFT_FOLLOW_UP_EMAIL"],
+              "email_draft_details": {"recipients": "attendees"}
+            }
+          }
+        - User: "From the transcript ID 'xyz123', create tasks in Notion for any action items found."
+          Response: {
+            "intent": "ProcessMeetingOutcomes",
+            "entities": {
+              "meeting_reference": "transcript ID 'xyz123'",
+              "source_document_id": "xyz123",
+              "outcome_source_type": "transcript",
+              "requested_actions": ["EXTRACT_ACTION_ITEMS", "CREATE_TASKS_IN_NOTION"]
+            }
+          }
+        - User: "Process my last meeting: summarize decisions and extract action items."
+          Response: {
+            "intent": "ProcessMeetingOutcomes",
+            "entities": {
+              "meeting_reference": "my last meeting",
+              "requested_actions": ["SUMMARIZE_KEY_DECISIONS", "EXTRACT_ACTION_ITEMS"]
+            }
+          }
+
+37. Intent: "GetDailyPriorityBriefing"
+    - Purpose: To provide the user with a consolidated overview of their important tasks, meetings, and potentially messages for a given day (defaulting to today).
+    - Entities:
+        - "date_context": {
+            "description": "Specifies the day for which the briefing is requested. Defaults to 'today' if not mentioned.",
+            "type": "string",
+            "optional": true,
+            "example": "today", "tomorrow", "for this Monday"
+        },
+        - "focus_areas": {
+            "description": "Optional array to specify which areas to include in the briefing. If empty or not provided, all primary areas (tasks, meetings, urgent messages) are typically included.",
+            "type": "array",
+            "optional": true,
+            "items": {
+                "type": "string",
+                "enum": ["tasks", "meetings", "urgent_emails", "urgent_slack_messages", "urgent_teams_messages"]
+            },
+            "example": "[\"tasks\", \"meetings\"]"
+        },
+        - "project_filter": {
+            "description": "Optional filter to get priorities related to a specific project name or keyword.",
+            "type": "string",
+            "optional": true,
+            "example": "Project Alpha", "the Q4 launch"
+        },
+        - "urgency_level": {
+            "description": "Optional filter for urgency, e.g., only show high priority tasks or critical messages.",
+            "type": "string",
+            "enum": ["high", "critical", "all"],
+            "optional": true,
+            "default": "all",
+            "example": "high priority only"
+        }
+    - Examples:
+        - User: "What are my top priorities for today?"
+          Response: {
+            "intent": "GetDailyPriorityBriefing",
+            "entities": {
+              "date_context": "today"
+            }
+          }
+        - User: "Show me my tasks and meetings for tomorrow for Project Phoenix."
+          Response: {
+            "intent": "GetDailyPriorityBriefing",
+            "entities": {
+              "date_context": "tomorrow",
+              "focus_areas": ["tasks", "meetings"],
+              "project_filter": "Project Phoenix"
+            }
+          }
+        - User: "What urgent emails do I have today?"
+          Response: {
+            "intent": "GetDailyPriorityBriefing",
+            "entities": {
+              "date_context": "today",
+              "focus_areas": ["urgent_emails"]
+            }
+          }
+        - User: "Give me the high priority items for today."
+          Response: {
+            "intent": "GetDailyPriorityBriefing",
+            "entities": {
+                "date_context": "today",
+                "urgency_level": "high"
+            }
+          }
+
 
 If the user's intent is unclear or does not match any of the above single intents, set "intent" to null and "entities" to an empty object.
 
