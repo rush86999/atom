@@ -8,6 +8,9 @@ Atom is designed to enhance your productivity through a comprehensive suite of A
 *   **User Authentication:** Secure login system for protecting your data and configurations.
 *   **Configurable Agent Settings:** Customize various aspects of the Atom agent's behavior and its interaction with integrated services.
 *   **Wake Word Detection:** (If confirmed as fully functional) Initiate interaction with Atom using a spoken wake word for hands-free operation.
+*   **Smart Meeting Preparation:** Proactively gathers relevant notes, emails, and tasks for your upcoming meetings. Example command: *"Atom, prepare me for my meeting with 'Project X' tomorrow."*
+*   **Automated Weekly Digest:** Provides a summary of your past week's accomplishments (completed tasks, key meetings) and a preview of critical items for the upcoming week. Can be triggered on-demand or scheduled. Example command: *"Atom, what's my weekly digest?"*
+*   **Intelligent Follow-up Suggester:** Analyzes meeting notes, transcripts, or project documents to identify and suggest potential action items, key decisions, and unresolved questions. Example command: *"Atom, suggest follow-ups for the 'Q3 Strategy discussion'."*
 
 ### Smart Scheduling & Calendar Management
 Atom revolutionizes how you manage your time with a suite of AI-powered scheduling tools:

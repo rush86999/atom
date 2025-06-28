@@ -158,3 +158,131 @@ After successfully completing the "Grant Consent" step in the OAuth Flow Testing
 *   You should see error messages in the **server-side console** (where you ran `npm run dev`) originating from `calendarSkills.ts`, indicating failed Google API calls (e.g., "invalid_grant", "Login Required").
 
 This manual testing plan covers the core functionalities of the Atom agent as implemented with mock skills and UI placeholders, as well as the initial (partially mocked) Google Calendar OAuth flow.
+
+## 5. Advanced Productivity Skills Testing (Conceptual & Mocked Data)
+
+This section outlines tests for newly implemented productivity skills. For initial manual testing, these will rely on:
+*   Correct NLU parsing (conceptual: assume NLU correctly identifies intent and entities based on training phrases).
+*   Mocked responses from underlying data services (Notion search, email search, LLM analysis) to verify the agent's orchestration and response formatting logic.
+*   Actual data retrieval will depend on the live integration and robustness of those underlying services.
+
+### 5.1. Smart Meeting Preparation (`PrepareForMeeting`)
+
+**Prerequisites:**
+*   A few mock calendar events in the user's calendar for different days/times with varied summaries and attendees.
+*   Conceptual mock data for:
+    *   Notion pages (titles, URLs, brief snippets) that would be relevant to meeting titles/keywords.
+    *   Emails (subjects, senders, brief snippets) relevant to meeting titles/attendees.
+    *   Notion tasks (descriptions, due dates, statuses) relevant to meeting titles.
+*   Set `OPENAI_API_KEY` in environment if any part of this skill (even sub-components like semantic search in Notion if it uses it) relies on it. (Note: The V1 `PrepareForMeeting` skill itself does not directly call an LLM).
+
+**Test Cases:**
+
+1.  **Prepare for a Specific Upcoming Meeting:**
+    *   **Action:** Type `Atom, prepare me for my meeting about "Team Sync Q3 Planning"` (assuming "Team Sync Q3 Planning" is a mock event).
+    *   **Expected NLU (Conceptual):** `intent: "PrepareForMeeting"`, `entities: {"meeting_identifier": "Team Sync Q3 Planning"}`.
+    *   **Expected Result:** Atom should respond with:
+        *   Confirmation of the target meeting (summary, date/time).
+        *   A list of 2-3 mock relevant Notion documents (title, URL, snippet).
+        *   A list of 2-3 mock relevant recent emails (subject, sender, snippet).
+        *   A list of 2-3 mock relevant open Notion tasks (description, due date, status).
+        *   If any data source returns an error or no items, this should be gracefully indicated.
+
+2.  **Prepare for "Next Meeting":**
+    *   **Action:** Type `Atom, get me ready for my next meeting.`
+    *   **Expected NLU (Conceptual):** `intent: "PrepareForMeeting"`, `entities: {"meeting_identifier": "next meeting"}` (or similar).
+    *   **Expected Result:** Atom identifies the soonest upcoming mock meeting and provides a preparation summary for it, similar to the above.
+
+3.  **Meeting Not Found:**
+    *   **Action:** Type `Atom, prepare for "NonExistent Meeting"`.
+    *   **Expected NLU (Conceptual):** `intent: "PrepareForMeeting"`, `entities: {"meeting_identifier": "NonExistent Meeting"}`.
+    *   **Expected Result:** Atom responds with a message like "Sorry, I couldn't find a meeting matching 'NonExistent Meeting'."
+
+4.  **Partial Data Availability:**
+    *   **Setup:** Configure mocks so that (e.g.) Notion search returns results, but email search returns an error or no results.
+    *   **Action:** Type `Atom, prep for "Team Sync Q3 Planning"`.
+    *   **Expected Result:** Atom provides preparation details from Notion and tasks (if any), and includes a message like "Could not fetch relevant emails at this time" or "No specific recent emails found."
+
+### 5.2. Automated Weekly Digest (`GenerateWeeklyDigest`)
+
+**Prerequisites:**
+*   Mock data for:
+    *   Notion tasks with various statuses ("Done", "In Progress") and `last_edited_time` or conceptual "Completed At" dates spanning "this week" and "last week".
+    *   Calendar events for "this week" and "last week" (some significant, some minor).
+    *   Notion tasks with "High" priority due "next week".
+    *   Calendar events for "next week" (some significant).
+*   Set `ATOM_NOTION_TASKS_DATABASE_ID` environment variable.
+
+**Test Cases:**
+
+1.  **Digest for "This Week":**
+    *   **Action:** Type `Atom, what's my weekly digest?` (or `... for this week`).
+    *   **Expected NLU (Conceptual):** `intent: "GenerateWeeklyDigest"`, `entities: {"time_period": "this week"}` (or default).
+    *   **Expected Result:** Atom responds with a formatted digest for the current week (Mon - current day, or Mon - Fri if past Friday), including:
+        *   A section for "Accomplishments" listing mock completed tasks.
+        *   A section for "Key Meetings Attended" listing mock significant meetings.
+        *   A section for "Focus for Next Period" listing mock high-priority upcoming tasks and significant meetings.
+        *   Graceful messages if any section has no items.
+
+2.  **Digest for "Last Week":**
+    *   **Action:** Type `Atom, show me last week's digest`.
+    *   **Expected NLU (Conceptual):** `intent: "GenerateWeeklyDigest"`, `entities: {"time_period": "last week"}`.
+    *   **Expected Result:** Atom responds with a formatted digest for the previous full week (Mon - Sun), structured similarly to the "this week" digest.
+
+3.  **No Data for Some Sections:**
+    *   **Setup:** Configure mocks so that, e.g., no tasks were completed, or no critical items are upcoming.
+    *   **Action:** Type `Atom, weekly digest for this week`.
+    *   **Expected Result:** The digest should still be generated, with messages like "No specific tasks marked completed this period" or "No high-priority tasks specifically logged for next period yet."
+
+4.  **Error in Data Fetching:**
+    *   **Setup:** Configure a mock for one of the underlying services (e.g., `queryNotionTasks`) to return an error.
+    *   **Action:** Type `Atom, my weekly digest`.
+    *   **Expected Result:** Atom should still attempt to generate the digest with data from other sources and include an error message for the failed part (e.g., "⚠️ Issues encountered: Could not fetch completed tasks.").
+
+### 5.3. Intelligent Follow-up Suggester (`SuggestFollowUps`)
+
+**Prerequisites:**
+*   Set `OPENAI_API_KEY` environment variable (as the skill now makes real calls, though for manual testing, the LLM's actual output quality isn't the primary focus, rather the agent's handling of *some* structured response).
+*   Mock data for:
+    *   A Notion page (e.g., "Meeting Notes - Project Phoenix Q1") with text containing clear (mock) action items, decisions, and questions.
+    *   A few Notion tasks, some of which might vaguely match the mock action items.
+*   Set `ATOM_NOTION_TASKS_DATABASE_ID`.
+
+**Test Cases:**
+
+1.  **Suggest Follow-ups for a Meeting (Notion Notes Found):**
+    *   **Setup:** Ensure `searchNotionRaw` mock will return the mock Notion page content when queried about "Project Phoenix Q1 meeting".
+    *   **Action:** Type `Atom, suggest follow-ups for the Project Phoenix Q1 meeting`.
+    *   **Expected NLU (Conceptual):** `intent: "SuggestFollowUps"`, `entities: {"context_identifier": "Project Phoenix Q1 meeting", "context_type": "meeting"}`.
+    *   **Expected Result:**
+        *   Atom indicates it's analyzing notes for "Meeting: Meeting Notes - Project Phoenix Q1...".
+        *   The response should list:
+            *   🎯 Action Items: (e.g., "Alice to update roadmap (Assignee: Alice) - [Consider creating a task]")
+            *   ⚖️ Key Decisions: (e.g., "Q2 budget approved")
+            *   ❓ Open Questions: (e.g., "When is Phase 2 starting?")
+        *   If mock `queryNotionTasks` finds a match for an action, it should state `(Possibly related to existing task: ...)`
+
+2.  **Suggest Follow-ups (Context Document Not Found):**
+    *   **Setup:** Ensure `searchNotionRaw` (and `findTargetMeeting` if "last meeting" is used) returns no relevant document for the context.
+    *   **Action:** Type `Atom, what are the follow-ups for "Unknown Project X meeting"?`
+    *   **Expected Result:** Atom responds with a message like "Sorry, I couldn't find a document or meeting notes for 'Unknown Project X meeting' to analyze." or similar error from the skill.
+
+3.  **Suggest Follow-ups (LLM Analysis Returns No Items):**
+    *   **Setup:** `searchNotionRaw` returns a document, but the (mocked or real if permissive) `analyzeTextForFollowUps` returns empty arrays for actions, decisions, and questions.
+    *   **Action:** Type `Atom, suggest follow-ups for "Vague Meeting Notes"`.
+    *   **Expected Result:** Atom responds with a message like "No specific action items, decisions, or questions were identified for follow-up from the provided context for 'Vague Meeting Notes'."
+
+4.  **Suggest Follow-ups (LLM Analysis Fails):**
+    *   **Setup:** `searchNotionRaw` returns a document, but `analyzeTextForFollowUps` is mocked to return an error (e.g., API key issue, LLM error).
+    *   **Action:** Type `Atom, suggest follow-ups for "Meeting with LLM error"`.
+    *   **Expected Result:** Atom includes an error message in its response, e.g., "⚠️ Issues encountered: LLM analysis failed: OpenAI API key not configured." or similar.
+
+5.  **Suggest Follow-ups (Action Item Matches Existing Task):**
+    *   **Setup:**
+        *   `searchNotionRaw` returns notes with "Action: Bob to send proposal".
+        *   `analyzeTextForFollowUps` mock extracts this action.
+        *   `queryNotionTasks` mock returns an existing task like "Bob send Q3 proposal" when queried with keywords from the action.
+    *   **Action:** Type `Atom, follow-ups for "Proposal Meeting"`.
+    *   **Expected Result:** The action item "Bob to send proposal" should be listed with an indication that a related task exists, e.g., `(Possibly related to existing task: Bob send Q3 proposal - ID: task123)`.
+
+This new section provides a framework for manually testing the more complex, AI-driven skills.

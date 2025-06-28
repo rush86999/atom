@@ -709,6 +709,7 @@ export interface NotionTask {
   createdDate: string; // ISO date string (from Notion's created_time)
   url: string; // Notion page URL
   notes?: string | null; // Additional text content or a summary from the page body
+  last_edited_time?: string; // ISO 8601 string, from Notion's last_edited_time
 }
 
 export interface CreateNotionTaskParams {

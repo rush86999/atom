@@ -38,6 +38,9 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 *   **Proactive Schedule Optimization:** With Autopilot, Atom can learn your work patterns and preferences. "My mornings are for deep work. Keep them as free of meetings as possible." Atom will then intelligently schedule new events accordingly.
 *   **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
 *   **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
+*   **Proactive Meeting Prep:** "Atom, get me ready for my meeting with 'Project X'." Atom gathers related notes, emails, and tasks.
+*   **Weekly Review & Preview:** "Atom, what's my weekly digest?" Atom summarizes completed tasks, key meetings, and highlights upcoming critical items.
+*   **Intelligent Follow-ups:** After a meeting, ask "Atom, what follow-ups for the 'Project X' meeting?" Atom analyzes notes/transcripts for actions, decisions, and questions.
 
 ## Documentation
 
@@ -57,6 +60,9 @@ Atom comes packed with a variety of features designed to enhance your productivi
 *   Comprehensive voice-driven task management using a Notion database backend.
 *   Semantic search capabilities across your meeting transcript archive.
 *   Automated extraction of action items and decisions from meeting transcripts.
+*   **Smart Meeting Preparation:** Gathers relevant documents, emails, and tasks before your meetings.
+*   **Automated Weekly Digest:** Summarizes your past week's accomplishments and previews upcoming critical items.
+*   **Intelligent Follow-up Suggester:** Analyzes meeting notes or project documents to suggest action items, decisions, and questions.
 
 For a detailed list and explanation of all features, please see our [Features Document](./FEATURES.md).
 
@@ -75,6 +81,9 @@ Atom provides a rich set of commands to manage your productivity. You can intera
 *   **Process payments:** Interact with Stripe to list payments.
 *   **Handle accounting:** Work with QuickBooks Online to manage invoices.
 *   **Take notes and conduct research:** Create notes in Notion, initiate multi-agent research projects, and process research queues.
+*   **Prepare for meetings:** "Atom, prep me for my meeting on [topic/date]."
+*   **Get weekly summaries:** "Atom, what's my weekly digest?"
+*   **Suggest follow-ups:** "Atom, what are the follow-ups for [meeting/project context]?"
 *   And much more, including general commands like `help`.
 
 For a more detailed list of commands and their specific syntax, please refer to the agent's `help` command or explore the agent's capabilities through interaction.

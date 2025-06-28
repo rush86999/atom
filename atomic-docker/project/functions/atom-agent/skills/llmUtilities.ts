@@ -45,6 +45,13 @@ export async function analyzeTextForFollowUps(
   }
 
   // Construct the System and User Prompts for the LLM
+  // This prompt is crucial for the LLM's performance and will likely require
+  // iterative testing and refinement with real-world data to achieve optimal results.
+  // Key aspects:
+  // - Clear definition of the AI's role and goal.
+  // - Explicit instruction for JSON output with a defined schema.
+  // - Constraints like "based only on the information within the document" and "Do not invent".
+  // - Guidance on handling empty categories (return empty arrays).
   const systemPrompt = `You are an AI assistant specialized in identifying follow-up items from text.
 Your goal is to extract:
 1. Distinct actionable items or tasks. If an assignee is mentioned or clearly implied, note the assignee.
