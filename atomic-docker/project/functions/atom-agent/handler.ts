@@ -48,6 +48,8 @@ import {
   PrepareForMeetingEntities, // Added for Smart Meeting Prep
   GenerateWeeklyDigestResponse, // Added for Weekly Digest
   GenerateWeeklyDigestEntities, // Added for Weekly Digest
+  SuggestFollowUpsResponse, // Added for Follow-up Suggester
+  SuggestFollowUpsEntities, // Added for Follow-up Suggester
 } from '../types';
 
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
@@ -122,7 +124,7 @@ import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; /
 import { triggerZap } from './skills/zapierSkills'; // Added missing import
 import { resolveAttendees } from './skills/contactSkills'; // For ScheduleMeetingFromEmail
 // import { invokeOptaPlannerScheduling } from './skills/schedulingSkills'; // Will be added to schedulingSkills
-import { handlePrepareForMeeting, handleGenerateWeeklyDigest } from './skills/productivitySkills'; // Added for Smart Meeting Prep & Weekly Digest
+import { handlePrepareForMeeting, handleGenerateWeeklyDigest, handleSuggestFollowUps } from './skills/productivitySkills'; // Added for Smart Meeting Prep, Weekly Digest & Follow-up Suggester
 
 
 // Define the TTS service URL
@@ -281,6 +283,75 @@ async function _internalHandleMessage(
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
+        }
+        break;
+
+      case "SuggestFollowUps":
+        try {
+            const entities = nluResponse.entities as SuggestFollowUpsEntities;
+            console.log(`[Handler][${interfaceType}] Intent: SuggestFollowUps, Entities:`, JSON.stringify(entities));
+
+            if (!entities.context_identifier) {
+                textResponse = "Please specify a meeting or project to get follow-up suggestions for.";
+                break;
+            }
+
+            const response: SuggestFollowUpsResponse = await handleSuggestFollowUps(
+                userId,
+                entities.context_identifier,
+                entities.context_type
+            );
+
+            if (response.ok && response.data) {
+                const followUpInfo = response.data;
+                let summaryText = `Here are some potential follow-ups and key points for "${followUpInfo.contextName}":\n`;
+                if (followUpInfo.sourceDocumentSummary) {
+                    summaryText += `(Based on: ${followUpInfo.sourceDocumentSummary})\n`;
+                }
+
+                if (followUpInfo.suggestions.length > 0) {
+                    const actions = followUpInfo.suggestions.filter(s => s.type === 'action_item');
+                    const decisions = followUpInfo.suggestions.filter(s => s.type === 'decision');
+                    const questions = followUpInfo.suggestions.filter(s => s.type === 'question');
+
+                    if (actions.length > 0) {
+                        summaryText += "\n🎯 Action Items:\n";
+                        actions.forEach(s => {
+                            summaryText += `  - ${s.description}`;
+                            if (s.suggestedAssignee) summaryText += ` (Assignee: ${s.suggestedAssignee})`;
+                            if (s.existingTaskFound) summaryText += ` (Possibly related to existing task: ${s.existingTaskId || 'ID N/A'}${s.existingTaskUrl ? ` - ${s.existingTaskUrl}` : ''})`;
+                            else summaryText += ` - [Consider creating a task]`;
+                            summaryText += "\n";
+                        });
+                    }
+                    if (decisions.length > 0) {
+                        summaryText += "\n⚖️ Key Decisions:\n";
+                        decisions.forEach(s => {
+                            summaryText += `  - ${s.description}\n`;
+                        });
+                    }
+                    if (questions.length > 0) {
+                        summaryText += "\n❓ Open Questions/Unresolved:\n";
+                        questions.forEach(s => {
+                            summaryText += `  - ${s.description}\n`;
+                        });
+                    }
+                } else {
+                    summaryText += "\nNo specific action items, decisions, or questions were identified for follow-up from the provided context.\n";
+                }
+
+                if (followUpInfo.errorMessage) {
+                    summaryText += `\n⚠️ Issues encountered: ${followUpInfo.errorMessage}\n`;
+                }
+                textResponse = summaryText;
+
+            } else {
+                textResponse = `Sorry, I couldn't generate follow-up suggestions. ${response.error?.message || 'Unknown error'}`;
+            }
+
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SuggestFollowUps":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while generating follow-up suggestions.";
         }
         break;
 

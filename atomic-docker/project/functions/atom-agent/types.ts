@@ -878,3 +878,42 @@ export interface GenerateWeeklyDigestResponse extends SkillResponse<{
 export interface GenerateWeeklyDigestEntities {
   time_period?: "this week" | "last week" | string; // Allow specific date ranges in future if NLU supports
 }
+
+// --- Intelligent Follow-up Suggester Types ---
+export type PotentialFollowUpType = "action_item" | "decision" | "question" | "information";
+
+export interface PotentialFollowUp {
+  type: PotentialFollowUpType;
+  description: string; // The text of the action, decision, or question
+  suggestedAssignee?: string; // If an action item and an assignee is suggested by LLM
+  sourceContext?: string; // e.g., "From meeting notes: Project Phoenix Q1 Review"
+  existingTaskFound?: boolean;
+  existingTaskId?: string;
+  existingTaskUrl?: string;
+  // priority?: "High" | "Medium" | "Low"; // Optional: Could be set by LLM or user later
+}
+
+// Data structure returned by the LLM analysis (conceptual)
+export interface ExtractedFollowUpItems {
+  action_items: Array<{ description: string; assignee?: string }>;
+  decisions: Array<{ description: string }>;
+  questions: Array<{ description: string }>;
+  // general_info_points?: Array<{ description: string }>; // Optional for other key info
+}
+
+
+export interface FollowUpSuggestionData {
+  contextName: string; // e.g., "Project Phoenix Meeting - July 26" or "Client Onboarding Project"
+  sourceDocumentSummary?: string; // Brief summary or link to the source document analyzed
+  suggestions: PotentialFollowUp[];
+  errorMessage?: string;
+}
+
+// Response for the SuggestFollowUps skill
+export interface SuggestFollowUpsResponse extends SkillResponse<FollowUpSuggestionData> {}
+
+// NLU Entities expected for the SuggestFollowUps intent
+export interface SuggestFollowUpsEntities {
+  context_identifier: string; // e.g., "Project Phoenix meeting", "Client Onboarding project", "my last meeting"
+  context_type?: "meeting" | "project" | string; // Helps skill narrow down search for context
+}

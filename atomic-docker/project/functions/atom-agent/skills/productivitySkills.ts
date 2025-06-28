@@ -447,3 +447,195 @@ export async function handleGenerateWeeklyDigest(
     },
   };
 }
+
+// --- Intelligent Follow-up Suggester Skill ---
+
+import {
+  SuggestFollowUpsResponse,
+  FollowUpSuggestionData,
+  PotentialFollowUp,
+  PotentialFollowUpType,
+  ExtractedFollowUpItems, // Conceptual type for LLM output
+  // NotionTask, CalendarEvent already imported
+} from '../../types';
+import { handleSemanticSearchMeetingNotesSkill } from './semanticSearchSkills'; // If used for transcript retrieval
+// Conceptual import for the LLM utility
+import { analyzeTextForFollowUps } from './llmUtilities'; // Assuming this file will be created
+
+const MAX_FOLLOW_UPS_TO_SUGGEST = 7;
+const MAX_CONTEXT_SEARCH_RESULTS = 1; // How many Notion pages to fetch for context
+
+export async function handleSuggestFollowUps(
+  userId: string,
+  contextIdentifier: string,
+  contextType?: "meeting" | "project" | string
+): Promise<SuggestFollowUpsResponse> {
+  console.log(`[handleSuggestFollowUps] User: ${userId}, Context: "${contextIdentifier}", Type: "${contextType}"`);
+
+  let sourceDocumentText: string | null = null;
+  let sourceDocumentTitle = contextIdentifier; // Default title
+  let sourceDocumentUrl: string | undefined;
+  let accumulatedErrorMessages = "";
+
+  const followUpData: FollowUpSuggestionData = {
+    contextName: contextIdentifier,
+    suggestions: [],
+  };
+
+  // 1. Identify & Retrieve Context
+  try {
+    if (contextType === "meeting" || (!contextType && (contextIdentifier.toLowerCase().includes("meeting") || contextIdentifier.toLowerCase().includes("call") || contextIdentifier.toLowerCase().includes("sync") || contextIdentifier.toLowerCase().includes("last meeting")))) {
+      const meeting = await findTargetMeeting(userId, contextIdentifier.replace(/meeting|call|sync/i, '').trim()); // findTargetMeeting might need adjustment for "last meeting"
+      if (meeting) {
+        sourceDocumentTitle = `Meeting: ${meeting.summary} on ${new Date(meeting.startTime).toLocaleDateString()}`;
+        followUpData.contextName = sourceDocumentTitle;
+        sourceDocumentUrl = meeting.htmlLink;
+        // Attempt to get notes/transcript for this meeting
+        // Option A: Semantic search if transcripts are processed
+        // const searchResponse = await handleSemanticSearchMeetingNotesSkill({ command: "search_meeting_notes", params: { query: `transcript for meeting ${meeting.id} OR ${meeting.summary}`, limit: 1 }, user_id: userId, raw_message: ""});
+        // if (searchResponse && !searchResponse.startsWith("Sorry") && !searchResponse.startsWith("No results")) {
+        //   sourceDocumentText = searchResponse; // Assuming it returns the text
+        // } else { ... }
+        // Option B: Search Notion for linked notes
+        const notionQuery = `notes for meeting "${meeting.summary}" date ${new Date(meeting.startTime).toISOString().split('T')[0]}`;
+        const notionSearchResponse = await searchNotionRaw(userId, notionQuery, MAX_CONTEXT_SEARCH_RESULTS);
+        if (notionSearchResponse?.ok && notionSearchResponse.data?.[0]) {
+          const page = notionSearchResponse.data[0];
+          sourceDocumentText = page.content || page.title || ""; // Prefer full content if available
+          sourceDocumentTitle = page.title || sourceDocumentTitle;
+          sourceDocumentUrl = page.url || sourceDocumentUrl;
+          followUpData.sourceDocumentSummary = `Using Notion page: "${sourceDocumentTitle}"`;
+          console.log(`[handleSuggestFollowUps] Found Notion page for meeting: ${sourceDocumentTitle}`);
+        } else {
+          accumulatedErrorMessages += `Could not find specific notes/transcript for meeting "${meeting.summary}". Analysis might be less accurate. `;
+          sourceDocumentText = `Meeting Title: ${meeting.summary}\nDescription: ${meeting.description || 'N/A'}\nAttendees: ${meeting.attendees?.map(a => a.displayName || a.email).join(', ')}\nTime: ${meeting.startTime} - ${meeting.endTime}`;
+          followUpData.sourceDocumentSummary = `Using calendar event details for "${meeting.summary}" as context.`;
+        }
+      } else {
+        return { ok: false, error: { code: "CONTEXT_NOT_FOUND", message: `Could not find meeting: ${contextIdentifier}` } };
+      }
+    } else if (contextType === "project") {
+      followUpData.contextName = `Project: ${contextIdentifier}`;
+      const notionQuery = `project plan or summary for "${contextIdentifier}"`;
+      const notionSearchResponse = await searchNotionRaw(userId, notionQuery, MAX_CONTEXT_SEARCH_RESULTS);
+      if (notionSearchResponse?.ok && notionSearchResponse.data?.[0]) {
+        const page = notionSearchResponse.data[0];
+        sourceDocumentText = page.content || page.title || "";
+        sourceDocumentTitle = page.title || sourceDocumentTitle;
+        sourceDocumentUrl = page.url;
+        followUpData.sourceDocumentSummary = `Using Notion page: "${sourceDocumentTitle}" for project context.`;
+        console.log(`[handleSuggestFollowUps] Found Notion page for project: ${sourceDocumentTitle}`);
+      } else {
+        return { ok: false, error: { code: "CONTEXT_NOT_FOUND", message: `Could not find project document: ${contextIdentifier}` } };
+      }
+    } else {
+      // Generic context search in Notion if type is unknown
+      const notionSearchResponse = await searchNotionRaw(userId, contextIdentifier, MAX_CONTEXT_SEARCH_RESULTS);
+      if (notionSearchResponse?.ok && notionSearchResponse.data?.[0]) {
+        const page = notionSearchResponse.data[0];
+        sourceDocumentText = page.content || page.title || "";
+        sourceDocumentTitle = page.title || sourceDocumentTitle;
+        sourceDocumentUrl = page.url;
+        followUpData.contextName = `Context: ${sourceDocumentTitle}`;
+        followUpData.sourceDocumentSummary = `Using Notion page: "${sourceDocumentTitle}" as context.`;
+      } else {
+        return { ok: false, error: { code: "CONTEXT_NOT_FOUND", message: `Could not find document for context: ${contextIdentifier}` } };
+      }
+    }
+  } catch (e: any) {
+    console.error('[handleSuggestFollowUps] Error retrieving context:', e.message, e.stack);
+    return { ok: false, error: { code: "CONTEXT_RETRIEVAL_ERROR", message: `Error retrieving context: ${e.message}` } };
+  }
+
+  if (!sourceDocumentText || sourceDocumentText.trim().length < 50) { // Arbitrary minimum length
+    accumulatedErrorMessages += `The source document found for "${sourceDocumentTitle}" was too short or empty for useful analysis. `;
+    followUpData.errorMessage = accumulatedErrorMessages;
+    // Still return ok:true, but with the error message in data.
+    return { ok: true, data: followUpData };
+  }
+
+  // 2. Analyze Content with LLM
+  let extractedItems: ExtractedFollowUpItems = { action_items: [], decisions: [], questions: [] };
+  try {
+    console.log(`[handleSuggestFollowUps] Analyzing text (length: ${sourceDocumentText.length}) for "${sourceDocumentTitle}" with LLM.`);
+    const llmAnalysis = await analyzeTextForFollowUps(sourceDocumentText, sourceDocumentTitle); // Conceptual LLM call
+    if (llmAnalysis.error) {
+      accumulatedErrorMessages += `LLM analysis failed: ${llmAnalysis.error}. `;
+    } else {
+      extractedItems = llmAnalysis.extractedItems;
+      console.log(`[handleSuggestFollowUps] LLM extracted: ${extractedItems.action_items.length} actions, ${extractedItems.decisions.length} decisions, ${extractedItems.questions.length} questions.`);
+    }
+  } catch (e: any) {
+    console.error('[handleSuggestFollowUps] Error during LLM analysis:', e.message, e.stack);
+    accumulatedErrorMessages += `Error during LLM analysis: ${e.message}. `;
+  }
+
+  const notionTasksDbId = process.env.ATOM_NOTION_TASKS_DATABASE_ID;
+
+  // 3. Process Extracted Items and Cross-Reference Tasks
+  const mapToPotentialFollowUp = async (item: { description: string; assignee?: string }, type: PotentialFollowUpType): Promise<PotentialFollowUp> => {
+    const followUp: PotentialFollowUp = {
+      type,
+      description: item.description,
+      suggestedAssignee: item.assignee,
+      sourceContext: sourceDocumentTitle,
+      existingTaskFound: false,
+    };
+
+    if (type === "action_item" && notionTasksDbId) {
+      try {
+        // Search for existing tasks matching keywords from this action item's description
+        // This query needs to be broad enough to find related tasks.
+        const taskQuery = {
+          descriptionContains: item.description.substring(0, 50), // First 50 chars for query
+          status_not_equals: ["Done", "Cancelled"] as any,
+          limit: 1,
+          notionTasksDbId,
+        };
+        const existingTasksResponse = await queryNotionTasks(userId, taskQuery);
+        if (existingTasksResponse.success && existingTasksResponse.tasks.length > 0) {
+          const existingTask = existingTasksResponse.tasks[0];
+          // Add more sophisticated matching logic here if needed (e.g., similarity score)
+          // For V1, if any non-done task contains a snippet of the action, mark as potentially existing.
+          followUp.existingTaskFound = true;
+          followUp.existingTaskId = existingTask.id;
+          followUp.existingTaskUrl = existingTask.url;
+          console.log(`[handleSuggestFollowUps] Found existing task '${existingTask.description}' for action item '${item.description}'`);
+        }
+      } catch (taskError: any) {
+        console.warn(`[handleSuggestFollowUps] Error checking for existing task for "${item.description}": ${taskError.message}`);
+      }
+    }
+    return followUp;
+  };
+
+  if (extractedItems.action_items) {
+    for (const action of extractedItems.action_items) {
+      followUpData.suggestions.push(await mapToPotentialFollowUp(action, "action_item"));
+    }
+  }
+  if (extractedItems.decisions) {
+    for (const decision of extractedItems.decisions) {
+      followUpData.suggestions.push(await mapToPotentialFollowUp(decision, "decision"));
+    }
+  }
+  if (extractedItems.questions) {
+    for (const question of extractedItems.questions) {
+      followUpData.suggestions.push(await mapToPotentialFollowUp(question, "question"));
+    }
+  }
+
+  followUpData.suggestions = followUpData.suggestions.slice(0, MAX_FOLLOW_UPS_TO_SUGGEST);
+
+
+  if (accumulatedErrorMessages) {
+    followUpData.errorMessage = accumulatedErrorMessages.trim();
+  }
+  if (followUpData.suggestions.length === 0 && !followUpData.errorMessage) {
+      followUpData.errorMessage = (followUpData.errorMessage || "") + "No specific follow-up items were identified from the context provided. ";
+  }
+
+
+  console.log(`[handleSuggestFollowUps] Final suggestions compiled for "${followUpData.contextName}". Count: ${followUpData.suggestions.length}`);
+  return { ok: true, data: followUpData };
+}
