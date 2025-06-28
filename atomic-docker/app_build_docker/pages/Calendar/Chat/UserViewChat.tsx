@@ -134,6 +134,8 @@ function UserViewChat() {
     const { sub, client } = useAppContext()
     const userId = sub
     const toast = useToast()
+    const { dispatchAgentCommand } = useAgentAudioControl(); // Import from context
+
 
     // renew push notifictions
     useEffect(() => {
@@ -160,22 +162,119 @@ function UserViewChat() {
       }, [client, router, sub])
     
     useEffect(() => {
-        (async () => {
-            try {
-                const access_token = await Session.getAccessToken()
-               
-                if (!access_token) {
-                    return
-                }
-                socket = await createChatSocket(access_token)
-                // setSocket(newSocket)
-                setReconnect(false)
+        // This effect manages the WebSocket connection lifecycle.
+        let currentSocketInstance: WebSocket | null = null;
 
+        const connectAndSetupSocket = async () => {
+            try {
+                const access_token = await Session.getAccessToken();
+                if (!access_token) {
+                    console.warn("UserViewChat: No access token, WebSocket connection not attempted.");
+                    return;
+                }
+
+                const newSocket = await createChatSocket(access_token);
+                if (newSocket) {
+                    socket = newSocket; // Assign to module-level variable (as per existing pattern)
+                    currentSocketInstance = newSocket; // Local instance for this effect's cleanup
+                    console.log("UserViewChat: WebSocket connection initiated.");
+                    setReconnect(false);
+
+                    newSocket.onopen = (event) => {
+                        console.log("UserViewChat: WebSocket connection established.", event);
+                    };
+
+                    newSocket.onmessage = async (event) => {
+                        console.log("UserViewChat: Raw message from server: ", event.data);
+                        try {
+                            const rawData = JSON.parse(event.data as string);
+
+                            // TYPE GUARD for AgentAudioCommand
+                            // Assuming AgentClientCommand has 'action' and 'command_id'
+                            // and a wrapper type like { type: 'AGENT_COMMAND', payload: AgentAudioCommand }
+                            if (rawData && rawData.type === 'AGENT_COMMAND' &&
+                                rawData.payload && typeof rawData.payload.action === 'string' &&
+                                typeof rawData.payload.command_id === 'string') {
+
+                                const commandPayload = rawData.payload as AgentAudioCommand; // AgentAudioCommand needs to be imported or defined
+                                console.log("UserViewChat: Received AGENT_COMMAND for audio:", commandPayload);
+                                if (dispatchAgentCommand) {
+                                    dispatchAgentCommand(commandPayload);
+                                } else {
+                                    console.error("UserViewChat: dispatchAgentCommand from AgentAudioControlContext is not available.");
+                                }
+                                return; // Command handled
+                            }
+
+                            if (rawData === 'ping') {
+                                console.log("UserViewChat: Received ping.");
+                                return;
+                            }
+
+                            // Process as SkillMessageHistoryType if not an AGENT_COMMAND
+                            const skillMessageHistory: SkillMessageHistoryType = rawData;
+                            if ((skillMessageHistory?.skill === 'generate-meeting-invite') || (skillMessageHistory?.skill === 'send-meeting-invite')) {
+                                const requiredFormData = skillMessageHistory?.required?.dateTime.required?.find((r) => ((r as ObjectFieldType)?.value === 'receiverTimezone'));
+                                if (requiredFormData) {
+                                    setIsForm(true);
+                                } else {
+                                    setIsForm(false);
+                                }
+                            }
+                            if (skillMessageHistory?.htmlEmail) {
+                                setHtmlEmail(skillMessageHistory?.htmlEmail);
+                            }
+                            await onReceiveMessage(skillMessageHistory);
+
+                        } catch (e) {
+                            console.error("UserViewChat: Error processing message from server:", e, "Raw data:", event.data);
+                        }
+                    };
+
+                    newSocket.onerror = (event: Event) => { // Using general Event type
+                        console.error("UserViewChat: WebSocket error observed.", event);
+                    };
+
+                    newSocket.onclose = (event: CloseEvent) => {
+                        console.log("UserViewChat: WebSocket connection closed.", event);
+                        if (socket === currentSocketInstance) { // Avoid issues if a new socket was created by reconnect logic
+                            socket = null;
+                        }
+                        // Optionally trigger reconnect logic here if needed, e.g., by setting `setReconnect(true)`
+                        // if (!event.wasClean) { setReconnect(true); }
+                    };
+
+                } else {
+                    console.error("UserViewChat: createChatSocket returned null or undefined.");
+                }
             } catch (e) {
-                console.log(e,  ' unable to get socket')
+                console.error("UserViewChat: Error in connectAndSetupSocket:", e);
             }
-        })()
-    }, [reconnect, isNewSession])
+        };
+
+        if (sub) { // Only connect if user (sub) is available
+            connectAndSetupSocket();
+        }
+
+        return () => {
+            // Cleanup function
+            if (currentSocketInstance) {
+                console.log("UserViewChat: Cleaning up WebSocket instance.");
+                currentSocketInstance.onopen = null;
+                currentSocketInstance.onmessage = null;
+                currentSocketInstance.onerror = null;
+                currentSocketInstance.onclose = null;
+                if (currentSocketInstance.readyState === WebSocket.OPEN || currentSocketInstance.readyState === WebSocket.CONNECTING) {
+                    currentSocketInstance.close();
+                }
+                if (socket === currentSocketInstance) { // Ensure module-level var is also cleared if it's this instance
+                    socket = null;
+                }
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reconnect, isNewSession, sub, dispatchAgentCommand]); // Added sub and dispatchAgentCommand
+
 
     const onReceiveMessage = async (
         skillMessageHistory: SkillMessageHistoryType,
@@ -194,53 +293,7 @@ function UserViewChat() {
         }
     }
 
-    socket?.addEventListener("open", (event) => {
-        console.log(event, 'connection established')
-
-        // socket.send(JSON.stringify({
-        //     type: 'message',
-        //     text: 'hello server',
-            
-        // }))
-    })
-
-    socket?.addEventListener("message", async (event) => {
-        // SkillMessageHistoryType
-        console.log(event,  ' message from api')
-        console.log("Message from server ", event.data);
-        /**
-         * {"skill":"ask-availability","query":"completed","messages":[{"role":"user","content":"what is my availability like on Aug 7th?"},{"role":"assistant","content":"On August 7th, 2023, you have the following availability:\n- From 2:30 PM to 3:00 PM\n- From 5:00 PM to 11:00 PM."}],"required":null}
-         */
-        if (JSON.parse(event.data) === 'ping') {
-            return
-        }
-        const skillMessageHistory: SkillMessageHistoryType = JSON.parse(event.data)
-        if ((skillMessageHistory?.skill === 'generate-meeting-invite') || (skillMessageHistory?.skill === 'send-meeting-invite')) {
-
-            const requiredFormData = skillMessageHistory?.required?.dateTime.required?.find((r) => ((r as ObjectFieldType)?.value === 'receiverTimezone'))
-            if (requiredFormData) {
-                setIsForm(true)
-            } else {
-                setIsForm(false)
-            }
-        }
-
-        if (skillMessageHistory?.htmlEmail) {
-            setHtmlEmail(skillMessageHistory?.htmlEmail)
-        }
-
-        await onReceiveMessage(skillMessageHistory)
-    })
-
-    socket?.addEventListener('error', async (event: any) => {
-        console.log(event, ' error websocket connection')
-    })
-
-    socket?.addEventListener('close', async (e) => {
-        console.log(e, 'WebSocket Connection is closed')
-
-
-    })
+    // Removed direct socket.addEventListener calls as they are now handled within the useEffect's socket instance
 
     useEffect(() => {
         (() => {

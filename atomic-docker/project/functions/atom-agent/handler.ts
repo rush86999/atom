@@ -48,6 +48,44 @@ import {
 
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
 
+// --- Interface Definitions for Agent-Client Communication and Skill Context ---
+
+// Defines the structure of commands sent from the agent to the client (e.g., via WebSocket)
+// This should align with the command structure expected by the frontend client.
+interface AgentClientCommand {
+  command_id: string; // Unique ID for tracking the command
+  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION'; // Specific actions client can perform
+  payload?: {
+    suggestedTitle?: string;
+    linkedEventId?: string;
+    // Other relevant parameters for the client action
+  };
+}
+
+// Defines the context object that will be passed to agent skills.
+// It includes common utilities or functions that skills might need.
+interface AgentSkillContext {
+  userId: string;
+  // Function to send a command to the connected client.
+  // The actual implementation of this function is expected to be injected by the calling environment (e.g., WebSocket handler in server.ts).
+  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>;
+  // Potentially add other context items:
+  // - Access to LTM/STM (though memoryManager functions are currently imported directly)
+  // - User preferences relevant to skills
+  // - API clients if they are not globally available or need user-specific configuration
+}
+
+// Extend existing options for _internalHandleMessage to include the sendCommandToClientFunction.
+// This allows the core message handling logic to be equipped with the capability to send commands to the client.
+interface InternalHandleMessageOptions {
+  requestSource?: string; // Source of the request (e.g., 'WebSocketChat', 'ScheduledJobExecutor', 'HasuraAction')
+  intentName?: string;    // Pre-determined intent name, bypassing NLU (e.g., for scheduled tasks)
+  entities?: Record<string, any>; // Pre-determined entities
+  conversationId?: string; // ID for tracking the conversation session
+  sendCommandToClientFunction?: (userId: string, command: AgentClientCommand) => Promise<boolean>; // The actual function to send a command
+}
+// --- End Interface Definitions ---
+
 // import * as conversationManager from './conversationState'; // Already imported at the top
 // No longer importing individual functions directly, will use conversationManager.
 // import {
@@ -150,17 +188,22 @@ export interface HandleMessageResponse {
   error?: string;
 }
 
+// Extend existing options for _internalHandleMessage to include the sendCommandToClientFunction.
+// This allows the core message handling logic to be equipped with the capability to send commands to the client.
 interface InternalHandleMessageOptions {
-  requestSource?: string;
-  intentName?: string;
-  entities?: Record<string, any>;
-  conversationId?: string;
+  requestSource?: string; // Source of the request (e.g., 'WebSocketChat', 'ScheduledJobExecutor', 'HasuraAction')
+  intentName?: string;    // Pre-determined intent name, bypassing NLU (e.g., for scheduled tasks)
+  entities?: Record<string, any>; // Pre-determined entities
+  conversationId?: string; // ID for tracking the conversation session
+  sendCommandToClientFunction?: (userId: string, command: AgentClientCommand) => Promise<boolean>; // The actual function to send a command
 }
+// --- End Interface Definitions ---
 
 async function _internalHandleMessage(
   interfaceType: InterfaceType,
-  message: string, // For regular messages, this is user input. For scheduled, it's descriptive.
+  message: string,
   userId: string,
+  // Options now uses the extended interface
   options?: InternalHandleMessageOptions
 ): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
   let textResponse: string;
@@ -170,10 +213,27 @@ async function _internalHandleMessage(
   const requestSource = options?.requestSource;
   const directIntentName = options?.intentName;
   const directEntities = options?.entities;
-  // const conversationId = options?.conversationId; // Available if needed
+  const conversationId = options?.conversationId; // Available if needed
+
+  // Construct the AgentSkillContext to be passed to skill handlers
+  // This context now includes the sendCommandToClient function if it was provided by the caller.
+  const agentSkillContext: AgentSkillContext = {
+    userId: userId,
+    sendCommandToClient: options?.sendCommandToClientFunction || (async (uid_unused, cmd_unused) => {
+      // This default function is a fallback and logs a warning if no actual send function is provided.
+      // It ensures that skills can always try to call context.sendCommandToClient without crashing,
+      // but it won't actually send anything if the infrastructure isn't wired up from the caller.
+      console.warn(
+        `[AgentSkillContext] sendCommandToClient was called for user ${userId} ` +
+        `but no implementation was provided to _internalHandleMessage. Command was: ${JSON.stringify(cmd_unused)}`
+      );
+      return false; // Indicate failure to send
+    }),
+    // Potentially add other context items here if needed by various skills
+  };
 
   if (requestSource === 'ScheduledJobExecutor' && directIntentName) {
-    console.log(`[InternalHandleMessage][${interfaceType}] Received direct execution request from ScheduledJobExecutor. ConversationID: ${options?.conversationId}`);
+    console.log(`[InternalHandleMessage][${interfaceType}] Received direct execution request from ScheduledJobExecutor. ConversationID: ${conversationId}`);
     nluResponse = {
       intent: directIntentName,
       entities: directEntities || {},
@@ -1309,59 +1369,62 @@ async function _internalHandleMessage(
             console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Internal Atom user IDs for availability check:`, internalAttendeeUserIds);
 
             // 2. Get Availability for internal users
-            // Define a scheduling window (e.g., next 2 weeks from now)
-            // This should ideally be derived from `timing_preferences` or be a sensible default.
             const now = new Date();
             const windowStart = now.toISOString();
-            const windowEnd = new Date(now.setDate(now.getDate() + 14)).toISOString(); // Default to 2 weeks window
+            const windowEnd = new Date(new Date(now).setDate(now.getDate() + 14)).toISOString(); // Default to 2 weeks window
 
             let usersAvailabilityData = [];
             if (internalAttendeeUserIds.length > 0) {
-                const availabilityResponse = await getUsersAvailability(internalAttendeeUserIds, windowStart, windowEnd);
-                if (!availabilityResponse.ok || !availabilityResponse.data) {
-                    textResponse = `Could not fetch availability for some users: ${availabilityResponse.error?.message || 'Unknown error'}`;
-                    // Decide if to proceed with partial data or fail. For now, proceed.
-                    console.warn(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Failed to get availability for some users.`);
-                } else {
-                    usersAvailabilityData = availabilityResponse.data;
-                }
+                // const availabilityResponse = await getUsersAvailability(internalAttendeeUserIds, windowStart, windowEnd); // Assuming getUsersAvailability exists
+                // if (!availabilityResponse.ok || !availabilityResponse.data) {
+                //     textResponse = `Could not fetch availability for some users: ${availabilityResponse.error?.message || 'Unknown error'}`;
+                //     console.warn(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Failed to get availability for some users.`);
+                // } else {
+                //     usersAvailabilityData = availabilityResponse.data;
+                // }
+                console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] TODO: Call actual getUsersAvailability. Placeholder for availability data.`);
             }
-            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Availability data for internal users:`, usersAvailabilityData);
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Availability data for internal users (placeholder):`, usersAvailabilityData);
 
-            // 3. Construct PostTableRequestBody for OptaPlanner
-            // This is a complex object. Refer to `atomic-scheduler-api-guide.md`
-            // For simplicity, some fields will be hardcoded or derived simply.
-            // A dedicated helper function to build this would be good in a real scenario.
-
-            const postTableRequestBody = {
-                singletonId: `email-sched-${Date.now()}-${Math.random().toString(36).substring(2,9)}`, // Unique ID for this request
-                hostId: userId, // Requester's user ID
-                timeslots: [], // This needs to be populated based on the scheduling window and preferences
-                userList: [], // Populate with ResolvedAttendee data and fetched availability
-                eventParts: [], // Define the meeting event part here
-                fileKey: `email-command-${userId}-${new Date().toISOString()}`, // Tracking key
-                delay: 30000, // Delay before callback (e.g., 30 seconds)
-                callBackUrl: `${process.env.API_BASE_URL}/atom-agent/scheduler-callback`, // Agent's callback endpoint
-            };
-
-            // TODO: Populate timeslots (e.g., working hours within the window for the involved users)
-            // TODO: Populate userList with User objects (id, hostId, workTimes, preferences)
-            // TODO: Populate eventParts with EventPart objects (groupId, eventId, summary, duration, attendees, preferences like "Wednesday afternoon")
-
-            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] Prepared PostTableRequestBody (structure only):`, JSON.stringify(postTableRequestBody, null, 2).substring(0, 500) + "...");
-
-
-            // 4. (Placeholder) Call OptaPlanner scheduling skill
-            // textResponse = await invokeOptaPlannerScheduling(postTableRequestBody);
-            textResponse = `Okay, I've received the request to schedule a meeting: "${meetingSummary}" with ${attendeeStrings.join(', ')}. I will work on finding a time and will notify you. (OptaPlanner call is a TODO).`;
-            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] TODO: Call invokeOptaPlannerScheduling with the request body.`);
-
+            textResponse = `Okay, I've received the request to schedule a meeting: "${meetingSummary}" with ${attendeeStrings.join(', ')}. I will work on finding a time and will notify you. (Full scheduling logic including OptaPlanner is a TODO).`;
+            console.log(`[Handler][${interfaceType}][ScheduleMeetingFromEmail] TODO: Implement full scheduling logic with OptaPlanner.`);
 
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "ScheduleMeetingFromEmail":`, error.message, error.stack);
             textResponse = "Sorry, I encountered an error while trying to schedule the meeting from the email.";
         }
         break;
+
+    // START_IN_PERSON_AUDIO_NOTE and related intents will be handled here
+      case "START_IN_PERSON_AUDIO_NOTE":
+      case "STOP_IN_PERSON_AUDIO_NOTE":
+      case "CANCEL_IN_PERSON_AUDIO_NOTE":
+        try {
+            // Dynamically import the skill to avoid making it a hard dependency if not used often
+            // Ensure the path is correct based on your project structure and build output.
+            // This assumes inPersonAudioNoteSkills.ts is compiled to JS and accessible.
+            const { InPersonAudioNoteDirectSkillManifest } = await import('./skills/inPersonAudioNoteSkills');
+            const skillHandler = InPersonAudioNoteDirectSkillManifest.intentHandlers[nluResponse.intent as keyof typeof InPersonAudioNoteDirectSkillManifest.intentHandlers];
+
+            if (skillHandler) {
+                // Pass the constructed agentSkillContext to the skill handler
+                const skillResponse = await skillHandler(nluResponse, agentSkillContext);
+                textResponse = skillResponse.message;
+                // If skillResponse contains other fields like a sessionTrackingId for the command,
+                // it could be logged or used here if the agent framework supports it.
+                // e.g., if (skillResponse.sessionTrackingId) {
+                //   console.log(`[Handler][${interfaceType}] Audio note skill initiated client command with ID: ${skillResponse.sessionTrackingId}`);
+                // }
+            } else {
+                textResponse = `I understood you want to ${nluResponse.intent}, but I'm not configured to handle that audio note action right now.`;
+                console.warn(`[Handler][${interfaceType}] No skill handler found for intent: ${nluResponse.intent} in InPersonAudioNoteDirectSkillManifest.`);
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in In-Person Audio Note Intent "${nluResponse.intent}":`, error.message, error.stack);
+            textResponse = "Sorry, there was an issue managing your in-person audio note request.";
+        }
+        break;
+
 
       default:
         if (nluResponse.error) {

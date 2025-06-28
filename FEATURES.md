@@ -50,9 +50,18 @@ Atom now offers comprehensive voice-powered task management, using a dedicated N
 
 ### Integrated Note-Taking & Research
 Keep your knowledge organized and accessible with Atom's integrated capabilities:
-*   **Note-Taking (Notion & Audio):** Create text and audio notes directly. Audio notes are automatically transcribed (e.g., using Deepgram) and saved, typically within Notion. Your notes can be searched, updated, and linked to tasks or calendar events.
+*   **Note-Taking (Notion & Audio):** Create text notes directly. Audio notes can be generated from existing audio files (e.g., via URL) or by recording directly within Atom for in-person meetings (see below). All audio notes are automatically transcribed (e.g., using Deepgram), summarized (using OpenAI), and saved into Notion. Your notes can be searched, updated, and linked to tasks or calendar events.
+*   **In-Person Meeting Audio Notes (Agent-Activated):**
+    *   **Agent-Controlled Recording:** Users can ask the Atom agent (via voice or text commands like "Atom, start an audio note" or "Record my meeting discussion") to begin recording audio using their device's microphone. The agent can also be commanded to stop or cancel the recording.
+    *   **Direct Microphone Capture:** This feature is designed for capturing discussions in physical meetings, personal voice memos, or any scenario where direct microphone input is needed.
+    *   **Automated Processing:** Once the recording is stopped, the captured audio is automatically:
+        *   Transcribed using Deepgram.
+        *   Summarized by an AI model (e.g., OpenAI GPT) to extract key points, decisions, and action items.
+        *   Saved as a new note in the user's configured Notion database, including the transcript, summary, and optionally a link to the raw audio file.
+    *   **UI Feedback:** The client application provides UI feedback for recording status (e.g., "Recording...", "Processing...") when initiated or controlled by the agent.
+    *   **Manual UI Recording:** A dedicated UI (e.g., an `AudioRecorder` component) also allows users to manually initiate, stop, and save microphone recordings directly without agent interaction.
 *   **Multi-Agent Research System (Notion & LanceDB):** Initiate research projects based on simple queries. A lead AI agent decomposes your query into sub-tasks and assigns them to specialized sub-agents. These agents perform research (e.g., web searches, internal Notion searches using LanceDB for vector-based information retrieval) and log their findings in a dedicated Notion database. The lead agent then synthesizes this information into a comprehensive final report, also in Notion.
-*   **Python API for Notes & Research:** Backend handlers and APIs for managing notes and research processes programmatically.
+*   **Python API for Notes & Research:** Backend handlers and APIs for managing notes and research processes programmatically, including endpoints for handling direct audio uploads and processing.
 *   **Searchable Meeting Archive (Semantic Search):**
     *   Unlock the knowledge in your past meetings. Transcripts stored in Notion (e.g., from live meeting processing or other sources) can be automatically converted into vector embeddings using AI models (like OpenAI).
     *   These embeddings are stored in a LanceDB vector database, enabling powerful semantic search capabilities.
