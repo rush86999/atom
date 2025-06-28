@@ -321,6 +321,196 @@ if __name__ == '__main__':
 # This endpoint assumes such a module can be resolved and used by note_utils.
 # The actual audio capture mechanism is outside the scope of this handler.
 import asyncio # For running async process_live_audio_for_notion
+import tempfile # For handling temporary audio files
+import shutil # For robustly removing temporary directories
+
+# Helper function to ensure API keys are loaded from environment by note_utils
+# This function will now primarily focus on initializing Notion client if needed,
+# as Deepgram and OpenAI keys are expected to be picked up by note_utils from env.
+def _ensure_notion_client(data: dict) -> dict | None:
+    """
+    Initializes the Notion client using a token from the request or environment.
+    Ensures that critical API keys (Deepgram, OpenAI) are available in the environment
+    for note_utils to consume.
+    """
+    # Critical Check: Ensure backend services have their API keys from the environment
+    # These checks are more for developer awareness during startup/testing.
+    # note_utils functions themselves will check for these global keys.
+    if not note_utils.DEEPGRAM_API_KEY_GLOBAL:
+        print("Warning: DEEPGRAM_API_KEY_GLOBAL is not set in the environment. Transcription will fail.", file=sys.stderr)
+    if not note_utils.OPENAI_API_KEY_GLOBAL:
+        print("Warning: OPENAI_API_KEY_GLOBAL is not set in the environment. Summarization/Embedding will fail.", file=sys.stderr)
+
+    # Initialize Notion client - it requires an API token.
+    # For this service, we'll prioritize environment variable for Notion token.
+    # If a specific `notion_api_token` is passed in `data` for some reason (e.g. per-user override, legacy),
+    # it could be used, but server-side config is preferred.
+    notion_api_token_from_env = os.environ.get("NOTION_API_TOKEN")
+    notion_api_token_from_req = data.get('notion_api_token') # Kept for flexibility if needed
+
+    # Prioritize token from request if provided, otherwise from environment.
+    # This behavior might need to be stricter depending on security policies.
+    # For a service endpoint, relying solely on env var for its own Notion access is common.
+    token_to_use = notion_api_token_from_req or notion_api_token_from_env
+
+    if not token_to_use:
+        return {"ok": False, "error": {"code": "PYTHON_ERROR_NOTION_CONFIG_FAILED", "message": "Notion API token not found in request or environment."}}
+
+    # If notion client is already initialized with the same token, skip re-init
+    # This simple check might need to be more robust if DB ID can change per request for the same token
+    if note_utils.notion and note_utils.NOTION_API_TOKEN_GLOBAL == token_to_use:
+         # If DB ID is also passed and different, re-init might be needed
+        if data.get('notion_db_id') and data.get('notion_db_id') != note_utils.NOTION_NOTES_DATABASE_ID_GLOBAL:
+            pass # proceed to init
+        else:
+            return None # Notion client already initialized correctly
+
+    init_status = note_utils.init_notion(token_to_use, data.get('notion_db_id'))
+    if init_status["status"] != "success":
+        return {"ok": False, "error": {"code": "PYTHON_ERROR_NOTION_INIT_FAILED", "message": init_status["message"], "details": init_status.get("details")}}
+    return None
+
+
+@app.route('/api/process-recorded-audio-note', methods=['POST'])
+def process_recorded_audio_note_route():
+    temp_audio_path = None
+    temp_dir = None
+
+    try:
+        if 'audio_file' not in request.files:
+            return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Missing 'audio_file' in request."}}), 400
+
+        audio_file = request.files['audio_file']
+        if audio_file.filename == '':
+            return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "No audio file selected."}}), 400
+
+        # Metadata can be sent as form data fields alongside the file
+        title = request.form.get('title', 'New Audio Note') # Default title
+        user_id = request.form.get('user_id') # Important for context, LanceDB etc.
+        linked_event_id = request.form.get('linked_event_id')
+        notion_db_id_override = request.form.get('notion_db_id') # Optional: to use a specific DB
+
+        # Ensure critical API keys are available via environment variables for note_utils
+        # The `_ensure_notion_client` function also serves to initialize Notion client.
+        # For Deepgram & OpenAI, note_utils directly uses os.environ.get() if no specific key is passed to its functions.
+        # We will rely on those environment variables.
+        client_init_error = _ensure_notion_client({'notion_db_id': notion_db_id_override}) # Pass DB ID if provided
+        if client_init_error:
+            return jsonify(client_init_error), 500
+
+        # Securely save uploaded audio to a temporary file
+        temp_dir = tempfile.mkdtemp()
+        filename = audio_file.filename or "audio_note.tmp" # Use a default if filename is not obvious
+        # It's good practice to secure the filename, but for temp files, less critical if access is restricted.
+        # from werkzeug.utils import secure_filename
+        # secure_name = secure_filename(filename)
+        temp_audio_path = os.path.join(temp_dir, filename)
+        audio_file.save(temp_audio_path)
+
+        # --- Optional: Upload raw audio to S3 (V1.1 feature) ---
+        audio_s3_url = None
+        # s3_upload_result = note_utils.upload_audio_to_s3(temp_audio_path, user_id) # Conceptual
+        # if s3_upload_result["status"] == "success":
+        #    audio_s3_url = s3_upload_result["data"]["url"]
+        # else:
+        #    print(f"Warning: Failed to upload raw audio to S3: {s3_upload_result['message']}")
+            # Decide if this is a critical failure or if we proceed without S3 link
+
+
+        # --- Transcription ---
+        # note_utils.transcribe_audio_deepgram will use DEEPGRAM_API_KEY_GLOBAL from env
+        transcript_resp = note_utils.transcribe_audio_deepgram(audio_file_path=temp_audio_path)
+        if transcript_resp["status"] == "error":
+            return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_TRANSCRIPTION_FAILED", "message": transcript_resp.get("message"), "details": transcript_resp.get("details")}}), 500
+        transcript = transcript_resp.get("data", {}).get("transcript", "")
+
+        # --- Summarization ---
+        summary, key_points_str, decisions_list, action_items_list = "", "", [], []
+        if transcript.strip():
+            # note_utils.summarize_transcript_gpt will use OPENAI_API_KEY_GLOBAL from env
+            summarize_resp = note_utils.summarize_transcript_gpt(transcript=transcript)
+            if summarize_resp["status"] == "success":
+                summary_data = summarize_resp.get("data", {})
+                summary = summary_data.get("summary", "")
+                key_points_str = summary_data.get("key_points", "") # Legacy key points string
+                decisions_list = summary_data.get("decisions", [])
+                action_items_list = summary_data.get("action_items", [])
+            else:
+                print(f"Warning: Summarization failed for transcript: {summarize_resp['message']}")
+                # Proceed without summarization if it fails
+        else:
+            summary = "No speech detected or transcript was empty."
+
+        # --- Notion Note Creation ---
+        # notion_db_id_override will be used by create_notion_note if provided, else global default
+        create_note_resp = note_utils.create_notion_note(
+            title=title,
+            content=f"Audio note recorded on {datetime.now().strftime('%Y-%m-%d %H:%M')}", # Placeholder content
+            notion_db_id=notion_db_id_override,
+            source="In-Person Audio Note via Agent",
+            linked_event_id=linked_event_id,
+            transcription=transcript,
+            audio_file_link=audio_s3_url, # Will be None if S3 upload not implemented/failed
+            summary=summary,
+            key_points=key_points_str, # Passing legacy string, can be removed if frontend doesn't need
+            decisions=decisions_list,
+            action_items=action_items_list
+        )
+
+        if create_note_resp["status"] == "error":
+            return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_NOTION_CREATE_FAILED", "message": create_note_resp.get("message"), "details": create_note_resp.get("details")}}), 500
+
+        notion_page_id = create_note_resp.get("data", {}).get("page_id")
+        notion_page_url = create_note_resp.get("data", {}).get("url")
+
+        # --- Optional: Vector Embedding and LanceDB Storage ---
+        if notion_page_id and transcript.strip():
+            # Construct meeting date for LanceDB - use current time for in-person notes
+            meeting_date_iso = datetime.now().isoformat()
+            # note_utils.embed_and_store_transcript_in_lancedb will use OPENAI_API_KEY_GLOBAL
+            # and LANCEDB_URI from env
+            embedding_store_result = note_utils.embed_and_store_transcript_in_lancedb(
+                notion_page_id=notion_page_id,
+                transcript_text=transcript,
+                meeting_title=title,
+                meeting_date_iso=meeting_date_iso,
+                user_id=user_id
+            )
+            if embedding_store_result["status"] != "success":
+                print(f"Warning: Failed to embed and store transcript in LanceDB: {embedding_store_result['message']}")
+                # Non-critical failure, proceed with response
+
+        return jsonify({
+            "ok": True,
+            "data": {
+                "notion_page_id": notion_page_id,
+                "notion_page_url": notion_page_url,
+                "title": title,
+                "summary_preview": summary[:200] if summary else "N/A",
+                "transcript_preview": transcript[:200] if transcript else "N/A"
+            }
+        }), 201
+
+    except Exception as e:
+        # This will be caught by the generic app.errorhandler if not more specific
+        print(f"Unhandled exception in /api/process-recorded-audio-note: {e}", file=sys.stderr)
+        # import traceback
+        # print(traceback.format_exc(), file=sys.stderr)
+        # Let the app error handler manage the response
+        raise
+    finally:
+        # Cleanup: Remove temporary audio file and directory
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            try:
+                os.remove(temp_audio_path)
+            except Exception as e_remove:
+                print(f"Error removing temporary audio file {temp_audio_path}: {e_remove}", file=sys.stderr)
+        if temp_dir and os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e_rmdir:
+                print(f"Error removing temporary directory {temp_dir}: {e_rmdir}", file=sys.stderr)
+
 
 @app.route('/create-live-audio-note', methods=['POST'])
 async def create_live_audio_note_route(): # Made async
@@ -328,87 +518,60 @@ async def create_live_audio_note_route(): # Made async
     if not data:
         return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
 
+    # For live audio note, API keys (Notion, Deepgram, OpenAI) are expected to be passed in request
+    # This is because the "platform_module" might be external or require per-session keys.
+    # This is different from process-recorded-audio-note which relies on server env keys.
     required_params = [
-        'meeting_id', 'title', 'platform_module_name', # platform_module_name to dynamically import
+        'meeting_id', 'title', 'platform_module_name',
         'notion_api_token', 'deepgram_api_key', 'openai_api_key'
     ]
     missing_params = [param for param in required_params if param not in data]
     if missing_params:
         return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": f"Missing parameters: {', '.join(missing_params)}"}}), 400
 
-    # Initialize Notion (Deepgram is initialized within transcribe_audio_deepgram_stream)
-    init_error = _init_clients_from_request_data(data)
-    if init_error: return jsonify(init_error), 500
+    # Initialize Notion client with token from request for this specific live audio context
+    # Deepgram and OpenAI keys are passed directly to note_utils functions for live processing.
+    init_error = note_utils.init_notion(data['notion_api_token'], data.get('notion_db_id'))
+    if init_error["status"] != "success":
+         return jsonify({"ok": False, "error": {"code": "PYTHON_ERROR_NOTION_INIT_FAILED", "message": init_error["message"], "details": init_error.get("details")}}), 500
+
 
     platform_module_name = data['platform_module_name']
     meeting_id = data['meeting_id']
     title = data['title']
-    notion_db_id = data.get('notion_db_id')
+    # notion_db_id is already passed to init_notion if present in data
     notion_source = data.get('notion_source', 'Live Meeting Transcription')
     linked_task_id = data.get('linked_task_id')
     linked_event_id = data.get('linked_event_id')
-    deepgram_api_key = data['deepgram_api_key']
-    openai_api_key = data['openai_api_key']
+    deepgram_api_key_req = data['deepgram_api_key'] # Key from request
+    openai_api_key_req = data['openai_api_key']     # Key from request
 
     # --- Conceptual Platform Module Import ---
-    # This is a placeholder for how a real system might load the correct audio source.
-    # In a real scenario, this might involve a registry or more secure import mechanism.
     platform_module = None
-    if platform_module_name == "conceptual_zoom_agent_module": # Example
-        # from project.functions.agents import zoom_agent # Example import
-        # platform_module = zoom_agent.ZoomAudioCaptureModule() # Conceptual
-        # For this test, we'll mock it if it's not a real module.
+    if platform_module_name == "conceptual_zoom_agent_module":
         try:
-            # Attempt to import if it's a real, accessible module path
-            # This is generally not safe for arbitrary strings.
-            # A fixed mapping or registry would be better.
-            # import importlib
-            # platform_module = importlib.import_module(platform_module_name)
-            pass # For now, we don't have a real module to import here
+            pass
         except ImportError:
             print(f"Warning: Could not import platform module '{platform_module_name}'. Live transcription will likely fail unless note_utils has a fallback mock.")
-            # Allow to proceed if note_utils has a test/mock mode not requiring real module
 
     if platform_module is None:
-        # If no real module, use a mock that simulates an empty async iterator
-        # This allows testing the flow of process_live_audio_for_notion without a real audio source.
         class MockPlatformModule:
             async def start_audio_capture(self, meeting_id_ignored):
                 print("MockPlatformModule: Simulating start_audio_capture with no audio data.")
-                # Yield nothing to simulate an empty or immediately finished stream
-                if False: # Ensure it's an async generator
-                    yield b''
+                if False: yield b''
             def stop_audio_capture(self):
                 print("MockPlatformModule: Simulating stop_audio_capture.")
                 pass
         platform_module = MockPlatformModule()
-    # --- End Conceptual Platform Module ---
 
     try:
-        # Run the async function using asyncio.run() or ensure Flask is async compatible (e.g. Quart, or run in thread)
-        # For simplicity with standard Flask, run in a new event loop if needed,
-        # though ideally Flask itself would be async (e.g. Quart).
-        # For this subtask, we'll assume the environment can call asyncio.run or similar.
-        # If this handler is part of a larger async app, direct await might be fine.
-        # A simple way for standard Flask:
-        # result = asyncio.run(note_utils.process_live_audio_for_notion(...))
-        # However, Flask routes are typically synchronous.
-        # To call async code from sync Flask, you might use:
-        # loop = asyncio.new_event_loop()
-        # asyncio.set_event_loop(loop)
-        # result = loop.run_until_complete(note_utils.process_live_audio_for_notion(...))
-        # loop.close()
-        # This can be problematic with nested loops or existing loops.
-        # For now, let's assume the calling environment/WSGI server handles async properly or this is simplified.
-        # The `await` keyword suggests this handler itself is async.
-
         result = await note_utils.process_live_audio_for_notion(
-            platform_module=platform_module, # Pass the conceptual or mock module
+            platform_module=platform_module,
             meeting_id=meeting_id,
             notion_note_title=title,
-            deepgram_api_key=deepgram_api_key,
-            openai_api_key=openai_api_key,
-            notion_db_id=notion_db_id,
+            deepgram_api_key=deepgram_api_key_req, # Pass key from request
+            openai_api_key=openai_api_key_req,     # Pass key from request
+            notion_db_id=data.get('notion_db_id'), # Already handled by init_notion for default
             notion_source=notion_source,
             linked_task_id=linked_task_id,
             linked_event_id=linked_event_id
@@ -420,7 +583,6 @@ async def create_live_audio_note_route(): # Made async
             return jsonify({"ok": False, "error": {"code": f"PYTHON_ERROR_{result.get('code', 'LIVE_AUDIO_NOTE_FAILED')}", "message": result.get("message"), "details": result.get("details")}}), 500
 
     except Exception as e:
-        # This will be caught by the generic app.errorhandler if not more specific
         print(f"Exception in /create-live-audio-note route: {e}")
         raise
 
@@ -431,14 +593,20 @@ def search_similar_notes_route():
     if not data:
         return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
 
-    required_params = ['query_text', 'user_id', 'openai_api_key']
+    # For similarity search, OpenAI key might be passed if it's user-specific or per-query.
+    # However, for consistency with process-recorded-audio-note, let's assume note_utils
+    # will use OPENAI_API_KEY_GLOBAL from env for embedding the query text.
+    # The request should contain user_id and query_text.
+    required_params = ['query_text', 'user_id']
+    # openai_api_key removed from required_params, will rely on env for query embedding
+
     missing_params = [param for param in required_params if param not in data]
     if missing_params:
         return jsonify({"ok": False, "error": {"code": "MISSING_PARAMETERS", "message": f"Missing parameters: {', '.join(missing_params)}"}}), 400
 
     query_text = data['query_text']
-    user_id = data['user_id'] # Required for user-specific search
-    openai_api_key = data['openai_api_key']
+    user_id = data['user_id']
+    # openai_api_key_req = data.get('openai_api_key') # Not using this from request for query embedding
     limit = data.get('limit', 5)
     if not isinstance(limit, int) or limit <= 0:
         limit = 5
@@ -447,9 +615,14 @@ def search_similar_notes_route():
     if not lancedb_uri:
         return jsonify({"ok": False, "error": {"code": "PYTHON_ERROR_CONFIG_ERROR", "message": "LANCEDB_URI environment variable not set."}}), 500
 
-    # 1. Get embedding for the query text
+    if not note_utils.OPENAI_API_KEY_GLOBAL:
+         return jsonify({"ok": False, "error": {"code": "PYTHON_ERROR_CONFIG_ERROR", "message": "OpenAI API key not configured on server for query embedding."}}), 500
+
+
+    # 1. Get embedding for the query text (using server-configured OpenAI key)
     embedding_response = note_utils.get_text_embedding_openai(
-        query_text, openai_api_key_param=openai_api_key
+        text_to_embed=query_text
+        # openai_api_key_param is not passed, so note_utils.get_text_embedding_openai uses OPENAI_API_KEY_GLOBAL
     )
 
     if embedding_response["status"] != "success":
@@ -460,11 +633,11 @@ def search_similar_notes_route():
 
     # 2. Search in LanceDB
     try:
-        from _utils import lancedb_service # Assuming _utils is in sys.path
+        from _utils import lancedb_service
         search_result = lancedb_service.search_similar_notes(
             db_path=lancedb_uri,
             query_vector=query_vector,
-            user_id=user_id, # Filter by user_id
+            user_id=user_id,
             limit=limit
         )
 
@@ -481,7 +654,6 @@ def search_similar_notes_route():
     except Exception as e:
         message = f"Unexpected error during similarity search: {str(e)}"
         print(message)
-        # This will be caught by the generic app.errorhandler if not caught more specifically
         raise
 
 [end of atomic-docker/project/functions/python_api_service/note_handler.py]
