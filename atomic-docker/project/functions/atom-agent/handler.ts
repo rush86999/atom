@@ -44,6 +44,8 @@ import {
   CreateTaskData, // Data type for CreateTask skill response
   UpdateTaskData, // Data type for UpdateTask skill response
   SkillError, // For getUserIdByEmail
+  PrepareForMeetingResponse, // Added for Smart Meeting Prep
+  PrepareForMeetingEntities, // Added for Smart Meeting Prep
 } from '../types';
 
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
@@ -118,6 +120,7 @@ import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; /
 import { triggerZap } from './skills/zapierSkills'; // Added missing import
 import { resolveAttendees } from './skills/contactSkills'; // For ScheduleMeetingFromEmail
 // import { invokeOptaPlannerScheduling } from './skills/schedulingSkills'; // Will be added to schedulingSkills
+import { handlePrepareForMeeting } from './skills/productivitySkills'; // Added for Smart Meeting Prep
 
 
 // Define the TTS service URL
@@ -276,6 +279,66 @@ async function _internalHandleMessage(
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
+        }
+        break;
+
+      case "PrepareForMeeting":
+        try {
+          const entities = nluResponse.entities as PrepareForMeetingEntities;
+          console.log(`[Handler][${interfaceType}] Intent: PrepareForMeeting, Entities:`, JSON.stringify(entities));
+
+          const response: PrepareForMeetingResponse = await handlePrepareForMeeting(
+            userId,
+            entities.meeting_identifier,
+            entities.meeting_date_time
+          );
+
+          if (response.ok && response.data) {
+            const prepData = response.data;
+            let summaryText = `Okay, here's some information for your meeting: "${prepData.targetMeeting.summary}" on ${new Date(prepData.targetMeeting.startTime).toLocaleString()}:\n`;
+
+            if (prepData.relatedNotionPages && prepData.relatedNotionPages.length > 0) {
+              summaryText += "\n📚 Relevant Notion Documents:\n";
+              prepData.relatedNotionPages.forEach(p => {
+                summaryText += `  - ${p.title} ${p.url ? `(Link: ${p.url})` : ''}\n    Snippet: ${p.briefSnippet || 'N/A'}\n`;
+              });
+            } else {
+              summaryText += "\n📚 No specific Notion documents found this time.\n";
+            }
+
+            if (prepData.relatedEmails && prepData.relatedEmails.length > 0) {
+              summaryText += "\n📧 Recent Relevant Emails:\n";
+              prepData.relatedEmails.forEach(e => {
+                summaryText += `  - Subject: "${e.subject}" (From: ${e.sender || 'N/A'})\n    Snippet: ${e.briefSnippet || 'N/A'}\n`;
+              });
+            } else {
+              summaryText += "\n📧 No specific recent emails found this time.\n";
+            }
+
+            if (prepData.relatedTasks && prepData.relatedTasks.length > 0) {
+              summaryText += "\n✅ Open Related Tasks:\n";
+              prepData.relatedTasks.forEach(t => {
+                summaryText += `  - ${t.description} (Due: ${t.dueDate || 'N/A'}, Status: ${t.status || 'N/A'})\n`;
+              });
+            } else {
+              summaryText += "\n✅ No specific open tasks found related to this meeting.\n";
+            }
+
+            if (prepData.keyPointsFromLastMeeting) {
+                summaryText += `\n📌 Key Points from Last Similar Meeting:\n  - ${prepData.keyPointsFromLastMeeting}\n`;
+            }
+
+            if (prepData.errorMessage) {
+                summaryText += `\n⚠️ Issues encountered during preparation: ${prepData.errorMessage}\n`;
+            }
+            textResponse = summaryText;
+
+          } else {
+            textResponse = `Sorry, I couldn't prepare for the meeting. ${response.error?.message || 'Unknown error'}`;
+          }
+        } catch (error: any) {
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "PrepareForMeeting":`, error.message, error.stack);
+          textResponse = "Sorry, an unexpected error occurred while preparing for your meeting.";
         }
         break;
 
