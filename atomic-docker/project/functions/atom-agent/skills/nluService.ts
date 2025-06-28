@@ -160,6 +160,39 @@ New Intent for Scheduling from Email Content:
         }
       }
 
+New Productivity Intents:
+35. Intent: "PrepareForMeeting"
+    - Purpose: Allows users to request a consolidated briefing for an upcoming meeting.
+    - Entities: {
+        "meeting_identifier": "string, optional - User's reference to a specific meeting (e.g., 'Q3 Marketing Strategy', 'call with Jane Doe', 'my next meeting').",
+        "meeting_date_time": "string, optional - Temporal information about the meeting (e.g., 'tomorrow', 'next Monday at 3pm')."
+      }
+    - Example: User says "Prepare me for my meeting about 'Q3 Marketing Strategy'."
+      Response: {"intent": "PrepareForMeeting", "entities": {"meeting_identifier": "Q3 Marketing Strategy"}}
+    - Example: User says "Get me ready for the call with Jane Doe tomorrow afternoon."
+      Response: {"intent": "PrepareForMeeting", "entities": {"meeting_identifier": "call with Jane Doe", "meeting_date_time": "tomorrow afternoon"}}
+
+36. Intent: "GenerateWeeklyDigest"
+    - Purpose: Provides users with a summary of their past week's accomplishments and a preview for the upcoming week.
+    - Entities: {
+        "time_period": "string, optional - Specifies the period for the digest (e.g., 'this week', 'last week'). Defaults to 'this week'."
+      }
+    - Example: User says "What's my weekly digest?"
+      Response: {"intent": "GenerateWeeklyDigest", "entities": {}}
+    - Example: User says "Show me last week's digest."
+      Response: {"intent": "GenerateWeeklyDigest", "entities": {"time_period": "last week"}}
+
+37. Intent: "SuggestFollowUps"
+    - Purpose: Analyzes meeting notes, transcripts, or project documents to suggest follow-ups.
+    - Entities: {
+        "context_identifier": "string, mandatory - The specific meeting, project, or document to analyze (e.g., 'Project Phoenix Q1 review meeting', 'the client onboarding project').",
+        "context_type": "string, optional - Enum-like: 'meeting', 'project', 'document'. Helps narrow down context search."
+      }
+    - Example: User says "What follow-ups for the 'Project Phoenix Q1 review' meeting?"
+      Response: {"intent": "SuggestFollowUps", "entities": {"context_identifier": "Project Phoenix Q1 review", "context_type": "meeting"}}
+    - Example: User says "Suggest next steps for my 'Client Onboarding' project."
+      Response: {"intent": "SuggestFollowUps", "entities": {"context_identifier": "Client Onboarding", "context_type": "project"}}
+
 
 If the user's intent is unclear or does not match any of the above single intents, set "intent" to null and "entities" to an empty object.
 
