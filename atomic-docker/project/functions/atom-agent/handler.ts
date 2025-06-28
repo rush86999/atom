@@ -46,6 +46,8 @@ import {
   SkillError, // For getUserIdByEmail
   PrepareForMeetingResponse, // Added for Smart Meeting Prep
   PrepareForMeetingEntities, // Added for Smart Meeting Prep
+  GenerateWeeklyDigestResponse, // Added for Weekly Digest
+  GenerateWeeklyDigestEntities, // Added for Weekly Digest
 } from '../types';
 
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
@@ -120,7 +122,7 @@ import { listRecentEmails, readEmail, sendEmail } from './skills/emailSkills'; /
 import { triggerZap } from './skills/zapierSkills'; // Added missing import
 import { resolveAttendees } from './skills/contactSkills'; // For ScheduleMeetingFromEmail
 // import { invokeOptaPlannerScheduling } from './skills/schedulingSkills'; // Will be added to schedulingSkills
-import { handlePrepareForMeeting } from './skills/productivitySkills'; // Added for Smart Meeting Prep
+import { handlePrepareForMeeting, handleGenerateWeeklyDigest } from './skills/productivitySkills'; // Added for Smart Meeting Prep & Weekly Digest
 
 
 // Define the TTS service URL
@@ -279,6 +281,70 @@ async function _internalHandleMessage(
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
+        }
+        break;
+
+      case "GenerateWeeklyDigest":
+        try {
+            const entities = nluResponse.entities as GenerateWeeklyDigestEntities;
+            console.log(`[Handler][${interfaceType}] Intent: GenerateWeeklyDigest, Entities:`, JSON.stringify(entities));
+
+            const response: GenerateWeeklyDigestResponse = await handleGenerateWeeklyDigest(
+                userId,
+                entities.time_period
+            );
+
+            if (response.ok && response.data) {
+                const digestInfo = response.data.digest;
+                let summaryText = `📅 Weekly Digest for ${new Date(digestInfo.periodStart).toLocaleDateString()} - ${new Date(digestInfo.periodEnd).toLocaleDateString()} 📅\n\n`;
+
+                if (digestInfo.completedTasks.length > 0) {
+                    summaryText += "🎉 Accomplishments This Period:\n";
+                    digestInfo.completedTasks.forEach(task => {
+                        summaryText += `  - ✅ ${task.description} (Completed)\n`;
+                    });
+                } else {
+                    summaryText += "🎉 No specific tasks marked completed this period.\n";
+                }
+
+                if (digestInfo.attendedMeetings.length > 0) {
+                    summaryText += "\n🗓️ Key Meetings Attended:\n";
+                    digestInfo.attendedMeetings.forEach(meeting => {
+                        summaryText += `  - 🗣️ ${meeting.summary} (On: ${new Date(meeting.startTime).toLocaleDateString()})\n`;
+                    });
+                } else {
+                    summaryText += "\n🗓️ No significant meetings logged this period.\n";
+                }
+
+                summaryText += "\n🚀 Focus for Next Period:\n";
+                if (digestInfo.upcomingCriticalTasks.length > 0) {
+                    summaryText += "  Critical Tasks:\n";
+                    digestInfo.upcomingCriticalTasks.forEach(task => {
+                        summaryText += `    - ❗ ${task.description} (Due: ${task.dueDate || 'N/A'}, Prio: ${task.priority || 'N/A'})\n`;
+                    });
+                } else {
+                    summaryText += "  No high-priority tasks specifically logged for next period yet.\n";
+                }
+
+                if (digestInfo.upcomingCriticalMeetings.length > 0) {
+                    summaryText += "  Important Meetings:\n";
+                    digestInfo.upcomingCriticalMeetings.forEach(meeting => {
+                        summaryText += `    - 🎤 ${meeting.summary} (On: ${new Date(meeting.startTime).toLocaleDateString()})\n`;
+                    });
+                } else {
+                    summaryText += "  No major meetings specifically logged for next period yet.\n";
+                }
+
+                if (digestInfo.errorMessage) {
+                    summaryText += `\n⚠️ Issues encountered during digest generation: ${digestInfo.errorMessage}\n`;
+                }
+                textResponse = summaryText;
+            } else {
+                textResponse = `Sorry, I couldn't generate the weekly digest. ${response.error?.message || 'Unknown error'}`;
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "GenerateWeeklyDigest":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while generating your weekly digest.";
         }
         break;
 
