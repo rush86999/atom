@@ -243,47 +243,185 @@ const processQueries = async (userId: string, timezone: string, messageHistoryOb
   }
 }
 
-const assistant_brain = async (event) => {
-  const body = event
+// Define AgentClientCommand and AgentContext interfaces locally or import from a shared types file
+// This should align with definitions in atom-agent/handler.ts and functions_build_docker/server.ts
+interface AgentClientCommand {
+  command_id: string;
+  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION';
+  payload?: {
+      suggestedTitle?: string;
+      linkedEventId?: string;
+  };
+}
+
+interface AgentSkillContext {
+  userId: string;
+  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>;
+}
+
+// NLUResult structure expected by inPersonAudioNoteSkills
+interface NluIntentResult { // Simplified for this context
+    intent: { name: string; confidence?: number };
+    entities?: { [key: string]: any };
+    raw_input?: string;
+}
+
+
+// Modify processQueries to accept sendCommandToUserFunc
+const processQueries = async (
+    userId: string,
+    timezone: string,
+    messageHistoryObject: SkillMessageHistoryType,
+    sendCommandToUserFunc?: (userId: string, command: AgentClientCommand) => Promise<boolean> // New parameter
+) => {
+  try {
+    const userCurrentTime = dayjs().tz(timezone).format('dddd, YYYY-MM-DDTHH:mm:ssZ')
+
+    // Import the new skill handlers here if they are not too large,
+    // or create a dedicated control center that imports them.
+    // For now, let's assume we might call them more directly for simplicity of this step,
+    // acknowledging this might be refactored into a proper "control center".
+    // This dynamic import is for illustration; static imports are generally preferred.
+    const ইনPersonAudioNoteSkills = await import('../../../atom-agent/skills/inPersonAudioNoteSkills');
+
+
+    switch (messageHistoryObject.skill) {
+      // --- NEW CASES FOR IN-PERSON AUDIO NOTES ---
+      case 'IN_PERSON_AUDIO_NOTE_START': // Assuming NLU categorizes to this
+      case 'IN_PERSON_AUDIO_NOTE_STOP':
+      case 'IN_PERSON_AUDIO_NOTE_CANCEL':
+        if (!sendCommandToUserFunc) {
+            console.error("sendCommandToUserFunc not provided to processQueries for audio note skill.");
+            // Fallback response or error
+            messageHistoryObject.messages.push({role: 'assistant', content: "Sorry, I can't control audio recording right now due to a setup issue."});
+            return messageHistoryObject;
+        }
+        const agentSkillContext: AgentSkillContext = {
+            userId,
+            sendCommandToClient: sendCommandToUserFunc
+        };
+        // Construct a simplified NLU result for the skill handler
+        const nluResultForSkill: NluIntentResult = {
+            intent: { name: messageHistoryObject.skill }, // e.g., "IN_PERSON_AUDIO_NOTE_START"
+            entities: messageHistoryObject.prevData?.entities || {}, // Pass any entities gathered by NLU
+            raw_input: messageHistoryObject.messages[messageHistoryObject.messages.length -1]?.content
+        };
+
+        let skillResponse;
+        if (messageHistoryObject.skill === 'IN_PERSON_AUDIO_NOTE_START') {
+            skillResponse = await ইনPersonAudioNoteSkills.handleStartInPersonAudioNoteDirect(nluResultForSkill, agentSkillContext);
+        } else if (messageHistoryObject.skill === 'IN_PERSON_AUDIO_NOTE_STOP') {
+            skillResponse = await ইনPersonAudioNoteSkills.handleStopInPersonAudioNoteDirect(nluResultForSkill, agentSkillContext);
+        } else { // CANCEL
+            skillResponse = await ইনPersonAudioNoteSkills.handleCancelInPersonAudioNoteDirect(nluResultForSkill, agentSkillContext);
+        }
+
+        messageHistoryObject.messages.push({ role: 'assistant', content: skillResponse.message });
+        messageHistoryObject.query = 'completed'; // Mark as completed
+        return messageHistoryObject;
+
+      // --- EXISTING CASES ---
+      case 'ask-availability':
+        const messageHistoryObjectReturnedAskAvailability = await askAvailabilityControlCenterForPending(
+          openai,
+          userId,
+          timezone,
+          messageHistoryObject,
+          userCurrentTime,
+        )
+        return messageHistoryObjectReturnedAskAvailability
+
+      // ... (all other existing cases remain unchanged) ...
+
+      case 'update-task':
+        // updateTaskControlCenterPending
+        const messageHistoryObjectReturnedUpdateTask = await updateTaskControlCenter(
+          openai, userId, timezone, messageHistoryObject, userCurrentTime, messageHistoryObject?.query
+        )
+        return messageHistoryObjectReturnedUpdateTask
+
+      default:
+        // If skill is not one of the audio commands or other known skills,
+        // it might fall through to a default handler or error.
+        // For now, let's assume the existing default (queryEventsControlCenter) is fine if no match.
+        console.warn(`processQueries: Unhandled or default skill: ${messageHistoryObject.skill}`);
+        const messageHistoryObjectReturnedAskEventsDefault = await queryEventsControlCenter(
+          openai,
+          userId,
+          timezone,
+          messageHistoryObject,
+          userCurrentTime,
+          messageHistoryObject?.query,
+        )
+        return messageHistoryObjectReturnedAskEventsDefault
+    }
+  } catch (e) {
+    console.log(e, ' unable to process pending queries in processQueries')
+    // Ensure a valid SkillMessageHistoryType is returned even on error
+    messageHistoryObject.messages.push({ role: 'assistant', content: "An error occurred while processing your request." });
+    messageHistoryObject.query = 'error';
+    return messageHistoryObject;
+  }
+}
+
+// Modify assistant_brain to accept and pass sendCommandToUserFunc
+const assistant_brain = async (
+    eventPayload: string | Buffer, // Changed 'event' to 'eventPayload' for clarity
+    userIdFromWs: string, // Explicitly passed by server.ts
+    // requestFromWs: any, // The original request object from WebSocket upgrade, if needed by any skill
+    sendCommandToUserFunc?: (userId: string, command: AgentClientCommand) => Promise<boolean> // New parameter
+) => {
+  // const body = eventPayload; // Keep if direct Buffer processing is needed
 
   try {
+    // If eventPayload is Buffer, convert to string. If already string, use as is.
+    const bodyString = Buffer.isBuffer(eventPayload) ? eventPayload.toString() : eventPayload;
+    console.log(bodyString, ' bodyString inside assistant_brain');
 
-    console.log(body, ' body inside assistant_brain')
-    const bodyObject: ChatBrainBodyType = JSON.parse(Buffer.from(body).toString())
-    console.log(bodyObject, ' bodyObject inside assistant_brain')
-    const userId = bodyObject?.userId
-    const timezone = bodyObject?.timezone
-    const messageHistoryObject = bodyObject?.chat
+    const bodyObject: ChatBrainBodyType = JSON.parse(bodyString);
+    console.log(bodyObject, ' bodyObject inside assistant_brain');
 
+    // userId should be the authenticated one from WebSocket connection, not from body if possible
+    const userId = userIdFromWs || bodyObject?.userId;
+    const timezone = bodyObject?.timezone;
+    const messageHistoryObject = bodyObject?.chat;
 
-    // validate 
     if (!userId) {
-      throw new Error('no userId provided')
+      throw new Error('no userId provided (either from WebSocket auth or message body)');
     }
-
     if (!timezone) {
-      throw new Error('no timezone provided')
+      // Fallback timezone or error
+      // For now, let's use a default or throw. Agent might need user's actual timezone.
+      console.warn(`No timezone provided for user ${userId}, falling back to UTC or agent default.`);
+      // throw new Error('no timezone provided');
     }
-
     if (!messageHistoryObject) {
-      throw new Error('no messageHistoryObject')
+      throw new Error('no messageHistoryObject (chat payload)');
     }
 
+    // NLU Skill Categorization (existing logic)
     if (messageHistoryObject?.skill === 'pending') {
-
-      // find out which skill
-      const openAIResSkill = await callOpenAI(openai, categorizeSkillFromUserInputPrompt, openAIChatGPT35Model, messageHistoryObject?.messages?.[messageHistoryObject?.messages?.length - 1]?.content, categorizeSkillFromUserInputExampleInput, categorizeSkillFromUserInputExampleOutput)
-      console.log(openAIResSkill, ' openAIResSkill')
-      messageHistoryObject.skill = openAIResSkill as SkillType
-
+      const userInputForNlu = messageHistoryObject?.messages?.[messageHistoryObject?.messages?.length - 1]?.content;
+      if (userInputForNlu) {
+        const openAIResSkill = await callOpenAI(openai, categorizeSkillFromUserInputPrompt, openAIChatGPT35Model, userInputForNlu, categorizeSkillFromUserInputExampleInput, categorizeSkillFromUserInputExampleOutput);
+        console.log(openAIResSkill, ' openAIResSkill categorized by NLU');
+        messageHistoryObject.skill = openAIResSkill as SkillType;
+        // TODO: If NLU categorizes to IN_PERSON_AUDIO_NOTE_START, etc., it needs to also extract entities
+        // like suggestedTitle and pass them. For now, this is a gap if relying on this NLU.
+        // The `inPersonAudioNoteSkills` currently expect entities in `nluResult.entities`.
+        // `messageHistoryObject.prevData.entities` might be a place to store them.
+      } else {
+        console.warn("User input for NLU skill categorization is empty.");
+        messageHistoryObject.skill = 'unknown_or_empty_input'; // Handle gracefully
+      }
     }
 
+    // Call processQueries, now passing sendCommandToUserFunc
+    const res = await processQueries(userId, timezone || 'UTC', messageHistoryObject, sendCommandToUserFunc);
 
-    const res = await processQueries(userId, timezone, messageHistoryObject)
-
-    return JSON.stringify(res)
-  } catch (e) {
-    console.log(e, ' unable to connect with or process handler')
+    return JSON.stringify(res);
+  } catch (e: any) {
+    console.error('Error in assistant_brain:', e.message, e.stack);
     return JSON.stringify(e)
   }
 };

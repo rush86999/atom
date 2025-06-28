@@ -4,7 +4,7 @@ import morgan from 'morgan'
 import glob from 'glob'
 // import * as jwt from 'jsonwebtoken'
 // import qs from 'qs'
-import { WebSocketServer }  from 'ws'
+import { WebSocketServer, WebSocket } from 'ws'; // Added WebSocket for typing
 // import JsonWebToken, { JwtHeader, SigningKeyCallback } from 'jsonwebtoken'
 // import jwksClient from 'jwks-rsa'
 import qs from 'qs'
@@ -37,6 +37,40 @@ const JWKS = jose.createRemoteJWKSet(new URL(`${process.env.APP_CLIENT_URL}/api/
 //     callback(err, signingKey);
 //   });
 // }
+
+// Map to store userId to WebSocket connection
+const connectedClients = new Map<string, WebSocket>();
+
+// Define AgentClientCommand structure (should align with frontend and agent skill definitions)
+interface AgentClientCommand {
+    command_id: string;
+    action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION';
+    payload?: {
+        suggestedTitle?: string;
+        linkedEventId?: string;
+    };
+}
+
+export async function sendCommandToUser(userId: string, command: AgentClientCommand): Promise<boolean> {
+    const clientSocket = connectedClients.get(userId);
+    if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
+        const messageToSend = { type: 'AGENT_COMMAND', payload: command }; // Wrap command
+        try {
+            clientSocket.send(JSON.stringify(messageToSend));
+            console.log(`[sendCommandToUser] Sent command to user ${userId}:`, messageToSend);
+            return true;
+        } catch (error) {
+            console.error(`[sendCommandToUser] Error sending command to user ${userId}:`, error);
+            return false;
+        }
+    } else {
+        console.warn(`[sendCommandToUser] No active WebSocket for user ${userId} or socket not open.`);
+        return false;
+    }
+}
+// Note: This sendCommandToUser function needs to be made available to the agent skill execution context.
+// How this is done depends on the agent framework structure. For example, it could be passed
+// as part of an `AgentContext` object to skill handlers.
 
 const main = async () => {
   const app = express()
@@ -259,13 +293,21 @@ const main = async () => {
       const token = authHeader.split(' ')[1];
       
       try {
-        console.log(authHeader, ' authHeader')
-        console.log(JWKS, ' JWKS')
+        // console.log(authHeader, ' authHeader') // Debug
+        // console.log(JWKS, ' JWKS') // Debug
         const result = await jose.jwtVerify(token, JWKS)
-        console.log(result, ' success jwtVerfy')
-
+        // console.log(result, ' success jwtVerfy') // Debug
+        // Attach userId to the request object so it's available in 'connection'
+        if (result.payload.sub && typeof result.payload.sub === 'string') {
+            (request as any).userId = result.payload.sub;
+        } else {
+            console.error("[UpgradeAuth] User ID (sub) not found or invalid in JWT payload for httpServer.");
+            socket.write('HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n');
+            socket.destroy();
+            return;
+        }
       } catch (e) {
-        console.log(e, ' error jwtVerfy')
+        console.log(e, ' error jwtVerfy httpServer')
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
@@ -308,13 +350,21 @@ const main = async () => {
       const token = authHeader.split(' ')[1];
       
       try {
-        console.log(authHeader, ' authHeader')
-        console.log(JWKS, ' JWKS')
+        // console.log(authHeader, ' authHeader') // Debug
+        // console.log(JWKS, ' JWKS') // Debug
         const result = await jose.jwtVerify(token, JWKS)
-        console.log(result, ' success2 jwtVerify2')
-
+        // console.log(result, ' success2 jwtVerify2') // Debug
+         // Attach userId to the request object so it's available in 'connection'
+        if (result.payload.sub && typeof result.payload.sub === 'string') {
+            (request as any).userId = result.payload.sub;
+        } else {
+            console.error("[UpgradeAuth] User ID (sub) not found or invalid in JWT payload for httpServer2.");
+            socket.write('HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n');
+            socket.destroy();
+            return;
+        }
       } catch (e) {
-        console.log(e, ' error2 jwtVerify2')
+        console.log(e, ' error2 jwtVerify2 httpServer2')
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
@@ -333,62 +383,102 @@ const main = async () => {
   });
 
   const keepAlivePeriod = 50000
-  wss.on('connection', async function connection(ws) {
-    console.log('connection called')
+  wss.on('connection', async function connection(ws: WebSocket, request: Request & { userId?: string }) {
+    const userId = request.userId; // Retrieve userId attached in 'upgrade'
 
-    ws.on('error', console.error);
+    if (userId) {
+        console.log(`[wss] WebSocket connection established for user: ${userId}`);
+        connectedClients.set(userId, ws);
 
-    // Send a 'ping' message to the client at regular intervals
-    const keepAliveId = setInterval(() => {
-      ws.send(JSON.stringify('ping'));
-    }, keepAlivePeriod || 5000);
+        ws.on('error', (error) => {
+            console.error(`[wss] WebSocket error for user ${userId}:`, error);
+        });
 
-    ws.on('message', async function incoming(message) {
-      console.log('received: %s', message);
-      try {
-        const { default: handler } = await import(path.join(functionsPath, wsFiles?.[0]))
-        const replyMessage = await handler(message)
-        // reply back
-        ws.send(replyMessage);
-      } catch (e) {
-        console.log(e, ' unable to process sockets')
-      }
-      
-    });
+        const keepAliveId = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify('ping'));
+            }
+        }, keepAlivePeriod);
 
-    ws.on('close', function () {
-      console.log('closed')
-      clearInterval(keepAliveId);
-    });
+        ws.on('message', async function incoming(messageBuffer) {
+            const message = messageBuffer.toString(); // Assuming text messages
+            console.log(`[wss] Received from user ${userId}: %s`, message);
+            try {
+                // The existing handler likely expects the raw message and handles JSON parsing internally if needed.
+                // It also might be designed to interact with the agent core.
+                // We need to ensure this handler can also potentially receive acknowledgements or specific events from client
+                // if we implement two-way comms for audio control status. For now, it's one-way (agent->client for commands).
+                const { default: handler } = await import(path.join(functionsPath, wsFiles?.[0])) // Assuming wsFiles[0] is correct chat_brain handler
+                // Pass sendCommandToUser to the handler, along with other necessary params
+                const replyMessage = await handler(message, userId, request, sendCommandToUser);
+
+                if (replyMessage && ws.readyState === WebSocket.OPEN) {
+                    ws.send(replyMessage); // replyMessage is expected to be stringified JSON or string
+                }
+            } catch (e) {
+                console.error(`[wss] Error processing message from user ${userId}:`, e);
+                // Optionally send error to client, be careful not to create loops or overwhelm
+                // if (ws.readyState === WebSocket.OPEN) {
+                //    ws.send(JSON.stringify({ type: "ERROR", payload: { message: "Failed to process your request on server." } }));
+                // }
+            }
+        });
+
+        ws.on('close', () => {
+            console.log(`[wss] WebSocket connection closed for user: ${userId}`);
+            connectedClients.delete(userId);
+            clearInterval(keepAliveId);
+        });
+    } else {
+        console.error("[wss] WebSocket connection established without a userId. Closing.");
+        ws.close(1008, "User ID not available after upgrade"); // 1008: Policy Violation
+    }
   });
 
-  wss2.on('connection', async function connection(ws) {
-    console.log('connection called')
+  wss2.on('connection', async function connection(ws: WebSocket, request: Request & { userId?: string }) {
+    const userId = request.userId; // Retrieve userId attached in 'upgrade'
 
-    ws.on('error', console.error);
+    if (userId) {
+        console.log(`[wss2] WebSocket connection established for user: ${userId}`);
+        connectedClients.set(userId, ws); // Also add to the same map, or use a separate map if wss/wss2 serve different user groups/purposes
 
-    // Send a 'ping' message to the client at regular intervals
-    const keepAliveId = setInterval(() => {
-      ws.send(JSON.stringify('ping'));
-    }, keepAlivePeriod || 5000);
+        ws.on('error', (error) => {
+            console.error(`[wss2] WebSocket error for user ${userId}:`, error);
+        });
 
-    ws.on('message', async function incoming(message) {
-      console.log('received: %s', message);
-      try {
-        const { default: handler } = await import(path.join(functionsPath, wsFiles?.[0]))
-        const replyMessage = await handler(message)
-        // reply back
-        ws.send(replyMessage);
-      } catch (e) {
-        console.log(e, ' unable to process sockets')
-      }
-      
-    });
+        const keepAliveId = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify('ping'));
+            }
+        }, keepAlivePeriod);
 
-    ws.on('close', function () {
-      console.log('closed')
-      clearInterval(keepAliveId);
-    });
+        ws.on('message', async function incoming(messageBuffer) {
+            const message = messageBuffer.toString();
+            console.log(`[wss2] Received from user ${userId}: %s`, message);
+            try {
+                const { default: handler } = await import(path.join(functionsPath, wsFiles?.[0]))
+                 // Pass sendCommandToUser to the handler for wss2 as well
+                const replyMessage = await handler(message, userId, request, sendCommandToUser);
+                if (replyMessage && ws.readyState === WebSocket.OPEN) {
+                    ws.send(replyMessage);
+                }
+            } catch (e) {
+                console.error(`[wss2] Error processing message from user ${userId}:`, e);
+                 // if (ws.readyState === WebSocket.OPEN) {
+                //    ws.send(JSON.stringify({ type: "ERROR", payload: { message: "Failed to process your request on server." } }));
+                // }
+            }
+        });
+
+        ws.on('close', () => {
+            console.log(`[wss2] WebSocket connection closed for user: ${userId}`);
+            connectedClients.delete(userId); // Remove from map
+            clearInterval(keepAliveId);
+        });
+    } else {
+        console.error("[wss2] WebSocket connection established without a userId. Closing.");
+        ws.close(1008, "User ID not available after upgrade");
+    }
   });
   
   // get all worker files 
