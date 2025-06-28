@@ -326,33 +326,44 @@ export async function handleGenerateWeeklyDigest(
   } else {
     try {
       const completedTaskParams = {
-        // This is tricky: Notion API doesn't easily filter by "completion date" directly.
-        // We might need to fetch tasks last_edited within the range and then filter by status.
-        // Or, if users have a "Completed Date" property, filter on that.
-        // For V1, let's try filtering by last_edited_time and status "Done".
-        // This is an approximation.
         status: "Done" as NotionTaskStatus,
-        // To filter by date, queryNotionTasks might need to be enhanced or we filter locally.
-        // For now, let's assume queryNotionTasks can take a date range for last_edited_time
-        // or we fetch more and filter.
-        // Let's simplify: get tasks marked Done and edited recently (e.g. last 2 weeks to catch late markings)
-        // then filter locally by a "Completed At" custom property if it exists, or by last_edited_time.
-        // This part requires more robust date handling in queryNotionTasks or post-filtering.
-        limit: MAX_DIGEST_ITEMS * 2, // Fetch more to filter by date locally
+        // NOTE on filtering completed tasks by date:
+        // Ideally, `queryNotionTasks` would support filtering by a custom "Completed At" date property
+        // from the Notion database. This would be the most accurate way to find tasks completed
+        // within the specified `startDate` and `endDate`.
+        //
+        // Current V1 Approximation:
+        // 1. Fetch tasks with status "Done".
+        // 2. Filter these tasks locally based on `task.last_edited_time`.
+        // This is an approximation because `last_edited_time` reflects the last time ANY property
+        // of the task was changed, not necessarily its completion time.
+        // A task marked "Done" long ago but edited recently for a minor correction would appear.
+        // A task completed within the period but never touched again might be missed if its
+        // `last_edited_time` is older due to `queryNotionTasks` internal limits or sorting before this local filter.
+        //
+        // To improve accuracy in future:
+        // - Backend Enhancement: Modify `queryNotionTasks` (and its Python backend if applicable)
+        //   to accept `completed_at_after: string` and `completed_at_before: string` parameters
+        //   that filter on a specific "Completed At" date property in the Notion DB.
+        // - Documentation: Advise users to maintain a "Completed At" date property in their tasks DB.
+        limit: MAX_DIGEST_ITEMS * 3, // Fetch more to increase chance of catching relevant recently edited "Done" tasks.
         notionTasksDbId: notionTasksDbId,
       };
       console.log(`[handleGenerateWeeklyDigest] Querying completed tasks with params:`, completedTaskParams);
       const taskResponse = await queryNotionTasks(userId, completedTaskParams);
       if (taskResponse.success && taskResponse.tasks) {
-        // Placeholder for date filtering:
-        // This assumes tasks have a `completedAt` or similar custom field, or uses `lastEditedTime`
-        // For a true digest, we need tasks *completed* in the window.
-        // This is a simplification and might need a dedicated "Completed Date" field in Notion.
         digestData.completedTasks = taskResponse.tasks.filter(task => {
-            const lastEdited = new Date(task.last_edited_time || task.createdDate); // NotionTask needs last_edited_time
-            return lastEdited >= startDate && lastEdited <= endDate;
+            // Ensure `task.last_edited_time` is available on the NotionTask type from `queryNotionTasks`.
+            // If `task.last_edited_time` is not reliably populated by `queryNotionTasks` from Notion's API,
+            // this filtering will be inaccurate. Defaulting to `task.createdDate` is a poor fallback for completion.
+            const relevantDate = task.last_edited_time ? new Date(task.last_edited_time) : null;
+            if (!relevantDate) {
+                console.warn(`[handleGenerateWeeklyDigest] Task ID ${task.id} has no last_edited_time. Cannot accurately determine if completed in period.`);
+                return false;
+            }
+            return relevantDate >= startDate && relevantDate <= endDate;
         }).slice(0, MAX_DIGEST_ITEMS);
-        console.log(`[handleGenerateWeeklyDigest] Found ${digestData.completedTasks.length} completed tasks in period.`);
+        console.log(`[handleGenerateWeeklyDigest] Found ${digestData.completedTasks.length} completed tasks in period (after date filtering).`);
       } else if (!taskResponse.success) {
         accumulatedErrorMessages += `Could not fetch completed tasks: ${taskResponse.error}. `;
       }

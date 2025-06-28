@@ -213,9 +213,23 @@ async function getGoogleCalendarClient(userId: string): Promise<CalendarSkillRes
   return { ok: true, data: google.calendar({ version: 'v3', auth: oauth2Client }) };
 }
 
-
-export async function listUpcomingEvents(userId: string, limit: number = 10): Promise<CalendarSkillResponse<CalendarEvent[]>> {
-  console.log(`Attempting to fetch up to ${limit} upcoming events for userId: ${userId}...`);
+/**
+ * Lists events from the user's primary Google Calendar.
+ * Can fetch upcoming events or events within a specified time range (for past or future).
+ *
+ * @param userId The ID of the user.
+ * @param limit Maximum number of events to return.
+ * @param timeMin Optional ISO string for the minimum start time of events. If not provided and timeMax is also not provided, defaults to now (upcoming events).
+ * @param timeMax Optional ISO string for the maximum end time of events. Used for querying specific ranges.
+ * @returns A promise that resolves to a CalendarSkillResponse containing an array of CalendarEvent objects.
+ */
+export async function listUpcomingEvents(
+  userId: string,
+  limit: number = 10,
+  timeMin?: string,
+  timeMax?: string
+): Promise<CalendarSkillResponse<CalendarEvent[]>> {
+  console.log(`Fetching up to ${limit} events for userId: ${userId}. TimeMin: ${timeMin}, TimeMax: ${timeMax}`);
 
   const clientResponse = await getGoogleCalendarClient(userId);
   if (!clientResponse.ok || !clientResponse.data) {
@@ -224,13 +238,31 @@ export async function listUpcomingEvents(userId: string, limit: number = 10): Pr
   const calendar = clientResponse.data;
 
   try {
-    const response = await calendar.events.list({
+    const listOptions: calendar_v3.Params$Resource$Events$List = {
       calendarId: 'primary',
-      timeMin: (new Date()).toISOString(),
       maxResults: limit,
       singleEvents: true,
       orderBy: 'startTime',
-    });
+    };
+
+    if (timeMin) {
+      listOptions.timeMin = timeMin;
+    } else if (!timeMax) { // Only default to now if neither timeMin nor timeMax is set
+      listOptions.timeMin = (new Date()).toISOString();
+    }
+
+    if (timeMax) {
+      listOptions.timeMax = timeMax;
+      // If timeMax is provided, orderBy should typically be 'startTime' (default).
+      // If querying past events (timeMax is in the past), and you want the most recent first,
+      // you might consider changing orderBy, but Google Calendar API orderBy is 'startTime' or 'updated'.
+      // For simply listing events in a range, 'startTime' is usually appropriate.
+    }
+
+    // If timeMin is in the past and timeMax is not set, this will fetch events from timeMin until now/future.
+    // If timeMin and timeMax define a past range, it fetches past events.
+
+    const response = await calendar.events.list(listOptions);
 
     const events = response.data.items;
     if (!events || events.length === 0) {
