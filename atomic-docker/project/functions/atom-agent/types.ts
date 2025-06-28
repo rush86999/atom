@@ -811,3 +811,47 @@ export interface UserAvailability {
   workTimes: UserWorkTime[];
   calendarEvents: CalendarEvent[]; // Existing events in the queried window
 }
+
+// --- Smart Meeting Preparation Types ---
+export interface NotionPageContext {
+  id: string;
+  title: string;
+  url?: string; // Notion page URL
+  briefSnippet?: string; // A short relevant snippet from the page content
+}
+
+export interface EmailContext {
+  id: string; // Email message ID
+  subject: string;
+  sender?: string; // Sender's email or name
+  receivedDate?: string; // ISO 8601 string
+  url?: string; // URL to view the email if available (e.g., Gmail link)
+  briefSnippet?: string; // Short snippet from the email body
+}
+
+export interface TaskContext {
+  id: string; // Notion Task Page ID
+  description: string;
+  dueDate?: string | null; // ISO date string or null
+  status?: NotionTaskStatus;
+  url?: string; // URL to the Notion task page
+}
+
+export interface MeetingPreparationData {
+  targetMeeting: CalendarEvent; // The meeting being prepared for
+  relatedNotionPages?: NotionPageContext[];
+  relatedEmails?: EmailContext[];
+  relatedTasks?: TaskContext[];
+  keyPointsFromLastMeeting?: string; // Optional: summary from previous similar meeting
+  errorMessage?: string; // If preparation is partial or fails (e.g., "Could not fetch Notion documents.")
+}
+
+// Response for the PrepareForMeeting skill
+export interface PrepareForMeetingResponse extends SkillResponse<MeetingPreparationData> {}
+
+// NLU Entities expected for the PrepareForMeeting intent
+export interface PrepareForMeetingEntities {
+  meeting_identifier?: string; // e.g., "Project Alpha discussion", "next meeting", "call with John"
+  meeting_date_time?: string; // e.g., "tomorrow", "2024-07-15T14:00:00Z", "next Monday at 3pm"
+  // Future: could include specific attendees to focus on, or types of info (e.g., "only show tasks")
+}
