@@ -401,4 +401,159 @@ describe('productivitySkills', () => {
         expect(digest?.errorMessage).toContain('Error occurred while fetching upcoming meetings.');
     });
   });
+
+  // --- Tests for Intelligent Follow-up Suggester ---
+  describe('handleSuggestFollowUps', () => {
+    // Mock the conceptual LLM utility
+    const mockAnalyzeTextForFollowUps = jest.fn();
+    let originalLlmUtilities: any;
+
+    beforeAll(async () => {
+        // This is a more complex way to mock, needed if llmUtilities is a separate module
+        // For a simple conceptual mock, direct jest.mock might be enough.
+        // This ensures that when productivitySkills imports from llmUtilities, it gets our mock.
+        jest.doMock('../llmUtilities', () => ({
+            analyzeTextForFollowUps: mockAnalyzeTextForFollowUps,
+        }));
+        // Re-require productivitySkills to pick up the mock. This is tricky.
+        // A simpler way if llmUtilities is directly part of productivitySkills or easily mockable:
+        // directly mock it like other skills.
+        // For now, let's assume the mock setup for llmUtilities is correctly handled
+        // by jest.mock at the top if it were a separate file, or we'd pass it as a dependency.
+    });
+
+    beforeEach(() => {
+        mockAnalyzeTextForFollowUps.mockReset();
+        // Reset other necessary mocks if they are used by handleSuggestFollowUps
+        mockListUpcomingEvents.mockReset();
+        mockSearchNotionRaw.mockReset();
+        mockQueryNotionTasks.mockReset();
+
+        // Default mock implementations for this test suite
+        mockListUpcomingEvents.mockResolvedValue([]);
+        mockSearchNotionRaw.mockResolvedValue({ok: true, data: []});
+        mockQueryNotionTasks.mockResolvedValue({success: true, tasks: []});
+        mockAnalyzeTextForFollowUps.mockResolvedValue({ extractedItems: { action_items: [], decisions: [], questions: [] } });
+    });
+
+    const mockMeetingContext: CalendarEvent = {
+        id: 'meeting123',
+        summary: 'Project Phoenix Q1 Review',
+        startTime: '2024-07-20T10:00:00Z',
+        endTime: '2024-07-20T11:00:00Z',
+        description: 'Review of Q1 progress for Project Phoenix.'
+    };
+
+    const mockNotionDoc: NotionSearchResultData = {
+        id: 'notionDoc1',
+        title: 'Project Phoenix Q1 Review Notes',
+        content: 'Action Item: Alice to update roadmap. Decision: Q2 budget approved. Question: When is Phase 2 starting?',
+        url: 'http://notion.so/phoenixq1notes'
+    };
+
+    it('should return CONTEXT_NOT_FOUND if no meeting or project document is found', async () => {
+        mockListUpcomingEvents.mockResolvedValue([]); // No meetings found
+        mockSearchNotionRaw.mockResolvedValue({ok: true, data: []}); // No notion doc for generic search
+
+        const response = await handleSuggestFollowUps(mockUserId, 'Unknown Context');
+        expect(response.ok).toBe(false);
+        expect(response.error?.code).toBe('CONTEXT_NOT_FOUND');
+    });
+
+    it('should return error if source document is too short for analysis', async () => {
+        mockListUpcomingEvents.mockResolvedValue([mockMeetingContext]);
+        mockSearchNotionRaw.mockResolvedValue({ok: true, data: [{...mockNotionDoc, content: "Too short."}] });
+
+        const response = await handleSuggestFollowUps(mockUserId, 'Project Phoenix Q1 Review', 'meeting');
+        expect(response.ok).toBe(true); // Skill is "ok" but data contains error
+        expect(response.data?.errorMessage).toContain('too short or empty for useful analysis');
+        expect(response.data?.suggestions).toEqual([]);
+    });
+
+    it('should process meeting context, call LLM, and suggest follow-ups', async () => {
+        mockListUpcomingEvents.mockResolvedValue([mockMeetingContext]);
+        mockSearchNotionRaw.mockResolvedValue({ ok: true, data: [mockNotionDoc] }); // Notion notes for the meeting
+        mockAnalyzeTextForFollowUps.mockResolvedValue({
+            extractedItems: {
+                action_items: [{ description: 'Alice to update roadmap', assignee: 'Alice' }],
+                decisions: [{ description: 'Q2 budget approved' }],
+                questions: [{ description: 'When is Phase 2 starting?' }]
+            }
+        });
+        // Assume no existing tasks are found by queryNotionTasks for "Alice to update roadmap"
+        mockQueryNotionTasks.mockResolvedValue({ success: true, tasks: [] });
+
+        const response = await handleSuggestFollowUps(mockUserId, 'Project Phoenix Q1 Review', 'meeting');
+        expect(response.ok).toBe(true);
+        expect(mockAnalyzeTextForFollowUps).toHaveBeenCalledWith(mockNotionDoc.content, mockNotionDoc.title);
+        expect(response.data?.suggestions).toHaveLength(3);
+        expect(response.data?.suggestions.find(s => s.type === 'action_item')?.description).toBe('Alice to update roadmap');
+        expect(response.data?.suggestions.find(s => s.type === 'action_item')?.existingTaskFound).toBe(false);
+        expect(response.data?.suggestions.find(s => s.type === 'decision')?.description).toBe('Q2 budget approved');
+        expect(response.data?.suggestions.find(s => s.type === 'question')?.description).toBe('When is Phase 2 starting?');
+        expect(response.data?.contextName).toBe(`Meeting: ${mockNotionDoc.title} on ${new Date(mockMeetingContext.startTime).toLocaleDateString()}`);
+    });
+
+    it('should identify an existing task for a suggested action item', async () => {
+        mockListUpcomingEvents.mockResolvedValue([mockMeetingContext]);
+        mockSearchNotionRaw.mockResolvedValue({ ok: true, data: [mockNotionDoc] });
+        mockAnalyzeTextForFollowUps.mockResolvedValue({
+            extractedItems: {
+                action_items: [{ description: 'Alice to update roadmap', assignee: 'Alice' }],
+                decisions: [],
+                questions: []
+            }
+        });
+        const existingTask: NotionTask = { id: 'task-roadmap', description: 'Update roadmap for Alice', status: 'To Do', url: 'http://notion/task-roadmap', createdDate: ''};
+        mockQueryNotionTasks.mockResolvedValue({ success: true, tasks: [existingTask] }); // Task found
+
+        const response = await handleSuggestFollowUps(mockUserId, 'Project Phoenix Q1 Review', 'meeting');
+        expect(response.ok).toBe(true);
+        const actionItem = response.data?.suggestions.find(s => s.type === 'action_item');
+        expect(actionItem).toBeDefined();
+        expect(actionItem?.existingTaskFound).toBe(true);
+        expect(actionItem?.existingTaskId).toBe('task-roadmap');
+        expect(actionItem?.existingTaskUrl).toBe('http://notion/task-roadmap');
+    });
+
+    it('should handle LLM analysis failure gracefully', async () => {
+        mockListUpcomingEvents.mockResolvedValue([mockMeetingContext]);
+        mockSearchNotionRaw.mockResolvedValue({ ok: true, data: [mockNotionDoc] });
+        mockAnalyzeTextForFollowUps.mockResolvedValue({
+            extractedItems: { action_items: [], decisions: [], questions: [] },
+            error: "LLM API unavailable"
+        });
+
+        const response = await handleSuggestFollowUps(mockUserId, 'Project Phoenix Q1 Review', 'meeting');
+        expect(response.ok).toBe(true); // Skill is ok, but data has error
+        expect(response.data?.errorMessage).toContain('LLM analysis failed: LLM API unavailable');
+        expect(response.data?.suggestions).toEqual([]);
+    });
+
+    it('should process project context if specified', async () => {
+        const projectNotionDoc: NotionSearchResultData = {
+            id: 'projectDoc1',
+            title: 'Client Onboarding Project Plan',
+            content: 'Action: Schedule kickoff with client. Decision: Use standard template. Question: Who is main PoC?',
+            url: 'http://notion.so/clientonboarding'
+        };
+        mockSearchNotionRaw.mockResolvedValue({ ok: true, data: [projectNotionDoc] }); // Mock for project search
+        mockAnalyzeTextForFollowUps.mockResolvedValue({
+            extractedItems: {
+                action_items: [{ description: 'Schedule kickoff with client' }],
+                decisions: [{ description: 'Use standard template' }],
+                questions: [{ description: 'Who is main PoC?' }]
+            }
+        });
+        mockQueryNotionTasks.mockResolvedValue({ success: true, tasks: [] }); // No existing tasks
+
+        const response = await handleSuggestFollowUps(mockUserId, 'Client Onboarding Project Plan', 'project');
+        expect(response.ok).toBe(true);
+        expect(mockAnalyzeTextForFollowUps).toHaveBeenCalledWith(projectNotionDoc.content, projectNotionDoc.title);
+        expect(response.data?.suggestions).toHaveLength(3);
+        expect(response.data?.contextName).toBe(`Project: ${projectNotionDoc.title}`);
+    });
+
+  });
+
 });
