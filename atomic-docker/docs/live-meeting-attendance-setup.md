@@ -210,9 +210,9 @@ Once a meeting attendance task is initiated, you can check its status using a GE
 *   **Zoom SDK Specific (`NewZoomSdkAgent`):**
     *   **Credential Errors:** Ensure `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` are correctly provided in the `handler_input` of the API request to `attend_live_meeting/handler.py`. Verify that the `attend_live_meeting` handler service has these set in its environment and is passing them through.
     *   **Docker Build Issues:** Confirm that the `live_meeting_worker` Docker image (e.g., from `Dockerfile.zoom_sdk_worker`) was built successfully with the **actual Zoom Linux SDK libraries and the compiled C++ helper (`zoom_sdk_helper`)**. Check Docker build logs for warnings about missing files during the `COPY` steps for these components.
-    *   **C++ Helper Logs:** Examine the `live_meeting_worker` logs for entries prefixed with `[CPP_HELPER_LOG]`. These are `stderr` outputs from the `zoom_sdk_helper` C++ application and can provide clues about SDK initialization, authentication failures, or meeting join issues.
+    *   **C++ Helper Logs:** Examine the `live_meeting_worker` logs for entries prefixed with `[CPP_HELPER_LOG]`. These are `stderr` outputs from the `zoom_sdk_helper` C++ application and can provide clues about SDK initialization, authentication failures, or meeting join issues. **Note:** The current C++ helper source code is a simulation. It will log its simulated actions, but full SDK interaction logs will only appear once it's fully implemented with the Zoom SDK.
     *   **PulseAudio Issues:** Problems with PulseAudio setup inside the Docker container (configured by `setup_pulseaudio_docker.sh`) can prevent the C++ helper from starting or capturing audio.
-    *   **SDK Version Compatibility:** Ensure the downloaded Zoom Linux SDK version is compatible with the C++ helper code.
+    *   **SDK Version Compatibility:** Ensure the downloaded Zoom Linux SDK version is compatible with the C++ helper code (once fully implemented).
 *   **Log Locations:**
     *   **Live Meeting Worker (`live_meeting_worker.py`):** Contains detailed logs about agent instantiation, audio device selection (for non-SDK agents), meeting joining, transcription processes, and logs from `NewZoomSdkAgent` including C++ helper's stderr. This is the primary place to look for most issues.
     *   **API Handler (`attend_live_meeting/handler.py`):** Logs for the initial request processing and Kafka publishing status.
@@ -224,8 +224,8 @@ The live meeting attendance feature, particularly for Zoom when using the `NewZo
 
 1.  **API Handler (`attend_live_meeting/handler.py`):**
     *   Receives the initial HTTP request to join a meeting.
-    *   If the request is for Zoom and the `NewZoomSdkAgent` is intended, it extracts `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` from the `handler_input` part of the request (these keys should be sourced from the handler's environment by the client making the call to this handler).
-    *   Publishes a task message to a Kafka topic (`atom_live_meeting_tasks`), including all necessary API keys.
+    *   Crucially, it extracts `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` from the `handler_input` part of the API request. These credentials **must be provided by the client** making the call to this handler. The handler itself does not source them from its own environment variables directly for the worker payload, but relies on the client passing them in `handler_input`.
+    *   Publishes a task message to a Kafka topic (`atom_live_meeting_tasks`), including all necessary API keys (Notion, Deepgram, OpenAI, and the provided Zoom SDK Key/Secret).
 
 2.  **Kafka:**
     *   A message broker that queues the meeting attendance tasks.
@@ -234,31 +234,26 @@ The live meeting attendance feature, particularly for Zoom when using the `NewZo
     *   Consumes tasks from Kafka.
     *   Updates task status in the PostgreSQL `meeting_attendance_status` table.
     *   **For Zoom (using `NewZoomSdkAgent`, if `USE_NEW_ZOOM_SDK_AGENT="true"`):**
-        *   Instantiates `NewZoomSdkAgent.py` using the `zoom_sdk_key` and `zoom_sdk_secret` from the Kafka message.
+        *   Instantiates `NewZoomSdkAgent.py` using the `zoom_sdk_key` and `zoom_sdk_secret` received in the Kafka message (which originated from the `handler_input` of the API call).
         *   The Python `NewZoomSdkAgent` generates a Zoom SDK JWT.
         *   It then launches a C++ helper application (`zoom_sdk_helper`) as a subprocess within its Docker container.
     *   **For other platforms (or `OldZoomAgent` for Zoom if `USE_NEW_ZOOM_SDK_AGENT="false"`):**
-        *   Instantiates the respective Python-based agent (e.g., `GoogleMeetAgent`, `OldZoomAgent`).
+        *   Instantiates the respective Python-based agent (e.g., `GoogleMeetAgent`, `OldZoomAgent`). This will use the `audio_device_specifier`.
 
 4.  **C++ Zoom SDK Helper (`zoom_sdk_helper` - for `NewZoomSdkAgent` only):**
-    *   A command-line application written in C++.
-    *   Launched by `NewZoomSdkAgent`.
-    *   Initializes and authenticates with the Zoom Linux SDK using the JWT provided via command-line.
-    *   Joins the specified Zoom meeting.
-    *   Accesses raw audio data from the meeting via SDK callbacks.
-    *   Streams this raw PCM audio data to its standard output (`stdout`).
-    *   Logs operational messages and errors to its standard error (`stderr`).
-    *   Runs within the `live_meeting_worker` Docker container, utilizing the PulseAudio environment set up by `setup_pulseaudio_docker.sh`.
+    *   **Functionality:** A command-line application written in C++. It is launched by `NewZoomSdkAgent.py`. Its role is to initialize and authenticate with the Zoom Linux SDK using the JWT provided by `NewZoomSdkAgent.py`, join the specified Zoom meeting, access raw audio data from the meeting via SDK callbacks, and stream this raw PCM audio data to its standard output (`stdout`). It also logs operational messages and errors to its standard error (`stderr`).
+    *   **Current Status:** The C++ source code for this helper (`atomic-docker/project/functions/agents/zoom_sdk_cpp_helper/`) is currently a **simulation**. It correctly handles command-line arguments, logs to `stderr`, and streams silent PCM data to `stdout`, but it does not yet contain the actual Zoom SDK integration logic. Full implementation with the Zoom Linux SDK is required for it to capture real meeting audio.
+    *   **Environment:** Runs within the `live_meeting_worker` Docker container, utilizing the PulseAudio environment set up by `setup_pulseaudio_docker.sh`.
 
 5.  **`NewZoomSdkAgent.py` (Python - for `NewZoomSdkAgent` only):**
-    *   Manages the lifecycle of the `zoom_sdk_helper` subprocess.
-    *   Reads the raw audio data from the C++ helper's `stdout`.
-    *   Reads logs from the C++ helper's `stderr` and integrates them into the worker's main logging.
-    *   Provides the audio stream to the `note_utils` for transcription.
+    *   **Role:** Manages the lifecycle of the `zoom_sdk_helper` C++ subprocess (launching, monitoring, terminating).
+    *   **Data Handling:** Reads the raw PCM audio data from the C++ helper's `stdout` and provides this audio stream (as an asynchronous iterator) to the `note_utils.py` module for transcription.
+    *   **Logging:** Captures and logs the `stderr` output from the C++ helper, prefixing it with `[CPP_HELPER_LOG]`.
+    *   **Audio Input:** The `audio_device_specifier` parameter (if provided in the API call) is **ignored** by `NewZoomSdkAgent`, as audio capture is handled internally by the C++ helper interacting with the Zoom SDK and the Docker container's PulseAudio environment.
 
 **Environment Variable for Zoom Agent Selection:**
 The `live_meeting_worker` service uses an environment variable `USE_NEW_ZOOM_SDK_AGENT` (boolean string, e.g., `"true"` or `"false"`, defaults to `"false"` if not set) to determine which Zoom agent to use:
-*   If `USE_NEW_ZOOM_SDK_AGENT="true"`, the `NewZoomSdkAgent` (with the C++ helper) is used for Zoom tasks. This requires `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` to be passed in the API call.
+*   If `USE_NEW_ZOOM_SDK_AGENT="true"`, the `NewZoomSdkAgent` (with the C++ helper) is used for Zoom tasks. This requires `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` to be passed in the `handler_input` of the API call to `attend_live_meeting/handler.py`.
 *   If `USE_NEW_ZOOM_SDK_AGENT="false"` (or the variable is not set), the `OldZoomAgent` (sounddevice-based) is used for Zoom tasks. This uses the `audio_device_specifier`.
 
 ## Administrative/Developer Notes
@@ -269,10 +264,19 @@ The `live_meeting_worker` service uses an environment variable `USE_NEW_ZOOM_SDK
     *   Non-SDK agents (`OldZoomAgent`, `GoogleMeetAgent`, `MSTeamsAgent`) raise `SoundDeviceNotAvailableError` and `AudioDeviceSelectionError`.
     *   `NewZoomSdkAgent` raises `ZoomSdkAuthError`, `ZoomSdkAgentError`, and `ZoomSdkMeetingError`.
     These exceptions are caught by the `live_meeting_worker` and their details are recorded in the `meeting_attendance_status` table.
-*   **Docker Setup for `NewZoomSdkAgent`:**
+*   **Docker Setup for `NewZoomSdkAgent` (CRITICAL):**
     *   The `Dockerfile.zoom_sdk_worker` (or the primary worker Dockerfile if merged) is specifically designed to support the `NewZoomSdkAgent`. It includes:
         *   Installation of numerous system libraries required by the Zoom Linux SDK.
         *   Setup of PulseAudio for headless audio operation within the container via `setup_pulseaudio_docker.sh`.
-        *   Placeholders for copying the Zoom Linux SDK libraries and the pre-compiled `zoom_sdk_cpp_helper` binary. **Administrators/developers must manually download the Zoom SDK and place these components in the Docker build context before building the image.** Refer to the comments in `Dockerfile.zoom_sdk_worker` for details on expected directory names (e.g., `zoom_sdk_libs_context/`, `cpp_helper_bin_context/`).
+        *   **Placeholders for Zoom SDK and C++ Helper:** The Dockerfile contains comments and placeholder `COPY` commands for:
+            1.  The Zoom Linux SDK libraries (e.g., `.so` files).
+            2.  The Zoom Linux SDK header files (e.g., `.h` files).
+            3.  The pre-compiled `zoom_sdk_helper` C++ binary.
+        *   **ACTION REQUIRED:** Administrators/developers **must manually download the Zoom Linux SDK** (specifically, the version for raw data access/recording if available) and place its components into the Docker build context before building the `live_meeting_worker` image.
+            *   SDK library files (e.g., `libmeetingsdk.so`, `libzoom_rawdata.so`) should be placed in a directory named `zoom_sdk_libs_context/` within the build context of `live_meeting_worker`.
+            *   SDK header files should be placed in `zoom_sdk_headers_context/`.
+            *   The compiled `zoom_sdk_helper` binary (from `atomic-docker/project/functions/agents/zoom_sdk_cpp_helper/build/zoom_sdk_helper` after compiling it) should be placed in `cpp_helper_bin_context/`.
+        *   Refer to the comments within `Dockerfile.zoom_sdk_worker` for precise instructions. **Without these manual steps, the `NewZoomSdkAgent` will not function correctly as the C++ helper will be missing or the SDK libraries will not be found.**
+    *   **Compiling `zoom_sdk_helper`:** The C++ helper application (`atomic-docker/project/functions/agents/zoom_sdk_cpp_helper/`) needs to be compiled (e.g., using CMake as per its `README.md`). The resulting binary is what needs to be copied into the Docker build context. As noted, the current C++ source is a simulation; it needs to be fully implemented with the Zoom SDK for real audio capture.
 
 This guide should help you set up and use the live meeting attendance feature effectively. For further assistance, consult the system logs or contact your system administrator.
