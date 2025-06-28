@@ -216,3 +216,234 @@ export async function handlePrepareForMeeting(
     data: preparationData,
   };
 }
+
+// --- Automated Weekly Digest Skill ---
+
+interface DateRange {
+  startDate: Date;
+  endDate: Date;
+  nextPeriodStartDate: Date;
+  nextPeriodEndDate: Date;
+  displayRange: string; // For user-facing messages e.g., "This Week (Mon, Jul 22 - Fri, Jul 26)"
+}
+
+/**
+ * Determines the date ranges for the current/past week and the upcoming week.
+ * @param timePeriod Optional string like "this week" or "last week". Defaults to "this week".
+ * @returns Object containing startDate, endDate, nextPeriodStartDate, nextPeriodEndDate, and displayRange.
+ */
+export function determineDateRange(timePeriod?: "this week" | "last week" | string): DateRange {
+  const now = new Date();
+  let today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Normalize to start of today
+
+  let startDate: Date;
+  let endDate: Date;
+  let displayRangeLabel: string;
+
+  if (timePeriod === "last week") {
+    displayRangeLabel = "Last Week";
+    const dayOfWeek = today.getDay(); // 0 (Sun) - 6 (Sat)
+    // Last week's Monday
+    startDate = new Date(today.setDate(today.getDate() - dayOfWeek - 6));
+    // Last week's Sunday
+    endDate = new Date(new Date(startDate).setDate(startDate.getDate() + 6));
+    endDate.setHours(23, 59, 59, 999); // End of Sunday
+  } else { // Default to "this week"
+    displayRangeLabel = "This Week";
+    const dayOfWeek = today.getDay(); // 0 (Sun) - 6 (Sat)
+    // This week's Monday (if today is Sunday, dayOfWeek is 0, so it goes to last Monday)
+    startDate = new Date(today.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) ));
+    // Today, or this week's Friday if today is Sat/Sun (for a Mon-Fri digest view)
+    // For a full Mon-Sun view, endDate would just be `new Date(new Date(startDate).setDate(startDate.getDate() + 6))`
+    // Let's make "this week" end on the current day for ongoing digest, or end of Friday if past Friday.
+    endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // End of current day for "this week"
+    if (endDate.getDay() > 5 || (endDate.getDay() === 5 && now.getHours() >=17 )) { // If past Friday 5PM or weekend
+        // Show Mon-Fri of current week
+        endDate = new Date(new Date(startDate).setDate(startDate.getDate() + 4));
+    }
+    endDate.setHours(23, 59, 59, 999);
+  }
+
+  // Format displayRange for user
+  const
+
+options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  const displayStartDate = startDate.toLocaleDateString('en-US', options);
+  const displayEndDate = endDate.toLocaleDateString('en-US', options);
+  const displayRange = `${displayRangeLabel} (${displayStartDate} - ${displayEndDate})`;
+
+
+  // Next Period (e.g., next 7 days from the day after current endDate, or next Mon-Fri)
+  const nextPeriodStartDate = new Date(endDate);
+  nextPeriodStartDate.setDate(endDate.getDate() + 1); // Start from the day after current period ends
+  nextPeriodStartDate.setHours(0,0,0,0); // Start of that day
+
+  const nextPeriodEndDate = new Date(nextPeriodStartDate);
+  nextPeriodEndDate.setDate(nextPeriodStartDate.getDate() + 6); // Default to a 7-day outlook
+  nextPeriodEndDate.setHours(23,59,59,999);
+
+
+  return { startDate, endDate, nextPeriodStartDate, nextPeriodEndDate, displayRange };
+}
+
+
+import {
+  WeeklyDigestData,
+  GenerateWeeklyDigestResponse,
+  NotionTaskStatus // Already imported
+} from '../../types';
+
+
+const MAX_DIGEST_ITEMS = 5; // Max items for completed tasks, meetings, etc.
+
+export async function handleGenerateWeeklyDigest(
+  userId: string,
+  timePeriodInput?: "this week" | "last week" | string
+): Promise<GenerateWeeklyDigestResponse> {
+  console.log(`[handleGenerateWeeklyDigest] User: ${userId}, Time Period: "${timePeriodInput}"`);
+
+  const { startDate, endDate, nextPeriodStartDate, nextPeriodEndDate, displayRange } = determineDateRange(timePeriodInput);
+  console.log(`[handleGenerateWeeklyDigest] Determined date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+  console.log(`[handleGenerateWeeklyDigest] Next period range: ${nextPeriodStartDate.toISOString()} to ${nextPeriodEndDate.toISOString()}`);
+
+
+  const digestData: WeeklyDigestData = {
+    periodStart: startDate.toISOString(),
+    periodEnd: endDate.toISOString(),
+    completedTasks: [],
+    attendedMeetings: [],
+    upcomingCriticalTasks: [],
+    upcomingCriticalMeetings: [],
+  };
+  let accumulatedErrorMessages = "";
+
+  const notionTasksDbId = process.env.ATOM_NOTION_TASKS_DATABASE_ID;
+
+  // 1. Gather Completed Tasks
+  if (!notionTasksDbId) {
+    console.warn('[handleGenerateWeeklyDigest] ATOM_NOTION_TASKS_DATABASE_ID is not set. Skipping completed task search.');
+    accumulatedErrorMessages += 'Notion tasks database ID not configured for completed tasks. ';
+  } else {
+    try {
+      const completedTaskParams = {
+        // This is tricky: Notion API doesn't easily filter by "completion date" directly.
+        // We might need to fetch tasks last_edited within the range and then filter by status.
+        // Or, if users have a "Completed Date" property, filter on that.
+        // For V1, let's try filtering by last_edited_time and status "Done".
+        // This is an approximation.
+        status: "Done" as NotionTaskStatus,
+        // To filter by date, queryNotionTasks might need to be enhanced or we filter locally.
+        // For now, let's assume queryNotionTasks can take a date range for last_edited_time
+        // or we fetch more and filter.
+        // Let's simplify: get tasks marked Done and edited recently (e.g. last 2 weeks to catch late markings)
+        // then filter locally by a "Completed At" custom property if it exists, or by last_edited_time.
+        // This part requires more robust date handling in queryNotionTasks or post-filtering.
+        limit: MAX_DIGEST_ITEMS * 2, // Fetch more to filter by date locally
+        notionTasksDbId: notionTasksDbId,
+      };
+      console.log(`[handleGenerateWeeklyDigest] Querying completed tasks with params:`, completedTaskParams);
+      const taskResponse = await queryNotionTasks(userId, completedTaskParams);
+      if (taskResponse.success && taskResponse.tasks) {
+        // Placeholder for date filtering:
+        // This assumes tasks have a `completedAt` or similar custom field, or uses `lastEditedTime`
+        // For a true digest, we need tasks *completed* in the window.
+        // This is a simplification and might need a dedicated "Completed Date" field in Notion.
+        digestData.completedTasks = taskResponse.tasks.filter(task => {
+            const lastEdited = new Date(task.last_edited_time || task.createdDate); // NotionTask needs last_edited_time
+            return lastEdited >= startDate && lastEdited <= endDate;
+        }).slice(0, MAX_DIGEST_ITEMS);
+        console.log(`[handleGenerateWeeklyDigest] Found ${digestData.completedTasks.length} completed tasks in period.`);
+      } else if (!taskResponse.success) {
+        accumulatedErrorMessages += `Could not fetch completed tasks: ${taskResponse.error}. `;
+      }
+    } catch (e: any) {
+      console.error('[handleGenerateWeeklyDigest] Error fetching completed tasks:', e.message, e.stack);
+      accumulatedErrorMessages += 'Error occurred while fetching completed tasks. ';
+    }
+  }
+
+  // 2. Gather Key Meetings Attended
+  try {
+    // listUpcomingEvents needs to be adapted to query past events for a date range.
+    // This might mean adding startDate and endDate parameters to listUpcomingEvents.
+    // For now, assume it can take a date range (conceptual).
+    // listUpcomingEvents(userId, limit, timeMin, timeMax)
+    const meetingsAttended = await listUpcomingEvents(userId, MAX_DIGEST_ITEMS * 2, startDate.toISOString(), endDate.toISOString());
+    if (meetingsAttended) {
+        // Further filter for "significant" meetings if needed (e.g., duration > 30min, not "Focus Time")
+        digestData.attendedMeetings = meetingsAttended.filter(event => {
+            const durationMs = new Date(event.endTime).getTime() - new Date(event.startTime).getTime();
+            const durationMinutes = durationMs / (1000 * 60);
+            return durationMinutes > 25 && !event.summary.toLowerCase().includes("focus time"); // Example filter
+        }).slice(0, MAX_DIGEST_ITEMS);
+      console.log(`[handleGenerateWeeklyDigest] Found ${digestData.attendedMeetings.length} attended meetings.`);
+    }
+  } catch (e: any) {
+    console.error('[handleGenerateWeeklyDigest] Error fetching attended meetings:', e.message, e.stack);
+    accumulatedErrorMessages += 'Error occurred while fetching attended meetings. ';
+  }
+
+  // 3. Identify Upcoming Critical Tasks
+  if (!notionTasksDbId) {
+    console.warn('[handleGenerateWeeklyDigest] ATOM_NOTION_TASKS_DATABASE_ID is not set. Skipping upcoming task search.');
+    accumulatedErrorMessages += 'Notion tasks database ID not configured for upcoming tasks. ';
+  } else {
+    try {
+      const upcomingTaskParams = {
+        // Query tasks due in the next period
+        dueDateAfter: nextPeriodStartDate.toISOString().split('T')[0], // YYYY-MM-DD
+        dueDateBefore: nextPeriodEndDate.toISOString().split('T')[0],   // YYYY-MM-DD
+        priority: "High" as NotionTaskPriority, // Example: only high priority
+        status_not_equals: ["Done", "Cancelled"] as any, // Exclude completed/cancelled
+        limit: MAX_DIGEST_ITEMS,
+        notionTasksDbId: notionTasksDbId,
+      };
+      console.log(`[handleGenerateWeeklyDigest] Querying upcoming critical tasks with params:`, upcomingTaskParams);
+      const upcomingTaskResponse = await queryNotionTasks(userId, upcomingTaskParams);
+      if (upcomingTaskResponse.success && upcomingTaskResponse.tasks) {
+        digestData.upcomingCriticalTasks = upcomingTaskResponse.tasks.slice(0, MAX_DIGEST_ITEMS);
+        console.log(`[handleGenerateWeeklyDigest] Found ${digestData.upcomingCriticalTasks.length} upcoming critical tasks.`);
+      } else if (!upcomingTaskResponse.success) {
+        accumulatedErrorMessages += `Could not fetch upcoming tasks: ${upcomingTaskResponse.error}. `;
+      }
+    } catch (e: any) {
+      console.error('[handleGenerateWeeklyDigest] Error fetching upcoming tasks:', e.message, e.stack);
+      accumulatedErrorMessages += 'Error occurred while fetching upcoming tasks. ';
+    }
+  }
+
+  // 4. Identify Upcoming Critical Meetings
+  try {
+    // listUpcomingEvents for the next period
+    const upcomingMeetings = await listUpcomingEvents(userId, MAX_DIGEST_ITEMS * 2, nextPeriodStartDate.toISOString(), nextPeriodEndDate.toISOString());
+    if (upcomingMeetings) {
+        // Filter for "significant" meetings
+        digestData.upcomingCriticalMeetings = upcomingMeetings.filter(event => {
+            const durationMs = new Date(event.endTime).getTime() - new Date(event.startTime).getTime();
+            const durationMinutes = durationMs / (1000 * 60);
+            // Example: duration > 45 min OR has external attendees (if attendee data is rich enough)
+            return durationMinutes > 45 || (event.attendees && event.attendees.some(a => a.email && !a.email.endsWith('@yourcompany.com')));
+        }).slice(0, MAX_DIGEST_ITEMS);
+      console.log(`[handleGenerateWeeklyDigest] Found ${digestData.upcomingCriticalMeetings.length} upcoming critical meetings.`);
+    }
+  } catch (e: any) {
+    console.error('[handleGenerateWeeklyDigest] Error fetching upcoming meetings:', e.message, e.stack);
+    accumulatedErrorMessages += 'Error occurred while fetching upcoming meetings. ';
+  }
+
+  if (accumulatedErrorMessages) {
+    digestData.errorMessage = accumulatedErrorMessages.trim();
+  }
+
+  // Construct formatted summary (moved to handler.ts for final presentation)
+  // This skill will primarily return the data. The handler formats it.
+  const formattedSummary = `Digest for ${displayRange} (data prepared, formatting in handler).`; // Placeholder
+
+  return {
+    ok: true,
+    data: {
+      digest: digestData,
+      formattedSummary, // This will be properly built in handler.ts
+    },
+  };
+}

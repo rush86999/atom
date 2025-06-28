@@ -855,3 +855,26 @@ export interface PrepareForMeetingEntities {
   meeting_date_time?: string; // e.g., "tomorrow", "2024-07-15T14:00:00Z", "next Monday at 3pm"
   // Future: could include specific attendees to focus on, or types of info (e.g., "only show tasks")
 }
+
+// --- Automated Weekly Digest Types ---
+export interface WeeklyDigestData {
+  periodStart: string; // ISO Date string
+  periodEnd: string; // ISO Date string
+  completedTasks: NotionTask[]; // Using existing NotionTask type
+  attendedMeetings: CalendarEvent[]; // Using existing CalendarEvent type
+  // For attendedMeetings, consider adding a briefOutcome?: string if V2 summarization is done
+  upcomingCriticalTasks: NotionTask[];
+  upcomingCriticalMeetings: CalendarEvent[];
+  errorMessage?: string;
+}
+
+// Response for the GenerateWeeklyDigest skill
+export interface GenerateWeeklyDigestResponse extends SkillResponse<{
+  digest: WeeklyDigestData;
+  formattedSummary: string; // The user-facing text summary
+}> {}
+
+// NLU Entities expected for the GenerateWeeklyDigest intent
+export interface GenerateWeeklyDigestEntities {
+  time_period?: "this week" | "last week" | string; // Allow specific date ranges in future if NLU supports
+}

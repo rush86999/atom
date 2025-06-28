@@ -203,4 +203,202 @@ describe('productivitySkills', () => {
     });
 
   });
+
+  // --- Tests for Automated Weekly Digest ---
+  describe('determineDateRange', () => {
+    // To make these tests deterministic, we need to mock Date constructor or use a date utility library.
+    // For conceptual tests, we'll describe the expected logic based on a fixed "today".
+    // Let's assume "today" is Wednesday, July 24, 2024, for these conceptual calculations.
+    const WEDNESDAY_JUL_24_2024 = new Date(2024, 6, 24); // Month is 0-indexed
+
+    beforeEach(() => {
+        jest.useFakeTimers().setSystemTime(WEDNESDAY_JUL_24_2024);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('should correctly determine "this week" (Mon to current day if before Fri 5pm)', () => {
+      const { startDate, endDate, displayRange, nextPeriodStartDate, nextPeriodEndDate } = determineDateRange("this week");
+      // Expected: Mon, Jul 22, 2024 to Wed, Jul 24, 2024
+      expect(startDate.getFullYear()).toBe(2024);
+      expect(startDate.getMonth()).toBe(6); // July
+      expect(startDate.getDate()).toBe(22); // Monday
+
+      expect(endDate.getFullYear()).toBe(2024);
+      expect(endDate.getMonth()).toBe(6); // July
+      expect(endDate.getDate()).toBe(24); // Wednesday (today)
+      expect(endDate.getHours()).toBe(23); // End of day
+
+      expect(displayRange).toContain("This Week (Jul 22 - Jul 24)");
+
+      // Next period starts Jul 25 (Thu) and ends Jul 31 (Wed)
+      expect(nextPeriodStartDate.getDate()).toBe(25);
+      expect(nextPeriodEndDate.getDate()).toBe(31);
+    });
+
+    it('should correctly determine "this week" as Mon-Fri if current day is past Friday 5pm or weekend', () => {
+        jest.useFakeTimers().setSystemTime(new Date(2024, 6, 26, 18, 0, 0)); // Friday 6 PM
+        const { startDate, endDate, displayRange } = determineDateRange("this week");
+        // Expected: Mon, Jul 22, 2024 to Fri, Jul 26, 2024
+        expect(startDate.getDate()).toBe(22);
+        expect(endDate.getDate()).toBe(26); // Friday
+        expect(displayRange).toContain("This Week (Jul 22 - Jul 26)");
+
+        jest.useFakeTimers().setSystemTime(new Date(2024, 6, 27)); // Saturday
+        const { startDate: satStart, endDate: satEnd } = determineDateRange("this week");
+        expect(satStart.getDate()).toBe(22);
+        expect(satEnd.getDate()).toBe(26); // Still shows Mon-Fri
+    });
+
+
+    it('should correctly determine "last week" (Mon to Sun)', () => {
+      // Today is Wed, Jul 24, 2024
+      const { startDate, endDate, displayRange, nextPeriodStartDate, nextPeriodEndDate } = determineDateRange("last week");
+      // Expected: Mon, Jul 15, 2024 to Sun, Jul 21, 2024
+      expect(startDate.getFullYear()).toBe(2024);
+      expect(startDate.getMonth()).toBe(6);
+      expect(startDate.getDate()).toBe(15);
+
+      expect(endDate.getFullYear()).toBe(2024);
+      expect(endDate.getMonth()).toBe(6);
+      expect(endDate.getDate()).toBe(21);
+      expect(endDate.getHours()).toBe(23);
+      expect(displayRange).toContain("Last Week (Jul 15 - Jul 21)");
+
+      // Next period starts Jul 22 (Mon) and ends Jul 28 (Sun)
+      expect(nextPeriodStartDate.getDate()).toBe(22);
+      expect(nextPeriodEndDate.getDate()).toBe(28);
+    });
+
+    it('should default to "this week" if no timePeriod is provided', () => {
+        const defaultRange = determineDateRange();
+        const thisWeekRange = determineDateRange("this week");
+        expect(defaultRange.startDate.toISOString()).toBe(thisWeekRange.startDate.toISOString());
+        expect(defaultRange.endDate.toISOString()).toBe(thisWeekRange.endDate.toISOString());
+        expect(defaultRange.displayRange).toBe(thisWeekRange.displayRange);
+      });
+  });
+
+  describe('handleGenerateWeeklyDigest', () => {
+    beforeEach(() => {
+        // Mock date for these tests to be consistent
+        jest.useFakeTimers().setSystemTime(new Date(2024, 6, 26, 10, 0, 0)); // Friday 10 AM, July 26, 2024
+        // This means "this week" will be Mon July 22 to Fri July 26
+        // "Last week" will be Mon July 15 to Sun July 21
+        // "Next period" will start Sat July 27
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    const mockCompletedTask: NotionTask = { id: 'ct1', description: 'Finished major report', status: 'Done', createdDate: '2024-07-23T10:00:00Z', last_edited_time: '2024-07-23T10:00:00Z', url: '' };
+    const mockAttendedMeeting: CalendarEvent = { id: 'am1', summary: 'Budget Review', startTime: '2024-07-24T14:00:00Z', endTime: '2024-07-24T15:00:00Z' };
+    const mockUpcomingTask: NotionTask = { id: 'ut1', description: 'Prepare Q4 Presentation', status: 'To Do', priority: 'High', dueDate: '2024-07-30T10:00:00Z', createdDate: '', url: '' };
+    const mockUpcomingMeeting: CalendarEvent = { id: 'um1', summary: 'Client Strategy Session', startTime: '2024-07-29T09:00:00Z', endTime: '2024-07-29T10:30:00Z' };
+
+    it('should generate a digest for "this week" successfully', async () => {
+      mockQueryNotionTasks
+        .mockImplementationOnce(async (userId, params) => { // Completed tasks
+            if(params.status === "Done") return { success: true, tasks: [mockCompletedTask] };
+            return { success: true, tasks: [] };
+        })
+        .mockImplementationOnce(async (userId, params) => { // Upcoming critical tasks
+            if(params.priority === "High") return { success: true, tasks: [mockUpcomingTask] };
+            return { success: true, tasks: [] };
+        });
+
+      mockListUpcomingEvents
+        .mockImplementationOnce(async (userId, limit, timeMin, timeMax) => { // Attended meetings
+            // Check if timeMin is around July 22-26
+            if (timeMin && new Date(timeMin).getDate() >= 22 && new Date(timeMin).getDate() <= 26) {
+                 return [mockAttendedMeeting];
+            }
+            return [];
+        })
+        .mockImplementationOnce(async (userId, limit, timeMin, timeMax) => { // Upcoming meetings
+            // Check if timeMin is around July 27 onwards
+            if (timeMin && new Date(timeMin).getDate() >= 27) {
+                return [mockUpcomingMeeting];
+            }
+            return [];
+        });
+
+      const response = await handleGenerateWeeklyDigest(mockUserId, "this week");
+      expect(response.ok).toBe(true);
+      const digest = response.data?.digest;
+      expect(digest).toBeDefined();
+      expect(digest?.completedTasks).toEqual([mockCompletedTask]);
+      expect(digest?.attendedMeetings).toEqual([mockAttendedMeeting]);
+      expect(digest?.upcomingCriticalTasks).toEqual([mockUpcomingTask]);
+      expect(digest?.upcomingCriticalMeetings).toEqual([mockUpcomingMeeting]);
+      expect(digest?.errorMessage).toBeFalsy();
+      // Check if periodStart and periodEnd match "this week" based on mocked date
+      expect(new Date(digest!.periodStart).getDate()).toBe(22); // Mon, July 22
+      expect(new Date(digest!.periodEnd).getDate()).toBe(26);   // Fri, July 26
+    });
+
+    it('should generate a digest for "last week"', async () => {
+        // Similar setup as above, but adjust mock implementations to return data for "last week" (July 15-21)
+        // and "next period" (starting July 22)
+        mockQueryNotionTasks
+        .mockResolvedValueOnce({ success: true, tasks: [{...mockCompletedTask, id: 'lw_ct1', last_edited_time: '2024-07-18T10:00:00Z'}] }) // Completed last week
+        .mockResolvedValueOnce({ success: true, tasks: [{...mockUpcomingTask, id: 'lw_ut1', dueDate: '2024-07-24T10:00:00Z'}] });   // Upcoming this week (relative to last week's digest)
+
+      mockListUpcomingEvents
+        .mockImplementationOnce(async (userId, limit, timeMin, timeMax) => { // Attended meetings last week
+            if (timeMin && new Date(timeMin).getDate() === 15) { // Mon July 15
+                 return [{...mockAttendedMeeting, id: 'lw_am1', startTime: '2024-07-17T14:00:00Z', endTime: '2024-07-17T15:00:00Z'}];
+            }
+            return [];
+        })
+        .mockImplementationOnce(async (userId, limit, timeMin, timeMax) => { // Upcoming meetings this week
+            if (timeMin && new Date(timeMin).getDate() === 22) { // Mon July 22
+                return [{...mockUpcomingMeeting, id: 'lw_um1', startTime: '2024-07-23T09:00:00Z', endTime: '2024-07-23T10:30:00Z'}];
+            }
+            return [];
+        });
+
+        const response = await handleGenerateWeeklyDigest(mockUserId, "last week");
+        expect(response.ok).toBe(true);
+        const digest = response.data?.digest;
+        expect(digest).toBeDefined();
+        expect(digest?.completedTasks[0].id).toBe('lw_ct1');
+        expect(digest?.attendedMeetings[0].id).toBe('lw_am1');
+        expect(digest?.upcomingCriticalTasks[0].id).toBe('lw_ut1');
+        expect(digest?.upcomingCriticalMeetings[0].id).toBe('lw_um1');
+        // Check period dates for "last week"
+        expect(new Date(digest!.periodStart).getDate()).toBe(15); // Mon, July 15
+        expect(new Date(digest!.periodEnd).getDate()).toBe(21);   // Sun, July 21
+    });
+
+    it('should handle missing ATOM_NOTION_TASKS_DATABASE_ID gracefully', async () => {
+        delete process.env.ATOM_NOTION_TASKS_DATABASE_ID;
+        // Mocks for calendar will return empty
+        mockListUpcomingEvents.mockResolvedValue([]);
+
+        const response = await handleGenerateWeeklyDigest(mockUserId, "this week");
+        expect(response.ok).toBe(true);
+        const digest = response.data?.digest;
+        expect(digest?.completedTasks).toEqual([]);
+        expect(digest?.upcomingCriticalTasks).toEqual([]);
+        expect(digest?.errorMessage).toContain('Notion tasks database ID not configured');
+        process.env.ATOM_NOTION_TASKS_DATABASE_ID = mockNotionTasksDbId; // Reset
+    });
+
+    it('should handle errors from underlying services and report them', async () => {
+        mockQueryNotionTasks.mockResolvedValueOnce({ success: false, tasks: [], error: 'Notion API error for completed' });
+        // other mocks can be default (empty) or also error
+        mockListUpcomingEvents.mockRejectedValue(new Error("Calendar service down"));
+
+        const response = await handleGenerateWeeklyDigest(mockUserId, "this week");
+        expect(response.ok).toBe(true); // Skill itself is ok, but data fetching had issues
+        const digest = response.data?.digest;
+        expect(digest?.errorMessage).toContain('Could not fetch completed tasks: Notion API error for completed');
+        expect(digest?.errorMessage).toContain('Error occurred while fetching attended meetings.');
+        expect(digest?.errorMessage).toContain('Error occurred while fetching upcoming meetings.');
+    });
+  });
 });
