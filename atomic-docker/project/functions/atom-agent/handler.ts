@@ -50,6 +50,10 @@ import {
   GenerateWeeklyDigestEntities, // Added for Weekly Digest
   SuggestFollowUpsResponse, // Added for Follow-up Suggester
   SuggestFollowUpsEntities, // Added for Follow-up Suggester
+  // Types for ComplexTask Orchestration
+  ComplexTaskSubTaskNlu,
+  ExecutedSubTaskResult,
+  OrchestratedComplexTaskReport,
 } from '../types';
 
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
@@ -166,6 +170,7 @@ import { handlePrepareForMeeting, handleGenerateWeeklyDigest, handleSuggestFollo
 import { handleMeetingPreparationRequest } from './command_handlers/meetingPrepCommandHandler'; // Added for Meeting Prep
 import { handleProcessMeetingOutcomesRequest } from './command_handlers/postMeetingWorkflowCommandHandler'; // Added for Post-Meeting Workflow
 import { handleGetDailyBriefingRequest } from './command_handlers/dailyBriefingCommandHandler'; // Added for Daily Briefing
+import { handleCreateTaskFromChatMessageRequest } from './command_handlers/taskFromChatCommandHandler'; // Added for Task from Chat
 
 
 // Define the TTS service URL
@@ -346,6 +351,22 @@ async function _internalHandleMessage(
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
+        }
+        break;
+
+      case "CreateTaskFromChatMessage": // New Case for Task from Chat Message
+        try {
+          const taskFromChatEntities = nluResponse.entities as import('../types').CreateTaskFromChatMessageNluEntities;
+          if (!taskFromChatEntities.chat_message_reference || !taskFromChatEntities.source_platform) {
+            textResponse = "To create a task from a message, please specify the message reference and its platform (e.g., Slack, Teams).";
+            console.warn(`[Handler][${interfaceType}] CreateTaskFromChatMessage: Missing chat_message_reference or source_platform.`);
+          } else {
+            console.info(`[Handler][${interfaceType}] Calling handleCreateTaskFromChatMessageRequest for message: "${taskFromChatEntities.chat_message_reference}"`);
+            textResponse = await handleCreateTaskFromChatMessageRequest(userId, taskFromChatEntities);
+          }
+        } catch (error: any) {
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateTaskFromChatMessage":`, error.message, error.stack);
+          textResponse = "Sorry, an unexpected error occurred while creating a task from the chat message.";
         }
         break;
 
