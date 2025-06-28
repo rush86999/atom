@@ -69,49 +69,74 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the worker application code
 # Adjust source path if Dockerfile is not in live_meeting_worker directory
 COPY . .
-# If C++ helper source is part of this build context and compiled here:
-# COPY ./project/functions/agents/zoom_sdk_cpp_helper /app/zoom_sdk_cpp_helper_src
-# RUN cd /app/zoom_sdk_cpp_helper_src && mkdir -p build && cd build && cmake .. && make && cp zoom_sdk_helper /app/zoom_sdk_cpp_helper_bin/
-
 
 # --- Zoom SDK and C++ Helper Setup ---
 
 # Create directories for Zoom SDK libraries and the C++ helper binary
 RUN mkdir -p /opt/zoom_sdk_linux_x86_64/lib \
              /opt/zoom_sdk_linux_x86_64/h \
-             /app/zoom_sdk_cpp_helper_bin
+             /app/zoom_sdk_cpp_helper_bin \
+             /app/zoom_sdk_cpp_helper_src # For potentially building C++ helper from source
 
-# ** IMPORTANT: Manually Download Zoom Linux SDK **
-# You need to download the Zoom Linux Raw Data SDK (e.g., meetingsdk-linux-raw-recording-sample)
-# from the Zoom Marketplace (https://marketplace.zoom.us/)
-# and extract its contents.
+# --- Option 1: Copy Pre-compiled Zoom SDK and C++ Helper (Recommended for production) ---
+# ** WARNING: CRITICAL MANUAL STEP REQUIRED **
+# You MUST manually download the Zoom Linux SDK (raw data / recording version if available)
+# from the Zoom Marketplace (https://marketplace.zoom.us/).
+# Extract its contents.
 #
-# Then, place the required .so library files into a 'zoom_sdk_libs_context' directory
-# and header files into 'zoom_sdk_headers_context' in your Docker build context.
-# For example:
-# zoom_sdk_libs_context/libmeetingsdk.so
-# zoom_sdk_libs_context/libzoom_rawdata.so
-# ... (and other .so files like libjson, libssl, libcrypto if bundled and needed)
-# zoom_sdk_headers_context/meetingsdk_linux_raw_data_protocol.h
-# ... (all other .h files from the SDK's 'h' or 'include' directory)
+# 1. Place SDK *.so library files into 'zoom_sdk_libs_context/' in the Docker build context for this worker.
+#    Example structure:
+#    zoom_sdk_libs_context/libmeetingsdk.so
+#    zoom_sdk_libs_context/libzoom_rawdata.so
+#    ... (and other .so files like libjson, libssl, libcrypto if bundled by Zoom and needed)
+#
+# 2. Place SDK *.h header files into 'zoom_sdk_headers_context/' in the Docker build context.
+#    Example structure:
+#    zoom_sdk_headers_context/meetingsdk_linux_raw_data_protocol.h
+#    ... (all other .h files from the SDK's 'h' or 'include' directory)
+#
+# 3. Compile the C++ helper from `project/functions/agents/zoom_sdk_cpp_helper/`
+#    (see its README.md) and place the compiled `zoom_sdk_helper` binary into
+#    'cpp_helper_bin_context/' in the Docker build context.
 
-# Placeholder COPY commands:
-# Replace these with actual paths to your downloaded SDK files in the build context.
+# Uncomment and ensure paths are correct if using this method:
 # COPY zoom_sdk_libs_context/*.so /opt/zoom_sdk_linux_x86_64/lib/
 # COPY zoom_sdk_headers_context/*.h /opt/zoom_sdk_linux_x86_64/h/
-RUN echo "Warning: Zoom SDK libraries and headers are not copied in this build. \
-    This Dockerfile expects them to be in 'zoom_sdk_libs_context' and 'zoom_sdk_headers_context' \
-    in the build context. The C++ helper will fail if not compiled with actual SDK or if libs are missing at runtime."
-
-# Copy the pre-compiled C++ helper binary
-# Assume it's built outside and placed in 'cpp_helper_bin_context' in the build context
 # COPY cpp_helper_bin_context/zoom_sdk_helper /app/zoom_sdk_cpp_helper_bin/zoom_sdk_helper
-RUN echo "Warning: Pre-compiled zoom_sdk_helper binary is not copied. \
-    Place it in 'cpp_helper_bin_context' or build from source above."
-# Ensure it's executable
-RUN chmod +x /app/zoom_sdk_cpp_helper_bin/zoom_sdk_helper || true # Allow to fail if not present
+RUN echo "WARNING: Zoom SDK libraries, headers, and the pre-compiled C++ helper binary are NOT being copied by default." \
+    && echo "WARNING: You must prepare 'zoom_sdk_libs_context/', 'zoom_sdk_headers_context/', and 'cpp_helper_bin_context/'" \
+    && echo "WARNING: in the Docker build context and uncomment the COPY lines above for the NewZoomSdkAgent to function." \
+    && echo "WARNING: The C++ helper (zoom_sdk_helper) also needs to be fully implemented with the Zoom SDK beyond its current simulation state."
 
-# Set LD_LIBRARY_PATH to include Zoom SDK libraries
+# --- Option 2: Build C++ Helper from Source within Docker (Alternative, requires C++ source and SDK files) ---
+# This option assumes you copy the C++ helper source code and the Zoom SDK files into the image,
+# then compile the helper.
+
+# 1. Copy C++ helper source code (adjust path if your project structure is different)
+#    This path should point to the directory containing CMakeLists.txt for the helper.
+# COPY project/functions/agents/zoom_sdk_cpp_helper /app/zoom_sdk_cpp_helper_src/
+
+# 2. Copy Zoom SDK libraries and headers (as in Option 1)
+#    These are still needed for compiling the C++ helper.
+# COPY zoom_sdk_libs_context/*.so /opt/zoom_sdk_linux_x86_64/lib/
+# COPY zoom_sdk_headers_context/*.h /opt/zoom_sdk_linux_x86_64/h/
+
+# 3. Build the C++ helper
+# RUN cd /app/zoom_sdk_cpp_helper_src && \
+#     mkdir -p build && \
+#     cd build && \
+#     # Pass the path to the SDK that's now inside the Docker image
+#     cmake -DZOOM_SDK_PATH=/opt/zoom_sdk_linux_x86_64 .. && \
+#     make && \
+#     cp zoom_sdk_helper /app/zoom_sdk_cpp_helper_bin/
+# RUN echo "INFO: If building C++ helper from source, ensure project/functions/agents/zoom_sdk_cpp_helper is copied to /app/zoom_sdk_cpp_helper_src" \
+#     && echo "INFO: and Zoom SDK libs/headers are copied to /opt/zoom_sdk_linux_x86_64." \
+#     && echo "INFO: Then uncomment the COPY and RUN commands above for building the helper."
+
+# Ensure the C++ helper is executable (if copied or built)
+RUN chmod +x /app/zoom_sdk_cpp_helper_bin/zoom_sdk_helper || echo "INFO: zoom_sdk_helper not found or chmod failed, expected if not copied/built."
+
+# Set LD_LIBRARY_PATH to include Zoom SDK libraries for runtime
 ENV LD_LIBRARY_PATH=/opt/zoom_sdk_linux_x86_64/lib:${LD_LIBRARY_PATH}
 
 # Copy PulseAudio setup script and make it executable

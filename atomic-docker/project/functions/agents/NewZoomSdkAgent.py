@@ -59,7 +59,11 @@ class NewZoomSdkAgent:
             if not self.logger.handlers: # Avoid adding multiple handlers if logger already configured
                 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-        self.logger.info(f"NewZoomSdkAgent initialized for user {self.user_id}. Helper path: {self.CPP_HELPER_PATH}")
+        self.logger.info(f"NewZoomSdkAgent initialized for user {self.user_id}. Expecting C++ helper at: {os.path.abspath(self.CPP_HELPER_PATH)}")
+        if not os.path.exists(self.CPP_HELPER_PATH):
+            self.logger.warning(f"C++ helper executable NOT FOUND at expected path: {os.path.abspath(self.CPP_HELPER_PATH)}")
+        else:
+            self.logger.info(f"C++ helper executable found at: {os.path.abspath(self.CPP_HELPER_PATH)}")
         self._stderr_reader_task: Optional[asyncio.Task] = None
 
 
