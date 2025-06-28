@@ -917,3 +917,242 @@ export interface SuggestFollowUpsEntities {
   context_identifier: string; // e.g., "Project Phoenix meeting", "Client Onboarding project", "my last meeting"
   context_type?: "meeting" | "project" | string; // Helps skill narrow down search for context
 }
+
+// --- Meeting Preparation Use Case Types ---
+
+/**
+ * Represents the parsed entities from the NLU service for a RequestMeetingPreparation intent.
+ * This should align with the 'entities' structure defined for intent #35 in nluService.ts.
+ */
+export interface MeetingPrepNluEntities {
+  meeting_reference: string;
+  information_requests: InformationRequest[];
+  overall_lookback_period?: string;
+}
+
+/**
+ * Defines a single information request within a meeting preparation task.
+ */
+export interface InformationRequest {
+  source: 'gmail' | 'slack' | 'notion' | 'calendar_events';
+  search_parameters: GmailSearchParameters | SlackSearchParameters | NotionSearchParameters | CalendarEventsSearchParameters;
+}
+
+// Parameter types for each source, aligning with NLU output for RequestMeetingPreparation
+export interface GmailSearchParameters {
+  from_sender?: string;
+  subject_keywords?: string;
+  body_keywords?: string;
+  date_query?: string;
+  has_attachment_only?: boolean;
+}
+
+export interface SlackSearchParameters {
+  channel_name?: string;
+  from_user?: string;
+  text_keywords?: string;
+  date_query?: string;
+  mentions_user?: string;
+}
+
+export interface NotionSearchParameters {
+  database_name_or_id?: string;
+  page_title_keywords?: string;
+  content_keywords?: string;
+  filter_by_meeting_reference_context?: boolean;
+}
+
+export interface CalendarEventsSearchParameters {
+  related_to_attendees_of_meeting_reference?: boolean;
+  keywords_in_summary_or_description?: string;
+  date_query_lookback?: string;
+  type_filter?: 'past_events' | 'future_events' | 'all_related_events';
+}
+
+/**
+ * Represents the aggregated results from all information requests for meeting preparation.
+ * This is what the meeting preparation skill would aim to construct.
+ */
+export interface AggregatedPrepResults {
+  meeting_reference_identified: string; // The meeting_reference string from NLU
+  identified_calendar_event?: CalendarEventSummary; // Details if the meeting_reference was resolved to a specific calendar event
+  results_by_source: PrepResultSourceEntry[];
+  overall_summary_notes?: string; // Optional AI-generated summary of all findings
+  errors_encountered?: PrepErrorMessage[]; // List of errors encountered during the process
+}
+
+export interface PrepResultSourceEntry {
+  source: 'gmail' | 'slack' | 'notion' | 'calendar_events';
+  search_parameters_used: GmailSearchParameters | SlackSearchParameters | NotionSearchParameters | CalendarEventsSearchParameters;
+  // Results can be an array of specific types based on the source.
+  // Using more specific types than 'any[]' for better type safety.
+  results: GmailMessageSnippet[] | SlackMessageSnippet[] | NotionPageSummary[] | CalendarEventSummary[];
+  error_message?: string; // If an error occurred fetching from this specific source
+  count: number; // Number of items found
+  search_query_executed?: string; // Optional: the actual query string run against the source API
+}
+
+export interface PrepErrorMessage {
+    source_attempted?: 'gmail' | 'slack' | 'notion' | 'calendar_events' | 'overall_process' | 'nlu_parsing' | 'calendar_lookup';
+    message: string;
+    details?: string; // Stringified version of any underlying error object or additional context
+}
+
+// Specific result item types (re-declaring here for clarity if not already globally available or slightly different context)
+// If these are identical to global ones, they can be imported. Assuming for now they might have slight variations or are good to have co-located.
+
+export interface GmailMessageSnippet { // Consistent with previous definition if it exists
+  id: string;
+  threadId?: string;
+  subject?: string;
+  from?: string;
+  date?: string; // ISO string
+  snippet?: string;
+  link?: string;
+}
+
+export interface SlackMessageSnippet { // Consistent with previous definition
+  ts: string; // Using 'ts' as the primary ID for Slack messages
+  channel?: { id: string; name?: string };
+  user?: { id: string; name?: string };
+  text?: string;
+  permalink?: string;
+  files?: any[];
+  reactions?: any[];
+  thread_ts?: string; // To know if it's part of a thread
+}
+
+export interface NotionPageSummary { // Consistent with previous definition
+  id: string;
+  title?: string;
+  url?: string;
+  last_edited_time?: string;
+  created_time?: string;
+  preview_text?: string;
+  icon?: { type: string; emoji?: string; external?: { url: string }; file?: { url: string; expiry_time: string } } | null;
+}
+
+export interface CalendarEventSummary { // Consistent with previous definition
+  id: string;
+  summary?: string;
+  description?: string;
+  start?: string; // ISO string
+  end?: string; // ISO string
+  htmlLink?: string;
+  attendees?: Array<{ email?: string; displayName?: string; responseStatus?: string }>;
+  organizer?: { email?: string; displayName?: string; };
+}
+
+// --- Automated Post-Meeting Workflow Use Case Types ---
+
+/**
+ * Represents the parsed entities from the NLU service for a ProcessMeetingOutcomes intent.
+ * Aligns with intent #36 in nluService.ts.
+ */
+export interface ProcessMeetingOutcomesNluEntities {
+  meeting_reference: string;
+  source_document_id?: string;
+  outcome_source_type?: 'transcript' | 'meeting_notes' | 'audio_recording_summary';
+  requested_actions: Array<'SUMMARIZE_KEY_DECISIONS' | 'EXTRACT_ACTION_ITEMS' | 'DRAFT_FOLLOW_UP_EMAIL' | 'CREATE_TASKS_IN_NOTION'>;
+  email_draft_details?: {
+    recipients: string[] | string; // e.g., ["attendees", "manager@example.com"] or "all meeting attendees"
+    additional_instructions?: string;
+  };
+  task_creation_details?: {
+    notion_database_id?: string;
+    default_assignee?: string; // e.g., "me" or a user ID/email
+  };
+}
+
+/**
+ * Represents structured information extracted from meeting outcomes.
+ * This would be an interim result after an LLM processes the source document.
+ */
+export interface ExtractedMeetingInsights {
+  meeting_title_or_reference: string; // From the source or NLU
+  source_document_id_processed?: string;
+  key_decisions?: string[];
+  action_items?: Array<{
+    description: string;
+    suggested_assignee?: string; // Name or email
+    suggested_due_date?: string; // Natural language or ISO
+  }>;
+  overall_summary?: string; // A general summary if not just decisions
+}
+
+/**
+ * Represents the results of performing the requested post-meeting actions.
+ */
+export interface PostMeetingActionsResults {
+  processed_meeting_reference: string;
+  summary_of_decisions?: string; // Result of SUMMARIZE_KEY_DECISIONS
+  extracted_action_items_summary?: string; // Narrative summary of extracted action items
+  drafted_email_content?: {
+    to?: string[]; // Resolved recipients
+    cc?: string[];
+    subject?: string;
+    body?: string;
+  };
+  created_notion_tasks?: Array<{
+    taskId: string; // Notion page ID
+    taskUrl: string;
+    description: string;
+    assignee?: string;
+    dueDate?: string;
+  }>;
+  errors_encountered?: Array<{
+    action_attempted: 'SUMMARIZE_KEY_DECISIONS' | 'EXTRACT_ACTION_ITEMS' | 'DRAFT_FOLLOW_UP_EMAIL' | 'CREATE_TASKS_IN_NOTION' | 'SOURCE_PROCESSING';
+    message: string;
+    details?: string;
+  }>;
+}
+
+// Potential structure for the skill's output
+export interface ProcessMeetingOutcomesSkillResponse extends SkillResponse<PostMeetingActionsResults> {}
+
+// --- Unified Priority Dashboard (Daily Briefing) Use Case Types ---
+
+/**
+ * Represents the parsed entities from the NLU service for a GetDailyPriorityBriefing intent.
+ * Aligns with intent #37 in nluService.ts.
+ */
+export interface GetDailyPriorityBriefingNluEntities {
+  date_context?: string; // e.g., "today", "tomorrow"
+  focus_areas?: Array<'tasks' | 'meetings' | 'urgent_emails' | 'urgent_slack_messages' | 'urgent_teams_messages'>;
+  project_filter?: string;
+  urgency_level?: 'high' | 'critical' | 'all';
+}
+
+/**
+ * Represents a summarized item for the daily briefing.
+ * Generic enough to hold different types of priority items.
+ */
+export interface BriefingItem {
+  type: 'task' | 'meeting' | 'email' | 'slack_message' | 'teams_message';
+  title: string; // e.g., Task description, Meeting summary, Email subject
+  details?: string; // e.g., Due date, Meeting time, Sender info
+  urgency_score?: number; // Calculated score to help with sorting (0-100)
+  source_id?: string; // Original ID from the source system
+  link?: string; // Direct link to the item if available
+  // Storing the original item allows for richer display or actions later
+  raw_item?: NotionTask | CalendarEventSummary | GmailMessageSnippet | SlackMessageSnippet | MSTeamsMessage;
+}
+
+/**
+ * Represents the consolidated data for the daily priority briefing.
+ * This is what the skill would construct.
+ */
+export interface DailyBriefingData {
+  briefing_date: string; // ISO date for which the briefing is generated
+  user_id: string;
+  priority_items: BriefingItem[];
+  overall_summary_message?: string; // e.g., "You have 3 high-priority tasks and 2 important meetings today."
+  errors_encountered?: Array<{
+    source_area: 'tasks' | 'meetings' | 'emails' | 'slack' | 'teams' | 'overall';
+    message: string;
+    details?: string;
+  }>;
+}
+
+// Potential structure for the skill's output
+export interface GetDailyPriorityBriefingSkillResponse extends SkillResponse<DailyBriefingData> {}

@@ -163,6 +163,9 @@ import { triggerZap } from './skills/zapierSkills'; // Added missing import
 import { resolveAttendees } from './skills/contactSkills'; // For ScheduleMeetingFromEmail
 // import { invokeOptaPlannerScheduling } from './skills/schedulingSkills'; // Will be added to schedulingSkills
 import { handlePrepareForMeeting, handleGenerateWeeklyDigest, handleSuggestFollowUps } from './skills/productivitySkills'; // Added for Smart Meeting Prep, Weekly Digest & Follow-up Suggester
+import { handleMeetingPreparationRequest } from './command_handlers/meetingPrepCommandHandler'; // Added for Meeting Prep
+import { handleProcessMeetingOutcomesRequest } from './command_handlers/postMeetingWorkflowCommandHandler'; // Added for Post-Meeting Workflow
+import { handleGetDailyBriefingRequest } from './command_handlers/dailyBriefingCommandHandler'; // Added for Daily Briefing
 
 
 // Define the TTS service URL
@@ -343,6 +346,56 @@ async function _internalHandleMessage(
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetCalendarEvents":`, error.message);
             textResponse = "Sorry, I couldn't fetch your calendar events due to an error.";
+        }
+        break;
+
+      case "GetDailyPriorityBriefing": // New Case for Daily Briefing
+        try {
+          const briefingEntities = nluResponse.entities as import('../types').GetDailyPriorityBriefingNluEntities;
+          // Basic validation, though the skill/handler might do more
+          if (!briefingEntities) {
+            textResponse = "I need a bit more information to get your daily briefing. For example, what day are you interested in?";
+             console.warn(`[Handler][${interfaceType}] GetDailyPriorityBriefing: Entities object is missing or undefined.`);
+          } else {
+            console.info(`[Handler][${interfaceType}] Calling handleGetDailyBriefingRequest for date: "${briefingEntities.date_context || 'today'}"`);
+            textResponse = await handleGetDailyBriefingRequest(userId, briefingEntities);
+          }
+        } catch (error: any) {
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "GetDailyPriorityBriefing":`, error.message, error.stack);
+          textResponse = "Sorry, an unexpected error occurred while generating your daily briefing.";
+        }
+        break;
+
+      case "ProcessMeetingOutcomes": // New Case for Post-Meeting Workflow
+        try {
+          const outcomeEntities = nluResponse.entities as import('../types').ProcessMeetingOutcomesNluEntities;
+          if (!outcomeEntities.meeting_reference || !outcomeEntities.requested_actions || outcomeEntities.requested_actions.length === 0) {
+            textResponse = "To process meeting outcomes, please specify the meeting and the actions you'd like me to take (e.g., summarize, extract action items).";
+            console.warn(`[Handler][${interfaceType}] ProcessMeetingOutcomes: Missing meeting_reference or requested_actions.`);
+          } else {
+            console.info(`[Handler][${interfaceType}] Calling handleProcessMeetingOutcomesRequest for meeting: "${outcomeEntities.meeting_reference}"`);
+            textResponse = await handleProcessMeetingOutcomesRequest(userId, outcomeEntities);
+          }
+        } catch (error: any) {
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "ProcessMeetingOutcomes":`, error.message, error.stack);
+          textResponse = "Sorry, an unexpected error occurred while processing the meeting outcomes.";
+        }
+        break;
+
+      case "RequestMeetingPreparation": // New Case for Meeting Prep
+        try {
+          // Ensure entities is cast to the correct type, MeetingPrepNluEntities should be available from '../types'
+          const prepEntities = nluResponse.entities as import('../types').MeetingPrepNluEntities;
+          if (!prepEntities.meeting_reference || !prepEntities.information_requests) {
+            textResponse = "To prepare for a meeting, please tell me which meeting and what information you're looking for.";
+            console.warn(`[Handler][${interfaceType}] RequestMeetingPreparation: Missing meeting_reference or information_requests.`);
+          } else {
+            console.info(`[Handler][${interfaceType}] Calling handleMeetingPreparationRequest for meeting: "${prepEntities.meeting_reference}"`);
+            textResponse = await handleMeetingPreparationRequest(userId, prepEntities);
+          }
+        } catch (error: any) {
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "RequestMeetingPreparation":`, error.message, error.stack);
+          textResponse = "Sorry, an unexpected error occurred while preparing for your meeting.";
         }
         break;
 
