@@ -1,4 +1,12 @@
-import { invokeLLM } from '../lib/llmUtils';
+import {
+    invokeLLM,
+    StructuredLLMPrompt,
+    GuidanceQueryClassificationData,
+    AnswerFromTextData,
+    StepsFromTextData,
+    FollowupSuggestionData
+    // Assuming LLMTaskType is also exported if needed for casting, or rely on string values
+} from '../lib/llmUtils';
 
 // Mock Knowledge Base Data
 const MOCK_KB_ARTICLES: KnowledgeBaseArticle[] = [
@@ -221,15 +229,13 @@ export class LearningAndGuidanceSkill {
 
     if (!input.guidanceTypeHint) {
         console.log(`[LearningAndGuidanceSkill] No guidanceTypeHint provided, attempting to classify query: "${input.query}"`);
-        const classificationPrompt = `
-          Classify this user query: "${input.query}"
-          Into one of the following GuidanceType categories:
-          'answer_question', 'find_tutorial', 'guide_workflow', 'general_explanation'.
-          Return ONLY the GuidanceType in a valid JSON format, like:
-          {"guidanceType": "TYPE_NAME"}
-        `;
+        const classificationData: GuidanceQueryClassificationData = { query: input.query };
+        const structuredClassificationPrompt: StructuredLLMPrompt = {
+            task: 'classify_guidance_query',
+            data: classificationData
+        };
         try {
-            const llmClassificationResponse = await invokeLLM(classificationPrompt, 'cheapest');
+            const llmClassificationResponse = await invokeLLM(structuredClassificationPrompt, 'cheapest');
             console.log(`[LearningAndGuidanceSkill] LLM classification response: ${llmClassificationResponse}`);
             const parsedResponse = JSON.parse(llmClassificationResponse);
             const validTypes: GuidanceType[] = ['answer_question', 'find_tutorial', 'guide_workflow', 'general_explanation'];
@@ -246,7 +252,7 @@ export class LearningAndGuidanceSkill {
     console.log(`[LearningAndGuidanceSkill] Effective guidance type: ${effectiveGuidanceType}`);
 
     // 3. Fetch relevant articles using _fetchMockKnowledgeBaseArticles, potentially refining search terms with LLM.
-    //    Example LLM call for search terms: let searchTermsForKB = await invokeLLM(\`Extract keywords for KB search from query: "${input.query}"\`, 'cheapest');
+    //    Example LLM call for search terms: let searchTermsForKB = await invokeLLM({task: 'extract_search_terms', data: {query: input.query}}, 'cheapest');
     const searchTerms = input.query; // Using raw query for mock fetcher
     const relevantArticles = await _fetchMockKnowledgeBaseArticles(
         searchTerms,
@@ -280,8 +286,15 @@ export class LearningAndGuidanceSkill {
       switch (effectiveGuidanceType) {
         case 'answer_question':
         case 'general_explanation':
-          const answerPrompt = `Using ONLY the provided text from the article titled '${article.title}', please answer the question: '${input.query}'. Return only the direct answer. Text: '${article.content.substring(0, 1500)}...'`;
-          llmResponseForArticleProcessing = await invokeLLM(answerPrompt, 'cheapest');
+          const taskType = effectiveGuidanceType === 'answer_question' ? 'answer_from_text' : 'summarize_for_explanation';
+          const answerData: AnswerFromTextData = {
+            query: input.query,
+            textContent: article.content.substring(0, 1500),
+            articleTitle: article.title
+          };
+          const structuredAnswerPrompt: StructuredLLMPrompt = { task: taskType, data: answerData };
+          llmResponseForArticleProcessing = await invokeLLM(structuredAnswerPrompt, 'cheapest');
+
           if (llmResponseForArticleProcessing && !llmResponseForArticleProcessing.toLowerCase().startsWith("llm fallback") && !llmResponseForArticleProcessing.toLowerCase().includes("not appear to contain")) {
             guidance.contentSnippet = llmResponseForArticleProcessing;
             guidance.relevanceScore = 0.8; // Higher score if LLM found direct answer
@@ -302,8 +315,13 @@ export class LearningAndGuidanceSkill {
             guidance.relevanceScore = 0.85; // Higher score for direct step match
             console.log(`[LearningAndGuidanceSkill] Using predefined steps for "${article.title}".`);
           } else {
-            const stepsPrompt = `Extract the key steps relevant to the query '${input.query}' from the content of '${article.title}'. Return as a JSON object: {"steps": [{"title":"Step 1 Title", "description":"Step 1 Description"}, ...]}. If no specific steps are found, return {"steps": []}. Content: '${article.content.substring(0, 2000)}...'`;
-            llmResponseForArticleProcessing = await invokeLLM(stepsPrompt, 'cheapest');
+            const stepsData: StepsFromTextData = {
+                query: input.query,
+                textContent: article.content.substring(0, 2000),
+                articleTitle: article.title
+            };
+            const structuredStepsPrompt: StructuredLLMPrompt = { task: 'extract_steps_from_text', data: stepsData };
+            llmResponseForArticleProcessing = await invokeLLM(structuredStepsPrompt, 'cheapest');
             console.log(`[LearningAndGuidanceSkill] LLM steps response for "${article.title}": ${llmResponseForArticleProcessing}`);
             try {
               const parsedSteps = JSON.parse(llmResponseForArticleProcessing);
@@ -335,16 +353,18 @@ export class LearningAndGuidanceSkill {
 
     // 6. (Optional) Generate followUpSuggestions with LLM
     let followUpSuggestions: string[] | undefined = undefined;
-    if (guidanceProvided.length > 0 && guidanceProvided[0]) { // Ensure there's at least one piece of guidance
+    if (guidanceProvided.length > 0 && guidanceProvided[0]) {
         const firstGuidanceTitle = guidanceProvided[0].title;
-        const followUpPrompt = `
-          Given the user query "${input.query}" and that guidance on "${firstGuidanceTitle}" was provided,
-          suggest two distinct, related topics or advanced features the user might want to learn next.
-          Return as JSON: {"suggestions": ["Suggestion 1", "Suggestion 2"]}.
-          If no specific suggestions come to mind, return {"suggestions": []}.
-        `;
+        const followupData: FollowupSuggestionData = {
+            query: input.query,
+            articleTitle: firstGuidanceTitle
+        };
+        const structuredFollowupPrompt: StructuredLLMPrompt = {
+            task: 'generate_followup_suggestions',
+            data: followupData
+        };
         try {
-            const llmFollowUpResponse = await invokeLLM(followUpPrompt, 'cheapest');
+            const llmFollowUpResponse = await invokeLLM(structuredFollowupPrompt, 'cheapest');
             console.log(`[LearningAndGuidanceSkill] LLM follow-up suggestions response: ${llmFollowUpResponse}`);
             const parsedFollowUp = JSON.parse(llmFollowUpResponse);
             if (parsedFollowUp && Array.isArray(parsedFollowUp.suggestions) && parsedFollowUp.suggestions.length > 0) {

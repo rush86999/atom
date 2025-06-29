@@ -1,16 +1,24 @@
-import { invokeLLM } from '../lib/llmUtils';
+import {
+    invokeLLM,
+    StructuredLLMPrompt,
+    EmailCategorizationData,
+    EmailSummarizationData,
+    EmailReplySuggestionData,
+    EmailActionExtractionData,
+    LLMTaskType // Assuming LLMTaskType is also exported from llmUtils
+} from '../lib/llmUtils';
 
 /**
  * Represents an incoming email message.
  */
 export interface EmailObject {
   id: string;
-  sender: string; // e.g., "John Doe <john.doe@example.com>" or "internal-alerts@example.com"
-  recipients: string[]; // List of recipient addresses/names
+  sender: string;
+  recipients: string[];
   subject: string;
-  body: string; // Can be plain text or HTML content
+  body: string;
   receivedDate: Date;
-  headers?: Record<string, string>; // Optional: For specific mail headers like 'Importance', 'X-Priority'
+  headers?: Record<string, string>;
 }
 
 /**
@@ -24,243 +32,163 @@ export type EmailCategory = 'Urgent' | 'ActionRequired' | 'FYI' | 'Spam' | 'Meet
 export interface TriageResult {
   emailId: string;
   category: EmailCategory;
-  confidence?: number; // Confidence score (0.0 to 1.0) for the assigned category
-  summary?: string; // A brief summary of the email content
-  suggestedReply?: string; // A short suggested reply, if applicable
-  priorityScore?: number; // A numerical priority (e.g., 1-10, higher is more important)
-  extractedActionItems?: string[]; // Any specific action items identified in the email
-  // Could also include entities like mentioned people, dates, organizations etc.
+  confidence?: number;
+  summary?: string;
+  suggestedReply?: string;
+  priorityScore?: number;
+  extractedActionItems?: string[];
 }
-
-// Define keyword sets for categorization (No longer primarily used for categorization, but might be useful for other heuristics or priority)
-const URGENT_KEYWORDS = ["urgent", "critical", "immediate", "action now", "down", "outage"];
-const ACTION_KEYWORDS = ["action required", "please review", "task for you", "can you look into", "needs your attention", "respond by", "deadline"];
-const MEETING_KEYWORDS = ["meeting invite", "calendar invite", "invitation:", "scheduled:", "zoom link", "teams meeting", ".ics"];
-const FYI_KEYWORDS = ["fyi", "heads up", "update", "information only", "newsletter", "announcement"];
-const SPAM_KEYWORDS = ["win a free", "limited time offer", "cialis", "viagra", "unsubscribe here", "claim your prize", "$$$"];
 
 // Define a list of important senders (lowercase for easier matching)
 const IMPORTANT_SENDERS = ["boss@example.com", "ceo@example.com", "directreport@example.com", "importantclient@example.com"];
 
-// Define phrases for action item extraction (Commented out as LLM now handles this)
-// const ACTION_PHRASES = ['please', 'can you', 'could you', 'action:', 'task:', 'needed:', 'required:', 'to do:', 'ensure that', 'confirm if'];
-// const QUESTION_ACTION_VERBS = ['send', 'provide', 'do', 'create', 'organize', 'schedule', 'confirm', 'clarify', 'find', 'update', 'check', 'get'];
-
 // Helper function to strip basic HTML
 function _stripHtml(htmlString: string): string {
   let text = htmlString;
-  // Replace block-level tags that usually imply newlines
   text = text.replace(/<\/(p|div|h[1-6]|li|dt|dd|pre|blockquote|address|header|footer|section|article)>/gi, '\n');
   text = text.replace(/<br\s*\/?>/gi, '\n');
-  // Replace li and dd with a bullet point for better readability
   text = text.replace(/<li[^>]*>/gi, '\n* ');
-  text = text.replace(/<dd[^>]*>/gi, '\n  '); // Indent definition descriptions
-
-  // Remove all other HTML tags
+  text = text.replace(/<dd[^>]*>/gi, '\n  ');
   text = text.replace(/<[^>]+>/g, '');
-
-  // Decode common HTML entities
   text = text.replace(/&nbsp;/g, ' ')
              .replace(/&amp;/g, '&')
              .replace(/&lt;/g, '<')
              .replace(/&gt;/g, '>')
              .replace(/&quot;/g, '"')
              .replace(/&#39;/g, "'");
-             // Add more entities as needed: &apos; &cent; &pound; &yen; &euro; &copy; &reg;
-
-  // Normalize multiple newlines and spaces
-  text = text.replace(/\n{3,}/g, '\n\n'); // Max two consecutive newlines
-  text = text.replace(/ {2,}/g, ' ');    // Max one space
-
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.replace(/ {2,}/g, ' ');
   return text.trim();
 }
-
 
 /**
  * Skill to triage and prioritize incoming emails.
  */
 export class EmailTriageSkill {
   constructor() {
-    // Initialization for the skill, e.g., loading models, configuration, etc.
     console.log("EmailTriageSkill initialized.");
   }
 
-  /**
-   * Executes the email triage process.
-   * @param email The EmailObject to process.
-   * @returns A Promise resolving to the TriageResult.
-   */
   public async execute(email: EmailObject): Promise<TriageResult> {
     console.log(`[EmailTriageSkill] Processing email ID: ${email.id} from: ${email.sender} with subject: "${email.subject}"`);
 
-    // 1. Validate email input (Basic check for now)
     if (!email || !email.id || !email.subject || !email.body) {
       throw new Error("Invalid email object provided. Essential fields (id, subject, body) are missing.");
     }
     console.log(`[EmailTriageSkill] Email validated: ${email.id}`);
 
-    // Pre-process body: Strip HTML if necessary
     let processedBody = email.body;
     const isHtml = /<([a-z][a-z0-9]*)\b[^>]*>/i.test(email.body);
     if (isHtml) {
       processedBody = _stripHtml(email.body);
-      console.log("[EmailTriageSkill] HTML detected in email body; stripped to plain text for processing.");
+      console.log("[EmailTriageSkill] HTML detected; stripped to plain text.");
     } else {
       console.log("[EmailTriageSkill] Email body appears to be plain text.");
     }
 
-    // 2. Determine Category (LLM-based)
+    // 1. Determine Category (LLM-based)
     let determinedCategory: EmailCategory = 'Other';
     let categoryConfidence = 0.2;
-
-    const bodySnippetForCategorization = processedBody.substring(0, 250);
-    const categorizationPrompt = `
-      Given the following email details:
-      Subject: "${email.subject}"
-      Body (first ${bodySnippetForCategorization.length} chars): "${bodySnippetForCategorization}..."
-
-      Categorize this email into one of the following categories:
-      'Urgent', 'ActionRequired', 'FYI', 'Spam', 'MeetingInvite', 'Other'.
-      Return ONLY the category and a confidence score (0.0-1.0) in a valid JSON format, like:
-      {"category": "CATEGORY_NAME", "confidence": 0.X}
-    `;
-
+    const categorizationData: EmailCategorizationData = {
+        subject: email.subject,
+        bodySnippet: processedBody.substring(0, 250)
+    };
+    const structuredCategorizationPrompt: StructuredLLMPrompt = {
+        task: 'categorize_email',
+        data: categorizationData
+    };
     try {
-      const llmCategoryResponse = await invokeLLM(categorizationPrompt, 'cheapest');
-      console.log(`[EmailTriageSkill] LLM category response string: ${llmCategoryResponse}`);
+      const llmCategoryResponse = await invokeLLM(structuredCategorizationPrompt, 'cheapest');
       const parsedResponse = JSON.parse(llmCategoryResponse);
-
-      if (parsedResponse && parsedResponse.category && typeof parsedResponse.confidence === 'number') {
-        const potentialCategory = parsedResponse.category as EmailCategory;
-        const validCategories: EmailCategory[] = ['Urgent', 'ActionRequired', 'FYI', 'Spam', 'MeetingInvite', 'Other'];
-        if (validCategories.includes(potentialCategory)) {
-          determinedCategory = potentialCategory;
-          categoryConfidence = parsedResponse.confidence;
-        } else {
-          console.warn(`[EmailTriageSkill] LLM returned an invalid category: ${parsedResponse.category}. Defaulting to 'Other'.`);
-          determinedCategory = 'Other';
-          categoryConfidence = 0.25;
-        }
+      const validCategories: EmailCategory[] = ['Urgent', 'ActionRequired', 'FYI', 'Spam', 'MeetingInvite', 'Other'];
+      if (parsedResponse && parsedResponse.category && validCategories.includes(parsedResponse.category) && typeof parsedResponse.confidence === 'number') {
+        determinedCategory = parsedResponse.category;
+        categoryConfidence = parsedResponse.confidence;
       } else {
-        console.error('[EmailTriageSkill] LLM category response parsing error or invalid structure. Response:', llmCategoryResponse);
+        console.warn(`[EmailTriageSkill] LLM category response invalid. Defaulting. Resp: ${llmCategoryResponse}`);
       }
     } catch (error) {
-      console.error('[EmailTriageSkill] Error calling or parsing LLM category response:', error);
+      console.error('[EmailTriageSkill] Error in LLM categorization:', error);
     }
-    console.log(`[EmailTriageSkill] LLM-determined category: ${determinedCategory} with confidence ${categoryConfidence.toFixed(2)}`);
+    console.log(`[EmailTriageSkill] LLM Category: ${determinedCategory}, Confidence: ${categoryConfidence.toFixed(2)}`);
 
-    // 3. Calculate Priority Score (Rule-based, using LLM category)
+    // 2. Calculate Priority Score (Rule-based)
     let calculatedPriorityScore = 0;
     switch (determinedCategory) {
       case 'Urgent': calculatedPriorityScore = 9; break;
       case 'ActionRequired': calculatedPriorityScore = 7; break;
       case 'MeetingInvite': calculatedPriorityScore = 6; break;
       case 'FYI': calculatedPriorityScore = 3; break;
-      case 'Other': calculatedPriorityScore = 2; break;
-      case 'Spam': calculatedPriorityScore = 0; break;
-      default: calculatedPriorityScore = 1;
+      default: calculatedPriorityScore = 2;
     }
+    if (determinedCategory === 'Spam') calculatedPriorityScore = 0;
 
-    const senderLower = email.sender.toLowerCase();
-    const emailMatch = senderLower.match(/<([^>]+)>/);
-    const actualSenderEmail = emailMatch ? emailMatch[1] : senderLower;
-
-    if (IMPORTANT_SENDERS.includes(actualSenderEmail)) {
+    const senderEmailMatch = email.sender.toLowerCase().match(/<([^>]+)>/);
+    const actualSender = senderEmailMatch ? senderEmailMatch[1] : email.sender.toLowerCase();
+    if (IMPORTANT_SENDERS.includes(actualSender)) {
       calculatedPriorityScore = Math.min(10, calculatedPriorityScore + 2);
-      console.log(`[EmailTriageSkill] Priority boosted due to important sender: ${email.sender}`);
     }
     if (email.headers?.Importance?.toLowerCase() === 'high' || email.headers?.['X-Priority']?.startsWith('1')) {
       calculatedPriorityScore = Math.min(10, calculatedPriorityScore + 1);
-      console.log(`[EmailTriageSkill] Priority boosted due to high importance header.`);
     }
-    console.log(`[EmailTriageSkill] Calculated priority score: ${calculatedPriorityScore}`);
+    console.log(`[EmailTriageSkill] Priority Score: ${calculatedPriorityScore}`);
 
-    // 4. Generate Summary (LLM-based)
-    let generatedSummary = "";
-    const bodySnippetForSummary = processedBody.substring(0, 500);
-    const summaryPrompt = `Summarize this email in 1-2 sentences: Subject: "${email.subject}" Body: "${bodySnippetForSummary}..." Return only the summary text.`;
+    // 3. Generate Summary (LLM-based)
+    let generatedSummary = `Subject: "${email.subject}". Body: ${processedBody.substring(0,150)}...`; // Fallback
+    const summarizationData: EmailSummarizationData = {
+        subject: email.subject,
+        bodySnippet: processedBody.substring(0, 500)
+    };
+    const structuredSummaryPrompt: StructuredLLMPrompt = { task: 'summarize_email', data: summarizationData };
     try {
-        const llmSummaryResponse = await invokeLLM(summaryPrompt, 'cheapest');
-        console.log(`[EmailTriageSkill] LLM summary response: ${llmSummaryResponse}`);
-        if (llmSummaryResponse && !llmSummaryResponse.toLowerCase().startsWith("llm fallback response")) {
-            generatedSummary = llmSummaryResponse;
-        } else {
-            console.warn("[EmailTriageSkill] LLM summary failed or returned fallback, using basic snippet.");
-            const normalizedBodyForFallback = processedBody.replace(/\s+/g, " ").trim();
-            generatedSummary = `Subject: "${email.subject}". Body excerpt: "${normalizedBodyForFallback.substring(0, 150)}..."`;
-        }
+      const llmSummaryResponse = await invokeLLM(structuredSummaryPrompt, 'cheapest');
+      if (llmSummaryResponse && !llmSummaryResponse.toLowerCase().startsWith("llm fallback")) {
+        generatedSummary = llmSummaryResponse;
+      } else {
+         console.warn(`[EmailTriageSkill] LLM summary failed or fallback. Using basic snippet.`);
+      }
     } catch (error) {
-        console.error('[EmailTriageSkill] Error calling LLM for summary:', error);
-        const normalizedBodyForFallback = processedBody.replace(/\s+/g, " ").trim();
-        generatedSummary = `Subject: "${email.subject}". Body excerpt: "${normalizedBodyForFallback.substring(0, 150)}..."`;
+      console.error('[EmailTriageSkill] Error in LLM summarization:', error);
     }
-    console.log(`[EmailTriageSkill] Final generated summary: ${generatedSummary}`);
+    console.log(`[EmailTriageSkill] Summary: ${generatedSummary}`);
 
-    // 6. Extract Action Items (LLM-based) - Done *before* reply suggestion to inform it
+    // 4. Extract Action Items (LLM-based)
     let foundActionItems: string[] = [];
-    const bodyForActionExtraction = processedBody.substring(0, 1000);
-    const actionItemPrompt = `
-      Review the following email body and extract any distinct action items or tasks requested of the recipient.
-      Return these as a JSON array of strings, like: {"actionItems": ["Action 1", "Action 2"]}.
-      If no specific action items are found, return {"actionItems": []}.
-
-      Email Body:
-      "${bodyForActionExtraction}..."
-    `;
+    const actionExtractionData: EmailActionExtractionData = { emailBody: processedBody.substring(0, 1000) };
+    const structuredActionItemPrompt: StructuredLLMPrompt = { task: 'extract_actions_email', data: actionExtractionData };
     try {
-      const llmActionItemsResponse = await invokeLLM(actionItemPrompt, 'cheapest');
-      console.log(`[EmailTriageSkill] LLM action items response: ${llmActionItemsResponse}`);
+      const llmActionItemsResponse = await invokeLLM(structuredActionItemPrompt, 'cheapest');
       const parsedResponse = JSON.parse(llmActionItemsResponse);
       if (parsedResponse && Array.isArray(parsedResponse.actionItems)) {
         foundActionItems = parsedResponse.actionItems.filter((item: any): item is string => typeof item === 'string');
-         if (foundActionItems.length > 0) {
-            console.log(`[EmailTriageSkill] LLM extracted action items:`, foundActionItems);
-        } else {
-            console.log(`[EmailTriageSkill] LLM found no specific action items.`);
-        }
-      } else {
-        if (typeof llmActionItemsResponse === 'string' && llmActionItemsResponse.length > 0 && !llmActionItemsResponse.toLowerCase().startsWith("llm fallback") && !llmActionItemsResponse.startsWith("{")) {
-            console.warn('[EmailTriageSkill] LLM action items response was not JSON array, treating as single string action item.');
-            foundActionItems = [llmActionItemsResponse];
-            console.log(`[EmailTriageSkill] LLM extracted single action item (from string):`, foundActionItems);
-        } else {
-            console.warn('[EmailTriageSkill] LLM action items response parsing error or invalid structure. Response:', llmActionItemsResponse);
-        }
+      } else if (typeof llmActionItemsResponse === 'string' && !llmActionItemsResponse.toLowerCase().startsWith("llm fallback") && !llmActionItemsResponse.startsWith("{")) {
+         foundActionItems = [llmActionItemsResponse]; // Single string action item
       }
     } catch (error) {
-      console.error('[EmailTriageSkill] Error calling or parsing LLM for action items:', error);
+      console.error('[EmailTriageSkill] Error in LLM action extraction:', error);
     }
+    if (foundActionItems.length > 0) console.log(`[EmailTriageSkill] Action Items:`, foundActionItems);
 
-    // 5. Suggest Reply (LLM-based, now informed by extracted action items)
+    // 5. Suggest Reply (LLM-based)
     let suggestedReplyMessage: string | undefined = undefined;
-    const actionItemsText = foundActionItems.length > 0 ? `Identified Action Items: "${foundActionItems.join('; ')}"` : "";
-    const replyPrompt = `
-      Given an email with the following details:
-      Category: "${determinedCategory}"
-      Subject: "${email.subject}"
-      Summary: "${generatedSummary}"
-      ${actionItemsText}
-
-      Suggest a brief, polite, and professional reply for this email.
-      If no reply is typically needed for this category or content (e.g., for Spam or some FYI), return the exact phrase "No reply needed.".
-      Otherwise, provide only the suggested reply text.
-    `;
+    const replyData: EmailReplySuggestionData = {
+        category: determinedCategory,
+        subject: email.subject,
+        summary: generatedSummary,
+        actionItems: foundActionItems.length > 0 ? foundActionItems : undefined
+    };
+    const structuredReplyPrompt: StructuredLLMPrompt = { task: 'suggest_reply_email', data: replyData };
     try {
-      const llmReply = await invokeLLM(replyPrompt, 'cheapest');
-      console.log(`[EmailTriageSkill] LLM raw reply: "${llmReply}"`);
-      if (llmReply && llmReply.trim().toLowerCase() !== "no reply needed." && !llmReply.toLowerCase().startsWith("llm fallback response")) {
+      const llmReply = await invokeLLM(structuredReplyPrompt, 'cheapest');
+      if (llmReply && llmReply.trim().toLowerCase() !== "no reply needed." && !llmReply.toLowerCase().startsWith("llm fallback")) {
         suggestedReplyMessage = llmReply.trim();
-        console.log(`[EmailTriageSkill] LLM suggested reply: "${suggestedReplyMessage}"`);
-      } else {
-        console.log(`[EmailTriageSkill] LLM indicated no reply needed or fallback response for reply generation.`);
-        suggestedReplyMessage = undefined;
       }
     } catch (error) {
-      console.error('[EmailTriageSkill] Error calling LLM for suggested reply:', error);
-      suggestedReplyMessage = undefined;
+      console.error('[EmailTriageSkill] Error in LLM reply suggestion:', error);
     }
+    if(suggestedReplyMessage) console.log(`[EmailTriageSkill] Suggested Reply: "${suggestedReplyMessage}"`);
 
-    // 7. Construct and return TriageResult
+    // Construct and return TriageResult
     const result: TriageResult = {
       emailId: email.id,
       category: determinedCategory,
@@ -271,51 +199,33 @@ export class EmailTriageSkill {
       extractedActionItems: foundActionItems.length > 0 ? foundActionItems : undefined,
     };
 
-    console.log(`[EmailTriageSkill] Triage complete for email ID: ${email.id}. Category: ${result.category}, Priority: ${result.priorityScore}, Confidence: ${result.confidence}, Actions: ${foundActionItems.length}`);
+    console.log(`[EmailTriageSkill] Triage complete. Result:`, result);
     return result;
   }
 }
 
-// Example Usage (for testing or demonstration, typically called by an orchestrator)
+// Example Usage
 /*
 async function testEmailTriageSkill() {
   const skill = new EmailTriageSkill();
-  const testEmail: EmailObject = {
-    id: "test-email-001",
-    sender: "Alice <alice@example.com>",
-    recipients: ["bob@example.com", "currentUser@example.com"],
-    subject: "Quick question about the Phoenix project",
-    body: "Hi team, I had a quick question regarding the latest update on the Phoenix project. Can someone point me to the documentation for the new auth module? Thanks!",
-    receivedDate: new Date(),
-    headers: { "X-Priority": "3" }
-  };
+  const testEmails: EmailObject[] = [
+    { id: "email1", sender: "urgent@example.com", recipients: ["me@example.com"], subject: "URGENT HELP NEEDED NOW!", body: "The server is down and we need immediate assistance. Please call me ASAP.", receivedDate: new Date(), headers: {Importance: "High"} },
+    { id: "email2", sender: "taskmaster@example.com", recipients: ["me@example.com"], subject: "Action Required: Update project status", body: "Please update the project status report by EOD. Also, can you prepare the slides for tomorrow's meeting?", receivedDate: new Date() },
+    { id: "email3", sender: "calendar@example.com", recipients: ["me@example.com"], subject: "Meeting Invite: Q4 Planning", body: "You are invited to Q4 Planning. When: Tomorrow 10 AM. Where: Conference Room A. Details: BEGIN:VCALENDAR...", receivedDate: new Date() },
+    { id: "email4", sender: "info@example.com", recipients: ["me@example.com"], subject: "FYI: Company picnic next month", body: "Just a heads up, the annual company picnic is scheduled for next month. More details to follow.", receivedDate: new Date() },
+    { id: "email5", sender: "spamking@example.com", recipients: ["me@example.com"], subject: "Win a FREE iPhone now!", body: "Click here to claim your prize, limited time offer!", receivedDate: new Date() },
+    { id: "email6", sender: "alice@example.com", recipients: ["me@example.com"], subject: "Quick question", body: "Hey, just had a quick question about the report. Nothing urgent. Thanks", receivedDate: new Date() },
+  ];
 
-  try {
-    const result = await skill.execute(testEmail);
-    console.log("\\n--- Email Triage Result ---");
-    console.log(JSON.stringify(result, null, 2));
-  } catch (error) {
-    console.error("Error during EmailTriageSkill execution:", error);
-  }
-
-  const urgentEmail: EmailObject = {
-    id: "urgent-email-002",
-    sender: "boss@example.com",
-    recipients: ["currentUser@example.com"],
-    subject: "URGENT: Action Required - System Outage",
-    body: "Team, we have a critical system outage affecting all customers. All hands on deck. Please join the emergency bridge now: conf-link. This requires your immediate action.",
-    receivedDate: new Date(),
-    headers: { "Importance": "High" }
-  };
-
-  try {
-    const resultUrgent = await skill.execute(urgentEmail);
-    console.log("\\n--- Urgent Email Triage Result ---");
-    console.log(JSON.stringify(resultUrgent, null, 2));
-  } catch (error) {
-    console.error("Error during Urgent EmailTriageSkill execution:", error);
+  for (const email of testEmails) {
+    try {
+      console.log(`\n--- Testing Email ID: ${email.id} ---`);
+      const triageResult = await skill.execute(email);
+      console.log("Triage Result:", JSON.stringify(triageResult, null, 2));
+    } catch (e) {
+      console.error("Error testing skill:", e);
+    }
   }
 }
-
 // testEmailTriageSkill();
 */
