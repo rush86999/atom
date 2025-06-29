@@ -237,11 +237,44 @@ export class OpenAIGroqService_Stub implements LLMServiceInterface {
              systemMessage = `Extract up to 3 relevant snippets (each ~${snipData.snippetLength || 150} chars) for the query from the document. Return JSON: {"snippets": ["...", ...]}. If none, return {"snippets": []}.`;
              userMessageContent = `Query: "${snipData.query}"\nDocument Title: "${snipData.documentTitle}"\nDocument Text: "${snipData.documentText}"`;
              break;
-        // ... other task-specific prompt constructions
+        case 'summarize_document_snippets':
+            const docSumData = structuredPrompt.data as DocumentSummaryData;
+            systemMessage = `Summarize the provided snippets based on the query. Target length: ${docSumData.targetLength || 'medium'}. Return only the summary.`;
+            userMessageContent = `Query: "${docSumData.query}"\nDocument Title: "${docSumData.documentTitle}"\nSnippets:\n${(docSumData.snippets || []).map(s => `- ${s}`).join('\n')}`;
+            break;
+        case 'summarize_overall_answer':
+            const overallData = structuredPrompt.data as OverallSummaryData;
+            systemMessage = `Combine these individual summaries into one concise overall answer to the user's query. Return only the combined summary.`;
+            userMessageContent = `User's Query: "${overallData.query}"\nIndividual Summaries:\n${overallData.individualSummaries.map(s => `From "${s.title}": ${s.summary}`).join('\n---\n')}`;
+            break;
+        case 'classify_guidance_query':
+            const gqClassData = structuredPrompt.data as GuidanceQueryClassificationData;
+            systemMessage = `Classify the user query into one of: 'answer_question', 'find_tutorial', 'guide_workflow', 'general_explanation'. Return JSON: {"guidanceType": "TYPE"}.`;
+            userMessageContent = `User Query: "${gqClassData.query}"`;
+            break;
+        case 'answer_from_text':
+            const ansTextData = structuredPrompt.data as AnswerFromTextData;
+            systemMessage = `Using ONLY the provided text, answer the question. Return only the direct answer.`;
+            userMessageContent = `Question: '${ansTextData.query}'\nProvided text from "${ansTextData.articleTitle || 'document'}": '${ansTextData.textContent}'`;
+            break;
+        case 'extract_steps_from_text':
+            const stepsTextData = structuredPrompt.data as StepsFromTextData;
+            systemMessage = `Extract key steps for the query from the tutorial text. Return JSON: {"steps": [{"title":"Step Title", "description":"Step desc"}, ...]}. If none, return {"steps": []}.`;
+            userMessageContent = `Query: '${stepsTextData.query}'\nTutorial Text from "${stepsTextData.articleTitle || 'document'}": '${stepsTextData.textContent}'`;
+            break;
+        case 'summarize_for_explanation':
+            const explData = structuredPrompt.data as ExplanationData;
+            systemMessage = `Provide a concise explanation for the query based on the text. Return only the explanation.`;
+            userMessageContent = `Query: '${explData.query}'\nText from "${explData.articleTitle || 'document'}": '${explData.textContent}'`;
+            break;
+        case 'generate_followup_suggestions':
+            const sugData = structuredPrompt.data as FollowupSuggestionData;
+            systemMessage = `Given the user query and shown guidance, suggest two distinct, related topics or advanced features. Return JSON: {"suggestions": ["Sugg 1", "Sugg 2"]}. If none, return {"suggestions": []}.`;
+            userMessageContent = `User Query: '${sugData.query}'\nGuidance Shown (Title): '${sugData.articleTitle || 'N/A'}'`;
+            break;
         default:
-            // Generic prompt construction if not specifically handled above
-            systemMessage = `You are an AI assistant performing task: ${structuredPrompt.task}.`;
-            userMessageContent = `Please process the following data: ${JSON.stringify(structuredPrompt.data)}`;
+            systemMessage = `You are an AI assistant performing task: ${structuredPrompt.task}. Respond appropriately based on the data.`;
+            userMessageContent = `Data: ${JSON.stringify(structuredPrompt.data)}`;
             break;
     }
     return [ { role: "system", content: systemMessage }, { role: "user", content: userMessageContent } ];
@@ -258,51 +291,73 @@ export class OpenAIGroqService_Stub implements LLMServiceInterface {
 
     /*
     // ---- BEGIN ACTUAL OPENAI SDK CODE (NEEDS 'openai' PACKAGE INSTALLED & CONFIGURED) ----
-    // Ensure you have: import OpenAI from 'openai'; at the top of this file.
+    // At the top of this file, you would need:
+    // import OpenAI from 'openai';
+    // (And ensure 'openai' is in your package.json and installed)
 
     // const openai = new OpenAI({
-    //   apiKey: this.apiKey, // Ensure this.apiKey is set, ideally from environment variables
-    //   baseURL: this.baseURL, // For Groq
+    //   apiKey: this.apiKey, // Ensure this.apiKey is set (e.g., from environment variables)
+    //   baseURL: this.baseURL, // Crucial for targeting Groq's OpenAI-compatible API
     // });
 
     // try {
-    //   console.log(`[OpenAIGroqService_Stub] Attempting API call to model: ${targetModel}`);
+    //   console.log(`[OpenAIGroqService_Stub] Attempting API call to model: ${targetModel} with messages:`, JSON.stringify(messages, null, 2));
+
+    //   // Determine if JSON mode should be requested
+    //   const tasksRequiringJson = [
+    //       'categorize_email', 'extract_actions_email', 'classify_guidance_query',
+    //       'extract_steps_from_text', 'generate_followup_suggestions', 'extract_document_snippets'
+    //   ];
+    //   const responseFormat = tasksRequiringJson.includes(structuredPrompt.task)
+    //       ? { type: "json_object" as const } // Use "as const" for literal type
+    //       : undefined;
+
+    //   console.log(`[OpenAIGroqService_Stub] Using response_format: ${JSON.stringify(responseFormat)}`);
+
     //   const chatCompletion = await openai.chat.completions.create({
     //     messages: messages,
-    //     model: targetModel,
-    //     temperature: options?.temperature || 0.7,
-    //     max_tokens: options?.maxTokens || 1024,
-    //     // response_format: (structuredPrompt.task === 'categorize_email' || ...) ? { type: "json_object" } : undefined, // If JSON mode is desired and supported
+    //     model: targetModel, // e.g., "mixtral-8x7b-32768", "llama2-70b-4096"
+    //     temperature: options?.temperature || (responseFormat?.type === "json_object" ? 0.2 : 0.7), // Lower temp for JSON
+    //     max_tokens: options?.maxTokens || (responseFormat?.type === "json_object" ? 1024 : 400), // Adjust as needed
+    //     // ...(responseFormat ? { response_format: responseFormat } : {}), // Add if supported and needed by Groq for strict JSON
     //   });
 
     //   const content = chatCompletion.choices[0]?.message?.content;
     //   const usage = chatCompletion.usage
-    //       ? { promptTokens: chatCompletion.usage.prompt_tokens, completionTokens: chatCompletion.usage.completion_tokens, totalTokens: chatCompletion.usage.total_tokens }
+    //       ? {
+    //           promptTokens: chatCompletion.usage.prompt_tokens,
+    //           completionTokens: chatCompletion.usage.completion_tokens,
+    //           totalTokens: chatCompletion.usage.total_tokens
+    //         }
     //       : undefined;
 
     //   if (content) {
-    //     console.log("[OpenAIGroqService_Stub] Simulated successful API call. Content snippet:", content.substring(0,100));
+    //     console.log("[OpenAIGroqService_Stub] API call successful. Content snippet:", content.substring(0,100));
     //     return { success: true, content: content, usage: usage };
     //   } else {
     //     console.error("[OpenAIGroqService_Stub] API call succeeded but content is null or undefined.");
     //     return { success: false, error: "API call succeeded but content is missing." };
     //   }
     // } catch (error: any) {
-    //   console.error("[OpenAIGroqService_Stub] Error during API call simulation:", error);
-    //   return { success: false, error: error.message || "Unknown API error during simulation" };
+    //   console.error("[OpenAIGroqService_Stub] Error during API call:", error);
+    //   return { success: false, error: error.message || "Unknown API error" };
     // }
     // ---- END ACTUAL OPENAI SDK CODE ----
     */
 
-    // Fallback to returning a simple stubbed success response for now
-    // OR, for more dynamic mock responses even in the stub, call the MockLLMService:
-    // const mockService = new MockLLMService();
-    // return mockService.generate(structuredPrompt, modelNameToUse || this.groqModelName, options);
+    // Fallback to calling MockLLMService to get more dynamic mock content for the stub
+    const mockService = new MockLLMService();
+    // We pass the original structuredPrompt here, so MockLLMService uses its own detailed mock logic.
+    // The 'model' and 'options' are passed along too, though MockLLMService doesn't currently use them.
+    const mockResponse = await mockService.generate(structuredPrompt, targetModel, options);
+    console.log(`[OpenAIGroqService_Stub] Returning response from MockLLMService for task: ${structuredPrompt.task}`);
+    return mockResponse;
 
-    return {
-        success: true,
-        content: `[Stubbed OpenAIGroq Response for task: ${structuredPrompt.task} on model ${targetModel}. Input data (first 100 chars): ${JSON.stringify(structuredPrompt.data).substring(0,100)}...]`,
-        usage: { promptTokens: 50, completionTokens: 50, totalTokens: 100} // Mock usage
-    };
+    // Or, if you prefer a very simple static stub response:
+    // return {
+    //     success: true,
+    //     content: `[Stubbed OpenAIGroq Response for task: ${structuredPrompt.task} on model ${targetModel}. Input data (first 100 chars): ${JSON.stringify(structuredPrompt.data).substring(0,100)}...]`,
+    //     usage: { promptTokens: 50, completionTokens: 50, totalTokens: 100} // Mock usage
+    // };
   }
 }
