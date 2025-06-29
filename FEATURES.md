@@ -7,7 +7,7 @@ Atom is designed to enhance your productivity through a comprehensive suite of A
 *   **User Onboarding:** Guided setup wizard to configure Atom, connect integrations, and set initial preferences (e.g., work day, default alarms, primary calendar).
 *   **User Authentication:** Secure login system for protecting your data and configurations.
 *   **Configurable Agent Settings:** Customize various aspects of the Atom agent's behavior and its interaction with integrated services.
-*   **Wake Word Detection:** (If confirmed as fully functional) Initiate interaction with Atom using a spoken wake word for hands-free operation.
+*   **Wake Word Detection:** (Experimental) Initiate interaction with Atom using a spoken wake word (e.g., "Atom") for hands-free operation. This feature can be enabled in settings and requires microphone permission. Its functionality depends on a configured external WebSocket-based Speech-to-Text (STT) service (configure via `NEXT_PUBLIC_AUDIO_PROCESSOR_URL`). A mock mode (enable via `NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION=true`) is available for testing the UI flow without a live STT service.
 *   **Smart Meeting Preparation:** Proactively gathers relevant notes, emails, and tasks for your upcoming meetings. Example command: *"Atom, prepare me for my meeting with 'Project X' tomorrow."*
 *   **Automated Weekly Digest:** Provides a summary of your past week's accomplishments (completed tasks, key meetings) and a preview of critical items for the upcoming week. Can be triggered on-demand or scheduled. Example command: *"Atom, what's my weekly digest?"*
 *   **Intelligent Follow-up Suggester:** Analyzes meeting notes, transcripts, or project documents to identify and suggest potential action items, key decisions, and unresolved questions. Example command: *"Atom, suggest follow-ups for the 'Q3 Strategy discussion'."*
@@ -77,7 +77,7 @@ Leverage Atom's advanced automation and AI functionalities:
 *   **GPT-Powered Summaries:** Create concise summaries of information, such as a series of notes or research findings, over a defined period.
 *   **Event Feature Application Engine:** A backend system (potentially utilizing Optaplanner) responsible for applying defined features, rules, and templates to calendar events, ensuring consistent and intelligent scheduling.
 *   **Event-to-Vector Processing:** For semantic search and event matching, Atom processes event information into vectors, enabling more accurate matching and templating (uses LanceDB).
-*   **Live Meeting Attendance:** (If confirmed as fully functional) Atom can "attend" live meetings to perform tasks like automated note-taking or action item identification (details on this capability would be needed based on implementation).
+*   **Live Meeting Attendance:** (Experimental UI Implemented) Atom can "attend" live meetings to perform tasks like automated note-taking or action item identification. The UI for initiating attendance, selecting an audio source (from devices listed by the `live_meeting_worker` via `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL`), and monitoring task status is available in settings. Full functionality depends on backend worker implementation, correct audio routing by the user (see `atomic-docker/docs/live-meeting-attendance-setup.md`), and secure API key management for services like Notion, Deepgram, and OpenAI. The new Zoom SDK agent requires `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` and a fully implemented C++ helper.
 *   **Audio Processing:** Transcribe audio from various sources for notes, commands, or meeting recordings.
 
 ### Dependencies & Setup Notes for Advanced Features
@@ -102,17 +102,21 @@ To leverage some of Atom's more advanced capabilities, specific setup and config
     *   The Python backend service (`python_api_service`) must be running and correctly configured, as it handles the embedding storage and search query processing.
 
 *   **Wake Word Detection:**
-    *   This feature is marked as `(If confirmed as fully functional)`.
-    *   It requires the setup of an external WebSocket-based Speech-to-Text (STT) service, referred to as the `audio_processor`. The URL for this service must be configured via `AUDIO_PROCESSOR_URL`. The implementation or specific choice of this STT service is currently up to the user.
+    *   This feature is marked as `(Experimental)`.
+    *   It requires the setup of an external WebSocket-based Speech-to-Text (STT) service, referred to as the `audio_processor`. The URL for this service must be configured via the `NEXT_PUBLIC_AUDIO_PROCESSOR_URL` environment variable for the frontend application.
+    *   A mock mode can be enabled by setting `NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION=true`, which simulates wake word detection for UI testing purposes without needing a live STT service.
+    *   The feature can be toggled on/off in the Atom Agent Configuration settings.
 
 *   **Live Meeting Attendance:**
-    *   This feature is also marked as `(If confirmed as fully functional)`.
-    *   Its ability to reliably capture meeting audio (not just microphone input) is highly dependent on the user's operating system and system audio configuration. Users typically need to route their meeting application's output audio to a virtual input device that Atom can then listen to. Detailed platform-specific guides for this audio routing are recommended but not yet part of this documentation.
+    *   This feature is marked as `(Experimental UI Implemented)`.
+    *   Its ability to reliably capture meeting audio (not just microphone input) is highly dependent on the user's operating system and system audio configuration. Users typically need to route their meeting application's output audio to a virtual input device that Atom can then listen to. Refer to `atomic-docker/docs/live-meeting-attendance-setup.md` for audio setup guidance.
+    *   The frontend UI (in settings) allows users to refresh and select an audio device (listed by the `live_meeting_worker`). The URL for the worker's device listing endpoint should be configured via `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL`.
+    *   Initiating and monitoring tasks is supported via the UI, but full end-to-end functionality relies on correctly configured backend services (API handler, Kafka, live meeting worker, and potentially a fully implemented Zoom C++ SDK helper) and secure API key management.
 
 ### Integrations
 Atom connects with a wide range of third-party services to create a unified productivity hub:
 *   **Calendar Providers:**
-    *   Google Calendar (Full sync, watch for changes via push notifications, OAuth 2.0 for secure access)
+    *   Google Calendar (Full sync via OAuth 2.0, with token management for agent interactions. Ensure redirect URI `/api/atom/auth/calendar/callback` is configured in Google Cloud Console.)
     *   Microsoft Teams (Integration for calendar events and online meetings)
 *   **Communication & Collaboration:**
     *   Slack (Send messages, list channels, receive notifications)

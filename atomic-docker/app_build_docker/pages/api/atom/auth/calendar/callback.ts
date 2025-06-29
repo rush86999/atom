@@ -1,124 +1,190 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { google } from 'googleapis';
-import {
-  ATOM_GOOGLE_CALENDAR_CLIENT_ID,
-  ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
-  ATOM_GOOGLE_CALENDAR_REDIRECT_URI,
-  // GOOGLE_TOKEN_URL is implicitly used by oauth2Client.getToken()
-} from '../../../../../../project/functions/atom-agent/_libs/constants'; // Adjusted path
+import type { NextApiRequest, NextApiResponse } from 'next'
+import qs from 'qs'
+import Cors from 'cors'
+import { exchangeCodeForTokens } from '@lib/api-backend-helper' // Removed unused Google-specific helpers for now
+import { dayjs } from '@lib/date-utils'
 
-// Define an interface for storing tokens (conceptual)
-export interface UserGoogleCalendarTokens {
-  userId: string;
-  accessToken: string;
-  refreshToken?: string; // Refresh tokens are not always returned on every auth flow
-  expiryDate: number; // Store as a timestamp (Date.now() + expires_in * 1000)
-  scope: string;
-  tokenType: string;
-}
+import { superTokensNextWrapper } from 'supertokens-node/nextjs'
+import { verifySession } from 'supertokens-node/recipe/session/framework/express'
+import supertokens from 'supertokens-node'
+import { backendConfig } from '../../../../../config/backendConfig' // Adjusted path
+import { Credentials as OAuth2Token } from 'google-auth-library';
 
-// Placeholder for actual user ID retrieval
-async function getUserIdFromRequest(req: NextApiRequest): Promise<string | null> {
-  // TODO: Implement real user ID retrieval from session/token (e.g., SuperTokens, NextAuth.js)
-  console.log('TODO: Implement actual user ID retrieval in getUserIdFromRequest (callback)');
-  return "mock_user_id_from_callback"; // Replace with actual user ID logic
-}
+// Assuming these are needed for GraphQL client used by saveUserTokensInternal
+import { HASURA_GRAPHQL_URL, HASURA_ADMIN_SECRET } from '../../../../../../project/functions/atom-agent/_libs/constants';
+import { executeGraphQLMutation } from '../../../../../../project/functions/atom-agent/_libs/graphqlClient';
 
-// Placeholder for state verification
-async function verifyState(req: NextApiRequest, receivedState: string): Promise<boolean> {
-  // TODO: Retrieve the state stored in the user's session during the initiate step
-  // and compare it with receivedState.
-  console.log(`TODO: Implement state verification. Received state: ${receivedState}. Stored state should be retrieved from session.`);
-  // For now, always return true for mock purposes. In production, this must be a real check.
-  return true;
-}
+const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
+
+const cors = Cors({
+    methods: ['POST', 'GET', 'HEAD'],
+    // Allow all origins for simplicity in dev, or specify your frontend URL
+    // origin: process.env.NODE_ENV === 'production' ? ["https://atomiclife.app", /\.atomiclife\.app$/] : "*",
+})
+
+supertokens.init(backendConfig())
+
+function runMiddleware(
+    req: NextApiRequest,
+    res: NextApiResponse,
+    fn: Function
 ) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', ['GET']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+    return new Promise((resolve, reject) => {
+        fn(req, res, (result: any) => {
+            if (result instanceof Error) {
+                return reject(result)
+            }
+            return resolve(result)
+        })
+    })
+}
+
+// This function is an adaptation of saveUserTokens from calendarSkills.ts
+// to be used directly within this API route.
+async function saveUserTokensInternal(userId: string, tokens: OAuth2Token): Promise<{ ok: boolean; error?: any }> {
+  console.log(`AUTH_CALLBACK: Saving tokens for userId: ${userId}, service: ${GOOGLE_CALENDAR_SERVICE_NAME}`);
+
+  if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
+    console.error("AUTH_CALLBACK: GraphQL client is not configured for saveUserTokensInternal.");
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'GraphQL client is not configured.' } };
   }
+
+  const mutation = `
+    mutation UpsertUserToken($objects: [user_tokens_insert_input!]!) {
+      insert_user_tokens(
+        objects: $objects,
+        on_conflict: {
+          constraint: user_tokens_user_id_service_name_key,
+          update_columns: [access_token, refresh_token, expiry_date, scope, token_type, updated_at]
+        }
+      ) {
+        affected_rows
+      }
+    }
+  `;
+
+  const tokenDataForDb = {
+    user_id: userId,
+    service_name: GOOGLE_CALENDAR_SERVICE_NAME,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+    scope: tokens.scope,
+    token_type: tokens.token_type,
+    updated_at: new Date().toISOString(),
+  };
+
+  const variables = { objects: [tokenDataForDb] };
+  const operationName = 'UpsertUserToken';
 
   try {
-    const { code, state, error: googleError } = req.query;
-
-    if (googleError) {
-      console.error('Error from Google OAuth callback for Atom Agent:', googleError);
-      // Redirect to settings page with an error
-      return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent(googleError as string)}`);
-    }
-
-    // Verify the state parameter for CSRF protection
-    const isStateValid = await verifyState(req, state as string);
-    if (!isStateValid) {
-      console.error('Invalid OAuth state parameter for Atom Agent.');
-      return res.redirect('/Settings/UserViewSettings?calendar_auth_error=invalid_state');
-    }
-
-    if (!code) {
-      console.error('No authorization code received from Google for Atom Agent.');
-      return res.redirect('/Settings/UserViewSettings?calendar_auth_error=no_code');
-    }
-
-    if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET || !ATOM_GOOGLE_CALENDAR_REDIRECT_URI) {
-      console.error('Google Calendar OAuth environment variables not set for Atom Agent (callback).');
-      return res.status(500).json({ error: 'OAuth configuration error for Atom Agent (callback).' });
-    }
-
-    const oauth2Client = new google.auth.OAuth2(
-      ATOM_GOOGLE_CALENDAR_CLIENT_ID,
-      ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
-      ATOM_GOOGLE_CALENDAR_REDIRECT_URI
+    const response = await executeGraphQLMutation<{ insert_user_tokens: { affected_rows: number } }>(
+        mutation,
+        variables,
+        operationName,
+        userId // Assuming executeGraphQLMutation can take userId for context/logging
     );
 
-    const { tokens } = await oauth2Client.getToken(code as string);
-    console.log('Received tokens from Google for Atom Agent:', tokens);
-
-    const userId = await getUserIdFromRequest(req);
-    if (!userId) {
-      // This case should ideally be handled before this point by session middleware,
-      // but as a safeguard:
-      console.error('User not authenticated during OAuth callback for Atom Agent.');
-      return res.redirect('/User/Login/UserLogin?error=unauthenticated_oauth_callback');
-    }
-
-    if (tokens.access_token && tokens.expiry_date && tokens.scope && tokens.token_type) {
-      const userTokens: UserGoogleCalendarTokens = {
-        userId: userId,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || undefined, // refresh_token is not always sent
-        expiryDate: tokens.expiry_date,
-        scope: tokens.scope,
-        tokenType: tokens.token_type
-      };
-
-      // TODO: Securely store these tokens for the user.
-      // This could be in a database, associated with the userId.
-      // Ensure refreshToken is stored very securely.
-      console.log(`TODO: Securely store these tokens for Atom Agent (userId: ${userId}):`, JSON.stringify(userTokens));
-
-      // For example, you might call a service here:
-      // await saveUserGoogleTokens(userId, userTokens);
-
+    if (response && response.insert_user_tokens && response.insert_user_tokens.affected_rows > 0) {
+      console.log(`AUTH_CALLBACK: Tokens saved successfully to user_tokens table for user ${userId}.`);
+      return { ok: true };
     } else {
-        console.error("Essential token information missing from Google's response for Atom Agent", tokens);
-        return res.redirect('/Settings/UserViewSettings?calendar_auth_error=token_missing_info');
+      console.warn(`AUTH_CALLBACK: Token save operation for user ${userId} (user_tokens table) reported 0 affected_rows or no response.`, response);
+      // Potentially an issue if tokens were expected to be new or different
+      return { ok: false, error: {code: 'DB_NO_ROWS_AFFECTED', message: 'Token save did not affect any rows.'}};
     }
-
-    // Redirect to a success page (e.g., settings page)
-    console.log('Successfully processed Google Calendar OAuth callback for Atom Agent.');
-    res.redirect('/Settings/UserViewSettings?calendar_auth_success=true&atom_agent=true');
-
   } catch (error: any) {
-    console.error('Error in Google Calendar OAuth callback for Atom Agent:', error);
-    // Check if the error is from getToken (e.g., invalid code)
-    if (error.response && error.response.data) {
-        console.error('Google API error details:', error.response.data);
-        return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent(error.response.data.error_description || 'google_api_error')}`);
-    }
-    res.redirect('/Settings/UserViewSettings?calendar_auth_error=callback_failed');
+    console.error(`AUTH_CALLBACK: Exception during saveUserTokensInternal for userId ${userId}:`, error);
+    return {
+        ok: false,
+        error: {
+            code: 'TOKEN_SAVE_FAILED_INTERNAL',
+            message: `Failed to save Google Calendar tokens to user_tokens for user ${userId}.`,
+            details: error.message
+        }
+    };
   }
+}
+
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    try {
+        await runMiddleware(req, res, cors)
+
+        await superTokensNextWrapper(
+            async (next) => {
+              return await verifySession()(req as any, res as any, next)
+            },
+            req,
+            res
+        )
+
+        const session = req.session;
+        const userId = session?.getUserId();
+
+        if (!userId) {
+            console.error("AUTH_CALLBACK: User not authenticated in callback.");
+            // Redirect to login or an error page if not authenticated
+            return res.redirect('/User/Login/UserLogin?error=session_expired_oauth_callback');
+        }
+
+        const thisUrl = new URL(req.url as string, `https://${req.headers.host}`)
+        const queryParams = qs.parse(thisUrl.search.substring(1)); // Use qs to parse query
+
+        if (queryParams.error) {
+            const error = queryParams.error as string;
+            console.warn(`AUTH_CALLBACK: Error from Google OAuth provider: ${error}`);
+            // Redirect to settings page with an error message
+            // The settings page should be prepared to display this error to the user.
+            return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent(error)}&atom_agent=true`);
+        }
+
+        const code = queryParams.code as string;
+        const state = queryParams.state as string; // This should be the userId
+
+        if (state !== userId) {
+            console.error(`AUTH_CALLBACK: Invalid OAuth state. Expected: ${userId}, Received: ${state}`);
+            return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=invalid_state&atom_agent=true`);
+        }
+
+        if (!code) {
+            console.error("AUTH_CALLBACK: No authorization code received from Google.");
+            return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=no_code_received&atom_agent=true`);
+        }
+
+        const tokens = await exchangeCodeForTokens(code);
+
+        if (!tokens || !tokens.access_token) {
+            console.error("AUTH_CALLBACK: Failed to exchange code for tokens or access_token missing.", tokens);
+            return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=token_exchange_failed&atom_agent=true`);
+        }
+
+        console.log('AUTH_CALLBACK: Tokens received from Google:', {
+            accessToken: tokens.access_token ? 'PRESENT' : 'MISSING',
+            refreshToken: tokens.refresh_token ? 'PRESENT' : 'MISSING',
+            expiresIn: tokens.expiry_date, // This is actually expiry_date (timestamp) from googleapis
+            scope: tokens.scope,
+        });
+
+        // Save tokens to the user_tokens table using the internal helper
+        const saveResult = await saveUserTokensInternal(userId, tokens);
+
+        if (!saveResult.ok) {
+            console.error("AUTH_CALLBACK: Failed to save tokens to user_tokens table.", saveResult.error);
+            const errorMessage = saveResult.error?.message || 'failed_to_save_tokens';
+            return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent(errorMessage)}&atom_agent=true`);
+        }
+
+        console.log(`AUTH_CALLBACK: Google Calendar connected successfully for user ${userId}.`);
+        // Redirect to settings page with success message
+        return res.redirect('/Settings/UserViewSettings?calendar_auth_success=true&atom_agent=true');
+
+    } catch (e: unknown) {
+        console.error('AUTH_CALLBACK: General error in Google OAuth callback handler:', e);
+        const errorMessage = e instanceof Error ? e.message : 'Internal server error in OAuth callback.';
+        // It's crucial to avoid exposing sensitive error details.
+        // Log the detailed error server-side and redirect with a generic error message.
+        return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent('callback_processing_failed')}&atom_agent=true`);
+    }
 }
