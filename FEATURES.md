@@ -66,10 +66,15 @@ Keep your knowledge organized and accessible with Atom's integrated capabilities
 *   **Multi-Agent Research System (Notion & LanceDB):** Initiate research projects based on simple queries. A lead AI agent decomposes your query into sub-tasks and assigns them to specialized sub-agents. These agents perform research (e.g., web searches, internal Notion searches using LanceDB for vector-based information retrieval) and log their findings in a dedicated Notion database. The lead agent then synthesizes this information into a comprehensive final report, also in Notion.
 *   **Python API for Notes & Research:** Backend handlers and APIs for managing notes and research processes programmatically, including endpoints for handling direct audio uploads and processing.
 *   **Searchable Meeting Archive (Semantic Search):**
-    *   Unlock the knowledge in your past meetings. Transcripts stored in Notion (e.g., from live meeting processing or other sources) can be automatically converted into vector embeddings using AI models (like OpenAI).
-    *   These embeddings are stored in a LanceDB vector database, enabling powerful semantic search capabilities.
-    *   You can ask Atom natural language questions like, "What were the main points about the Q3 budget?" or "Find meetings where we discussed marketing collaborations," and Atom will search the content of your transcripts to find the most relevant discussions.
-    *   **Dependencies:** This feature requires a running LanceDB instance (configure via `LANCEDB_URI`), an `OPENAI_API_KEY` for generating embeddings, and the Python backend service to be operational.
+    *   Unlock the knowledge in your past meetings. Transcripts stored in Notion (e.g., from live meeting processing or manual additions) are processed into vector embeddings (e.g., using OpenAI models) and stored in a LanceDB vector database, associated with your user ID.
+    *   **Agent Interaction:** You can ask Atom natural language questions like, "What were the main points about the Q3 budget?" or "Find meetings where we discussed marketing collaborations."
+    *   **Backend Process:** The Atom agent sends your query to a Python backend service. This service generates an embedding for your query (using an AI model like OpenAI) and then searches the LanceDB database for the most similar transcript chunks corresponding to your user ID.
+    *   **Results:** Atom displays relevant meeting titles, dates, and links to the Notion pages containing the full context.
+    *   **Dependencies:**
+        *   A running LanceDB instance (configure its URI via `LANCEDB_URI` for the Python backend).
+        *   An `OPENAI_API_KEY` (configured for the Python backend) for generating query embeddings and potentially for embedding transcripts if not done elsewhere.
+        *   The Python backend service (e.g., `python-api-service`, configured via `PYTHON_API_SERVICE_BASE_URL` for the `atom-agent`) must be operational and expose an endpoint like `/api/semantic_search_meetings`.
+        *   A pipeline for ingesting meeting transcripts into Notion and then processing them into LanceDB (details of this ingestion pipeline are TBD or part of a separate setup).
 
 ### Automation & AI Capabilities
 Leverage Atom's advanced automation and AI functionalities:
