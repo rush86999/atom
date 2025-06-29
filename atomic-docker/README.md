@@ -3,15 +3,17 @@
 ## Tech Stack
 - Traefik
 - [Optaplanner](https://github.com/rush86999/atomic-scheduler/tree/main/kotlin-quarkus)
-- Classification model
+- LLM
 - Node.js
 - Typescript
-- Opensearch
+- LanceDb
 - Hasura
 - Postgres
 - Supertokens
 - Kafka
 - Express
+- Agenda
+- Mongodb
   
 ## Build Steps
 
