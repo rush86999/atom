@@ -2,52 +2,87 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Box from '@components/common/Box';
 import Text from '@components/common/Text';
-import Button from '@components/Button'; // Assuming a generic Button component exists
+import Button from '@components/Button';
+import Switch from '@components/Switch';
+import { useWakeWord } from 'contexts/WakeWordContext';
+import LiveMeetingAttendanceSettings from './LiveMeetingAttendanceSettings'; // Moved import to top
 
 const AtomAgentSettings = () => {
   const router = useRouter();
+  const { isWakeWordEnabled, toggleWakeWord, isListening, wakeWordError } = useWakeWord();
   // TODO: This state should ideally be fetched from a backend endpoint
   // that checks actual token status for the user.
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null); // To store mock email
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [apiMessage, setApiMessage] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
-  // const [zapierUrl, setZapierUrl] = React.useState(''); // For later use
 
   useEffect(() => {
+    // Function to fetch connection status
+    const fetchStatus = async () => {
+      setIsLoadingStatus(true);
+      try {
+        const response = await fetch('/api/atom/auth/calendar/status');
+        const data = await response.json();
+        if (response.ok) {
+          setIsCalendarConnected(data.isConnected);
+          if (data.isConnected) {
+            // Assuming the status endpoint might return user email or a generic placeholder
+            setUserEmail(data.email || 'Connected');
+          } else {
+            setUserEmail(null);
+            if (data.error) {
+              // Optionally set an error message if status check reveals an issue
+              // setApiError(`Status check failed: ${data.error}`);
+              console.warn("Calendar status check indicates not connected or an error:", data.error);
+            }
+          }
+        } else {
+          setApiError(data.message || 'Failed to fetch calendar connection status.');
+          setIsCalendarConnected(false);
+          setUserEmail(null);
+        }
+      } catch (err) {
+        console.error('Error fetching calendar status:', err);
+        setApiError('Could not connect to the server to check calendar status.');
+        setIsCalendarConnected(false);
+        setUserEmail(null);
+      }
+      setIsLoadingStatus(false);
+    };
+
+    fetchStatus(); // Fetch status on component mount
+
+    // Handling query parameters from OAuth redirects
     const { query } = router;
+    let messageFromRedirect = null;
+    let errorFromRedirect = null;
+
     if (query.calendar_auth_success === 'true' && query.atom_agent === 'true') {
-      setApiMessage('Google Calendar connected successfully!');
-      setIsCalendarConnected(true);
-      setUserEmail('user@example.com (mock)'); // Simulate fetching/knowing user email
-      // Clean the query params from URL without page reload
-      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+      messageFromRedirect = 'Google Calendar connected successfully!';
+      fetchStatus(); // Re-fetch status to update UI correctly
     } else if (query.calendar_auth_error && query.atom_agent === 'true') {
-      setApiError(`Google Calendar connection failed: ${query.calendar_auth_error}`);
-      setIsCalendarConnected(false);
-      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+      errorFromRedirect = `Google Calendar connection failed: ${query.calendar_auth_error}`;
+      fetchStatus(); // Re-fetch status
     } else if (query.calendar_disconnect_success === 'true' && query.atom_agent === 'true') {
-      setApiMessage('Google Calendar disconnected successfully!');
-      setIsCalendarConnected(false);
-      setUserEmail(null);
-      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+      messageFromRedirect = 'Google Calendar disconnected successfully!';
+      fetchStatus(); // Re-fetch status
     }
 
-    // TODO: Fetch initial connection status from backend when component mounts
-    // For now, it defaults to false or relies on query params from OAuth flow.
-    // Example:
-    // fetch('/api/atom/auth/calendar/status')
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     if (data.isConnected) {
-    //       setIsCalendarConnected(true);
-    //       setUserEmail(data.email); // Assuming API returns email
-    //     }
-    //   });
-  }, [router.query]); // Re-run when query parameters change
+    if (messageFromRedirect) setApiMessage(messageFromRedirect);
+    if (errorFromRedirect) setApiError(errorFromRedirect);
+
+    if (query.calendar_auth_success || query.calendar_auth_error || query.calendar_disconnect_success) {
+      // Clean the query params from URL without page reload
+      router.replace('/Settings/UserViewSettings', undefined, { shallow: true });
+    }
+  }, [router]); // Rerun effect if router object itself changes (includes query changes for initial load)
 
   const handleConnectGoogleCalendar = () => {
+    setApiMessage(null);
+    setApiError(null);
     // Redirect to the OAuth initiation URL
     router.push('/api/atom/auth/calendar/initiate');
   };
@@ -55,22 +90,28 @@ const AtomAgentSettings = () => {
   const handleDisconnectGoogleCalendar = async () => {
     setApiMessage(null);
     setApiError(null);
+    setIsLoadingStatus(true); // Indicate loading during disconnect
     try {
-      const response = await fetch('/api/atom/auth/calendar/disconnect', {
-        method: 'POST', // Or GET, depending on your API design for disconnect
-      });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setIsCalendarConnected(false);
-        setUserEmail(null);
-        setApiMessage(data.message || 'Google Calendar disconnected successfully!');
-      } else {
-        setApiError(data.message || 'Failed to disconnect Google Calendar.');
-      }
+      // The disconnect API now redirects, so we don't need to process response here directly
+      // The redirect will trigger the useEffect to update status based on query params
+      await router.push('/api/atom/auth/calendar/disconnect');
+      // If server-side redirect in disconnect doesn't work as expected or for SPA-like behavior:
+      // const response = await fetch('/api/atom/auth/calendar/disconnect', {
+      //   method: 'POST',
+      // });
+      // const data = await response.json();
+      // if (response.ok && data.success) {
+      //   setIsCalendarConnected(false);
+      //   setUserEmail(null);
+      //   setApiMessage(data.message || 'Google Calendar disconnected successfully!');
+      // } else {
+      //   setApiError(data.message || 'Failed to disconnect Google Calendar.');
+      // }
     } catch (err) {
       console.error('Disconnect error:', err);
-      setApiError('An error occurred while disconnecting Google Calendar.');
+      setApiError('An error occurred while trying to disconnect Google Calendar.');
     }
+    // setIsLoadingStatus(false); // Status will be updated by useEffect via redirect
   };
 
   // const handleConnectEmail = () => console.log('Connect Email Account clicked');
@@ -156,6 +197,44 @@ const AtomAgentSettings = () => {
         />
         <Button onPress={() => console.log('Save Zapier URL clicked')} variant="primary" title="Save Zapier URL" />
       </Box>
+
+      {/* Wake Word Detection Section */}
+      <Box marginTop="m" paddingTop="m" borderTopWidth={1} borderColor="hairline">
+        <Text variant="subHeader" marginBottom="s">
+          Wake Word Detection (Experimental)
+        </Text>
+        <Box flexDirection="row" alignItems="center" marginBottom="s">
+          <Switch
+            value={isWakeWordEnabled}
+            onValueChange={toggleWakeWord}
+            accessibilityLabel="Toggle Wake Word Detection"
+          />
+          <Text marginLeft="s">Enable Wake Word ("Atom")</Text>
+        </Box>
+        {isWakeWordEnabled && isListening && (
+          <Text color="green.500" marginBottom="s">Status: Listening...</Text>
+        )}
+        {isWakeWordEnabled && !isListening && !wakeWordError && (
+          <Text color="gray.500" marginBottom="s">Status: Enabled, but not actively listening (e.g. mic permission pending or idle)</Text>
+        )}
+         {isWakeWordEnabled && !isListening && wakeWordError && (
+          <Text color="orange.500" marginBottom="s">Status: Enabled, but currently not listening due to error.</Text>
+        )}
+        {wakeWordError && (
+          <Box backgroundColor="red.100" padding="s" marginBottom="m" borderRadius="s">
+            <Text color="red.700">Wake Word Error: {wakeWordError}</Text>
+          </Box>
+        )}
+        <Text variant="body" fontSize="sm" color="gray.600">
+          Allows Atom to listen for the wake word "Atom" to start interactions. Requires microphone permission.
+          This feature is experimental and relies on a configured audio processor (NEXT_PUBLIC_AUDIO_PROCESSOR_URL).
+          If NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION is true, it will simulate detection.
+        </Text>
+      </Box>
+
+      {/* Live Meeting Attendance Section */}
+      <LiveMeetingAttendanceSettings />
+
     </Box>
   );
 };

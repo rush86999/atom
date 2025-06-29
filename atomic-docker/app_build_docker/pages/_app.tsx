@@ -40,7 +40,9 @@ import Head from 'next/head'
 import Modal from 'react-modal'
 
 import { TooltipProvider } from '@components/chat/ui/tooltip'
-import { AudioModeProvider } from '@lib/contexts/AudioModeContext'; // Added AudioModeProvider
+import { AudioModeProvider } from '@lib/contexts/AudioModeContext';
+import { AgentAudioControlProvider } from 'contexts/AgentAudioControlContext';
+import { WakeWordProvider } from 'contexts/WakeWordContext';
 import Session from "supertokens-web-js/recipe/session"
 import SuperTokensReact, { SuperTokensWrapper } from 'supertokens-auth-react'
 import { frontendConfig } from '../config/frontendConfig'
@@ -178,12 +180,16 @@ function MyApp({ Component, emotionCache = clientSideEmotionCache, pageProps }: 
 
           <ChakraProvider>
             <ThemeProvider theme={theme}>
-              <AudioModeProvider> {/* Wrap with AudioModeProvider */}
-                <AppState>
-                  <SideBarWithHeader>
-                      <Component {...pageProps} />
-                  </SideBarWithHeader>
-                </AppState>
+              <AudioModeProvider>
+                <AgentAudioControlProvider>
+                  <WakeWordProvider>
+                    <AppState>
+                      <SideBarWithHeader>
+                          <Component {...pageProps} />
+                      </SideBarWithHeader>
+                    </AppState>
+                  </WakeWordProvider>
+                </AgentAudioControlProvider>
               </AudioModeProvider>
             </ThemeProvider>
             </ChakraProvider>

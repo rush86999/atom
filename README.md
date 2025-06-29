@@ -92,12 +92,36 @@ For a more detailed list of commands and their specific syntax, please refer to 
 
 The Atom Agent uses environment variables for its configuration and to connect to various third-party services.
 
-Atom requires various environment variables to be set for full functionality, including API keys for OpenAI, Notion, Deepgram, and credentials for integrated services like Google Calendar, HubSpot, Slack, Zoom, Microsoft Teams, Stripe, and QuickBooks Online. You will also need to configure settings for LanceDB storage and web search APIs.
-Additional important variables for new features include:
-*   `ATOM_NOTION_TASKS_DATABASE_ID`: The ID of your Notion database to be used for task management.
-*   `LANCEDB_URI`: The URI for your LanceDB instance (e.g., `./lance_db` for a local setup, or a remote URI if applicable). This is required for the semantic search of meeting transcripts.
-*   `PYTHON_API_SERVICE_BASE_URL`: (Optional) If your Python backend service runs on a different URL than the default (`http://localhost:8080`), specify it here.
-Remember to consult the `.env.example` file for a comprehensive list.
+Atom requires various environment variables to be set for full functionality. These include API keys for services like OpenAI, Notion, Deepgram, and credentials for various integrations. Below are some key variables, including those for newer features. Always consult the `.env.example` file in `atomic-docker/project/` for a comprehensive list and the deployment guides for detailed setup.
+
+**Core Service & API Keys:**
+*   `OPENAI_API_KEY`: For AI capabilities.
+*   `NOTION_API_KEY`: For Notion integration.
+*   `DEEPGRAM_API_KEY`: For transcription services.
+*   `ATOM_NOTION_TASKS_DATABASE_ID`: The ID of your Notion database for task management.
+*   `LANCEDB_URI`: URI for your LanceDB instance (e.g., `./lance_db` for local, or a remote URI). Required for semantic search of meeting transcripts.
+*   `PYTHON_API_SERVICE_BASE_URL`: (Optional) URL for the Python backend service if not `http://localhost:8080`.
+
+**Google Calendar Integration (Agent & UI):**
+*   `ATOM_GOOGLE_CALENDAR_CLIENT_ID`: Google Cloud OAuth Client ID (for `atom-agent` service).
+*   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET`: Google Cloud OAuth Client Secret (for `atom-agent` service).
+*   `NEXT_PUBLIC_GOOGLE_CLIENT_ID_ATOMIC_WEB`: Google Cloud OAuth Client ID (for frontend, if different or specific to web app's OAuth flow).
+*   `GOOGLE_CLIENT_SECRET_ATOMIC_WEB`: Google Cloud OAuth Client Secret (for backend handling web app's OAuth flow).
+*   `GOOGLE_OAUTH_ATOMIC_WEB_REDIRECT_URL`: Your app's redirect URI, e.g., `http://localhost:3000/api/atom/auth/calendar/callback`. This **must** be registered in your Google Cloud Console.
+
+**Wake Word Detection (Frontend - Experimental):**
+*   `NEXT_PUBLIC_AUDIO_PROCESSOR_URL`: (Optional) URL of your external WebSocket-based STT service for wake word detection.
+*   `NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION`: (Optional) Set to `true` to simulate wake word detection for UI testing without a live STT service.
+
+**Live Meeting Attendance (Frontend & Worker - Experimental):**
+*   `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL`: URL for the `live_meeting_worker` service (e.g., `http://localhost:8081`), used by the frontend to list audio devices.
+*   For the `live_meeting_worker` and `attend_live_meeting` handler:
+    *   `ZOOM_SDK_KEY` & `ZOOM_SDK_SECRET`: Required if using the `NewZoomSdkAgent`. These are passed from the client during the API call but might also be relevant for the handler or worker environment depending on exact flow. The setup guide indicates these are passed in `handler_input`.
+
+**Database & Hasura:**
+*   `HASURA_GRAPHQL_URL`: URL for your Hasura GraphQL endpoint.
+*   `HASURA_ADMIN_SECRET`: Admin secret for Hasura.
+*   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: Credentials for the PostgreSQL database.
 
 For a comprehensive list of all environment variables and their setup, please refer to the `.env.example` file in the `atomic-docker/project/` directory and the detailed setup instructions in the deployment guides for [Local Docker Compose](./atomic-docker/README.md) and [AWS Cloud Deployment](./deployment/aws/README.md).
 
