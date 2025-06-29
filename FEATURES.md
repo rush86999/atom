@@ -38,10 +38,10 @@ Atom revolutionizes how you manage your time with a suite of AI-powered scheduli
 *   **Task Scheduling (Future & Recurring)**: Atom can schedule tasks or actions for future execution. You can ask the agent to perform a task at a specific date and time, or set up recurring tasks (e.g., "remind me every Monday at 9 AM to check emails"). This uses a persistent, internal scheduling system (Agenda with MongoDB) to ensure tasks are reliably executed even if the system restarts.
 
 ### Task Management (Voice-Powered with Notion Backend)
-Atom now offers comprehensive voice-powered task management, using a dedicated Notion database that you configure.
-*   **Task Creation:** Easily create new tasks using natural language (e.g., "Atom, add 'Draft Q4 report' to my work list due next Friday"). Atom captures the description, due date/time, priority, and can assign it to a specific list.
-*   **Task Querying:** Ask Atom about your tasks with various filters. For example: "What are my tasks for today?", "Show me overdue items on my shopping list," or "List high priority work tasks."
-*   **Task Updates:** Modify existing tasks using voice commands, such as marking them as complete (e.g., "Atom, mark 'buy groceries' as done") or changing their properties.
+Atom offers comprehensive voice-powered task management using a dedicated Notion database (configure via `ATOM_NOTION_TASKS_DATABASE_ID`). The agent understands natural language commands to create, query, and update tasks.
+*   **Task Creation:** Create tasks by specifying descriptions, due dates (e.g., "tomorrow", "next Friday at 5pm"), priorities (e.g., "high", "low"), and list names (e.g., "work", "personal"). Example: "Atom, add 'Draft Q4 report' to my work list due next Friday, priority high." Atom parses these details and populates the corresponding fields in your Notion task database.
+*   **Task Querying:** Ask about your tasks using various filters like date conditions ("today", "overdue", "this week"), priority, list name, status, or keywords in the description. Example: "Atom, what are my high priority work tasks due today?"
+*   **Task Updates:** Modify existing tasks by referring to them (e.g., by name) and specifying the changes, such as marking them complete, changing due dates, or updating priorities. Example: "Atom, mark 'buy groceries' as done" or "Change the due date for 'Draft Q4 report' to next Monday."
 *   **Flexible Task Properties:** Tasks are stored in Notion with properties like:
     *   `Task Description` (Title type in Notion)
     *   `Due Date` (Date type)
