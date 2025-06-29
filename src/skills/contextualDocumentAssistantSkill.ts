@@ -2,7 +2,13 @@
 // For now, if it's needed here, it would be re-defined or imported.
 // Let's assume for now that invokeLLM is a global-like utility function.
 // If not, we'd need to pass it or instantiate it.
-import { invokeLLM } from '../lib/llmUtils'; // Assuming invokeLLM is now in this path
+import {
+    invokeLLM,
+    StructuredLLMPrompt,
+    DocumentSnippetData,
+    DocumentSummaryData,
+    OverallSummaryData
+} from '../lib/llmUtils';
 
 // Mock Documents Data Store
 const MOCK_DOCUMENTS: DocumentContent[] = [
@@ -138,28 +144,26 @@ export class ContextualDocumentAssistantSkill {
     //    (Loop will be limited by maxResults if many documents are returned by _fetchMockDocuments without specific IDs)
     for (const doc of candidateDocuments.slice(0, maxResults)) {
       console.log(`[ContextualDocumentAssistantSkill] Processing document: ${doc.id} - ${doc.title}`);
-      //    a. Create snippetPrompt: "Given the query '${input.query}', extract up to 3 relevant snippets (each ~${snippetLength} chars) from the following document text. Return as JSON: {snippets: string[]}. Document Text: ${doc.textContent.substring(0, 2000)}..."
-      const docTextSnippetForLLM = doc.textContent.substring(0, 2000); // Limit text sent to LLM
-      const snippetPrompt = `
-        Given the query "${input.query}", extract up to 3 most relevant snippets from the following document text.
-        Each snippet should be approximately ${snippetLength} characters long.
-        Return the result as a JSON object with a single key "snippets" containing an array of strings: {"snippets": ["snippet1", "snippet2", ...]}.
-        If no relevant snippets are found, return {"snippets": []}.
-
-        Document Title: "${doc.title}"
-        Document Text:
-        "${docTextSnippetForLLM}..."
-      `;
+      const snippetData: DocumentSnippetData = {
+        query: input.query,
+        documentTitle: doc.title,
+        documentText: doc.textContent.substring(0, 2000), // Limit text sent
+        snippetLength: snippetLength
+      };
+      const structuredSnippetPrompt: StructuredLLMPrompt = {
+        task: 'extract_document_snippets',
+        data: snippetData
+      };
 
       let extractedSnippets: string[] = [];
       try {
-        const llmSnippetsResponse = await invokeLLM(snippetPrompt, 'cheapest');
+        const llmSnippetsResponse = await invokeLLM(structuredSnippetPrompt, 'cheapest');
         console.log(`[ContextualDocumentAssistantSkill] LLM snippets response for doc ${doc.id}: ${llmSnippetsResponse}`);
         const parsedSnippetsResponse = JSON.parse(llmSnippetsResponse);
         if (parsedSnippetsResponse && Array.isArray(parsedSnippetsResponse.snippets)) {
           extractedSnippets = parsedSnippetsResponse.snippets.filter((s: any): s is string => typeof s === 'string');
         } else {
-          console.warn(`[ContextualDocumentAssistantSkill] LLM snippets response for doc ${doc.id} had invalid structure.`);
+          console.warn(`[ContextualDocumentAssistantSkill] LLM snippets response for doc ${doc.id} had invalid structure: ${llmSnippetsResponse}`);
         }
       } catch (error) {
         console.error(`[ContextualDocumentAssistantSkill] Error processing LLM snippets for doc ${doc.id}:`, error);
@@ -177,19 +181,23 @@ export class ContextualDocumentAssistantSkill {
     } // End of document loop
 
     // Post-process answers for summarization if requested
+    // Post-process answers for summarization if requested
     if (input.options?.summarize) {
-      for (const answer of answers) {
+      for (const answer of answers) { // answer object is already pushed if snippets were found
         if (answer.relevantSnippets.length > 0) {
-          const summaryPrompt = `
-            Based on the query "${input.query}" and the following relevant snippets from the document titled "${answer.documentTitle}",
-            provide a ${targetSummaryLength} summary.
-            Return only the summary text.
+          const docSummaryData: DocumentSummaryData = {
+            query: input.query,
+            documentTitle: answer.documentTitle,
+            snippets: answer.relevantSnippets,
+            targetLength: targetSummaryLength
+          };
+          const structuredDocSummaryPrompt: StructuredLLMPrompt = {
+            task: 'summarize_document_snippets',
+            data: docSummaryData
+          };
 
-            Snippets:
-            ${answer.relevantSnippets.map(s => `- ${s}`).join('\n')}
-          `;
           try {
-            const llmSummary = await invokeLLM(summaryPrompt, 'cheapest');
+            const llmSummary = await invokeLLM(structuredDocSummaryPrompt, 'cheapest');
             console.log(`[ContextualDocumentAssistantSkill] LLM summary for doc ${answer.documentId}: ${llmSummary}`);
             if (llmSummary && !llmSummary.toLowerCase().startsWith("llm fallback response")) {
               answer.summary = llmSummary;
@@ -205,30 +213,31 @@ export class ContextualDocumentAssistantSkill {
       }
     }
 
-    // 5. (Optional) If input.options?.summarize and multiple answers with summaries exist, generate overallSummary:
-    if (input.options?.summarize && answers.some(a => a.summary)) { // Check if any answer has a summary
-      const summariesToCombine = answers.filter(a => a.summary).map(a => `Summary from "${a.documentTitle}": ${a.summary}`).join('\n\n---\n\n');
-      if (summariesToCombine.length > 0) { // Ensure there's something to summarize
-        const overallSummaryPrompt = `
-          The user's query was: "${input.query}".
-          Combine the following individual summaries from different documents into one concise overall answer.
-          Return only the combined summary text. Make sure it flows well and directly answers the query.
+    // 5. (Optional) If input.options?.summarize and answers with summaries exist, generate overallSummary:
+    if (input.options?.summarize && answers.some(a => a.summary)) {
+      const individualSummaries = answers
+        .filter(a => a.summary)
+        .map(a => ({ title: a.documentTitle, summary: a.summary }));
 
-          Individual Summaries:
-          ${summariesToCombine}
-        `;
+      if (individualSummaries.length > 0) {
+        const overallSummaryData: OverallSummaryData = {
+          query: input.query,
+          individualSummaries: individualSummaries
+        };
+        const structuredOverallSummaryPrompt: StructuredLLMPrompt = {
+          task: 'summarize_overall_answer',
+          data: overallSummaryData
+        };
         try {
-          const llmOverallSummary = await invokeLLM(overallSummaryPrompt, 'cheapest');
+          const llmOverallSummary = await invokeLLM(structuredOverallSummaryPrompt, 'cheapest');
           console.log(`[ContextualDocumentAssistantSkill] LLM overall summary: ${llmOverallSummary}`);
           if (llmOverallSummary && !llmOverallSummary.toLowerCase().startsWith("llm fallback response")) {
             overallSummary = llmOverallSummary;
           } else {
             console.warn(`[ContextualDocumentAssistantSkill] LLM overall summary failed or returned fallback.`);
-            // overallSummary remains undefined or could be set to a message.
           }
         } catch (error) {
           console.error(`[ContextualDocumentAssistantSkill] Error during LLM overall summarization:`, error);
-          // overallSummary remains undefined
         }
       }
     }

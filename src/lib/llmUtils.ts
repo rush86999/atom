@@ -1,173 +1,165 @@
 // Mock LLM function - to be used by multiple skills
 
+export type LLMTaskType =
+  | 'categorize_email'
+  | 'summarize_email'
+  | 'suggest_reply_email'
+  | 'extract_actions_email'
+  | 'classify_guidance_query'
+  | 'answer_from_text'
+  | 'extract_steps_from_text'
+  | 'summarize_for_explanation'
+  | 'generate_followup_suggestions'
+  | 'extract_document_snippets'
+  | 'summarize_document_snippets'
+  | 'summarize_overall_answer';
+
+// --- Data Payloads for specific tasks ---
+export interface EmailCategorizationData { subject: string; bodySnippet: string; }
+export interface EmailSummarizationData { subject: string; bodySnippet: string; }
+export interface EmailReplySuggestionData {
+    category: string;
+    subject: string;
+    summary: string;
+    actionItems?: string[];
+}
+export interface EmailActionExtractionData { emailBody: string; }
+
+export interface GuidanceQueryClassificationData { query: string; }
+export interface AnswerFromTextData { query: string; textContent: string; articleTitle?: string; }
+export interface StepsFromTextData { query: string; textContent: string; articleTitle?: string; }
+export interface ExplanationData { query: string; textContent: string; articleTitle?: string; }
+export interface FollowupSuggestionData { query: string; articleTitle?: string; }
+
+export interface DocumentSnippetData { query: string; documentTitle: string; documentText: string; snippetLength?: number; }
+export interface DocumentSummaryData { query: string; documentTitle: string; snippets?: string[]; documentText?: string; targetLength?: string; }
+export interface OverallSummaryData { query: string; individualSummaries: {title?: string, summary?: string}[] }
+
+
+export interface StructuredLLMPrompt {
+  task: LLMTaskType;
+  data: any;
+}
+
 /**
- * Simulates a call to a Large Language Model.
- * Behavior is based on keywords in the prompt to mimic different LLM tasks.
- * @param prompt The prompt string for the LLM.
+ * Simulates a call to a Large Language Model using a structured prompt.
+ * Behavior is based on the task in the structured prompt.
+ * @param structuredPrompt The structured prompt object.
  * @param model The model identifier (e.g., 'cheapest', 'balanced', 'powerful').
  * @returns A Promise resolving to the LLM's string response.
  */
-export async function invokeLLM(prompt: string, model: string): Promise<string> {
-  console.log(`[Mock LLM Utility] Received prompt for model "${model}":\n"${prompt.substring(0, 200)}..."`); // Log snippet
+export async function invokeLLM(structuredPrompt: StructuredLLMPrompt, model: string): Promise<string> {
+  console.log(`[Mock LLM Utility] Received task "${structuredPrompt.task}" for model "${model}". Data (keys): ${Object.keys(structuredPrompt.data || {}).join(', ')}`);
 
-  // Simulate LLM behavior for email categorization
-  if (prompt.includes("Categorize this email")) {
-    const promptLower = prompt.toLowerCase();
-    if (promptLower.includes("urgent") || promptLower.includes("critical system outage")) {
-      return JSON.stringify({ category: "Urgent", confidence: 0.92 });
-    } else if (promptLower.includes("action required") || promptLower.includes("please review") || promptLower.includes("task for you")) {
-      return JSON.stringify({ category: "ActionRequired", confidence: 0.85 });
-    } else if (promptLower.includes("meeting invite") || promptLower.includes("calendar invite") || promptLower.includes(".ics")) {
-      return JSON.stringify({ category: "MeetingInvite", confidence: 0.95 });
-    } else if (promptLower.includes("fyi") || promptLower.includes("update on") || promptLower.includes("heads up")) {
-      return JSON.stringify({ category: "FYI", confidence: 0.78 });
-    } else if (promptLower.includes("win a free") || promptLower.includes("limited time offer")) {
-        return JSON.stringify({ category: "Spam", confidence: 0.99 });
-    }
-    return JSON.stringify({ category: "Other", confidence: 0.45 });
-  }
-
-  // Simulate LLM behavior for email summarization
-  if (prompt.startsWith("Summarize this email")) {
-    const subjectMatch = prompt.match(/Subject: "([^"]*)"/);
-    const mockSubject = subjectMatch ? subjectMatch[1] : "this email";
-    return `LLM Summary: Key information from "${mockSubject}" suggests it's about [topic] and requires [action/attention].`;
-  }
-
-  // Simulate LLM behavior for suggested email replies
-  if (prompt.includes("Suggest a brief, polite, and professional reply")) {
-    const promptLower = prompt.toLowerCase();
-    if (promptLower.includes('category: "urgent"')) {
-      return "Acknowledged. We are looking into this with high priority and will update you shortly.";
-    } else if (promptLower.includes('category: "actionrequired"')) {
-      if (promptLower.includes("identified action items:")) {
-        const actionItemMatch = prompt.match(/Identified Action Items: "([^;"]*)/);
-        const firstAction = actionItemMatch ? actionItemMatch[1] : "the main request";
-        return `Understood. I will address the action items, starting with: "${firstAction}".`;
+  switch (structuredPrompt.task) {
+    case 'categorize_email': {
+      const data = structuredPrompt.data as EmailCategorizationData;
+      const textForCat = `${data.subject} ${data.bodySnippet}`.toLowerCase();
+      if (textForCat.includes("urgent") || textForCat.includes("critical system outage")) {
+        return JSON.stringify({ category: "Urgent", confidence: Math.random() * 0.2 + 0.8 });
+      } else if (textForCat.includes("action required") || textForCat.includes("please review") || textForCat.includes("task for you")) {
+        return JSON.stringify({ category: "ActionRequired", confidence: Math.random() * 0.2 + 0.75 });
+      } else if (textForCat.includes("meeting invite") || textForCat.includes("calendar invite") || data.subject.toLowerCase().endsWith(".ics")) {
+        return JSON.stringify({ category: "MeetingInvite", confidence: 0.95 });
+      } else if (textForCat.includes("fyi") || textForCat.includes("update on") || textForCat.includes("heads up")) {
+        return JSON.stringify({ category: "FYI", confidence: 0.78 });
+      } else if (textForCat.includes("win a free") || textForCat.includes("limited time offer")) { // Basic spam check
+          return JSON.stringify({ category: "Spam", confidence: 0.99 });
       }
-      return "Received. I'll take care of the necessary actions.";
-    } else if (promptLower.includes('category: "meetinginvite"')) {
-      return "Thanks for the invite! I'll check my availability and respond through the calendar system.";
-    } else if (promptLower.includes('category: "fyi"')) {
-      return "No reply needed.";
-    } else if (promptLower.includes('category: "spam"')) {
-      return "No reply needed.";
-    } else if (promptLower.includes('category: "other"')) {
-      return "Thank you for your email. I will review it and get back to you if a response is needed.";
+      return JSON.stringify({ category: "Other", confidence: Math.random() * 0.3 + 0.3 });
     }
-    return "Thanks for your email.";
-  }
-
-  // Simulate LLM behavior for email action item extraction
-  if (prompt.includes("Extract action items")) {
-    const promptBodyLower = prompt.substring(prompt.indexOf("Email Body:")).toLowerCase();
-    const extractedActions: string[] = [];
-    if (promptBodyLower.includes("please send the report") || promptBodyLower.includes("can you prepare the document")) {
-      extractedActions.push("Send the report", "Prepare the document");
+    case 'summarize_email': {
+      const data = structuredPrompt.data as EmailSummarizationData;
+      return `LLM Summary: Key information from "${data.subject}" suggests it's about [topic derived from body: ${data.bodySnippet.substring(0,30)}...] and requires [action/attention].`;
     }
-    if (promptBodyLower.includes("schedule a meeting") && promptBodyLower.includes("discuss the proposal")) {
-      extractedActions.push("Schedule a meeting to discuss the proposal");
+    case 'suggest_reply_email': {
+      const data = structuredPrompt.data as EmailReplySuggestionData;
+      if (data.category === "Urgent") {
+        return "Acknowledged. We are looking into this with high priority and will update you shortly.";
+      } else if (data.category === "ActionRequired") {
+        if (data.actionItems && data.actionItems.length > 0) {
+          return `Understood. I will address the action items, starting with: "${data.actionItems[0]}".`;
+        }
+        return "Received. I'll take care of the necessary actions.";
+      } else if (data.category === "MeetingInvite") {
+        return "Thanks for the invite! I'll check my availability and respond through the calendar system.";
+      } else if (data.category === "FYI" || data.category === "Spam") {
+        return "No reply needed.";
+      }
+      return `Thank you for your email regarding "${data.subject}". I will review it.`;
     }
-    if (promptBodyLower.includes("confirm your availability")) {
-      extractedActions.push("Confirm availability");
-    }
-    if (promptBodyLower.includes("let me know what you think")) {
-      extractedActions.push("Provide feedback or thoughts.");
-    }
-    if (extractedActions.length > 0) {
+    case 'extract_actions_email': {
+      const data = structuredPrompt.data as EmailActionExtractionData;
+      const bodyLower = data.emailBody.toLowerCase();
+      const extractedActions: string[] = [];
+      if (bodyLower.includes("please send the report") || bodyLower.includes("can you prepare the document")) {
+        extractedActions.push("Send the report", "Prepare the document");
+      }
+      if (bodyLower.includes("schedule a meeting") && bodyLower.includes("discuss the proposal")) {
+        extractedActions.push("Schedule a meeting to discuss the proposal");
+      }
+      if (bodyLower.includes("confirm your availability")) {
+        extractedActions.push("Confirm availability");
+      }
+      if (bodyLower.includes("let me know what you think")) {
+        extractedActions.push("Provide feedback or thoughts.");
+      }
       return JSON.stringify({ actionItems: extractedActions.slice(0,2) });
     }
-    return JSON.stringify({ actionItems: [] });
-  }
-
-  // Simulate LLM behavior for document snippet extraction
-  if (prompt.includes("extract up to") && prompt.includes("relevant snippets")) {
-    const queryMatch = prompt.match(/query '([^']*)'/);
-    const query = queryMatch ? queryMatch[1] : "the topic";
-    // Basic simulation: if document text (also in prompt) contains query words.
-    // This is a very rough check.
-    if (prompt.toLowerCase().includes(query.split(" ")[0].toLowerCase())) { // check first word of query
-        return JSON.stringify({ snippets: [`Mock snippet about "${query}".`, `Further details on "${query}" from the document.`] });
+    case 'extract_document_snippets': {
+        const data = structuredPrompt.data as DocumentSnippetData;
+        const queryWords = data.query.toLowerCase().split(" ").filter(w => w.length > 2);
+        if (queryWords.some(qw => data.documentText.toLowerCase().includes(qw))) {
+             return JSON.stringify({ snippets: [`Mock snippet about "${data.query}" from "${data.documentTitle}".`, `Further details on "${data.query}" from the document.`] });
+        }
+        return JSON.stringify({ snippets: [] });
     }
-    return JSON.stringify({ snippets: [] });
-  }
-
-  // Simulate LLM behavior for document summarization (based on query & snippets/title)
-  if (prompt.includes("provide a") && prompt.includes("summary") && (prompt.includes("these snippets") || prompt.includes("Document Title"))) {
-    const queryMatch = prompt.match(/query '([^']*)'/);
-    const query = queryMatch ? queryMatch[1] : "the main subject";
-    const lengthMatch = prompt.match(/provide a '([^']*)' summary/);
-    const length = lengthMatch ? lengthMatch[1] : "medium";
-    return `This is a mock ${length} summary regarding "${query}", based on the provided text.`;
-  }
-
-  // Simulate LLM for overall summarization of summaries
-  if (prompt.startsWith("Summarize these individual summaries")) {
-    const queryMatch = prompt.match(/answer to '([^']*)'/);
-    const query = queryMatch ? queryMatch[1] : "the user's query";
-    return `This is an overall synthesized mock summary for the query "${query}", based on multiple pieces of information.`;
-  }
-
-  // --- Additions for LearningAndGuidanceSkill ---
-
-  // Query Classification for GuidanceType
-  if (prompt.includes("Classify this query into GuidanceType")) {
-    const queryMatch = prompt.match(/query: "([^"]*)"/i);
-    const userQuery = queryMatch ? queryMatch[1].toLowerCase() : "";
-    if (userQuery.includes("how to") || userQuery.includes("steps for") || userQuery.includes("tutorial for")) {
-      return JSON.stringify({ guidanceType: "find_tutorial" });
-    } else if (userQuery.includes("what is") || userQuery.includes("explain") || userQuery.includes("tell me about")) {
-      return JSON.stringify({ guidanceType: "general_explanation" });
-    } else if (userQuery.includes("guide me through") || userQuery.includes("workflow for")) {
-      return JSON.stringify({ guidanceType: "guide_workflow" });
+    case 'summarize_document_snippets': {
+        const data = structuredPrompt.data as DocumentSummaryData;
+        return `This is a mock ${data.targetLength || 'medium'} summary regarding "${data.query}" from "${data.documentTitle}", based on provided snippets.`;
     }
-    return JSON.stringify({ guidanceType: "answer_question" });
-  }
-
-  // Answering Questions from Text
-  if (prompt.includes("Using ONLY the provided text, answer the question:")) {
-    const queryMatch = prompt.match(/question: '([^']*)'/i);
-    const userQuery = queryMatch ? queryMatch[1] : "the question";
-    const textMatch = prompt.match(/Provided text: '([^']*)'/i);
-    const articleTextSnippet = textMatch ? textMatch[1] : "";
-
-    // Simple check if any word from query (split, lowercase) is in text snippet
-    const queryWords = userQuery.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    if (queryWords.some(qw => articleTextSnippet.toLowerCase().includes(qw))) {
-      return `Based on the text, the answer to '${userQuery}' is [mocked detail: ${articleTextSnippet.substring(0, 70)}...].`;
+    case 'summarize_overall_answer': {
+        const data = structuredPrompt.data as OverallSummaryData;
+        return `This is an overall synthesized mock summary for the query "${data.query}", based on ${data.individualSummaries.length} pieces of information.`;
     }
-    return `The provided text does not appear to contain a direct answer to your question about '${userQuery}'.`;
-  }
-
-  // Extracting Steps (JSON) from Instructional Text
-  if (prompt.includes("Extract the key steps for") && prompt.includes("Return as a JSON object")) {
-    const textMatch = prompt.match(/tutorial text: '([^']*)'/i);
-    const articleTextSnippet = textMatch ? textMatch[1].toLowerCase() : "";
-    if (articleTextSnippet.includes("step 1") || articleTextSnippet.includes("firstly") || articleTextSnippet.includes("1.")) {
-      return JSON.stringify({ steps: [{title: "Mock Step 1: Initialize", description: "First, initialize the system components based on the provided text."}, {title: "Mock Step 2: Configure", description: "Next, configure the main parameters as detailed in the article."}] });
+    case 'classify_guidance_query': {
+        const data = structuredPrompt.data as GuidanceQueryClassificationData;
+        const queryLower = data.query.toLowerCase();
+        if (queryLower.includes("how to") || queryLower.includes("steps for") || queryLower.includes("tutorial for")) {
+          return JSON.stringify({ guidanceType: "find_tutorial" });
+        } else if (queryLower.includes("what is") || queryLower.includes("explain") || queryLower.includes("tell me about")) {
+          return JSON.stringify({ guidanceType: "general_explanation" });
+        } else if (queryLower.includes("guide me through") || queryLower.includes("workflow for")) {
+          return JSON.stringify({ guidanceType: "guide_workflow" });
+        }
+        return JSON.stringify({ guidanceType: "answer_question" });
     }
-    return JSON.stringify({ steps: [] });
+    case 'answer_from_text': {
+        const data = structuredPrompt.data as AnswerFromTextData;
+        const queryWords = data.query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        if (queryWords.some(qw => data.textContent.toLowerCase().includes(qw))) {
+          return `Based on "${data.articleTitle || 'the text'}", the answer to '${data.query}' is [mocked detail: ${data.textContent.substring(0, 70)}...].`;
+        }
+        return `The provided text from "${data.articleTitle || 'the document'}" does not appear to contain a direct answer to your question about '${data.query}'.`;
+    }
+    case 'extract_steps_from_text': {
+        const data = structuredPrompt.data as StepsFromTextData;
+        const contentLower = data.textContent.toLowerCase();
+        if (contentLower.includes("step 1") || contentLower.includes("firstly") || contentLower.includes("1.")) {
+          return JSON.stringify({ steps: [{title: "Mock Step 1: Initialize", description: `Based on "${data.articleTitle}", first initialize the system.`}, {title: "Mock Step 2: Configure", description: `Then, configure relevant parameters for "${data.query}".`}] });
+        }
+        return JSON.stringify({ steps: [] });
+    }
+    case 'summarize_for_explanation': {
+        const data = structuredPrompt.data as ExplanationData;
+        return `This is a mock explanation regarding '${data.query}'. The article "${data.articleTitle}" mentions '${data.textContent.substring(0,50)}...' and covers key aspects.`;
+    }
+    case 'generate_followup_suggestions': {
+        const data = structuredPrompt.data as FollowupSuggestionData;
+        return JSON.stringify({ suggestions: [`Explore advanced features for "${data.articleTitle || data.query}"`, `Find related tutorials on similar topics.`] });
+    }
+    default:
+      console.warn(`[Mock LLM Utility] Unhandled task type: ${structuredPrompt.task}`);
+      return "LLM fallback response: Unable to process this specific type of request.";
   }
-
-  // Summarizing Text for Explanation
-  if (prompt.includes("Provide a concise explanation regarding") && prompt.includes("based on the following text")) {
-    const queryMatch = prompt.match(/regarding '([^']*)'/i);
-    const userQuery = queryMatch ? queryMatch[1] : "the topic";
-    const textMatch = prompt.match(/following text: '([^']*)'/i);
-    const articleTextSnippet = textMatch ? textMatch[1] : "the provided content";
-    return `This is a mock explanation regarding '${userQuery}'. The provided text mentions '${articleTextSnippet.substring(0,50)}...' and covers aspects like X, Y, and Z.`;
-  }
-
-  // Generating Follow-up Learning Suggestions
-  if (prompt.includes("suggest two distinct, related topics")) {
-    const articleTitleMatch = prompt.match(/guidance on '([^']*)'/i);
-    const articleTitle = articleTitleMatch ? articleTitleMatch[1] : "this topic";
-    const queryMatch = prompt.match(/query '([^']*)'/i);
-    const userQuery = queryMatch ? queryMatch[1] : "your initial question";
-
-    return JSON.stringify({ suggestions: [`Explore advanced "widgets" for ${articleTitle.split(" ").pop()}`, `Find tutorials on integrating ${userQuery.split(" ").pop()} with other tools.`] });
-  }
-
-  console.warn(`[Mock LLM Utility] Unhandled prompt type. Prompt (start): ${prompt.substring(0,150)}...`);
-  return "LLM fallback response: Unable to process this specific type of request.";
 }
