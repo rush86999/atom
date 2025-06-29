@@ -1,14 +1,14 @@
 import {
-    invokeLLM,
+    LLMServiceInterface, // Import the interface
     StructuredLLMPrompt,
     GuidanceQueryClassificationData,
     AnswerFromTextData,
     StepsFromTextData,
-    FollowupSuggestionData
-    // Assuming LLMTaskType is also exported if needed for casting, or rely on string values
+    FollowupSuggestionData,
+    LLMTaskType // Assuming LLMTaskType is also exported from llmUtils
 } from '../lib/llmUtils';
 
-// Mock Knowledge Base Data
+// Mock Knowledge Base Data (as previously defined)
 const MOCK_KB_ARTICLES: KnowledgeBaseArticle[] = [
   {
     id: "kb_001",
@@ -46,7 +46,7 @@ const MOCK_KB_ARTICLES: KnowledgeBaseArticle[] = [
     id: "kb_003",
     title: "FAQ: Common Login Issues",
     contentType: 'faq',
-    application: "General", // Applicable to multiple apps or system-wide
+    application: "General",
     keywords: ["login", "password", "access denied", "troubleshooting", "faq"],
     content: "Q: I forgot my password. How do I reset it?\nA: Click the 'Forgot Password' link on the login page and follow the instructions sent to your email.\n\nQ: Why am I seeing 'Access Denied' errors?\nA: This could be due to incorrect credentials, insufficient permissions, or network issues. Please verify your username/password and contact support if the problem persists.\n\nQ: What are the password complexity requirements?\nA: Passwords must be at least 12 characters, include uppercase, lowercase, numbers, and symbols.",
     difficulty: 'beginner',
@@ -80,343 +80,205 @@ const MOCK_KB_ARTICLES: KnowledgeBaseArticle[] = [
   }
 ];
 
-// Helper function to simulate fetching/searching knowledge base articles
 async function _fetchMockKnowledgeBaseArticles(
   query: string,
   contentTypeHint?: KnowledgeBaseArticle['contentType'],
   applicationContext?: string,
   maxResults: number = 3
 ): Promise<KnowledgeBaseArticle[]> {
-  console.log(`[_fetchMockKnowledgeBaseArticles] Query: "${query}", ContentType: ${contentTypeHint}, AppCtx: ${applicationContext}, MaxResults: ${maxResults}`);
-
+  console.log(`[_fetchMockKnowledgeBaseArticles] Query: "${query}", CT: ${contentTypeHint}, AppCtx: ${applicationContext}, Max: ${maxResults}`);
   const queryLower = query.toLowerCase();
   const queryKeywords = queryLower.split(/\s+/).filter(kw => kw.length > 2);
-
-  let filteredArticles = MOCK_KB_ARTICLES;
+  let filtered = MOCK_KB_ARTICLES;
 
   if (applicationContext) {
-    filteredArticles = filteredArticles.filter(article =>
-      !article.application || article.application.toLowerCase() === applicationContext.toLowerCase() || article.application === "General"
-    );
+    filtered = filtered.filter(a => !a.application || a.application.toLowerCase() === applicationContext.toLowerCase() || a.application === "General");
   }
   if (contentTypeHint) {
-    filteredArticles = filteredArticles.filter(article => article.contentType === contentTypeHint);
+    filtered = filtered.filter(a => a.contentType === contentTypeHint);
   }
 
-  // Simple keyword scoring (very basic)
-  const scoredArticles = filteredArticles.map(article => {
+  const scored = filtered.map(article => {
     let score = 0;
     const titleLower = article.title.toLowerCase();
-    const contentSnippetLower = article.content.substring(0, 300).toLowerCase(); // Search in snippet
-
+    const contentSnip = article.content.substring(0, 300).toLowerCase();
     queryKeywords.forEach(kw => {
       if (titleLower.includes(kw)) score += 3;
       if (article.keywords?.some(k => k.toLowerCase().includes(kw))) score += 2;
-      if (contentSnippetLower.includes(kw)) score += 1;
+      if (contentSnip.includes(kw)) score += 1;
     });
-    // Boost if content type matches common query terms
     if (queryLower.includes(article.contentType)) score +=2;
-
-
     return { article, score };
-  }).filter(item => item.score > 0) // Only include articles with some match
-    .sort((a, b) => b.score - a.score); // Sort by score descending
-
-  console.log(`[_fetchMockKnowledgeBaseArticles] Found ${scoredArticles.length} potentially relevant articles after filtering and scoring.`);
-  return scoredArticles.slice(0, maxResults).map(item => item.article);
+  }).filter(item => item.score > 0).sort((a, b) => b.score - a.score);
+  return scored.slice(0, maxResults).map(item => item.article);
 }
 
-
-/**
- * Represents an article or entry in the knowledge base.
- */
 export interface KnowledgeBaseArticle {
   id: string;
   title: string;
   contentType: 'tutorial' | 'how-to' | 'faq' | 'workflow_guide' | 'explanation';
-  application?: string; // e.g., "SpreadsheetApp", "CRM_Platform", "General"
+  application?: string;
   keywords?: string[];
-  content: string; // Can be Markdown, plain text, or structured content
-  steps?: { title: string; description: string; }[]; // For tutorials or workflows
+  content: string;
+  steps?: { title: string; description: string; }[];
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  // lastUpdatedAt?: Date;
 }
 
-/**
- * Type of guidance the user is seeking or the skill determines is needed.
- */
 export type GuidanceType = 'answer_question' | 'find_tutorial' | 'guide_workflow' | 'general_explanation';
 
-/**
- * Input for the LearningAndGuidanceSkill.
- */
 export interface LearningAndGuidanceInput {
   userId: string;
-  query: string; // e.g., "how do I create a pivot table in SpreadsheetApp?"
-  guidanceTypeHint?: GuidanceType; // Optional hint from NLU or previous interaction
-  applicationContext?: string; // Optional: current application user is in, e.g., "SpreadsheetApp"
+  query: string;
+  guidanceTypeHint?: GuidanceType;
+  applicationContext?: string;
   options?: {
     preferContentType?: KnowledgeBaseArticle['contentType'];
-    maxResults?: number; // Max number of guidance items to return
+    maxResults?: number;
   };
 }
 
-/**
- * Represents a piece of guidance provided to the user, derived from a KB article.
- */
 export interface ProvidedGuidance {
-  title: string; // Usually from the source KB article
-  contentSnippet?: string; // A direct answer or a key snippet for explanations
-  fullContent?: string; // Optional: The full content if concise or specifically requested
-  steps?: { title: string; description: string; }[]; // For tutorials/workflows
+  title: string;
+  contentSnippet?: string;
+  fullContent?: string;
+  steps?: { title: string; description: string; }[];
   sourceArticleId: string;
-  relevanceScore?: number; // How relevant this piece of guidance is to the query
+  relevanceScore?: number;
 }
 
-/**
- * Output result from the LearningAndGuidanceSkill.
- */
 export interface LearningAndGuidanceResult {
   originalQuery: string;
   guidanceProvided: ProvidedGuidance[];
-  followUpSuggestions?: string[]; // e.g., "Learn about advanced pivot table features."
-  searchPerformedOn?: string; // e.g., "KB Articles for SpreadsheetApp", "All KB Articles"
-  // errors?: string[];
+  followUpSuggestions?: string[];
+  searchPerformedOn?: string;
 }
 
-/**
- * Skill to provide tutorials, answer how-to questions, and guide users.
- */
 export class LearningAndGuidanceSkill {
-  constructor() {
-    console.log("LearningAndGuidanceSkill initialized.");
-    // In a real system, this might load/connect to a knowledge base, vector index, etc.
+  private readonly llmService: LLMServiceInterface;
+
+  constructor(llmService: LLMServiceInterface) {
+    this.llmService = llmService;
+    console.log("LearningAndGuidanceSkill initialized with LLMService.");
   }
 
-  /**
-   * Executes the learning and guidance process.
-   * @param input The LearningAndGuidanceInput from the user/system.
-   * @returns A Promise resolving to the LearningAndGuidanceResult.
-   */
   public async execute(input: LearningAndGuidanceInput): Promise<LearningAndGuidanceResult> {
-    console.log(`[LearningAndGuidanceSkill] Received query: "${input.query}" for user: ${input.userId}`);
+    console.log(`[LearningAndGuidanceSkill] Query: "${input.query}", User: ${input.userId}`);
 
-    // Placeholder mock result
-    const mockGuidance: ProvidedGuidance = {
-      title: "Mock Article: How to do something",
-      contentSnippet: `This is a mock answer to your query: "${input.query}". Detailed steps would be listed if this were a real tutorial.`,
-      sourceArticleId: "kb-mock-001",
-      relevanceScore: 0.75,
-      steps: input.query.toLowerCase().includes("steps") || input.query.toLowerCase().includes("tutorial")
-        ? [{title: "Step 1 Mock", description: "Do the first thing."}, {title: "Step 2 Mock", description: "Then do the second thing."}]
-        : undefined,
-    };
-
-    const result: LearningAndGuidanceResult = {
-      originalQuery: input.query,
-      guidanceProvided: [mockGuidance],
-      followUpSuggestions: ["Ask about advanced features.", "Search for another topic."],
-      searchPerformedOn: input.applicationContext
-        ? `Mock KB for ${input.applicationContext}`
-        : "General Mock KB",
-    };
-
-    // Detailed LLM-centric logic will be outlined as comments in the next step.
-
-    // 1. Validate input. (Basic check done, more specific validation could be added)
+    if (!input.query || !input.userId) {
+      throw new Error("Query and userId are required.");
+    }
     const maxResults = input.options?.maxResults || 3;
-    let effectiveGuidanceType: GuidanceType = input.guidanceTypeHint || 'answer_question'; // Default if no hint
+    let effectiveGuidanceType: GuidanceType = input.guidanceTypeHint || 'answer_question';
 
     if (!input.guidanceTypeHint) {
-        console.log(`[LearningAndGuidanceSkill] No guidanceTypeHint provided, attempting to classify query: "${input.query}"`);
-        const classificationData: GuidanceQueryClassificationData = { query: input.query };
-        const structuredClassificationPrompt: StructuredLLMPrompt = {
-            task: 'classify_guidance_query',
-            data: classificationData
-        };
-        try {
-            const llmClassificationResponse = await invokeLLM(structuredClassificationPrompt, 'cheapest');
-            console.log(`[LearningAndGuidanceSkill] LLM classification response: ${llmClassificationResponse}`);
-            const parsedResponse = JSON.parse(llmClassificationResponse);
-            const validTypes: GuidanceType[] = ['answer_question', 'find_tutorial', 'guide_workflow', 'general_explanation'];
-            if (parsedResponse && parsedResponse.guidanceType && validTypes.includes(parsedResponse.guidanceType as GuidanceType)) {
-                effectiveGuidanceType = parsedResponse.guidanceType as GuidanceType;
-            } else {
-                console.warn(`[LearningAndGuidanceSkill] LLM returned invalid or no guidanceType. Defaulting to '${effectiveGuidanceType}'. Response: ${llmClassificationResponse}`);
-            }
-        } catch (error) {
-            console.error(`[LearningAndGuidanceSkill] Error during LLM query classification:`, error);
-            // Keep the default effectiveGuidanceType
-        }
+      const classData: GuidanceQueryClassificationData = { query: input.query };
+      const classPrompt: StructuredLLMPrompt = { task: 'classify_guidance_query', data: classData };
+      try {
+        const llmResp = await this.llmService.generate(classPrompt, 'cheapest');
+        if (llmResp.success && llmResp.content) {
+          const parsed = JSON.parse(llmResp.content);
+          const validTypes: GuidanceType[] = ['answer_question', 'find_tutorial', 'guide_workflow', 'general_explanation'];
+          if (parsed && parsed.guidanceType && validTypes.includes(parsed.guidanceType)) {
+            effectiveGuidanceType = parsed.guidanceType;
+          } else { console.warn(`[LearningAndGuidanceSkill] LLM invalid guidanceType: ${llmResp.content}`); }
+        } else { console.error(`[LearningAndGuidanceSkill] LLM query classification failed: ${llmResp.error}`); }
+      } catch (e: any) { console.error(`[LearningAndGuidanceSkill] Error in LLM query classification: ${e.message}`); }
     }
     console.log(`[LearningAndGuidanceSkill] Effective guidance type: ${effectiveGuidanceType}`);
 
-    // 3. Fetch relevant articles using _fetchMockKnowledgeBaseArticles, potentially refining search terms with LLM.
-    //    Example LLM call for search terms: let searchTermsForKB = await invokeLLM({task: 'extract_search_terms', data: {query: input.query}}, 'cheapest');
-    const searchTerms = input.query; // Using raw query for mock fetcher
-    const relevantArticles = await _fetchMockKnowledgeBaseArticles(
-        searchTerms,
-        input.options?.preferContentType,
-        input.applicationContext,
-        maxResults
-    );
-    console.log(`[LearningAndGuidanceSkill] Fetched ${relevantArticles.length} relevant articles.`);
-
-    // 4. Initialize guidanceProvided: ProvidedGuidance[] = []
+    const relevantArticles = await _fetchMockKnowledgeBaseArticles(input.query, input.options?.preferContentType, input.applicationContext, maxResults);
     const guidanceProvided: ProvidedGuidance[] = [];
 
-    // 5. For each relevantArticle:
     for (const article of relevantArticles) {
-      //    a. Based on effectiveGuidanceType:
-      //        - If 'answer_question': prompt = "Answer '${input.query}' using this text: ${article.content}. Return just the answer." -> answerContent
-      //        - If 'find_tutorial'/'guide_workflow': prompt = "Extract key steps for '${input.query}' from this tutorial: ${article.content}. Return as JSON {steps: [{title:'', description:''}]}" -> extractedSteps
-      //        - If 'general_explanation': prompt = "Summarize this text regarding '${input.query}': ${article.content}. Return concise explanation." -> explanationContent
-      //    b. Call LLM: const llmResponse = await invokeLLM(prompt, 'cheapest') (Conceptual)
-      //    c. Parse llmResponse and populate a ProvidedGuidance object (title, contentSnippet/fullContent, steps, sourceArticleId, mock relevanceScore).
-      //    d. Add to guidanceProvided.
-
-      let guidance: ProvidedGuidance = {
-        title: article.title,
-        sourceArticleId: article.id,
-        relevanceScore: 0.6, // Base relevance for being fetched
-      };
-
-      let llmResponseForArticleProcessing: string;
-
-      switch (effectiveGuidanceType) {
-        case 'answer_question':
-        case 'general_explanation':
-          const taskType = effectiveGuidanceType === 'answer_question' ? 'answer_from_text' : 'summarize_for_explanation';
-          const answerData: AnswerFromTextData = {
-            query: input.query,
-            textContent: article.content.substring(0, 1500),
-            articleTitle: article.title
-          };
-          const structuredAnswerPrompt: StructuredLLMPrompt = { task: taskType, data: answerData };
-          llmResponseForArticleProcessing = await invokeLLM(structuredAnswerPrompt, 'cheapest');
-
-          if (llmResponseForArticleProcessing && !llmResponseForArticleProcessing.toLowerCase().startsWith("llm fallback") && !llmResponseForArticleProcessing.toLowerCase().includes("not appear to contain")) {
-            guidance.contentSnippet = llmResponseForArticleProcessing;
-            guidance.relevanceScore = 0.8; // Higher score if LLM found direct answer
-            console.log(`[LearningAndGuidanceSkill] LLM Answer/Explanation for "${article.title}": ${guidance.contentSnippet}`);
-          } else {
-            guidance.contentSnippet = `Article "${article.title}" was found, but a direct answer/explanation for "${input.query}" could not be extracted by the LLM. You may find relevant information within.`;
-             console.log(`[LearningAndGuidanceSkill] LLM could not provide direct answer/explanation for "${article.title}" or fallback.`);
-          }
-          break;
-
-        case 'find_tutorial':
-        case 'guide_workflow':
-        // Note: 'how-to' was used in mock _fetchKBArticles, ensure it's mapped or included in GuidanceType if distinct
-        // For now, we'll treat 'how-to' effectively as 'find_tutorial' or 'guide_workflow'
-          if (article.steps && article.steps.length > 0) {
-            guidance.steps = article.steps;
-            guidance.contentSnippet = `Found relevant steps in "${article.title}".`;
-            guidance.relevanceScore = 0.85; // Higher score for direct step match
-            console.log(`[LearningAndGuidanceSkill] Using predefined steps for "${article.title}".`);
-          } else {
-            const stepsData: StepsFromTextData = {
-                query: input.query,
-                textContent: article.content.substring(0, 2000),
-                articleTitle: article.title
-            };
-            const structuredStepsPrompt: StructuredLLMPrompt = { task: 'extract_steps_from_text', data: stepsData };
-            llmResponseForArticleProcessing = await invokeLLM(structuredStepsPrompt, 'cheapest');
-            console.log(`[LearningAndGuidanceSkill] LLM steps response for "${article.title}": ${llmResponseForArticleProcessing}`);
-            try {
-              const parsedSteps = JSON.parse(llmResponseForArticleProcessing);
-              if (parsedSteps && Array.isArray(parsedSteps.steps) && parsedSteps.steps.length > 0) {
-                guidance.steps = parsedSteps.steps;
-                guidance.contentSnippet = "Extracted the following key steps from the article:";
-                guidance.relevanceScore = 0.8;
-              } else {
-                 guidance.contentSnippet = `While "${article.title}" is relevant, specific steps for "${input.query}" were not automatically extracted. You can review the article content.`;
-              }
-            } catch (e) {
-              console.error(`[LearningAndGuidanceSkill] Error parsing steps JSON from LLM for "${article.title}":`, e);
-              guidance.contentSnippet = `Could not extract steps for "${article.title}". The article might still be relevant.`;
+      let guidance: ProvidedGuidance = { title: article.title, sourceArticleId: article.id, relevanceScore: 0.6 };
+      try {
+        let articlePrompt: StructuredLLMPrompt;
+        switch (effectiveGuidanceType) {
+          case 'answer_question':
+          case 'general_explanation':
+            const answerData: AnswerFromTextData = { query: input.query, textContent: article.content.substring(0, 1500), articleTitle: article.title };
+            articlePrompt = { task: effectiveGuidanceType === 'answer_question' ? 'answer_from_text' : 'summarize_for_explanation', data: answerData };
+            const answerResp = await this.llmService.generate(articlePrompt, 'cheapest');
+            if (answerResp.success && answerResp.content && !answerResp.content.toLowerCase().startsWith("llm fallback") && !answerResp.content.toLowerCase().includes("not appear to contain")) {
+              guidance.contentSnippet = answerResp.content;
+              guidance.relevanceScore = 0.8;
+            } else { guidance.contentSnippet = `Article "${article.title}" found, but specific info for "${input.query}" not extracted. Error: ${answerResp.error || 'fallback'}`; }
+            break;
+          case 'find_tutorial':
+          case 'guide_workflow':
+            if (article.steps && article.steps.length > 0) {
+              guidance.steps = article.steps;
+              guidance.contentSnippet = `Found steps in "${article.title}".`;
+              guidance.relevanceScore = 0.85;
+            } else {
+              const stepsData: StepsFromTextData = { query: input.query, textContent: article.content.substring(0, 2000), articleTitle: article.title };
+              articlePrompt = { task: 'extract_steps_from_text', data: stepsData };
+              const stepsResp = await this.llmService.generate(articlePrompt, 'cheapest');
+              if (stepsResp.success && stepsResp.content) {
+                const parsed = JSON.parse(stepsResp.content);
+                if (parsed && Array.isArray(parsed.steps) && parsed.steps.length > 0) {
+                  guidance.steps = parsed.steps;
+                  guidance.contentSnippet = "Extracted key steps:";
+                  guidance.relevanceScore = 0.8;
+                } else { guidance.contentSnippet = `"${article.title}" relevant, but steps for "${input.query}" not extracted.`; }
+              } else { guidance.contentSnippet = `Could not extract steps for "${article.title}". Error: ${stepsResp.error}`; }
             }
-          }
-          break;
-
-        default: // Should not be reached if effectiveGuidanceType is always set
-            guidance.contentSnippet = `Found article: ${article.title}. Displaying general information. (First 200 chars): ${article.content.substring(0, 200)}...`;
-            console.warn(`[LearningAndGuidanceSkill] Unexpected guidance type: ${effectiveGuidanceType}`);
+            break;
+          default:
+            guidance.contentSnippet = `Article: ${article.title}. General info: ${article.content.substring(0, 200)}...`;
+        }
+      } catch (e: any) {
+        console.error(`[LearningAndGuidanceSkill] Error processing article ${article.id} with LLM: ${e.message}`);
+        guidance.contentSnippet = `Error processing article "${article.title}".`;
       }
-
-      // Fallback if no specific content generated yet
       if (!guidance.contentSnippet && (!guidance.steps || guidance.steps.length === 0)) {
-        guidance.contentSnippet = `Article "${article.title}" may contain information relevant to your query. (Excerpt: ${article.content.substring(0, 150)}...)`;
+        guidance.contentSnippet = `Article "${article.title}" excerpt: ${article.content.substring(0, 150)}...`;
       }
       guidanceProvided.push(guidance);
     }
 
-    // 6. (Optional) Generate followUpSuggestions with LLM
     let followUpSuggestions: string[] | undefined = undefined;
     if (guidanceProvided.length > 0 && guidanceProvided[0]) {
-        const firstGuidanceTitle = guidanceProvided[0].title;
-        const followupData: FollowupSuggestionData = {
-            query: input.query,
-            articleTitle: firstGuidanceTitle
-        };
-        const structuredFollowupPrompt: StructuredLLMPrompt = {
-            task: 'generate_followup_suggestions',
-            data: followupData
-        };
-        try {
-            const llmFollowUpResponse = await invokeLLM(structuredFollowupPrompt, 'cheapest');
-            console.log(`[LearningAndGuidanceSkill] LLM follow-up suggestions response: ${llmFollowUpResponse}`);
-            const parsedFollowUp = JSON.parse(llmFollowUpResponse);
-            if (parsedFollowUp && Array.isArray(parsedFollowUp.suggestions) && parsedFollowUp.suggestions.length > 0) {
-                followUpSuggestions = parsedFollowUp.suggestions.filter((s: any): s is string => typeof s === 'string');
-            }
-        } catch (e) {
-            console.error(`[LearningAndGuidanceSkill] Error processing LLM follow-up suggestions:`, e);
-        }
+      const followupData: FollowupSuggestionData = { query: input.query, articleTitle: guidanceProvided[0].title };
+      const followupPrompt: StructuredLLMPrompt = { task: 'generate_followup_suggestions', data: followupData };
+      try {
+        const followupResp = await this.llmService.generate(followupPrompt, 'cheapest');
+        if (followupResp.success && followupResp.content) {
+          const parsed = JSON.parse(followupResp.content);
+          if (parsed && Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+            followUpSuggestions = parsed.suggestions.filter((s: any): s is string => typeof s === 'string');
+          }
+        } else { console.warn(`[LearningAndGuidanceSkill] LLM follow-up suggestions failed: ${followupResp.error}`);}
+      } catch (e: any) { console.error(`[LearningAndGuidanceSkill] Error processing LLM follow-up suggestions: ${e.message}`);}
     }
 
-    result.guidanceProvided = guidanceProvided;
-    result.followUpSuggestions = followUpSuggestions;
-    result.searchPerformedOn = `${relevantArticles.length} articles from ${input.applicationContext || 'General'} KB matching "${searchTerms.substring(0,50)}..."`;
+    const finalResult: LearningAndGuidanceResult = {
+        originalQuery: input.query,
+        guidanceProvided: guidanceProvided,
+        followUpSuggestions: followUpSuggestions,
+        searchPerformedOn: `${relevantArticles.length} articles from ${input.applicationContext || 'General'} KB matching "${input.query.substring(0,50)}..."`
+    };
 
-
-    console.log(`[LearningAndGuidanceSkill] Returning processed guidance for query: "${input.query}"`);
-    return result;
+    console.log(`[LearningAndGuidanceSkill] Returning guidance for query: "${input.query}"`);
+    return finalResult;
   }
 }
 
-// Example Usage (for testing or demonstration)
+// Example Usage
 /*
+import { MockLLMService } from '../lib/llmUtils'; // Or OpenAIGroqService_Stub
+
 async function testLearningAndGuidanceSkill() {
-  const skill = new LearningAndGuidanceSkill();
+  const llmService = new MockLLMService();
+  const skill = new LearningAndGuidanceSkill(llmService);
 
   const testInput1: LearningAndGuidanceInput = {
     userId: "user-guidance-test-1",
-    query: "How do I create a filter in SpreadsheetApp?",
+    query: "How do I create a pivot table in SpreadsheetApp?",
     applicationContext: "SpreadsheetApp",
     options: { preferContentType: 'how-to', maxResults: 1 }
   };
-  try {
-    console.log("\\n--- Test Case 1: How-to question ---");
-    const result1 = await skill.execute(testInput1);
-    console.log(JSON.stringify(result1, null, 2));
-  } catch (error) {
-    console.error("Error (Test Case 1):", error);
-  }
-
-  const testInput2: LearningAndGuidanceInput = {
-    userId: "user-guidance-test-2",
-    query: "Give me a tutorial on email merge",
-    guidanceTypeHint: 'find_tutorial'
-  };
-  try {
-    console.log("\\n--- Test Case 2: Find tutorial ---");
-    const result2 = await skill.execute(testInput2);
-    console.log(JSON.stringify(result2, null, 2));
-  } catch (error) {
-    console.error("Error (Test Case 2):", error);
-  }
+  // ... rest of test code
 }
-
 // testLearningAndGuidanceSkill();
 */
