@@ -96,9 +96,9 @@ Atom requires various environment variables to be set for full functionality. Th
 
 **Core Service & API Keys:**
 *   `OPENAI_API_KEY`: For AI capabilities.
-*   `NOTION_API_KEY`: For Notion integration.
+*   `NOTION_API_KEY`: For Notion integration (used by various skills, including task management).
 *   `DEEPGRAM_API_KEY`: For transcription services.
-*   `ATOM_NOTION_TASKS_DATABASE_ID`: The ID of your Notion database for task management.
+*   `ATOM_NOTION_TASKS_DATABASE_ID`: The ID of your Notion database dedicated to task management. Refer to the "Notion Task Management" section in `FEATURES.md` for required database properties.
 *   `LANCEDB_URI`: URI for your LanceDB instance (e.g., `./lance_db` for local, or a remote URI). Required for semantic search of meeting transcripts.
 *   `PYTHON_API_SERVICE_BASE_URL`: (Optional) URL for the Python backend service if not `http://localhost:8080`.
 

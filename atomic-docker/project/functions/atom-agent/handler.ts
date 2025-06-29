@@ -108,10 +108,16 @@ import { handleSemanticSearchMeetingNotesSkill } from './skills/semanticSearchSk
 import {
     createNotionTask,
     queryNotionTasks,
-    updateNotionTask
-} from './skills/notionAndResearchSkills'; // Added Task functions
+    // createNotionTask, // Now handled by createNotionTaskCommandHandler
+    // queryNotionTasks, // Now handled by queryNotionTasksCommandHandler
+    // updateNotionTask // Now handled by updateNotionTaskCommandHandler
+} from './skills/notionAndResearchSkills';
 import { initializeDB as initializeLanceDB } from '../lanceDBManager';
 import * as lancedb from '@lancedb/lancedb';
+// Import new command handlers for Notion tasks
+import { handleCreateTaskRequest } from './command_handlers/createNotionTaskCommandHandler';
+import { handleQueryTasksRequest } from './command_handlers/queryNotionTasksCommandHandler';
+import { handleUpdateTaskRequest } from './command_handlers/updateNotionTaskCommandHandler';
 import {
     retrieveRelevantLTM,
     loadLTMToSTM,
@@ -650,28 +656,15 @@ async function _internalHandleMessage(
         }
         break;
 
-      // Add cases for CreateTask, QueryTasks, UpdateTask
-      case "CreateTask":
+      // --- Notion Task Management Intents ---
+      case "CreateTask": // Assuming NLU intent name matches this
         try {
-            const task_description = entities.task_description as string | undefined;
-            if (!task_description) {
-                textResponse = "Please provide a description for the task.";
+            // The NLU entities should align with CreateTaskHandlerNluEntities
+            const taskEntities = entities as import('./command_handlers/createNotionTaskCommandHandler').CreateTaskHandlerNluEntities;
+            if (!taskEntities.task_description) { // Basic validation
+                 textResponse = "Please provide a description for the task.";
             } else {
-                const createTaskParams: CreateNotionTaskParams = {
-                    description: task_description,
-                    dueDate: entities.due_date_time as string | undefined,
-                    priority: entities.priority as NotionTaskPriority | undefined,
-                    listName: entities.list_name as string | undefined,
-                    notes: entities.notes as string | undefined,
-                    notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
-                };
-                console.log(`[Handler][${interfaceType}] CreateTask: Calling createNotionTask with params:`, createTaskParams);
-                const taskResponse: SkillResponse<CreateTaskData> = await createNotionTask(userId, createTaskParams);
-                if (taskResponse.ok && taskResponse.data) {
-                    textResponse = `Task created: "${task_description}" (ID: ${taskResponse.data.taskId}). You can view it at ${taskResponse.data.taskUrl}`;
-                } else {
-                    textResponse = `Failed to create task: ${taskResponse.error?.message || 'Unknown error'}`;
-                }
+                textResponse = await handleCreateTaskRequest(userId, taskEntities);
             }
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateTask":`, error.message, error.stack);
@@ -679,85 +672,32 @@ async function _internalHandleMessage(
         }
         break;
 
-      case "QueryTasks":
+      case "QueryTasks": // Assuming NLU intent name matches this
         try {
-            const queryTaskParams: QueryNotionTasksParams = {
-                dateQuery: entities.date_range as string | undefined,
-                listName: entities.list_name as string | undefined,
-                status: entities.status as NotionTaskStatus | undefined,
-                priority: entities.priority as NotionTaskPriority | undefined,
-                descriptionContains: entities.description_contains as string | undefined,
-                limit: typeof entities.limit === 'number' ? entities.limit : undefined,
-                notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
-            };
-            console.log(`[Handler][${interfaceType}] QueryTasks: Calling queryNotionTasks with params:`, queryTaskParams);
-            const queryResponse: TaskQueryResponse = await queryNotionTasks(userId, queryTaskParams);
-            if (queryResponse.success && queryResponse.tasks.length > 0) {
-                textResponse = "Found these tasks:\n";
-                queryResponse.tasks.forEach(task => {
-                    textResponse += `- ${task.description} (Due: ${task.dueDate || 'N/A'}, Status: ${task.status}, Priority: ${task.priority || 'N/A'})\n`;
-                });
-            } else if (queryResponse.success) {
-                textResponse = "No tasks found matching your criteria.";
-            } else {
-                textResponse = `Failed to query tasks: ${queryResponse.error || 'Unknown error'}`;
-            }
+            // The NLU entities should align with QueryTasksHandlerNluEntities
+            const queryEntities = entities as import('./command_handlers/queryNotionTasksCommandHandler').QueryTasksHandlerNluEntities;
+            textResponse = await handleQueryTasksRequest(userId, queryEntities);
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "QueryTasks":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while querying your tasks.";
         }
         break;
 
-      case "UpdateTask":
+      case "UpdateTask": // Assuming NLU intent name matches this
         try {
-            const task_identifier = entities.task_identifier as string | undefined;
-            if (!task_identifier) {
-                textResponse = "Please specify which task you want to update by its description or ID.";
+            // The NLU entities should align with UpdateTaskHandlerNluEntities
+            const updateEntities = entities as import('./command_handlers/updateNotionTaskCommandHandler').UpdateTaskHandlerNluEntities;
+             if (!updateEntities.task_identifier_text) { // Basic validation
+                 textResponse = "Please specify which task you want to update by its name or part of its description.";
             } else {
-                const updateTaskParams: UpdateNotionTaskParams = {
-                    taskId: task_identifier,
-                    description: entities.new_description as string | undefined,
-                    dueDate: entities.new_due_date_time as string | undefined,
-                    status: entities.new_status as NotionTaskStatus | undefined,
-                    priority: entities.new_priority as NotionTaskPriority | undefined,
-                    listName: entities.new_list_name as string | undefined,
-                    notes: entities.new_notes as string | undefined,
-                };
-
-                Object.keys(updateTaskParams).forEach(keyStr => {
-                    const key = keyStr as keyof UpdateNotionTaskParams;
-                    if (updateTaskParams[key] === undefined) {
-                        delete updateTaskParams[key];
-                    }
-                });
-
-                if (Object.keys(updateTaskParams).length <= 1 && !entities.update_action?.includes('complete')) {
-                     textResponse = "What changes would you like to make to the task? For example, set a new due date, description, or mark it as complete.";
-                } else {
-                    if (entities.update_action === 'complete') {
-                        updateTaskParams.status = 'Done';
-                    } else if (entities.update_action === 'set_due_date' && !updateTaskParams.dueDate) {
-                        textResponse = "Please provide the new due date for the task.";
-                    }
-                    // Further specific action handling might be needed here or in the skill
-
-                    console.log(`[Handler][${interfaceType}] UpdateTask: Calling updateNotionTask with params:`, updateTaskParams);
-                    const updateResponse: SkillResponse<UpdateTaskData> = await updateNotionTask(userId, updateTaskParams);
-                    if (updateResponse.ok && updateResponse.data) {
-                        textResponse = `Task "${task_identifier}" updated. Properties changed: ${updateResponse.data.updatedProperties.join(', ')}.`;
-                    } else {
-                        textResponse = `Failed to update task "${task_identifier}": ${updateResponse.error?.message || 'Unknown error'}`;
-                    }
-                }
+                textResponse = await handleUpdateTaskRequest(userId, updateEntities);
             }
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "UpdateTask":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while updating your task.";
         }
         break;
-
-      // ... (other existing cases like ListEmails, SendEmail, etc. remain here) ...
-      // Make sure to place the new cases before the SemanticSearchMeetingNotes placeholder and default
+      // --- End Notion Task Management Intents ---
 
         case "ListEmails":
         try {
