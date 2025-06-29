@@ -1,13 +1,10 @@
-// Assuming invokeLLM might be moved to a shared utility later.
-// For now, if it's needed here, it would be re-defined or imported.
-// Let's assume for now that invokeLLM is a global-like utility function.
-// If not, we'd need to pass it or instantiate it.
 import {
-    invokeLLM,
+    invokeLLM, // This will be replaced by LLMServiceInterface instance
     StructuredLLMPrompt,
     DocumentSnippetData,
     DocumentSummaryData,
-    OverallSummaryData
+    OverallSummaryData,
+    LLMServiceInterface // Import the interface
 } from '../lib/llmUtils';
 
 // Mock Documents Data Store
@@ -51,122 +48,95 @@ async function _fetchMockDocuments(documentIds?: string[]): Promise<DocumentCont
     return foundDocs;
   }
   console.log(`[_fetchMockDocuments] No specific IDs provided, returning all ${MOCK_DOCUMENTS.length} mock documents.`);
-  return MOCK_DOCUMENTS; // Return all if no specific IDs are requested
+  return MOCK_DOCUMENTS;
 }
 
-
-/**
- * Represents the content and metadata of a document.
- */
 export interface DocumentContent {
   id: string;
   title: string;
-  textContent: string; // The full plain text content of the document
+  textContent: string;
   tags?: string[];
   createdAt?: Date;
-  // other metadata like author, source, etc. could be added
 }
 
-/**
- * Input for the ContextualDocumentAssistantSkill.
- */
 export interface DocumentAssistantInput {
-  query: string; // Natural language question from the user
-  documentIds?: string[]; // Optional: Specific document IDs to search within
-  userId: string; // For access control and personalization (not used in mock)
+  query: string;
+  documentIds?: string[];
+  userId: string;
   options?: {
-    summarize?: boolean; // Whether to generate summaries for found snippets/documents
-    targetSummaryLength?: 'short' | 'medium' | 'long'; // Desired length of summaries
-    maxResults?: number; // Maximum number of documents/answers to return
-    snippetLength?: number; // Approximate desired length of extracted snippets in characters
+    summarize?: boolean;
+    targetSummaryLength?: 'short' | 'medium' | 'long';
+    maxResults?: number;
+    snippetLength?: number;
   };
 }
 
-/**
- * Represents a single answer found within a document.
- */
 export interface AnswerObject {
   documentId: string;
   documentTitle?: string;
-  relevantSnippets: string[]; // Array of text snippets directly relevant to the query
-  summary?: string; // Optional summary of the relevant information in this document
-  relevanceScore?: number; // How relevant this document/answer is to the query (0.0 to 1.0)
-  pageNumbers?: number[]; // Optional: Page numbers where snippets were found (if applicable)
+  relevantSnippets: string[];
+  summary?: string;
+  relevanceScore?: number;
+  pageNumbers?: number[];
 }
 
-/**
- * Output result from the ContextualDocumentAssistantSkill.
- */
 export interface DocumentAssistantResult {
   originalQuery: string;
   answers: AnswerObject[];
-  overallSummary?: string; // Optional: A global summary if requested and multiple answers found
-  searchPerformedOn?: 'all_accessible' | 'specified_ids'; // Indicates the scope of the search
-  // errors?: string[]; // To report any issues during processing
+  overallSummary?: string;
+  searchPerformedOn?: 'all_accessible' | 'specified_ids';
 }
 
-/**
- * Skill to find information within documents using natural language queries.
- */
 export class ContextualDocumentAssistantSkill {
-  constructor() {
-    console.log("ContextualDocumentAssistantSkill initialized.");
-    // In a real scenario, this might load document indexes, connect to a vector DB, etc.
+  private readonly llmService: LLMServiceInterface;
+
+  constructor(llmService: LLMServiceInterface) {
+    this.llmService = llmService;
+    console.log("ContextualDocumentAssistantSkill initialized with LLMService.");
   }
 
-  /**
-   * Executes the document query and assistance process.
-   * @param input The DocumentAssistantInput containing the user's query and options.
-   * @returns A Promise resolving to the DocumentAssistantResult.
-   */
   public async execute(input: DocumentAssistantInput): Promise<DocumentAssistantResult> {
-    console.log(`[ContextualDocumentAssistantSkill] Received query: "${input.query}" for user: ${input.userId}, options: ${JSON.stringify(input.options)}`);
+    console.log(`[ContextualDocumentAssistantSkill] Query: "${input.query}", User: ${input.userId}, Options: ${JSON.stringify(input.options)}`);
 
-    // 1. Validate input (query, userId)
     if (!input.query || !input.userId) {
-      throw new Error("Query and userId are required for ContextualDocumentAssistantSkill.");
+      throw new Error("Query and userId are required.");
     }
     const snippetLength = input.options?.snippetLength || 150;
     const targetSummaryLength = input.options?.targetSummaryLength || 'medium';
-    const maxResults = input.options?.maxResults || 5;
+    const maxResults = input.options?.maxResults || 3;
 
-
-    // 2. Fetch candidate documents using _fetchMockDocuments(input.documentIds)
     const candidateDocuments = await _fetchMockDocuments(input.documentIds);
     const searchScope = input.documentIds && input.documentIds.length > 0 ? 'specified_ids' : 'all_accessible';
-    console.log(`[ContextualDocumentAssistantSkill] Fetched ${candidateDocuments.length} candidate documents to process for scope: ${searchScope}.`);
+    console.log(`[ContextualDocumentAssistantSkill] Fetched ${candidateDocuments.length} docs for scope: ${searchScope}.`);
 
-    // 3. Initialize results array: answers: AnswerObject[] = []
     const answers: AnswerObject[] = [];
     let overallSummary: string | undefined = undefined;
 
-    // 4. For each fetched document:
-    //    (Loop will be limited by maxResults if many documents are returned by _fetchMockDocuments without specific IDs)
     for (const doc of candidateDocuments.slice(0, maxResults)) {
-      console.log(`[ContextualDocumentAssistantSkill] Processing document: ${doc.id} - ${doc.title}`);
+      console.log(`[ContextualDocumentAssistantSkill] Processing doc: ${doc.id} - ${doc.title}`);
       const snippetData: DocumentSnippetData = {
         query: input.query,
         documentTitle: doc.title,
-        documentText: doc.textContent.substring(0, 2000), // Limit text sent
+        documentText: doc.textContent.substring(0, 2000),
         snippetLength: snippetLength
       };
-      const structuredSnippetPrompt: StructuredLLMPrompt = {
-        task: 'extract_document_snippets',
-        data: snippetData
-      };
+      const structuredSnippetPrompt: StructuredLLMPrompt = { task: 'extract_document_snippets', data: snippetData };
 
       let extractedSnippets: string[] = [];
       try {
-        const llmSnippetsResponse = await invokeLLM(structuredSnippetPrompt, 'cheapest');
-        console.log(`[ContextualDocumentAssistantSkill] LLM snippets response for doc ${doc.id}: ${llmSnippetsResponse}`);
-        const parsedSnippetsResponse = JSON.parse(llmSnippetsResponse);
-        if (parsedSnippetsResponse && Array.isArray(parsedSnippetsResponse.snippets)) {
-          extractedSnippets = parsedSnippetsResponse.snippets.filter((s: any): s is string => typeof s === 'string');
+        const llmResponse = await this.llmService.generate(structuredSnippetPrompt, 'cheapest');
+        if (llmResponse.success && llmResponse.content) {
+          const parsedResp = JSON.parse(llmResponse.content);
+          if (parsedResp && Array.isArray(parsedResp.snippets)) {
+            extractedSnippets = parsedResp.snippets.filter((s: any): s is string => typeof s === 'string');
+          } else {
+            console.warn(`[ContextualDocumentAssistantSkill] Snippets response invalid structure for doc ${doc.id}: ${llmResponse.content}`);
+          }
         } else {
-          console.warn(`[ContextualDocumentAssistantSkill] LLM snippets response for doc ${doc.id} had invalid structure: ${llmSnippetsResponse}`);
+          console.error(`[ContextualDocumentAssistantSkill] Snippet extraction LLM call failed for doc ${doc.id}: ${llmResponse.error}`);
         }
-      } catch (error) {
-        console.error(`[ContextualDocumentAssistantSkill] Error processing LLM snippets for doc ${doc.id}:`, error);
+      } catch (e: any) {
+        console.error(`[ContextualDocumentAssistantSkill] Error parsing snippet LLM response for doc ${doc.id}: ${e.message}`);
       }
 
       if (extractedSnippets.length > 0) {
@@ -174,16 +144,14 @@ export class ContextualDocumentAssistantSkill {
           documentId: doc.id,
           documentTitle: doc.title,
           relevantSnippets: extractedSnippets,
-          relevanceScore: 0.75 + Math.min(0.2, extractedSnippets.length * 0.05), // Placeholder score
+          relevanceScore: parseFloat((0.6 + Math.min(0.35, extractedSnippets.length * 0.08)).toFixed(2)),
         };
-        answers.push(answerObject); // Add to answers first, then try to summarize
+        answers.push(answerObject);
       }
-    } // End of document loop
+    }
 
-    // Post-process answers for summarization if requested
-    // Post-process answers for summarization if requested
     if (input.options?.summarize) {
-      for (const answer of answers) { // answer object is already pushed if snippets were found
+      for (const answer of answers) {
         if (answer.relevantSnippets.length > 0) {
           const docSummaryData: DocumentSummaryData = {
             query: input.query,
@@ -191,59 +159,41 @@ export class ContextualDocumentAssistantSkill {
             snippets: answer.relevantSnippets,
             targetLength: targetSummaryLength
           };
-          const structuredDocSummaryPrompt: StructuredLLMPrompt = {
-            task: 'summarize_document_snippets',
-            data: docSummaryData
-          };
-
+          const structuredDocSummaryPrompt: StructuredLLMPrompt = { task: 'summarize_document_snippets', data: docSummaryData };
           try {
-            const llmSummary = await invokeLLM(structuredDocSummaryPrompt, 'cheapest');
-            console.log(`[ContextualDocumentAssistantSkill] LLM summary for doc ${answer.documentId}: ${llmSummary}`);
-            if (llmSummary && !llmSummary.toLowerCase().startsWith("llm fallback response")) {
-              answer.summary = llmSummary;
+            const llmResponse = await this.llmService.generate(structuredDocSummaryPrompt, 'cheapest');
+            if (llmResponse.success && llmResponse.content && !llmResponse.content.toLowerCase().startsWith("llm fallback")) {
+              answer.summary = llmResponse.content;
             } else {
-              answer.summary = "Summary could not be generated by LLM.";
-              console.warn(`[ContextualDocumentAssistantSkill] LLM summary failed or returned fallback for doc ${answer.documentId}.`);
+              answer.summary = "Summary could not be generated.";
+              console.warn(`[ContextualDocumentAssistantSkill] Doc summary LLM failed for ${answer.documentId}: ${llmResponse.error || llmResponse.content}`);
             }
-          } catch (error) {
-            console.error(`[ContextualDocumentAssistantSkill] Error during LLM summarization for doc ${answer.documentId}:`, error);
+          } catch (e: any) {
+            console.error(`[ContextualDocumentAssistantSkill] Error in doc summary LLM call for ${answer.documentId}: ${e.message}`);
             answer.summary = "Error generating summary.";
           }
         }
       }
-    }
 
-    // 5. (Optional) If input.options?.summarize and answers with summaries exist, generate overallSummary:
-    if (input.options?.summarize && answers.some(a => a.summary)) {
-      const individualSummaries = answers
-        .filter(a => a.summary)
-        .map(a => ({ title: a.documentTitle, summary: a.summary }));
-
-      if (individualSummaries.length > 0) {
-        const overallSummaryData: OverallSummaryData = {
-          query: input.query,
-          individualSummaries: individualSummaries
-        };
-        const structuredOverallSummaryPrompt: StructuredLLMPrompt = {
-          task: 'summarize_overall_answer',
-          data: overallSummaryData
-        };
-        try {
-          const llmOverallSummary = await invokeLLM(structuredOverallSummaryPrompt, 'cheapest');
-          console.log(`[ContextualDocumentAssistantSkill] LLM overall summary: ${llmOverallSummary}`);
-          if (llmOverallSummary && !llmOverallSummary.toLowerCase().startsWith("llm fallback response")) {
-            overallSummary = llmOverallSummary;
-          } else {
-            console.warn(`[ContextualDocumentAssistantSkill] LLM overall summary failed or returned fallback.`);
+      if (answers.some(a => a.summary)) {
+        const individualSummaries = answers.filter(a => a.summary).map(a => ({ title: a.documentTitle, summary: a.summary }));
+        if (individualSummaries.length > 0) {
+          const overallSummaryData: OverallSummaryData = { query: input.query, individualSummaries };
+          const structuredOverallSummaryPrompt: StructuredLLMPrompt = { task: 'summarize_overall_answer', data: overallSummaryData };
+          try {
+            const llmResponse = await this.llmService.generate(structuredOverallSummaryPrompt, 'cheapest');
+            if (llmResponse.success && llmResponse.content && !llmResponse.content.toLowerCase().startsWith("llm fallback")) {
+              overallSummary = llmResponse.content;
+            } else {
+              console.warn(`[ContextualDocumentAssistantSkill] Overall summary LLM failed: ${llmResponse.error || llmResponse.content}`);
+            }
+          } catch (e: any) {
+            console.error(`[ContextualDocumentAssistantSkill] Error in overall summary LLM call: ${e.message}`);
           }
-        } catch (error) {
-          console.error(`[ContextualDocumentAssistantSkill] Error during LLM overall summarization:`, error);
         }
       }
     }
 
-
-    // 6. Construct and return DocumentAssistantResult
     const result: DocumentAssistantResult = {
       originalQuery: input.query,
       answers: answers,
@@ -251,54 +201,38 @@ export class ContextualDocumentAssistantSkill {
       overallSummary: overallSummary,
     };
 
-    console.log(`[ContextualDocumentAssistantSkill] Returning processed result for query: "${input.query}" with ${answers.length} answers.`);
+    console.log(`[ContextualDocumentAssistantSkill] Result for "${input.query}": ${answers.length} answers.`);
     return result;
   }
 }
 
-// Example Usage (for testing or demonstration)
+// Example Usage:
 /*
-async function testContextualDocSkill() {
-  // Assume invokeLLM is globally available or imported for the skill to use internally
-  // For testing here, we don't need to call it directly unless we're testing the skill's usage of it.
+import { MockLLMService, OpenAIGroqService_Stub } from '../lib/llmUtils';
 
-  const skill = new ContextualDocumentAssistantSkill();
+async function testContextualDocSkill() {
+  // const llmService = new MockLLMService();
+  const llmService = new OpenAIGroqService_Stub("YOUR_GROQ_API_KEY", "YOUR_GROQ_MODEL"); // Replace with actuals
+  const skill = new ContextualDocumentAssistantSkill(llmService);
 
   const testInput1: DocumentAssistantInput = {
     userId: "user-test-123",
     query: "What were the key decisions from the Q3 budget meeting?",
-    options: {
-      summarize: true,
-      targetSummaryLength: 'medium',
-      maxResults: 3,
-      snippetLength: 200
-    }
+    options: { summarize: true, targetSummaryLength: 'short', maxResults: 2 }
   };
-
-  try {
-    console.log("\\n--- Test Case 1: General query with summarization ---");
-    const result1 = await skill.execute(testInput1);
-    console.log(JSON.stringify(result1, null, 2));
-  } catch (error) {
-    console.error("Error during skill execution (Test Case 1):", error);
-  }
+  console.log("\\n--- Test Case 1: Budget Query ---");
+  const result1 = await skill.execute(testInput1);
+  console.log(JSON.stringify(result1, null, 2));
 
   const testInput2: DocumentAssistantInput = {
     userId: "user-test-456",
-    query: "Tell me about Project Phoenix in document 'proj-phoenix-brief.pdf'",
-    documentIds: ["proj-phoenix-brief.pdf"], // Assuming this ID maps to a mock document
-    options: {
-      summarize: false, // Just snippets
-    }
+    query: "Tell me about Project Phoenix security",
+    documentIds: ["doc_002"],
+    options: { summarize: true, snippetLength: 100 }
   };
-  try {
-    console.log("\\n--- Test Case 2: Query on specific document, no summary ---");
-    const result2 = await skill.execute(testInput2);
-    console.log(JSON.stringify(result2, null, 2));
-  } catch (error) {
-    console.error("Error during skill execution (Test Case 2):", error);
-  }
+  console.log("\\n--- Test Case 2: Phoenix Security ---");
+  const result2 = await skill.execute(testInput2);
+  console.log(JSON.stringify(result2, null, 2));
 }
-
 // testContextualDocSkill();
 */
