@@ -64,25 +64,37 @@ export function buildMSTeamsSearchQuery(params: StructuredMSTeamsQuery): string 
   }
 
   // Date filters
-  // KQL date format is YYYY-MM-DD. Can also use relative terms like 'today', 'yesterday'.
-  // Or ranges: created:YYYY-MM-DD..YYYY-MM-DD
+// KQL date format is YYYY-MM-DD. Graph Search for messages uses 'lastModifiedDateTime'.
   if (params.onDate) {
-    kqlParts.push(`created:${params.onDate}`);
-  } else if (params.afterDate && params.beforeDate) {
-    kqlParts.push(`created:${params.afterDate}..${params.beforeDate}`);
-  } else if (params.afterDate) {
-    kqlParts.push(`created>=${params.afterDate}`);
-  } else if (params.beforeDate) {
-    kqlParts.push(`created<=${params.beforeDate}`);
+    // To cover the whole day, create a range.
+    kqlParts.push(`(lastModifiedDateTime>=${params.onDate}T00:00:00Z AND lastModifiedDateTime<=${params.onDate}T23:59:59Z)`);
+  } else { // if onDate is not present, then before/after can be used
+    if (params.afterDate) {
+      kqlParts.push(`lastModifiedDateTime>=${params.afterDate}T00:00:00Z`);
+    }
+    if (params.beforeDate) {
+      // To be inclusive of the 'beforeDate', it should be less than the start of the *next* day,
+      // or less than or equal to the end of the 'beforeDate'.
+      kqlParts.push(`lastModifiedDateTime<=${params.beforeDate}T23:59:59Z`);
+    }
   }
 
-  // EntityType filter is applied in the search request body, not typically in KQL string for messages directly.
-  // e.g. entityTypes: ['chatMessage']
+  if (params.hasLink && !kqlParts.some(p => p.toLowerCase().includes("http"))) {
+    // Add http/https as keywords if hasLink is true and not already part of textKeywords
+    if (params.textKeywords && params.textKeywords.length > 0) {
+        if (!params.textKeywords.toLowerCase().includes("http")) {
+             kqlParts.push("(http OR https)");
+        }
+    } else {
+        kqlParts.push("(http OR https)");
+    }
+  }
 
-  const finalKqlQuery = kqlParts.filter(part => part.length > 0).join(' AND ').trim();
-  // Note: KQL often uses implicit AND, but explicitly adding it can be clearer.
-  // Depending on Graph Search behavior, just joining by space might also work for some terms.
-  // Using 'AND' for more precise conjunction.
+  // EntityType filter (e.g., entityTypes: ['chatMessage']) is typically applied in the search request body,
+  // not usually in the KQL string for messages directly, but KQL might support `IsDocument:false` or similar.
+  // For now, we assume the API call will scope to messages.
+
+  const finalKqlQuery = kqlParts.filter(part => part && part.length > 0).join(' AND ').trim();
 
   logger.debug(`[NluMSTeamsHelper] Built MS Teams KQL query: "${finalKqlQuery}" from params:`, params);
   return finalKqlQuery;

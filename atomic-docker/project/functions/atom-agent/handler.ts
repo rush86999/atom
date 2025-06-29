@@ -118,6 +118,12 @@ import * as lancedb from '@lancedb/lancedb';
 import { handleCreateTaskRequest } from './command_handlers/createNotionTaskCommandHandler';
 import { handleQueryTasksRequest } from './command_handlers/queryNotionTasksCommandHandler';
 import { handleUpdateTaskRequest } from './command_handlers/updateNotionTaskCommandHandler';
+// Import new Gmail skills
+import { handleSearchGmail, handleExtractInfoFromGmail, SearchGmailNluEntities, ExtractInfoFromGmailNluEntities } from './skills/gmailSkills';
+// Import new Slack Query skills
+import { handleSearchSlackMessages, handleExtractInfoFromSlackMessage, SearchSlackMessagesNluEntities, ExtractInfoFromSlackMessageNluEntities } from './skills/slackQuerySkills';
+// Import new MS Teams Query skills
+import { handleSearchMSTeamsMessages, handleExtractInfoFromMSTeamsMessage, SearchMSTeamsMessagesNluEntities, ExtractInfoFromMSTeamsMessageNluEntities } from './skills/msTeamsQuerySkills';
 import {
     retrieveRelevantLTM,
     loadLTMToSTM,
@@ -699,7 +705,142 @@ async function _internalHandleMessage(
         break;
       // --- End Notion Task Management Intents ---
 
-        case "ListEmails":
+      // --- Gmail AI Powered Querying Intents ---
+      case "SearchGmail": // New Intent for AI Powered Search
+        try {
+            // NLU entities should align with SearchGmailNluEntities defined in gmailSkills.ts
+            const searchGmailEntities = entities as SearchGmailNluEntities;
+            if (!searchGmailEntities.raw_query_text || searchGmailEntities.raw_query_text.trim() === "") {
+                textResponse = "Please tell me what you'd like to search for in your Gmail.";
+            } else {
+                const limit = typeof searchGmailEntities.limit_number === 'number' ? searchGmailEntities.limit_number : 10; // Default limit
+                const skillResponse = await handleSearchGmail(userId, searchGmailEntities.raw_query_text, limit);
+                if (skillResponse.ok && skillResponse.data) {
+                    textResponse = skillResponse.data.userMessage;
+                } else {
+                    textResponse = skillResponse.data?.userMessage || skillResponse.error?.message || "Sorry, I couldn't complete the Gmail search.";
+                }
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SearchGmail":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while searching your Gmail.";
+        }
+        break;
+
+      case "ExtractInfoFromEmail": // New Intent
+        try {
+            // NLU entities should align with ExtractInfoFromGmailNluEntities from gmailSkills.ts
+            const extractEntities = entities as ExtractInfoFromGmailNluEntities;
+            if (!extractEntities.information_keywords || extractEntities.information_keywords.length === 0) {
+                textResponse = "Please specify what information you want me to extract from the email.";
+            } else if (!extractEntities.email_id && !extractEntities.email_reference_context) {
+                textResponse = "Please specify which email you're referring to (e.g., by its ID or a reference like 'last email from support').";
+            }
+            else {
+                const emailIdOrRef = extractEntities.email_id || extractEntities.email_reference_context!; // One must be present due to above check
+                const skillResponse = await handleExtractInfoFromGmail(userId, emailIdOrRef, extractEntities.information_keywords, extractEntities.email_body_context);
+                 if (skillResponse.ok && skillResponse.data) {
+                    textResponse = skillResponse.data.userMessage;
+                } else {
+                    textResponse = skillResponse.data?.userMessage || skillResponse.error?.message || "Sorry, I couldn't extract information from the email.";
+                }
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ExtractInfoFromEmail":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while extracting information from the email.";
+        }
+        break;
+      // --- End Gmail AI Powered Querying Intents ---
+
+      // --- Slack AI Powered Querying Intents ---
+      case "SearchSlackMessages": // New Intent
+        try {
+            const searchSlackEntities = entities as SearchSlackMessagesNluEntities;
+            if (!searchSlackEntities.raw_query_text || searchSlackEntities.raw_query_text.trim() === "") {
+                textResponse = "Please tell me what you'd like to search for in Slack.";
+            } else {
+                const limit = typeof searchSlackEntities.limit_number === 'number' ? searchSlackEntities.limit_number : 20;
+                const skillResponse = await handleSearchSlackMessages(userId, searchSlackEntities.raw_query_text, limit);
+                if (skillResponse.ok && skillResponse.data) {
+                    textResponse = skillResponse.data.userMessage;
+                } else {
+                    textResponse = skillResponse.data?.userMessage || skillResponse.error?.message || "Sorry, I couldn't complete the Slack search.";
+                }
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SearchSlackMessages":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while searching Slack.";
+        }
+        break;
+
+      case "ExtractInfoFromSlackMessage": // New Intent
+        try {
+            const extractSlackEntities = entities as ExtractInfoFromSlackMessageNluEntities;
+            if (!extractSlackEntities.information_keywords || extractSlackEntities.information_keywords.length === 0) {
+                textResponse = "Please specify what information you want me to extract from the Slack message.";
+            } else if (!extractSlackEntities.message_reference_text) {
+                textResponse = "Please specify which Slack message you're referring to (e.g., by its permalink or a description like 'last message from bob').";
+            } else {
+                const skillResponse = await handleExtractInfoFromSlackMessage(userId, extractSlackEntities.message_reference_text, extractSlackEntities.information_keywords, extractSlackEntities.message_text_context);
+                if (skillResponse.ok && skillResponse.data) {
+                    textResponse = skillResponse.data.userMessage;
+                } else {
+                    textResponse = skillResponse.data?.userMessage || skillResponse.error?.message || "Sorry, I couldn't extract information from the Slack message.";
+                }
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ExtractInfoFromSlackMessage":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while extracting information from the Slack message.";
+        }
+        break;
+      // --- End Slack AI Powered Querying Intents ---
+
+      // --- MS Teams AI Powered Querying Intents ---
+      case "SearchMSTeamsMessages": // New Intent
+        try {
+            const searchTeamsEntities = entities as SearchMSTeamsMessagesNluEntities; // From msTeamsQuerySkills.ts
+            if (!searchTeamsEntities.raw_query_text || searchTeamsEntities.raw_query_text.trim() === "") {
+                textResponse = "Please tell me what you'd like to search for in Microsoft Teams.";
+            } else {
+                const limit = typeof searchTeamsEntities.limit_number === 'number' ? searchTeamsEntities.limit_number : 20;
+                const skillResponse = await handleSearchMSTeamsMessages(userId, searchTeamsEntities.raw_query_text, limit);
+                if (skillResponse.ok && skillResponse.data) {
+                    textResponse = skillResponse.data.userMessage;
+                } else {
+                    textResponse = skillResponse.data?.userMessage || skillResponse.error?.message || "Sorry, I couldn't complete the Teams message search.";
+                }
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "SearchMSTeamsMessages":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while searching your Teams messages.";
+        }
+        break;
+
+      case "ExtractInfoFromMSTeamsMessage": // New Intent
+        try {
+            const extractTeamsEntities = entities as ExtractInfoFromMSTeamsMessageNluEntities; // From msTeamsQuerySkills.ts
+            if (!extractTeamsEntities.information_keywords || extractTeamsEntities.information_keywords.length === 0) {
+                textResponse = "Please specify what information you want me to extract from the Teams message.";
+            } else if (!extractTeamsEntities.message_reference_text && !extractTeamsEntities.message_id) { // Check if either reference or direct ID is present
+                textResponse = "Please specify which Teams message you're referring to (e.g., by its permalink, a description, or message ID).";
+            } else {
+                // Pass the whole entity object to the skill, it will figure out how to identify the message
+                const skillResponse = await handleExtractInfoFromMSTeamsMessage(userId, extractTeamsEntities);
+                if (skillResponse.ok && skillResponse.data) {
+                    textResponse = skillResponse.data.userMessage;
+                } else {
+                    textResponse = skillResponse.data?.userMessage || skillResponse.error?.message || "Sorry, I couldn't extract information from the Teams message.";
+                }
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ExtractInfoFromMSTeamsMessage":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while extracting information from the Teams message.";
+        }
+        break;
+      // --- End MS Teams AI Powered Querying Intents ---
+
+      // Existing Email Intents (might be deprecated or refactored if SearchGmail covers their functionality)
+      case "ListEmails": // This might be replaced by SearchGmail with an empty/generic query
         try {
             let limit = 10; // Default limit
             if (nluResponse.entities?.limit) {
@@ -1914,3 +2055,5 @@ export async function getConversationStatus() {
         text_state: conversationManager.getConversationStateSnapshot('text')
     };
 }
+
+[end of atomic-docker/project/functions/atom-agent/handler.ts]

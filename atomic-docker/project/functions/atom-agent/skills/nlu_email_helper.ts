@@ -67,8 +67,38 @@ export function buildGmailSearchQuery(params: StructuredEmailQuery): string {
     queryParts.push(params.customQuery.trim());
   }
 
-  return queryParts.filter(part => part.length > 0).join(' ').trim();
+  const builtQuery = queryParts.filter(part => part.length > 0).join(' ').trim();
+
+  // If structured parsing results in an empty query, but a raw query was provided (as fallback from skill), use raw.
+  // The rawQueryFallback is an addition to the function signature.
+  // This logic is better handled in the calling skill (gmailSkills.ts) actually,
+  // as buildGmailSearchQuery should purely translate structured to string.
+  // The skill can decide if the structured query is too sparse and then use raw.
+  // So, I will remove this rawQueryFallback logic from here and ensure it's in gmailSkills.ts.
+
+  return builtQuery;
 }
+
+/**
+ * (Helper for LLM - not directly used by agent skill for query construction, but for prompt context)
+ * This function is intended to format date conditions for the LLM prompt, ensuring it knows
+ * how to interpret relative dates.
+ * @param dateConditionText e.g., "today", "last week", "since Monday"
+ * @param currentDate The actual current date (YYYY/MM/DD)
+ * @returns A string explanation for the LLM, or null if not a special relative term.
+ */
+export function getRelativeDateInterpretationForLLM(dateConditionText: string, currentDate: string): string | null {
+    const lowerText = dateConditionText.toLowerCase();
+    // This is illustrative. More robust parsing would be needed for complex relative dates.
+    if (lowerText === "yesterday") return `Yesterday (day before ${currentDate})`;
+    if (lowerText === "today") return `Today (${currentDate})`;
+    if (lowerText === "tomorrow") return `Tomorrow (day after ${currentDate})`;
+    if (lowerText === "last week") return `The full calendar week before the week of ${currentDate}`;
+    if (lowerText === "this week") return `The current calendar week containing ${currentDate}`;
+    // Add more cases as needed by the LLM prompt for date inference.
+    return null;
+}
+
 
 /*
 // Example Usage:

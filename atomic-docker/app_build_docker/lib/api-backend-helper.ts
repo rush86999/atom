@@ -35,11 +35,12 @@ export const exchangeCodeForTokens = async (code: string): Promise<Credentials> 
 export const generateGoogleAuthUrl = (state?: string) => {
 
 
-    // Access scopes for read-only Drive activity.
+    // Access scopes
     const scopes = [
         'https://www.googleapis.com/auth/calendar.readonly',
         'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/contacts.readonly'
+        'https://www.googleapis.com/auth/contacts.readonly',
+        'https://www.googleapis.com/auth/gmail.readonly' // Added Gmail readonly scope
     ]
 
     const config: any = {

@@ -141,25 +141,30 @@ const AtomAgentSettings = () => {
         </Box>
       )}
 
-      {/* Google Calendar Section */}
+      {/* Google Account Section (Calendar & Gmail) */}
       <Box marginBottom="m" paddingBottom="m" borderBottomWidth={1} borderColor="hairline">
         <Text variant="subHeader" marginBottom="s">
-          Google Calendar
+          Google Account (Calendar, Gmail)
         </Text>
-        {isCalendarConnected ? (
+        {isLoadingStatus ? (
+          <Text>Loading Google connection status...</Text>
+        ) : isCalendarConnected ? ( // isCalendarConnected now implies Google Account is connected
           <Box>
-            <Text marginBottom="s">Status: Connected ({userEmail || 'Unknown email'})</Text>
-            <Button onPress={handleDisconnectGoogleCalendar} variant="danger" title="Disconnect Google Calendar" />
+            <Text marginBottom="s">Status: Connected ({userEmail || 'Details unavailable'})</Text>
+            <Text fontSize="sm" color="gray.600" marginBottom="s">
+              Provides access to Google Calendar and Gmail (read-only). Reconnecting may be needed if previously connected without Gmail permissions.
+            </Text>
+            <Button onPress={handleDisconnectGoogleCalendar} variant="danger" title="Disconnect Google Account" />
           </Box>
         ) : (
           <Box>
             <Text marginBottom="s">Status: Not Connected</Text>
-            <Button onPress={handleConnectGoogleCalendar} variant="primary" title="Connect Google Calendar" />
+            <Button onPress={handleConnectGoogleCalendar} variant="primary" title="Connect Google Account" />
           </Box>
         )}
       </Box>
 
-      {/* Email Account Section */}
+      {/* Email Account Section - This might become redundant if Gmail is the primary email, or could be for other IMAP etc. */}
       <Box marginBottom="m" paddingBottom="m" borderBottomWidth={1} borderColor="hairline">
         <Text variant="subHeader" marginBottom="s">
           Email Account
@@ -229,6 +234,25 @@ const AtomAgentSettings = () => {
           Allows Atom to listen for the wake word "Atom" to start interactions. Requires microphone permission.
           This feature is experimental and relies on a configured audio processor (NEXT_PUBLIC_AUDIO_PROCESSOR_URL).
           If NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION is true, it will simulate detection.
+        </Text>
+      </Box>
+
+      {/* Microsoft Teams Section */}
+      <Box marginTop="m" paddingTop="m" borderTopWidth={1} borderColor="hairline">
+        <Text variant="subHeader" marginBottom="s">
+          Microsoft Teams Account
+        </Text>
+        {/* TODO: Fetch and display actual MS Teams connection status */}
+        {/* For now, using a placeholder state and logic */}
+        {/* <Text marginBottom="s">Status: {isMSTeamsConnected ? `Connected (${msTeamsUserEmail || 'Details unavailable'})` : 'Not Connected'}</Text> */}
+        {/* {isMSTeamsConnected ? (
+          <Button onPress={handleDisconnectMSTeams} variant="danger" title="Disconnect Microsoft Teams" />
+        ) : (
+          <Button onPress={handleConnectMSTeams} variant="primary" title="Connect Microsoft Teams" />
+        )} */}
+        <Button onPress={() => router.push('/api/atom/auth/msteams/initiate')} variant="primary" title="Connect Microsoft Teams" marginBottom="s" />
+         <Text variant="body" fontSize="xs" color="gray.500">
+            Connect your Microsoft account to allow Atom to read Teams messages (for AI-powered search and information extraction) and manage Teams calendar events. Requires delegated permissions.
         </Text>
       </Box>
 
