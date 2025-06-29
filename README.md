@@ -102,12 +102,24 @@ Atom requires various environment variables to be set for full functionality. Th
 *   `LANCEDB_URI`: URI for your LanceDB instance (e.g., `./lance_db` for local, or a remote URI). Required for semantic search of meeting transcripts.
 *   `PYTHON_API_SERVICE_BASE_URL`: (Optional) URL for the Python backend service if not `http://localhost:8080`.
 
-**Google Calendar Integration (Agent & UI):**
-*   `ATOM_GOOGLE_CALENDAR_CLIENT_ID`: Google Cloud OAuth Client ID (for `atom-agent` service).
-*   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET`: Google Cloud OAuth Client Secret (for `atom-agent` service).
-*   `NEXT_PUBLIC_GOOGLE_CLIENT_ID_ATOMIC_WEB`: Google Cloud OAuth Client ID (for frontend, if different or specific to web app's OAuth flow).
-*   `GOOGLE_CLIENT_SECRET_ATOMIC_WEB`: Google Cloud OAuth Client Secret (for backend handling web app's OAuth flow).
+**Slack Integration (Agent):**
+*   `ATOM_SLACK_BOT_TOKEN`: Slack Bot User OAuth Token for Slack integration (sending messages, searching, etc.). Requires appropriate scopes.
+    *   Note: `OPENAI_API_KEY` is also used by the agent for AI-powered Slack query understanding and information extraction.
+
+**Microsoft Teams Integration (Agent & UI - User OAuth):**
+*   `MSTEAMS_CLIENT_ID`: Azure AD App Registration Client ID (for frontend/Next.js backend's OAuth flow).
+*   `MSTEAMS_CLIENT_SECRET`: Azure AD App Registration Client Secret (for Next.js backend's OAuth flow).
+*   `MSTEAMS_REDIRECT_URI`: Your app's redirect URI, e.g., `http://localhost:3000/api/atom/auth/msteams/callback`. Must be registered in Azure AD.
+*   `MSTEAMS_AUTHORITY`: (Optional) Microsoft Identity Platform authority, e.g., `https://login.microsoftonline.com/common` or specific tenant.
+    *   Note: This OAuth flow uses delegated permissions (e.g., `Chat.Read`, `ChannelMessage.Read.All`) to access user's Teams data. `OPENAI_API_KEY` is used by the agent for AI-powered Teams message query understanding and information extraction.
+
+**Google Account Integration (Calendar & Gmail - Agent & UI):**
+*   `ATOM_GOOGLE_CALENDAR_CLIENT_ID`: Google Cloud OAuth Client ID (used by `atom-agent` for services like Calendar).
+*   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET`: Google Cloud OAuth Client Secret (used by `atom-agent`).
+*   `NEXT_PUBLIC_GOOGLE_CLIENT_ID_ATOMIC_WEB`: Google Cloud OAuth Client ID used by the frontend/Next.js backend for the OAuth flow.
+*   `GOOGLE_CLIENT_SECRET_ATOMIC_WEB`: Google Cloud OAuth Client Secret used by the Next.js backend for the OAuth flow.
 *   `GOOGLE_OAUTH_ATOMIC_WEB_REDIRECT_URL`: Your app's redirect URI, e.g., `http://localhost:3000/api/atom/auth/calendar/callback`. This **must** be registered in your Google Cloud Console.
+    *   Note: This OAuth flow now requests scopes for both Google Calendar and Gmail (read-only). `OPENAI_API_KEY` is also used by the agent for AI-powered Gmail query understanding and information extraction.
 
 **Wake Word Detection (Frontend - Experimental):**
 *   `NEXT_PUBLIC_AUDIO_PROCESSOR_URL`: (Optional) URL of your external WebSocket-based STT service for wake word detection.

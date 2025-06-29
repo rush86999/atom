@@ -147,35 +147,34 @@ Atom connects with a wide range of third-party services to create a unified prod
 *   **Push Notifications:** Generic support for sending push notifications to keep users updated on calendar changes or important tasks.
 *   **Gmail Account Integration (Read-Only & AI-Powered Querying):**
     *   **Secure Connection:** Connect your personal Gmail account via OAuth 2.0 for secure, read-only access. Tokens are encrypted at rest.
-    *   **Natural Language Email Search:** Ask the agent in natural language to find emails (e.g., "find emails from Jane about the Q3 report sent last week"). The agent uses an LLM to understand complex queries, resolve relative dates, and identify key search parameters.
-    *   **Targeted Information Extraction:** Request specific information from found emails (e.g., "What was the contract end date mentioned in the email from XYZ?"). The agent uses an LLM to read the email content and extract the requested details. (Note: Accuracy depends on LLM capabilities and prompt engineering).
-    *   **Agent Skills:** Core agent skills updated to search emails and read email content via the Gmail API.
+    *   **Natural Language Email Search:** Ask the agent natural language questions to find emails (e.g., "find emails from Jane about the Q3 report sent last week"). The `atom-agent` uses an LLM (via `llm_email_query_understander.ts`) to parse your query into structured parameters, which are then used to construct a Gmail API compatible search string. This search is executed via a Hasura Action that calls the Gmail API.
+    *   **Targeted Information Extraction:** After identifying an email (e.g., through search or by providing an email ID), ask the agent to extract specific pieces of information (e.g., "What was the contract end date mentioned in this email?", "Extract the invoice number and amount from email ID [email_id]"). The `atom-agent` uses an LLM (via `extractInformationFromEmailBody` in `emailSkills.ts`) to read the email content (fetched via a Hasura Action) and find the requested details. Accuracy depends on LLM capabilities and the clarity of the email content.
+    *   **Agent Skills:** Core agent skills (`gmailSkills.ts`, `emailSkills.ts`) manage the NLU processing, interaction with LLMs, and calls to Hasura Actions which interface with the Gmail API.
     *   **User Interface:**
-        *   Settings page to connect/disconnect Gmail account and view connection status.
-        *   Proof-of-concept UI for direct Gmail searching.
-    *   **Developer Documentation:** Comprehensive guide for setup, API details, and agent integration logic.
+        *   The main "Google Account" connection in Settings now includes `gmail.readonly` scope. Reconnecting may be necessary if previously connected for Calendar only.
+        *   (Future) A proof-of-concept UI for direct Gmail searching could be developed.
+    *   **Dependencies & Setup:** Requires `ATOM_OPENAI_API_KEY` (or similar) for the `atom-agent`'s LLM utilities. The Hasura backend must be configured with appropriate Google Cloud credentials and handling for user-specific OAuth tokens with Gmail scopes.
+    *   **Developer Documentation:** (To be updated) Guide for Hasura Action setup for Gmail and details on the LLM prompts used for query understanding and information extraction.
 
 *   **Slack Workspace Integration (Enhanced AI-Powered Querying & Interaction):**
-    *   **Secure Connection:** Connect your Slack workspace using a Bot User OAuth Token with necessary permissions.
-    *   **Natural Language Message Search:** Ask the agent in natural language to find Slack messages (e.g., "find messages from Bob about the project update in #general yesterday"). The agent uses an LLM to understand complex queries, resolve relative dates/users/channels, and identify key search parameters for Slack's API.
-    *   **Targeted Information Extraction:** Request specific information from found Slack messages (e.g., "What was the deadline mentioned in the message from Alice in #design?"). The agent uses an LLM to read the message content and extract the requested details.
-    *   **Message Content Retrieval:** Fetch and display content of specific Slack messages.
-    *   **Permalink Generation:** Get direct links to Slack messages.
-    *   **Agent Skills:** Core agent skills updated to search Slack messages, read their content, extract information, and get permalinks via the Slack API.
-    *   **Basic Operations:** Continues to support sending messages and listing channels.
-    *   **Configuration:** Requires `ATOM_SLACK_BOT_TOKEN` with appropriate scopes (see Slack integration guide).
-    *   **Developer Documentation:** Comprehensive guide for setup, API details, required scopes, and agent integration logic.
+    *   **Secure Connection:** Uses a Bot User OAuth Token (`ATOM_SLACK_BOT_TOKEN`) configured for the `atom-agent` service, with necessary permissions (scopes like `search:read`, `channels:history`, `users:read`, etc.).
+    *   **Natural Language Message Search:** Ask the agent natural language questions to find Slack messages (e.g., "find messages from Bob about the project update in #general yesterday"). The `atom-agent` uses an LLM (via `llm_slack_query_understander.ts`) to parse your query into structured parameters. These are then used to construct a Slack API compatible search string (via `nlu_slack_helper.ts`), which is executed via a Hasura Action calling Slack's `search.messages` API.
+    *   **Targeted Information Extraction:** After identifying a message (e.g., via search or by providing a permalink/ID pair), ask the agent to extract specific information (e.g., "What was the deadline mentioned in this Slack message?"). The `atom-agent` uses an LLM (via `extractInformationFromSlackMessage` in `slackSkills.ts`) to read the message content (fetched via a Hasura Action) and find the requested details.
+    *   **Message Content Retrieval & Permalinks:** Agent skills can fetch detailed message content and permalinks, typically via Hasura Actions that wrap Slack API calls like `conversations.history` (for specific messages if context is known, or `chat.getPermalink`).
+    *   **Agent Skills:** Core agent skills (`slackQuerySkills.ts`, `slackSkills.ts`) manage NLU processing, LLM interactions, and calls to Hasura Actions which interface with the Slack API.
+    *   **Basic Operations:** Continues to support sending messages (to channels or DMs by name/ID) and listing channels.
+    *   **Configuration:** Requires `ATOM_SLACK_BOT_TOKEN` with appropriate scopes. Refer to Slack integration guides for details on necessary scopes (e.g., `search:read`, `channels:read`, `groups:read`, `im:read`, `mpim:read`, `users:read`, `chat:write`). `ATOM_OPENAI_API_KEY` is also needed by the agent for LLM functionalities.
+    *   **Developer Documentation:** (To be updated) Guide for Hasura Action setup for Slack and details on LLM prompts.
 
 *   **Microsoft Teams Integration (Enhanced AI-Powered Chat Interaction & Delegated Permissions):**
-    *   **Secure User-Contextual Connection:** Connect on behalf of the user via OAuth 2.0 (delegated permissions) to access their Microsoft Teams environment. User-specific tokens are securely stored.
-    *   **Natural Language Message Search:** Ask the agent in natural language to find Teams messages (e.g., "find Teams messages from Alex about the Q1 budget in our 'Strategy Chat' from last week"). The agent uses an LLM to understand complex queries and map them to Microsoft Graph Search API queries.
-    *   **Targeted Information Extraction:** Request specific information from found Teams messages (e.g., "What action items were assigned to me in the Teams message from Lee in the 'Project Phoenix' channel?"). The agent uses an LLM to read message content and extract details.
-    *   **Message Content Retrieval:** Fetch and display content of specific Teams chat or channel messages the user has access to.
-    *   **Permalink (WebURL) Generation:** Get direct links to Teams messages.
-    *   **Agent Skills:** Core agent skills developed to search Teams messages, read content, extract information, and get webUrls via the Microsoft Graph API, operating within the user's permissions.
+    *   **Secure User-Contextual Connection:** Connect on behalf of the user via OAuth 2.0 (delegated permissions) to access their Microsoft Teams environment. User-specific tokens are securely stored (e.g., in `user_tokens` table) and used for Graph API calls, typically via Hasura Actions.
+    *   **Natural Language Message Search:** Ask the agent natural language questions to find Teams messages (e.g., "find Teams messages from Alex about the Q1 budget in 'Strategy Chat' last week"). The `atom-agent` uses an LLM (via `llm_msteams_query_understander.ts`) to parse the query into structured parameters. These are then used to construct a Microsoft Graph KQL query string (via `nlu_msteams_helper.ts`), which is executed via a Hasura Action calling the MS Graph Search API.
+    *   **Targeted Information Extraction:** After identifying a message (e.g., via search or by providing message/context IDs), ask the agent to extract specific information (e.g., "What action items were assigned to me in this Teams message?"). The `atom-agent` uses an LLM (via `extractInformationFromMSTeamsMessage` in `msTeamsSkills.ts`) to read the message content (fetched via a Hasura Action) and find the requested details.
+    *   **Message Content Retrieval & Permalinks:** Agent skills can fetch detailed message content and web URLs (permalinks), typically via Hasura Actions that wrap MS Graph API calls (e.g., getting a specific message, getting its webUrl).
+    *   **Agent Skills:** Core agent skills (`msTeamsQuerySkills.ts`, `msTeamsSkills.ts`) manage NLU processing, LLM interactions, and calls to Hasura Actions which interface with the Microsoft Graph API.
     *   **Existing Functionality:** Continues to support integration for calendar events and online meetings (details may vary based on app or delegated permissions for calendar access).
-    *   **Configuration:** Requires Azure AD App Registration with appropriate delegated permissions (e.g., `Chat.Read`, `ChannelMessage.Read.All`, `User.Read`, `offline_access`) and corresponding environment variables (see MS Teams integration guide).
-    *   **Developer Documentation:** New comprehensive guide (`docs/msteams_integration_guide.md`) for setup, Azure AD configuration, API details, required delegated scopes, and agent integration logic.
+    *   **Configuration:** Requires Azure AD App Registration with appropriate delegated permissions (e.g., `Chat.Read`, `ChannelMessage.Read.All`, `User.Read`, `offline_access`). The `atom-agent` needs `ATOM_OPENAI_API_KEY` for LLM functionalities. Frontend/backend API routes for OAuth require `MSTEAMS_CLIENT_ID`, `MSTEAMS_CLIENT_SECRET`, etc. (Refer to `docs/msteams_integration_guide.md`).
+    *   **Developer Documentation:** The `docs/msteams_integration_guide.md` provides details on Azure AD setup. (Further updates might be needed for Hasura Action setup for messages and LLM prompt details).
 
 ### User Settings & Preferences
 Tailor Atom to your specific needs with a range of customizable settings:
