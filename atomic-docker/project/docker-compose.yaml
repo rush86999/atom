@@ -6,41 +6,54 @@ services:
     command:
       - "--log.level=ERROR"
       - "--providers.docker=true"
-      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.exposedByDefault=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http.tls=true"
+      # Let's Encrypt Resolver Configuration
+      - "--certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}" # Placeholder for user's email
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.le.acme.httpchallenge=true"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      # Global HTTP to HTTPS redirection (optional, can also be per-router)
+      # - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      # - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
 
     labels:
       - traefik.http.middlewares.strip-traefik.stripprefix.prefixes=/v1/traefik
       - traefik.http.routers.traefik.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/traefik`) || Host(`localhost`) && PathPrefix(`/v1/traefik`)
-      - traefik.http.routers.traefik.entrypoints=web
-      - traefik.http.routers.traefik.middlewares=strip-traefik@docker
+      - traefik.http.routers.traefik.entrypoints=web # Traefik dashboard itself can remain on HTTP for simplicity if only accessed locally or via tunnel
+      - traefik.http.routers.traefik.middlewares=strip-traefik@docker,traefik-auth@docker # Added auth to traefik dashboard
       - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD}
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD}" # Renamed middleware for clarity
+      # Middleware for HTTP to HTTPS redirection
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
 
     ports:
       - "80:80"
       - "443:443"
-      - "9090:8080"
+      - "9090:8080" # Traefik API/Dashboard port (if enabled and needed)
     volumes:
       - ./letsencrypt:/letsencrypt
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-  whoami:
+  whoami: # Test service, useful for debugging Traefik rules
     image: "traefik/whoami"
     container_name: "whoami"
     expose:
-      - 8181
+      - 80 # whoami listens on port 80 by default
     labels:
       - "traefik.enable=true"
-      - "traefik.http.middlewares.strip-whoami.stripprefix.prefixes=/v1/whoami"
-      - "traefik.http.routers.whoami.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/whoami`) || Host(`localhost`) && PathPrefix(`/v1/whoami`)"
-      - "traefik.http.routers.whoami.middlewares=strip-whoami@docker"
-      - "traefik.http.routers.whoami.entrypoints=web"
-      - "traefik.http.services.whoami.loadbalancer.server.port=8181"
+      # HTTP router for whoami (for testing)
+      - "traefik.http.routers.whoami-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/whoami-http`)"
+      - "traefik.http.routers.whoami-http.entrypoints=web"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80" # whoami default port
+      # HTTPS router for whoami (for testing HTTPS setup)
+      - "traefik.http.routers.whoami-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/whoami`)"
+      - "traefik.http.routers.whoami-https.entrypoints=websecure"
+      - "traefik.http.routers.whoami-https.tls=true"
+      - "traefik.http.routers.whoami-https.tls.certresolver=le"
+      - "traefik.http.routers.whoami-https.service=whoami" # Use the same service definition
   postgres:
-    image: postgres
     restart: always
     volumes:
       - ./postgres/data:/var/lib/postgresql/data
@@ -69,10 +82,24 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.strip-auth.stripprefix.prefixes=/v1/auth"
-      - "traefik.http.routers.auth.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/auth`) || Host(`localhost`) && PathPrefix(`/v1/auth`)"
-      - "traefik.http.routers.auth.middlewares=strip-auth@docker"
-      - "traefik.http.routers.auth.entrypoints=web"
-      - traefik.http.services.auth.loadbalancer.server.port=3567
+      # HTTP router for auth (redirects to HTTPS)
+      - "traefik.http.routers.auth-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/auth`)"
+      - "traefik.http.routers.auth-http.entrypoints=web"
+      - "traefik.http.routers.auth-http.middlewares=strip-auth@docker,https-redirect@docker"
+      # HTTPS router for auth
+      - "traefik.http.routers.auth-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/auth`)"
+      - "traefik.http.routers.auth-https.entrypoints=websecure"
+      - "traefik.http.routers.auth-https.tls=true"
+      - "traefik.http.routers.auth-https.tls.certresolver=le"
+      - "traefik.http.routers.auth-https.middlewares=strip-auth@docker"
+      - "traefik.http.routers.auth-https.service=auth-service" # Explicit service name
+      - "traefik.http.services.auth-service.loadbalancer.server.port=3567"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
   graphql-engine:
     image: hasura/graphql-engine:v2.15.2
     depends_on:
@@ -88,7 +115,12 @@ services:
       HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
       HASURA_GRAPHQL_LOG_LEVEL: debug
       HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
-
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
   mongo:
     image: mongo:5.0
     container_name: mongo
@@ -152,12 +184,24 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.strip-functions.stripprefix.prefixes=/v1/functions"
-      - "traefik.http.routers.functions.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/functions/`) || Host(`localhost`) && PathPrefix(`/v1/functions/`)"
-      - "traefik.http.routers.functions.middlewares=strip-functions@docker"
-      - "traefik.http.routers.functions.entrypoints=web,websecure"
-      - traefik.http.services.functions.loadbalancer.server.port=3000
-
-
+      # HTTP router for functions (redirects to HTTPS)
+      - "traefik.http.routers.functions-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/functions/`)"
+      - "traefik.http.routers.functions-http.entrypoints=web"
+      - "traefik.http.routers.functions-http.middlewares=strip-functions@docker,https-redirect@docker"
+      # HTTPS router for functions
+      - "traefik.http.routers.functions-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/functions/`)"
+      - "traefik.http.routers.functions-https.entrypoints=websecure"
+      - "traefik.http.routers.functions-https.tls=true"
+      - "traefik.http.routers.functions-https.tls.certresolver=le"
+      - "traefik.http.routers.functions-https.middlewares=strip-functions@docker"
+      - "traefik.http.routers.functions-https.service=functions-service" # Explicit service name
+      - "traefik.http.services.functions-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"] # Assuming a /healthz endpoint exists or will be added
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Give functions a bit longer to start
     restart: always
     expose: 
       - 3000
@@ -264,6 +308,12 @@ services:
       PASSWORD: ${API_TOKEN}
     ports:
       - 8081:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/q/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Quarkus apps can take a moment to start
   handshake:
     build: 
       context: ../handshake_build_docker
@@ -279,10 +329,24 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.strip-handshake.stripprefix.prefixes=/v1/handshake"
-      - "traefik.http.routers.handshake.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/handshake`) || Host(`localhost`) && PathPrefix(`/v1/handshake`)"
-      - "traefik.http.routers.handshake.middlewares=strip-handshake@docker"
-      - "traefik.http.routers.handshake.entrypoints=web"
-      - traefik.http.services.handshake.loadbalancer.server.port=3000
+      # HTTP router for handshake (redirects to HTTPS)
+      - "traefik.http.routers.handshake-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/handshake`)"
+      - "traefik.http.routers.handshake-http.entrypoints=web"
+      - "traefik.http.routers.handshake-http.middlewares=strip-handshake@docker,https-redirect@docker"
+      # HTTPS router for handshake
+      - "traefik.http.routers.handshake-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/handshake`)"
+      - "traefik.http.routers.handshake-https.entrypoints=websecure"
+      - "traefik.http.routers.handshake-https.tls=true"
+      - "traefik.http.routers.handshake-https.tls.certresolver=le"
+      - "traefik.http.routers.handshake-https.middlewares=strip-handshake@docker"
+      - "traefik.http.routers.handshake-https.service=handshake-service" # Explicit service name
+      - "traefik.http.services.handshake-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"] # Check root path
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s # Next.js apps can take a bit to start
     expose:
       - 3000
   oauth:
@@ -310,10 +374,24 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.strip-oauth.stripprefix.prefixes=/v1/oauth"
-      - "traefik.http.routers.oauth.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/oauth`) || Host(`localhost`) && PathPrefix(`/v1/oauth`)"
-      - "traefik.http.routers.oauth.middlewares=strip-oauth@docker"
-      - "traefik.http.routers.oauth.entrypoints=web"
-      - traefik.http.services.oauth.loadbalancer.server.port=3000
+      # HTTP router for oauth (redirects to HTTPS)
+      - "traefik.http.routers.oauth-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/oauth`)"
+      - "traefik.http.routers.oauth-http.entrypoints=web"
+      - "traefik.http.routers.oauth-http.middlewares=strip-oauth@docker,https-redirect@docker"
+      # HTTPS router for oauth
+      - "traefik.http.routers.oauth-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/oauth`)"
+      - "traefik.http.routers.oauth-https.entrypoints=websecure"
+      - "traefik.http.routers.oauth-https.tls=true"
+      - "traefik.http.routers.oauth-https.tls.certresolver=le"
+      - "traefik.http.routers.oauth-https.middlewares=strip-oauth@docker"
+      - "traefik.http.routers.oauth-https.service=oauth-service" # Explicit service name
+      - "traefik.http.services.oauth-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"] # Check root path
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s # Next.js apps can take a bit to start
     expose:
       - 3000
   app:
@@ -362,11 +440,23 @@ services:
       - supertokens
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Host(`${HOST_NAME}`) && PathPrefix(`/`) || Host(`localhost`) && PathPrefix(`/`)"
-      - "traefik.http.routers.app.entrypoints=web,websecure"
-      - "traefik.http.services.app.loadbalancer.server.port=3000"
-
-
+      # HTTP router for app (redirects to HTTPS)
+      - "traefik.http.routers.app-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.app-http.entrypoints=web"
+      - "traefik.http.routers.app-http.middlewares=https-redirect@docker" # Apply global redirect
+      # HTTPS router for app
+      - "traefik.http.routers.app-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.app-https.entrypoints=websecure"
+      - "traefik.http.routers.app-https.tls=true"
+      - "traefik.http.routers.app-https.tls.certresolver=le"
+      - "traefik.http.routers.app-https.service=app-service" # Explicit service name
+      - "traefik.http.services.app-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"] # Check root path
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s # Next.js apps can take a bit to start
     ports:
       - '3000:3000'
 
