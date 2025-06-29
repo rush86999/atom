@@ -1,14 +1,14 @@
 import {
-    LLMServiceInterface, // Import the interface
+    LLMServiceInterface,
     StructuredLLMPrompt,
     GuidanceQueryClassificationData,
     AnswerFromTextData,
     StepsFromTextData,
     FollowupSuggestionData,
-    LLMTaskType // Assuming LLMTaskType is also exported from llmUtils
+    LLMTaskType
 } from '../lib/llmUtils';
 
-// Mock Knowledge Base Data (as previously defined)
+// Mock Knowledge Base Data
 const MOCK_KB_ARTICLES: KnowledgeBaseArticle[] = [
   {
     id: "kb_001",
@@ -86,7 +86,7 @@ async function _fetchMockKnowledgeBaseArticles(
   applicationContext?: string,
   maxResults: number = 3
 ): Promise<KnowledgeBaseArticle[]> {
-  console.log(`[_fetchMockKnowledgeBaseArticles] Query: "${query}", CT: ${contentTypeHint}, AppCtx: ${applicationContext}, Max: ${maxResults}`);
+  // console.log(`[_fetchMockKnowledgeBaseArticles] Query: "${query}", CT: ${contentTypeHint}, AppCtx: ${applicationContext}, Max: ${maxResults}`);
   const queryLower = query.toLowerCase();
   const queryKeywords = queryLower.split(/\s+/).filter(kw => kw.length > 2);
   let filtered = MOCK_KB_ARTICLES;
@@ -192,47 +192,77 @@ export class LearningAndGuidanceSkill {
     for (const article of relevantArticles) {
       let guidance: ProvidedGuidance = { title: article.title, sourceArticleId: article.id, relevanceScore: 0.6 };
       try {
-        let articlePrompt: StructuredLLMPrompt;
+        let structuredArticlePrompt: StructuredLLMPrompt;
+        let task: LLMTaskType;
+
         switch (effectiveGuidanceType) {
           case 'answer_question':
-          case 'general_explanation':
+            task = 'answer_from_text';
             const answerData: AnswerFromTextData = { query: input.query, textContent: article.content.substring(0, 1500), articleTitle: article.title };
-            articlePrompt = { task: effectiveGuidanceType === 'answer_question' ? 'answer_from_text' : 'summarize_for_explanation', data: answerData };
-            const answerResp = await this.llmService.generate(articlePrompt, 'cheapest');
-            if (answerResp.success && answerResp.content && !answerResp.content.toLowerCase().startsWith("llm fallback") && !answerResp.content.toLowerCase().includes("not appear to contain")) {
-              guidance.contentSnippet = answerResp.content;
-              guidance.relevanceScore = 0.8;
-            } else { guidance.contentSnippet = `Article "${article.title}" found, but specific info for "${input.query}" not extracted. Error: ${answerResp.error || 'fallback'}`; }
+            structuredArticlePrompt = { task, data: answerData };
+            break;
+          case 'general_explanation':
+            task = 'summarize_for_explanation';
+            const explData: ExplanationData = { query: input.query, textContent: article.content.substring(0, 1500), articleTitle: article.title };
+            structuredArticlePrompt = { task, data: explData };
             break;
           case 'find_tutorial':
           case 'guide_workflow':
             if (article.steps && article.steps.length > 0) {
               guidance.steps = article.steps;
-              guidance.contentSnippet = `Found steps in "${article.title}".`;
+              guidance.contentSnippet = `Found relevant steps in "${article.title}".`;
               guidance.relevanceScore = 0.85;
+              guidanceProvided.push(guidance); // Push early if predefined steps are used
+              continue; // Skip LLM call for steps
             } else {
+              task = 'extract_steps_from_text';
               const stepsData: StepsFromTextData = { query: input.query, textContent: article.content.substring(0, 2000), articleTitle: article.title };
-              articlePrompt = { task: 'extract_steps_from_text', data: stepsData };
-              const stepsResp = await this.llmService.generate(articlePrompt, 'cheapest');
-              if (stepsResp.success && stepsResp.content) {
-                const parsed = JSON.parse(stepsResp.content);
-                if (parsed && Array.isArray(parsed.steps) && parsed.steps.length > 0) {
-                  guidance.steps = parsed.steps;
-                  guidance.contentSnippet = "Extracted key steps:";
-                  guidance.relevanceScore = 0.8;
-                } else { guidance.contentSnippet = `"${article.title}" relevant, but steps for "${input.query}" not extracted.`; }
-              } else { guidance.contentSnippet = `Could not extract steps for "${article.title}". Error: ${stepsResp.error}`; }
+              structuredArticlePrompt = { task, data: stepsData };
             }
             break;
           default:
-            guidance.contentSnippet = `Article: ${article.title}. General info: ${article.content.substring(0, 200)}...`;
+            console.warn(`[LearningAndGuidanceSkill] Unexpected guidance type: ${effectiveGuidanceType}. Defaulting to snippet.`);
+            guidance.contentSnippet = `Article: ${article.title}. Excerpt: ${article.content.substring(0, 200)}...`;
+            guidanceProvided.push(guidance);
+            continue; // Skip LLM call
         }
+
+        const llmResponse = await this.llmService.generate(structuredArticlePrompt, 'cheapest');
+
+        if (llmResponse.success && llmResponse.content) {
+          if (effectiveGuidanceType === 'answer_question' || effectiveGuidanceType === 'general_explanation') {
+            if (!llmResponse.content.toLowerCase().startsWith("llm fallback") && !llmResponse.content.toLowerCase().includes("not appear to contain")) {
+              guidance.contentSnippet = llmResponse.content;
+              guidance.relevanceScore = 0.8;
+            } else {
+              guidance.contentSnippet = `Article "${article.title}" found, but specific info for "${input.query}" not extracted. LLM said: ${llmResponse.content}`;
+            }
+          } else if (effectiveGuidanceType === 'find_tutorial' || effectiveGuidanceType === 'guide_workflow') { // Only if LLM was called for steps
+            try {
+              const parsedSteps = JSON.parse(llmResponse.content);
+              if (parsedSteps && Array.isArray(parsedSteps.steps) && parsedSteps.steps.length > 0) {
+                guidance.steps = parsedSteps.steps;
+                guidance.contentSnippet = "Extracted the following key steps:";
+                guidance.relevanceScore = 0.8;
+              } else {
+                guidance.contentSnippet = `"${article.title}" relevant, but specific steps for "${input.query}" not extracted.`;
+              }
+            } catch (e) {
+              console.error(`[LearningAndGuidanceSkill] Error parsing steps JSON from LLM for "${article.title}":`, e);
+              guidance.contentSnippet = `Could not parse steps for "${article.title}". LLM response: ${llmResponse.content.substring(0,100)}...`;
+            }
+          }
+        } else {
+          console.error(`[LearningAndGuidanceSkill] LLM processing failed for article ${article.id}: ${llmResponse.error}`);
+          guidance.contentSnippet = `Error processing article "${article.title}" for your query.`;
+        }
+
       } catch (e: any) {
-        console.error(`[LearningAndGuidanceSkill] Error processing article ${article.id} with LLM: ${e.message}`);
-        guidance.contentSnippet = `Error processing article "${article.title}".`;
+        console.error(`[LearningAndGuidanceSkill] Outer error processing article ${article.id}: ${e.message}`);
+        guidance.contentSnippet = `System error processing article "${article.title}".`;
       }
       if (!guidance.contentSnippet && (!guidance.steps || guidance.steps.length === 0)) {
-        guidance.contentSnippet = `Article "${article.title}" excerpt: ${article.content.substring(0, 150)}...`;
+        guidance.contentSnippet = `Article "${article.title}" may be relevant. Excerpt: ${article.content.substring(0, 150)}...`;
       }
       guidanceProvided.push(guidance);
     }

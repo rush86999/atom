@@ -1,12 +1,11 @@
 import {
-    invokeLLM, // This will be replaced by LLMServiceInterface instance
+    LLMServiceInterface, // Import the interface
     StructuredLLMPrompt,
     EmailCategorizationData,
     EmailSummarizationData,
     EmailReplySuggestionData,
     EmailActionExtractionData,
-    LLMTaskType, // Assuming LLMTaskType is exported from llmUtils
-    LLMServiceInterface // Import the interface
+    LLMTaskType
 } from '../lib/llmUtils';
 
 /**
@@ -192,7 +191,7 @@ export class EmailTriageSkill {
       if (llmResponse.success && llmResponse.content && llmResponse.content.trim().toLowerCase() !== "no reply needed." && !llmResponse.content.toLowerCase().startsWith("llm fallback")) {
         suggestedReplyMessage = llmResponse.content.trim();
       } else {
-         console.log(`[EmailTriageSkill] LLM indicated no reply needed or fallback for reply. Error: ${llmResponse.error}`);
+         console.log(`[EmailTriageSkill] LLM indicated no reply needed or fallback for reply. Error: ${llmResponse.error || 'No content'}`);
       }
     } catch (error: any) {
       console.error('[EmailTriageSkill] Error in LLM reply suggestion:', error.message);
@@ -217,10 +216,67 @@ export class EmailTriageSkill {
 
 // Example Usage
 /*
+import { MockLLMService, OpenAIGroqService_Stub } from '../lib/llmUtils'; // Adjust path as needed
+
 async function testEmailTriageSkill() {
-  // const llmService = new MockLLMService(); // Or OpenAIGroqService_Stub
-  // const skill = new EmailTriageSkill(llmService);
-  // ... rest of the test code
+  // Option 1: Use the MockLLMService for predictable mock behavior
+  const mockLlmService = new MockLLMService();
+  const skillWithMock = new EmailTriageSkill(mockLlmService);
+
+  console.log("\\n--- Testing EmailTriageSkill with MockLLMService ---");
+
+  const testEmail1: EmailObject = {
+    id: "test-email-001",
+    sender: "Alice <alice@example.com>",
+    recipients: ["bob@example.com", "currentUser@example.com"],
+    subject: "Quick question about the Phoenix project",
+    body: "Hi team, I had a quick question regarding the latest update on the Phoenix project. Can someone point me to the documentation for the new auth module? Thanks! Please send the report too.",
+    receivedDate: new Date(),
+    headers: { "X-Priority": "3" }
+  };
+  try {
+    const result1 = await skillWithMock.execute(testEmail1);
+    console.log("Result for testEmail1:", JSON.stringify(result1, null, 2));
+  } catch (error) {
+    console.error("Error during skillWithMock execution (testEmail1):", error);
+  }
+
+  const urgentEmail: EmailObject = {
+    id: "urgent-email-002",
+    sender: "boss@example.com", // This sender is in IMPORTANT_SENDERS
+    recipients: ["currentUser@example.com"],
+    subject: "URGENT: Action Required - System Outage",
+    body: "Team, we have a critical system outage affecting all customers. All hands on deck. Please join the emergency bridge now: conf-link. This requires your immediate action.",
+    receivedDate: new Date(),
+    headers: { "Importance": "High" }
+  };
+  try {
+    const resultUrgent = await skillWithMock.execute(urgentEmail);
+    console.log("Result for urgentEmail:", JSON.stringify(resultUrgent, null, 2));
+  } catch (error) {
+    console.error("Error during skillWithMock execution (urgentEmail):", error);
+  }
+
+  // Option 2: Use the OpenAIGroqService_Stub (which internally might call MockLLMService or have its own simple stubs)
+  // Replace with your actual API key and desired Groq model when ready for real calls.
+  // const groqApiKey = process.env.GROQ_API_KEY || "YOUR_GROQ_API_KEY_PLACEHOLDER";
+  // const groqModel = "mixtral-8x7b-32768"; // Example Groq model
+  // const openAIGroqStubService = new OpenAIGroqService_Stub(groqApiKey, groqModel);
+  // const skillWithGroqStub = new EmailTriageSkill(openAIGroqStubService);
+
+  // console.log("\\n--- Testing EmailTriageSkill with OpenAIGroqService_Stub ---");
+  // try {
+  //   const resultStub = await skillWithGroqStub.execute(testEmail1);
+  //   console.log("Result for testEmail1 (Groq Stub):", JSON.stringify(resultStub, null, 2));
+  // } catch (error) {
+  //   console.error("Error during skillWithGroqStub execution (testEmail1):", error);
+  // }
 }
+
+// To run the test:
+// 1. Ensure `MockLLMService` and `OpenAIGroqService_Stub` are exported from `llmUtils.ts`.
+// 2. Uncomment the imports at the top of this example function.
+// 3. If testing `OpenAIGroqService_Stub` for real, provide API key and uncomment relevant lines.
+// 4. Call testEmailTriageSkill();
 // testEmailTriageSkill();
 */

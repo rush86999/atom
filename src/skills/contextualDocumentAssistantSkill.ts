@@ -1,10 +1,10 @@
 import {
-    invokeLLM, // This will be replaced by LLMServiceInterface instance
+    LLMServiceInterface, // Import the interface
     StructuredLLMPrompt,
     DocumentSnippetData,
     DocumentSummaryData,
     OverallSummaryData,
-    LLMServiceInterface // Import the interface
+    LLMTaskType // Assuming these types are exported from llmUtils
 } from '../lib/llmUtils';
 
 // Mock Documents Data Store
@@ -39,15 +39,11 @@ const MOCK_DOCUMENTS: DocumentContent[] = [
   }
 ];
 
-// Helper function to simulate fetching documents
 async function _fetchMockDocuments(documentIds?: string[]): Promise<DocumentContent[]> {
-  console.log(`[_fetchMockDocuments] Attempting to fetch documents. Specified IDs: ${documentIds?.join(', ')}`);
+  // console.log(`[_fetchMockDocuments] Attempting to fetch documents. Specified IDs: ${documentIds?.join(', ')}`);
   if (documentIds && documentIds.length > 0) {
-    const foundDocs = MOCK_DOCUMENTS.filter(doc => documentIds.includes(doc.id));
-    console.log(`[_fetchMockDocuments] Found ${foundDocs.length} documents matching specified IDs.`);
-    return foundDocs;
+    return MOCK_DOCUMENTS.filter(doc => documentIds.includes(doc.id));
   }
-  console.log(`[_fetchMockDocuments] No specific IDs provided, returning all ${MOCK_DOCUMENTS.length} mock documents.`);
   return MOCK_DOCUMENTS;
 }
 
@@ -113,7 +109,7 @@ export class ContextualDocumentAssistantSkill {
     let overallSummary: string | undefined = undefined;
 
     for (const doc of candidateDocuments.slice(0, maxResults)) {
-      console.log(`[ContextualDocumentAssistantSkill] Processing doc: ${doc.id} - ${doc.title}`);
+      // console.log(`[ContextualDocumentAssistantSkill] Processing doc: ${doc.id} - ${doc.title}`);
       const snippetData: DocumentSnippetData = {
         query: input.query,
         documentTitle: doc.title,
@@ -130,13 +126,13 @@ export class ContextualDocumentAssistantSkill {
           if (parsedResp && Array.isArray(parsedResp.snippets)) {
             extractedSnippets = parsedResp.snippets.filter((s: any): s is string => typeof s === 'string');
           } else {
-            console.warn(`[ContextualDocumentAssistantSkill] Snippets response invalid structure for doc ${doc.id}: ${llmResponse.content}`);
+            console.warn(`[ContextualDocumentAssistantSkill] Snippets resp invalid for ${doc.id}: ${llmResponse.content}`);
           }
         } else {
-          console.error(`[ContextualDocumentAssistantSkill] Snippet extraction LLM call failed for doc ${doc.id}: ${llmResponse.error}`);
+          console.error(`[ContextualDocumentAssistantSkill] Snippet LLM call failed for ${doc.id}: ${llmResponse.error}`);
         }
       } catch (e: any) {
-        console.error(`[ContextualDocumentAssistantSkill] Error parsing snippet LLM response for doc ${doc.id}: ${e.message}`);
+        console.error(`[ContextualDocumentAssistantSkill] Error parsing snippet LLM resp for ${doc.id}: ${e.message}`);
       }
 
       if (extractedSnippets.length > 0) {
