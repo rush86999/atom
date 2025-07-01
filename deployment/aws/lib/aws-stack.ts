@@ -11,6 +11,9 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 // import * as opensearch from 'aws-cdk-lib/aws-opensearchservice'; // Commented out OpenSearch
 import * as efs from 'aws-cdk-lib/aws-efs'; // Added EFS
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 
 export class AwsStack extends cdk.Stack {
   // Define class properties for resources that need to be accessed across methods or by other constructs
@@ -76,8 +79,69 @@ export class AwsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Define CfnParameters for domain name and certificate ARN
+    const domainNameParameter = new cdk.CfnParameter(this, "DomainName", {
+      type: "String",
+      description: "The domain name for the application (e.g., app.example.com)",
+    });
+
+    const certificateArnParameter = new cdk.CfnParameter(this, "CertificateArn", {
+      type: "String",
+      description: "Optional: ARN of an existing ACM certificate for the domain name. If not provided, a new one will be attempted to be created.",
+      default: "", // Default to empty string, indicating none provided
+    });
+
+    const domainName = domainNameParameter.valueAsString;
+    const certificateArn = certificateArnParameter.valueAsString;
+
+    let certificate: acm.ICertificate;
+
+    // Use AWS SDK to check if certificateArn is empty or not a valid ARN pattern.
+    // CDK conditions can't directly check for empty string for a CfnParameter with a default value.
+    // We will create a new certificate if certificateArn is empty.
+    // If certificateArn is provided, we will import it.
+
+    // A more robust way to handle conditional resource creation in CDK is to use CfnCondition.
+    // However, for this specific case (import vs create), it's often cleaner to use a TypeScript conditional logic
+    // and ensure that if an ARN is provided, it's used, otherwise, a new cert is created.
+    // The user is responsible for providing a valid ARN if they choose to provide one.
+
+    // Attempt to get the hosted zone. This assumes the domain is managed in Route 53.
+    // The user must have a hosted zone for domainNameParameter.valueAsString for DNS validation to work.
+    // E.g. if domainName is app.example.com, a Hosted Zone for example.com must exist.
+    // HostedZone.fromLookup will try to find the zone that can host the provided domainName.
+    // For example, if domainName is 'app.example.com', it will look for a hosted zone 'example.com'.
+    // If domainName is 'example.com', it will look for 'example.com'.
+    // This lookup happens at synthesis time. The context must be available (e.g. from previous `cdk context` calls or `cdk.json`).
+    // If the zone is not found, synthesis will fail, prompting the user to ensure the zone exists or to provide cert ARN.
+    const zone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+        domainName: domainName, // Use the full domain name for lookup
+    });
+
+
+    // Conditional certificate creation/import
+    // We'll create a new certificate by default and override if an ARN is provided.
+    // This structure is a bit tricky with CloudFormation parameters that have defaults.
+    // A common pattern is to create the "new" resource and then conditionally use it or an imported one.
+    // However, to avoid creating a certificate if an ARN is supplied, we'll use a direct if/else.
+    // This relies on the user ensuring the parameter is truly empty if they want a new cert.
+
+    if (certificateArn && certificateArn !== "") { // Check if certificateArn is provided and not empty
+        certificate = acm.Certificate.fromCertificateArn(this, 'ImportedCertificate', certificateArn);
+    } else {
+        certificate = new acm.Certificate(this, 'NewCertificate', {
+            domainName: domainName,
+            validation: acm.CertificateValidation.fromDns(zone), // DNS validation
+        });
+        new cdk.CfnOutput(this, 'NewCertificateArn', {
+            value: certificate.certificateArn,
+            description: 'ARN of the newly created ACM certificate. Please ensure DNS records are propagated.',
+        });
+    }
+
+
     // S3 Data Bucket
-    this.dataBucket = new s3.Bucket(this, 'AtomicDataBucket', {
+    this.dataBucket = new s3.Bucket(this, 'AtomicDataBucket', { // Ensure this.alb is defined before being used here if it's used. It's defined later.
       bucketName: `${this.stackName.toLowerCase()}-atomic-data-bucket-${this.account}-${this.region}`,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
@@ -181,7 +245,8 @@ export class AwsStack extends cdk.Stack {
         description: 'Allow HTTP/HTTPS traffic to ALB',
         allowAllOutbound: true
     });
-    this.albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'Allow HTTP from anywhere');
+    this.albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'Allow HTTP from anywhere (for redirection)');
+    this.albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'Allow HTTPS from anywhere');
 
     // Application Load Balancer
     this.alb = new elbv2.ApplicationLoadBalancer(this, 'AtomicAlb', {
@@ -190,19 +255,38 @@ export class AwsStack extends cdk.Stack {
       securityGroup: this.albSecurityGroup,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
     });
-    new cdk.CfnOutput(this, 'AlbDnsName', { value: this.alb.loadBalancerDnsName });
+    new cdk.CfnOutput(this, 'AlbDnsName', {
+        value: this.alb.loadBalancerDnsName,
+        description: 'Direct DNS name of the Application Load Balancer. Access the application via the ApplicationHttpsEndpoint (custom domain name) for HTTPS.',
+    });
 
     // ALB HTTP Listener
     this.httpListener = this.alb.addListener('HttpListener', {
         port: 80,
         protocol: elbv2.ApplicationProtocol.HTTP,
-        open: false,
-        defaultAction: elbv2.ListenerAction.fixedResponse(404, {
-            contentType: 'text/plain',
-            messageBody: 'Resource not found',
+        open: false, // Will be opened by ALB security group
+        defaultAction: elbv2.ListenerAction.redirect({
+            protocol: 'HTTPS',
+            port: '443',
+            permanent: true, // HTTP 301 redirect
         }),
     });
     new cdk.CfnOutput(this, 'AlbHttpListenerArn', { value: this.httpListener.listenerArn });
+
+    // ALB HTTPS Listener
+    const httpsListener = this.alb.addListener('HttpsListener', {
+        port: 443,
+        protocol: elbv2.ApplicationProtocol.HTTPS,
+        certificates: [certificate], // The certificate created/imported earlier
+        open: false, // Will be opened by security group rule
+        defaultAction: elbv2.ListenerAction.fixedResponse(404, { // Placeholder default action
+            contentType: 'text/plain',
+            messageBody: 'Resource not found on HTTPS. Configure rules.',
+        }),
+        sslPolicy: elbv2.SslPolicy.RECOMMENDED, // Added recommended SSL policy
+    });
+    new cdk.CfnOutput(this, 'AlbHttpsListenerArn', { value: httpsListener.listenerArn });
+
 
     // Generic Task Role
     this.ecsTaskRole = new iam.Role(this, 'ECSTaskRole', {
@@ -400,7 +484,7 @@ export class AwsStack extends cdk.Stack {
     });
 
     new elbv2.ApplicationListenerRule(this, 'SupertokensListenerRule', {
-      listener: this.httpListener,
+      listener: httpsListener, // Changed from this.httpListener
       priority: 10,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/auth/*'])],
       action: elbv2.ListenerAction.forward([supertokensTargetGroup]),
@@ -468,7 +552,7 @@ export class AwsStack extends cdk.Stack {
     });
 
     new elbv2.ApplicationListenerRule(this, 'HasuraListenerRule', {
-      listener: this.httpListener,
+      listener: httpsListener, // Changed from this.httpListener
       priority: 20,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/graphql/*'])],
       action: elbv2.ListenerAction.forward([hasuraTargetGroup]),
@@ -502,9 +586,9 @@ export class AwsStack extends cdk.Stack {
         }),
       }),
       environment: {
-        HASURA_GRAPHQL_GRAPHQL_URL: `http://${this.alb.loadBalancerDnsName}/v1/graphql`,
-        FUNCTION_SERVER_URL: `http://${this.alb.loadBalancerDnsName}/v1/functions`,
-        APP_CLIENT_URL: `http://${this.alb.loadBalancerDnsName}`,
+        HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
+        FUNCTION_SERVER_URL: `https://${domainName}/v1/functions`,
+        APP_CLIENT_URL: `https://${domainName}`,
         S3_BUCKET: this.dataBucket.bucketName,
         AWS_REGION: this.region,
       },
@@ -564,7 +648,7 @@ export class AwsStack extends cdk.Stack {
     });
 
     new elbv2.ApplicationListenerRule(this, 'FunctionsListenerRule', {
-      listener: this.httpListener,
+      listener: httpsListener, // Changed from this.httpListener
       priority: 30,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/functions/*'])],
       action: elbv2.ListenerAction.forward([functionsTargetGroup]),
@@ -597,11 +681,11 @@ export class AwsStack extends cdk.Stack {
         }),
       }),
       environment: {
-        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL: `http://${this.alb.loadBalancerDnsName}/v1/graphql`,
-        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL: `ws://${this.alb.loadBalancerDnsName}/v1/graphql`,
-        NEXT_PUBLIC_SUPERTOKENS_API_DOMAIN: `http://${this.alb.loadBalancerDnsName}/v1/auth`,
-        NEXT_PUBLIC_HANDSHAKE_URL: `http://${this.alb.loadBalancerDnsName}/v1/handshake/`,
-        NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL: `http://${this.alb.loadBalancerDnsName}/v1/functions/eventToQueueAuth`,
+        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
+        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL: `wss://${domainName}/v1/graphql`, // Also update ws to wss
+        NEXT_PUBLIC_SUPERTOKENS_API_DOMAIN: `https://${domainName}/v1/auth`,
+        NEXT_PUBLIC_HANDSHAKE_URL: `https://${domainName}/v1/handshake/`,
+        NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL: `https://${domainName}/v1/functions/eventToQueueAuth`,
       },
       portMappings: [{ containerPort: 3000, protocol: ecs.Protocol.TCP }],
     });
@@ -654,8 +738,8 @@ export class AwsStack extends cdk.Stack {
     });
 
     new elbv2.ApplicationListenerRule(this, 'AppListenerRule', {
-      listener: this.httpListener,
-      priority: 100,
+      listener: httpsListener, // Changed from this.httpListener
+      priority: 100, // This will be the "default" route for unmatched paths on HTTPS
       conditions: [elbv2.ListenerCondition.pathPatterns(['/*'])],
       action: elbv2.ListenerAction.forward([appTargetGroup]),
     });
@@ -688,8 +772,8 @@ export class AwsStack extends cdk.Stack {
         }),
       }),
       environment: {
-        HASURA_GRAPHQL_GRAPHQL_URL: `http://${this.alb.loadBalancerDnsName}/v1/graphql`,
-        MEETING_ASSIST_ADMIN_URL: `http://${this.alb.loadBalancerDnsName}/v1/functions/schedule-assist/placeholder`,
+        HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
+        MEETING_ASSIST_ADMIN_URL: `https://${domainName}/v1/functions/schedule-assist/placeholder`,
       },
       secrets: {
         API_TOKEN: ecs.Secret.fromSecretsManager(this.apiTokenSecret),
@@ -720,7 +804,7 @@ export class AwsStack extends cdk.Stack {
     });
 
     new elbv2.ApplicationListenerRule(this, 'HandshakeListenerRule', {
-      listener: this.httpListener,
+      listener: httpsListener, // Changed from this.httpListener
       priority: 40,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/handshake/*'])],
       action: elbv2.ListenerAction.forward([handshakeTargetGroup]),
@@ -755,8 +839,8 @@ export class AwsStack extends cdk.Stack {
         }),
       }),
       environment: {
-        HASURA_GRAPHQL_GRAPHQL_URL: `http://${this.alb.loadBalancerDnsName}/v1/graphql`,
-        HANDSHAKE_URL: `http://${this.alb.loadBalancerDnsName}/v1/handshake`,
+        HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
+        HANDSHAKE_URL: `https://${domainName}/v1/handshake`,
       },
       secrets: {
         HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
@@ -786,7 +870,7 @@ export class AwsStack extends cdk.Stack {
     });
 
     new elbv2.ApplicationListenerRule(this, 'OAuthListenerRule', {
-      listener: this.httpListener,
+      listener: httpsListener, // Changed from this.httpListener
       priority: 50,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/oauth/*'])],
       action: elbv2.ListenerAction.forward([oauthTargetGroup]),
@@ -846,7 +930,7 @@ export class AwsStack extends cdk.Stack {
       },
     });
     new elbv2.ApplicationListenerRule(this, 'OptaplannerListenerRule', {
-      listener: this.httpListener,
+      listener: httpsListener, // Changed from this.httpListener
       priority: 60,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/optaplanner/*'])],
       action: elbv2.ListenerAction.forward([optaplannerTargetGroup]),
@@ -957,6 +1041,18 @@ export class AwsStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'LanceDbAccessPointId', { value: this.lanceDbAccessPoint.accessPointId });
 
+    // Output for the custom domain HTTPS endpoint
+    new cdk.CfnOutput(this, 'ApplicationHttpsEndpoint', {
+      value: `https://${domainName}`,
+      description: 'Main application HTTPS endpoint using the custom domain name.',
+    });
+
+    // Update existing AlbDnsName output description
+    const albDnsOutput = this.node.tryFindChild('AlbDnsName') as cdk.CfnOutput;
+    if (albDnsOutput) {
+        albDnsOutput.description = 'Direct DNS name of the Application Load Balancer. Access the application via the ApplicationHttpsEndpoint (custom domain).';
+    }
+
     // --- Update Python Agent Task Definition with EFS Volume and Mount Point ---
     const existingPythonAgentTaskDef = this.node.tryFindChild('PythonAgentTaskDef') as ecs.TaskDefinition;
     if (existingPythonAgentTaskDef) {
@@ -994,4 +1090,10 @@ export class AwsStack extends cdk.Stack {
     // }));
     // However, for Fargate, the primary control is the Security Group and ensuring mount targets are in accessible subnets.
     // The EFS mount helper within Fargate usually handles the direct mount without task needing explicit EFS IAM perms beyond network.
+
+    // Output for the custom domain HTTPS endpoint
+    new cdk.CfnOutput(this, 'ApplicationHttpsEndpoint', {
+      value: `https://${domainName}`,
+      description: 'Main application HTTPS endpoint using the custom domain name. This is the primary endpoint for accessing the application.',
+    });
 }
