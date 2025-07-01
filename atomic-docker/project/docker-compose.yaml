@@ -357,9 +357,11 @@ services:
         NEXT_PUBLIC_ZOOM_UPDATE_MEETING_URL: https://${HOST_NAME}/v1/functions/zoom-meeting/updateZoomMeet/update-zoom-meet-auth
         NEXT_PUBLIC_ZOOM_DELETE_MEETING_URL: https://${HOST_NAME}/v1/functions/zoom-meeting/delZoomMeet/delete-zoom-meet-auth
         NEXT_PUBLIC_ZOOM_OAUTH_START_URL: https://${HOST_NAME}/zoom/oauth-start
+        NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
     container_name: app
     depends_on:
       - supertokens
+      - live-meeting-worker # Add dependency if app should wait for worker
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app.rule=Host(`${HOST_NAME}`) && PathPrefix(`/`) || Host(`localhost`) && PathPrefix(`/`)"
@@ -369,6 +371,22 @@ services:
 
     ports:
       - '3000:3000'
+    # Add NEXT_PUBLIC_LIVE_MEETING_WORKER_URL to environment or build args
+    # If it's passed during build time via build args:
+    # build:
+    #   context: ../app_build_docker
+    #   args:
+    #     # ... other args
+    #     NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
+    # If it's passed as a runtime environment variable (more common for URLs):
+    environment:
+      # ... (ensure all existing environment variables for 'app' are maintained)
+      # Example of how it might be structured if environment is already used:
+      # EXISTING_ENV_VAR: ${EXISTING_ENV_VAR}
+      NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
+      # The existing 'app' service definition is complex with many build args.
+      # Need to be careful to merge this correctly.
+      # Based on the structure, build args are used. So I will add it there.
 
   python-agent:
     build:
