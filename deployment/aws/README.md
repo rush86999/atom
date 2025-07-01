@@ -133,3 +133,52 @@ This repository contains IaC configurations in both AWS CDK (`deployment/aws/`) 
 *   For CDK issues, use `cdk doctor` or increase verbosity during deployment (`cdk deploy -v`).
 
 This optimized AWS CDK strategy provides a robust and scalable platform for small businesses while incorporating measures for cost control.
+
+---
+
+## HTTPS and Custom Domain Configuration
+
+This AWS CDK stack supports configuring HTTPS for the Application Load Balancer (ALB) using a custom domain name. This is essential for production deployments.
+
+### Overview
+
+The stack can be configured to:
+1.  Use an existing AWS Certificate Manager (ACM) certificate that you provide.
+2.  Attempt to create a new ACM certificate for your specified domain name. This process uses DNS validation, which works seamlessly if your domain's DNS is managed in AWS Route 53 (in the same AWS account and region as this stack).
+All HTTP traffic to the ALB is automatically redirected to HTTPS.
+
+### CloudFormation Parameters
+
+When deploying or updating the CloudFormation stack, you will be prompted for the following parameters related to HTTPS and domain configuration:
+
+*   `DomainName` (String, Required): The custom domain name you want to use for the application (e.g., `app.yourcompany.com`). The application will be accessible via `https://<DomainName>`.
+*   `CertificateArn` (String, Optional): The Amazon Resource Name (ARN) of an existing ACM certificate.
+    *   **If you provide a valid ARN:** This certificate will be used for the ALB's HTTPS listener. The certificate must be in the **us-east-1 region if you are using a CloudFront distribution** (not currently part of this stack but a common pattern). For ALBs, the certificate must be in the **same region as the ALB**. Ensure the certificate covers the `DomainName` you specified.
+    *   **If you leave this blank:** The stack will attempt to create a new ACM certificate for the `DomainName`.
+
+### Prerequisites for New Certificate Creation (if CertificateArn is not provided)
+
+*   **Route 53 Hosted Zone:** For automatic DNS validation of a new certificate, a public hosted zone must exist in AWS Route 53 for the domain or its parent domain. For example, if `DomainName` is `app.example.com`, a hosted zone for `example.com` should exist in Route 53 in the same AWS account and region where you are deploying this stack.
+*   **Manual DNS Validation (Alternative):** If the domain is not managed by Route 53 in the deployment account/region, or if automated validation fails, the certificate status will be "Pending validation." You will need to manually create the required CNAME records in your DNS provider's console. You can find these CNAME records in the AWS Certificate Manager console for the newly created certificate. The stack deployment might pause or complete with the certificate pending until DNS validation is successful.
+
+### How it Works
+
+1.  **Certificate Handling:** Based on the `CertificateArn` parameter, the stack either imports the existing certificate or provisions a new one using `acm.Certificate` with DNS validation.
+2.  **HTTPS Listener:** An HTTPS listener is configured on the ALB for port 443, using the obtained certificate. It employs the recommended TLS security policy from AWS.
+3.  **HTTP to HTTPS Redirection:** The existing HTTP listener on port 80 is reconfigured. Its default action is to issue a permanent (301) redirect to the corresponding HTTPS URL (e.g., `http://app.example.com/path` redirects to `https://app.example.com/path`).
+4.  **Service URLs:** Environment variables for all internal services are updated to use `https://<DomainName>` for inter-service communication and for constructing public-facing URLs.
+5.  **Listener Rules:** All path-based routing rules (e.g., for `/v1/auth`, `/v1/graphql`, `/v1/functions`, `/app`) are attached to the HTTPS listener.
+
+### Post-Deployment Verification
+
+After the CloudFormation stack has been successfully deployed or updated with these configurations:
+
+1.  **DNS Configuration (Critical):**
+    *   Create a CNAME or Alias record in your DNS provider (e.g., Route 53, GoDaddy, Cloudflare) for your `DomainName` (e.g., `app.yourcompany.com`) pointing to the DNS name of the Application Load Balancer (`AlbDnsName` output from the CloudFormation stack). Using an Alias record is recommended if using Route 53.
+2.  **Test HTTPS Access:** Open your browser and navigate to `https://<YourDomainName>`. You should see your application served over HTTPS with a valid certificate.
+3.  **Test HTTP to HTTPS Redirection:** Navigate to `http://<YourDomainName>`. You should be automatically redirected to `https://<YourDomainName>`.
+4.  **Test All Services:** Thoroughly test all functionalities of your application to ensure all services are reachable and operating correctly under the new HTTPS URLs. This includes:
+    *   Authentication flows (Supertokens)
+    *   GraphQL queries and mutations (Hasura)
+    *   Backend functions
+    *   Frontend application interactions
