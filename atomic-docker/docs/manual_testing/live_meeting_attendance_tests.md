@@ -72,43 +72,52 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
     *   The "Start Attending Meeting" button should become disabled.
 3.  **Expected Result (Worker Logs):**
     *   Log entry for request to `/start_meeting_attendance` with the payload.
-    *   Log entry indicating task creation and storage in `active_tasks`.
-    *   Log entry "Task X: Starting audio capture (placeholder) for device Y".
+    *   Log entry indicating task creation.
+    *   Log messages related to `sounddevice.InputStream` opening, such as:
+        *   "Task X: Starting audio capture for device 'Y'. Saving to /tmp/X_audio.wav"
+        *   "Task X: Audio stream opened. Sample rate: Z, Channels: C, Device: D"
     *   Task status should change to `ACTIVE`.
-    *   Periodic logs from the placeholder audio capture loop (e.g., "Task X: Still active, duration Ys").
+    *   The `transcript_preview` in the UI should update to "Captured Xs of audio...".
+    *   **Verification:** If possible (e.g., `docker exec -it live-meeting-worker bash` then `ls /tmp`), check that the `{task_id}_audio.wav` file is created in the worker's `/tmp` directory.
 
-### Test Case 4: Monitor Task Status (Polling)
+### Test Case 4: Monitor Task Status (Polling & Audio File Growth)
 
-1.  **Action:** While a task is active (from Test Case 3), observe the UI and Network tab.
+1.  **Action:** While a task is active (from Test Case 3), observe the UI, Network tab, and worker.
 2.  **Expected Result (Frontend):**
     *   `GET` requests to `/meeting_attendance_status/{task_id}` continue.
     *   The "Task Status" section in the UI updates with:
-        *   Current status (e.g., "active").
-        *   Current message from the worker.
+        *   Status "active".
+        *   Message like "Audio capture active."
         *   Increasing "Duration".
-        *   Changing "Transcript Preview" and "Notes Preview" (as simulated by the worker).
+        *   "Transcript Preview" updating with "Captured Xs of audio...".
 3.  **Expected Result (Worker Logs):**
     *   Log entries for requests to `/meeting_attendance_status/{task_id}`.
-    *   The placeholder loop in `audio_capture_placeholder` continues to run and update task fields.
+    *   No continuous per-second logs from the audio loop itself, but the `audio_callback` might log warnings if `status_flags` are present.
+4.  **Expected Result (Worker File System - Manual Check):**
+    *   If you have access to the worker container (`docker exec`), periodically check the size of `/tmp/{task_id}_audio.wav`. It should be increasing over time, indicating audio data is being written. `ls -lh /tmp/{task_id}_audio.wav`.
 
-### Test Case 5: Stop Meeting Attendance
+### Test Case 5: Stop Meeting Attendance (Verify File Finalization)
 
 1.  **Action:** While a task is active, click the "Stop Attending Meeting" button.
 2.  **Expected Result (Frontend):**
-    *   The "Stop Attending Meeting" button might show a loading state (e.g., "Stopping...").
+    *   The "Stop Attending Meeting" button might show a loading state.
     *   A `POST` request to `http://localhost:8001/stop_meeting_attendance/{task_id}`.
     *   The request should complete with 200 OK.
-    *   The response payload should be the updated `MeetingTask` object, with status `COMPLETED` (or `processing_completion` then `completed`).
-    *   The UI should update to show the "completed" status and message.
-    *   "Final Transcript Location" and "Final Notes Location" might be displayed with mock paths.
+    *   The UI should update to show status `COMPLETED` and a message like "Audio capture stopped. Task completed. Audio saved to /tmp/{task_id}_audio.wav."
+    *   "Final Transcript Location" should display the path to the WAV file (e.g., `/tmp/{task_id}_audio.wav`).
     *   Polling should stop.
-    *   The "Stop Attending Meeting" button might hide or become disabled.
-    *   The "Start Attending Meeting" button should become enabled again. Input fields should become enabled.
+    *   The "Stop Attending Meeting" button should hide or become disabled.
+    *   The "Start Attending Meeting" button should become enabled again.
 3.  **Expected Result (Worker Logs):**
     *   Log entry for request to `/stop_meeting_attendance/{task_id}`.
-    *   Log entry indicating the audio stream task is being cancelled.
-    *   Log entries from the `finally` block of `audio_capture_placeholder` (e.g., "Placeholder audio capture finished.", "Processing complete. Status: completed").
-    *   Task status in `active_tasks` (if inspected or logged) should be `COMPLETED`.
+    *   Log entry "Task X: Signaling audio capture to stop."
+    *   Log entry "Task X: Audio capture loop finished."
+    *   Log entry "Task X: Cleaning up audio capture resources."
+    *   Log entry "Task X: WAV file closed: /tmp/X_audio.wav".
+    *   Log entry "Task X: Processing complete. Final status: completed".
+    *   Task status in `active_tasks` should be `COMPLETED`.
+4.  **Expected Result (Worker File System - Manual Check):**
+    *   The file `/tmp/{task_id}_audio.wav` should exist and be a valid WAV file (can be copied out using `docker cp live-meeting-worker:/tmp/{task_id}_audio.wav .` and played if audio was captured).
 
 ### Test Case 6: Start Meeting - Missing Required Fields
 
@@ -151,15 +160,29 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
 3.  **Expected Result (Frontend, if interaction leads to this):**
     *   If the UI attempts this after a task is cleared (e.g. worker restarted), it should handle the 404 gracefully, perhaps by clearing the current task display and showing an error.
 
-### Test Case 10: Task Lifecycle (Simulated Long Meeting)
+### Test Case 10: Task Lifecycle (Natural Completion - if applicable)
 
-1.  **Action:** Start a meeting attendance task as in Test Case 3. Let it run for the full duration of the `audio_capture_placeholder` loop (currently 120 iterations/seconds).
+*Note: The current `audio_capture_loop` runs indefinitely until explicitly stopped or an error occurs. This test case would apply if a maximum duration were implemented in the worker.*
+
+1.  **Action:** Start a meeting attendance task. Let it run until any implemented maximum duration or until it stops naturally (if applicable).
 2.  **Expected Result (Frontend & Worker):**
-    *   The task should progress through `ACTIVE` state.
-    *   After the loop finishes, the worker should transition the task to `PROCESSING_COMPLETION` and then `COMPLETED`.
-    *   The UI should reflect these status changes.
-    *   Polling should stop once the task is `COMPLETED`.
-    *   Final mock locations for transcript/notes should be displayed.
+    *   The task progresses through `ACTIVE` state.
+    *   If a max duration is hit, the worker should automatically stop capture, finalize the WAV file, and transition status to `COMPLETED`.
+    *   The UI reflects these changes, polling stops, and the final WAV file path is shown.
 
-This initial set of tests covers the main interactions and error conditions. More specific tests can be added as the worker's actual audio processing capabilities are developed.
+### Test Case 11: Audio Device Access Error (Difficult to force, but conceptual)
+
+1.  **Action (Conceptual - if a device is listed but becomes unavailable or has permission issues *after* selection but *before* stream start):**
+    *   Select a problematic audio device (if one can be identified or simulated).
+    *   Click "Start Attending Meeting".
+2.  **Expected Result (Worker Logs):**
+    *   A `sd.PortAudioError` should be logged (e.g., "Invalid device ID", "Device unavailable").
+    *   The task status should become `ERROR`.
+    *   The task message should indicate an "Audio device error".
+3.  **Expected Result (Frontend):**
+    *   The UI should display the error status and message from the worker.
+    *   Polling might stop or continue, showing the error state.
+    *   The "Start Attending Meeting" button should become enabled again.
+
+This initial set of tests covers the main interactions and error conditions for real audio capture. More specific tests can be added as STT and other processing features are integrated.
 ```
