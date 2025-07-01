@@ -14,6 +14,10 @@ import * as efs from 'aws-cdk-lib/aws-efs'; // Added EFS
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cw_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 
 export class AwsStack extends cdk.Stack {
   // Define class properties for resources that need to be accessed across methods or by other constructs
@@ -91,8 +95,27 @@ export class AwsStack extends cdk.Stack {
       default: "", // Default to empty string, indicating none provided
     });
 
+    const operatorEmailParameter = new cdk.CfnParameter(this, "OperatorEmail", {
+      type: "String",
+      description: "Email address for operational alerts and notifications. You must confirm the SNS subscription sent to this email.",
+      allowedPattern: ".+@.+\\..+", // Basic email pattern validation
+    });
+
     const domainName = domainNameParameter.valueAsString;
     const certificateArn = certificateArnParameter.valueAsString;
+    const operatorEmail = operatorEmailParameter.valueAsString;
+
+    // SNS Topic for Alarms
+    const alarmTopic = new sns.Topic(this, 'AlarmTopic', {
+      displayName: `${this.stackName} Alarms Topic`,
+    });
+    alarmTopic.addSubscription(new subscriptions.EmailSubscription(operatorEmail));
+
+    new cdk.CfnOutput(this, 'AlarmTopicArn', {
+        value: alarmTopic.topicArn,
+        description: 'SNS Topic ARN for operational alarms. Ensure the email subscription is confirmed.',
+    });
+
 
     let certificate: acm.ICertificate;
 
@@ -235,6 +258,50 @@ export class AwsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DbInstanceEndpoint', { value: this.dbInstance.dbInstanceEndpointAddress });
     new cdk.CfnOutput(this, 'DbSecretArn', { value: this.dbSecret.secretArn });
 
+    // RDS Alarms
+    const rdsHighCpuAlarm = new cloudwatch.Alarm(this, 'RdsHighCpuAlarm', {
+      alarmName: `${this.stackName}-RDS-HighCPU`,
+      alarmDescription: 'Alarm if RDS CPU utilization is too high.',
+      metric: this.dbInstance.metricCPUUtilization({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 85,
+      evaluationPeriods: 3, // 15 minutes
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    rdsHighCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const rdsLowStorageAlarm = new cloudwatch.Alarm(this, 'RdsLowStorageAlarm', {
+      alarmName: `${this.stackName}-RDS-LowStorage`,
+      alarmDescription: 'Alarm if RDS free storage space is low.',
+      metric: this.dbInstance.metricFreeStorageSpace({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE, // Or MIN
+      }),
+      threshold: 10 * 1024 * 1024 * 1024, // 10 GB in bytes
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING, // Or MISSING if you want to be alerted if metric disappears
+    });
+    rdsLowStorageAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const rdsLowMemoryAlarm = new cloudwatch.Alarm(this, 'RdsLowMemoryAlarm', {
+        alarmName: `${this.stackName}-RDS-LowFreeableMemory`,
+        alarmDescription: 'Alarm if RDS freeable memory is low.',
+        metric: this.dbInstance.metricFreeableMemory({
+            period: cdk.Duration.minutes(5),
+            statistic: cloudwatch.Statistic.AVERAGE, // Or MIN
+        }),
+        threshold: 200 * 1024 * 1024, // 200 MB in bytes
+        evaluationPeriods: 2, // For 10 minutes
+        comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    rdsLowMemoryAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+
     // ECS Cluster
     this.cluster = new ecs.Cluster(this, 'AtomicCluster', {
       vpc: this.vpc,
@@ -289,6 +356,21 @@ export class AwsStack extends cdk.Stack {
         sslPolicy: elbv2.SslPolicy.RECOMMENDED, // Added recommended SSL policy
     });
     new cdk.CfnOutput(this, 'AlbHttpsListenerArn', { value: httpsListener.listenerArn });
+
+    // ALB Alarms
+    const alb5xxAlarm = new cloudwatch.Alarm(this, 'Alb5xxErrorAlarm', {
+      alarmName: `${this.stackName}-ALB-5XX-Errors`,
+      alarmDescription: 'Alarm if ALB experiences a high number of 5XX errors.',
+      metric: this.alb.metricHttpCodeElb(elbv2.HttpCodeElb.ELB_5XX_COUNT, {
+        statistic: cloudwatch.Statistic.SUM,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 5,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    alb5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
 
     // Generic Task Role
@@ -591,6 +673,20 @@ export class AwsStack extends cdk.Stack {
       assignPublicIp: false,
     });
 
+    const supertokensServiceCpuAlarm = new cloudwatch.Alarm(this, 'SupertokensServiceHighCpuAlarm', {
+      alarmName: `${this.stackName}-SupertokensService-HighCPU`,
+      alarmDescription: 'Alarm if SupertokensService CPU utilization is too high.',
+      metric: supertokensService.metricCPUUtilization({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 85,
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    supertokensServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     const supertokensTargetGroup = new elbv2.ApplicationTargetGroup(this, 'SupertokensTargetGroup', {
       vpc: this.vpc,
       port: 3567,
@@ -612,6 +708,20 @@ export class AwsStack extends cdk.Stack {
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/auth/*'])],
       action: elbv2.ListenerAction.forward([supertokensTargetGroup]),
     });
+
+    const supertokensTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'SupertokensTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-Supertokens-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if Supertokens Target Group has unhealthy hosts.',
+      metric: supertokensTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE, // Or MAX
+      }),
+      threshold: 0,
+      evaluationPeriods: 2, // > 0 for 2 consecutive periods (10 mins)
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    supertokensTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- Hasura GraphQL Engine Service ---
     this.hasuraSG = new ec2.SecurityGroup(this, 'HasuraSG', { vpc: this.vpc, allowAllOutbound: true });
@@ -662,6 +772,20 @@ export class AwsStack extends cdk.Stack {
       assignPublicIp: false,
     });
 
+    const hasuraServiceCpuAlarm = new cloudwatch.Alarm(this, 'HasuraServiceHighCpuAlarm', {
+      alarmName: `${this.stackName}-HasuraService-HighCPU`,
+      alarmDescription: 'Alarm if HasuraService CPU utilization is too high.',
+      metric: hasuraService.metricCPUUtilization({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 85, // Services without autoscaling might need different thresholds
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    hasuraServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     const hasuraTargetGroup = new elbv2.ApplicationTargetGroup(this, 'HasuraTargetGroup', {
       vpc: this.vpc,
       port: 8080,
@@ -680,6 +804,20 @@ export class AwsStack extends cdk.Stack {
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/graphql/*'])],
       action: elbv2.ListenerAction.forward([hasuraTargetGroup]),
     });
+
+    const hasuraTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'HasuraTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-Hasura-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if Hasura Target Group has unhealthy hosts.',
+      metric: hasuraTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 0,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    hasuraTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- Functions Service ---
     this.functionsSG = new ec2.SecurityGroup(this, 'FunctionsSG', { vpc: this.vpc, allowAllOutbound: true });
@@ -757,6 +895,20 @@ export class AwsStack extends cdk.Stack {
       scaleOutCooldown: cdk.Duration.minutes(1),
     });
 
+    const functionsServiceCpuAlarm = new cloudwatch.Alarm(this, 'FunctionsServiceHighCpuAlarm', {
+      alarmName: `${this.stackName}-FunctionsService-HighCPU`,
+      alarmDescription: 'Alarm if FunctionsService CPU utilization is too high.',
+      metric: functionsService.metricCPUUtilization({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 85,
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    functionsServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     const functionsTargetGroup = new elbv2.ApplicationTargetGroup(this, 'FunctionsTargetGroup', {
       vpc: this.vpc,
       port: 80,
@@ -776,6 +928,20 @@ export class AwsStack extends cdk.Stack {
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/functions/*'])],
       action: elbv2.ListenerAction.forward([functionsTargetGroup]),
     });
+
+    const functionsTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'FunctionsTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-Functions-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if Functions Target Group has unhealthy hosts.',
+      metric: functionsTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 0,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    functionsTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- App Service (Frontend) ---
     this.appSG = new ec2.SecurityGroup(this, 'AppSG', { vpc: this.vpc, allowAllOutbound: true }); // Corrected: this.appSG
@@ -847,6 +1013,20 @@ export class AwsStack extends cdk.Stack {
       scaleOutCooldown: cdk.Duration.minutes(1),
     });
 
+    const appServiceCpuAlarm = new cloudwatch.Alarm(this, 'AppServiceHighCpuAlarm', {
+      alarmName: `${this.stackName}-AppService-HighCPU`,
+      alarmDescription: 'Alarm if AppService CPU utilization is too high.',
+      metric: appService.metricCPUUtilization({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 85,
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    appServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     const appTargetGroup = new elbv2.ApplicationTargetGroup(this, 'AppTargetGroup', {
       vpc: this.vpc,
       port: 3000,
@@ -866,6 +1046,20 @@ export class AwsStack extends cdk.Stack {
       conditions: [elbv2.ListenerCondition.pathPatterns(['/*'])],
       action: elbv2.ListenerAction.forward([appTargetGroup]),
     });
+
+    const appTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'AppTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-App-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if App Target Group has unhealthy hosts.',
+      metric: appTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 0,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    appTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- Handshake Service ---
     this.handshakeSG = new ec2.SecurityGroup(this, 'HandshakeSG', { vpc: this.vpc, allowAllOutbound: true });
@@ -933,6 +1127,20 @@ export class AwsStack extends cdk.Stack {
       action: elbv2.ListenerAction.forward([handshakeTargetGroup]),
     });
 
+    const handshakeTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'HandshakeTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-Handshake-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if Handshake Target Group has unhealthy hosts.',
+      metric: handshakeTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 0,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    handshakeTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     // --- OAuth Service ---
     this.oauthSG = new ec2.SecurityGroup(this, 'OAuthSG', { vpc: this.vpc, allowAllOutbound: true });
     this.oauthSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(80), 'Allow OAuth from ALB on its container port');
@@ -999,6 +1207,20 @@ export class AwsStack extends cdk.Stack {
       action: elbv2.ListenerAction.forward([oauthTargetGroup]),
     });
 
+    const oauthTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'OauthTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-OAuth-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if OAuth Target Group has unhealthy hosts.',
+      metric: oauthTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 0,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    oauthTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     // Optaplanner Service
     this.optaplannerSG = new ec2.SecurityGroup(this, 'OptaplannerSG', { vpc: this.vpc, allowAllOutbound: true });
     this.rdsSecurityGroup.connections.allowFrom(this.optaplannerSG, ec2.Port.tcp(5432), 'Allow traffic from Optaplanner to RDS');
@@ -1059,6 +1281,20 @@ export class AwsStack extends cdk.Stack {
       action: elbv2.ListenerAction.forward([optaplannerTargetGroup]),
     });
     this.optaplannerSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(8081), 'Allow traffic from ALB to Optaplanner');
+
+    const optaplannerTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'OptaplannerTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-Optaplanner-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if Optaplanner Target Group has unhealthy hosts.',
+      metric: optaplannerTargetGroup.metricUnhealthyHostCount({
+        period: cdk.Duration.minutes(5),
+        statistic: cloudwatch.Statistic.AVERAGE,
+      }),
+      threshold: 0,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    optaplannerTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // Note: OpenSearch Domain definition and related permissions will be added in the next step / subtask.
 

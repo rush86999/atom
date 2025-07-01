@@ -196,3 +196,45 @@ After the CloudFormation stack has been successfully deployed or updated with th
     *   GraphQL queries and mutations (Hasura)
     *   Backend functions
     *   Frontend application interactions
+
+---
+
+## Basic Alerting with CloudWatch Alarms
+
+To provide basic monitoring and alerting for critical failures or resource issues, this CDK stack configures several CloudWatch Alarms. These alarms send notifications to an Amazon SNS (Simple Notification Service) topic.
+
+### SNS Topic for Notifications
+
+*   An SNS topic named `<StackName>-AlarmTopic` is automatically created (where `<StackName>` is the name of your CloudFormation stack).
+*   **OperatorEmail Parameter:** When deploying the stack, you must provide a valid email address for the `OperatorEmail` CloudFormation parameter. This email address will be subscribed to the SNS topic.
+*   **Subscription Confirmation:** After the stack deployment (or update) that adds this subscription, an email will be sent to the `OperatorEmail` address. **You must click the link in this email to confirm the subscription** to start receiving alarm notifications.
+*   The ARN of this SNS topic is available as a CloudFormation stack output (`AlarmTopicArn`).
+
+### Configured Alarms
+
+The following CloudWatch Alarms are configured by default:
+
+**1. Application Load Balancer (ALB) Alarms:**
+    *   **High 5XX Errors:** Triggers if the ALB experiences 5 or more HTTP 5XX server-side errors within a 5-minute period.
+    *   **Unhealthy Hosts (per Target Group):** Triggers if any of the following target groups have more than 0 unhealthy hosts for 2 consecutive 5-minute periods:
+        *   App Service Target Group
+        *   Supertokens Service Target Group
+        *   Hasura Service Target Group
+        *   Functions Service Target Group
+        *   Handshake Service Target Group
+        *   OAuth Service Target Group
+        *   OptaPlanner Service Target Group
+
+**2. Amazon ECS Service Alarms:**
+    *   **High CPU Utilization (per Service):** Triggers if the average CPU utilization for any of the following ECS services exceeds 85% for a continuous 15-minute period:
+        *   App Service
+        *   Functions Service
+        *   Hasura Service
+        *   Supertokens Service
+
+**3. Amazon RDS Instance Alarms:**
+    *   **High CPU Utilization:** Triggers if the average CPU utilization of the RDS database instance exceeds 85% for a continuous 15-minute period.
+    *   **Low Free Storage Space:** Triggers if the available storage space on the RDS instance drops below 10GB.
+    *   **Low Freeable Memory:** Triggers if the freeable memory on the RDS instance drops below 200MB for a continuous 10-minute period.
+
+These alarms provide a foundational level of monitoring. You can extend this by adding more specific alarms or integrating with more advanced monitoring solutions as needed.
