@@ -49,9 +49,11 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
 4.  **Review Configuration in `lib/aws-stack.ts`:**
     *   **Service Sizes & Scaling:** Review the default CPU/memory settings and auto-scaling parameters (`minCapacity`, `maxCapacity`, `targetUtilizationPercent`) for each Fargate service. Adjust them based on your expected load and budget.
     *   **RDS Instance Type:** The default is `db.t3.small`. If you anticipate higher database load, you can change this. Note the comment regarding Aurora Serverless v2 for spiky workloads.
-    *   **Secrets:** Many secrets are created as placeholders in AWS Secrets Manager (e.g., for OpenAI API Key, Google API credentials, Zoom credentials, a strong Hasura JWT secret). After the initial deployment, you **MUST** update these placeholder values in the AWS Secrets Manager console with your actual secrets.
-        *   The CDK script outputs the ARNs of these secrets.
-        *   Database connection strings for SuperTokens, Hasura, and OptaPlanner also require manual population in Secrets Manager, using the actual RDS endpoint after it's created. The CDK script provides descriptions for these secrets indicating the format.
+    *   **Secrets Management:**
+        *   The CDK stack automates the creation and, where possible, the population of secrets in AWS Secrets Manager.
+        *   **Automated Secrets:** Secrets such as the Hasura JWT key and database connection strings (for SuperTokens, Hasura, OptaPlanner) are now automatically generated or constructed by the stack.
+        *   **Secrets Requiring Manual Value Population:** For external services (like OpenAI, Notion, Deepgram) and other environment-specific values (like MSK brokers if used), the CDK stack creates placeholder secrets. You **MUST** update the *values* of these specific secrets in the AWS Secrets Manager console after the initial deployment. The descriptions of these secrets in `aws-stack.ts` and the "Post-Deployment Steps" section below provide details.
+        *   The CDK script outputs the ARNs of all created secrets.
 
 5.  **Build and Push Docker Images to ECR:**
     *   The CDK script will create ECR repositories for each service.
@@ -85,16 +87,28 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
     *   Approve any IAM-related changes if prompted.
 
 7.  **Post-Deployment Steps:**
-    *   **Update Secrets:**
+    *   **Update External API Keys and Other External Secrets:**
+        *   While the CDK stack automates the creation of many secrets, some values are specific to your external services and accounts and **must be manually populated** after the stack deployment creates the secret resource itself.
         *   Go to AWS Secrets Manager in the AWS console.
-        *   Locate the secrets created by the stack (they will be prefixed with the stack name, e.g., `AwsStack/SupertokensDbConnString`).
-        *   Update the **plain text** values of placeholder secrets:
-            *   `SupertokensDbConnStringSecret`: `postgresql://<DB_USER>:<DB_PASS>@<RDS_ENDPOINT_ADDRESS>:<RDS_PORT>/atomicdb`
-            *   `HasuraDbConnStringSecret`: `postgres://<DB_USER>:<DB_PASS>@<RDS_ENDPOINT_ADDRESS>:<RDS_PORT>/atomicdb`
-            *   `OptaplannerDbConnStringSecret`: `jdbc:postgresql://<RDS_ENDPOINT_ADDRESS>:<RDS_PORT>/atomicdb` (ensure user/pass are appended if not part of the JDBC URL, or handle via separate env vars if OptaPlanner supports it)
-            *   `PlaceholderHasuraJwtSecret`: Replace with a strong JSON JWT configuration.
-            *   API keys for OpenAI, Google, Notion, Deepgram, etc.
-        *   The RDS instance endpoint (`<RDS_ENDPOINT_ADDRESS>`) and the admin username/password (if you let RDS generate it) can be found in the AWS RDS console or in the output of the CDK deployment (for the secret ARN containing credentials).
+        *   Locate the following secrets (prefixed with the stack name, e.g., `AwsStack/OpenAiApiKey`):
+            *   `OpenAiApiKey`: Populate with your actual OpenAI API Key.
+            *   `NotionApiToken`: Populate with your actual Notion API Token.
+            *   `DeepgramApiKey`: Populate with your actual Deepgram API Key.
+            *   `NotionNotesDbId`: Populate with your actual Notion Notes Database ID.
+            *   `NotionResearchProjectsDbId`: Populate with your actual Notion Research Projects Database ID.
+            *   `NotionResearchTasksDbId`: Populate with your actual Notion Research Tasks Database ID.
+            *   `MskBootstrapBrokers` (if using MSK): Populate with your MSK bootstrap broker string.
+        *   **Important Note on Database Secrets:**
+            *   The `HasuraJwtSecret` (e.g., `AwsStack/HasuraJwtSecret`) is now **automatically generated** with a strong key by the CDK stack. No manual update is needed for its value.
+            *   For the database connection string secrets (`SupertokensDbConnString`, `HasuraDbConnString`, `OptaplannerDbConnString`):
+                *   These secrets are created by the CDK stack.
+                *   Their descriptions in AWS Secrets Manager (and in `aws-stack.ts`) provide the correct format for the connection strings.
+                *   You **MUST manually populate the values** of these secrets in AWS Secrets Manager using the specified format.
+                *   To construct these connection strings, you will need:
+                    *   The RDS instance endpoint address and port (from the `DbInstanceEndpoint` CloudFormation output).
+                    *   The RDS admin username and password (which can be retrieved from the AWS Secrets Manager secret indicated by the `DbSecretArn` CloudFormation output).
+                    *   The database name (which is `atomicdb`).
+            *   The primary RDS admin credentials themselves are stored in the secret whose ARN is given by the `DbSecretArn` CloudFormation output. This secret is managed by RDS.
     *   **Configure DNS:**
         *   The CDK deployment will output the DNS name of the Application LoadBalancer (`AlbDnsName`).
         *   Create a CNAME record in your DNS provider to point your desired domain (e.g., `app.yourbusiness.com`) to this ALB DNS name.
