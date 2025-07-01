@@ -9,9 +9,10 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 import datetime
 import numpy as np # For handling audio data
+from openai import OpenAI # Import OpenAI library
 
 import sounddevice as sd
-from fastapi import FastAPI, HTTPException, Path, Body # BackgroundTasks no longer used directly for audio task
+from fastapi import FastAPI, HTTPException, Path, Body
 from pydantic import BaseModel, Field
 
 # --- Logging Configuration ---
@@ -25,6 +26,21 @@ CHANNELS = 1         # Mono
 DTYPE = 'int16'      # Data type for audio samples
 BLOCK_DURATION_MS = 500 # Duration of each audio block processed by the callback, in milliseconds
 TEMP_AUDIO_DIR = tempfile.gettempdir() # Or a dedicated temp dir within the app
+
+# --- OpenAI Client Initialization ---
+# The API key will be read from the OPENAI_API_KEY environment variable by default by the library
+# You can also pass it explicitly: client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# For robustness, ensure OPENAI_API_KEY is set in the environment where the worker runs.
+openai_client: Optional[OpenAI] = None
+try:
+    if os.getenv("OPENAI_API_KEY"):
+        openai_client = OpenAI()
+        logger.info("OpenAI client initialized successfully.")
+    else:
+        logger.warning("OPENAI_API_KEY environment variable not found. STT functionality will be disabled.")
+except Exception as e:
+    logger.error(f"Failed to initialize OpenAI client: {e}", exc_info=True)
+    openai_client = None # Ensure it's None if initialization fails
 
 # --- Models ---
 class AudioDevice(BaseModel):
@@ -151,6 +167,38 @@ async def _get_audio_devices() -> List[AudioDevice]:
         # Fallback: Provide a mock device if listing fails, so frontend doesn't break.
         # This is crucial for environments where sounddevice might not have access (e.g. some CI/serverless without audio).
         return [AudioDevice(id="mock_input_device", name="Mock Input Device (Error listing real devices)")]
+
+
+async def transcribe_audio_with_openai(audio_file_path: str, task_id: str) -> Optional[str]:
+    """
+    Transcribes the given audio file using OpenAI Whisper API.
+    Returns the transcribed text or None if an error occurs or STT is disabled.
+    """
+    if not openai_client:
+        logger.warning(f"Task {task_id}: OpenAI client not available. Skipping STT.")
+        return None
+    if not os.path.exists(audio_file_path):
+        logger.error(f"Task {task_id}: Audio file not found at {audio_file_path} for STT.")
+        return None
+
+    logger.info(f"Task {task_id}: Starting STT processing for {audio_file_path} using OpenAI Whisper.")
+    try:
+        with open(audio_file_path, "rb") as audio_file_object:
+            # The OpenAI client's methods are synchronous, so run in a thread pool
+            # to avoid blocking FastAPI's event loop.
+            transcript_response = await asyncio.to_thread(
+                openai_client.audio.transcriptions.create,
+                model="whisper-1",
+                file=audio_file_object
+            )
+        # Assuming the response object has a 'text' attribute for the transcript
+        transcript = transcript_response.text
+        logger.info(f"Task {task_id}: STT successful. Transcript length: {len(transcript)} chars.")
+        return transcript
+    except Exception as e: # Catch any OpenAI API errors or other issues
+        logger.error(f"Task {task_id}: OpenAI Whisper STT failed for {audio_file_path}: {e}", exc_info=True)
+        return None
+
 
 # Renamed from audio_capture_placeholder
 async def audio_capture_loop(task: MeetingTask):
@@ -288,24 +336,59 @@ async def audio_capture_loop(task: MeetingTask):
 
         if task.status == TaskStatus.ACTIVE: # If loop finished due to _stop_event but not an error
             task.status = TaskStatus.PROCESSING_COMPLETION
-            task.message = "Audio capture stopped."
+            task.message = "Audio capture stopped. Preparing for STT."
 
-        # If it was already processing_completion (e.g. from explicit stop request), or became it now
-        if task.status == TaskStatus.PROCESSING_COMPLETION:
-            await asyncio.sleep(0.1) # Simulate very short final processing
+        # Attempt STT if audio capture was successful (or processing_completion) and file exists
+        if task.status in [TaskStatus.PROCESSING_COMPLETION, TaskStatus.ACTIVE] and \
+           task._audio_file_path and os.path.exists(task._audio_file_path):
+
+            logger.info(f"Task {task.task_id}: Proceeding to STT for {task._audio_file_path}.")
+            task.message = "Audio captured. Starting transcription..."
+            transcript = await transcribe_audio_with_openai(task._audio_file_path, task.task_id)
+            if transcript:
+                task.transcript_preview = transcript # Store full transcript here for now
+                task.message = "Transcription successful."
+                # task.final_notes_location could store path to a text file with transcript if saved separately
+                logger.info(f"Task {task.task_id}: Transcription successful.")
+            else:
+                task.message = "Transcription failed or was skipped. Audio file available."
+                # task.status could be set to a specific STT_FAILED status if needed
+                logger.warning(f"Task {task.task_id}: Transcription failed or skipped for {task._audio_file_path}.")
+
+            # Transition to COMPLETED after STT attempt (success or fail)
             task.status = TaskStatus.COMPLETED
-            task.message = task.message + " Task completed."
-            if not task.final_transcript_location and task._audio_file_path and os.path.exists(task._audio_file_path):
-                 task.final_transcript_location = task._audio_file_path
-            logger.info(f"Task {task.task_id}: Processing complete. Final status: {task.status}")
+            task.message += " Task completed."
+
         elif task.status == TaskStatus.ERROR:
-            logger.error(f"Task {task.task_id}: Task ended with error. Status: {task.status}, Message: {task.message}")
+            logger.error(f"Task {task.task_id}: Task ended with error before STT. Status: {task.status}, Message: {task.message}")
+            # No STT attempt if already in error
+        else: # PENDING or other unexpected states
+            logger.warning(f"Task {task.task_id}: Task in unexpected state {task.status} at STT phase. Marking completed without STT.")
+            task.status = TaskStatus.COMPLETED
+            task.message = (task.message or "") + " Task finalized without STT due to prior state."
+
+        logger.info(f"Task {task.task_id}: Final processing complete. Final status: {task.status}")
 
         # Clean up internal attributes not meant for external model
         task._audio_stream_object = None
         task._audio_file_writer = None
         task._stop_event = None
-        # Keep _audio_file_path as it might be in final_transcript_location
+
+        # Attempt to delete the temporary audio file after processing is complete
+        if task._audio_file_path and os.path.exists(task._audio_file_path):
+            try:
+                os.remove(task._audio_file_path)
+                logger.info(f"Task {task.task_id}: Temporary audio file {task._audio_file_path} deleted successfully.")
+                # If we successfully delete it, we might want to clear task.final_transcript_location
+                # if it solely pointed to the audio file and the transcript is now in task.transcript_preview.
+                # However, for now, keeping it as a record of where the audio *was* is fine.
+                # If STT was successful, the transcript is in task.transcript_preview.
+            except OSError as e:
+                logger.error(f"Task {task.task_id}: Error deleting temporary audio file {task._audio_file_path}: {e}", exc_info=True)
+
+        # task._audio_file_path can be cleared now, as the file is deleted or attempt was made.
+        # This also prevents re-deletion attempts if this finally block were ever re-entered (though it shouldn't).
+        task._audio_file_path = None
 
 
 # --- FastAPI Application ---

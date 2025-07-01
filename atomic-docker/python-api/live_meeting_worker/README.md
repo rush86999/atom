@@ -36,10 +36,22 @@ uvicorn main:app --reload --port 8001
 The `--reload` flag enables auto-reloading on code changes, useful for development.
 
 ### Environment Variables
-The application might require environment variables for certain integrations (e.g., API keys for STT services, Notion API tokens). These can be set in your environment or managed via a `.env` file (using `python-dotenv`, if added to `requirements.txt`).
+The application relies on environment variables for certain integrations. Ensure these are set in your environment or managed via a `.env` file when running locally (requires `python-dotenv` to be added to `requirements.txt` and loaded in `main.py`). When deployed via Docker Compose, these are passed through the `docker-compose.yaml` file.
 
-*   `NOTION_API_KEY` (Example, for future Notion integration)
-*   `OPENAI_API_KEY` (Example, for future Whisper/GPT integration)
+**Required Environment Variables:**
+
+*   **`OPENAI_API_KEY`**: Your API key for OpenAI services, used for Speech-to-Text (Whisper API). The application will not be able to perform transcriptions if this is not set.
+
+**Optional/Future Environment Variables:**
+
+*   `NOTION_API_KEY` (Example, for future Notion integration for saving notes)
+*   Other API keys as new integrations are added.
+
+Create a `.env` file in this directory for local development (ensure `.env` is in `.gitignore`):
+```dotenv
+OPENAI_API_KEY="sk-your_openai_api_key_here"
+# NOTION_API_KEY="secret_your_notion_api_key_here"
+```
 
 ## API Documentation
 The API endpoints are defined in `main.py` and follow the OpenAPI specification. When the application is running, interactive API documentation (Swagger UI) is typically available at `/docs` (e.g., `http://localhost:8001/docs`).
