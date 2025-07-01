@@ -227,6 +227,9 @@ export class AwsStack extends cdk.Stack {
       databaseName: 'atomicdb',
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       publiclyAccessible: false,
+      multiAz: true, // Enabled Multi-AZ
+      backupRetention: cdk.Duration.days(14), // Configured backup retention to 14 days
+      deletionProtection: true, // Enabled deletion protection
     });
     this.dbSecret = this.dbInstance.secret!;
     new cdk.CfnOutput(this, 'DbInstanceEndpoint', { value: this.dbInstance.dbInstanceEndpointAddress });

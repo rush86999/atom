@@ -11,7 +11,7 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
     *   **Right-sized Services:** Default CPU and memory for Fargate services are set to reasonable starting points (e.g., 256 CPU units / 512 MiB RAM) and can be adjusted.
     *   **Fargate Spot:** Key stateless services (e.g., App, Functions) are configured to use Fargate Spot instances, potentially offering significant cost savings (up to 70%) compared to On-Demand Fargate. On-Demand Fargate is used as a fallback.
     *   **Auto-Scaling:** Application services are configured with auto-scaling based on CPU and memory utilization, allowing the system to handle varying loads efficiently by scaling out during peak times and scaling in during quieter periods.
-*   **Scalable Database:** Uses Amazon RDS for PostgreSQL (defaulting to `db.t3.small`). For highly variable workloads, consider evaluating Amazon Aurora Serverless v2.
+*   **Scalable and Reliable Database:** Uses Amazon RDS for PostgreSQL (defaulting to `db.t3.small`), configured for Multi-AZ deployment for high availability. Automated backups are enabled with a 14-day retention period, and deletion protection is active to prevent accidental database loss. For highly variable workloads, consider evaluating Amazon Aurora Serverless v2 as an alternative to the provisioned RDS instance.
 *   **Networking:** A dedicated VPC with public and private subnets is created. An Application Load Balancer (ALB) distributes incoming traffic to the services.
 *   **Security:** IAM roles and security groups are defined to ensure secure communication between services. Secrets are managed using AWS Secrets Manager.
 *   **Persistent Storage:** Amazon S3 is used for general data storage, and Amazon EFS is used for persistent storage for services like LanceDB (used by the Python agent).
@@ -118,7 +118,7 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
 ## Cost Considerations and Monitoring
 
 *   **Fargate:** Costs are based on vCPU and memory allocated per second, and the number of tasks running. The use of Fargate Spot significantly reduces this. Monitor usage via CloudWatch.
-*   **RDS:** Cost depends on instance type, storage, and data transfer. `db.t3.small` is a cost-effective starting point.
+*   **RDS:** Cost depends on instance type, storage, data transfer, and Multi-AZ deployment. The instance is configured as `db.t3.small` with Multi-AZ, which enhances availability but incurs higher costs than a Single-AZ setup. Automated backups also contribute to storage costs.
 *   **ALB:** Hourly cost plus LCU (Load Balancer Capacity Units) charges based on traffic.
 *   **NAT Gateway:** Hourly cost plus data processing charges.
 *   **S3 & EFS:** Storage costs, data transfer, and request costs.
