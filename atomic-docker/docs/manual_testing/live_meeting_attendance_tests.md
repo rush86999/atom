@@ -78,46 +78,48 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
         *   "Task X: Audio stream opened. Sample rate: Z, Channels: C, Device: D"
     *   Task status should change to `ACTIVE`.
     *   The `transcript_preview` in the UI should update to "Captured Xs of audio...".
-    *   **Verification:** If possible (e.g., `docker exec -it live-meeting-worker bash` then `ls /tmp`), check that the `{task_id}_audio.wav` file is created in the worker's `/tmp` directory.
+    *   **Verification:** Check worker logs for messages like "Starting audio capture for device..." and "Audio stream opened...". If possible (`docker exec -it live-meeting-worker bash`), verify `/tmp/{task_id}_audio.wav` is created.
 
 ### Test Case 4: Monitor Task Status (Polling & Audio File Growth)
 
 1.  **Action:** While a task is active (from Test Case 3), observe the UI, Network tab, and worker.
 2.  **Expected Result (Frontend):**
     *   `GET` requests to `/meeting_attendance_status/{task_id}` continue.
-    *   The "Task Status" section in the UI updates with:
-        *   Status "active".
-        *   Message like "Audio capture active."
-        *   Increasing "Duration".
-        *   "Transcript Preview" updating with "Captured Xs of audio...".
+    *   UI updates:
+        *   Status: "active".
+        *   Message: "Audio capture active."
+        *   Duration: Increasing.
+        *   Transcript Preview: "Captured Xs of audio...".
 3.  **Expected Result (Worker Logs):**
-    *   Log entries for requests to `/meeting_attendance_status/{task_id}`.
-    *   No continuous per-second logs from the audio loop itself, but the `audio_callback` might log warnings if `status_flags` are present.
+    *   Periodic logs for status requests.
+    *   (If audio is very short and stop is quick) Logs related to STT processing might appear if capture finishes before extensive polling.
 4.  **Expected Result (Worker File System - Manual Check):**
-    *   If you have access to the worker container (`docker exec`), periodically check the size of `/tmp/{task_id}_audio.wav`. It should be increasing over time, indicating audio data is being written. `ls -lh /tmp/{task_id}_audio.wav`.
+    *   Using `docker exec live-meeting-worker ls -lh /tmp/{task_id}_audio.wav`, verify the WAV file size increases.
 
-### Test Case 5: Stop Meeting Attendance (Verify File Finalization)
+### Test Case 5: Stop Meeting Attendance (Verify STT and File Cleanup)
 
 1.  **Action:** While a task is active, click the "Stop Attending Meeting" button.
 2.  **Expected Result (Frontend):**
     *   The "Stop Attending Meeting" button might show a loading state.
     *   A `POST` request to `http://localhost:8001/stop_meeting_attendance/{task_id}`.
     *   The request should complete with 200 OK.
-    *   The UI should update to show status `COMPLETED` and a message like "Audio capture stopped. Task completed. Audio saved to /tmp/{task_id}_audio.wav."
-    *   "Final Transcript Location" should display the path to the WAV file (e.g., `/tmp/{task_id}_audio.wav`).
+    *   UI updates:
+        *   Status: `COMPLETED`.
+        *   Message: "Transcription successful. Task completed." (or similar indicating STT outcome).
+        *   Transcript Preview: Should show the actual transcribed text from Whisper.
+        *   Final Transcript Location: Still shows the path where the WAV *was* (e.g., `/tmp/{task_id}_audio.wav`).
     *   Polling should stop.
-    *   The "Stop Attending Meeting" button should hide or become disabled.
-    *   The "Start Attending Meeting" button should become enabled again.
+    *   "Stop Attending Meeting" button hides/disables.
+    *   "Start Attending Meeting" button enables.
 3.  **Expected Result (Worker Logs):**
-    *   Log entry for request to `/stop_meeting_attendance/{task_id}`.
-    *   Log entry "Task X: Signaling audio capture to stop."
-    *   Log entry "Task X: Audio capture loop finished."
-    *   Log entry "Task X: Cleaning up audio capture resources."
-    *   Log entry "Task X: WAV file closed: /tmp/X_audio.wav".
-    *   Log entry "Task X: Processing complete. Final status: completed".
-    *   Task status in `active_tasks` should be `COMPLETED`.
+    *   Log for `/stop_meeting_attendance` request.
+    *   Logs for "Signaling audio capture to stop", "Audio capture loop finished", "Cleaning up audio capture resources", "WAV file closed".
+    *   Log "Starting STT processing for /tmp/{task_id}_audio.wav...".
+    *   Log "STT successful. Transcript length: Y chars." (or STT failed message).
+    *   Log "Temporary audio file /tmp/{task_id}_audio.wav deleted successfully." (or deletion error).
+    *   Log "Processing complete. Final status: completed".
 4.  **Expected Result (Worker File System - Manual Check):**
-    *   The file `/tmp/{task_id}_audio.wav` should exist and be a valid WAV file (can be copied out using `docker cp live-meeting-worker:/tmp/{task_id}_audio.wav .` and played if audio was captured).
+    *   The temporary WAV file `/tmp/{task_id}_audio.wav` should **no longer exist** (deleted after STT).
 
 ### Test Case 6: Start Meeting - Missing Required Fields
 
@@ -184,5 +186,24 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
     *   Polling might stop or continue, showing the error state.
     *   The "Start Attending Meeting" button should become enabled again.
 
-This initial set of tests covers the main interactions and error conditions for real audio capture. More specific tests can be added as STT and other processing features are integrated.
+### Test Case 12: STT Failure (e.g., No API Key)
+
+1.  **Action:**
+    *   Ensure the `live-meeting-worker` is started **without** the `OPENAI_API_KEY` environment variable (e.g., comment it out in `docker-compose.yaml` and restart the service: `docker-compose up -d --force-recreate live-meeting-worker`).
+    *   Perform Test Case 3 (Start Meeting).
+    *   Let the capture run for a short duration (e.g., 10-15 seconds).
+    *   Perform Test Case 5 (Stop Meeting).
+2.  **Expected Result (Worker Logs):**
+    *   Worker logs should show "OPENAI_API_KEY environment variable not found. STT functionality will be disabled." upon startup (or "OpenAI client not available. Skipping STT." during processing).
+    *   Audio capture logs should appear normal.
+    *   When STT is attempted, logs should indicate it was skipped or failed due to no client/key.
+    *   Logs for temporary file deletion should still appear.
+3.  **Expected Result (Frontend):**
+    *   Task status message upon completion should indicate STT failure/skip (e.g., "Transcription failed or was skipped. Audio file available. Task completed.").
+    *   `transcript_preview` should be empty or show the "Captured Xs of audio..." message, but not a transcript.
+    *   `final_transcript_location` should still show the path where the WAV file *was*.
+    *   Task should still transition to `COMPLETED`.
+4.  **Action (Post-test):** Remember to restore the `OPENAI_API_KEY` in `docker-compose.yaml` and restart the worker if you modified it.
+
+This set of tests covers the main interactions and error conditions for audio capture and STT processing.
 ```

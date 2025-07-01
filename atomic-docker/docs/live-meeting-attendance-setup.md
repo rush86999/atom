@@ -8,15 +8,15 @@ The Live Meeting Attendance feature allows Atom to capture audio from online mee
 
 1.  **Atom Services:** The following Atom services must be running and correctly configured as part of the `atomic-docker` setup:
     *   **Frontend Application (`app` service):** The Next.js application where users interact with Atom settings.
-    *   **Live Meeting Worker (`live-meeting-worker` service):** The new Python (FastAPI) backend service responsible for handling audio device listing, task management, and (placeholder) audio processing. This service is defined in `atomic-docker/project/docker-compose.yaml`.
-    *   Ensure that the `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL` environment variable for the `app` service in `docker-compose.yaml` is correctly set to point to the `live-meeting-worker` service (e.g., `http://live-meeting-worker:8001`).
+    *   **Live Meeting Worker (`live-meeting-worker` service):** The Python (FastAPI) backend service responsible for audio device listing, task management, audio capture, and Speech-to-Text (STT) processing. This service is defined in `atomic-docker/project/docker-compose.yaml`.
+    *   Ensure that `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL` for the `app` service points to the `live-meeting-worker` (e.g., `http://live-meeting-worker:8001`).
 
-2.  **External Services (for future full functionality):**
-    *   While the current Python worker has placeholder logic, future enhancements for actual transcription and Notion integration would require:
-        *   **Notion API Key:** For saving notes.
-        *   **Transcription Service API Key (e.g., Deepgram, OpenAI Whisper):** For STT.
-        *   **LLM API Key (e.g., OpenAI):** For summarization/note generation.
-    *   These keys would typically be configured server-side for the `live-meeting-worker` or an intermediary service, not directly by the user in the current UI.
+2.  **Environment Variables for `live-meeting-worker`:**
+    *   **`OPENAI_API_KEY`**: This environment variable **must** be set for the `live-meeting-worker` service (e.g., in your `.env` file at the root of `atomic-docker/project/` which is then passed via `docker-compose.yaml`). It is required for transcribing captured audio using the OpenAI Whisper API. If not set, STT will be skipped.
+
+3.  **External Services (for future enhancements):**
+    *   Future enhancements for direct Notion integration for saving notes would require a `NOTION_API_KEY` configured for the worker.
+    *   Other LLM API keys if different models are used for summarization.
 
 ## Audio Setup (Crucial)
 
@@ -133,23 +133,45 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
           "message": "Audio capture active.",
           "start_time": "2023-11-15T10:00:00Z",
           "duration_seconds": 120,
-          "transcript_preview": "Captured 120s of audio...", // Updated preview
-          "notes_preview": null, // Notes preview not implemented with basic capture
-          "final_transcript_location": null, // Will be populated on completion if successful
+          "transcript_preview": "Captured 120s of audio...",
+          "notes_preview": null,
+          "final_transcript_location": null,
+          "final_notes_location": null
+        }
+        ```
+    *   **Example Success Response (Task Completed with Transcription):**
+        ```json
+        {
+          "task_id": "b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d",
+          "user_id": "supertokens_user_id_here",
+          "platform": "other",
+          "meeting_id": "Test STT Meeting",
+          "audio_device_id": "default",
+          "notion_page_title": "Notes for STT Test",
+          "status": "completed",
+          "message": "Transcription successful. Task completed.",
+          "start_time": "2023-11-15T10:00:00Z",
+          "end_time": "2023-11-15T10:02:00Z",
+          "duration_seconds": 120,
+          "transcript_preview": "This is the transcribed text from the Whisper API...",
+          "notes_preview": null,
+          "final_transcript_location": "/tmp/b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d_audio.wav", // Path where audio *was*
           "final_notes_location": null
         }
         ```
 
+
 *   **Stop Meeting Attendance:**
     *   `POST {NEXT_PUBLIC_LIVE_MEETING_WORKER_URL}/stop_meeting_attendance/{task_id}`
-    *   **Example Success Response:**
+    *   **Example Success Response (after STT):**
         ```json
         {
           "task_id": "b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d",
           // ... (other fields updated to reflect completion)
           "status": "completed",
-          "message": "Audio capture stopped. Task completed. Audio saved to /tmp/b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d_audio.wav.",
-          "final_transcript_location": "/tmp/b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d_audio.wav", // Actual path to WAV
+          "message": "Audio capture stopped. Preparing for STT. Transcription successful. Task completed.",
+          "transcript_preview": "This is the transcribed text...",
+          "final_transcript_location": "/tmp/b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d_audio.wav", // Path where audio *was* before deletion
           "final_notes_location": null
         }
         ```
@@ -165,9 +187,13 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
     *   Check worker logs for `PortAudioError` or messages like "Ensure device ... is valid and available."
     *   As detailed in the "Audio Setup" section, for the Dockerized worker to access host audio devices (especially on Linux), you might need to add `devices: ["/dev/snd:/dev/snd"]` to its service definition in `docker-compose.yaml`.
     *   If the worker falls back to the "mock_input_device", real audio capture will not occur.
-*   **Audio File Issues:**
-    *   If capture seems to work but you can't find the audio file, check the `final_transcript_location` in the task status. The path will be relative to the *inside* of the `live-meeting-worker` container (e.g., `/tmp/TASK_ID_audio.wav`).
-    *   You can inspect files inside the container using `docker exec live-meeting-worker ls /tmp`.
+*   **STT Issues:**
+    *   If transcription fails or is skipped, the `message` field in the task status will indicate this. `transcript_preview` will not contain the transcript.
+    *   Ensure `OPENAI_API_KEY` is correctly set for the `live-meeting-worker` service in your Docker environment. Check worker logs for "OpenAI client not available" or "OpenAI Whisper STT failed".
+*   **Audio File Issues & Cleanup:**
+    *   The worker saves captured audio to a temporary WAV file (e.g., `/tmp/TASK_ID_audio.wav`) inside its container.
+    *   `final_transcript_location` in the task status will show this path (even after the file is deleted).
+    *   The worker attempts to delete this temporary WAV file after STT processing (successful or not). Check worker logs for messages about file deletion.
 *   **Task Errors:** Check the `message` field in the task status response for error details from the worker. Examine `live-meeting-worker` logs for more detailed Python tracebacks.
 
 ## Architecture Overview
@@ -179,8 +205,10 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
     *   Runs in a Docker container.
     *   Manages the lifecycle of attendance tasks (start, stop, status).
     *   Lists available audio devices within its container environment using `sounddevice`.
-    *   **Now performs real audio capture using `sounddevice` and saves it to a temporary WAV file** (e.g., `/tmp/{task_id}_audio.wav` inside the container). The `final_transcript_location` field in the task status will point to this file.
-    *   (Future) This captured WAV file will be used for STT, note generation, and Notion API calls.
+    *   Performs real audio capture using `sounddevice` and saves it to a temporary WAV file (e.g., `/tmp/{task_id}_audio.wav` inside the container).
+    *   **Transcribes the captured WAV file using OpenAI Whisper API** (requires `OPENAI_API_KEY`). The transcript is currently stored in the `transcript_preview` field of the task.
+    *   Deletes the temporary WAV file after attempting transcription.
+    *   (Future) The transcript will be used for note generation and Notion API calls.
 3.  **Docker & Docker Compose:**
     *   Manages the running of all services, including the new `live-meeting-worker`.
     *   Handles inter-service communication via defined networks and service names.
