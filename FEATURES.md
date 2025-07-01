@@ -82,8 +82,19 @@ Leverage Atom's advanced automation and AI functionalities:
 *   **GPT-Powered Summaries:** Create concise summaries of information, such as a series of notes or research findings, over a defined period.
 *   **Event Feature Application Engine:** A backend system (potentially utilizing Optaplanner) responsible for applying defined features, rules, and templates to calendar events, ensuring consistent and intelligent scheduling.
 *   **Event-to-Vector Processing:** For semantic search and event matching, Atom processes event information into vectors, enabling more accurate matching and templating (uses LanceDB).
-*   **Live Meeting Attendance:** (Experimental UI Implemented) Atom can "attend" live meetings to perform tasks like automated note-taking or action item identification. The UI for initiating attendance, selecting an audio source (from devices listed by the `live_meeting_worker` via `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL`), and monitoring task status is available in settings. Full functionality depends on backend worker implementation, correct audio routing by the user (see `atomic-docker/docs/live-meeting-attendance-setup.md`), and secure API key management for services like Notion, Deepgram, and OpenAI. The new Zoom SDK agent requires `ZOOM_SDK_KEY` and `ZOOM_SDK_SECRET` and a fully implemented C++ helper.
-*   **Audio Processing:** Transcribe audio from various sources for notes, commands, or meeting recordings.
+*   **Live Meeting Attendance:** (Backend Implemented, Experimental UI)
+    *   Atom can "attend" live meetings (or capture desktop audio) to perform tasks like (eventual) automated note-taking or action item identification.
+    *   **Frontend UI:** The UI in Atom Agent Settings allows users to:
+        *   Select an audio source (from devices listed by the Python worker).
+        *   Specify meeting details (platform, ID, Notion title).
+        *   Start, monitor (viewing status, previews, duration), and stop attendance tasks.
+    *   **Backend Worker:** A dedicated Python (FastAPI) worker service (`live-meeting-worker`) is now implemented and containerized.
+        *   It exposes an API for listing audio devices, starting, stopping, and querying the status of attendance tasks. (See `atomic-docker/docs/live-meeting-attendance-api.md` for API details).
+        *   Currently, the worker's audio processing is a placeholder (simulates audio capture and data generation). Real-time STT and advanced note-taking are future enhancements for this worker.
+        *   The frontend communicates with this worker via the URL specified in `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL`.
+    *   **Audio Setup:** Correct audio routing by the user is crucial for capturing desired audio. Refer to `atomic-docker/docs/live-meeting-attendance-setup.md`.
+    *   **Note:** The previous experimental Zoom C++ SDK agent details are less relevant to this new Python worker, which currently uses `sounddevice` for audio device listing and would use it for capture.
+*   **Audio Processing:** Transcribe audio from various sources for notes, commands, or meeting recordings. The Live Meeting Attendance worker will be a key component for this.
 
 ### Dependencies & Setup Notes for Advanced Features
 

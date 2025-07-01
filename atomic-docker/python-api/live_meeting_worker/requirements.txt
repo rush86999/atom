@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+sounddevice
+# Add other dependencies as needed, e.g., for STT, Notion client, etc.
+# python-dotenv # For local development if using .env files
+# requests # If calling out to other services (e.g. Notion API directly)
+# openai # If using OpenAI for STT or summarization
+# asyncio # For concurrent operations if needed beyond FastAPI's built-in capabilities
+# redis # If using Redis for task management in a scaled environment

@@ -2,59 +2,62 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Box from '@components/common/Box';
 import Text from '@components/common/Text';
 import Button from '@components/Button';
-import Select from '@components/common/Select'; // Assuming a generic Select component
-import TextField from '@components/TextField'; // Assuming a generic TextField component
-import { useSession } from 'supertokens-auth-react/recipe/session'; // To get user_id
+import Select from '@components/common/Select';
+import TextField from '@components/TextField';
+import { useSession } from 'supertokens-auth-react/recipe/session';
 
+// Matches backend AudioDevice model
 interface AudioDevice {
-  index: number;
+  id: string | number; // Can be string or number from backend
   name: string;
-  hostapi_name: string;
-  max_input_channels: number;
 }
 
-interface TaskStatus {
+// Matches backend TaskStatus enum
+enum TaskStatusEnum {
+  PENDING = "pending",
+  ACTIVE = "active",
+  PROCESSING_COMPLETION = "processing_completion",
+  COMPLETED = "completed",
+  ERROR = "error",
+}
+
+// Matches backend MeetingTask model (relevant parts for frontend)
+interface MeetingTask {
   task_id: string;
   user_id: string;
   platform: string;
-  meeting_identifier: string;
-  status_timestamp: string;
-  current_status_message: string;
-  final_notion_page_url?: string | null;
-  error_details?: string | null;
-  created_at: string;
+  meeting_id: string; // Renamed from meeting_identifier for consistency
+  audio_device_id: string | number;
+  notion_page_title: string;
+  status: TaskStatusEnum;
+  message?: string | null;
+  start_time?: string | null; // ISO date string
+  end_time?: string | null; // ISO date string
+  duration_seconds?: number | null;
+  transcript_preview?: string | null;
+  notes_preview?: string | null;
+  final_transcript_location?: string | null;
+  final_notes_location?: string | null;
 }
 
-// TODO: Move to a config file or environment variables
-const LIVE_MEETING_WORKER_URL = process.env.NEXT_PUBLIC_LIVE_MEETING_WORKER_URL || 'http://localhost:8081'; // Default for local dev
-const ATTEND_LIVE_MEETING_API_ENDPOINT = '/api/direct/attend_live_meeting'; // Placeholder, confirm actual endpoint
-const MEETING_ATTENDANCE_STATUS_API_ENDPOINT_BASE = '/api/meeting_attendance_status'; // Placeholder
-
+const LIVE_MEETING_WORKER_URL = process.env.NEXT_PUBLIC_LIVE_MEETING_WORKER_URL || 'http://localhost:8001'; // Default to Python worker port
 
 const LiveMeetingAttendanceSettings = () => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
-  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('');
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string | number>('');
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(false);
   const [deviceError, setDeviceError] = useState<string | null>(null);
 
-  const [platform, setPlatform] = useState<'zoom' | 'googlemeet' | 'msteams'>('googlemeet');
-  const [meetingIdentifier, setMeetingIdentifier] = useState<string>('');
-  const [notionNoteTitle, setNotionNoteTitle] = useState<string>('');
+  const [platform, setPlatform] = useState<'zoom' | 'googlemeet' | 'msteams' | 'other'>('googlemeet');
+  const [meetingId, setMeetingId] = useState<string>(''); // Renamed from meetingIdentifier
+  const [notionPageTitle, setNotionPageTitle] = useState<string>(''); // Renamed from notionNoteTitle
 
-  // TODO: Securely manage API keys. For now, placeholders or direct input.
-  const [notionApiKey, setNotionApiKey] = useState<string>('');
-  const [deepgramApiKey, setDeepgramApiKey] = useState<string>('');
-  const [openaiApiKey, setOpenaiApiKey] = useState<string>('');
-  const [zoomSdkKey, setZoomSdkKey] = useState<string>(''); // Only if platform is Zoom & SDK agent
-  const [zoomSdkSecret, setZoomSdkSecret] = useState<string>(''); // Only if platform is Zoom & SDK agent
-
-
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false); // General processing state for start/stop
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [currentTask, setCurrentTask] = useState<TaskStatus | null>(null);
+  const [currentTask, setCurrentTask] = useState<MeetingTask | null>(null);
   const [pollingIntervalId, setPollingIntervalId] = useState<NodeJS.Timeout | null>(null);
 
-  const { userId } = useSession(); // Get SuperTokens user ID
+  const { userId, isLoading: isLoadingSession } = useSession();
 
   const fetchAudioDevices = useCallback(async () => {
     setIsLoadingDevices(true);
@@ -62,16 +65,15 @@ const LiveMeetingAttendanceSettings = () => {
     try {
       const response = await fetch(`${LIVE_MEETING_WORKER_URL}/list_audio_devices`);
       if (!response.ok) {
-        throw new Error(`Failed to fetch audio devices: ${response.statusText} (Worker might be down or URL incorrect)`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch audio devices: ${response.statusText} (Worker might be down or URL incorrect)`);
       }
-      const data: AudioDevice[] = await response.json();
-      // Filter out devices with 0 input channels as they can't be used for input
-      const usableDevices = data.filter(device => device.max_input_channels > 0);
-      setAudioDevices(usableDevices);
-      if (usableDevices.length > 0) {
-        setSelectedAudioDevice(String(usableDevices[0].index)); // Default to first usable device
+      const data: { devices: AudioDevice[] } = await response.json();
+      setAudioDevices(data.devices || []);
+      if (data.devices && data.devices.length > 0) {
+        setSelectedAudioDevice(data.devices[0].id); // Default to first device's ID
       } else {
-        setDeviceError("No usable audio input devices found. Please check your system's audio configuration and the live meeting worker.");
+        setDeviceError("No audio input devices found. Please check your system's audio configuration and the live meeting worker.");
       }
     } catch (error: any) {
       console.error("Error fetching audio devices:", error);
@@ -85,142 +87,181 @@ const LiveMeetingAttendanceSettings = () => {
     fetchAudioDevices(); // Fetch on component mount
   }, [fetchAudioDevices]);
 
-  const handleAttendMeeting = async () => {
+  const clearPolling = () => {
+    if (pollingIntervalId) {
+      clearInterval(pollingIntervalId);
+      setPollingIntervalId(null);
+    }
+  };
+
+  const handleStartMeeting = async () => {
     if (!userId) {
       setSubmitError("User not authenticated. Please log in.");
       return;
     }
-    if (!meetingIdentifier || !notionNoteTitle) {
-      setSubmitError("Meeting ID/URL and Notion Note Title are required.");
+    if (!meetingId || !notionPageTitle) {
+      setSubmitError("Meeting ID/URL and Notion Page Title are required.");
       return;
     }
-    if (audioDevices.length > 0 && !selectedAudioDevice && platform !== 'zoom') { // Zoom SDK agent ignores this
+    if (audioDevices.length > 0 && !selectedAudioDevice) {
         setSubmitError("Please select an audio device.");
         return;
     }
-    // Basic API key check (presence)
-    if (!notionApiKey || !deepgramApiKey || !openaiApiKey) {
-        setSubmitError("Notion, Deepgram, and OpenAI API keys are required.");
+    if (!selectedAudioDevice && audioDevices.length === 0 && !deviceError) {
+        setSubmitError("No audio devices available. Cannot start meeting.");
         return;
     }
-    if (platform === 'zoom' && (!zoomSdkKey || !zoomSdkSecret)) {
-        // This check should be conditional based on whether USE_NEW_ZOOM_SDK_AGENT is true on the worker.
-        // For now, assume they are needed if platform is zoom.
-        console.warn("Zoom SDK Key/Secret might be required if using the NewZoomSDKAgent.");
-        // setSubmitError("Zoom SDK Key and Secret are required for Zoom meetings with the SDK agent.");
-        // return;
-    }
 
 
-    setIsSubmitting(true);
+    setIsProcessing(true);
     setSubmitError(null);
     setCurrentTask(null);
-    if (pollingIntervalId) clearInterval(pollingIntervalId);
+    clearPolling();
 
     const payload = {
       platform,
-      meeting_identifier: meetingIdentifier,
-      notion_note_title: notionNoteTitle,
-      handler_input: {
-        notion_api_token: notionApiKey,
-        deepgram_api_key: deepgramApiKey,
-        openai_api_key: openaiApiKey,
-        ...(platform === 'zoom' && zoomSdkKey && zoomSdkSecret && { // Conditionally add Zoom SDK keys
-            zoom_sdk_key: zoomSdkKey,
-            zoom_sdk_secret: zoomSdkSecret,
-        }),
-        audio_settings: {
-          // Only include audio_device_specifier if it's selected and not using Zoom SDK (implicitly)
-          // The NewZoomSDKAgent ignores this, other agents use it.
-          audio_device_specifier: selectedAudioDevice || undefined
-        },
-        user_id: userId,
-      }
+      meeting_id: meetingId,
+      audio_device_id: selectedAudioDevice,
+      notion_page_title: notionPageTitle,
+      user_id: userId,
     };
 
     try {
-      const response = await fetch(ATTEND_LIVE_MEETING_API_ENDPOINT, {
+      const response = await fetch(`${LIVE_MEETING_WORKER_URL}/start_meeting_attendance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `Failed to initiate meeting attendance: ${response.statusText}`);
+        throw new Error(result.detail || result.message || `Failed to initiate meeting attendance: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      if (result.taskId) {
-        setCurrentTask({
-            task_id: result.taskId,
-            current_status_message: "Task initiated. Waiting for status...",
-            platform,
-            meeting_identifier: meetingIdentifier,
-            user_id: userId,
-            status_timestamp: new Date().toISOString(),
-            created_at: new Date().toISOString()
-        });
-        // Start polling for status
-        const intervalId = setInterval(() => pollTaskStatus(result.taskId), 5000);
-        setPollingIntervalId(intervalId);
-      } else {
-        throw new Error("Task ID not received from initiation response.");
-      }
+      // result should be StartMeetingResponse { task_id, status, message }
+      // but we want to store the full MeetingTask structure eventually, so we synthesize it or fetch immediately
+      setCurrentTask(prev => ({ // Optimistically set basic task info
+        ...(prev as MeetingTask), // Keep any old data if needed, though usually it's a new task
+        task_id: result.task_id,
+        status: result.status as TaskStatusEnum,
+        message: result.message || "Task initiated. Waiting for detailed status...",
+        platform,
+        meeting_id: meetingId,
+        audio_device_id: selectedAudioDevice,
+        notion_page_title: notionPageTitle,
+        user_id: userId,
+      }));
+
+      // Start polling for status
+      const intervalId = setInterval(() => pollTaskStatus(result.task_id), 5000);
+      setPollingIntervalId(intervalId);
+      pollTaskStatus(result.task_id); // Initial poll immediately
+
     } catch (error: any) {
       console.error("Error initiating meeting attendance:", error);
-      setSubmitError(error.message || "An unknown error occurred.");
+      setSubmitError(error.message || "An unknown error occurred while starting.");
+      setCurrentTask(null); // Clear task on error
     }
-    setIsSubmitting(false);
+    setIsProcessing(false);
   };
 
   const pollTaskStatus = async (taskId: string) => {
     try {
-      const response = await fetch(`${MEETING_ATTENDANCE_STATUS_API_ENDPOINT_BASE}/${taskId}`);
+      const response = await fetch(`${LIVE_MEETING_WORKER_URL}/meeting_attendance_status/${taskId}`);
       if (!response.ok) {
-        // If 404, task might not exist or user doesn't have permission
         if (response.status === 404) {
-            setSubmitError(`Task status not found (ID: ${taskId}). It might be an old task or an issue with the API.`);
-            if (pollingIntervalId) clearInterval(pollingIntervalId);
-            setPollingIntervalId(null);
+            setSubmitError(`Task status not found (ID: ${taskId}). It might have been cleared or is an old ID.`);
+            clearPolling();
+            setCurrentTask(null); // Task is gone
             return;
         }
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `Failed to fetch task status: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch task status: ${response.statusText}`);
       }
-      const statusData: TaskStatus = await response.json();
+      const statusData: MeetingTask = await response.json();
       setCurrentTask(statusData);
 
-      if (statusData.final_notion_page_url || statusData.error_details) {
-        if (pollingIntervalId) clearInterval(pollingIntervalId);
-        setPollingIntervalId(null);
+      // Stop polling if task is in a terminal state
+      if (statusData.status === TaskStatusEnum.COMPLETED || statusData.status === TaskStatusEnum.ERROR) {
+        clearPolling();
       }
     } catch (error: any) {
       console.error(`Error polling task status for ${taskId}:`, error);
-      // Don't clear interval on transient network errors, but update UI
-      setSubmitError(`Error fetching task status: ${error.message}. Polling may continue.`);
+      setSubmitError(`Error fetching task status: ${error.message}. Polling may be affected.`);
+      // Potentially stop polling on repeated errors or specific error types
     }
   };
+
+  const handleStopMeeting = async () => {
+    if (!currentTask || !currentTask.task_id) {
+      setSubmitError("No active task to stop.");
+      return;
+    }
+    if (currentTask.status === TaskStatusEnum.COMPLETED || currentTask.status === TaskStatusEnum.ERROR) {
+      setSubmitError("Task is already in a terminal state.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setSubmitError(null);
+    clearPolling(); // Stop regular polling as we are sending a stop command
+
+    try {
+      const response = await fetch(`${LIVE_MEETING_WORKER_URL}/stop_meeting_attendance/${currentTask.task_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result: MeetingTask = await response.json(); // Expects updated task details
+
+      if (!response.ok) {
+         throw new Error(result.message || (result as any).detail || `Failed to stop meeting: ${response.statusText}`);
+      }
+
+      setCurrentTask(result); // Update with final status from stop response
+      if (result.status !== TaskStatusEnum.COMPLETED && result.status !== TaskStatusEnum.ERROR) {
+        // If not yet terminal, poll once more or restart polling briefly
+        const intervalId = setInterval(() => pollTaskStatus(result.task_id), 3000);
+        setPollingIntervalId(intervalId);
+      }
+
+    } catch (error: any) {
+      console.error("Error stopping meeting attendance:", error);
+      setSubmitError(error.message || "An unknown error occurred while stopping.");
+      // Optionally, restart polling if stop command failed, to get latest status
+      if (currentTask && currentTask.task_id && !pollingIntervalId) {
+        const intervalId = setInterval(() => pollTaskStatus(currentTask.task_id), 5000);
+        setPollingIntervalId(intervalId);
+      }
+    }
+    setIsProcessing(false);
+  };
+
 
   // Clear interval on unmount
   useEffect(() => {
     return () => {
-      if (pollingIntervalId) {
-        clearInterval(pollingIntervalId);
-      }
+      clearPolling();
     };
-  }, [pollingIntervalId]);
+  }, [pollingIntervalId]); // Dependency array ensures cleanup if pollingIntervalId changes, but clearPolling handles its own state.
 
   const platformOptions = [
     { label: 'Google Meet', value: 'googlemeet' },
     { label: 'Zoom', value: 'zoom' },
     { label: 'Microsoft Teams', value: 'msteams' },
+    { label: 'Other/Desktop Audio', value: 'other' },
   ];
 
   const audioDeviceOptions = audioDevices.map(device => ({
-    label: `${device.name} (Index: ${device.index}, API: ${device.hostapi_name}, Channels: ${device.max_input_channels})`,
-    value: String(device.index), // Use index as value, or name if preferred by worker
+    label: `${device.name} (ID: ${device.id})`,
+    value: device.id,
   }));
+
+  const isTaskActiveOrPending = currentTask &&
+    (currentTask.status === TaskStatusEnum.ACTIVE ||
+     currentTask.status === TaskStatusEnum.PENDING ||
+     currentTask.status === TaskStatusEnum.PROCESSING_COMPLETION);
 
 
   return (
@@ -233,34 +274,34 @@ const LiveMeetingAttendanceSettings = () => {
       backgroundColor="white"
     >
       <Text variant="sectionHeader" marginBottom="m">
-        Live Meeting Attendance (Experimental)
+        Live Meeting Attendance
       </Text>
       <Text variant="body" fontSize="sm" color="gray.600" marginBottom="m">
-        Configure Atom to join online meetings, transcribe them, and save notes.
-        Refer to the <a href="/docs/live-meeting-attendance-setup.md" target="_blank" rel="noopener noreferrer" style={{color: 'blue'}}>setup guide</a> for crucial audio configuration.
+        Configure Atom to capture audio from online meetings or desktop, (eventually) transcribe, and generate notes.
+        Refer to the <a href="/docs/live-meeting-attendance-setup.md" target="_blank" rel="noopener noreferrer" style={{color: 'blue'}}>setup guide</a> for audio configuration.
       </Text>
 
       <Box marginBottom="l">
         <Text variant="subHeader" marginBottom="s">Audio Device Selection</Text>
-        <Button onPress={fetchAudioDevices} disabled={isLoadingDevices} marginBottom="s">
+        <Button onPress={fetchAudioDevices} disabled={isLoadingDevices || isProcessing} marginBottom="s">
           {isLoadingDevices ? 'Refreshing Devices...' : 'Refresh Audio Devices'}
         </Button>
-        {deviceError && <Text color="red.500" marginBottom="s">{deviceError}</Text>}
+        {deviceError && <Text color="red.500" marginBottom="s" fontSize="sm">{deviceError}</Text>}
         {audioDevices.length > 0 && (
           <Select
-            label="Select Audio Device (for meeting audio capture)"
+            label="Select Audio Device (for meeting/desktop audio capture)"
             options={audioDeviceOptions}
             value={selectedAudioDevice}
-            onChange={(value) => setSelectedAudioDevice(value as string)}
+            onChange={(value) => setSelectedAudioDevice(value as string | number)}
             placeholder="Select an audio device"
+            disabled={isProcessing || isTaskActiveOrPending}
           />
         )}
         {audioDevices.length === 0 && !isLoadingDevices && !deviceError && (
-            <Text>No audio devices found or loaded. Try refreshing.</Text>
+            <Text fontSize="sm">No audio devices found or loaded. Try refreshing, or check worker logs.</Text>
         )}
         <Text variant="body" fontSize="xs" color="gray.500" marginTop="xs">
-            The selected device should be a virtual audio output that captures the meeting's sound (not your microphone).
-            Ignored if using the new Zoom SDK Agent.
+            The selected device should ideally be a virtual audio output/loopback that captures the meeting's sound (not your microphone, unless intended).
         </Text>
       </Box>
 
@@ -270,56 +311,70 @@ const LiveMeetingAttendanceSettings = () => {
             label="Platform"
             options={platformOptions}
             value={platform}
-            onChange={(value) => setPlatform(value as 'zoom' | 'googlemeet' | 'msteams')}
+            onChange={(value) => setPlatform(value as 'zoom' | 'googlemeet' | 'msteams' | 'other')}
+            disabled={isProcessing || isTaskActiveOrPending}
         />
         <TextField
-          label="Meeting ID or Full URL"
-          value={meetingIdentifier}
-          onChange={(e) => setMeetingIdentifier(e.target.value)}
-          placeholder="e.g., 1234567890 or https://meet.google.com/abc-def-ghi"
+          label="Meeting ID or Description"
+          value={meetingId}
+          onChange={(e) => setMeetingId(e.target.value)}
+          placeholder="e.g., https://meet.google.com/abc-def-ghi or 'Client Call'"
           marginTop="s"
+          disabled={isProcessing || isTaskActiveOrPending}
         />
         <TextField
-          label="Notion Note Title"
-          value={notionNoteTitle}
-          onChange={(e) => setNotionNoteTitle(e.target.value)}
+          label="Notion Page Title (for Notes)"
+          value={notionPageTitle}
+          onChange={(e) => setNotionPageTitle(e.target.value)}
           placeholder="e.g., Project Phoenix Sync - Oct 28"
           marginTop="s"
+          disabled={isProcessing || isTaskActiveOrPending}
         />
       </Box>
 
-      <Box marginBottom="l">
-        <Text variant="subHeader" marginBottom="s">API Keys (Required)</Text>
-         <Text variant="body" fontSize="xs" color="gray.500" marginBottom="s">
-            Note: For production, these should be managed securely, not entered here directly.
-        </Text>
-        <TextField label="Notion API Token" type="password" value={notionApiKey} onChange={e => setNotionApiKey(e.target.value)} marginTop="s" />
-        <TextField label="Deepgram API Key" type="password" value={deepgramApiKey} onChange={e => setDeepgramApiKey(e.target.value)} marginTop="s" />
-        <TextField label="OpenAI API Key" type="password" value={openaiApiKey} onChange={e => setOpenaiApiKey(e.target.value)} marginTop="s" />
-        {platform === 'zoom' && (
-            <>
-                <TextField label="Zoom SDK Key (if using New Zoom SDK Agent)" type="password" value={zoomSdkKey} onChange={e => setZoomSdkKey(e.target.value)} marginTop="s" />
-                <TextField label="Zoom SDK Secret (if using New Zoom SDK Agent)" type="password" value={zoomSdkSecret} onChange={e => setZoomSdkSecret(e.target.value)} marginTop="s" />
-            </>
+      {/* API Key inputs removed as they are not part of the new worker API contract */}
+
+      <Box flexDirection="row" justifyContent="space-between">
+        <Button
+            onPress={handleStartMeeting}
+            disabled={isProcessing || isLoadingDevices || isLoadingSession || isTaskActiveOrPending || (!selectedAudioDevice && audioDevices.length > 0)}
+            variant="primary"
+        >
+          {isProcessing && currentTask?.status !== TaskStatusEnum.ACTIVE ? 'Starting...' : 'Start Attending Meeting'}
+        </Button>
+        {isTaskActiveOrPending && (
+            <Button onPress={handleStopMeeting} disabled={isProcessing} variant="warning" marginLeft="m">
+             {isProcessing && currentTask?.status === TaskStatusEnum.ACTIVE ? 'Stopping...' : 'Stop Attending Meeting'}
+            </Button>
         )}
       </Box>
+      {submitError && <Text color="red.500" marginTop="s" fontSize="sm">{submitError}</Text>}
+      {isLoadingSession && <Text color="orange.500" marginTop="s" fontSize="sm">Loading user session...</Text>}
 
-
-      <Button onPress={handleAttendMeeting} disabled={isSubmitting || isLoadingDevices} variant="primary">
-        {isSubmitting ? 'Initiating...' : 'Start Attending Meeting'}
-      </Button>
-      {submitError && <Text color="red.500" marginTop="s">{submitError}</Text>}
 
       {currentTask && (
         <Box marginTop="l" padding="m" borderWidth={1} borderColor="gray.300" borderRadius="s">
           <Text variant="subHeader" marginBottom="s">Task Status (ID: {currentTask.task_id})</Text>
-          <Text>Status: {currentTask.current_status_message}</Text>
-          <Text>Last Update: {new Date(currentTask.status_timestamp).toLocaleString()}</Text>
-          {currentTask.final_notion_page_url && (
-            <Text>Notion Page: <a href={currentTask.final_notion_page_url} target="_blank" rel="noopener noreferrer" style={{color: 'blue'}}>{currentTask.final_notion_page_url}</a></Text>
+          <Text><strong>Status:</strong> {currentTask.status} {currentTask.message ? `(${currentTask.message})` : ''}</Text>
+          {currentTask.start_time && <Text><strong>Started:</strong> {new Date(currentTask.start_time).toLocaleString()}</Text>}
+          {currentTask.duration_seconds !== null && typeof currentTask.duration_seconds !== 'undefined' && (
+            <Text><strong>Duration:</strong> {Math.round(currentTask.duration_seconds)}s</Text>
           )}
-          {currentTask.error_details && (
-            <Text color="red.500">Error: {currentTask.error_details}</Text>
+          {currentTask.transcript_preview && <Text><strong>Transcript Preview:</strong> {currentTask.transcript_preview}</Text>}
+          {currentTask.notes_preview && <Text><strong>Notes Preview:</strong> {currentTask.notes_preview}</Text>}
+
+          {currentTask.status === TaskStatusEnum.COMPLETED && (
+            <>
+              {currentTask.final_transcript_location && (
+                <Text><strong>Final Transcript:</strong> {currentTask.final_transcript_location}</Text>
+              )}
+              {currentTask.final_notes_location && (
+                <Text><strong>Final Notes:</strong> {currentTask.final_notes_location} (Note: Actual Notion page creation is a future step for the worker)</Text>
+              )}
+            </>
+          )}
+           {currentTask.status === TaskStatusEnum.ERROR && currentTask.message && (
+            <Text color="red.500"><strong>Error Details:</strong> {currentTask.message}</Text>
           )}
         </Box>
       )}
