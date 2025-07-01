@@ -1,18 +1,30 @@
 import asyncio
 import logging
 import uuid
+import wave # For saving WAV files
+import tempfile # For temporary file storage
+import os # For path manipulation
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Dict, List, Optional, Any
 import datetime
+import numpy as np # For handling audio data
 
 import sounddevice as sd
-from fastapi import FastAPI, HTTPException, Path, Body, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Path, Body # BackgroundTasks no longer used directly for audio task
 from pydantic import BaseModel, Field
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# --- Audio Configuration ---
+# Standard audio parameters - consider making these configurable if needed
+SAMPLE_RATE = 16000  # Hz (16kHz is common for STT)
+CHANNELS = 1         # Mono
+DTYPE = 'int16'      # Data type for audio samples
+BLOCK_DURATION_MS = 500 # Duration of each audio block processed by the callback, in milliseconds
+TEMP_AUDIO_DIR = tempfile.gettempdir() # Or a dedicated temp dir within the app
 
 # --- Models ---
 class AudioDevice(BaseModel):
@@ -56,13 +68,17 @@ class MeetingTask(BaseModel):
     transcript_preview: Optional[str] = None
     notes_preview: Optional[str] = None
     final_transcript_location: Optional[str] = None
-    final_notes_location: Optional[str] = None
+    final_notes_location: Optional[str] = None # Could store path to generated notes file eventually
+
     # Internal attributes for managing the audio stream etc.
-    _audio_stream_task: Optional[asyncio.Task] = None
-    _raw_audio_chunks: List[bytes] = [] # Placeholder for audio data
+    _audio_stream_object: Optional[sd.InputStream] = None # Holds the sounddevice InputStream
+    _audio_stream_task: Optional[asyncio.Task] = None # The asyncio task running the capture loop
+    _audio_file_path: Optional[str] = None # Path to the temporary WAV file
+    _audio_file_writer: Optional[wave.Wave_write] = None # Wave file writer object
+    _stop_event: Optional[asyncio.Event] = None # Event to signal the audio callback to stop
 
     class Config:
-        arbitrary_types_allowed = True # To allow asyncio.Task
+        arbitrary_types_allowed = True # To allow complex types like asyncio.Event, sd.InputStream
 
 # In-memory store for active tasks.
 # For production, consider Redis or another persistent/distributed cache.
@@ -136,62 +152,160 @@ async def _get_audio_devices() -> List[AudioDevice]:
         # This is crucial for environments where sounddevice might not have access (e.g. some CI/serverless without audio).
         return [AudioDevice(id="mock_input_device", name="Mock Input Device (Error listing real devices)")]
 
+# Renamed from audio_capture_placeholder
+async def audio_capture_loop(task: MeetingTask):
+    """Handles actual audio capture using sounddevice and saves to a WAV file."""
+    task._stop_event = asyncio.Event()
 
-async def audio_capture_placeholder(task: MeetingTask):
-    """Placeholder for actual audio capture and processing."""
-    logger.info(f"Task {task.task_id}: Starting audio capture (placeholder) for device {task.audio_device_id}")
-    task.status = TaskStatus.ACTIVE
-    task.message = "Audio capture started (placeholder)."
-    task.start_time = datetime.datetime.now(datetime.timezone.utc)
+    # Define the callback function for the audio stream
+    def audio_callback(indata: np.ndarray, frames: int, time_info, status_flags: sd.CallbackFlags):
+        if status_flags:
+            logger.warning(f"Task {task.task_id}: Audio callback status flags: {status_flags}")
+            # Potentially update task.message or handle specific errors like input overflow
+            if status_flags.input_overflow:
+                task.message = "Warning: Audio input overflow detected."
+            # Add more specific error handling based on flags if needed
 
-    # Simulate audio streaming and processing
+        if task._stop_event and task._stop_event.is_set():
+            logger.info(f"Task {task.task_id}: Stop event received in audio callback. Raising StopException.")
+            raise sd.CallbackStop # Signal sounddevice to stop the stream
+
+        try:
+            if task._audio_file_writer:
+                task._audio_file_writer.writeframes(indata.tobytes())
+            # Update previews less frequently to avoid too much logging / state update churn
+            if task.duration_seconds and int(task.duration_seconds) % 5 == 0 :
+                 task.transcript_preview = f"Captured {int(task.duration_seconds)}s of audio..."
+        except Exception as e:
+            logger.error(f"Task {task.task_id}: Error in audio_callback: {e}", exc_info=True)
+            # Potentially set task to error state here if callback errors are critical
+            task.status = TaskStatus.ERROR
+            task.message = f"Error during audio data handling: {str(e)}"
+            if task._stop_event: task._stop_event.set() # Signal stop on critical error
+            raise sd.CallbackStop
+
+
     try:
-        # This is where real audio capture using sounddevice.InputStream would happen
-        # For now, just simulate activity
-        for i in range(120): # Simulate 2 minutes of activity (60 * 2 seconds)
-            if task.task_id not in active_tasks or active_tasks[task.task_id].status != TaskStatus.ACTIVE:
-                logger.info(f"Task {task.task_id}: Audio capture loop interrupted (task stopped or status changed).")
-                break
+        task.start_time = datetime.datetime.now(datetime.timezone.utc)
 
-            await asyncio.sleep(1) # Simulate 1 second of audio processing
+        # Ensure TEMP_AUDIO_DIR exists
+        os.makedirs(TEMP_AUDIO_DIR, exist_ok=True)
+        task._audio_file_path = os.path.join(TEMP_AUDIO_DIR, f"{task.task_id}_audio.wav")
 
-            # Simulate transcript/notes update
-            task.transcript_preview = f"Transcript snippet {i+1} for task {task.task_id}..."
-            task.notes_preview = f"- Note point {i+1}\n- Another detail for task {task.task_id}"
-            task.duration_seconds = (datetime.datetime.now(datetime.timezone.utc) - task.start_time).total_seconds()
+        # Setup WAV file writer
+        task._audio_file_writer = wave.open(task._audio_file_path, 'wb')
+        task._audio_file_writer.setnchannels(CHANNELS)
+        task._audio_file_writer.setsampwidth(np.dtype(DTYPE).itemsize) # itemsize gives bytes per sample
+        task._audio_file_writer.setframerate(SAMPLE_RATE)
 
-            # Storing mock audio data
-            task._raw_audio_chunks.append(b'\x00' * 1024) # Simulate 1KB of audio data per second
+        logger.info(f"Task {task.task_id}: Starting audio capture for device '{task.audio_device_id}'. Saving to {task._audio_file_path}")
+        task.status = TaskStatus.ACTIVE
+        task.message = "Audio capture initiated."
 
-            if i % 10 == 0: # Log progress periodically
-                 logger.info(f"Task {task.task_id}: Still active, duration {task.duration_seconds:.0f}s")
+        # Attempt to parse audio_device_id if it's a string that looks like an int
+        device_id_to_use = task.audio_device_id
+        if isinstance(task.audio_device_id, str):
+            try:
+                device_id_to_use = int(task.audio_device_id)
+            except ValueError:
+                # If it's not 'default' or an int-like string, sounddevice might handle it as a name substring.
+                # Or, you might want to explicitly query devices again to find by name if needed.
+                logger.info(f"Task {task.task_id}: audio_device_id '{task.audio_device_id}' is a string, using as is.")
 
+        blocksize_frames = int(SAMPLE_RATE * BLOCK_DURATION_MS / 1000)
 
-    except asyncio.CancelledError:
-        logger.info(f"Task {task.task_id}: Audio capture task cancelled.")
-        task.message = "Audio capture was cancelled."
-        task.status = TaskStatus.PROCESSING_COMPLETION # Or directly to COMPLETED if no post-processing
-    except Exception as e:
-        logger.error(f"Task {task.task_id}: Error during audio capture placeholder: {e}", exc_info=True)
+        with sd.InputStream(
+            samplerate=SAMPLE_RATE,
+            device=device_id_to_use,
+            channels=CHANNELS,
+            dtype=DTYPE,
+            callback=audio_callback,
+            blocksize=blocksize_frames # Number of frames per callback
+        ) as stream:
+            task._audio_stream_object = stream
+            logger.info(f"Task {task.task_id}: Audio stream opened. Sample rate: {stream.samplerate}, Channels: {stream.channels}, Device: {stream.device}")
+            task.message = "Audio capture active."
+
+            # Keep the stream alive until stop_event is set
+            while not task._stop_event.is_set():
+                # Update duration
+                if task.start_time: # Should always be set here
+                    task.duration_seconds = (datetime.datetime.now(datetime.timezone.utc) - task.start_time).total_seconds()
+
+                # Check if task was externally marked as error or completed to break loop
+                if task.status != TaskStatus.ACTIVE:
+                    logger.info(f"Task {task.task_id}: Status changed to {task.status}, stopping capture loop.")
+                    task._stop_event.set() # Ensure callback knows to stop
+                    break
+
+                await asyncio.sleep(0.1) # Sleep briefly to yield control and check stop_event
+
+            logger.info(f"Task {task.task_id}: Audio capture loop finished.")
+
+    except sd.PortAudioError as pae:
+        logger.error(f"Task {task.task_id}: PortAudioError during audio capture setup: {pae}", exc_info=True)
         task.status = TaskStatus.ERROR
-        task.message = f"Error during audio capture: {str(e)}"
+        task.message = f"Audio device error: {str(pae)}. Ensure device '{task.audio_device_id}' is valid and available."
+    except FileNotFoundError as fnfe: # If temp directory is an issue, though makedirs should handle it
+        logger.error(f"Task {task.task_id}: File error during WAV setup: {fnfe}", exc_info=True)
+        task.status = TaskStatus.ERROR
+        task.message = f"File system error: {str(fnfe)}."
+    except Exception as e:
+        logger.error(f"Task {task.task_id}: Unexpected error during audio capture: {e}", exc_info=True)
+        task.status = TaskStatus.ERROR
+        task.message = f"Unexpected error during audio capture: {str(e)}"
     finally:
-        logger.info(f"Task {task.task_id}: Placeholder audio capture finished.")
+        logger.info(f"Task {task.task_id}: Cleaning up audio capture resources.")
+        if task._audio_stream_object and not task._audio_stream_object.closed:
+            # This might already be closed if sd.CallbackStop was raised or context exited
+            try:
+                task._audio_stream_object.stop() # Ensure stream is stopped
+                task._audio_stream_object.close()
+                logger.info(f"Task {task.task_id}: Audio stream explicitly stopped and closed.")
+            except Exception as e_close:
+                logger.error(f"Task {task.task_id}: Error closing audio stream: {e_close}", exc_info=True)
+
+        if task._audio_file_writer:
+            try:
+                task._audio_file_writer.close()
+                logger.info(f"Task {task.task_id}: WAV file closed: {task._audio_file_path}")
+                if task.status not in [TaskStatus.ERROR] and os.path.exists(task._audio_file_path or ""):
+                     task.final_transcript_location = task._audio_file_path # Using this field for audio file path for now
+                     task.message = task.message + f" Audio saved to {task._audio_file_path}."
+                elif task._audio_file_path and os.path.exists(task._audio_file_path): # If error, but file exists, maybe keep it
+                    logger.warning(f"Task {task.task_id}: Task errored but audio file exists at {task._audio_file_path}")
+                    task.final_transcript_location = task._audio_file_path # Still note its location
+            except Exception as e_close_wav:
+                logger.error(f"Task {task.task_id}: Error closing WAV file: {e_close_wav}", exc_info=True)
+                if task.status != TaskStatus.ERROR: # Avoid overwriting a more specific error
+                    task.status = TaskStatus.ERROR
+                    task.message = "Error finalizing audio file."
+
+
         task.end_time = datetime.datetime.now(datetime.timezone.utc)
-        if task.start_time:
+        if task.start_time: # Should always be set
             task.duration_seconds = (task.end_time - task.start_time).total_seconds()
 
-        if task.status == TaskStatus.ACTIVE: # If it finished naturally (not stopped or errored mid-way)
+        if task.status == TaskStatus.ACTIVE: # If loop finished due to _stop_event but not an error
             task.status = TaskStatus.PROCESSING_COMPLETION
+            task.message = "Audio capture stopped."
 
-        # Simulate final processing
-        await asyncio.sleep(2) # Simulate time taken to "save" files
+        # If it was already processing_completion (e.g. from explicit stop request), or became it now
+        if task.status == TaskStatus.PROCESSING_COMPLETION:
+            await asyncio.sleep(0.1) # Simulate very short final processing
+            task.status = TaskStatus.COMPLETED
+            task.message = task.message + " Task completed."
+            if not task.final_transcript_location and task._audio_file_path and os.path.exists(task._audio_file_path):
+                 task.final_transcript_location = task._audio_file_path
+            logger.info(f"Task {task.task_id}: Processing complete. Final status: {task.status}")
+        elif task.status == TaskStatus.ERROR:
+            logger.error(f"Task {task.task_id}: Task ended with error. Status: {task.status}, Message: {task.message}")
 
-        task.final_transcript_location = f"/path/to/mock_transcript_{task.task_id}.txt"
-        task.final_notes_location = f"/path/to/mock_notes_{task.task_id}.txt"
-        task.status = TaskStatus.COMPLETED
-        task.message = "Meeting attendance completed. Mock transcript and notes generated."
-        logger.info(f"Task {task.task_id}: Processing complete. Status: {task.status}")
+        # Clean up internal attributes not meant for external model
+        task._audio_stream_object = None
+        task._audio_file_writer = None
+        task._stop_event = None
+        # Keep _audio_file_path as it might be in final_transcript_location
 
 
 # --- FastAPI Application ---
@@ -269,13 +383,11 @@ async def start_meeting_attendance(
     active_tasks[task_id] = task
     logger.info(f"Task {task_id} created for user {request.user_id}. Status: {task.status}")
 
-    # Start the audio capture placeholder in the background
-    # The audio_capture_placeholder will update task.status and other fields
-    audio_task = asyncio.create_task(audio_capture_placeholder(task))
-    task._audio_stream_task = audio_task
-    # If you need background_tasks for something FastAPI manages:
-    # background_tasks.add_task(audio_capture_placeholder, task)
-    # But for asyncio tasks, creating them directly is fine.
+    # Start the audio capture loop in the background using asyncio.create_task
+    # This allows the endpoint to return immediately while capture happens.
+    # The audio_capture_loop function will update the task object in active_tasks.
+    capture_task = asyncio.create_task(audio_capture_loop(task))
+    task._audio_stream_task = capture_task # Store the asyncio Task object itself
 
     return StartMeetingResponse(
         task_id=task_id,
@@ -320,31 +432,47 @@ async def stop_meeting_attendance(
         logger.warning(f"Task {task_id} is not active or pending, cannot stop. Status: {task.status}")
         raise HTTPException(status_code=400, detail=f"Task is not currently active or pending. Status: {task.status}")
 
-    if task._audio_stream_task and not task._audio_stream_task.done():
-        logger.info(f"Task {task_id}: Cancelling audio stream task.")
-        task.status = TaskStatus.PROCESSING_COMPLETION # Indicate it's being stopped
+    if task._stop_event and not task._stop_event.is_set():
+        logger.info(f"Task {task_id}: Signaling audio capture to stop.")
+        task.status = TaskStatus.PROCESSING_COMPLETION
         task.message = "Stop request received. Finalizing task..."
-        task._audio_stream_task.cancel()
-        try:
-            await task._audio_stream_task # Allow cancellation to propagate and cleanup in the task
-        except asyncio.CancelledError:
-            logger.info(f"Task {task_id}: Audio stream task cancelled successfully.")
-            # The audio_capture_placeholder's finally block should set COMPLETED status
-        except Exception as e: # Should not happen if cancellation is handled well
-            logger.error(f"Task {task_id}: Error during supervised cancellation: {e}", exc_info=True)
-            task.status = TaskStatus.ERROR
-            task.message = f"Error while trying to stop the task: {str(e)}"
+        task._stop_event.set() # Signal the audio_capture_loop to stop
+
+        # Wait for the audio capture task to finish its cleanup
+        if task._audio_stream_task and not task._audio_stream_task.done():
+            try:
+                await asyncio.wait_for(task._audio_stream_task, timeout=10.0) # Wait for cleanup
+                logger.info(f"Task {task_id}: Audio stream task completed after stop signal.")
+            except asyncio.TimeoutError:
+                logger.error(f"Task {task_id}: Timeout waiting for audio stream task to complete after stop signal. Forcing cancellation.")
+                task._audio_stream_task.cancel() # Force cancel if cleanup hangs
+                task.status = TaskStatus.ERROR
+                task.message = "Error: Timeout during audio stop. Resources might not be fully released."
+            except Exception as e:
+                logger.error(f"Task {task_id}: Error waiting for audio stream task completion: {e}", exc_info=True)
+                task.status = TaskStatus.ERROR
+                task.message = f"Error during task stop: {str(e)}"
+    elif task._audio_stream_task and task._audio_stream_task.done() and task.status != TaskStatus.COMPLETED and task.status != TaskStatus.ERROR:
+        # If task was already done but not yet marked COMPLETED/ERROR (e.g. finished naturally just before stop call)
+        logger.info(f"Task {task_id}: Audio stream task was already done. Ensuring final status.")
+        # The audio_capture_loop's finally block should have set the status.
+        # This is more of a safeguard or for tasks that might have errored out without explicit stop.
+        if task.status not in [TaskStatus.COMPLETED, TaskStatus.ERROR]:
+             task.status = TaskStatus.COMPLETED # Assume completed if not errored
+             task.message = "Task finalized upon stop request."
     else:
-        # If no stream task (e.g., it finished very quickly or failed to start properly)
-        logger.info(f"Task {task_id}: No active audio stream task to cancel, or already done. Marking as completed.")
-        task.status = TaskStatus.COMPLETED
-        task.message = "Task stopped (or was already terminal)."
+        logger.info(f"Task {task_id}: No active audio capture to stop, or already stopped/terminal. Current status: {task.status}")
+        if task.status not in [TaskStatus.COMPLETED, TaskStatus.ERROR]: # If it's PENDING and stop is called
+            task.status = TaskStatus.COMPLETED
+            task.message = "Task stopped before activation."
+            if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
+
+    # Ensure duration is calculated if task is considered ended
+    if task.status in [TaskStatus.COMPLETED, TaskStatus.ERROR] and task.start_time and not task.duration_seconds:
         if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
-        if task.start_time and not task.duration_seconds:
-             task.duration_seconds = (task.end_time - task.start_time).total_seconds()
+        task.duration_seconds = (task.end_time - task.start_time).total_seconds()
 
-
-    logger.info(f"Task {task_id} stop processed. Final status: {task.status}")
+    logger.info(f"Task {task.id} stop processed. Final status: {task.status}")
     return task
 
 
