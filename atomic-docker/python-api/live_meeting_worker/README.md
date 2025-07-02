@@ -40,17 +40,19 @@ The application relies on environment variables for certain integrations. Ensure
 
 **Required Environment Variables:**
 
-*   **`OPENAI_API_KEY`**: Your API key for OpenAI services, used for Speech-to-Text (Whisper API). The application will not be able to perform transcriptions if this is not set.
+*   **`OPENAI_API_KEY`**: Your API key for OpenAI services, used for Speech-to-Text (Whisper API). STT functionality will be disabled if this is not set.
+*   **`NOTION_API_KEY`**: Your Notion integration token (API key). Notion integration for saving transcripts will be disabled if this is not set.
 
-**Optional/Future Environment Variables:**
+**Optional Environment Variables:**
 
-*   `NOTION_API_KEY` (Example, for future Notion integration for saving notes)
+*   **`NOTION_PARENT_PAGE_ID`**: The ID of a Notion page under which new notes (transcripts) will be created. If not provided, notes will be created at the root of the workspace accessible by the API key, which might be the user's private pages. It's recommended to set this to a specific "Meetings" or "Transcripts" page ID for better organization.
 *   Other API keys as new integrations are added.
 
 Create a `.env` file in this directory for local development (ensure `.env` is in `.gitignore`):
 ```dotenv
 OPENAI_API_KEY="sk-your_openai_api_key_here"
-# NOTION_API_KEY="secret_your_notion_api_key_here"
+NOTION_API_KEY="secret_your_notion_api_key_here"
+# NOTION_PARENT_PAGE_ID="your_notion_parent_page_id_here" # Optional
 ```
 
 ## API Documentation

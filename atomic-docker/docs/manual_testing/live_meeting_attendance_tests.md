@@ -105,21 +105,24 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
     *   The request should complete with 200 OK.
     *   UI updates:
         *   Status: `COMPLETED`.
-        *   Message: "Transcription successful. Task completed." (or similar indicating STT outcome).
-        *   Transcript Preview: Should show the actual transcribed text from Whisper.
-        *   Final Transcript Location: Still shows the path where the WAV *was* (e.g., `/tmp/{task_id}_audio.wav`).
+        *   Message: Should indicate STT success and Notion save success (e.g., "Transcription successful. Notes saved to Notion: [URL]. Task completed.").
+        *   Transcript Preview: Shows transcribed text.
+        *   Final Notes Location: Shows the URL of the created Notion page.
+        *   Final Transcript Location: Shows path where WAV *was*.
     *   Polling should stop.
     *   "Stop Attending Meeting" button hides/disables.
     *   "Start Attending Meeting" button enables.
 3.  **Expected Result (Worker Logs):**
-    *   Log for `/stop_meeting_attendance` request.
-    *   Logs for "Signaling audio capture to stop", "Audio capture loop finished", "Cleaning up audio capture resources", "WAV file closed".
-    *   Log "Starting STT processing for /tmp/{task_id}_audio.wav...".
-    *   Log "STT successful. Transcript length: Y chars." (or STT failed message).
-    *   Log "Temporary audio file /tmp/{task_id}_audio.wav deleted successfully." (or deletion error).
+    *   Includes logs for STT success.
+    *   Log "Attempting to create Notion page...".
+    *   Log "Notion page created successfully: [URL]" (or Notion failure message).
+    *   Log for temporary file deletion.
     *   Log "Processing complete. Final status: completed".
 4.  **Expected Result (Worker File System - Manual Check):**
-    *   The temporary WAV file `/tmp/{task_id}_audio.wav` should **no longer exist** (deleted after STT).
+    *   Temporary WAV file `/tmp/{task_id}_audio.wav` should be deleted.
+5.  **Expected Result (Notion):**
+    *   Navigate to the URL from `final_notes_location`.
+    *   Verify the Notion page exists, has the correct title, and its content is the transcript.
 
 ### Test Case 6: Start Meeting - Missing Required Fields
 
@@ -202,8 +205,30 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
     *   Task status message upon completion should indicate STT failure/skip (e.g., "Transcription failed or was skipped. Audio file available. Task completed.").
     *   `transcript_preview` should be empty or show the "Captured Xs of audio..." message, but not a transcript.
     *   `final_transcript_location` should still show the path where the WAV file *was*.
+    *   `final_notes_location` should be null.
     *   Task should still transition to `COMPLETED`.
 4.  **Action (Post-test):** Remember to restore the `OPENAI_API_KEY` in `docker-compose.yaml` and restart the worker if you modified it.
 
-This set of tests covers the main interactions and error conditions for audio capture and STT processing.
+### Test Case 13: Notion Failure (e.g., Invalid API Key or Parent Page ID)
+
+1.  **Action:**
+    *   Ensure `OPENAI_API_KEY` is correctly set.
+    *   Set an invalid `NOTION_API_KEY` or an invalid/inaccessible `NOTION_PARENT_PAGE_ID` for the `live-meeting-worker` (e.g., via `docker-compose.yaml` and restart).
+    *   Perform Test Case 3 (Start Meeting).
+    *   Let capture run for 10-15 seconds.
+    *   Perform Test Case 5 (Stop Meeting).
+2.  **Expected Result (Worker Logs):**
+    *   STT processing logs should appear normal and successful.
+    *   Logs should indicate an attempt to create a Notion page.
+    *   Logs should show a "Notion API error" or "Failed to initialize Notion client" (if key is totally missing/malformed at startup) or "Notion client not available".
+    *   Logs for temporary file deletion should still appear.
+3.  **Expected Result (Frontend):**
+    *   Task status message upon completion should indicate STT success but Notion failure (e.g., "Transcription successful. Failed to save notes to Notion. Task completed.").
+    *   `transcript_preview` should contain the transcript.
+    *   `final_notes_location` should be null.
+    *   Task should still transition to `COMPLETED`.
+4.  **Action (Post-test):** Restore correct Notion env vars and restart worker.
+
+
+This set of tests covers audio capture, STT, and basic Notion integration.
 ```

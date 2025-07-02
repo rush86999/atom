@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Any
 import datetime
 import numpy as np # For handling audio data
 from openai import OpenAI # Import OpenAI library
+from notion_client import AsyncClient as NotionAsyncClient, APIResponseError # Import Notion Async Client and error type
 
 import sounddevice as sd
 from fastapi import FastAPI, HTTPException, Path, Body
@@ -41,6 +42,25 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {e}", exc_info=True)
     openai_client = None # Ensure it's None if initialization fails
+
+# --- Notion Client Initialization ---
+notion_api_key = os.getenv("NOTION_API_KEY")
+# Using a parent page ID for simplicity. If a database is preferred, NOTION_DATABASE_ID would be used.
+notion_parent_page_id = os.getenv("NOTION_PARENT_PAGE_ID")
+notion_client: Optional[NotionAsyncClient] = None
+
+if notion_api_key:
+    try:
+        notion_client = NotionAsyncClient(auth=notion_api_key)
+        logger.info("Notion client initialized successfully.")
+        if not notion_parent_page_id:
+            logger.warning("NOTION_PARENT_PAGE_ID environment variable not found. Notes will be created in the root of the workspace or a default private page, which might not be ideal.")
+    except Exception as e:
+        logger.error(f"Failed to initialize Notion client: {e}", exc_info=True)
+        notion_client = None
+else:
+    logger.warning("NOTION_API_KEY environment variable not found. Notion integration will be disabled.")
+
 
 # --- Models ---
 class AudioDevice(BaseModel):
@@ -199,6 +219,105 @@ async def transcribe_audio_with_openai(audio_file_path: str, task_id: str) -> Op
         logger.error(f"Task {task_id}: OpenAI Whisper STT failed for {audio_file_path}: {e}", exc_info=True)
         return None
 
+async def create_notion_page_with_transcript(
+    task_id: str,
+    page_title: str,
+    transcript: str,
+    # user_id: str # user_id currently not used for Notion client, assuming one API key for now
+) -> Optional[str]:
+    """
+    Creates a new page in Notion with the given title and transcript content.
+    Uses `notion_parent_page_id` from environment if set, otherwise creates in workspace root.
+    Returns the URL of the created page or None if an error occurs or Notion is disabled.
+    """
+    if not notion_client:
+        logger.warning(f"Task {task_id}: Notion client not available. Skipping Notion page creation.")
+        return None
+
+    logger.info(f"Task {task_id}: Creating Notion page titled '{page_title}'.")
+
+    # Notion API has a limit of 2000 characters per text block and 100 blocks per append request.
+    # We'll split the transcript into paragraphs and create multiple blocks if needed.
+    # A simple approach: split by newline, then ensure each paragraph block is under 2000 chars.
+    # More sophisticated splitting might be needed for very long continuous text without newlines.
+
+    content_blocks = []
+    # Split transcript into paragraphs by double newlines, then by single if no double.
+    paragraphs = transcript.split('\n\n')
+    if len(paragraphs) == 1 and '\n' in transcript: # If no double newlines, try single
+        paragraphs = transcript.split('\n')
+
+    for para in paragraphs:
+        para = para.strip()
+        if not para: # Skip empty paragraphs
+            continue
+
+        # Ensure each paragraph chunk is under 2000 chars
+        # This is a simplification; Notion's "rich_text" object has the limit.
+        # For very long paragraphs, this might need to be chunked further.
+        for i in range(0, len(para), 1999): # Notion's limit is 2000 for rich_text content
+            chunk = para[i:i+1999]
+            content_blocks.append(
+                {
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "rich_text": [{"type": "text", "text": {"content": chunk}}]
+                    },
+                }
+            )
+            if len(content_blocks) >= 99: # API limit for children is 100 blocks
+                logger.warning(f"Task {task_id}: Reached near Notion block limit (99). Transcript might be truncated.")
+                break
+        if len(content_blocks) >= 99:
+            break
+
+    if not content_blocks: # If transcript was empty or only whitespace
+        content_blocks.append(
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": { "rich_text": [{"type": "text", "text": {"content": "(Transcript was empty)"}}]}
+            }
+        )
+
+    page_properties = {
+        "title": [{"type": "text", "text": {"content": page_title}}]
+    }
+
+    create_payload = {
+        "parent": {},
+        "properties": page_properties,
+        "children": content_blocks
+    }
+
+    if notion_parent_page_id:
+        create_payload["parent"] = {"page_id": notion_parent_page_id}
+    else:
+        # If no parent_page_id, Notion API requires the parent to be a workspace.
+        # The notion-client library might handle this by default if parent is an empty dict,
+        # or one might need to specify "type": "workspace" and "workspace": True,
+        # but this usually means the page is created in the integration's private pages.
+        # For broader visibility, a parent_page_id is usually better.
+        # The SDK examples show `parent={"page_id": PARENT_PAGE_ID}` or `parent={"database_id": DATABASE_ID}`.
+        # Let's rely on the NOTION_PARENT_PAGE_ID being set for now. If not, this might fail or create a private page.
+        logger.warning(f"Task {task_id}: NOTION_PARENT_PAGE_ID not set. Attempting to create page in default location (may be private).")
+        # For creating in workspace root (typically private pages of the integration):
+        # The SDK handles parent: {} as creating a page that the integration owns.
+        # To make it accessible, it should be shared manually or created under a shared page.
+
+    try:
+        created_page = await notion_client.pages.create(**create_payload)
+        page_url = created_page.get("url")
+        logger.info(f"Task {task_id}: Notion page created successfully: {page_url}")
+        return page_url
+    except APIResponseError as e:
+        logger.error(f"Task {task_id}: Notion API error while creating page: {e}", exc_info=True)
+        return None
+    except Exception as e:
+        logger.error(f"Task {task_id}: Unexpected error while creating Notion page: {e}", exc_info=True)
+        return None
+
 
 # Renamed from audio_capture_placeholder
 async def audio_capture_loop(task: MeetingTask):
@@ -355,12 +474,29 @@ async def audio_capture_loop(task: MeetingTask):
                 # task.status could be set to a specific STT_FAILED status if needed
                 logger.warning(f"Task {task.task_id}: Transcription failed or skipped for {task._audio_file_path}.")
 
-            # Transition to COMPLETED after STT attempt (success or fail)
+            # Attempt to create Notion page if STT was successful
+            if transcript:
+                logger.info(f"Task {task.task_id}: Attempting to create Notion page with title '{task.notion_page_title}'.")
+                page_url = await create_notion_page_with_transcript(
+                    task_id=task.task_id,
+                    page_title=task.notion_page_title,
+                    transcript=transcript
+                    # user_id=task.user_id # Pass if needed by Notion function
+                )
+                if page_url:
+                    task.final_notes_location = page_url
+                    task.message += f" Notes saved to Notion: {page_url}."
+                    logger.info(f"Task {task.task_id}: Successfully saved transcript to Notion: {page_url}")
+                else:
+                    task.message += " Failed to save notes to Notion."
+                    logger.error(f"Task {task.task_id}: Failed to save transcript to Notion.")
+
+            # Transition to COMPLETED after STT and Notion attempts
             task.status = TaskStatus.COMPLETED
             task.message += " Task completed."
 
         elif task.status == TaskStatus.ERROR:
-            logger.error(f"Task {task.task_id}: Task ended with error before STT. Status: {task.status}, Message: {task.message}")
+            logger.error(f"Task {task.task_id}: Task ended with error before STT/Notion. Status: {task.status}, Message: {task.message}")
             # No STT attempt if already in error
         else: # PENDING or other unexpected states
             logger.warning(f"Task {task.task_id}: Task in unexpected state {task.status} at STT phase. Marking completed without STT.")

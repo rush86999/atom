@@ -4,7 +4,10 @@ pydantic
 sounddevice
 openai>=1.0.0 # For OpenAI API, including Whisper
 numpy # Already implicitly a dependency of sounddevice, but good to be explicit for audio data
-# Add other dependencies as needed, e.g., for Notion client, etc.
+notion-sdk-py>=1.0.0 # Official Python SDK for Notion API
+httpx>=0.20.0 # For async HTTP requests, a dependency for notion-sdk-py
+
+# Add other dependencies as needed
 # python-dotenv # For local development if using .env files
 # requests # If calling out to other services (e.g. Notion API directly)
 # asyncio # For concurrent operations if needed beyond FastAPI's built-in capabilities

@@ -12,11 +12,12 @@ The Live Meeting Attendance feature allows Atom to capture audio from online mee
     *   Ensure that `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL` for the `app` service points to the `live-meeting-worker` (e.g., `http://live-meeting-worker:8001`).
 
 2.  **Environment Variables for `live-meeting-worker`:**
-    *   **`OPENAI_API_KEY`**: This environment variable **must** be set for the `live-meeting-worker` service (e.g., in your `.env` file at the root of `atomic-docker/project/` which is then passed via `docker-compose.yaml`). It is required for transcribing captured audio using the OpenAI Whisper API. If not set, STT will be skipped.
+    *   **`OPENAI_API_KEY`**: This environment variable **must** be set for the `live-meeting-worker` service. It is required for transcribing captured audio using the OpenAI Whisper API. If not set, STT will be skipped. This should be defined in your `.env` file at the root of `atomic-docker/project/` and passed to the container via `docker-compose.yaml`.
+    *   **`NOTION_API_KEY`**: This environment variable **must** be set for the `live-meeting-worker` service if you want transcripts to be saved to Notion. This should be your Notion integration token.
+    *   **`NOTION_PARENT_PAGE_ID` (Optional)**: The ID of an existing Notion page under which new meeting note pages (containing transcripts) will be created. If not provided, pages will be created in the default location accessible by the Notion integration (often as private pages). Providing a parent page ID helps organize notes.
 
 3.  **External Services (for future enhancements):**
-    *   Future enhancements for direct Notion integration for saving notes would require a `NOTION_API_KEY` configured for the worker.
-    *   Other LLM API keys if different models are used for summarization.
+    *   Other LLM API keys if different models are used for summarization beyond the transcript.
 
 ## Audio Setup (Crucial)
 
@@ -149,30 +150,30 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
           "audio_device_id": "default",
           "notion_page_title": "Notes for STT Test",
           "status": "completed",
-          "message": "Transcription successful. Task completed.",
+          "message": "Transcription successful. Notes saved to Notion: https://www.notion.so/username/PageTitle-hash. Task completed.",
           "start_time": "2023-11-15T10:00:00Z",
           "end_time": "2023-11-15T10:02:00Z",
           "duration_seconds": 120,
           "transcript_preview": "This is the transcribed text from the Whisper API...",
           "notes_preview": null,
           "final_transcript_location": "/tmp/b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d_audio.wav", // Path where audio *was*
-          "final_notes_location": null
+          "final_notes_location": "https://www.notion.so/username/PageTitle-hash" // URL of the created Notion page
         }
         ```
 
 
 *   **Stop Meeting Attendance:**
     *   `POST {NEXT_PUBLIC_LIVE_MEETING_WORKER_URL}/stop_meeting_attendance/{task_id}`
-    *   **Example Success Response (after STT):**
+    *   **Example Success Response (after STT and Notion save):**
         ```json
         {
           "task_id": "b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d",
           // ... (other fields updated to reflect completion)
           "status": "completed",
-          "message": "Audio capture stopped. Preparing for STT. Transcription successful. Task completed.",
+          "message": "Audio capture stopped. Preparing for STT. Transcription successful. Notes saved to Notion: https://www.notion.so/username/PageTitle-hash. Task completed.",
           "transcript_preview": "This is the transcribed text...",
           "final_transcript_location": "/tmp/b7a2f8c1-e5d6-4a3b-9c8d-7e6f5a4b3c2d_audio.wav", // Path where audio *was* before deletion
-          "final_notes_location": null
+          "final_notes_location": "https://www.notion.so/username/PageTitle-hash"
         }
         ```
 
@@ -190,10 +191,14 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
 *   **STT Issues:**
     *   If transcription fails or is skipped, the `message` field in the task status will indicate this. `transcript_preview` will not contain the transcript.
     *   Ensure `OPENAI_API_KEY` is correctly set for the `live-meeting-worker` service in your Docker environment. Check worker logs for "OpenAI client not available" or "OpenAI Whisper STT failed".
+*   **Notion Integration Issues:**
+    *   If saving to Notion fails, the `message` field will indicate this (e.g., "Failed to save notes to Notion."). `final_notes_location` will likely be null.
+    *   Ensure `NOTION_API_KEY` is correctly set and has permissions to create pages (and under `NOTION_PARENT_PAGE_ID` if specified).
+    *   Check worker logs for "Notion client not available", "Notion API error", or issues with `NOTION_PARENT_PAGE_ID`.
 *   **Audio File Issues & Cleanup:**
     *   The worker saves captured audio to a temporary WAV file (e.g., `/tmp/TASK_ID_audio.wav`) inside its container.
-    *   `final_transcript_location` in the task status will show this path (even after the file is deleted).
-    *   The worker attempts to delete this temporary WAV file after STT processing (successful or not). Check worker logs for messages about file deletion.
+    *   `final_transcript_location` in the task status will show this path (even after the file is deleted, serving as a record of the source audio).
+    *   The worker attempts to delete this temporary WAV file after STT and Notion processing. Check worker logs for messages about file deletion.
 *   **Task Errors:** Check the `message` field in the task status response for error details from the worker. Examine `live-meeting-worker` logs for more detailed Python tracebacks.
 
 ## Architecture Overview
@@ -205,10 +210,11 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
     *   Runs in a Docker container.
     *   Manages the lifecycle of attendance tasks (start, stop, status).
     *   Lists available audio devices within its container environment using `sounddevice`.
-    *   Performs real audio capture using `sounddevice` and saves it to a temporary WAV file (e.g., `/tmp/{task_id}_audio.wav` inside the container).
-    *   **Transcribes the captured WAV file using OpenAI Whisper API** (requires `OPENAI_API_KEY`). The transcript is currently stored in the `transcript_preview` field of the task.
-    *   Deletes the temporary WAV file after attempting transcription.
-    *   (Future) The transcript will be used for note generation and Notion API calls.
+    *   Performs real audio capture using `sounddevice` and saves it to a temporary WAV file.
+    *   Transcribes the captured WAV file using OpenAI Whisper API (requires `OPENAI_API_KEY`).
+    *   **Creates a new Notion page** with the specified title and populates it with the transcript (requires `NOTION_API_KEY` and optionally `NOTION_PARENT_PAGE_ID`). The URL of this page is stored in `final_notes_location`.
+    *   Deletes the temporary WAV file after transcription and Notion upload attempts.
+    *   (Future) More advanced note generation/summarization can be added.
 3.  **Docker & Docker Compose:**
     *   Manages the running of all services, including the new `live-meeting-worker`.
     *   Handles inter-service communication via defined networks and service names.
