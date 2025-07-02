@@ -43,15 +43,16 @@ It's recommended to use separate workflow files for clarity:
 *   **Job: `lint_and_static_analysis`**
     *   Checks out code, sets up Node.js, installs dependencies.
     *   Runs linters (e.g., ESLint for CDK/TypeScript).
-    *   (Placeholder for CR1) Integrates static security analysis tools (e.g., Snyk, SonarCloud).
+    *   **CDK Static Analysis:** Runs `cdk synth` (e.g., as part of `cdk diff` or a dedicated linting step like `npm run lint:iac`) which will trigger `cdk-nag` checks (e.g., `AwsSolutionsChecks`) to validate the CDK stack against AWS best practices. Findings from `cdk-nag` should ideally fail the pipeline if critical.
+    *   (Placeholder for CR1) Integrates additional static security analysis tools (e.g., Snyk, SonarCloud for broader code analysis if applicable).
 *   **Job: `unit_tests`**
     *   Checks out code, sets up Node.js, installs dependencies.
-    *   (Placeholder for CR2) Runs CDK unit tests (`npm test`).
-    *   (Placeholder for CR2) Runs any application-specific unit tests.
+    *   Runs CDK unit tests (`npm test` from `deployment/aws`). These tests should use `aws-cdk-lib/assertions` to validate the synthesized CloudFormation template, focusing on critical resource properties, security configurations (e.g., HTTPS listeners, security group rules), and reliability features (e.g., RDS MultiAZ, deletion protection).
+    *   (Placeholder for CR2) Runs any application-specific unit tests for individual microservices (this might involve different setup steps per service).
 *   **Job: `cdk_diff`**
     *   Checks out code, sets up Node.js, installs CDK dependencies.
     *   Configures AWS credentials (ideally via OIDC).
-    *   Runs `cdk diff AwsStack --parameters ...` against a staging-like configuration to preview changes. The diff output can be posted as a PR comment.
+    *   Runs `cdk diff AwsStack --parameters ...` against a staging-like configuration. This step also implicitly runs `cdk-nag` checks due to the synthesis. The diff output can be posted as a PR comment.
 
 ### Workflow: `deploy.yml` (Trigger: Push to `develop`/`main`)
 
@@ -105,11 +106,15 @@ Securely managing secrets and configuration is paramount.
 
 ## 5. Next Steps / Future Enhancements
 
-*   Detailed implementation of the YAML workflow files.
-*   Integration of actual linting rules (CR1).
-*   Development and integration of unit tests for CDK and application code (CR2).
-*   More sophisticated image tagging strategies (e.g., semantic versioning).
-*   Automated rollback strategies.
-*   Notifications for pipeline status (success/failure).
+*   Detailed implementation of the YAML workflow files based on this design.
+*   **CR1 - Static Analysis:**
+    *   Full configuration of `cdk-nag` suppressions or remediations for any findings.
+    *   Integration of other static analysis tools (e.g., for application code security, Dockerfile best practices).
+*   **CR2 - Unit Tests:**
+    *   Expansion of CDK unit tests to cover more specific resource configurations and edge cases.
+    *   Development and integration of unit tests for each application microservice.
+*   More sophisticated image tagging strategies (e.g., semantic versioning based on Git tags).
+*   Automated rollback strategies for failed deployments.
+*   Notifications for pipeline status (success/failure) to relevant channels.
 
 This design provides a solid foundation for automating AWS deployments for the Atomic project, enhancing reliability and speed of delivery.
