@@ -619,10 +619,24 @@ export class AwsStack extends cdk.Stack {
 
     this.ecsTaskRole.addToPolicy(new iam.PolicyStatement({
         actions: [
-            "ecr:GetAuthorizationToken", "ecr:BatchCheckLayerAvailability",
-            "ecr:GetDownloadUrlForLayer", "ecr:BatchGetImage"
+            "ecr:GetAuthorizationToken" // GetAuthorizationToken is region-wide, resource "*" is appropriate.
         ],
         resources: ["*"]
+    }));
+    this.ecsTaskRole.addToPolicy(new iam.PolicyStatement({
+        actions: [
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage"
+        ],
+        resources: [
+            this.functionsRepo.repositoryArn,
+            this.handshakeRepo.repositoryArn,
+            this.oauthRepo.repositoryArn,
+            this.appRepo.repositoryArn,
+            this.optaplannerRepo.repositoryArn,
+            this.pythonAgentRepo.repositoryArn,
+        ]
     }));
     this.ecsTaskRole.addToPolicy(new iam.PolicyStatement({
         actions: ["logs:CreateLogStream", "logs:PutLogEvents"],

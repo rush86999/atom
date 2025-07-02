@@ -1,17 +1,93 @@
-// import * as cdk from 'aws-cdk-lib';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as Aws from '../lib/aws-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Template, Match } from 'aws-cdk-lib/assertions';
+import * as Aws from '../lib/aws-stack';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/aws-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new Aws.AwsStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
+describe('AwsStack Synthesized Template', () => {
+  let app: cdk.App;
+  let stack: Aws.AwsStack;
+  let template: Template;
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+  beforeAll(() => {
+    app = new cdk.App();
+    // Note: Testing features dependent on HostedZone.fromLookup (like ACM certificate creation)
+    // can be challenging without pre-populating cdk.context.json or refactoring the stack
+    // to inject a dummy hosted zone for tests. CfnParameters for DomainName and OperatorEmail
+    // will be unresolved tokens during this test synthesis.
+    stack = new Aws.AwsStack(app, 'MyTestStack');
+    template = Template.fromStack(stack);
+  });
+
+  test('Snapshot Test', () => {
+    expect(template.toJSON()).toMatchSnapshot();
+  });
+
+  test('ALB HTTPS Listener is configured', () => {
+    template.hasResourceProperties('AWS::ElasticLoadBalancingV2::Listener', {
+      Protocol: 'HTTPS',
+      Port: 443,
+      DefaultActions: Match.anyValue(), // Default action varies, check presence
+      Certificates: Match.anyValue(), // Certificate ARN will depend on parameter/lookup
+    });
+  });
+
+  test('ALB HTTP Listener redirects to HTTPS', () => {
+    template.hasResourceProperties('AWS::ElasticLoadBalancingV2::Listener', {
+      Protocol: 'HTTP',
+      Port: 80,
+      DefaultActions: [
+        {
+          Type: 'redirect',
+          RedirectConfig: {
+            Protocol: 'HTTPS',
+            Port: '443',
+            StatusCode: 'HTTP_301',
+          }
+        }
+      ]
+    });
+  });
+
+  test('RDS Instance has MultiAZ enabled', () => {
+    template.hasResourceProperties('AWS::RDS::DBInstance', {
+      MultiAZ: true,
+    });
+  });
+
+  test('RDS Instance has DeletionProtection enabled', () => {
+    template.hasResourceProperties('AWS::RDS::DBInstance', {
+      DeletionProtection: true,
+    });
+  });
+
+  test('RDS Instance has correct BackupRetention period', () => {
+    template.hasResourceProperties('AWS::RDS::DBInstance', {
+      BackupRetentionPeriod: 14, // As we set cdk.Duration.days(14)
+    });
+  });
+
+  test('SNS Topic for Alarms is created', () => {
+    template.resourceCountIs('AWS::SNS::Topic', 1);
+  });
+
+  // Example for an ALB 5XX Alarm (structure may vary based on exact CDK output)
+  test('ALB 5XX Alarm is created and configured', () => {
+    template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      AlarmDescription: 'Alarm if ALB experiences a high number of 5XX errors.',
+      Namespace: 'AWS/ApplicationELB',
+      MetricName: 'HTTPCode_ELB_5XX_Count',
+      Statistic: 'Sum',
+      Period: 300, // 5 minutes
+      Threshold: 5,
+      ComparisonOperator: 'GreaterThanOrEqualToThreshold',
+      AlarmActions: Match.anyValue(), // Check that it has an action (the SNS topic)
+      Dimensions: [
+        {
+          Name: 'LoadBalancer',
+          Value: Match.anyValue(), // ALB ARN or Name/ID
+        },
+      ],
+    });
+  });
+
+  // Add more tests for other alarms (RDS CPU, ECS CPU etc.) following similar pattern
 });
