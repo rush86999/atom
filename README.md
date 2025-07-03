@@ -1,4 +1,4 @@
-# Atom: Your Open-Source AI Assistant for Enhanced Productivity
+# Atom: Your Open-Source Superpowered Sir/Alexa for Enhanced Productivity
 
 Atom is a powerful and flexible open-source AI assistant designed to streamline your workflow, intelligently manage your schedule, automate research, and organize your information. Take control of your productivity with an assistant that you can host yourself, ensuring privacy and customization.
 
