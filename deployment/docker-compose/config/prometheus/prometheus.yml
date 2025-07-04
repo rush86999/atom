@@ -1,0 +1,42 @@
+global:
+  scrape_interval: 30s     # How frequently to scrape targets.
+  evaluation_interval: 30s # How often to evaluate rules.
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093 # Use the service name from docker-compose
+          - 'alertmanager:9093'
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  - "/etc/prometheus/rules/*.rules.yml"
+  # - "/etc/prometheus/rules/another.rules.yml" # Can add more rule files
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080'] # 'cadvisor' is the service name in docker-compose.monitoring.yml
+
+  # Uncomment and configure if you add node_exporter service
+  # - job_name: 'node_exporter'
+  #   static_configs:
+  #     - targets: ['node_exporter:9100']
+
+  # Placeholder for scraping application services if they expose a /metrics endpoint
+  # Example for a service named 'my-app-service' running on port 8081 in the observability_net
+  # - job_name: 'application_services'
+  #   # Add relabeling or service discovery (e.g. Docker SD) if needed for multiple app instances/dynamic ports
+  #   static_configs:
+  #     - targets: ['my-app-service-in-compose:8081'] # Replace with actual service name and metrics port
+  #       labels:
+  #         instance: 'my-app-service-instance-1'
+  #         group: 'application'

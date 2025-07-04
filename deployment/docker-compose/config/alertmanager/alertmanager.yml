@@ -1,0 +1,80 @@
+global:
+  resolve_timeout: 5m # How long to wait before declaring an alert instance resolved after it stops firing.
+  # Optional: Define global SMTP, Slack, PagerDuty, etc., settings if used by multiple receivers.
+  # smtp_smarthost: 'localhost:25'
+  # smtp_from: 'alertmanager@example.org'
+
+route:
+  # The root route. All alerts enter here.
+  receiver: 'default-receiver' # Default receiver for all alerts.
+  group_by: ['alertname', 'compose_service', 'severity'] # Group alerts by these labels to reduce notification noise.
+
+  # How long to wait to buffer alerts of the same group before sending an initial notification.
+  group_wait: 30s
+  # How long to wait before sending a notification about new alerts that are added to a group
+  # of alerts for which an initial notification has already been sent.
+  group_interval: 5m
+  # How long to wait before re-sending a notification about an alert that has already been sent.
+  repeat_interval: 4h # e.g., resend active alerts every 4 hours.
+
+  # Specific routes can be added here to route alerts based on labels to different receivers.
+  # routes:
+  #   - receiver: 'critical-alerts-pager'
+  #     match_re:
+  #       severity: critical|emergency
+  #   - receiver: 'team-X-notifications'
+  #     match:
+  #       team: X
+
+receivers:
+  - name: 'default-receiver'
+    # This is a placeholder. In a real setup, you'd configure actual notification channels.
+    # For testing, you can use a simple webhook receiver that logs to stdout,
+    # or a service like https://webhook.site.
+    webhook_configs:
+      - url: 'http://host.docker.internal:9094/alerts' # Example: A dummy webhook listener on the host.
+                                                      # Replace with a real receiver or a testing tool.
+                                                      # For a simple local test, you could run: nc -l -p 9094
+        send_resolved: true
+
+  # Example Email Receiver (uncomment and configure)
+  # - name: 'email-notifications'
+  #   email_configs:
+  #     - to: 'ops-team@example.com'
+  #       # from: 'alertmanager@your-domain.com' # Optional
+  #       # smarthost: 'smtp.example.com:587' # Your SMTP server
+  #       # auth_username: 'your-smtp-user'
+  #       # auth_password: 'your-smtp-password'
+  #       # require_tls: true # Usually true
+  #       send_resolved: true
+  #       headers:
+  #         subject: 'Alertmanager: {{ .CommonAnnotations.summary }}'
+  #       html: '{{ template "email.default.html" . }}' # Uses default email template
+
+  # Example Slack Receiver (uncomment and configure)
+  # - name: 'slack-notifications'
+  #   slack_configs:
+  #     - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK_URL'
+  #       channel: '#alerts-channel'
+  #       send_resolved: true
+  #       title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }} - {{ .CommonLabels.compose_service }}'
+  #       text: >-
+  #         {{ range .Alerts }}
+  #           *Summary:* {{ .Annotations.summary }}
+  #           *Description:* {{ .Annotations.description }}
+  #           *Details:*
+  #           {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+  #           {{ end }}
+  #         {{ end }}
+
+# Optional: Templates for customizing notification messages.
+# templates:
+# - '/etc/alertmanager/templates/*.tmpl' # Path to custom template files
+
+# Note: For the dummy webhook_configs URL 'http://host.docker.internal:9094/alerts':
+# 'host.docker.internal' is a special DNS name that resolves to the internal IP address of the host
+# from within Docker containers (on Docker Desktop for Mac/Windows, and recent Linux Docker versions).
+# You would need a simple HTTP server listening on port 9094 on your host machine to see the alert posts.
+# For example, using Python: python3 -m http.server 9094 --bind 0.0.0.0 (and look for POST requests).
+# Or use a service like https://webhook.site for easy testing.
+# For a production setup, replace this with actual notification integrations.
