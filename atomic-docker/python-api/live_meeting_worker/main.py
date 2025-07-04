@@ -14,7 +14,7 @@ from notion_client import AsyncClient as NotionAsyncClient, APIResponseError # I
 import aiosqlite # For async SQLite operations
 
 import sounddevice as sd
-from fastapi import FastAPI, HTTPException, Path, Body
+from fastapi import FastAPI, HTTPException, Path, Body, BackgroundTasks
 from pydantic import BaseModel, Field
 
 # --- Logging Configuration ---
@@ -276,10 +276,11 @@ async def handle_interrupted_tasks():
 
 # In-memory store for active asyncio.Task objects (not for persistent task data)
 # These are the actual running audio capture loops.
-# The MeetingTask Pydantic models (persistent state) are now in the DB.
 running_async_tasks: Dict[str, asyncio.Task] = {}
-# In-memory store for stop events, associated with task_id
+# In-memory store for stop events, associated with task_id. These are used to signal
+# the corresponding asyncio.Task in running_async_tasks to stop.
 task_stop_events: Dict[str, asyncio.Event] = {}
+# The active_tasks dictionary is now removed as task state is managed in the database.
 
 
 # --- Helper Functions ---
@@ -835,6 +836,15 @@ async def audio_capture_loop(task: MeetingTask):
         # This also prevents re-deletion attempts if this finally block were ever re-entered (though it shouldn't).
         task._audio_file_path = None
 
+        # Persist all final changes to the task to the database
+        try:
+            await update_task_in_db(task)
+            logger.info(f"Task {task.task_id}: Final state saved to DB in audio_capture_loop. Status: {task.status}")
+        except Exception as e_db_update:
+            logger.error(f"Task {task.task_id}: Critical error: Failed to save final task state to DB in audio_capture_loop: {e_db_update}", exc_info=True)
+            # This is a significant issue, as the DB might not reflect the task's true end state.
+            # Depending on policy, could try a retry mechanism or ensure this is heavily monitored.
+
 
 # --- FastAPI Application ---
 
@@ -914,18 +924,47 @@ async def start_meeting_attendance(
         status=TaskStatus.PENDING,
         message="Task accepted and initializing."
     )
-    active_tasks[task_id] = task
-    logger.info(f"Task {task_id} created for user {request.user_id}. Status: {task.status}")
 
-    # Start the audio capture loop in the background using asyncio.create_task
-    # This allows the endpoint to return immediately while capture happens.
-    # The audio_capture_loop function will update the task object in active_tasks.
-    capture_task = asyncio.create_task(audio_capture_loop(task))
-    task._audio_stream_task = capture_task # Store the asyncio Task object itself
+    try:
+        await add_task_to_db(task)
+        logger.info(f"Task {task_id} created and saved to DB for user {request.user_id}. Status: {task.status}")
+    except Exception as e:
+        logger.error(f"Task {task_id}: Failed to save initial task to database: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to initialize task in database.")
+
+    # Start the audio capture loop in the background using asyncio.create_task.
+    # The audio_capture_loop function will update the task object (fetched from DB or passed)
+    # and persist these updates to the database.
+    # We pass a *copy* of the task object or relevant details if audio_capture_loop fetches its own state.
+    # For now, passing the task object; audio_capture_loop will use it and update DB.
+    # The asyncio task itself is stored in running_async_tasks to manage its lifecycle (e.g., for stopping).
+
+    # Create the asyncio.Event for this task
+    stop_event = asyncio.Event()
+    task_stop_events[task_id] = stop_event
+    # The MeetingTask model itself doesn't store the event or the asyncio.Task object,
+    # as these are runtime constructs not suitable for DB persistence.
+    # We will pass the stop_event to the audio_capture_loop.
+
+    # The `task` object here is Pydantic model. We need to ensure audio_capture_loop uses this instance
+    # or fetches a fresh one from DB.
+    # For simplicity, audio_capture_loop can receive this `task` instance and be responsible for all DB updates.
+    # Crucially, `task._stop_event` needs to be set on this instance if `audio_capture_loop` uses it directly.
+
+    # Re-fetch task from DB to ensure we pass the persisted version if add_task_to_db modified it (e.g. defaults)
+    # However, our current add_task_to_db doesn't modify the passed task object in place in a way that's critical here.
+    # The main thing is that `audio_capture_loop` must use `update_task_in_db`.
+
+    # Assign the stop event to the task object (will not be persisted)
+    task._stop_event = stop_event
+
+    capture_task_async = asyncio.create_task(audio_capture_loop(task))
+    running_async_tasks[task_id] = capture_task_async
+    # task._audio_stream_task = capture_task_async # This was for the model field, now managed by running_async_tasks
 
     return StartMeetingResponse(
         task_id=task_id,
-        status=task.status, # Will be PENDING initially
+        status=task.status, # Will be PENDING initially from the model
         message=task.message
     )
 
@@ -935,18 +974,25 @@ async def get_meeting_attendance_status(
 ):
     """
     Polls for the current status and progress of an active meeting attendance task.
+    Fetches status directly from the database.
     """
     logger.debug(f"Request received for /meeting_attendance_status/{task_id}")
-    task = active_tasks.get(task_id)
+    task = await get_task_from_db(task_id)
+
     if not task:
-        logger.warning(f"Task not found: {task_id}")
+        logger.warning(f"Task not found in DB: {task_id}")
         raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
 
-    # Update duration if task is active and has a start time
-    if task.status == TaskStatus.ACTIVE and task.start_time:
-        task.duration_seconds = (datetime.datetime.now(datetime.timezone.utc) - task.start_time).total_seconds()
+    # If the task is marked as ACTIVE in the DB, and we have a running asyncio task for it,
+    # we can dynamically update its duration based on the actual start time.
+    # The DB record's duration_seconds is only updated when the task stops or errors.
+    if task.status == TaskStatus.ACTIVE and task.start_time and task_id in running_async_tasks:
+        # Ensure the running_async_tasks dict is for the current, live asyncio tasks
+        # and not just leftover from a previous run if not cleaned properly (though lifespan should handle it).
+        current_duration = (datetime.datetime.now(datetime.timezone.utc) - task.start_time).total_seconds()
+        task.duration_seconds = current_duration # Update for the response, not persisted here
 
-    logger.debug(f"Returning status for task {task_id}: {task.status}, message: {task.message}")
+    logger.debug(f"Returning status for task {task_id} from DB: {task.status}, message: {task.message}")
     return task
 
 @app.post("/stop_meeting_attendance/{task_id}", response_model=MeetingTask)
@@ -955,58 +1001,100 @@ async def stop_meeting_attendance(
 ):
     """
     Manually stops an ongoing meeting attendance task.
+    Updates status in the database.
     """
     logger.info(f"Request received for /stop_meeting_attendance/{task_id}")
-    task = active_tasks.get(task_id)
+    task = await get_task_from_db(task_id)
+
     if not task:
-        logger.warning(f"Task not found for stopping: {task_id}")
+        logger.warning(f"Task not found in DB for stopping: {task_id}")
         raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
 
     if task.status not in [TaskStatus.ACTIVE, TaskStatus.PENDING]:
-        logger.warning(f"Task {task_id} is not active or pending, cannot stop. Status: {task.status}")
-        raise HTTPException(status_code=400, detail=f"Task is not currently active or pending. Status: {task.status}")
+        logger.warning(f"Task {task_id} is not active or pending (status: {task.status}), cannot stop. Returning current state.")
+        # Return the current state from DB, as it's already in a terminal or non-stoppable state.
+        return task
 
-    if task._stop_event and not task._stop_event.is_set():
-        logger.info(f"Task {task_id}: Signaling audio capture to stop.")
-        task.status = TaskStatus.PROCESSING_COMPLETION
+    # Retrieve the stop event and the asyncio task
+    stop_event = task_stop_events.get(task_id)
+    async_task_obj = running_async_tasks.get(task_id)
+
+    original_status = task.status # Keep original status for logging/logic
+
+    if stop_event and not stop_event.is_set():
+        logger.info(f"Task {task_id}: Signaling audio capture to stop via event.")
+        task.status = TaskStatus.PROCESSING_COMPLETION # Optimistic: will be completed by loop
         task.message = "Stop request received. Finalizing task..."
-        task._stop_event.set() # Signal the audio_capture_loop to stop
+        stop_event.set() # Signal the audio_capture_loop to stop
 
-        # Wait for the audio capture task to finish its cleanup
-        if task._audio_stream_task and not task._audio_stream_task.done():
+        if async_task_obj and not async_task_obj.done():
             try:
-                await asyncio.wait_for(task._audio_stream_task, timeout=10.0) # Wait for cleanup
-                logger.info(f"Task {task_id}: Audio stream task completed after stop signal.")
+                # Give the audio_capture_loop some time to finish gracefully
+                await asyncio.wait_for(async_task_obj, timeout=15.0) # Increased timeout
+                logger.info(f"Task {task_id}: Audio capture loop completed after stop signal.")
+                # The audio_capture_loop should have updated the task's status in DB to COMPLETED or ERROR.
+                # Re-fetch the task to get its final state.
+                task = await get_task_from_db(task_id) or task # Fallback to current task if somehow not found
             except asyncio.TimeoutError:
-                logger.error(f"Task {task_id}: Timeout waiting for audio stream task to complete after stop signal. Forcing cancellation.")
-                task._audio_stream_task.cancel() # Force cancel if cleanup hangs
+                logger.error(f"Task {task_id}: Timeout waiting for audio capture loop to complete. Forcing cancellation.")
+                async_task_obj.cancel()
                 task.status = TaskStatus.ERROR
-                task.message = "Error: Timeout during audio stop. Resources might not be fully released."
+                task.message = "Error: Timeout during stop. Audio capture forcibly cancelled."
+                if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
             except Exception as e:
-                logger.error(f"Task {task_id}: Error waiting for audio stream task completion: {e}", exc_info=True)
+                logger.error(f"Task {task_id}: Error waiting for audio capture loop completion: {e}", exc_info=True)
                 task.status = TaskStatus.ERROR
                 task.message = f"Error during task stop: {str(e)}"
-    elif task._audio_stream_task and task._audio_stream_task.done() and task.status != TaskStatus.COMPLETED and task.status != TaskStatus.ERROR:
-        # If task was already done but not yet marked COMPLETED/ERROR (e.g. finished naturally just before stop call)
-        logger.info(f"Task {task_id}: Audio stream task was already done. Ensuring final status.")
-        # The audio_capture_loop's finally block should have set the status.
-        # This is more of a safeguard or for tasks that might have errored out without explicit stop.
-        if task.status not in [TaskStatus.COMPLETED, TaskStatus.ERROR]:
-             task.status = TaskStatus.COMPLETED # Assume completed if not errored
-             task.message = "Task finalized upon stop request."
-    else:
-        logger.info(f"Task {task_id}: No active audio capture to stop, or already stopped/terminal. Current status: {task.status}")
-        if task.status not in [TaskStatus.COMPLETED, TaskStatus.ERROR]: # If it's PENDING and stop is called
+                if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
+        else: # No running async task, or it was already done
+             logger.info(f"Task {task_id}: No active async task to wait for, or task was already done. Current DB status: {task.status}")
+             if original_status == TaskStatus.PENDING: # If it was pending and never really started
+                 task.status = TaskStatus.COMPLETED # Or perhaps a new "CANCELLED" status
+                 task.message = "Task stopped before full activation."
+                 if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
+             # If it was ACTIVE but async task is done, audio_capture_loop's finally should handle DB update.
+             # Re-fetch to be sure.
+             refetched_task = await get_task_from_db(task_id)
+             if refetched_task: task = refetched_task
+
+    elif not stop_event and original_status == TaskStatus.PENDING :
+        # Task was PENDING, never fully started (no stop_event created, no async task)
+        logger.info(f"Task {task_id}: Was PENDING and no stop event/async task found. Marking as completed/cancelled.")
+        task.status = TaskStatus.COMPLETED # Or CANCELLED
+        task.message = "Task stopped while pending and before async execution."
+        if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
+
+    else: # No stop event, or already set, or no async task associated (should not happen if task is ACTIVE)
+        logger.info(f"Task {task_id}: No active audio capture process to signal stop, or already stopping/stopped. Current DB status: {task.status}")
+        # If it's already processing completion, completed, or error, that's fine.
+        # If it was PENDING and somehow missed above, ensure it's finalized.
+        if task.status == TaskStatus.PENDING:
             task.status = TaskStatus.COMPLETED
-            task.message = "Task stopped before activation."
+            task.message = "Task stopped before activation (final check)."
             if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
 
-    # Ensure duration is calculated if task is considered ended
-    if task.status in [TaskStatus.COMPLETED, TaskStatus.ERROR] and task.start_time and not task.duration_seconds:
-        if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
+
+    # Calculate duration if it hasn't been set by the loop's finalization
+    if task.start_time and task.end_time and not task.duration_seconds:
+        task.duration_seconds = (task.end_time - task.start_time).total_seconds()
+    elif task.start_time and not task.end_time and task.status in [TaskStatus.COMPLETED, TaskStatus.ERROR]:
+        # If loop somehow didn't set end_time but task is terminal
+        task.end_time = datetime.datetime.now(datetime.timezone.utc)
         task.duration_seconds = (task.end_time - task.start_time).total_seconds()
 
-    logger.info(f"Task {task.id} stop processed. Final status: {task.status}")
+
+    # Persist the final state determined by this stop endpoint logic
+    try:
+        await update_task_in_db(task)
+        logger.info(f"Task {task_id} stop processed. Final status in DB: {task.status}")
+    except Exception as e:
+        logger.error(f"Task {task_id}: Failed to update task status in DB during stop: {e}", exc_info=True)
+        # The task object returned might not reflect the DB state if this fails.
+
+    # Clean up from runtime tracking dictionaries
+    running_async_tasks.pop(task_id, None)
+    task_stop_events.pop(task_id, None)
+
     return task
 
 
