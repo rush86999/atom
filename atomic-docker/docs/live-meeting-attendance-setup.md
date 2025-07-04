@@ -212,9 +212,11 @@ The frontend interacts with the `live-meeting-worker` API. Refer to `atomic-dock
     *   Lists available audio devices within its container environment using `sounddevice`.
     *   Performs real audio capture using `sounddevice` and saves it to a temporary WAV file.
     *   Transcribes the captured WAV file using OpenAI Whisper API (requires `OPENAI_API_KEY`).
-    *   **Creates a new Notion page** with the specified title and populates it with the transcript (requires `NOTION_API_KEY` and optionally `NOTION_PARENT_PAGE_ID`). The URL of this page is stored in `final_notes_location`.
-    *   Deletes the temporary WAV file after transcription and Notion upload attempts.
-    *   (Future) More advanced note generation/summarization can be added.
+    *   Creates an initial Notion page with the specified title and the full transcript (requires `NOTION_API_KEY` and optionally `NOTION_PARENT_PAGE_ID`). The URL of this page is stored in `final_notes_location`.
+    *   **Generates a summary, key decisions, and action items** from the transcript using an LLM (OpenAI by default).
+    *   **Appends these generated sections (Summary, Key Decisions, Action Items)** to the previously created Notion page.
+    *   The `notes_preview` field in the task status may contain a snippet of the generated summary.
+    *   Deletes the temporary WAV file after all processing.
 3.  **Docker & Docker Compose:**
     *   Manages the running of all services, including the new `live-meeting-worker`.
     *   Handles inter-service communication via defined networks and service names.

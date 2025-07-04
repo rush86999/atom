@@ -105,24 +105,30 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
     *   The request should complete with 200 OK.
     *   UI updates:
         *   Status: `COMPLETED`.
-        *   Message: Should indicate STT success and Notion save success (e.g., "Transcription successful. Notes saved to Notion: [URL]. Task completed.").
-        *   Transcript Preview: Shows transcribed text.
-        *   Final Notes Location: Shows the URL of the created Notion page.
-        *   Final Transcript Location: Shows path where WAV *was*.
+        *   Message: Should indicate success for STT, Notion page creation, and appending LLM-generated content (e.g., "...Summary added to Notion. Decisions added to Notion. Action items added to Notion. Task completed.").
+        *   Transcript Preview: Shows full transcribed text.
+        *   Notes Preview: Shows a snippet of the LLM-generated summary.
+        *   Final Notes Location: Shows the URL of the Notion page.
     *   Polling should stop.
     *   "Stop Attending Meeting" button hides/disables.
     *   "Start Attending Meeting" button enables.
 3.  **Expected Result (Worker Logs):**
-    *   Includes logs for STT success.
-    *   Log "Attempting to create Notion page...".
-    *   Log "Notion page created successfully: [URL]" (or Notion failure message).
+    *   Logs for STT success.
+    *   Logs for initial Notion page creation.
+    *   Logs for LLM calls (summary, decisions, action items).
+    *   Logs for appending each section to the Notion page.
     *   Log for temporary file deletion.
     *   Log "Processing complete. Final status: completed".
 4.  **Expected Result (Worker File System - Manual Check):**
     *   Temporary WAV file `/tmp/{task_id}_audio.wav` should be deleted.
 5.  **Expected Result (Notion):**
     *   Navigate to the URL from `final_notes_location`.
-    *   Verify the Notion page exists, has the correct title, and its content is the transcript.
+    *   Verify the Notion page exists with the correct title.
+    *   Verify the page content includes:
+        *   The full transcript.
+        *   A "Summary" section with LLM-generated summary.
+        *   A "Key Decisions" section with LLM-generated decisions (bulleted).
+        *   An "Action Items" section with LLM-generated action items (bulleted, with assignees if found).
 
 ### Test Case 6: Start Meeting - Missing Required Fields
 
@@ -229,6 +235,22 @@ This document outlines the manual testing steps for the Live Meeting Attendance 
     *   Task should still transition to `COMPLETED`.
 4.  **Action (Post-test):** Restore correct Notion env vars and restart worker.
 
+### Test Case 14: LLM Content Generation Failure/Empty Response
 
-This set of tests covers audio capture, STT, and basic Notion integration.
+1.  **Action:**
+    *   (Difficult to force directly without altering LLM responses or prompts significantly)
+    *   Conceptually, if the LLM calls for summary, decisions, or action items were to fail (e.g., API error, or model returns empty/unusable content like "I cannot summarize this."), this test would verify graceful handling.
+    *   Alternatively, test with a very short, nonsensical transcript that might lead to empty LLM outputs for summary/decisions/actions.
+2.  **Expected Result (Worker Logs):**
+    *   Logs indicating successful STT and initial Notion page creation.
+    *   Logs for LLM calls, potentially followed by warnings like "LLM generated an empty or trivial summary" or "LLM reported no specific decisions."
+    *   Logs for Notion append attempts (which might append nothing or just headings if content is empty).
+3.  **Expected Result (Frontend):**
+    *   Task completes. Message might indicate partial success (e.g., "Transcript saved to Notion. Summary generation skipped.").
+    *   `notes_preview` might be empty or show the transcript snippet.
+4.  **Expected Result (Notion):**
+    *   The main transcript should be on the Notion page.
+    *   Sections for Summary, Decisions, Action Items might have headings but be empty, or show fallback text like "(No summary generated)" if we implement that.
+
+This set of tests covers audio capture, STT, Notion integration, and basic LLM-generated content.
 ```
