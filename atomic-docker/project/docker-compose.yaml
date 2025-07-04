@@ -516,6 +516,7 @@ services:
       # Example of how it might be structured if environment is already used:
       # EXISTING_ENV_VAR: ${EXISTING_ENV_VAR}
       NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
+      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000} # Added for Next.js API routes
       # The existing 'app' service definition is complex with many build args.
       # Need to be careful to merge this correctly.
       # Based on the structure, build args are used. So I will add it there.

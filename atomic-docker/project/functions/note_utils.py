@@ -374,6 +374,104 @@ def transcribe_audio_deepgram(audio_file_path: str, deepgram_api_key_param: str 
         return {"status": "success", "data": {"transcript": transcript}}
     except Exception as e: return {"status": "error", "message": f"Deepgram API error for pre-recorded: {str(e)}", "code": "DEEPGRAM_API_ERROR"}
 
+def create_processed_audio_note_in_notion(
+    title: str,
+    transcript: str,
+    summary_data: dict, # Expects {"summary": str, "decisions": list, "action_items": list}
+    notion_db_id: Optional[str] = None,
+    source: Optional[str] = "In-Person Agent Audio Note",
+    linked_event_id: Optional[str] = None,
+    notion_client_param: Optional[Client] = None
+) -> dict:
+    client = notion_client_param or notion # Use global or passed client
+    if not client: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
+
+    db_id_to_use = notion_db_id or NOTION_NOTES_DATABASE_ID_GLOBAL
+    if not db_id_to_use: return {"status": "error", "message": "Notion database ID not configured for notes.", "code": "NOTION_CONFIG_ERROR"}
+
+    properties = {"Title": {"title": [{"text": {"content": title}}]}}
+    if source:
+        properties["Source"] = {"rich_text": [{"text": {"content": source}}]}
+    if linked_event_id:
+        properties["Linked Event ID"] = {"rich_text": [{"text": {"content": linked_event_id}}]}
+
+    page_content_blocks = []
+
+    # Summary
+    summary = summary_data.get("summary")
+    if summary and summary.strip():
+        page_content_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Summary"}}]}})
+        for para in summary.split('\n\n'): # Handle multi-paragraph summaries
+            if para.strip():
+                 page_content_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": para.strip()[:1999]}}]}})
+        page_content_blocks.append({"type": "divider", "divider": {}})
+
+    # Decisions
+    decisions = summary_data.get("decisions", [])
+    if decisions and isinstance(decisions, list) and any(str(d).strip() for d in decisions):
+        page_content_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Key Decisions"}}]}})
+        for decision_item in decisions:
+            item_text = str(decision_item).strip()
+            if item_text:
+                page_content_blocks.append({"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": item_text[:1999]}}]}})
+        page_content_blocks.append({"type": "divider", "divider": {}})
+
+    # Action Items
+    action_items = summary_data.get("action_items", [])
+    if action_items and isinstance(action_items, list) and any(str(ai).strip() for ai in action_items):
+        page_content_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Action Items"}}]}})
+        for action_text in action_items:
+            item_text = str(action_text).strip()
+            if item_text:
+                page_content_blocks.append({"type": "to_do", "to_do": {"rich_text": [{"type": "text", "text": {"content": item_text[:1999]}}], "checked": False }})
+        page_content_blocks.append({"type": "divider", "divider": {}})
+
+    # Full Transcript
+    transcript_header_text = "Full Transcript"
+    transcript_paragraph_blocks = []
+    if transcript and transcript.strip():
+        for para in transcript.split('\n\n'):
+            para_content = para.strip()
+            if para_content:
+                for i in range(0, len(para_content), 1999): # Max length for paragraph content part
+                    transcript_paragraph_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": para_content[i:i+1999]}}]}})
+    else:
+        transcript_paragraph_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "(No transcript available or transcript was empty)"}}]}})
+
+    if len(transcript_paragraph_blocks) > 7 or len(transcript) > 2500 : # Heuristic for toggle
+        page_content_blocks.append({
+            "type": "toggle",
+            "toggle": {
+                "rich_text": [{"type": "text", "text": {"content": f"View {transcript_header_text}"}}],
+                "children": [ # Children of toggle
+                    {"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": transcript_header_text}}]}},
+                    *transcript_paragraph_blocks[:98] # Max children in toggle append for create
+                ]
+            }
+        })
+    else:
+        page_content_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": transcript_header_text}}]}})
+        page_content_blocks.extend(transcript_paragraph_blocks)
+
+    try:
+        response = client.pages.create(
+            parent={"database_id": db_id_to_use},
+            properties=properties,
+            children=page_content_blocks[:100] # Notion API limit for children on create
+        )
+        # TODO: If page_content_blocks > 100, need to append remaining blocks in batches.
+        # This initial implementation truncates if more than 100 blocks are generated.
+        if len(page_content_blocks) > 100:
+            print(f"Warning: Notion note content for '{title}' was truncated to 100 blocks on creation. Further appends needed for full content.")
+            # Implement append logic here if needed.
+
+        return {"status": "success", "data": {"page_id": response["id"], "url": response.get("url")}}
+    except APIResponseError as e:
+        return {"status": "error", "message": f"Notion API error: {e.body.get('message', str(e))}", "code": f"NOTION_API_{e.code.upper()}", "details": e.body}
+    except Exception as e:
+        return {"status": "error", "message": f"Error creating Notion processed audio note: {str(e)}", "code": "NOTION_CREATE_ERROR"}
+
+
 def summarize_transcript_gpt(transcript: str, openai_api_key_param: str = None, gpt_model_param: str = None) -> dict:
     oai_key_to_use = openai_api_key_param or OPENAI_API_KEY_GLOBAL; model_to_use = gpt_model_param or GPT_MODEL_NAME_GLOBAL
     if not oai_key_to_use or not oai_key_to_use.startswith('sk-'): return {"status": "error", "message": "OpenAI API key not set or invalid.", "code": "OPENAI_CONFIG_ERROR"}

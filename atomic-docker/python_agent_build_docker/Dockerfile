@@ -10,7 +10,7 @@ WORKDIR /app
 COPY ../project /app/project
 
 # Install Python dependencies
-RUN pip install --no-cache-dir notion-client deepgram-sdk requests httpx lancedb pyarrow sentence-transformers
+RUN pip install --no-cache-dir notion-client deepgram-sdk requests httpx lancedb pyarrow sentence-transformers flask openai
 
 # Set PYTHONPATH. With this, Python will look for /app/project/...
 # For imports like `from project.functions...` this is correct.

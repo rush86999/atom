@@ -124,3 +124,112 @@ def semantic_search_meetings_route():
         })
 
     return jsonify({"status": "success", "data": api_response_data})
+
+# Endpoint for processing agent-recorded in-person audio notes
+@search_routes_bp.route('/internal/process_audio_note_data', methods=['POST'])
+def process_audio_note_data_route():
+    if 'audio_file' not in request.files:
+        return jsonify({"ok": False, "error": {"message": "No audio file part in the request.", "code": "MISSING_AUDIO_FILE"}}), 400
+
+    file = request.files['audio_file']
+    if file.filename == '':
+        return jsonify({"ok": False, "error": {"message": "No selected audio file.", "code": "EMPTY_FILENAME"}}), 400
+
+    title = request.form.get('title', f"Audio Note - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    user_id = request.form.get('user_id')
+    linked_event_id = request.form.get('linked_event_id') # Optional
+
+    if not user_id: # user_id is crucial for associating the note
+        return jsonify({"ok": False, "error": {"message": "user_id is required.", "code": "MISSING_USER_ID"}}), 400
+
+    # Ensure note_utils has necessary API keys configured via environment variables
+    # (DEEPGRAM_API_KEY, OPENAI_API_KEY, NOTION_API_TOKEN, NOTION_NOTES_DATABASE_ID)
+    # These are accessed globally within note_utils.py or passed if functions are refactored.
+    # For this example, we assume global environment variable access within note_utils.
+
+    # Initialize Notion client if not already (note_utils.init_notion might be called elsewhere too)
+    # This is a bit fragile; ideally, client init is handled more centrally or passed around.
+    if not note_utils.notion: # Check if global `notion` client in note_utils is set
+        notion_api_key = os.environ.get("NOTION_API_TOKEN")
+        notion_db_id = os.environ.get("NOTION_NOTES_DATABASE_ID") # Or a specific DB ID for these notes
+        if not notion_api_key or not notion_db_id:
+            return jsonify({"ok": False, "error": {"message": "Notion API key or Database ID not configured on server.", "code": "NOTION_SERVER_CONFIG_ERROR"}}), 500
+        init_status = note_utils.init_notion(api_token=notion_api_key, database_id=notion_db_id)
+        if init_status.get("status") == "error":
+            return jsonify({"ok": False, "error": {"message": f"Failed to initialize Notion client: {init_status.get('message')}", "code": init_status.get("code", "NOTION_INIT_FAILED")}}), 500
+
+    # Save the uploaded file temporarily to pass its path to transcription
+    temp_dir = tempfile.gettempdir()
+    temp_audio_path = os.path.join(temp_dir, file.filename if file.filename else "uploaded_audio.tmp")
+
+    try:
+        file.save(temp_audio_path)
+        print(f"Audio file saved temporarily to: {temp_audio_path}")
+
+        # 1. Transcribe with Deepgram
+        # note_utils.transcribe_audio_deepgram expects a file path.
+        # It internally gets DEEPGRAM_API_KEY from env.
+        print(f"Transcribing audio file: {temp_audio_path} for user {user_id}")
+        transcript_resp = note_utils.transcribe_audio_deepgram(audio_file_path=temp_audio_path)
+
+        if transcript_resp.get("status") == "error":
+            os.remove(temp_audio_path) # Clean up temp file
+            return jsonify({"ok": False, "error": {"message": f"Transcription failed: {transcript_resp.get('message')}", "code": transcript_resp.get("code", "TRANSCRIPTION_FAILED")}}), 500
+
+        transcript = transcript_resp.get("data", {}).get("transcript", "")
+        print(f"Transcription successful (first 100 chars): {transcript[:100]}")
+
+        # 2. Summarize with OpenAI
+        # note_utils.summarize_transcript_gpt internally gets OPENAI_API_KEY from env.
+        summary_data = {"summary": "Summarization skipped or failed.", "decisions": [], "action_items": [], "key_points": ""}
+        if transcript.strip(): # Only summarize if transcript is not empty
+            print("Summarizing transcript...")
+            summarize_resp = note_utils.summarize_transcript_gpt(transcript=transcript)
+            if summarize_resp.get("status") == "success":
+                summary_data = summarize_resp.get("data", summary_data)
+                print("Summarization successful.")
+            else:
+                print(f"Warning: Summarization failed: {summarize_resp.get('message')}")
+                # Continue with saving the note even if summarization fails
+        else:
+            print("Transcript was empty, skipping summarization.")
+            summary_data["summary"] = "No speech detected or transcript was empty."
+
+
+        # 3. Create Notion Note using the new specialized function
+        print("Creating Notion note with structured content...")
+        # NOTION_NOTES_DATABASE_ID from env will be used by default in create_processed_audio_note_in_notion
+        # if not overridden by init_notion or a specific db_id param.
+        create_note_resp = note_utils.create_processed_audio_note_in_notion(
+            title=title,
+            transcript=transcript,
+            summary_data=summary_data, # Contains summary, decisions, action_items
+            source="In-Person Agent Audio Note", # Default source
+            linked_event_id=linked_event_id
+        )
+
+        os.remove(temp_audio_path) # Clean up temp file
+
+        if create_note_resp.get("status") == "success":
+            page_info = create_note_resp.get("data", {})
+            print(f"Notion note created: {page_info.get('url')}")
+            return jsonify({
+                "ok": True,
+                "message": "Audio note processed and saved to Notion.",
+                "data": {
+                    "notion_page_url": page_info.get("url"),
+                    "notion_page_id": page_info.get("page_id"),
+                    "title": title, # Return the title used/generated
+                    "summary_preview": summary_data.get("summary", "")[:200] # Provide a preview
+                }
+            }), 200
+        else:
+            return jsonify({"ok": False, "error": {"message": f"Failed to create Notion note: {create_note_resp.get('message')}", "code": create_note_resp.get("code", "NOTION_CREATE_FAILED")}}), 500
+
+    except Exception as e:
+        if os.path.exists(temp_audio_path): # Ensure cleanup on any error
+            os.remove(temp_audio_path)
+        print(f"Error processing audio note data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": {"message": f"Internal server error processing audio: {str(e)}", "code": "AUDIO_PROCESSING_ERROR"}}), 500
