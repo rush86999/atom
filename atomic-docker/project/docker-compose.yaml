@@ -534,27 +534,18 @@ services:
       - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
       # PYTHONPATH is set in the Dockerfile, but can be reiterated or overridden here if needed
       # - PYTHONPATH=/app
+      # Added for semantic search
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db # Internal path to the DB on the shared volume
+      - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings} # Align with ingestion
+      - PYTHONUNBUFFERED=1 # Good for seeing logs immediately
     volumes:
       # Mount the local project directory into the container for development
-      # This allows code changes to be reflected without rebuilding the image.
-      # For testing the image itself, this volume mount should be commented out.
       - .:/app/project
-      # The Dockerfile copies ../project to /app/project.
-      # If this volume mount is './:/app/project', it means 'atomic-docker/project/' on host
-      # is mounted to '/app/project' in container. This aligns with Dockerfile's COPY destination.
-    tty: true
-    stdin_open: true
-    volumes:
-      # Mount the local project directory into the container for development
-      # This allows code changes to be reflected without rebuilding the image.
-      # For testing the image itself, this volume mount should be commented out.
-      - .:/app/project
-      # The Dockerfile copies ../project to /app/project.
-      # If this volume mount is './:/app/project', it means 'atomic-docker/project/' on host
-      # is mounted to '/app/project' in container. This aligns with Dockerfile's COPY destination.
-
       # Mount shared LanceDB data volume
       - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data # Mount to /lancedb_data
+    tty: true
+    stdin_open: true
 
   ingestion-pipeline-service:
     build:

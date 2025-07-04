@@ -463,8 +463,116 @@ def get_text_embedding_openai(text_to_embed: str, openai_api_key_param: str = No
     except openai.APIConnectionError as e: return {"status": "error", "message": f"OpenAI API connection error: {e}", "code": "OPENAI_CONNECTION_ERROR", "details": str(e)}
     except openai.RateLimitError as e: return {"status": "error", "message": f"OpenAI API rate limit exceeded: {e}", "code": "OPENAI_RATE_LIMIT_ERROR", "details": str(e)}
     except openai.APIStatusError as e: return {"status": "error", "message": f"OpenAI API status error (HTTP {e.status_code}): {e.response.text}", "code": f"OPENAI_API_STATUS_{e.status_code}", "details": e.response.text if e.response else str(e)}
-    except Exception as e: return {"status": "error", "message": f"Unexpected error generating OpenAI embedding: {e}", "code": "OPENAI_EMBEDDING_ERROR", "details": str(e)}
+    except openai.AuthenticationError as e: # Non-retryable
+        return {"status": "error", "message": f"OpenAI API authentication error: {e}", "code": "OPENAI_AUTH_ERROR", "details": str(e)}
+    except openai.APIConnectionError as e: # Retryable by caller if wrapped
+        return {"status": "error", "message": f"OpenAI API connection error: {e}", "code": "OPENAI_CONNECTION_ERROR", "details": str(e)}
+    except openai.RateLimitError as e: # Retryable by caller
+        return {"status": "error", "message": f"OpenAI API rate limit exceeded: {e}", "code": "OPENAI_RATE_LIMIT_ERROR", "details": str(e)}
+    except openai.APIStatusError as e: # Potentially retryable for 5xx by caller
+        return {"status": "error", "message": f"OpenAI API status error (HTTP {e.status_code}): {e.response.text if e.response else str(e)}", "code": f"OPENAI_API_STATUS_{e.status_code}", "details": e.response.text if e.response else str(e)}
+    except Exception as e:
+        return {"status": "error", "message": f"Unexpected error generating OpenAI embedding: {e}", "code": "OPENAI_EMBEDDING_ERROR", "details": str(e)}
 
+# It's better to wrap the call to this function with tenacity in the calling code (e.g., search_routes.py)
+# or make this function itself async and use tenacity internally if it were managing its own async operations.
+# For now, keeping it synchronous and letting the caller handle retries if needed for this specific function.
+# However, for consistency with text_processor.py, let's add tenacity here.
+# This function is synchronous, so tenacity will work directly.
+
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((openai.APIConnectionError, openai.RateLimitError, openai.APIStatusError)) # Retry on these
+)
+def get_text_embedding_openai_with_retry(text_to_embed: str, openai_api_key_param: str = None, embedding_model: str = "text-embedding-ada-002") -> dict:
+    # Default model changed to ada-002
+    oai_key_to_use = openai_api_key_param or OPENAI_API_KEY_GLOBAL
+    if not oai_key_to_use or not oai_key_to_use.startswith('sk-'):
+        # This is a config error, should not be retried.
+        return {"status": "error", "message": "OpenAI API key not set or invalid for embedding.", "code": "OPENAI_CONFIG_ERROR"}
+    if not text_to_embed or not text_to_embed.strip():
+        # Validation error, should not be retried.
+        return {"status": "error", "message": "Text to embed cannot be empty.", "code": "VALIDATION_ERROR"}
+
+    try:
+        logger = logging.getLogger(__name__) # Ensure logger is available
+        attempt_num = getattr(get_text_embedding_openai_with_retry, 'retry', {}).get('statistics', {}).get('attempt_number', 1)
+        logger.info(f"Attempt {attempt_num}: Generating OpenAI embedding with model {embedding_model} for text (first 50 chars): '{text_to_embed[:50]}...'")
+
+        client = openai.OpenAI(api_key=oai_key_to_use) # Client re-created per attempt by tenacity if it fails
+        response = client.embeddings.create(model=embedding_model, input=text_to_embed.strip())
+        embedding_vector = response.data[0].embedding
+        return {"status": "success", "data": embedding_vector}
+    except openai.AuthenticationError as e:
+        # This error should ideally be caught before retry, or tenacity's retry_if_exception_type should exclude it.
+        # For now, if it gets here, it will be raised by tenacity and not retried if not in retry_if_exception_type.
+        # To prevent retry on this, we can raise it directly to stop tenacity.
+        logging.error(f"OpenAI API authentication error (non-retryable): {e}")
+        raise # This will stop tenacity retries if AuthenticationError is not in retry_if_exception_type
+    except (openai.APIConnectionError, openai.RateLimitError, openai.APIStatusError) as e:
+        logging.warning(f"OpenAI API error during embedding (attempt {getattr(get_text_embedding_openai_with_retry, 'retry', {}).get('statistics', {}).get('attempt_number', 1)}): {e}. Tenacity will retry if applicable.")
+        raise # Re-raise to let tenacity handle retry
+    except Exception as e:
+        logging.error(f"Unexpected error generating OpenAI embedding (attempt {getattr(get_text_embedding_openai_with_retry, 'retry', {}).get('statistics', {}).get('attempt_number', 1)}): {e}", exc_info=True)
+        # If we want tenacity to retry this too, we'd need to add 'Exception' to retry_if_exception_type,
+        # but that's usually too broad. It's better to catch specific retryable exceptions.
+        # For now, other exceptions will be raised and not retried by this decorator.
+        # We'll return it as an error from the main calling function.
+        raise # Let it propagate to be caught by the final try-except in the calling logic if tenacity gives up.
+
+# Original function kept for reference or if non-retry version is needed by other parts.
+# The search_routes.py should be updated to call get_text_embedding_openai_with_retry.
+# For now, I will modify the original function directly to include tenacity and model change.
+
+def get_text_embedding_openai(text_to_embed: str, openai_api_key_param: str = None, embedding_model: str = "text-embedding-ada-002") -> dict:
+    # Default model changed to ada-002
+    oai_key_to_use = openai_api_key_param or OPENAI_API_KEY_GLOBAL
+    if not oai_key_to_use or not oai_key_to_use.startswith('sk-'):
+        return {"status": "error", "message": "OpenAI API key not set or invalid for embedding.", "code": "OPENAI_CONFIG_ERROR"}
+    if not text_to_embed or not text_to_embed.strip():
+        return {"status": "error", "message": "Text to embed cannot be empty.", "code": "VALIDATION_ERROR"}
+
+    # This is the effective function that will be retried
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((openai.APIConnectionError, openai.RateLimitError, openai.APIStatusError))
+        # Retry only on these specific, potentially transient OpenAI errors.
+        # openai.APIStatusError can include 5xx, which are good candidates for retries.
+        # 4xx errors (like BadRequestError for too long input) will not be retried by this.
+    )
+    def _get_embedding_core():
+        logger_nu = logging.getLogger(__name__) # Local logger instance
+        attempt_num = getattr(_get_embedding_core, 'retry', {}).get('statistics', {}).get('attempt_number', 1)
+        logger_nu.info(f"OpenAI Embedding Attempt {attempt_num} with model {embedding_model} for text (first 50): '{text_to_embed[:50]}...'")
+
+        client = openai.OpenAI(api_key=oai_key_to_use)
+        response = client.embeddings.create(model=embedding_model, input=text_to_embed.strip())
+        return response.data[0].embedding
+
+    try:
+        embedding_vector = _get_embedding_core()
+        return {"status": "success", "data": embedding_vector}
+    except openai.AuthenticationError as e: # Explicitly catch non-retryable critical errors
+        logging.error(f"OpenAI API authentication error (non-retryable): {e}")
+        return {"status": "error", "message": f"OpenAI API authentication error: {e}", "code": "OPENAI_AUTH_ERROR", "details": str(e)}
+    except openai.BadRequestError as e: # Example of another non-retryable error (e.g. input too long)
+        logging.error(f"OpenAI API BadRequestError (non-retryable): {e}")
+        return {"status": "error", "message": f"OpenAI API bad request: {e}", "code": "OPENAI_BAD_REQUEST", "details": str(e)}
+    except Exception as e: # Catches errors after tenacity retries are exhausted or other non-decorated errors
+        # This will catch APIConnectionError, RateLimitError, APIStatusError if retries fail,
+        # or any other unexpected error from _get_embedding_core.
+        logging.error(f"Failed to generate OpenAI embedding after retries or due to other error: {e}", exc_info=True)
+        # Provide a more generic error message to the caller for final failure
+        error_code = "OPENAI_EMBEDDING_ERROR"
+        if isinstance(e, openai.RateLimitError): error_code = "OPENAI_RATE_LIMIT_ERROR"
+        elif isinstance(e, openai.APIConnectionError): error_code = "OPENAI_CONNECTION_ERROR"
+        elif isinstance(e, openai.APIStatusError): error_code = f"OPENAI_API_STATUS_{e.status_code}"
+
+        return {"status": "error", "message": f"Failed to generate OpenAI embedding: {type(e).__name__}", "code": error_code, "details": str(e)}
 
 def embed_and_store_transcript_in_lancedb(
     notion_page_id: str,
