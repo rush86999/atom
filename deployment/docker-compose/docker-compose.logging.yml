@@ -1,0 +1,86 @@
+version: '3.8'
+
+volumes:
+  loki_data: {}
+  grafana_data: {}
+  promtail_positions: {}
+
+networks:
+  # This network allows logging components to communicate with each other.
+  # Application containers that need to be logged by Promtail (if not using Docker socket discovery directly for logs)
+  # or that Grafana might need to connect to (e.g., if Grafana were to monitor app metrics directly)
+  # would also need to be on this network or a commonly accessible one.
+  # For Promtail's Docker SD, it primarily needs access to the Docker socket, not necessarily network access to app containers.
+  observability_net: # Changed from logging_net to a more general observability_net
+    driver: bridge
+
+services:
+  loki:
+    image: grafana/loki:2.9.2 # Using a specific recent version
+    container_name: loki
+    ports:
+      - "3100:3100" # Loki API port
+    volumes:
+      - loki_data:/loki
+      - ./config/loki-config.yml:/etc/loki/config.yml # Mount custom Loki config
+    command: -config.file=/etc/loki/config.yml
+    networks:
+      - observability_net
+    restart: unless-stopped
+    # deploy: # Optional: Resource limits
+    #   resources:
+    #     limits:
+    #       cpus: '1.0' # Example
+    #       memory: '1G' # Example
+
+  promtail:
+    image: grafana/promtail:2.9.2 # Using a specific recent version
+    container_name: promtail
+    volumes:
+      # Promtail needs access to Docker logs or the Docker socket.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # If reading json-files directly
+      - promtail_positions:/var/promtail/positions # To store positions of read log files
+      - ./config/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - observability_net # Needs to reach Loki
+    depends_on:
+      - loki
+    restart: unless-stopped
+    # deploy: # Optional: Resource limits
+    #   resources:
+    #     limits:
+    #       cpus: '0.5' # Example
+    #       memory: '256M' # Example
+
+  grafana:
+    image: grafana/grafana:10.2.0 # Using a specific recent version
+    container_name: grafana
+    ports:
+      - "3000:3000" # Grafana UI port
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # Optional: Grafana provisioning for datasources and dashboards
+      # - ./config/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      # - ./config/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin # IMPORTANT: Change this for any non-local/production setup!
+      # Auto-configure Loki datasource
+      - GF_INSTALL_PLUGINS=grafana-loki-datasource # Not strictly needed if type is 'loki'
+      - GF_DATASOURCES_DEFAULT_NAME=Loki
+      - GF_DATASOURCES_DEFAULT_TYPE=loki
+      - GF_DATASOURCES_DEFAULT_URL=http://loki:3100 # Refers to Loki service name within Docker network
+      - GF_DATASOURCES_DEFAULT_ACCESS=proxy # Server-side access
+      - GF_DATASOURCES_DEFAULT_IS_DEFAULT=true # Make it the default datasource in Explore
+    networks:
+      - observability_net # Needs to reach Loki (and Prometheus if added later)
+    depends_on:
+      - loki
+    restart: unless-stopped
+    # deploy: # Optional: Resource limits
+    #   resources:
+    #     limits:
+    #       cpus: '1.0' # Example
+    #       memory: '1G' # Example
