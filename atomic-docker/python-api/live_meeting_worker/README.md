@@ -83,6 +83,19 @@ live_meeting_worker/
 *   **Notion Integration:** Saves transcripts and notes to a specified Notion page.
 
 ## Dockerization
-A `Dockerfile` will be provided to containerize this application for deployment as part of the `atomic-docker` setup. The `docker-compose.yml` file in the `atomic-docker` root will manage running this worker alongside other services.
+A `Dockerfile` is provided to containerize this application. When deployed via `docker-compose.yaml` (located in `atomic-docker/project/`), this worker service (`live-meeting-worker`) should have a volume mounted for data persistence if using SQLite.
+
+**Data Persistence (SQLite):**
+The worker uses an SQLite database (`live_meeting_tasks.db` by default, stored in `/app/data/` within the container) to persist task information. For the data to survive container restarts, a volume should be mounted in `docker-compose.yaml`:
+```yaml
+services:
+  live-meeting-worker:
+    # ... other configurations ...
+    volumes:
+      - ../python-api/live_meeting_worker:/app # For code
+      - ./worker_data:/app/data          # For persistent SQLite DB
+                                         # (creates 'worker_data' dir in atomic-docker/project/)
+```
+
 The frontend's `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL` should be configured to point to the address of this service within the Docker network (e.g., `http://live-meeting-worker:8001`).
 ```
