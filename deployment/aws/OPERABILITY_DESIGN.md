@@ -94,17 +94,17 @@ Two primary dashboards will be designed and implemented via CDK (`aws-cloudwatch
         *   Dependency Metrics: Key metrics from downstream services it calls.
         *   Embedded Log Insights query widget for recent errors of the service.
 
-## 3. Granular CloudWatch Alarms Strategy
+## 3. Granular CloudWatch Alarms Strategy (Now Implemented)
 
-Extending the basic alarms with more specific and application-aware alerts. All alarms will notify the existing SNS topic (`AlarmTopic`).
+The following granular alarms, extending the basic set, have been implemented in `aws-stack.ts`. They all notify the existing SNS topic (`AlarmTopic`).
 
-*   **ALB Alarms:**
-    *   Per-Target Group High 5XX Error Rate: `HTTPCode_Target_5XX_Count` (Sum >= N in 5 min).
-    *   Per-Target Group High Target Latency: `TargetResponseTime` (e.g., p90 > X seconds for Y minutes).
+*   **ALB Alarms (Per Target Group):**
+    *   **High Target 5XX Error Rate:** Monitors `HTTPCode_Target_5XX_Count` (Sum). Triggers if >= 3 errors in 5 minutes for each key service target group.
+    *   **High Target Latency:** Monitors `TargetResponseTime` (P90). Triggers if latency > 1 second (or 2s for Optaplanner) for 15 minutes for each key service target group.
 *   **ECS Service Alarms:**
-    *   (Requires Custom Metrics) Application-Specific Error Rate Alarms: Based on custom metrics like `MyApp/FailedOperationCount` or `MyApp/ErrorRate`.
+    *   *(Placeholder for future)* Application-Specific Error Rate Alarms: To be implemented once services publish relevant custom metrics (e.g., `MyApp/FailedOperationCount` or `MyApp/ErrorRate`).
 *   **RDS Instance Alarms:**
-    *   `DatabaseConnections` approaching instance maximum (e.g., >80% of max for 15-30 minutes).
+    *   **High Database Connections:** Monitors `DatabaseConnections` (Average). Triggers if > 150 connections for 15 minutes (initial threshold for `db.t3.small`, subject to tuning).
 
 ## 4. Distributed Tracing with AWS X-Ray (Evaluation & Phased Approach)
 

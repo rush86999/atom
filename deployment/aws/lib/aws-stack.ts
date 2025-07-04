@@ -314,6 +314,20 @@ export class AwsStack extends cdk.Stack {
     });
     rdsLowMemoryAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
+    const rdsHighConnectionsAlarm = new cloudwatch.Alarm(this, 'RdsHighConnectionsAlarm', {
+        alarmName: `${this.stackName}-RDS-HighDBConnections`,
+        alarmDescription: 'Alarm if RDS database connections are too high.',
+        metric: this.dbInstance.metricDatabaseConnections({
+            period: cdk.Duration.minutes(5),
+            statistic: cloudwatch.Statistic.AVERAGE, // Or MAX
+        }),
+        threshold: 150, // Initial estimate for db.t3.small. Review based on actual max_connections.
+        evaluationPeriods: 3, // For 15 minutes
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    rdsHighConnectionsAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
 
     // ECS Cluster
     this.cluster = new ecs.Cluster(this, 'AtomicCluster', {
@@ -755,6 +769,37 @@ export class AwsStack extends cdk.Stack {
     });
     supertokensTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
+    const supertokensTg5xxAlarm = new cloudwatch.Alarm(this, 'SupertokensTg5xxAlarm', {
+      alarmName: `${this.stackName}-Supertokens-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if Supertokens Target Group experiences 5XX errors.',
+      metric: supertokensTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    supertokensTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const supertokensTgLatencyAlarm = new cloudwatch.Alarm(this, 'SupertokensTgLatencyAlarm', {
+      alarmName: `${this.stackName}-Supertokens-Target-HighLatency`,
+      alarmDescription: 'Alarm if Supertokens Target Group P90 latency is high.',
+      metric: supertokensTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 1, // 1 second (adjust as needed)
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    supertokensTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     // --- Hasura GraphQL Engine Service ---
     this.hasuraSG = new ec2.SecurityGroup(this, 'HasuraSG', { vpc: this.vpc, allowAllOutbound: true });
     this.hasuraSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(8080), 'Allow Hasura from ALB');
@@ -855,6 +900,37 @@ export class AwsStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     hasuraTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const hasuraTg5xxAlarm = new cloudwatch.Alarm(this, 'HasuraTg5xxAlarm', {
+      alarmName: `${this.stackName}-Hasura-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if Hasura Target Group experiences 5XX errors.',
+      metric: hasuraTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    hasuraTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const hasuraTgLatencyAlarm = new cloudwatch.Alarm(this, 'HasuraTgLatencyAlarm', {
+      alarmName: `${this.stackName}-Hasura-Target-HighLatency`,
+      alarmDescription: 'Alarm if Hasura Target Group P90 latency is high.',
+      metric: hasuraTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 1, // 1 second (adjust as needed)
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    hasuraTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- Functions Service ---
     this.functionsSG = new ec2.SecurityGroup(this, 'FunctionsSG', { vpc: this.vpc, allowAllOutbound: true });
@@ -985,6 +1061,37 @@ export class AwsStack extends cdk.Stack {
     });
     functionsTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
+    const functionsTg5xxAlarm = new cloudwatch.Alarm(this, 'FunctionsTg5xxAlarm', {
+      alarmName: `${this.stackName}-Functions-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if Functions Target Group experiences 5XX errors.',
+      metric: functionsTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    functionsTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const functionsTgLatencyAlarm = new cloudwatch.Alarm(this, 'FunctionsTgLatencyAlarm', {
+      alarmName: `${this.stackName}-Functions-Target-HighLatency`,
+      alarmDescription: 'Alarm if Functions Target Group P90 latency is high.',
+      metric: functionsTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 1, // 1 second (adjust as needed)
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    functionsTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     // --- App Service (Frontend) ---
     this.appSG = new ec2.SecurityGroup(this, 'AppSG', { vpc: this.vpc, allowAllOutbound: true }); // Corrected: this.appSG
     this.appSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(3000), 'Allow App from ALB on its container port');
@@ -1094,6 +1201,37 @@ export class AwsStack extends cdk.Stack {
       action: elbv2.ListenerAction.forward([appTargetGroup]),
     });
 
+    const appTg5xxAlarm = new cloudwatch.Alarm(this, 'AppTg5xxAlarm', {
+      alarmName: `${this.stackName}-App-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if App Target Group experiences a high number of 5XX errors.',
+      metric: appTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    appTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const appTgLatencyAlarm = new cloudwatch.Alarm(this, 'AppTgLatencyAlarm', {
+      alarmName: `${this.stackName}-App-Target-HighLatency`,
+      alarmDescription: 'Alarm if App Target Group P90 latency is high.',
+      metric: appTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 1, // 1 second
+      evaluationPeriods: 3, // for 15 minutes
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    appTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     const appTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'AppTgUnhealthyHostAlarm', {
       alarmName: `${this.stackName}-App-Unhealthy-Hosts`,
       alarmDescription: 'Alarm if App Target Group has unhealthy hosts.',
@@ -1193,6 +1331,37 @@ export class AwsStack extends cdk.Stack {
     });
     handshakeTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
+    const handshakeTg5xxAlarm = new cloudwatch.Alarm(this, 'HandshakeTg5xxAlarm', {
+      alarmName: `${this.stackName}-Handshake-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if Handshake Target Group experiences 5XX errors.',
+      metric: handshakeTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    handshakeTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const handshakeTgLatencyAlarm = new cloudwatch.Alarm(this, 'HandshakeTgLatencyAlarm', {
+      alarmName: `${this.stackName}-Handshake-Target-HighLatency`,
+      alarmDescription: 'Alarm if Handshake Target Group P90 latency is high.',
+      metric: handshakeTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 1, // 1 second (adjust as needed)
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    handshakeTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
     // --- OAuth Service ---
     this.oauthSG = new ec2.SecurityGroup(this, 'OAuthSG', { vpc: this.vpc, allowAllOutbound: true });
     this.oauthSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(80), 'Allow OAuth from ALB on its container port');
@@ -1277,6 +1446,37 @@ export class AwsStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     oauthTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const oauthTg5xxAlarm = new cloudwatch.Alarm(this, 'OauthTg5xxAlarm', {
+      alarmName: `${this.stackName}-OAuth-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if OAuth Target Group experiences 5XX errors.',
+      metric: oauthTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    oauthTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const oauthTgLatencyAlarm = new cloudwatch.Alarm(this, 'OauthTgLatencyAlarm', {
+      alarmName: `${this.stackName}-OAuth-Target-HighLatency`,
+      alarmDescription: 'Alarm if OAuth Target Group P90 latency is high.',
+      metric: oauthTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 1, // 1 second (adjust as needed)
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    oauthTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // Optaplanner Service
     this.optaplannerSG = new ec2.SecurityGroup(this, 'OptaplannerSG', { vpc: this.vpc, allowAllOutbound: true });
@@ -1363,6 +1563,37 @@ export class AwsStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
     optaplannerTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const optaplannerTg5xxAlarm = new cloudwatch.Alarm(this, 'OptaplannerTg5xxAlarm', {
+      alarmName: `${this.stackName}-Optaplanner-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if Optaplanner Target Group experiences 5XX errors.',
+      metric: optaplannerTargetGroup.metricHttpCodeTarget(
+        elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
+        {
+          statistic: cloudwatch.Statistic.SUM,
+          period: cdk.Duration.minutes(5),
+        }
+      ),
+      threshold: 3,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    optaplannerTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+
+    const optaplannerTgLatencyAlarm = new cloudwatch.Alarm(this, 'OptaplannerTgLatencyAlarm', {
+      alarmName: `${this.stackName}-Optaplanner-Target-HighLatency`,
+      alarmDescription: 'Alarm if Optaplanner Target Group P90 latency is high.',
+      metric: optaplannerTargetGroup.metricTargetResponseTime({
+        statistic: cloudwatch.Statistic.P90,
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 2, // Optaplanner might have longer processing times, start with 2s
+      evaluationPeriods: 3,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+    optaplannerTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // Note: OpenSearch Domain definition and related permissions will be added in the next step / subtask.
 
