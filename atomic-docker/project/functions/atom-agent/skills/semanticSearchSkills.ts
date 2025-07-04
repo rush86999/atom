@@ -48,7 +48,7 @@ export class SemanticSearchSkills implements IAgentSkills {
     }
 
     // Changed from private to public to allow standalone function to call it
-    public async handleSearchMeetingNotes(args: SkillArgs): Promise<string> {
+    public async handleSearchMeetingNotes(args: SkillArgs): Promise<string | { displayType: 'semantic_search_results'; summaryText: string; data: ApiMeetingSearchResult[] }> {
         const userQuery = args.params?.query as string;
         const userId = args.user_id; // Passed by the agent framework
 
@@ -121,9 +121,28 @@ export class SemanticSearchSkills implements IAgentSkills {
                         // Include text_preview
                         const preview = result.text_preview ? `\n    Snippet: "${result.text_preview}"` : "";
 
-                        return `- "${result.notion_page_title}" (Edited: ${displayDate}, Score: ${result.score.toFixed(2)})${preview}\n    Link: ${link}`;
-                    }).join("\n\n"); // Use double newline for better separation between results
-                    return `I found the following meeting notes related to your query:\n\n${formattedResults}`;
+                        // Return a structured object for the frontend to handle custom rendering
+                        const summaryText = `I found ${backendData.data.length} meeting note(s) related to your query:`;
+                        return {
+                            displayType: 'semantic_search_results',
+                            summaryText: summaryText,
+                            data: backendData.data // This is ApiMeetingSearchResult[]
+                        };
+                    // Original text formatting, kept for reference or if structured display fails.
+                    // const formattedResults = backendData.data.map(result => {
+                    //     const link = result.notion_page_url || `notion://page/${result.notion_page_id.replace(/-/g, "")}`;
+                    //     let displayDate = "Date not available";
+                    //     try {
+                    //         if (result.last_edited) {
+                    //             displayDate = new Date(result.last_edited).toLocaleDateString(undefined, {
+                    //                 year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    //             });
+                    //         }
+                    //     } catch (dateError) { /* ... logging ... */ }
+                    //     const preview = result.text_preview ? `\n    Snippet: "${result.text_preview}"` : "";
+                    //     return `- "${result.notion_page_title}" (Edited: ${displayDate}, Score: ${result.score.toFixed(2)})${preview}\n    Link: ${link}`;
+                    // }).join("\n\n");
+                    // return `I found the following meeting notes related to your query:\n\n${formattedResults}`;
                 } else {
                     return "Sorry, I couldn't find any meeting notes matching your query.";
                 }
@@ -131,14 +150,14 @@ export class SemanticSearchSkills implements IAgentSkills {
                 logger.error({
                     message: "Error response from semantic_search_meetings backend",
                     error: backendData.message,
-                    code: backendData.error?.code, // Log code if available
+                    code: backendData.error?.code,
                     userId: userId,
                 });
                 return `I encountered an error while searching: ${backendData.message}${backendData.error?.code ? ` (Code: ${backendData.error.code})` : ''}`;
             } else if (backendData && backendData.ok === false && backendData.error) {
                  logger.error({
                     message: "Error response from semantic_search_meetings backend (PythonApiResponse format)",
-                    error: backendData.error, // error is { code, message, details }
+                    error: backendData.error,
                     userId: userId,
                 });
                 return `I encountered an error while searching: ${backendData.error.message}`;

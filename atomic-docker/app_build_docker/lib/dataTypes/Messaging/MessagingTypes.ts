@@ -34,12 +34,16 @@ export type SkillMessageHistoryType = {
     htmlEmail?: string,
 }
 
+import { FrontendMeetingSearchResult } from "../SearchResultsTypes"; // Import the new type
+
 export type UserChatType = {
     role: 'user' | 'assistant',
-    content: string,
+    content: string, // Will hold summary text like "Search results:"
     id: number,
     date: string,
     audioUrl?: string; // Added for TTS audio playback
+    customComponentType?: 'semantic_search_results' | 'other_custom_component'; // To identify component type
+    customComponentProps?: { results: FrontendMeetingSearchResult[] } | any; // Props for the component
 }
 
 export type ChatHistoryType = UserChatType[]

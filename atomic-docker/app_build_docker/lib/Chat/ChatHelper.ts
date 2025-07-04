@@ -116,12 +116,70 @@ export const addMessageToBrain = async (
 export const receiveMessageFromBrain = async (
     skillMessageHistory: SkillMessageHistoryType,
     chatHistory: ChatHistoryType,
+import { SemanticSearchResultsPayload } from "../dataTypes/SearchResultsTypes"; // Import the new payload type
+
+export const receiveMessageFromBrain = async (
+    skillMessageHistory: SkillMessageHistoryType & { searchResultsPayload?: SemanticSearchResultsPayload }, // Augment type for this function
+    chatHistory: ChatHistoryType,
     messageHistory: SkillChatHistoryType,
     setChatHistory: React.Dispatch<React.SetStateAction<ChatHistoryType | []>>,
     setMessageHistory: React.Dispatch<React.SetStateAction<[] | SkillChatHistoryType>>,
     setIsLoading:  React.Dispatch<React.SetStateAction<boolean>>,
 ) => {
     try {
+        // Check for special semantic search results payload
+        if (skillMessageHistory.searchResultsPayload && skillMessageHistory.searchResultsPayload.type === 'semantic_search_results') {
+            const payload = skillMessageHistory.searchResultsPayload;
+            const assistantMessage: UserChatType = {
+                id: chatHistory.length, // New ID for this message
+                role: 'assistant',
+                content: payload.summaryText || "Here are your search results:",
+                date: dayjs().format(),
+                customComponentType: 'semantic_search_results',
+                customComponentProps: { results: payload.results },
+            };
+
+            // Update the last "working..." message or add new.
+            // The existing logic tries to update the "working..." message.
+            const reverseChatHistory = _.cloneDeep(chatHistory)?.reverse() || [];
+            const workingMessageIndex = reverseChatHistory.findIndex(c => ((c?.role === 'assistant') && (c?.content === 'working ...')));
+
+            let newChatHistory: ChatHistoryType;
+            if (workingMessageIndex !== -1) {
+                const originalIndex = chatHistory.length - 1 - workingMessageIndex;
+                newChatHistory = [
+                    ...chatHistory.slice(0, originalIndex),
+                    assistantMessage, // Replace "working..." with the new message
+                    ...chatHistory.slice(originalIndex + 1)
+                ];
+            } else {
+                // Should not happen if "working..." was added, but as a fallback:
+                newChatHistory = [...chatHistory, assistantMessage];
+            }
+            setChatHistory(newChatHistory);
+
+            // Update messageHistory (skill log)
+            const updatedSkillMessage: SkillMessageHistoryType = {
+                ...skillMessageHistory, // Preserve other skill data
+                query: 'completed', // Mark this interaction part as completed
+                messages: [ // Update messages to reflect what's shown
+                    ...(skillMessageHistory.messages || []),
+                    { role: 'assistant', content: payload.summaryText } // Add the summary text as the last message content
+                ],
+                // searchResultsPayload will still be on skillMessageHistory from agent if needed for full log
+            };
+            const oldMessageHistory_sliced = messageHistory?.slice(0, messageHistory?.length - 1) || [];
+            const newMessageHistory_completed = oldMessageHistory_sliced.concat([updatedSkillMessage, {
+                skill: 'pending', // Reset for next interaction
+                query: 'pending',
+                messages: [],
+            }]);
+            setMessageHistory(newMessageHistory_completed);
+            setIsLoading(false);
+            return; // Handled search results
+        }
+
+        // Original switch logic for other message types
         switch(skillMessageHistory.query) {
             case 'missing_fields':
                 const reverseMessages = _.cloneDeep(skillMessageHistory?.messages)?.reverse() || []

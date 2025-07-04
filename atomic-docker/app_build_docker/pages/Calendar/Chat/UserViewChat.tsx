@@ -495,9 +495,13 @@ function UserViewChat() {
                                     <Message
                                         key={m.id || `msg-item-${i}`}
                                         message={m}
-                                        isLoading={showFormsForThisMessage && isLoading} // Only show loading for last assistant message slot
-                                        // formData={showFormsForThisMessage && isForm ? renderSelectTimezone() : undefined} // Conditionally render form
-                                        // htmlEmail={showFormsForThisMessage ? htmlEmail : undefined} // Conditionally render email
+                                        isLoading={showFormsForThisMessage && isLoading}
+                                        formData={
+                                            showFormsForThisMessage && m.customComponentType === 'semantic_search_results' && m.customComponentProps ?
+                                            React.createElement(React.lazy(() => import('@components/chat/custom/SearchResultsDisplay')), m.customComponentProps)
+                                            : (showFormsForThisMessage && isForm ? renderSelectTimezone() : undefined)
+                                        }
+                                        htmlEmail={showFormsForThisMessage && m.role === 'assistant' ? htmlEmail : undefined} // Only pass htmlEmail for assistant messages
                                     />
                                 </div>
                             )
