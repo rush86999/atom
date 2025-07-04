@@ -9,9 +9,10 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 import datetime
 import numpy as np # For handling audio data
-from openai import OpenAI # Import OpenAI library
-from notion_client import AsyncClient as NotionAsyncClient, APIResponseError # Import Notion Async Client and error type
+from openai import OpenAI, APIError, RateLimitError, AuthenticationError, APIConnectionError # Import OpenAI library and specific errors
+from notion_client import AsyncClient as NotionAsyncClient, APIResponseError, APIErrorCode # Import Notion Async Client and error types
 import aiosqlite # For async SQLite operations
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type # For retry mechanisms
 
 import sounddevice as sd
 from fastapi import FastAPI, HTTPException, Path, Body, BackgroundTasks
@@ -365,21 +366,41 @@ async def transcribe_audio_with_openai(audio_file_path: str, task_id: str) -> Op
         return None
 
     logger.info(f"Task {task_id}: Starting STT processing for {audio_file_path} using OpenAI Whisper.")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((APIError, RateLimitError, APIConnectionError))
+    )
+    async def _transcribe_with_retry():
+        try:
+            with open(audio_file_path, "rb") as audio_file_object:
+                transcript_response = await asyncio.to_thread(
+                    openai_client.audio.transcriptions.create,
+                    model="whisper-1",
+                    file=audio_file_object
+                )
+            transcript = transcript_response.text
+            logger.info(f"Task {task_id}: STT successful. Transcript length: {len(transcript)} chars.")
+            return transcript
+        except AuthenticationError as e:
+            logger.error(f"Task {task_id}: OpenAI AuthenticationError during STT: {e}. Will not retry.", exc_info=True)
+            # Non-retryable, re-raise to be caught by the outer handler or let it propagate if not caught.
+            # For this function, we want to return None and log.
+            raise # Will be caught by the outer try-except
+        except APIError as e: # Includes RateLimitError, APIConnectionError, etc. that are retryable by tenacity
+            logger.warning(f"Task {task_id}: OpenAI APIError during STT (will retry if applicable): {e}", exc_info=True)
+            raise # Re-raise to trigger tenacity retry
+        except Exception as e: # Catch other unexpected errors during the attempt
+            logger.error(f"Task {task_id}: Unexpected error during STT attempt: {e}", exc_info=True)
+            raise # Re-raise to be caught by the outer try-except
+
     try:
-        with open(audio_file_path, "rb") as audio_file_object:
-            # The OpenAI client's methods are synchronous, so run in a thread pool
-            # to avoid blocking FastAPI's event loop.
-            transcript_response = await asyncio.to_thread(
-                openai_client.audio.transcriptions.create,
-                model="whisper-1",
-                file=audio_file_object
-            )
-        # Assuming the response object has a 'text' attribute for the transcript
-        transcript = transcript_response.text
-        logger.info(f"Task {task_id}: STT successful. Transcript length: {len(transcript)} chars.")
-        return transcript
-    except Exception as e: # Catch any OpenAI API errors or other issues
-        logger.error(f"Task {task_id}: OpenAI Whisper STT failed for {audio_file_path}: {e}", exc_info=True)
+        return await _transcribe_with_retry()
+    except AuthenticationError: # Already logged, just ensure None is returned
+        return None
+    except Exception as e: # This catches errors after retries are exhausted or non-retryable ones not AuthenticationError
+        logger.error(f"Task {task_id}: OpenAI Whisper STT failed for {audio_file_path} after retries or due to non-retryable error: {e}", exc_info=True)
         return None
 
 async def create_notion_page_with_transcript(
@@ -397,89 +418,79 @@ async def create_notion_page_with_transcript(
         logger.warning(f"Task {task_id}: Notion client not available. Skipping Notion page creation.")
         return None
 
-    logger.info(f"Task {task_id}: Creating Notion page titled '{page_title}'.")
-
-    # Notion API has a limit of 2000 characters per text block and 100 blocks per append request.
-    # We'll split the transcript into paragraphs and create multiple blocks if needed.
-    # A simple approach: split by newline, then ensure each paragraph block is under 2000 chars.
-    # More sophisticated splitting might be needed for very long continuous text without newlines.
+    logger.info(f"Task {task_id}: Preparing to create Notion page titled '{page_title}'.")
 
     content_blocks = []
-    # Split transcript into paragraphs by double newlines, then by single if no double.
     paragraphs = transcript.split('\n\n')
-    if len(paragraphs) == 1 and '\n' in transcript: # If no double newlines, try single
+    if len(paragraphs) == 1 and '\n' in transcript:
         paragraphs = transcript.split('\n')
 
     for para in paragraphs:
         para = para.strip()
-        if not para: # Skip empty paragraphs
-            continue
-
-        # Ensure each paragraph chunk is under 2000 chars
-        # This is a simplification; Notion's "rich_text" object has the limit.
-        # For very long paragraphs, this might need to be chunked further.
-        for i in range(0, len(para), 1999): # Notion's limit is 2000 for rich_text content
+        if not para: continue
+        for i in range(0, len(para), 1999):
             chunk = para[i:i+1999]
-            content_blocks.append(
-                {
-                    "object": "block",
-                    "type": "paragraph",
-                    "paragraph": {
-                        "rich_text": [{"type": "text", "text": {"content": chunk}}]
-                    },
-                }
-            )
-            if len(content_blocks) >= 99: # API limit for children is 100 blocks
-                logger.warning(f"Task {task_id}: Reached near Notion block limit (99). Transcript might be truncated.")
-                break
-        if len(content_blocks) >= 99:
-            break
+            content_blocks.append({
+                "object": "block", "type": "paragraph",
+                "paragraph": {"rich_text": [{"type": "text", "text": {"content": chunk}}]}
+            })
+            if len(content_blocks) >= 99: break
+        if len(content_blocks) >= 99: break
 
-    if not content_blocks: # If transcript was empty or only whitespace
-        content_blocks.append(
-            {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": { "rich_text": [{"type": "text", "text": {"content": "(Transcript was empty)"}}]}
-            }
-        )
+    if not content_blocks:
+        content_blocks.append({
+            "object": "block", "type": "paragraph",
+            "paragraph": {"rich_text": [{"type": "text", "text": {"content": "(Transcript was empty)"}}]}
+        })
 
-    page_properties = {
-        "title": [{"type": "text", "text": {"content": page_title}}]
-    }
-
-    create_payload = {
-        "parent": {},
-        "properties": page_properties,
-        "children": content_blocks
-    }
+    page_properties = {"title": [{"type": "text", "text": {"content": page_title}}]}
+    create_payload = {"parent": {}, "properties": page_properties, "children": content_blocks}
 
     if notion_parent_page_id:
         create_payload["parent"] = {"page_id": notion_parent_page_id}
     else:
-        # If no parent_page_id, Notion API requires the parent to be a workspace.
-        # The notion-client library might handle this by default if parent is an empty dict,
-        # or one might need to specify "type": "workspace" and "workspace": True,
-        # but this usually means the page is created in the integration's private pages.
-        # For broader visibility, a parent_page_id is usually better.
-        # The SDK examples show `parent={"page_id": PARENT_PAGE_ID}` or `parent={"database_id": DATABASE_ID}`.
-        # Let's rely on the NOTION_PARENT_PAGE_ID being set for now. If not, this might fail or create a private page.
-        logger.warning(f"Task {task_id}: NOTION_PARENT_PAGE_ID not set. Attempting to create page in default location (may be private).")
-        # For creating in workspace root (typically private pages of the integration):
-        # The SDK handles parent: {} as creating a page that the integration owns.
-        # To make it accessible, it should be shared manually or created under a shared page.
+        logger.warning(f"Task {task_id}: NOTION_PARENT_PAGE_ID not set. Attempting to create page in default location.")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception) # Generic exception for network, will refine with specific Notion errors if possible
+    )
+    async def _create_page_with_retry():
+        try:
+            logger.info(f"Task {task_id}: Attempting to create Notion page (attempt {getattr(_create_page_with_retry, 'retry', {}).get('statistics', {}).get('attempt_number', 1)}).")
+            created_page = await notion_client.pages.create(**create_payload)
+            page_url = created_page.get("url")
+            logger.info(f"Task {task_id}: Notion page created successfully: {page_url}")
+            return page_url
+        except APIResponseError as e:
+            # Check if the error is retryable
+            retryable_notion_errors = [
+                APIErrorCode.RateLimited,
+                APIErrorCode.InternalServerError,
+                APIErrorCode.ServiceUnavailable, # Typically a 503
+                # ConflictError might be retryable if it's due to eventual consistency, but often indicates a logic issue.
+                # For now, not retrying on ConflictError unless specific use case arises.
+            ]
+            if e.code in retryable_notion_errors:
+                logger.warning(f"Task {task_id}: Notion APIResponseError (retryable - {e.code.value}) while creating page: {e}. Will retry.", exc_info=True)
+                raise # Re-raise to trigger tenacity retry
+            else:
+                logger.error(f"Task {task_id}: Notion APIResponseError (non-retryable - {e.code.value}) while creating page: {e}", exc_info=True)
+                raise # Re-raise to be caught by outer try-except as non-retryable
+        except Exception as e: # Other exceptions like network issues
+            logger.warning(f"Task {task_id}: Unexpected error during Notion page creation (will retry): {e}", exc_info=True)
+            raise # Re-raise to trigger tenacity retry
 
     try:
-        created_page = await notion_client.pages.create(**create_payload)
-        page_url = created_page.get("url")
-        logger.info(f"Task {task_id}: Notion page created successfully: {page_url}")
-        return page_url
-    except APIResponseError as e:
-        logger.error(f"Task {task_id}: Notion API error while creating page: {e}", exc_info=True)
+        return await _create_page_with_retry()
+    except APIResponseError as e: # Non-retryable APIResponseError after check inside retry func
+        # Error already logged with specifics
         return None
-    except Exception as e:
-        logger.error(f"Task {task_id}: Unexpected error while creating Notion page: {e}", exc_info=True)
+    except Exception as e: # Catches errors after retries are exhausted or other non-APIResponseErrors
+        logger.error(f"Task {task_id}: Failed to create Notion page after retries or due to non-retryable error: {e}", exc_info=True)
         return None
+
 
 async def append_to_notion_page(page_id: str, task_id: str, content_blocks: List[Dict]) -> bool:
     """
@@ -491,26 +502,49 @@ async def append_to_notion_page(page_id: str, task_id: str, content_blocks: List
         return False
     if not content_blocks:
         logger.info(f"Task {task_id}: No content blocks to append to page {page_id}.")
-        return True # Technically successful, as there was nothing to do.
+        return True
 
     logger.info(f"Task {task_id}: Appending {len(content_blocks)} blocks to Notion page {page_id}.")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception) # Generic for now, refined inside
+    )
+    async def _append_blocks_with_retry(block_batch: List[Dict]):
+        try:
+            attempt_num = getattr(_append_blocks_with_retry, 'retry', {}).get('statistics', {}).get('attempt_number', 1)
+            logger.info(f"Task {task_id}: Attempting to append {len(block_batch)} blocks to Notion page {page_id} (attempt {attempt_num}).")
+            await notion_client.blocks.children.append(block_id=page_id, children=block_batch)
+        except APIResponseError as e:
+            retryable_notion_errors = [
+                APIErrorCode.RateLimited, APIErrorCode.InternalServerError, APIErrorCode.ServiceUnavailable
+            ]
+            if e.code in retryable_notion_errors:
+                logger.warning(f"Task {task_id}: Notion APIResponseError (retryable - {e.code.value}) while appending to page {page_id}: {e}. Will retry batch.", exc_info=True)
+                raise
+            else:
+                logger.error(f"Task {task_id}: Notion APIResponseError (non-retryable - {e.code.value}) while appending to page {page_id}: {e}", exc_info=True)
+                raise # Non-retryable, caught by outer try-except
+        except Exception as e:
+            logger.warning(f"Task {task_id}: Unexpected error during Notion page append (will retry batch): {e}", exc_info=True)
+            raise
+
     try:
-        # The Notion API appends blocks in batches of up to 100.
-        # Need to handle if content_blocks has more than 100 items.
         for i in range(0, len(content_blocks), 100):
             batch = content_blocks[i:i+100]
-            await notion_client.blocks.children.append(block_id=page_id, children=batch)
-            if len(content_blocks) > 100 :
-                 logger.info(f"Task {task_id}: Appended batch {i//100 + 1} to Notion page {page_id}.")
-                 await asyncio.sleep(0.5) # Small delay if multiple batches to be kind to API rate limits
+            await _append_blocks_with_retry(batch) # Apply retry to each batch
+            if len(content_blocks) > 100:
+                logger.info(f"Task {task_id}: Appended batch starting at index {i} to Notion page {page_id}.")
+                await asyncio.sleep(0.5) # Small delay if multiple batches
 
-        logger.info(f"Task {task_id}: Successfully appended blocks to Notion page {page_id}.")
+        logger.info(f"Task {task_id}: Successfully appended all blocks to Notion page {page_id}.")
         return True
-    except APIResponseError as e:
-        logger.error(f"Task {task_id}: Notion API error while appending to page {page_id}: {e}", exc_info=True)
+    except APIResponseError as e: # Non-retryable APIResponseError
+        # Error already logged from within retry logic
         return False
-    except Exception as e:
-        logger.error(f"Task {task_id}: Unexpected error while appending to Notion page {page_id}: {e}", exc_info=True)
+    except Exception as e: # Catches errors after retries on a batch are exhausted
+        logger.error(f"Task {task_id}: Failed to append blocks to Notion page {page_id} after retries: {e}", exc_info=True)
         return False
 
 async def _call_openai_chat_completion(task_id: str, system_message: str, user_message: str, model: str = "gpt-3.5-turbo") -> Optional[str]:
@@ -518,22 +552,43 @@ async def _call_openai_chat_completion(task_id: str, system_message: str, user_m
     if not openai_client:
         logger.warning(f"Task {task_id}: OpenAI client not available. Skipping LLM call.")
         return None
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((APIError, RateLimitError, APIConnectionError))
+    )
+    async def _chat_completion_with_retry():
+        try:
+            logger.info(f"Task {task_id}: Calling OpenAI Chat Completion API with model {model} (attempt {getattr(_chat_completion_with_retry, 'retry', {}).get('statistics', {}).get('attempt_number', 1)}).")
+            response = await asyncio.to_thread(
+                openai_client.chat.completions.create,
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_message},
+                ],
+                temperature=0.3, # Lower temperature for more factual/deterministic output
+            )
+            content = response.choices[0].message.content
+            logger.info(f"Task {task_id}: LLM call successful. Response length: {len(content or '')} chars.")
+            return content.strip() if content else None
+        except AuthenticationError as e:
+            logger.error(f"Task {task_id}: OpenAI AuthenticationError during chat completion: {e}. Will not retry.", exc_info=True)
+            raise
+        except APIError as e: # Retryable errors
+            logger.warning(f"Task {task_id}: OpenAI APIError during chat completion (will retry if applicable): {e}", exc_info=True)
+            raise
+        except Exception as e: # Other unexpected errors
+            logger.error(f"Task {task_id}: Unexpected error during chat completion attempt: {e}", exc_info=True)
+            raise
+
     try:
-        logger.info(f"Task {task_id}: Calling OpenAI Chat Completion API with model {model}.")
-        response = await asyncio.to_thread(
-            openai_client.chat.completions.create,
-            model=model,
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=0.3, # Lower temperature for more factual/deterministic output
-        )
-        content = response.choices[0].message.content
-        logger.info(f"Task {task_id}: LLM call successful. Response length: {len(content or '')} chars.")
-        return content.strip() if content else None
-    except Exception as e:
-        logger.error(f"Task {task_id}: OpenAI Chat Completion API call failed: {e}", exc_info=True)
+        return await _chat_completion_with_retry()
+    except AuthenticationError: # Already logged
+        return None
+    except Exception as e: # Catches errors after retries or non-retryable ones
+        logger.error(f"Task {task_id}: OpenAI Chat Completion API call failed for model {model} after retries or due to non-retryable error: {e}", exc_info=True)
         return None
 
 async def get_llm_summary(transcript: str, task_id: str) -> Optional[str]:
@@ -727,43 +782,37 @@ async def audio_capture_loop(task: MeetingTask):
             if transcript:
                 task.transcript_preview = transcript # Store full transcript here for now
                 task.message = "Transcription successful."
-                # task.final_notes_location could store path to a text file with transcript if saved separately
                 logger.info(f"Task {task.task_id}: Transcription successful.")
-            else:
-                task.message = "Transcription failed or was skipped. Audio file available."
-                # task.status could be set to a specific STT_FAILED status if needed
-                logger.warning(f"Task {task.task_id}: Transcription failed or skipped for {task._audio_file_path}.")
 
-            notion_page_id_for_appends = None
-            # Attempt to create Notion page with the transcript first
-            if transcript:
                 logger.info(f"Task {task.task_id}: Attempting to create Notion page with title '{task.notion_page_title}' for transcript.")
                 page_url = await create_notion_page_with_transcript(
                     task_id=task.task_id,
-                    page_title=task.notion_page_title, # Initial page title
+                    page_title=task.notion_page_title,
                     transcript=transcript
                 )
+
                 if page_url:
-                    task.final_notes_location = page_url # This is the main page URL
+                    task.final_notes_location = page_url
                     task.message += f" Transcript saved to Notion: {page_url}."
                     logger.info(f"Task {task.task_id}: Successfully saved transcript to Notion: {page_url}")
+
+                    notion_page_id_for_appends = None
                     try: # Extract page_id from URL for appending
                         notion_page_id_for_appends = page_url.split('/')[-1].split('-')[-1]
-                        if not notion_page_id_for_appends or len(notion_page_id_for_appends) < 32: # Basic check for UUID-like ID
-                             notion_page_id_for_appends = page_url.split('-')[-1] # Try another common pattern if first failed
+                        if not notion_page_id_for_appends or len(notion_page_id_for_appends) < 32:
+                             notion_page_id_for_appends = page_url.split('-')[-1]
                              if not notion_page_id_for_appends or len(notion_page_id_for_appends) < 32:
                                 notion_page_id_for_appends = None
                                 logger.error(f"Task {task.task_id}: Could not reliably extract page_id from URL {page_url} for appends.")
-
                     except Exception as e_parse_id:
                         logger.error(f"Task {task.task_id}: Error parsing page_id from URL {page_url}: {e_parse_id}")
                         notion_page_id_for_appends = None
 
                     if notion_page_id_for_appends:
-                        # 1. Get Summary
+                        # LLM processing and appending to Notion
                         summary = await get_llm_summary(transcript, task.task_id)
                         if summary:
-                            task.notes_preview = summary[:200] + "..." if len(summary) > 200 else summary # Update notes_preview with summary
+                            task.notes_preview = summary[:200] + "..." if len(summary) > 200 else summary
                             summary_blocks = [
                                 {"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Summary"}}]}},
                                 {"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": summary}}]}}
@@ -771,22 +820,19 @@ async def audio_capture_loop(task: MeetingTask):
                             if await append_to_notion_page(notion_page_id_for_appends, task.task_id, summary_blocks):
                                 task.message += " Summary added to Notion."
                             else:
-                                task.message += " Failed to add summary to Notion."
+                                task.message += " Failed to add summary to Notion. Some content may be missing."
 
-                        # 2. Get Decisions
                         decisions = await get_llm_decisions(transcript, task.task_id)
                         if decisions:
                             decision_blocks = [
                                 {"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Key Decisions"}}]}},
-                                # Assuming decisions are already bulleted by LLM, split into individual bullet points
                                 *[{"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": item.strip("- ")}}]}} for item in decisions.split('\n') if item.strip("- ")]
                             ]
                             if await append_to_notion_page(notion_page_id_for_appends, task.task_id, decision_blocks):
                                 task.message += " Decisions added to Notion."
                             else:
-                                task.message += " Failed to add decisions to Notion."
+                                task.message += " Failed to add decisions to Notion. Some content may be missing."
 
-                        # 3. Get Action Items
                         action_items = await get_llm_action_items(transcript, task.task_id)
                         if action_items:
                             action_item_blocks = [
@@ -796,24 +842,31 @@ async def audio_capture_loop(task: MeetingTask):
                             if await append_to_notion_page(notion_page_id_for_appends, task.task_id, action_item_blocks):
                                 task.message += " Action items added to Notion."
                             else:
-                                task.message += " Failed to add action items to Notion."
-                else: # Initial page creation failed
-                    task.message += " Failed to save transcript to Notion."
-                    logger.error(f"Task {task.task_id}: Failed to create initial Notion page for transcript.")
+                                task.message += " Failed to add action items to Notion. Some content may be missing."
 
-            # Transition to COMPLETED after STT and all Notion attempts
-            task.status = TaskStatus.COMPLETED
-            task.message += " Task completed."
+                        task.status = TaskStatus.COMPLETED
+                        task.message += " Task completed."
+                    else: # Could not extract page_id for appends
+                        task.status = TaskStatus.ERROR # Or COMPLETED_WITH_ISSUES if we add such a status
+                        task.message += " Could not extract Notion page ID for appends. LLM notes not added."
+                        logger.error(f"Task {task.task_id}: Could not extract Notion page_id from {page_url}. LLM content not appended.")
+                else: # Initial Notion page creation failed
+                    task.status = TaskStatus.ERROR
+                    task.message = "Transcription successful, but failed to create Notion page. LLM analysis not performed or stored."
+                    logger.error(f"Task {task.task_id}: Failed to create initial Notion page for transcript. Transcript available in preview.")
+            else: # Transcription failed
+                task.status = TaskStatus.ERROR
+                task.message = "Transcription failed after retries. No Notion page created or LLM analysis performed."
+                logger.error(f"Task {task.task_id}: Transcription failed for {task._audio_file_path}. Further processing halted.")
 
-        elif task.status == TaskStatus.ERROR:
-            logger.error(f"Task {task.task_id}: Task ended with error before STT/Notion/LLM. Status: {task.status}, Message: {task.message}")
-            # No STT attempt if already in error
-        else: # PENDING or other unexpected states
-            logger.warning(f"Task {task.task_id}: Task in unexpected state {task.status} at STT phase. Marking completed without STT.")
-            task.status = TaskStatus.COMPLETED
-            task.message = (task.message or "") + " Task finalized without STT due to prior state."
+        elif task.status == TaskStatus.ERROR: # Error occurred before STT/Notion/LLM part
+            logger.error(f"Task {task.task_id}: Task ended with error before STT/Notion/LLM processing. Status: {task.status}, Message: {task.message}")
+        else: # Should not happen if status was ACTIVE or PROCESSING_COMPLETION before this block
+            logger.warning(f"Task {task.task_id}: Task in unexpected state {task.status} at STT/Notion/LLM phase. Marking as error.")
+            task.status = TaskStatus.ERROR
+            task.message = (task.message or "") + " Task finalized with error due to unexpected state before STT."
 
-        logger.info(f"Task {task.task_id}: Final processing complete. Final status: {task.status}")
+        logger.info(f"Task {task.task_id}: Final processing complete. Final status for DB: {task.status}")
 
         # Clean up internal attributes not meant for external model
         task._audio_stream_object = None
