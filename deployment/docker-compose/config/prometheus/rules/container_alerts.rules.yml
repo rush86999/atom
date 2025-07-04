@@ -1,0 +1,74 @@
+groups:
+- name: container_resource_alerts
+  rules:
+  # Alert for high CPU usage relative to any defined CPU quota/limit
+  # This specific PromQL query for CPU percentage might need adjustment based on cAdvisor version and whether quotas are set.
+  # A more general approach if limits are not consistently set might be:
+  # (avg by (compose_service, name) (rate(container_cpu_usage_seconds_total{image!=""}[2m])) * 100) > 85
+  - alert: ContainerCPUHighNoLimitCheck
+    expr: (avg by (name, compose_service) (rate(container_cpu_usage_seconds_total{image!=""}[2m])) * 100) > 85
+    for: 5m
+    labels:
+      severity: warning
+      source: cadvisor
+    annotations:
+      summary: "Container CPU Usage High ({{ $labels.compose_service }}/{{ $labels.name }})"
+      description: "Container {{ $labels.name }} (service {{ $labels.compose_service }}) CPU usage is {{ $value | printf \"%.2f\" }}% for the last 5 minutes."
+
+  # Alert for high memory usage if memory limits are set
+  - alert: ContainerMemoryHighWithLimit
+    expr: (container_memory_working_set_bytes{image!="", container_label_com_docker_compose_service!=""} / container_spec_memory_limit_bytes{image!="", container_label_com_docker_compose_service!=""} * 100) > 85
+    for: 5m
+    labels:
+      severity: warning
+      source: cadvisor
+    annotations:
+      summary: "Container Memory Usage High ({{ $labels.compose_service }}/{{ $labels.name }})"
+      description: "Container {{ $labels.name }} (service {{ $labels.compose_service }}) memory usage is at {{ $value | printf \"%.2f\" }}% of its limit for 5 minutes."
+      value: "{{ $value }}%"
+      limit: "{{ मानव(container_spec_memory_limit_bytes{image!=\"\", name=\".+\"}) }}" # Human readable limit
+
+  # Alert for high memory usage (absolute) if no limits are set or as a fallback
+  # Adjust the threshold (e.g., 1.5GB shown here) based on typical container sizes and host capacity
+  - alert: ContainerMemoryHighAbsolute
+    expr: container_memory_working_set_bytes{image!="", container_label_com_docker_compose_service!=""} > 1.5*1024*1024*1024 # e.g., 1.5 GiB
+    for: 5m
+    labels:
+      severity: warning
+      source: cadvisor
+    annotations:
+      summary: "Container Memory Usage High - Absolute ({{ $labels.compose_service }}/{{ $labels.name }})"
+      description: "Container {{ $labels.name }} (service {{ $labels.compose_service }}) memory usage is {{ $value | मानव }} for 5 minutes." # Human readable value
+
+  - alert: ContainerRestarting
+    # This alerts if a container (with a name and image) has restarted 2 or more times in the last 15 minutes.
+    expr: changes(container_restarts_total{image!="", name=~".+"}[15m]) >= 2
+    for: 1m # Fire if condition holds for 1m to avoid flapping for a single, isolated restart event that quickly resolves.
+    labels:
+      severity: critical
+      source: cadvisor
+    annotations:
+      summary: "Container Restarting Frequently ({{ $labels.compose_service }}/{{ $labels.name }})"
+      description: "Container {{ $labels.name }} (service {{ $labels.compose_service }}) has restarted {{ $value }} times in the last 15 minutes."
+
+- name: prometheus_monitoring_alerts
+  rules:
+  - alert: PrometheusTargetMissing
+    expr: up == 0
+    for: 5m
+    labels:
+      severity: critical
+      source: prometheus
+    annotations:
+      summary: "Prometheus Target Missing ({{ $labels.job }}/{{ $labels.instance }})"
+      description: "Prometheus target {{ $labels.job }} (instance {{ $labels.instance }}) has been down for more than 5 minutes."
+
+  - alert: PrometheusErrorScrapingTarget
+    expr: scrape_samples_scraped < 1
+    for: 5m
+    labels:
+      severity: warning
+      source: prometheus
+    annotations:
+      summary: "Prometheus Error Scraping Target ({{ $labels.job }}/{{ $labels.instance }})"
+      description: "Prometheus failed to scrape any samples from target {{ $labels.job }} (instance {{ $labels.instance }}) for 5 minutes."

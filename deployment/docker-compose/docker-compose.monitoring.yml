@@ -1,0 +1,127 @@
+version: '3.8'
+
+volumes:
+  prometheus_data: {}
+  alertmanager_data: {}
+
+networks:
+  # Using the same network as defined in docker-compose.logging.yml
+  # to allow Grafana (from logging stack) to easily reach Prometheus.
+  # Application containers would also need to be on this network if Prometheus
+  # is to scrape them directly via service discovery based on this network.
+  observability_net:
+    driver: bridge
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.47.2 # Use a specific recent version
+    container_name: prometheus
+    ports:
+      - "9090:9090" # Prometheus UI and API
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/rules:/etc/prometheus/rules # Mount directory for rule files
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d' # Example: 30-day retention for metrics
+      - '--web.enable-lifecycle' # To allow config reload via HTTP POST
+    networks:
+      - observability_net
+    restart: unless-stopped
+    # deploy: # Optional: Resource limits
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: '1G'
+    depends_on:
+      - cadvisor # Ensure cadvisor is available for scraping
+      - alertmanager # Ensure alertmanager is available
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0 # Use a specific recent version
+    container_name: alertmanager
+    ports:
+      - "9093:9093" # Alertmanager UI and API
+    volumes:
+      - ./config/alertmanager/alertmanager.yml:/etc/alertmanager/config.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - observability_net
+    restart: unless-stopped
+    # deploy: # Optional: Resource limits
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: '256M'
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2 # Use a specific recent version
+    container_name: cadvisor
+    # ports: # cAdvisor UI is on 8080, usually not exposed externally if Prometheus scrapes it internally.
+      # - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw # Changed to rw as cAdvisor might need to write temp files or interact more actively with the socket
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      # For systems with cgroup v2, you might need:
+      # - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    # privileged: true # Often required for cAdvisor to access necessary host information. Use with caution and understanding.
+    # If not using privileged, ensure the Docker user has access to the Docker socket and necessary /sys paths.
+    # For broader compatibility, privileged:true is often used with cAdvisor in examples.
+    # Consider security implications.
+    devices: # Optional, for disk I/O stats on some systems
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - observability_net # So Prometheus can scrape it
+    restart: unless-stopped
+    # deploy: # Optional: Resource limits
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: '512M'
+
+  # node_exporter (Optional - for host metrics, if you want to monitor the VPS itself)
+  # node_exporter:
+  #   image: prom/node-exporter:v1.6.1
+  #   container_name: node_exporter
+  #   ports:
+  #     - "9100:9100"
+  #   volumes:
+  #     - /proc:/host/proc:ro
+  #     - /sys:/host/sys:ro
+  #     - /:/rootfs:ro
+  #   command:
+  #     - '--path.procfs=/host/proc'
+  #     - '--path.sysfs=/host/sys'
+  #     - '--path.rootfs=/rootfs'
+  #     - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
+  #   pid: host # If you want process metrics from the host namespace
+  #   networks:
+  #     - observability_net
+  #   restart: unless-stopped
+  #   # deploy: # Optional: Resource limits
+  #   #   resources:
+  #   #     limits:
+  #   #       cpus: '0.2'
+  #   #       memory: '128M'
+
+# Note: Grafana service is defined in docker-compose.logging.yml.
+# Ensure Grafana can reach Prometheus on observability_net (e.g., by adding Grafana to this network too,
+# or ensuring observability_net is the same as logging_net or they are otherwise connected).
+# If docker-compose.logging.yml defines 'logging_net' and this file defines 'observability_net'
+# and Grafana needs to reach Prometheus, Grafana would need to be on both, or these should be the same network.
+# For simplicity, this example assumes 'observability_net' will be used by Grafana as well if both logging & monitoring are up.
+# Alternatively, if Grafana is on 'logging_net' and Prometheus on 'observability_net', they won't see each other
+# unless one container joins both networks or the networks are the same.
+# The LOGGING_GUIDE.md used 'observability_net' for Grafana as well, so this should align.
+# The `docker-compose.logging.yml` was updated to use `observability_net`.
+```
+A quick review of the `docker-compose.logging.yml` I created earlier shows I used `observability_net` there too, so this is consistent. I also changed `/var/run` to `rw` for cAdvisor as some setups require it, though `ro` is safer if it works. `privileged: true` for cAdvisor is often needed; I've kept it commented out but noted its common use.
