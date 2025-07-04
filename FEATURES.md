@@ -71,10 +71,10 @@ Keep your knowledge organized and accessible with Atom's integrated capabilities
     *   **Backend Process:** The Atom agent sends your query to a Python backend service. This service generates an embedding for your query (using an AI model like OpenAI) and then searches the LanceDB database for the most similar transcript chunks corresponding to your user ID.
     *   **Results:** Atom displays relevant meeting titles, dates, and links to the Notion pages containing the full context.
     *   **Dependencies:**
-        *   A running LanceDB instance (configure its URI via `LANCEDB_URI` for the Python backend).
-        *   An `OPENAI_API_KEY` (configured for the Python backend) for generating query embeddings and potentially for embedding transcripts if not done elsewhere.
-        *   The Python backend service (e.g., `python-api-service`, configured via `PYTHON_API_SERVICE_BASE_URL` for the `atom-agent`) must be operational and expose an endpoint like `/api/semantic_search_meetings`.
-        *   A pipeline for ingesting meeting transcripts into Notion and then processing them into LanceDB (details of this ingestion pipeline are TBD or part of a separate setup).
+        *   A running LanceDB instance (configure its URI via `LANCEDB_URI`).
+        *   An `OPENAI_API_KEY` for generating query embeddings and for the ingestion pipeline to embed transcripts.
+        *   The Python backend service (e.g., `python-api-service` or `functions`, configured via `PYTHON_API_SERVICE_BASE_URL` for the `atom-agent`) must be operational and expose an endpoint like `/api/semantic_search_meetings` for querying.
+        *   **Ingestion Pipeline:** A dedicated Ingestion Pipeline service (`ingestion-pipeline-service`) is now implemented. This service reads transcripts/notes from a configured Notion database (via `NOTION_TRANSCRIPTS_DATABASE_ID`), processes the text into chunks, generates embeddings using OpenAI, and stores them in LanceDB. It can be triggered via its API or run on a schedule. See `docs/ingestion_pipeline_guide.md` for setup and operational details. This pipeline ensures that data in Notion is made available for semantic search.
 
 ### Automation & AI Capabilities
 Leverage Atom's advanced automation and AI functionalities:

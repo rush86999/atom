@@ -544,6 +544,46 @@ services:
       # is mounted to '/app/project' in container. This aligns with Dockerfile's COPY destination.
     tty: true
     stdin_open: true
+    volumes:
+      # Mount the local project directory into the container for development
+      # This allows code changes to be reflected without rebuilding the image.
+      # For testing the image itself, this volume mount should be commented out.
+      - .:/app/project
+      # The Dockerfile copies ../project to /app/project.
+      # If this volume mount is './:/app/project', it means 'atomic-docker/project/' on host
+      # is mounted to '/app/project' in container. This aligns with Dockerfile's COPY destination.
+
+      # Mount shared LanceDB data volume
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data # Mount to /lancedb_data
+
+  ingestion-pipeline-service:
+    build:
+      context: ../python-api/ingestion_pipeline
+      dockerfile: Dockerfile
+    container_name: ingestion-pipeline-service
+    restart: unless-stopped
+    depends_on:
+      - functions # Example dependency, adjust as needed
+    environment:
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - NOTION_TRANSCRIPTS_DATABASE_ID=${NOTION_TRANSCRIPTS_DATABASE_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db # Points to the mounted volume + DB name
+      - ATOM_USER_ID_FOR_INGESTION=${ATOM_USER_ID_FOR_INGESTION:-default_atom_user_pipeline}
+      - PROCESSING_MODE=${PROCESSING_MODE:-incremental}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount the shared LanceDB data volume
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+    ports:
+      - "8002:8002" # Expose for triggering, can be removed if triggered internally
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/ingestion-status || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   project_node_modules:
