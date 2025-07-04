@@ -8,13 +8,13 @@ The goal is to ensure all application and service logs are centrally collected, 
 
 **1.1. CloudWatch Logs Configuration (CDK Enhancements)**
 
-*   **Log Groups:** Each ECS Fargate service currently logs to a dedicated CloudWatch Log Group (e.g., `/aws/ecs/<CLUSTER_NAME>/<SERVICE_NAME>`). This practice will be maintained.
-*   **Log Retention:**
-    *   **Action:** Implement a default log retention period for all application log groups in `aws-stack.ts`.
-    *   **Recommendation:** Start with `logs.RetentionDays.ONE_MONTH` or `logs.RetentionDays.THREE_MONTHS`. This should be configurable if needed for different environments or specific log groups in the future.
-*   **Log Group Removal Policy:**
-    *   **Action:** Modify `aws-stack.ts` to conditionally set the `removalPolicy` for log groups.
-    *   **Recommendation:** Use `cdk.RemovalPolicy.RETAIN` for production environments to prevent accidental log loss. For development/testing environments, `cdk.RemovalPolicy.DESTROY` can remain the default.
+*   **Log Groups:** Each ECS Fargate service logs to a dedicated CloudWatch Log Group (e.g., `/aws/ecs/<CLUSTER_NAME>/<SERVICE_NAME>`).
+*   **Log Retention (Implemented):**
+    *   All ECS service log groups in `aws-stack.ts` are now configured with a default retention period (e.g., `logs.RetentionDays.ONE_MONTH`).
+*   **Log Group Removal Policy (Implemented):**
+    *   The `removalPolicy` for ECS service log groups in `aws-stack.ts` is now conditionally set based on the `DeploymentStage` CloudFormation parameter:
+        *   `cdk.RemovalPolicy.RETAIN` for production (`prod` stage).
+        *   `cdk.RemovalPolicy.DESTROY` for non-production stages (`dev`, `staging`).
 *   **Application Log Formatting (Guidance):**
     *   **Recommendation:** Applications running within containers should be configured to output logs in a **structured JSON format**. This significantly enhances searchability and analysis in CloudWatch Log Insights and other tools.
     *   **Example JSON Structure:**

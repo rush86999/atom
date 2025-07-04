@@ -38,6 +38,7 @@ nagPack.addReasonToSuppress(awsStack, 'AwsSolutions-RDS11', 'Using standard DB p
 nagPack.addReasonToSuppress(awsStack, 'AwsSolutions-EC23', 'Restricting all security group egress is a larger hardening task deferred for now.');
 nagPack.addReasonToSuppress(awsStack, 'AwsSolutions-ECS2', 'Read-only root filesystem for ECS tasks requires per-service analysis and is deferred.');
 nagPack.addReasonToSuppress(awsStack, 'AwsSolutions-EFS3', 'EFS default encryption (AWS-managed KMS key) is considered sufficient for this phase.');
+nagPack.addReasonToSuppress(awsStack, 'AwsSolutions-LOG1', 'CloudWatch Log groups are not encrypted with KMS by default in this stack; using default AWS-managed encryption.');
 
 // Specific suppressions might be needed on constructs within aws-stack.ts if global ones are too broad.
 // For example, for IAM5 on specific roles if a wildcard is justified for a specific AWS-managed policy scenario.

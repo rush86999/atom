@@ -101,9 +101,22 @@ export class AwsStack extends cdk.Stack {
       allowedPattern: ".+@.+\\..+", // Basic email pattern validation
     });
 
+    const deploymentStageParameter = new cdk.CfnParameter(this, "DeploymentStage", {
+      type: "String",
+      description: "The deployment stage for this stack (dev, staging, prod). Affects resource retention policies and other stage-specific configurations.",
+      allowedValues: ["dev", "staging", "prod"],
+      default: "dev",
+    });
+
     const domainName = domainNameParameter.valueAsString;
     const certificateArn = certificateArnParameter.valueAsString;
     const operatorEmail = operatorEmailParameter.valueAsString;
+    const deploymentStage = deploymentStageParameter.valueAsString;
+
+    // Condition for Production Stage
+    const isProdStageCondition = new cdk.CfnCondition(this, 'IsProdStageCondition', {
+      expression: cdk.Fn.conditionEquals(deploymentStage, 'prod'),
+    });
 
     // SNS Topic for Alarms
     const alarmTopic = new sns.Topic(this, 'AlarmTopic', {
@@ -666,7 +679,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'supertokens-ecs',
         logGroup: new logs.LogGroup(this, 'SupertokensLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/supertokens`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy, // Cast needed as conditionIf returns IResolvable
         }),
       }),
       environment: {
@@ -760,7 +778,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'hasura-ecs',
         logGroup: new logs.LogGroup(this, 'HasuraLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/hasura`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -857,7 +880,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'functions-ecs',
         logGroup: new logs.LogGroup(this, 'FunctionsLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/functions`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -980,7 +1008,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'app-ecs',
         logGroup: new logs.LogGroup(this, 'AppLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/app`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1099,7 +1132,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'handshake-ecs',
         logGroup: new logs.LogGroup(this, 'HandshakeLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/handshake`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1180,7 +1218,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'oauth-ecs',
         logGroup: new logs.LogGroup(this, 'OAuthLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/oauth`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1254,7 +1297,18 @@ export class AwsStack extends cdk.Stack {
 
     optaplannerTaskDef.addContainer('OptaplannerContainer', {
       image: ecs.ContainerImage.fromEcrRepository(this.optaplannerRepo),
-      logging: ecs.LogDrivers.awsLogs({ streamPrefix: `${this.stackName}/optaplanner`, logGroup: new logs.LogGroup(this, 'OptaplannerLogGroup', { logGroupName: `/aws/ecs/${this.cluster.clusterName}/optaplanner`, removalPolicy: cdk.RemovalPolicy.DESTROY }) }),
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: `${this.stackName}/optaplanner`,
+        logGroup: new logs.LogGroup(this, 'OptaplannerLogGroup', {
+          logGroupName: `/aws/ecs/${this.cluster.clusterName}/optaplanner`,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
+        })
+      }),
       environment: {
         QUARKUS_DATASOURCE_DB_KIND: 'postgresql',
         USERNAME: 'admin', // Hardcoded as per subtask note
@@ -1340,7 +1394,12 @@ export class AwsStack extends cdk.Stack {
         streamPrefix: 'python-agent-ecs',
         logGroup: new logs.LogGroup(this, 'PythonAgentLogGroup', {
           logGroupName: `/aws/ecs/${this.cluster.clusterName}/python-agent`,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
+          retention: logs.RetentionDays.ONE_MONTH,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
         }),
       }),
       environment: {
