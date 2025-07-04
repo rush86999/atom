@@ -14,6 +14,7 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
 *   **Scalable and Reliable Database:** Uses Amazon RDS for PostgreSQL (defaulting to `db.t3.small`), configured for Multi-AZ deployment for high availability. Automated backups are enabled with a 14-day retention period, and deletion protection is active to prevent accidental database loss. For highly variable workloads, consider evaluating Amazon Aurora Serverless v2 as an alternative to the provisioned RDS instance.
 *   **Networking:** A dedicated VPC with public and private subnets is created. An Application Load Balancer (ALB) distributes incoming traffic to the services.
 *   **Security:** IAM roles and security groups are defined to ensure secure communication between services. Secrets are managed using AWS Secrets Manager.
+*   **Centralized Logging:** ECS services are configured to send logs to dedicated CloudWatch Log Groups. Log retention is set to a default period (e.g., 30 days), and log group removal policies are stage-dependent (`RETAIN` for production, `DESTROY` for non-production) based on the `DeploymentStage` parameter.
 *   **Persistent Storage:** Amazon S3 is used for general data storage, and Amazon EFS is used for persistent storage for services like LanceDB (used by the Python agent).
 
 ## Prerequisites
@@ -163,14 +164,14 @@ All HTTP traffic to the ALB is automatically redirected to HTTPS.
 
 ### CloudFormation Parameters
 
-When deploying or updating the CloudFormation stack, you will be prompted for the following parameters related to HTTPS and domain configuration:
+When deploying or updating the CloudFormation stack, you will be prompted for the following parameters related to general deployment, HTTPS, alerting, and stage-specific configurations:
 
-*   `DomainName` (String, Required): The custom domain name you want to use for the application (e.g., `app.yourcompany.com`). The application will be accessible via `https://<DomainName>`.
-*   `CertificateArn` (String, Optional): The Amazon Resource Name (ARN) of an existing ACM certificate.
-    *   **If you provide a valid ARN:** This certificate will be used for the ALB's HTTPS listener. The certificate must be in the **us-east-1 region if you are using a CloudFront distribution** (not currently part of this stack but a common pattern). For ALBs, the certificate must be in the **same region as the ALB**. Ensure the certificate covers the `DomainName` you specified.
-    *   **If you leave this blank:** The stack will attempt to create a new ACM certificate for the `DomainName`.
+*   `DeploymentStage` (String, Required, Default: `dev`): Specifies the deployment stage (`dev`, `staging`, `prod`). This affects resource retention policies (like log group removal) and can be used for other stage-specific settings.
+*   `DomainName` (String, Required): The custom domain name for the application (e.g., `app.yourcompany.com`).
+*   `CertificateArn` (String, Optional, Default: ""): ARN of an existing ACM certificate for the `DomainName`. If blank, a new certificate will be attempted. The certificate must be in the same region as the ALB.
+*   `OperatorEmail` (String, Required): Email address for operational alerts from CloudWatch Alarms via an SNS topic. You must confirm the SNS subscription sent to this email.
 
-### Prerequisites for New Certificate Creation (if CertificateArn is not provided)
+### Prerequisites for New Certificate Creation (if `CertificateArn` is not provided)
 
 *   **Route 53 Hosted Zone:** For automatic DNS validation of a new certificate, a public hosted zone must exist in AWS Route 53 for the domain or its parent domain. For example, if `DomainName` is `app.example.com`, a hosted zone for `example.com` should exist in Route 53 in the same AWS account and region where you are deploying this stack.
 *   **Manual DNS Validation (Alternative):** If the domain is not managed by Route 53 in the deployment account/region, or if automated validation fails, the certificate status will be "Pending validation." You will need to manually create the required CNAME records in your DNS provider's console. You can find these CNAME records in the AWS Certificate Manager console for the newly created certificate. The stack deployment might pause or complete with the certificate pending until DNS validation is successful.
@@ -216,7 +217,10 @@ The following CloudWatch Alarms are configured by default:
 
 **1. Application Load Balancer (ALB) Alarms:**
     *   **High 5XX Errors:** Triggers if the ALB experiences 5 or more HTTP 5XX server-side errors within a 5-minute period.
-    *   **Unhealthy Hosts (per Target Group):** Triggers if any of the following target groups have more than 0 unhealthy hosts for 2 consecutive 5-minute periods:
+    *   **Unhealthy Hosts (per Target Group):** Triggers if any of the following target groups have more than 0 unhealthy hosts for 2 consecutive 5-minute periods (10 minutes total).
+    *   **High Target 5XX Errors (per Target Group):** Triggers if a target group experiences 3 or more HTTP 5XX errors (generated by the service) within a 5-minute period.
+    *   **High Target Latency (per Target Group):** Triggers if the 90th percentile (P90) response time for a target group exceeds a threshold (e.g., 1-2 seconds, service-dependent) for 15 minutes.
+    *   Target Groups Monitored:
         *   App Service Target Group
         *   Supertokens Service Target Group
         *   Hasura Service Target Group
@@ -236,5 +240,6 @@ The following CloudWatch Alarms are configured by default:
     *   **High CPU Utilization:** Triggers if the average CPU utilization of the RDS database instance exceeds 85% for a continuous 15-minute period.
     *   **Low Free Storage Space:** Triggers if the available storage space on the RDS instance drops below 10GB.
     *   **Low Freeable Memory:** Triggers if the freeable memory on the RDS instance drops below 200MB for a continuous 10-minute period.
+    *   **High Database Connections:** Triggers if the average number of database connections exceeds a threshold (e.g., 150 for `db.t3.small`) for 15 minutes.
 
 These alarms provide a foundational level of monitoring. You can extend this by adding more specific alarms or integrating with more advanced monitoring solutions as needed.

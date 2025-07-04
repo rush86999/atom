@@ -8,13 +8,13 @@ The goal is to ensure all application and service logs are centrally collected, 
 
 **1.1. CloudWatch Logs Configuration (CDK Enhancements)**
 
-*   **Log Groups:** Each ECS Fargate service currently logs to a dedicated CloudWatch Log Group (e.g., `/aws/ecs/<CLUSTER_NAME>/<SERVICE_NAME>`). This practice will be maintained.
-*   **Log Retention:**
-    *   **Action:** Implement a default log retention period for all application log groups in `aws-stack.ts`.
-    *   **Recommendation:** Start with `logs.RetentionDays.ONE_MONTH` or `logs.RetentionDays.THREE_MONTHS`. This should be configurable if needed for different environments or specific log groups in the future.
-*   **Log Group Removal Policy:**
-    *   **Action:** Modify `aws-stack.ts` to conditionally set the `removalPolicy` for log groups.
-    *   **Recommendation:** Use `cdk.RemovalPolicy.RETAIN` for production environments to prevent accidental log loss. For development/testing environments, `cdk.RemovalPolicy.DESTROY` can remain the default.
+*   **Log Groups:** Each ECS Fargate service logs to a dedicated CloudWatch Log Group (e.g., `/aws/ecs/<CLUSTER_NAME>/<SERVICE_NAME>`).
+*   **Log Retention (Implemented):**
+    *   All ECS service log groups in `aws-stack.ts` are now configured with a default retention period (e.g., `logs.RetentionDays.ONE_MONTH`).
+*   **Log Group Removal Policy (Implemented):**
+    *   The `removalPolicy` for ECS service log groups in `aws-stack.ts` is now conditionally set based on the `DeploymentStage` CloudFormation parameter:
+        *   `cdk.RemovalPolicy.RETAIN` for production (`prod` stage).
+        *   `cdk.RemovalPolicy.DESTROY` for non-production stages (`dev`, `staging`).
 *   **Application Log Formatting (Guidance):**
     *   **Recommendation:** Applications running within containers should be configured to output logs in a **structured JSON format**. This significantly enhances searchability and analysis in CloudWatch Log Insights and other tools.
     *   **Example JSON Structure:**
@@ -94,17 +94,17 @@ Two primary dashboards will be designed and implemented via CDK (`aws-cloudwatch
         *   Dependency Metrics: Key metrics from downstream services it calls.
         *   Embedded Log Insights query widget for recent errors of the service.
 
-## 3. Granular CloudWatch Alarms Strategy
+## 3. Granular CloudWatch Alarms Strategy (Now Implemented)
 
-Extending the basic alarms with more specific and application-aware alerts. All alarms will notify the existing SNS topic (`AlarmTopic`).
+The following granular alarms, extending the basic set, have been implemented in `aws-stack.ts`. They all notify the existing SNS topic (`AlarmTopic`).
 
-*   **ALB Alarms:**
-    *   Per-Target Group High 5XX Error Rate: `HTTPCode_Target_5XX_Count` (Sum >= N in 5 min).
-    *   Per-Target Group High Target Latency: `TargetResponseTime` (e.g., p90 > X seconds for Y minutes).
+*   **ALB Alarms (Per Target Group):**
+    *   **High Target 5XX Error Rate:** Monitors `HTTPCode_Target_5XX_Count` (Sum). Triggers if >= 3 errors in 5 minutes for each key service target group.
+    *   **High Target Latency:** Monitors `TargetResponseTime` (P90). Triggers if latency > 1 second (or 2s for Optaplanner) for 15 minutes for each key service target group.
 *   **ECS Service Alarms:**
-    *   (Requires Custom Metrics) Application-Specific Error Rate Alarms: Based on custom metrics like `MyApp/FailedOperationCount` or `MyApp/ErrorRate`.
+    *   *(Placeholder for future)* Application-Specific Error Rate Alarms: To be implemented once services publish relevant custom metrics (e.g., `MyApp/FailedOperationCount` or `MyApp/ErrorRate`).
 *   **RDS Instance Alarms:**
-    *   `DatabaseConnections` approaching instance maximum (e.g., >80% of max for 15-30 minutes).
+    *   **High Database Connections:** Monitors `DatabaseConnections` (Average). Triggers if > 150 connections for 15 minutes (initial threshold for `db.t3.small`, subject to tuning).
 
 ## 4. Distributed Tracing with AWS X-Ray (Evaluation & Phased Approach)
 
