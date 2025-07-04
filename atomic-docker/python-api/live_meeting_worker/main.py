@@ -11,6 +11,7 @@ import datetime
 import numpy as np # For handling audio data
 from openai import OpenAI # Import OpenAI library
 from notion_client import AsyncClient as NotionAsyncClient, APIResponseError # Import Notion Async Client and error type
+import aiosqlite # For async SQLite operations
 
 import sounddevice as sd
 from fastapi import FastAPI, HTTPException, Path, Body
@@ -27,6 +28,10 @@ CHANNELS = 1         # Mono
 DTYPE = 'int16'      # Data type for audio samples
 BLOCK_DURATION_MS = 500 # Duration of each audio block processed by the callback, in milliseconds
 TEMP_AUDIO_DIR = tempfile.gettempdir() # Or a dedicated temp dir within the app
+
+# --- Database Configuration ---
+DATABASE_URL = "/app/data/live_meeting_tasks.db" # Path within the container
+# Ensure the /app/data directory is created if it doesn't exist, will be handled in init_db
 
 # --- OpenAI Client Initialization ---
 # The API key will be read from the OPENAI_API_KEY environment variable by default by the library
@@ -116,9 +121,166 @@ class MeetingTask(BaseModel):
     class Config:
         arbitrary_types_allowed = True # To allow complex types like asyncio.Event, sd.InputStream
 
-# In-memory store for active tasks.
-# For production, consider Redis or another persistent/distributed cache.
-active_tasks: Dict[str, MeetingTask] = {}
+# --- Database Helper Functions ---
+
+# Fields to select for reconstructing MeetingTask from DB row
+MEETING_TASK_DB_FIELDS = [
+    "task_id", "user_id", "platform", "meeting_id", "audio_device_id",
+    "notion_page_title", "status", "message", "start_time", "end_time",
+    "duration_seconds", "transcript_preview", "notes_preview",
+    "final_transcript_location", "final_notes_location", "audio_file_path"
+]
+
+def _db_row_to_task_model(row: aiosqlite.Row) -> Optional[MeetingTask]:
+    if not row:
+        return None
+    # Convert row to dict
+    task_data = dict(row)
+    # Convert datetime strings back to datetime objects if they exist
+    if task_data.get("start_time"):
+        task_data["start_time"] = datetime.datetime.fromisoformat(task_data["start_time"])
+    if task_data.get("end_time"):
+        task_data["end_time"] = datetime.datetime.fromisoformat(task_data["end_time"])
+    # audio_device_id might be int or str, handle conversion if necessary (though TEXT in DB is fine)
+    # For now, assume it's stored as TEXT and can be used directly or converted by Pydantic if needed.
+    return MeetingTask(**task_data)
+
+async def add_task_to_db(task: MeetingTask):
+    async with get_db_connection() as db:
+        # Convert MeetingTask Pydantic model to a dict for DB insertion
+        # Exclude fields starting with '_' as they are internal runtime attributes
+        task_dict = task.model_dump(exclude_none=True, exclude={"_audio_stream_object", "_audio_stream_task", "_audio_file_writer", "_stop_event"})
+
+        # Convert datetime objects to ISO format strings for DB storage
+        if task_dict.get("start_time"):
+            task_dict["start_time"] = task_dict["start_time"].isoformat()
+        if task_dict.get("end_time"):
+            task_dict["end_time"] = task_dict["end_time"].isoformat()
+
+        # Ensure all fields from MEETING_TASK_DB_FIELDS are present, defaulting to None if missing
+        # This is important if task_dict from model_dump(exclude_none=True) omits some fields.
+        # However, the table schema allows NULLs for most, so direct insertion is fine.
+        # For insert, we need to ensure the order of values matches columns or use named placeholders.
+
+        columns = ', '.join(task_dict.keys())
+        placeholders = ', '.join('?' for _ in task_dict)
+        sql = f"INSERT INTO meeting_tasks ({columns}) VALUES ({placeholders})"
+
+        try:
+            await db.execute(sql, list(task_dict.values()))
+            await db.commit()
+            logger.info(f"Task {task.task_id} added to database.")
+        except Exception as e:
+            logger.error(f"Task {task.task_id}: Failed to add to database: {e}", exc_info=True)
+            # Depending on policy, might re-raise or handle
+            raise
+
+async def get_task_from_db(task_id: str) -> Optional[MeetingTask]:
+    async with get_db_connection() as db:
+        fields_str = ", ".join(MEETING_TASK_DB_FIELDS)
+        async with db.execute(f"SELECT {fields_str} FROM meeting_tasks WHERE task_id = ?", (task_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return _db_row_to_task_model(row)
+            return None
+
+async def update_task_in_db(task: MeetingTask):
+    async with get_db_connection() as db:
+        task_dict = task.model_dump(exclude_none=False, exclude={"_audio_stream_object", "_audio_stream_task", "_audio_file_writer", "_stop_event"})
+
+        if task_dict.get("start_time"):
+            task_dict["start_time"] = task_dict["start_time"].isoformat() if isinstance(task_dict["start_time"], datetime.datetime) else task_dict["start_time"]
+        if task_dict.get("end_time"):
+            task_dict["end_time"] = task_dict["end_time"].isoformat() if isinstance(task_dict["end_time"], datetime.datetime) else task_dict["end_time"]
+
+        # Ensure status is the string value of the enum
+        task_dict["status"] = task.status.value if isinstance(task.status, Enum) else task.status
+
+        # Prepare for UPDATE: remove task_id from fields to update, use it in WHERE
+        update_fields = {k: v for k, v in task_dict.items() if k != "task_id"}
+        set_clause = ', '.join(f"{key} = ?" for key in update_fields)
+        values = list(update_fields.values())
+        values.append(task.task_id) # For the WHERE clause
+
+        sql = f"UPDATE meeting_tasks SET {set_clause} WHERE task_id = ?"
+
+        try:
+            await db.execute(sql, values)
+            await db.commit()
+            logger.debug(f"Task {task.task_id} updated in database. Status: {task.status}, Message: {task.message}")
+        except Exception as e:
+            logger.error(f"Task {task.task_id}: Failed to update in database: {e}", exc_info=True)
+            # Depending on policy, might re-raise or handle
+            raise
+
+async def get_db_connection():
+    # Ensure the data directory exists
+    db_dir = os.path.dirname(DATABASE_URL)
+    if not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
+        logger.info(f"Created database directory: {db_dir}")
+
+    db = await aiosqlite.connect(DATABASE_URL)
+    # Use Row factory to access columns by name
+    db.row_factory = aiosqlite.Row
+    return db
+
+async def init_db():
+    async with get_db_connection() as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS meeting_tasks (
+                task_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                platform TEXT,
+                meeting_id TEXT,
+                audio_device_id TEXT,
+                notion_page_title TEXT,
+                status TEXT NOT NULL,
+                message TEXT,
+                start_time TEXT,
+                end_time TEXT,
+                duration_seconds INTEGER,
+                transcript_preview TEXT,
+                notes_preview TEXT,
+                final_transcript_location TEXT,
+                final_notes_location TEXT,
+                audio_file_path TEXT
+            )
+        """)
+        await db.commit()
+        logger.info("Database initialized and meeting_tasks table ensured.")
+
+async def handle_interrupted_tasks():
+    """Marks tasks that were active during a restart as ERRORED."""
+    logger.info("Checking for tasks interrupted by restart...")
+    async with get_db_connection() as db:
+        # Find tasks that were in a non-terminal state
+        async with db.execute(
+            "SELECT task_id FROM meeting_tasks WHERE status = ? OR status = ?",
+            (TaskStatus.ACTIVE.value, TaskStatus.PROCESSING_COMPLETION.value)
+        ) as cursor:
+            interrupted_tasks = await cursor.fetchall()
+
+            if interrupted_tasks:
+                for row in interrupted_tasks:
+                    task_id = row["task_id"]
+                    logger.warning(f"Task {task_id} was interrupted by worker restart. Marking as ERROR.")
+                    await db.execute(
+                        "UPDATE meeting_tasks SET status = ?, message = ? WHERE task_id = ?",
+                        (TaskStatus.ERROR.value, "Task interrupted due to worker restart.", task_id)
+                    )
+                await db.commit()
+                logger.info(f"Marked {len(interrupted_tasks)} tasks as ERRORED due to restart.")
+            else:
+                logger.info("No interrupted tasks found.")
+
+# In-memory store for active asyncio.Task objects (not for persistent task data)
+# These are the actual running audio capture loops.
+# The MeetingTask Pydantic models (persistent state) are now in the DB.
+running_async_tasks: Dict[str, asyncio.Task] = {}
+# In-memory store for stop events, associated with task_id
+task_stop_events: Dict[str, asyncio.Event] = {}
+
 
 # --- Helper Functions ---
 
@@ -680,23 +842,29 @@ async def audio_capture_loop(task: MeetingTask):
 async def lifespan(app: FastAPI):
     # Startup logic
     logger.info("Live Meeting Worker starting up...")
-    # You could pre-load models or connect to databases here if needed
+    await init_db()
+    await handle_interrupted_tasks()
+    # You could pre-load other models or connect to other databases here if needed
     yield
     # Shutdown logic
     logger.info("Live Meeting Worker shutting down...")
-    # Clean up any ongoing tasks (optional, depending on desired behavior)
-    for task_id, task in list(active_tasks.items()):
-        if task._audio_stream_task and not task._audio_stream_task.done():
-            logger.info(f"Cancelling ongoing audio task {task_id} during shutdown.")
-            task._audio_stream_task.cancel()
+    # Clean up any ongoing asyncio tasks (which are in-memory)
+    for task_id, async_task_obj in list(running_async_tasks.items()):
+        if async_task_obj and not async_task_obj.done():
+            logger.info(f"Cancelling ongoing asyncio task {task_id} during shutdown.")
+            async_task_obj.cancel()
             try:
-                await task._audio_stream_task
+                await async_task_obj # Give it a chance to clean up
             except asyncio.CancelledError:
-                logger.info(f"Audio task {task_id} cancelled successfully.")
+                logger.info(f"Asyncio task {task_id} cancelled successfully during shutdown.")
             except Exception as e:
-                logger.error(f"Error cancelling task {task_id} during shutdown: {e}")
-        task.status = TaskStatus.COMPLETED # Or ERROR, depending on how you want to mark interrupted tasks
-        task.message = "Service shut down, task interrupted."
+                logger.error(f"Error during cancellation of asyncio task {task_id} on shutdown: {e}")
+        # The database record for this task should have already been updated by handle_interrupted_tasks
+        # or by the task itself if it completed/errored before shutdown.
+        # If we want to be absolutely sure, we could re-query and update DB status here too,
+        # but handle_interrupted_tasks on next startup is the primary mechanism for DB state correction.
+
+    logger.info("Live Meeting Worker shutdown complete.")
 
 
 app = FastAPI(
