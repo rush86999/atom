@@ -282,9 +282,33 @@ running_async_tasks: Dict[str, asyncio.Task] = {}
 # the corresponding asyncio.Task in running_async_tasks to stop.
 task_stop_events: Dict[str, asyncio.Event] = {}
 # The active_tasks dictionary is now removed as task state is managed in the database.
-
+import re
 
 # --- Helper Functions ---
+
+def parse_action_item_line(line: str) -> tuple[str, Optional[str]]:
+    """
+    Parses a line of text to extract action item description and assignee.
+    Expected format examples:
+                     "- Action description (Assigned to: Assignee)"
+                     "- Action description (Assigned to: N/A)"
+                     "- Action description"
+    Returns: (description, assignee_or_none)
+    """
+    line = line.strip("- ").strip() # Remove leading bullet and spaces
+
+    match = re.search(r'\s*\(Assigned to:\s*(.*?)\)$', line, re.IGNORECASE)
+
+    assignee: Optional[str] = None
+    description: str = line
+
+    if match:
+        assignee_text = match.group(1).strip()
+        if assignee_text.lower() not in ["n/a", "na", ""]:
+            assignee = assignee_text
+        description = line[:match.start()].strip() # Get the part before the assignee match
+
+    return description, assignee
 
 async def _get_audio_devices() -> List[AudioDevice]:
     """Synchronously gets audio devices and wraps in a list."""
@@ -403,48 +427,24 @@ async def transcribe_audio_with_openai(audio_file_path: str, task_id: str) -> Op
         logger.error(f"Task {task_id}: OpenAI Whisper STT failed for {audio_file_path} after retries or due to non-retryable error: {e}", exc_info=True)
         return None
 
-async def create_notion_page_with_transcript(
+async def create_notion_page_with_title(
     task_id: str,
-    page_title: str,
-    transcript: str,
-    # user_id: str # user_id currently not used for Notion client, assuming one API key for now
-) -> Optional[str]:
+    page_title: str
+) -> Optional[tuple[str, str]]: # Returns (page_url, page_id) or None
     """
-    Creates a new page in Notion with the given title and transcript content.
+    Creates a new page in Notion with only the given title.
     Uses `notion_parent_page_id` from environment if set, otherwise creates in workspace root.
-    Returns the URL of the created page or None if an error occurs or Notion is disabled.
+    Returns a tuple (URL, page_ID) of the created page or None if an error occurs or Notion is disabled.
     """
     if not notion_client:
         logger.warning(f"Task {task_id}: Notion client not available. Skipping Notion page creation.")
         return None
 
-    logger.info(f"Task {task_id}: Preparing to create Notion page titled '{page_title}'.")
-
-    content_blocks = []
-    paragraphs = transcript.split('\n\n')
-    if len(paragraphs) == 1 and '\n' in transcript:
-        paragraphs = transcript.split('\n')
-
-    for para in paragraphs:
-        para = para.strip()
-        if not para: continue
-        for i in range(0, len(para), 1999):
-            chunk = para[i:i+1999]
-            content_blocks.append({
-                "object": "block", "type": "paragraph",
-                "paragraph": {"rich_text": [{"type": "text", "text": {"content": chunk}}]}
-            })
-            if len(content_blocks) >= 99: break
-        if len(content_blocks) >= 99: break
-
-    if not content_blocks:
-        content_blocks.append({
-            "object": "block", "type": "paragraph",
-            "paragraph": {"rich_text": [{"type": "text", "text": {"content": "(Transcript was empty)"}}]}
-        })
+    logger.info(f"Task {task_id}: Preparing to create Notion page with title '{page_title}'.")
 
     page_properties = {"title": [{"type": "text", "text": {"content": page_title}}]}
-    create_payload = {"parent": {}, "properties": page_properties, "children": content_blocks}
+    # Create page with no children initially, content will be appended later.
+    create_payload = {"parent": {}, "properties": page_properties, "children": []}
 
     if notion_parent_page_id:
         create_payload["parent"] = {"page_id": notion_parent_page_id}
@@ -606,8 +606,9 @@ async def get_llm_summary(transcript: str, task_id: str) -> Optional[str]:
 async def get_llm_decisions(transcript: str, task_id: str) -> Optional[str]:
     """Extracts key decisions from the transcript using an LLM."""
     logger.info(f"Task {task_id}: Requesting LLM to extract key decisions (transcript length: {len(transcript)}).")
-    system_message = "You are an AI assistant specializing in extracting key decisions from meeting transcripts. List the decisions made during the meeting as a bulleted list. Each bullet point should represent a distinct decision. If no clear decisions are found, state 'No specific decisions were identified.'"
-    user_message = f"Extract the key decisions made from the following meeting transcript. Present them as a bulleted list. Each bullet point should represent a distinct decision.\n\n<transcript>\n{transcript}\n</transcript>\n\nKey Decisions:\n-"
+    system_message = "You are an AI assistant specializing in extracting key decisions from meeting transcripts. List the decisions made during the meeting. Each decision should be on a new line and start with '- '. If no clear decisions are found, state 'No specific decisions were identified.'"
+    user_message = f"Extract the key decisions made from the following meeting transcript. Ensure each decision is on a new line and starts with '- '.\n\n<transcript>\n{transcript}\n</transcript>\n\nKey Decisions:"
+    # Removed the trailing '-' from the prompt as we expect the LLM to generate it.
 
     decisions_text = await _call_openai_chat_completion(task_id, system_message, user_message)
     if not decisions_text or "no specific decisions were identified" in decisions_text.lower() or len(decisions_text.strip()) < 5:
@@ -622,8 +623,9 @@ async def get_llm_decisions(transcript: str, task_id: str) -> Optional[str]:
 async def get_llm_action_items(transcript: str, task_id: str) -> Optional[str]:
     """Extracts action items from the transcript using an LLM."""
     logger.info(f"Task {task_id}: Requesting LLM to extract action items (transcript length: {len(transcript)}).")
-    system_message = "You are an AI assistant skilled at identifying action items from meeting transcripts. List all action items discussed. For each action item, if an assignee or owner is mentioned, please include that. If no action items are found, state 'No specific action items were identified.'"
-    user_message = f"Identify all action items from the following meeting transcript. Present them as a bulleted list. If possible, for each action item, specify the person assigned or responsible.\n\nFormat example:\n- [Action Item Description] (Assigned to: [Person's Name, if mentioned, otherwise 'N/A'])\n\n<transcript>\n{transcript}\n</transcript>\n\nAction Items:\n-"
+    system_message = "You are an AI assistant skilled at identifying action items from meeting transcripts. List all action items discussed. Each action item should be on a new line and start with '- '. For each action item, if an assignee or owner is mentioned, please include that using the format '(Assigned to: [Name/N/A])'. If no action items are found, state 'No specific action items were identified.'"
+    user_message = f"Identify all action items from the following meeting transcript. Ensure each action item is on a new line and starts with '- '. If possible, for each action item, specify the person assigned or responsible using the format '(Assigned to: [Name/N/A])'.\n\nExample:\n- Review the budget proposal (Assigned to: John Doe)\n- Follow up with client (Assigned to: N/A)\n\n<transcript>\n{transcript}\n</transcript>\n\nAction Items:"
+    # Removed the trailing '-' from the prompt.
 
     action_items_text = await _call_openai_chat_completion(task_id, system_message, user_message)
     if not action_items_text or "no specific action items were identified" in action_items_text.lower() or len(action_items_text.strip()) < 5:
@@ -780,80 +782,137 @@ async def audio_capture_loop(task: MeetingTask):
             task.message = "Audio captured. Starting transcription..."
             transcript = await transcribe_audio_with_openai(task._audio_file_path, task.task_id)
             if transcript:
-                task.transcript_preview = transcript # Store full transcript here for now
+                task.transcript_preview = transcript
                 task.message = "Transcription successful."
                 logger.info(f"Task {task.task_id}: Transcription successful.")
 
-                logger.info(f"Task {task.task_id}: Attempting to create Notion page with title '{task.notion_page_title}' for transcript.")
-                page_url = await create_notion_page_with_transcript(
+                page_creation_result = await create_notion_page_with_title(
                     task_id=task.task_id,
-                    page_title=task.notion_page_title,
-                    transcript=transcript
+                    page_title=task.notion_page_title
                 )
 
-                if page_url:
+                if page_creation_result:
+                    page_url, page_id = page_creation_result
+                    task.message = f"Notion page created: {page_url}." # Base message
+                    logger.info(f"Task {task.task_id}: Successfully created Notion page shell: {page_url}")
+
+                    insights_blocks = []
+                    insights_blocks.append({"type": "heading_1", "heading_1": {"rich_text": [{"type": "text", "text": {"content": "Meeting Insights"}}]}})
+                    insights_blocks.append({"type": "divider", "divider": {}})
+
+                    # Summary
+                    summary = await get_llm_summary(transcript, task.task_id)
+                    insights_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Summary"}}]}})
+                    if summary:
+                        task.notes_preview = summary[:200] + "..." if len(summary) > 200 else summary
+                        insights_blocks.append({"type": "callout", "callout": {"rich_text": [{"type": "text", "text": {"content": summary}}], "icon": {"emoji": "📝"}}})
+                        task.message += " Summary generated."
+                    else:
+                        insights_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "No summary could be generated."}}]}})
+                        task.message += " Summary generation failed or was empty."
+                    insights_blocks.append({"type": "divider", "divider": {}})
+
+                    # Key Decisions
+                    decisions = await get_llm_decisions(transcript, task.task_id)
+                    insights_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Key Decisions"}}]}})
+                    if decisions:
+                        for item_text in decisions.split('\n'):
+                            item_text = item_text.strip("- ").strip()
+                            if item_text:
+                                insights_blocks.append({"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": item_text}}]}})
+                        task.message += " Decisions extracted."
+                    else:
+                        insights_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "No specific decisions were identified."}}]}})
+                        task.message += " Decision extraction failed or was empty."
+                    insights_blocks.append({"type": "divider", "divider": {}})
+
+                    # Action Items
+                    action_items_text = await get_llm_action_items(transcript, task.task_id)
+                    insights_blocks.append({"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Action Items"}}]}})
+                    if action_items_text:
+                        action_item_count = 0
+                        for line in action_items_text.split('\n'):
+                            description, assignee = parse_action_item_line(line)
+                            if description: # Only add if there's a description
+                                display_text = description
+                                if assignee:
+                                    display_text += f" (Assigned to: {assignee})"
+
+                                insights_blocks.append({
+                                    "type": "to_do",
+                                    "to_do": {
+                                        "rich_text": [{"type": "text", "text": {"content": display_text}}],
+                                        "checked": False
+                                    }
+                                })
+                                action_item_count += 1
+                        if action_item_count > 0:
+                            task.message += f" {action_item_count} action item(s) extracted."
+                        else:
+                            # This case handles if LLM returns text for action items, but parsing yields nothing (e.g. "No action items found" as a single line)
+                            task.message += " No valid action items found after parsing LLM output."
+                            insights_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "No specific action items were identified after parsing."}}]}})
+                    else:
+                        insights_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "No specific action items were identified."}}]}})
+                        task.message += " Action item extraction LLM call failed or was empty."
+
+                    # Append all "Meeting Insights" blocks
+                    if not await append_to_notion_page(page_id, task.task_id, insights_blocks):
+                        task.message += " [Warning] Failed to append Meeting Insights to Notion."
+                        logger.warning(f"Task {task.task_id}: Failed to append Meeting Insights to Notion page {page_id}")
+
+                    # Full Transcript Section
+                    transcript_section_blocks = []
+                    transcript_header_text = "Full Transcript"
+
+                    actual_transcript_paragraph_blocks = []
+                    if not transcript.strip():
+                         actual_transcript_paragraph_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "(Transcript was empty)"}}]}})
+                    else:
+                        transcript_paragraphs = transcript.split('\n\n')
+                        if len(transcript_paragraphs) == 1 and '\n' in transcript: # Handle single block of text with newlines
+                            transcript_paragraphs = transcript.split('\n')
+                        for para in transcript_paragraphs:
+                            para_text = para.strip()
+                            if not para_text: continue
+                            # Max 2000 chars per paragraph block handled by Notion client, but Notion API has 100 blocks per append
+                            # Keep individual paragraphs relatively short if possible for LLM output structure.
+                            # Here, we just pass the paragraph as is, assuming it's reasonably sized.
+                            # For very long paragraphs, chunking (as done in the original create_notion_page_with_transcript) might be needed
+                            # if we weren't using the SDK's auto-chunking for paragraph content (which it does).
+                            # The main concern is total number of blocks.
+                            actual_transcript_paragraph_blocks.append({"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": para_text}}]}})
+
+                    # Decide whether to use a toggle for the transcript
+                    if len(actual_transcript_paragraph_blocks) > 7 or len(transcript) > 2500: # Heuristic for using toggle
+                        # Max 100 children for a toggle block when creating/appending
+                        toggle_children = [{"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": transcript_header_text}}]}}]
+                        toggle_children.extend(actual_transcript_paragraph_blocks[:98]) # Leave room for header + ensure under 100
+                        transcript_section_blocks.append({
+                            "type": "toggle",
+                            "toggle": {
+                                "rich_text": [{"type": "text", "text": {"content": "View Full Transcript"}}], # Toggle Title
+                                "children": toggle_children
+                            }
+                        })
+                        if len(actual_transcript_paragraph_blocks) > 98:
+                             task.message += " [Info] Transcript was long and might be truncated in toggle view."
+                    else:
+                        transcript_section_blocks.append({"type": "heading_1", "heading_1": {"rich_text": [{"type": "text", "text": {"content": transcript_header_text}}]}})
+                        transcript_section_blocks.extend(actual_transcript_paragraph_blocks)
+
+                    if not await append_to_notion_page(page_id, task.task_id, transcript_section_blocks):
+                        task.message += " [Warning] Failed to append Full Transcript to Notion."
+                        logger.warning(f"Task {task.task_id}: Failed to append Full Transcript to Notion page {page_id}")
+
                     task.final_notes_location = page_url
-                    task.message += f" Transcript saved to Notion: {page_url}."
-                    logger.info(f"Task {task.task_id}: Successfully saved transcript to Notion: {page_url}")
+                    task.status = TaskStatus.COMPLETED
+                    task.message += " Task processing completed." # Final message part
 
-                    notion_page_id_for_appends = None
-                    try: # Extract page_id from URL for appending
-                        notion_page_id_for_appends = page_url.split('/')[-1].split('-')[-1]
-                        if not notion_page_id_for_appends or len(notion_page_id_for_appends) < 32:
-                             notion_page_id_for_appends = page_url.split('-')[-1]
-                             if not notion_page_id_for_appends or len(notion_page_id_for_appends) < 32:
-                                notion_page_id_for_appends = None
-                                logger.error(f"Task {task.task_id}: Could not reliably extract page_id from URL {page_url} for appends.")
-                    except Exception as e_parse_id:
-                        logger.error(f"Task {task.task_id}: Error parsing page_id from URL {page_url}: {e_parse_id}")
-                        notion_page_id_for_appends = None
-
-                    if notion_page_id_for_appends:
-                        # LLM processing and appending to Notion
-                        summary = await get_llm_summary(transcript, task.task_id)
-                        if summary:
-                            task.notes_preview = summary[:200] + "..." if len(summary) > 200 else summary
-                            summary_blocks = [
-                                {"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Summary"}}]}},
-                                {"type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": summary}}]}}
-                            ]
-                            if await append_to_notion_page(notion_page_id_for_appends, task.task_id, summary_blocks):
-                                task.message += " Summary added to Notion."
-                            else:
-                                task.message += " Failed to add summary to Notion. Some content may be missing."
-
-                        decisions = await get_llm_decisions(transcript, task.task_id)
-                        if decisions:
-                            decision_blocks = [
-                                {"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Key Decisions"}}]}},
-                                *[{"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": item.strip("- ")}}]}} for item in decisions.split('\n') if item.strip("- ")]
-                            ]
-                            if await append_to_notion_page(notion_page_id_for_appends, task.task_id, decision_blocks):
-                                task.message += " Decisions added to Notion."
-                            else:
-                                task.message += " Failed to add decisions to Notion. Some content may be missing."
-
-                        action_items = await get_llm_action_items(transcript, task.task_id)
-                        if action_items:
-                            action_item_blocks = [
-                                {"type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Action Items"}}]}},
-                                *[{"type": "bulleted_list_item", "bulleted_list_item": {"rich_text": [{"type": "text", "text": {"content": item.strip("- ")}}]}} for item in action_items.split('\n') if item.strip("- ")]
-                            ]
-                            if await append_to_notion_page(notion_page_id_for_appends, task.task_id, action_item_blocks):
-                                task.message += " Action items added to Notion."
-                            else:
-                                task.message += " Failed to add action items to Notion. Some content may be missing."
-
-                        task.status = TaskStatus.COMPLETED
-                        task.message += " Task completed."
-                    else: # Could not extract page_id for appends
-                        task.status = TaskStatus.ERROR # Or COMPLETED_WITH_ISSUES if we add such a status
-                        task.message += " Could not extract Notion page ID for appends. LLM notes not added."
-                        logger.error(f"Task {task.task_id}: Could not extract Notion page_id from {page_url}. LLM content not appended.")
-                else: # Initial Notion page creation failed
+                else: # Initial Notion page (title only) creation failed
                     task.status = TaskStatus.ERROR
-                    task.message = "Transcription successful, but failed to create Notion page. LLM analysis not performed or stored."
-                    logger.error(f"Task {task.task_id}: Failed to create initial Notion page for transcript. Transcript available in preview.")
+                    task.message = "Transcription successful, but failed to create Notion page shell. LLM analysis not performed or stored."
+                    logger.error(f"Task {task.task_id}: Failed to create initial Notion page (title only). Transcript available in preview.")
             else: # Transcription failed
                 task.status = TaskStatus.ERROR
                 task.message = "Transcription failed after retries. No Notion page created or LLM analysis performed."
