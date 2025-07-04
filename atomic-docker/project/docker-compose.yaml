@@ -158,6 +158,8 @@ services:
       HASURA_GRAPHQL_METADATA_URL: http://graphql-engine:8080/v1/metadata
       GOOGLE_CLIENT_SECRET_WEB: ${GOOGLE_CLIENT_SECRET_WEB}
       EMAIL: ${EMAIL}
+      # Base URL for the Python API service (running in python-agent)
+      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
       DOMAIN: ${DOMAIN}
       S3_ENDPOINT: http://minio:8484
       S3_BUCKET: nhost
