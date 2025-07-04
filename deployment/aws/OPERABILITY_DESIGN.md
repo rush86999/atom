@@ -76,16 +76,18 @@ Building on basic CloudWatch metrics and alarms.
 
 **2.2. CloudWatch Dashboards (CDK Implementation Recommended)**
 
-Two primary dashboards will be designed and implemented via CDK (`aws-cloudwatch.Dashboard`):
+Two primary dashboards are planned. The first one has been implemented:
 
-*   **Dashboard 1: System Health Overview**
-    *   **Purpose:** At-a-glance view of overall system health.
-    *   **Widgets:**
-        *   ALB: Overall 5XX rate, P90 latency, unhealthy host summary.
-        *   ECS Services: Summary for each key service (running/desired tasks, CPU/Mem utilization, error rate indicator from custom metrics).
-        *   RDS: CPU, Free Storage, Freeable Memory, DB Connections.
-        *   Key Alarms Status widget.
-*   **Dashboard 2: Application Performance Deep Dive (e.g., for AppService)**
+*   **Dashboard 1: System Health Overview (Implemented)**
+    *   **Purpose:** Provides an at-a-glance view of the overall health of the entire system. Intended for quick checks and identifying major outages.
+    *   **CDK Implementation:** Created as `<StackName>-SystemHealthOverview` in `aws-stack.ts`. A CfnOutput `SystemHealthDashboardUrl` provides direct access.
+    *   **Key Widgets Included:**
+        *   Status of critical alarms.
+        *   ALB: Overall 5XX errors, P90 latency for the App target group.
+        *   ALB: Unhealthy host counts for each key service target group.
+        *   ECS Services (App, Functions, Hasura, Supertokens, Optaplanner): CPU and Memory utilization graphs.
+        *   RDS: CPU utilization, free storage space, freeable memory, and database connections graphs.
+*   **Dashboard 2: Application Performance Deep Dive (e.g., for AppService) (Future Implementation)**
     *   **Purpose:** Detailed troubleshooting for a critical service.
     *   **Widgets:**
         *   ALB (specific target group): Request count, P50/P90/P99 latency, 5XX errors, healthy/unhealthy hosts.
@@ -109,10 +111,10 @@ The following granular alarms, extending the basic set, have been implemented in
 ## 4. Distributed Tracing with AWS X-Ray (Evaluation & Phased Approach)
 
 *   **Value:** X-Ray is highly beneficial for tracing requests across the microservices, aiding in debugging and performance analysis.
-*   **Infrastructure Setup (CDK - Future Implementation or Phased):**
-    *   Enable X-Ray tracing on the Application Load Balancer.
-    *   Add IAM permissions (`xray:PutTraceSegments`, `xray:PutTelemetryRecords`) to the `ecsTaskRole`.
-    *   Plan for adding the AWS X-Ray daemon (or ADOT Collector) as a sidecar container to ECS Fargate task definitions for services that will be instrumented.
+*   **Infrastructure Setup (CDK - Foundational Steps Implemented):**
+    *   **ALB X-Ray Tracing Enabled (Implemented):** X-Ray tracing is now enabled on the Application Load Balancer in `aws-stack.ts`. The ALB will add trace ID headers to requests.
+    *   **ECS Task Role Permissions for X-Ray (Implemented):** The `ecsTaskRole` in `aws-stack.ts` now includes `xray:PutTraceSegments` and `xray:PutTelemetryRecords` permissions, allowing ECS tasks (with the X-Ray SDK/daemon) to send trace data to AWS X-Ray.
+    *   **X-Ray Daemon/ADOT Collector Sidecar (Future Implementation):** Planning for adding the AWS X-Ray daemon or ADOT Collector as a sidecar container to ECS Fargate task definitions for services that will be instrumented remains a future step, to be done when applications integrate the X-Ray SDK.
 *   **Application Instrumentation (Development Task - Guidance):**
     *   **Recommendation:** Key services (especially `FunctionsService`, `AppService`, and other backend services involved in request chains) should be instrumented using the AWS X-Ray SDK for their respective languages (Node.js, Python, Java/Quarkus).
     *   The SDK will be used to create segments, subsegments, propagate trace context, and add annotations/metadata.

@@ -90,4 +90,46 @@ describe('AwsStack Synthesized Template', () => {
   });
 
   // Add more tests for other alarms (RDS CPU, ECS CPU etc.) following similar pattern
+
+  test('CloudWatch Dashboard is created', () => {
+    template.resourceCountIs('AWS::CloudWatch::Dashboard', 1);
+    template.hasResourceProperties('AWS::CloudWatch::Dashboard', {
+      DashboardName: Match.stringLikeRegexp('-SystemHealthOverview$'), // Checks if the name ends with -SystemHealthOverview
+      // DashboardBody will be a large JSON string, difficult to assert specific widgets
+      // without making the test very brittle. Snapshot test covers the body.
+      // We can check for the presence of a string indicating a known widget title if needed.
+      DashboardBody: Match.stringLikeRegexp('Key Alarm Status'), // Check if a known widget title is in the body
+    });
+  });
+
+  test('ECS Task Role has X-Ray permissions', () => {
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: [
+              "xray:PutTraceSegments",
+              "xray:PutTelemetryRecords"
+            ],
+            Effect: "Allow",
+            Resource: "*"
+          })
+        ])
+      },
+      Roles: Match.arrayWith([
+        { "Ref": Match.stringLikeRegexp("ECSTaskRole") } // Match the logical ID of the ECS Task Role
+      ]),
+    });
+  });
+
+  test('ALB has X-Ray tracing enabled', () => {
+    template.hasResourceProperties('AWS::ElasticLoadBalancingV2::LoadBalancer', {
+      LoadBalancerAttributes: Match.arrayWith([
+        {
+          Key: 'routing.http.xray.enabled',
+          Value: 'true'
+        }
+      ])
+    });
+  });
 });

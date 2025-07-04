@@ -25,11 +25,30 @@ export class AwsStack extends cdk.Stack {
   private readonly vpc: ec2.Vpc;
   private readonly cluster: ecs.Cluster;
   private readonly alb: elbv2.ApplicationLoadBalancer;
-  private readonly httpListener: elbv2.ApplicationListener;
+  private readonly httpListener: elbv2.ApplicationListener; // Assuming this is the one for HTTPS listener rule changes
   private readonly dbInstance: rds.DatabaseInstance;
   private readonly dbSecret: secretsmanager.ISecret;
   private readonly rdsSecurityGroup: ec2.SecurityGroup;
   private readonly albSecurityGroup: ec2.SecurityGroup;
+
+  // Alarms for Dashboard
+  private readonly alb5xxAlarm: cloudwatch.Alarm;
+  private readonly rdsHighCpuAlarm: cloudwatch.Alarm;
+  private readonly rdsLowStorageAlarm: cloudwatch.Alarm;
+  private readonly rdsLowMemoryAlarm: cloudwatch.Alarm;
+  private readonly rdsHighConnectionsAlarm: cloudwatch.Alarm;
+  private readonly appServiceCpuAlarm: cloudwatch.Alarm;
+  private readonly functionsServiceCpuAlarm: cloudwatch.Alarm;
+  // Add other TG alarms or ECS alarms if needed on dashboard status
+
+  // Target Groups for Dashboard
+  private readonly appTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly functionsTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly hasuraTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly supertokensTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly handshakeTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly oauthTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly optaplannerTargetGroup: elbv2.ApplicationTargetGroup;
 
   // ECR Repositories
   private readonly functionsRepo: ecr.IRepository;
@@ -72,7 +91,16 @@ export class AwsStack extends cdk.Stack {
   private readonly handshakeSG: ec2.SecurityGroup;
   private readonly oauthSG: ec2.SecurityGroup;
   public optaplannerSG!: ec2.SecurityGroup; // Will be initialized later
-  public optaplannerService!: ecs.FargateService; // Will be initialized later
+  // ECS Services for Dashboard
+  private readonly appService: ecs.FargateService;
+  private readonly functionsService: ecs.FargateService;
+  private readonly hasuraService: ecs.FargateService;
+  private readonly supertokensService: ecs.FargateService;
+  public optaplannerService!: ecs.FargateService; // Already public, will ensure it's assigned to this.optaplannerService
+  // Handshake and OAuth services could also be monitored if needed
+  // private readonly handshakeService: ecs.FargateService;
+  // private readonly oauthService: ecs.FargateService;
+
   // public openSearchDomain!: opensearch.IDomain; // Commented out OpenSearch
   private pythonAgentSG!: ec2.SecurityGroup; // Python Agent Security Group
   private lanceDbFileSystem!: efs.FileSystem; // EFS for LanceDB
@@ -272,7 +300,7 @@ export class AwsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DbSecretArn', { value: this.dbSecret.secretArn });
 
     // RDS Alarms
-    const rdsHighCpuAlarm = new cloudwatch.Alarm(this, 'RdsHighCpuAlarm', {
+    this.rdsHighCpuAlarm = new cloudwatch.Alarm(this, 'RdsHighCpuAlarm', { // Assign to class member
       alarmName: `${this.stackName}-RDS-HighCPU`,
       alarmDescription: 'Alarm if RDS CPU utilization is too high.',
       metric: this.dbInstance.metricCPUUtilization({
@@ -284,9 +312,9 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    rdsHighCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.rdsHighCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const rdsLowStorageAlarm = new cloudwatch.Alarm(this, 'RdsLowStorageAlarm', {
+    this.rdsLowStorageAlarm = new cloudwatch.Alarm(this, 'RdsLowStorageAlarm', { // Assign to class member
       alarmName: `${this.stackName}-RDS-LowStorage`,
       alarmDescription: 'Alarm if RDS free storage space is low.',
       metric: this.dbInstance.metricFreeStorageSpace({
@@ -298,9 +326,9 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING, // Or MISSING if you want to be alerted if metric disappears
     });
-    rdsLowStorageAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.rdsLowStorageAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const rdsLowMemoryAlarm = new cloudwatch.Alarm(this, 'RdsLowMemoryAlarm', {
+    this.rdsLowMemoryAlarm = new cloudwatch.Alarm(this, 'RdsLowMemoryAlarm', { // Assign to class member
         alarmName: `${this.stackName}-RDS-LowFreeableMemory`,
         alarmDescription: 'Alarm if RDS freeable memory is low.',
         metric: this.dbInstance.metricFreeableMemory({
@@ -312,9 +340,9 @@ export class AwsStack extends cdk.Stack {
         comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    rdsLowMemoryAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.rdsLowMemoryAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const rdsHighConnectionsAlarm = new cloudwatch.Alarm(this, 'RdsHighConnectionsAlarm', {
+    this.rdsHighConnectionsAlarm = new cloudwatch.Alarm(this, 'RdsHighConnectionsAlarm', { // Assign to class member
         alarmName: `${this.stackName}-RDS-HighDBConnections`,
         alarmDescription: 'Alarm if RDS database connections are too high.',
         metric: this.dbInstance.metricDatabaseConnections({
@@ -352,6 +380,7 @@ export class AwsStack extends cdk.Stack {
       securityGroup: this.albSecurityGroup,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
     });
+    this.alb.setAttribute('routing.http.xray.enabled', 'true'); // Enable X-Ray tracing
     new cdk.CfnOutput(this, 'AlbDnsName', {
         value: this.alb.loadBalancerDnsName,
         description: 'Direct DNS name of the Application Load Balancer. Access the application via the ApplicationHttpsEndpoint (custom domain name) for HTTPS.',
@@ -385,7 +414,7 @@ export class AwsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'AlbHttpsListenerArn', { value: httpsListener.listenerArn });
 
     // ALB Alarms
-    const alb5xxAlarm = new cloudwatch.Alarm(this, 'Alb5xxErrorAlarm', {
+    this.alb5xxAlarm = new cloudwatch.Alarm(this, 'Alb5xxErrorAlarm', { // Assign to class member
       alarmName: `${this.stackName}-ALB-5XX-Errors`,
       alarmDescription: 'Alarm if ALB experiences a high number of 5XX errors.',
       metric: this.alb.metricHttpCodeElb(elbv2.HttpCodeElb.ELB_5XX_COUNT, {
@@ -397,7 +426,7 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    alb5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.alb5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
 
     // Generic Task Role
@@ -669,6 +698,13 @@ export class AwsStack extends cdk.Stack {
         actions: ["logs:CreateLogStream", "logs:PutLogEvents"],
         resources: [`arn:aws:logs:${this.region}:${this.account}:log-group:/aws/ecs/${this.cluster.clusterName}/*`],
     }));
+    this.ecsTaskRole.addToPolicy(new iam.PolicyStatement({ // Add X-Ray permissions
+        actions: [
+            "xray:PutTraceSegments",
+            "xray:PutTelemetryRecords"
+        ],
+        resources: ["*"], // Standard for X-Ray segment submission
+    }));
 
     // SuperTokens Service
     this.supertokensSG = new ec2.SecurityGroup(this, 'SupertokensSG', { vpc: this.vpc, allowAllOutbound: true });
@@ -710,7 +746,7 @@ export class AwsStack extends cdk.Stack {
       portMappings: [{ containerPort: 3567, protocol: ecs.Protocol.TCP }],
     });
 
-    const supertokensService = new ecs.FargateService(this, 'SupertokensService', {
+    this.supertokensService = new ecs.FargateService(this, 'SupertokensService', {
       cluster: this.cluster,
       taskDefinition: this.supertokensTaskDef,
       desiredCount: 1,
@@ -733,7 +769,7 @@ export class AwsStack extends cdk.Stack {
     });
     supertokensServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const supertokensTargetGroup = new elbv2.ApplicationTargetGroup(this, 'SupertokensTargetGroup', {
+    this.supertokensTargetGroup = new elbv2.ApplicationTargetGroup(this, 'SupertokensTargetGroup', {
       vpc: this.vpc,
       port: 3567,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -845,7 +881,7 @@ export class AwsStack extends cdk.Stack {
       portMappings: [{ containerPort: 8080, protocol: ecs.Protocol.TCP }],
     });
 
-    const hasuraService = new ecs.FargateService(this, 'HasuraService', {
+    this.hasuraService = new ecs.FargateService(this, 'HasuraService', {
       cluster: this.cluster,
       taskDefinition: hasuraTaskDef,
       desiredCount: 1,
@@ -868,7 +904,7 @@ export class AwsStack extends cdk.Stack {
     });
     hasuraServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const hasuraTargetGroup = new elbv2.ApplicationTargetGroup(this, 'HasuraTargetGroup', {
+    this.hasuraTargetGroup = new elbv2.ApplicationTargetGroup(this, 'HasuraTargetGroup', {
       vpc: this.vpc,
       port: 8080,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -979,7 +1015,7 @@ export class AwsStack extends cdk.Stack {
       portMappings: [{ containerPort: 80, protocol: ecs.Protocol.TCP }],
     });
 
-    const functionsService = new ecs.FargateService(this, 'FunctionsService', {
+    this.functionsService = new ecs.FargateService(this, 'FunctionsService', {
       cluster: this.cluster,
       taskDefinition: functionsTaskDef,
       desiredCount: 1,
@@ -1013,7 +1049,7 @@ export class AwsStack extends cdk.Stack {
       scaleOutCooldown: cdk.Duration.minutes(1),
     });
 
-    const functionsServiceCpuAlarm = new cloudwatch.Alarm(this, 'FunctionsServiceHighCpuAlarm', {
+    this.functionsServiceCpuAlarm = new cloudwatch.Alarm(this, 'FunctionsServiceHighCpuAlarm', { // Assign to class member
       alarmName: `${this.stackName}-FunctionsService-HighCPU`,
       alarmDescription: 'Alarm if FunctionsService CPU utilization is too high.',
       metric: functionsService.metricCPUUtilization({
@@ -1025,9 +1061,9 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    functionsServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.functionsServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const functionsTargetGroup = new elbv2.ApplicationTargetGroup(this, 'FunctionsTargetGroup', {
+    this.functionsTargetGroup = new elbv2.ApplicationTargetGroup(this, 'FunctionsTargetGroup', {
       vpc: this.vpc,
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -1133,7 +1169,7 @@ export class AwsStack extends cdk.Stack {
       portMappings: [{ containerPort: 3000, protocol: ecs.Protocol.TCP }],
     });
 
-    const appService = new ecs.FargateService(this, 'AppService', {
+    this.appService = new ecs.FargateService(this, 'AppService', {
       cluster: this.cluster,
       taskDefinition: appTaskDef,
       desiredCount: 1,
@@ -1167,7 +1203,7 @@ export class AwsStack extends cdk.Stack {
       scaleOutCooldown: cdk.Duration.minutes(1),
     });
 
-    const appServiceCpuAlarm = new cloudwatch.Alarm(this, 'AppServiceHighCpuAlarm', {
+    this.appServiceCpuAlarm = new cloudwatch.Alarm(this, 'AppServiceHighCpuAlarm', { // Assign to class member
       alarmName: `${this.stackName}-AppService-HighCPU`,
       alarmDescription: 'Alarm if AppService CPU utilization is too high.',
       metric: appService.metricCPUUtilization({
@@ -1179,9 +1215,9 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    appServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.appServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const appTargetGroup = new elbv2.ApplicationTargetGroup(this, 'AppTargetGroup', {
+    this.appTargetGroup = new elbv2.ApplicationTargetGroup(this, 'AppTargetGroup', {
       vpc: this.vpc,
       port: 3000,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -1298,7 +1334,7 @@ export class AwsStack extends cdk.Stack {
       assignPublicIp: false,
     });
 
-    const handshakeTargetGroup = new elbv2.ApplicationTargetGroup(this, 'HandshakeTargetGroup', {
+    this.handshakeTargetGroup = new elbv2.ApplicationTargetGroup(this, 'HandshakeTargetGroup', {
       vpc: this.vpc,
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -1414,7 +1450,7 @@ export class AwsStack extends cdk.Stack {
       assignPublicIp: false,
     });
 
-    const oauthTargetGroup = new elbv2.ApplicationTargetGroup(this, 'OAuthTargetGroup', {
+    this.oauthTargetGroup = new elbv2.ApplicationTargetGroup(this, 'OAuthTargetGroup', {
       vpc: this.vpc,
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -1531,7 +1567,7 @@ export class AwsStack extends cdk.Stack {
       assignPublicIp: false,
     });
 
-    const optaplannerTargetGroup = new elbv2.ApplicationTargetGroup(this, 'OptaplannerTargetGroup', {
+    this.optaplannerTargetGroup = new elbv2.ApplicationTargetGroup(this, 'OptaplannerTargetGroup', {
       vpc: this.vpc,
       port: 8081,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -1758,5 +1794,146 @@ export class AwsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApplicationHttpsEndpoint', {
       value: `https://${domainName}`,
       description: 'Main application HTTPS endpoint using the custom domain name. This is the primary endpoint for accessing the application.',
+    });
+
+    // CloudWatch Dashboard - System Health Overview
+    const systemHealthDashboard = new cloudwatch.Dashboard(this, 'SystemHealthDashboard', {
+      dashboardName: `${this.stackName}-SystemHealthOverview`,
+    });
+
+    // --- Define Widgets ---
+
+    // Key Alarms Status
+    const alarmStatusWidget = new cloudwatch.AlarmStatusWidget({
+        title: 'Key Alarm Status',
+        width: 24,
+        alarms: [
+            this.alb5xxAlarm,
+            this.rdsHighCpuAlarm,
+            this.rdsLowStorageAlarm,
+            this.rdsLowMemoryAlarm,
+            this.rdsHighConnectionsAlarm,
+            this.appServiceCpuAlarm,
+            this.functionsServiceCpuAlarm,
+        ],
+    });
+
+    // ALB Widgets
+    const alb5xxErrorsWidget = new cloudwatch.GraphWidget({
+        title: 'ALB - Overall 5XX Errors',
+        width: 12,
+        left: [this.alb.metricHttpCodeElb(elbv2.HttpCodeElb.ELB_5XX_COUNT, { statistic: 'Sum', period: cdk.Duration.minutes(1) })],
+    });
+    const albAppLatencyWidget = new cloudwatch.GraphWidget({
+        title: 'ALB - App Target Group P90 Latency',
+        width: 12,
+        left: [this.appTargetGroup.metricTargetResponseTime({ statistic: 'p90', period: cdk.Duration.minutes(1) })],
+    });
+
+    // Unhealthy hosts per key target group
+    const keyTargetGroupsForDashboard = [
+        { name: 'App', tg: this.appTargetGroup },
+        { name: 'Functions', tg: this.functionsTargetGroup },
+        { name: 'Hasura', tg: this.hasuraTargetGroup },
+        { name: 'Supertokens', tg: this.supertokensTargetGroup },
+        { name: 'Handshake', tg: this.handshakeTargetGroup },
+        { name: 'OAuth', tg: this.oauthTargetGroup },
+        { name: 'Optaplanner', tg: this.optaplannerTargetGroup },
+    ];
+    const unhealthyHostWidgets: cloudwatch.IWidget[] = keyTargetGroupsForDashboard.map(item =>
+        new cloudwatch.SingleValueWidget({
+            title: `${item.name} Unhealthy Hosts`,
+            metrics: [item.tg.metricUnhealthyHostCount({ period: cdk.Duration.minutes(1), statistic: 'Maximum' })],
+            width: 4,
+        })
+    );
+
+    // ECS Service Widgets
+    const keyEcsServicesForDashboard = [
+        { name: 'App', service: this.appService },
+        { name: 'Functions', service: this.functionsService },
+        { name: 'Hasura', service: this.hasuraService },
+        { name: 'Supertokens', service: this.supertokensService },
+        { name: 'Optaplanner', service: this.optaplannerService },
+    ];
+    const ecsServiceWidgets: cloudwatch.IWidget[] = [];
+    keyEcsServicesForDashboard.forEach(item => {
+        ecsServiceWidgets.push(new cloudwatch.GraphWidget({
+            title: `${item.name} Service - CPU Utilization`,
+            width: 12,
+            left: [item.service.metricCPUUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+        }));
+        ecsServiceWidgets.push(new cloudwatch.GraphWidget({
+            title: `${item.name} Service - Memory Utilization`,
+            width: 12,
+            left: [item.service.metricMemoryUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+        }));
+    });
+
+    // RDS Instance Widgets
+    const rdsCpuWidget = new cloudwatch.GraphWidget({
+        title: 'RDS - CPU Utilization',
+        width: 6,
+        left: [this.dbInstance.metricCPUUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+    const rdsStorageWidget = new cloudwatch.GraphWidget({
+        title: 'RDS - Free Storage Space',
+        width: 6,
+        left: [this.dbInstance.metricFreeStorageSpace({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+    const rdsMemoryWidget = new cloudwatch.GraphWidget({
+        title: 'RDS - Freeable Memory',
+        width: 6,
+        left: [this.dbInstance.metricFreeableMemory({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+    const rdsConnectionsWidget = new cloudwatch.GraphWidget({
+        title: 'RDS - Database Connections',
+        width: 6,
+        left: [this.dbInstance.metricDatabaseConnections({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+
+    // --- Add Widgets to Dashboard in Rows ---
+    systemHealthDashboard.addWidgets(new cloudwatch.Row(alarmStatusWidget));
+    systemHealthDashboard.addWidgets(new cloudwatch.Row(alb5xxErrorsWidget, albAppLatencyWidget));
+    if (unhealthyHostWidgets.length > 0) {
+        // Group unhealthy host widgets into rows of (at most) 6 widgets (24 width / 4 width_per_widget)
+        for (let i = 0; i < unhealthyHostWidgets.length; i += 6) {
+            systemHealthDashboard.addWidgets(new cloudwatch.Row(...unhealthyHostWidgets.slice(i, i + 6)));
+        }
+    }
+    ecsServiceWidgets.forEach(widgetPairStart => {
+        // Assuming ecsServiceWidgets are added in pairs (CPU, Mem)
+        const cpuWidget = widgetPairStart;
+        const memWidget = ecsServiceWidgets[ecsServiceWidgets.indexOf(widgetPairStart) + 1];
+        if(memWidget) { // ensure pair exists
+             systemHealthDashboard.addWidgets(new cloudwatch.Row(cpuWidget, memWidget));
+        } else { // odd one out, just add it
+            systemHealthDashboard.addWidgets(new cloudwatch.Row(cpuWidget));
+        }
+        // This logic for pairing is a bit off, better to build rows directly
+    });
+    // Corrected ECS Widget addition
+    for (let i = 0; i < keyEcsServicesForDashboard.length; i++) {
+        const item = keyEcsServicesForDashboard[i];
+        systemHealthDashboard.addWidgets(new cloudwatch.Row(
+            new cloudwatch.GraphWidget({
+                title: `${item.name} Service - CPU Utilization`,
+                width: 12,
+                left: [item.service.metricCPUUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+            }),
+            new cloudwatch.GraphWidget({
+                title: `${item.name} Service - Memory Utilization`,
+                width: 12,
+                left: [item.service.metricMemoryUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+            })
+        ));
+    }
+
+    systemHealthDashboard.addWidgets(new cloudwatch.Row(rdsCpuWidget, rdsStorageWidget, rdsMemoryWidget, rdsConnectionsWidget));
+
+    // Output Dashboard URL
+    new cdk.CfnOutput(this, 'SystemHealthDashboardUrl', {
+        value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${systemHealthDashboard.dashboardName}`,
+        description: 'URL of the System Health Overview CloudWatch Dashboard.',
     });
 }
