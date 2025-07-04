@@ -15,6 +15,7 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
 *   **Networking:** A dedicated VPC with public and private subnets is created. An Application Load Balancer (ALB) distributes incoming traffic to the services.
 *   **Security:** IAM roles and security groups are defined to ensure secure communication between services. Secrets are managed using AWS Secrets Manager.
 *   **Centralized Logging:** ECS services are configured to send logs to dedicated CloudWatch Log Groups. Log retention is set to a default period (e.g., 30 days), and log group removal policies are stage-dependent (`RETAIN` for production, `DESTROY` for non-production) based on the `DeploymentStage` parameter.
+*   **Distributed Tracing (Foundational):** AWS X-Ray tracing is enabled on the Application Load Balancer, and the ECS Task Role has permissions to send trace data. This prepares the infrastructure for application-level X-Ray SDK integration for end-to-end request tracing.
 *   **Persistent Storage:** Amazon S3 is used for general data storage, and Amazon EFS is used for persistent storage for services like LanceDB (used by the Python agent).
 
 ## Prerequisites
@@ -243,3 +244,14 @@ The following CloudWatch Alarms are configured by default:
     *   **High Database Connections:** Triggers if the average number of database connections exceeds a threshold (e.g., 150 for `db.t3.small`) for 15 minutes.
 
 These alarms provide a foundational level of monitoring. You can extend this by adding more specific alarms or integrating with more advanced monitoring solutions as needed.
+
+### System Health Overview Dashboard
+
+A CloudWatch Dashboard named `<StackName>-SystemHealthOverview` is automatically created to provide a centralized view of key health and performance metrics. This dashboard includes:
+
+*   **Key Alarm Status:** Displays the current status of critical alarms.
+*   **ALB Metrics:** Overall 5XX errors, P90 latency for the App target group, and unhealthy host counts for each key service target group.
+*   **ECS Service Metrics:** CPU and Memory utilization for key services (App, Functions, Hasura, Supertokens, Optaplanner).
+*   **RDS Metrics:** CPU utilization, free storage space, freeable memory, and database connections.
+
+The URL to access this dashboard is provided as a CloudFormation stack output named `SystemHealthDashboardUrl`.
