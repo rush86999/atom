@@ -76,7 +76,9 @@ live_meeting_worker/
 
 ## Key Functionality (To Be Implemented/Enhanced)
 *   **Audio Device Listing:** Dynamically lists available audio input devices.
-*   **Task Management:** Manages the lifecycle of meeting attendance tasks.
+*   **Task Management:** Manages the lifecycle of meeting attendance tasks. Tasks can be in states like `PENDING`, `ACTIVE`, `PROCESSING_COMPLETION`, `COMPLETED`, or `ERROR`.
+    *   If critical operations like Speech-to-Text (STT) or initial Notion page creation fail after retries, the task will be marked as `ERROR`.
+    *   The `message` field of the task status will provide details on the success or failure of various processing stages.
 *   **Audio Capture:** Captures audio from the selected device. (Platform-dependent, may require specific libraries or OS permissions).
 *   **Speech-to-Text (STT):** Transcribes captured audio in real-time or batches. (Requires integration with an STT engine like Whisper).
 *   **Note Generation/Summarization:** Processes the transcript to create summaries or structured notes. (Requires integration with an LLM).

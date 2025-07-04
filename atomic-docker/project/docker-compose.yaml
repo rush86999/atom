@@ -293,6 +293,46 @@ services:
       CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: '1'
     volumes:
       - ./kafka/kafka/server-jaas.conf:/opt/kafka/config/server-jaas.conf:ro,z
+
+  live-meeting-worker:
+    build:
+      context: ../python-api/live_meeting_worker # Path to the Dockerfile directory
+      dockerfile: Dockerfile
+    container_name: live-meeting-worker
+    depends_on:
+      - postgres # If it ever needs to interact with postgres directly
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - NOTION_PARENT_PAGE_ID=${NOTION_PARENT_PAGE_ID} # Optional
+      - DATABASE_URL=/app/data/live_meeting_tasks.db
+    volumes:
+      - ./worker_data:/app/data # For SQLite DB persistence
+    ports:
+      - "8001:8001" # Expose the port FastAPI runs on
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/list_audio_devices"] # Basic healthcheck
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.strip-live-meeting-worker.stripprefix.prefixes=/v1/live-meeting-worker"
+      # HTTP router (redirects to HTTPS)
+      - "traefik.http.routers.live-meeting-worker-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/live-meeting-worker`)"
+      - "traefik.http.routers.live-meeting-worker-http.entrypoints=web"
+      - "traefik.http.routers.live-meeting-worker-http.middlewares=strip-live-meeting-worker@docker,https-redirect@docker"
+      # HTTPS router
+      - "traefik.http.routers.live-meeting-worker-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/live-meeting-worker`)"
+      - "traefik.http.routers.live-meeting-worker-https.entrypoints=websecure"
+      - "traefik.http.routers.live-meeting-worker-https.tls=true"
+      - "traefik.http.routers.live-meeting-worker-https.tls.certresolver=le"
+      - "traefik.http.routers.live-meeting-worker-https.middlewares=strip-live-meeting-worker@docker"
+      - "traefik.http.routers.live-meeting-worker-https.service=live-meeting-worker-service"
+      - "traefik.http.services.live-meeting-worker-service.loadbalancer.server.port=8001"
+
   optaplanner:
     image: atomic-scheduler:latest
     restart: always

@@ -7,6 +7,7 @@ numpy # Already implicitly a dependency of sounddevice, but good to be explicit 
 notion-sdk-py>=1.0.0 # Official Python SDK for Notion API
 httpx>=0.20.0 # For async HTTP requests, a dependency for notion-sdk-py
 aiosqlite>=0.17.0 # For asynchronous SQLite operations
+tenacity>=8.2.0 # For retry mechanisms
 
 # Add other dependencies as needed
 # python-dotenv # For local development if using .env files
