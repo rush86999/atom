@@ -77,30 +77,50 @@ def semantic_search_meetings_route():
 
     query_vector = embedding_response["data"]
 
-    # Call lancedb_service.search_similar_notes
-    # Ensure this function is correctly imported and available.
-    search_results_response = lancedb_service.search_similar_notes(
+    # Call lancedb_service.search_meeting_transcripts
+    # Table name should match what the ingestion pipeline uses
+    lancedb_table = os.environ.get("LANCEDB_TABLE_NAME", "meeting_transcripts_embeddings")
+    limit_param = data.get('limit', 5) # Allow limit to be passed, default to 5
+
+    if not user_id: # user_id is now mandatory for search_meeting_transcripts
+        return jsonify({"status": "error", "message": "Missing 'user_id' in request body."}), 400
+
+    search_results_response = lancedb_service.search_meeting_transcripts(
         db_path=db_path,
         query_vector=query_vector,
-        user_id=user_id, # Pass user_id for filtering if applicable
-        table_name="meeting_transcripts",
-        limit=5 # Or make limit configurable
+        user_id=user_id,
+        table_name=lancedb_table,
+        limit=limit_param
     )
 
     if search_results_response.get("status") == "error":
         print(f"Error searching meeting transcripts: {search_results_response.get('message')}")
-        return jsonify({"status": "error", "message": search_results_response.get('message')}), 500
+        # Pass through the error code if available from lancedb_service
+        error_code = search_results_response.get("code", "SEARCH_FAILED")
+        return jsonify({
+            "status": "error",
+            "message": search_results_response.get('message'),
+            "code": error_code
+        }), 500
 
-    # Format results for the API response, matching agent's expectations
-    formatted_api_results = []
-    for item in search_results_response.get("data", []):
-        # The 'item' here is expected to be the updated NoteSearchResult TypedDict:
-        # {"id": str, "title": Optional[str], "date": Optional[str], "score": float, "user_id": Optional[str]}
-        formatted_api_results.append({
-            "notion_page_id": item.get("id"), # 'id' field from NoteSearchResult
-            "meeting_title": item.get("title"),
-            "meeting_date": item.get("date"), # This is already an ISO string
-            "score": item.get("score")
+    # The data from search_meeting_transcripts is already a list of SemanticSearchResult TypedDicts.
+    # We can return this directly if the agent expects this format.
+    # SemanticSearchResult: {notion_page_id, notion_page_title, notion_page_url, text_chunk_preview, score, last_edited_at_notion, user_id}
+    # The old response format was: {notion_page_id, meeting_title, meeting_date, score}
+    # We need to align this with what atom-agent expects or update atom-agent.
+    # For now, let's adapt to a similar structure to the old one for compatibility,
+    # but using the new field names from SemanticSearchResult.
+
+    api_response_data = []
+    for result_item in search_results_response.get("data", []):
+        api_response_data.append({
+            "notion_page_id": result_item.get("notion_page_id"),
+            "notion_page_title": result_item.get("notion_page_title"),
+            "notion_page_url": result_item.get("notion_page_url"),
+            "text_preview": result_item.get("text_chunk_preview"), # Added preview
+            "last_edited": result_item.get("last_edited_at_notion"), # Changed from meeting_date
+            "score": result_item.get("score")
+            # user_id is not typically returned in search results list items to the agent
         })
 
-    return jsonify({"status": "success", "data": formatted_api_results})
+    return jsonify({"status": "success", "data": api_response_data})
