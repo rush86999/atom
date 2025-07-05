@@ -79,6 +79,117 @@ export async function handleSearchGmail(
   }
 }
 
+import {
+    GmailSearchParameters,
+    CalendarEventSummary,
+    GmailMessageSnippet,
+} from '../types'; // Added for searchEmailsForPrep
+
+export async function searchEmailsForPrep(
+  userId: string,
+  params: GmailSearchParameters,
+  meetingContext?: CalendarEventSummary | null, // Optional meeting context
+  limit: number = 5 // Default limit for prep results
+): Promise<SkillResponse<{ results: GmailMessageSnippet[], query_executed?: string }>> {
+  logger.info(`[searchEmailsForPrep] User: ${userId}, Params: ${JSON.stringify(params)}, MeetingContext: ${meetingContext?.summary}`);
+
+  try {
+    let structuredQuery: Partial<StructuredEmailQuery> = {};
+
+    // 1. Populate structuredQuery from params
+    if (params.from_sender) structuredQuery.from = params.from_sender;
+    if (params.subject_keywords) structuredQuery.subject = params.subject_keywords;
+    if (params.body_keywords) structuredQuery.body = params.body_keywords; // Direct mapping
+    if (params.has_attachment_only) structuredQuery.hasAttachment = true;
+
+    // Date query handling - needs robust parsing or direct use if formatted for Gmail
+    // For simplicity, if params.date_query is like "after:YYYY/MM/DD before:YYYY/MM/DD", buildGmailQueryString might use it.
+    // Otherwise, this part needs more sophisticated date parsing logic.
+    // For now, we'll assume buildGmailQueryString handles what it can from date_query or meeting context.
+
+    // 2. Enhance structuredQuery with meetingContext
+    if (meetingContext) {
+      const eventKeywordsArray: string[] = [];
+      if (meetingContext.summary) {
+        // Add event title keywords to subject/body search
+        // Simple split, could be improved (e.g. remove common words)
+        eventKeywordsArray.push(...meetingContext.summary.toLowerCase().split(' ').filter(kw => kw.length > 2));
+      }
+
+      // Add attendees to a general keyword pool for now, simpler than complex OR logic in from/to
+      if (meetingContext.attendees && meetingContext.attendees.length > 0) {
+        meetingContext.attendees.forEach(a => {
+          if (a.email && a.email !== userId) { // Exclude self
+            eventKeywordsArray.push(a.email);
+            if (a.displayName) { // Add display name parts if available
+                eventKeywordsArray.push(...a.displayName.toLowerCase().split(' ').filter(kw => kw.length > 2));
+            }
+          }
+        });
+      }
+
+      // Combine all event-related keywords and add to body search.
+      // This is a simplified approach. More advanced would be targeted field searches.
+      if (eventKeywordsArray.length > 0) {
+        const uniqueEventKeywords = Array.from(new Set(eventKeywordsArray)); // Remove duplicates
+        const eventKeywordString = uniqueEventKeywords.join(' '); // Join with space for Gmail query
+        structuredQuery.body = structuredQuery.body ? `${structuredQuery.body} ${eventKeywordString}` : eventKeywordString;
+      }
+
+      // Refine date range based on meeting start time if params.date_query is not specific (e.g. "recent", or not set)
+      if (meetingContext.start && (!params.date_query || params.date_query.toLowerCase() === "recent" || params.date_query.trim() === "")) {
+        const meetingDate = new Date(meetingContext.start);
+        const sevenDaysBefore = new Date(meetingDate);
+        sevenDaysBefore.setDate(meetingDate.getDate() - 7);
+
+        const afterDate = `${sevenDaysBefore.getFullYear()}/${(sevenDaysBefore.getMonth() + 1).toString().padStart(2, '0')}/${sevenDaysBefore.getDate().toString().padStart(2, '0')}`;
+        // Search up to and including the meeting day
+        const beforeMeetingDay = new Date(meetingDate);
+        beforeMeetingDay.setDate(meetingDate.getDate() + 1); // Search until the end of the meeting day
+        const beforeDate = `${beforeMeetingDay.getFullYear()}/${(beforeMeetingDay.getMonth() + 1).toString().padStart(2, '0')}/${beforeMeetingDay.getDate().toString().padStart(2, '0')}`;
+
+        structuredQuery.after = afterDate;
+        structuredQuery.before = beforeDate;
+        logger.info(`[searchEmailsForPrep] Date range from meeting context: after:${afterDate} before:${beforeDate}`);
+      }
+    }
+
+    // Pass params.date_query directly to buildGmailQueryString if it wasn't overridden by meeting context.
+    // buildGmailQueryString will need to be robust enough to handle it or ignore if not in expected format.
+    const rawDateQueryForBuild = (structuredQuery.after || structuredQuery.before) ? "" : params.date_query || "";
+
+    const gmailApiQueryString = buildGmailQueryString(structuredQuery, rawDateQueryForBuild);
+    logger.info(`[searchEmailsForPrep] Constructed Gmail API query string: "${gmailApiQueryString}"`);
+
+    if (!gmailApiQueryString || gmailApiQueryString.trim() === "") {
+      logger.warn("[searchEmailsForPrep] Empty Gmail API query string generated. Returning no results.");
+      return { ok: true, data: { results: [], query_executed: gmailApiQueryString } };
+    }
+
+    const backendResults: Email[] = await searchMyEmailsBackend(userId, gmailApiQueryString, limit);
+
+    const results: GmailMessageSnippet[] = backendResults.map(email => ({
+      id: email.id,
+      threadId: email.threadId,
+      subject: email.subject,
+      from: email.sender,
+      date: email.timestamp,
+      snippet: email.body?.substring(0, 200), // Truncate snippet
+      link: email.id ? `https://mail.google.com/mail/u/0/#inbox/${email.id}` : undefined
+    }));
+
+    logger.info(`[searchEmailsForPrep] Found ${results.length} emails.`);
+    return { ok: true, data: { results, query_executed: gmailApiQueryString } };
+
+  } catch (error: any) {
+    logger.error(`[searchEmailsForPrep] Error: ${error.message}`, error);
+    return {
+        ok: false,
+        error: { code: 'GMAIL_PREP_SEARCH_FAILED', message: error.message || "Failed to search Gmail for meeting prep." }
+    };
+  }
+}
+
 
 export async function handleExtractInfoFromGmail(
   userId: string,
