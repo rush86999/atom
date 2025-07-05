@@ -66,11 +66,14 @@ export async function handleStartInPersonAudioNoteDirect(
 
   let suggestedTitle = "Audio Note " + new Date().toISOString(); // Default title
   let linkedEventId: string | undefined = undefined;
-  let resolvedEventSummary: string | undefined = undefined;
+  let resolvedEventSummary: string | undefined = undefined; // To store summary for title update
+  let calendarFeedbackMessage = ""; // For user feedback regarding calendar linking
 
   const noteTitleEntity = nluResult.entities?.find(e => e.entity === 'NOTE_TITLE');
-  if (noteTitleEntity && typeof noteTitleEntity.value === 'string' && noteTitleEntity.value.trim() !== '') {
-    suggestedTitle = noteTitleEntity.value.trim();
+  const originalNoteTitleProvided = noteTitleEntity && typeof noteTitleEntity.value === 'string' && noteTitleEntity.value.trim() !== '';
+
+  if (originalNoteTitleProvided) {
+    suggestedTitle = noteTitleEntity!.value!.trim();
   }
 
   const calendarEventContextEntity = nluResult.entities?.find(e => e.entity === 'CALENDAR_EVENT_CONTEXT');
@@ -79,73 +82,67 @@ export async function handleStartInPersonAudioNoteDirect(
     console.log(`Agent Skill (Direct): Calendar event context found: "${contextQuery}". Attempting resolution.`);
 
     try {
-      // Fetch events from a window: last 12 hours to next 24 hours
       const now = new Date();
       const timeMin = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
       const timeMax = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
       const eventsResponse = await listUpcomingEvents(context.userId, 15, timeMin, timeMax);
 
-      if (eventsResponse.ok && eventsResponse.data && eventsResponse.data.length > 0) {
-        const allFetchedEvents: CalendarEvent[] = eventsResponse.data;
-        let matchedEvent: CalendarEvent | undefined = undefined;
+      if (eventsResponse.ok && eventsResponse.data) {
+        if (eventsResponse.data.length > 0) {
+          const allFetchedEvents: CalendarEvent[] = eventsResponse.data;
+          let matchedEvent: CalendarEvent | undefined = undefined;
+          const currentTime = new Date().getTime();
 
-        // Attempt to find a relevant event
-        // Priority:
-        // 1. Currently active event matching context
-        // 2. Next upcoming event matching context
-        // 3. Most recent past event matching context (within window)
-        // 4. Any other event matching context (first found)
+          const matchingEvents = allFetchedEvents.filter(event =>
+            (event.summary && event.summary.toLowerCase().includes(contextQuery)) ||
+            (event.description && event.description.toLowerCase().includes(contextQuery))
+          );
 
-        const currentTime = new Date().getTime();
+          if (matchingEvents.length > 0) {
+            matchingEvents.sort((a, b) => {
+              const aStart = new Date(a.startTime).getTime();
+              const aEnd = new Date(a.endTime).getTime();
+              const bStart = new Date(b.startTime).getTime();
+              const bEnd = new Date(b.endTime).getTime();
+              const aIsCurrent = aStart <= currentTime && aEnd >= currentTime;
+              const bIsCurrent = bStart <= currentTime && bEnd >= currentTime;
 
-        const matchingEvents = allFetchedEvents.filter(event =>
-          event.summary.toLowerCase().includes(contextQuery) ||
-          (event.description && event.description.toLowerCase().includes(contextQuery))
-        );
-
-        if (matchingEvents.length > 0) {
-          // Sort matching events: current, then upcoming, then past (most recent first)
-          matchingEvents.sort((a, b) => {
-            const aStart = new Date(a.startTime).getTime();
-            const aEnd = new Date(a.endTime).getTime();
-            const bStart = new Date(b.startTime).getTime();
-            const bEnd = new Date(b.endTime).getTime();
-
-            const aIsCurrent = aStart <= currentTime && aEnd >= currentTime;
-            const bIsCurrent = bStart <= currentTime && bEnd >= currentTime;
-
-            if (aIsCurrent && !bIsCurrent) return -1;
-            if (!aIsCurrent && bIsCurrent) return 1;
-
-            if (aStart > currentTime && bStart > currentTime) return aStart - bStart; // Upcoming: soonest first
-            if (aStart < currentTime && bStart < currentTime) return bEnd - aEnd; // Past: most recent first (end time)
-
-            if (aStart > currentTime) return -1; // a is upcoming, b is past
-            if (bStart > currentTime) return 1;  // b is upcoming, a is past
-
-            return bEnd - aEnd; // Default: sort by most recent end time if one is past and other is current/upcoming edge case
-          });
-          matchedEvent = matchingEvents[0];
-        }
-
-        if (matchedEvent) {
-          linkedEventId = matchedEvent.id;
-          resolvedEventSummary = matchedEvent.summary;
-          console.log(`Agent Skill (Direct): Resolved calendar context "${contextQuery}" to event: "${resolvedEventSummary}" (ID: ${linkedEventId})`);
-          if (!(noteTitleEntity && typeof noteTitleEntity.value === 'string' && noteTitleEntity.value.trim() !== '')) { // if original note title was empty or not provided
-            suggestedTitle = `Audio Note for '${resolvedEventSummary}'`;
+              if (aIsCurrent && !bIsCurrent) return -1;
+              if (!aIsCurrent && bIsCurrent) return 1;
+              if (aIsCurrent && bIsCurrent) return bStart - aStart;
+              if (aStart > currentTime && bStart > currentTime) return aStart - bStart;
+              if (aStart < currentTime && bStart < currentTime) return bEnd - aEnd;
+              if (aStart > currentTime) return -1;
+              if (bStart > currentTime) return 1;
+              return bEnd - aEnd;
+            });
+            matchedEvent = matchingEvents[0];
           }
-        } else {
-          console.log(`Agent Skill (Direct): Could not resolve calendar context "${contextQuery}" to a specific event.`);
+
+          if (matchedEvent) {
+            linkedEventId = matchedEvent.id;
+            resolvedEventSummary = matchedEvent.summary;
+            console.log(`Agent Skill (Direct): Resolved calendar context "${contextQuery}" to event: "${resolvedEventSummary}" (ID: ${linkedEventId})`);
+            if (!originalNoteTitleProvided && resolvedEventSummary) {
+              suggestedTitle = `Audio Note for '${resolvedEventSummary}'`;
+            }
+            // calendarFeedbackMessage = ` (Linked to: '${resolvedEventSummary}')`; // Optional: positive feedback
+          } else {
+            console.log(`Agent Skill (Direct): Could not resolve calendar context "${contextQuery}" to a specific event.`);
+            calendarFeedbackMessage = ` (Note: I couldn't find a specific calendar event matching "${calendarEventContextEntity.value.trim()}" to link this note.)`;
+          }
+        } else { // eventsResponse.data.length === 0
+            console.log("Agent Skill (Direct): No calendar events found in the time window for context resolution.");
+            calendarFeedbackMessage = ` (Note: I couldn't find any calendar events around this time to link the note to "${calendarEventContextEntity.value.trim()}".)`;
         }
-      } else if (!eventsResponse.ok) {
+      } else if (!eventsResponse.ok) { // Error fetching events
         console.warn("Agent Skill (Direct): Failed to fetch calendar events for context resolution:", eventsResponse.error);
-      } else {
-        console.log("Agent Skill (Direct): No calendar events found in the time window for context resolution.");
+        calendarFeedbackMessage = " (Note: I had trouble accessing your calendar to link this note.)";
       }
     } catch (error: any) {
-      console.error("Agent Skill (Direct): Error during calendar event context resolution:", error.message);
+      console.error("Agent Skill (Direct): Error during calendar event context resolution:", error.message, error.stack);
+      calendarFeedbackMessage = " (Note: An error occurred while trying to check your calendar.)";
     }
   }
 
@@ -163,7 +160,10 @@ export async function handleStartInPersonAudioNoteDirect(
     await context.sendCommandToClient(context.userId, startCommand);
     console.log("Agent Skill (Direct): Sent START_RECORDING_SESSION command to client:", startCommand);
 
-    const userResponseMessage = `Okay, attempting to start an audio note titled "${suggestedTitle}". Please check the application window.`;
+    let userResponseMessage = `Okay, attempting to start an audio note titled "${suggestedTitle}". Please check the application window.`;
+    if (calendarFeedbackMessage) {
+      userResponseMessage += calendarFeedbackMessage;
+    }
 
     return {
       success: true,
