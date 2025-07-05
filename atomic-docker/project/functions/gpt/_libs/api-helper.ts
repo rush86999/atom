@@ -345,18 +345,113 @@ export const getGoogleAPIToken = async (userId: string, resource: string): Promi
 };
 export const createGoogleEvent = async (userId: string, calendarIdVal: string, clientTypeVal: CalendarIntegrationType['clientType'], summaryVal: string, startDateTimeVal: string, endDateTimeVal: string, timezoneVal: string, descriptionVal?: string, attendeesVal?: { email: string }[], conferenceSolutionVal?: 'eventHangout' | 'hangoutsMeet' | null): Promise<CreateGoogleEventResponse> => { /* ... */
   const operation_name = "GoogleCreateEvent";
-  const tokenResult = await getGoogleAPIToken(userId, 'google_calendar'); if (!tokenResult.success) return { success: false, error: { message: 'Token acquisition failure for Google event.', details: tokenResult.error } };
-  const oAuth2Client = new Auth.OAuth2Client(); oAuth2Client.setCredentials({ access_token: tokenResult.token });
-  const calendar = google.calendar({ version: 'v3', auth: oAuth2Client }); const generatedId = uuidv4();
-  const event: any = { summary: summaryVal, description: descriptionVal, start: { dateTime: startDateTimeVal, timeZone: timezoneVal }, end: { dateTime: endDateTimeVal, timeZone: timezoneVal }, attendees: attendeesVal, reminders: { useDefault: true } };
-  if (conferenceSolutionVal) event.conferenceData = { createRequest: { requestId: generatedId, conferenceSolutionKey: { type: conferenceSolutionVal } } };
+  const tokenResult = await getGoogleAPIToken(userId, 'google_calendar');
+  if (!tokenResult.success) {
+    return { success: false, error: { message: 'Token acquisition failure for Google event.', details: tokenResult.error } };
+  }
+
+  const oAuth2Client = new Auth.OAuth2Client();
+  oAuth2Client.setCredentials({ access_token: tokenResult.token });
+  const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+  const generatedId = uuidv4(); // For conference request if needed
+
+  const event: any = { // Define the event body for Google Calendar API
+    summary: summaryVal,
+    description: descriptionVal,
+    start: { dateTime: startDateTimeVal, timeZone: timezoneVal },
+    end: { dateTime: endDateTimeVal, timeZone: timezoneVal },
+    attendees: attendeesVal,
+    reminders: { useDefault: true },
+  };
+
+  if (conferenceSolutionVal) {
+    event.conferenceData = {
+      createRequest: {
+        requestId: generatedId,
+        conferenceSolutionKey: { type: conferenceSolutionVal },
+      },
+    };
+  }
+
+  const operation_name_for_retry = "GoogleCreateEvent_RetryAttempt";
+
   try {
-    // Note: googleapis library might have its own retry. If insufficient, wrap with async-retry.
-    const gEvent = await calendar.events.insert({ calendarId: calendarIdVal, requestBody: event, conferenceDataVersion: conferenceSolutionVal ? 1 : 0 });
-    if (!gEvent.data.id) return { success: false, error: { message: 'Google API did not return event ID.', details: gEvent.data }};
-    const gEventId = gEvent.data.id; return { success: true, data: { id: `${gEventId}#${calendarIdVal}`, googleEventId: gEventId, generatedId, calendarId: calendarIdVal, generatedEventId: generatedId.split('_')?.[0] } };
-  } catch (e: any) { /* console.error(`[${operation_name}] Error creating Google Calendar event:`, e.message); */ return { success: false, error: { message: 'Google Calendar API error during event creation.', details: e.response?.data || e.errors || e } }; }
+    return await retry(
+      async (bail, attemptNumber) => {
+        try {
+          // console.log(`[${operation_name_for_retry}] Attempt ${attemptNumber} to insert Google event...`); // Placeholder
+          const gEvent = await calendar.events.insert({
+            calendarId: calendarIdVal,
+            requestBody: event,
+            conferenceDataVersion: conferenceSolutionVal ? 1 : 0,
+            // Consider adding a timeout to the googleapis call if the library supports it directly,
+            // or rely on overall timeout of async-retry if that's shorter.
+          });
+
+          if (!gEvent.data.id) {
+            // This is an unexpected success response, should not retry.
+            const err = new Error('Google API did not return event ID despite success status.');
+            // console.error(`[${operation_name_for_retry}] Non-retryable error:`, err.message); // Placeholder
+            bail(err);
+            return; // Should not be reached
+          }
+          const gEventId = gEvent.data.id;
+          return {
+            success: true,
+            data: {
+              id: `${gEventId}#${calendarIdVal}`,
+              googleEventId: gEventId,
+              generatedId, // This was for conference, might be confusing here
+              calendarId: calendarIdVal,
+              generatedEventId: generatedId.split('_')?.[0] // Also for conference
+            }
+          };
+        } catch (e: any) {
+          // console.error(`[${operation_name_for_retry}] Error on attempt ${attemptNumber}:`, e.message, e.code, e.errors); // Placeholder
+          // Check for Google API specific error reasons and HTTP status codes
+          const httpStatusCode = e.code; // googleapis error often has HTTP status code in `e.code`
+          const googleErrorReason = e.errors && e.errors[0] ? e.errors[0].reason : null;
+
+          if (httpStatusCode === 400 || httpStatusCode === 401 || httpStatusCode === 404 ||
+              (httpStatusCode === 403 && googleErrorReason !== 'rateLimitExceeded' && googleErrorReason !== 'userRateLimitExceeded')) {
+            // console.warn(`[${operation_name_for_retry}] Non-retryable Google API error (status ${httpStatusCode}, reason ${googleErrorReason}). Bailing.`); // Placeholder
+            bail(e); // Stop retrying for these client errors
+            return;
+          }
+          // For other errors (e.g., 5xx, rateLimitExceeded, network issues), re-throw to trigger retry
+          throw e;
+        }
+      },
+      {
+        retries: 3,
+        factor: 2,
+        minTimeout: 1000,
+        maxTimeout: 10000,
+        onRetry: (error, attemptNumber) => {
+          const logContext: any = {
+            operation_name: `${operation_name}_onRetry`, // operation_name is from outer scope
+            attempt: attemptNumber,
+            error_message: error.message,
+            error_code: error.code, // HTTP status code
+            error_reason: error.errors && error.errors[0] ? error.errors[0].reason : null,
+          };
+          console.warn("Retrying Google event creation", logContext); // Placeholder
+        },
+      }
+    );
+  } catch (e: any) { // Catch final error from async-retry (all retries failed or bailed)
+    const finalErrorContext: any = {
+      operation_name: `${operation_name}_FinalFailure`,
+      error_message: e.message,
+      error_code: e.code,
+      error_reason: e.errors && e.errors[0] ? e.errors[0].reason : null,
+      was_bailed: e.bail, // Check if error has 'bail' property if async-retry adds it
+    };
+    // console.error("Failed to create Google event after retries or bail", finalErrorContext); // Placeholder
+    return { success: false, error: { message: `Google Calendar API error during event creation: ${e.message}`, details: e.response?.data || e.errors || e } };
+  }
 };
+
 export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<UpsertEventsPostPlannerResponse> => {
   const operation_name = 'HasuraUpsertEvents';
   const uniqueEvents = _.uniqBy(events.filter(e => e), 'id'); if (uniqueEvents.length === 0) return { success: true, data: { affected_rows: 0, returning: [] } };
