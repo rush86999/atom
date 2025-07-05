@@ -211,23 +211,54 @@ function UserViewChat() {
                                 return;
                             }
 
-                            // Process as SkillMessageHistoryType if not an AGENT_COMMAND
-                            const skillMessageHistory: SkillMessageHistoryType = rawData;
-                            if ((skillMessageHistory?.skill === 'generate-meeting-invite') || (skillMessageHistory?.skill === 'send-meeting-invite')) {
-                                const requiredFormData = skillMessageHistory?.required?.dateTime.required?.find((r) => ((r as ObjectFieldType)?.value === 'receiverTimezone'));
-                                if (requiredFormData) {
-                                    setIsForm(true);
-                                } else {
-                                    setIsForm(false);
+                            // Process general agent messages (expected to include text, and optionally structuredData, audioUrl)
+                            const agentMessagePayload = rawData as any; // Define a proper type for this payload later
+
+                            const newAssistantMessage: UserChatType = {
+                                id: chatHistory.length, // Placeholder for ID, ideally replace "working..."
+                                role: 'assistant',
+                                content: agentMessagePayload.text || "Received a message with no text.",
+                                date: dayjs().format(),
+                                audioUrl: agentMessagePayload.audioUrl,
+                            };
+
+                            if (agentMessagePayload.structuredData && agentMessagePayload.structuredData.displayType === 'semantic_search_results') {
+                                newAssistantMessage.customComponentType = 'semantic_search_results';
+                                newAssistantMessage.customComponentProps = { results: agentMessagePayload.structuredData.data };
+                                newAssistantMessage.content = agentMessagePayload.structuredData.summaryText || agentMessagePayload.text;
+                                console.log("UserViewChat (WebSocket): Populated customComponent for semantic_search_results", newAssistantMessage);
+                            }
+
+                            // Update chatHistory: Replace "working..." or append
+                            setChatHistory(prevChatHistory => {
+                                const reversePrevChat = [...prevChatHistory].reverse();
+                                const workingIndex = reversePrevChat.findIndex(m => m.role === 'assistant' && m.content === 'working ...');
+                                if (workingIndex !== -1) {
+                                    const originalIndex = prevChatHistory.length - 1 - workingIndex;
+                                    const updatedHistory = [...prevChatHistory];
+                                    updatedHistory[originalIndex] = { ...newAssistantMessage, id: prevChatHistory[originalIndex].id }; // Preserve ID
+                                    return updatedHistory;
                                 }
+                                // If "working..." not found (shouldn't happen if optimistic update is correct), append
+                                return [...prevChatHistory, { ...newAssistantMessage, id: prevChatHistory.length }];
+                            });
+
+                            setIsLoading(false); // Message displayed
+
+                            // Still call onReceiveMessage if it's used for logging or other side effects with messageHistory
+                            // but it should NOT call setChatHistory anymore for this flow.
+                            // The rawData might still be useful for skill-specific logging if it matches SkillMessageHistoryType.
+                            if (rawData.skill && rawData.query) { // Heuristic: if it looks like SkillMessageHistoryType
+                                await onReceiveMessage(rawData as SkillMessageHistoryType);
                             }
-                            if (skillMessageHistory?.htmlEmail) {
-                                setHtmlEmail(skillMessageHistory?.htmlEmail);
-                            }
-                            await onReceiveMessage(skillMessageHistory);
 
                         } catch (e) {
-                            console.error("UserViewChat: Error processing message from server:", e, "Raw data:", event.data);
+                            console.error("UserViewChat: Error processing WebSocket message from server:", e, "Raw data:", event.data);
+                            // Potentially add an error message to chatHistory here
+                            setChatHistory(prev => [...prev, {
+                                id: prev.length, role: 'assistant', content: "Error processing message from server.", date: dayjs().format()
+                            }]);
+                            setIsLoading(false);
                         }
                     };
 
@@ -277,19 +308,23 @@ function UserViewChat() {
 
 
     const onReceiveMessage = async (
-        skillMessageHistory: SkillMessageHistoryType,
+        // This function is now primarily for updating messageHistory (skill log)
+        // It should not call setChatHistory. That's handled directly in onmessage for WebSockets
+        // or in onSendMessage for HTTP.
+        skillDataForLog: SkillMessageHistoryType,
     ) => {
         try {
+            // Pass only the necessary setters for messageHistory
             await receiveMessageFromBrain(
-                skillMessageHistory,
-                chatHistory, 
+                skillDataForLog,
+                // chatHistory, // Not needed if receiveMessageFromBrain doesn't setChatHistory
                 messageHistory,
-                setChatHistory,
+                // setChatHistory, // Removed
                 setMessageHistory,
-                setIsLoading,
+                // setIsLoading, // isLoading is managed by the caller (onmessage or onSendMessage)
             )
         } catch (e) {
-            console.log(e, ' unable to receive message')
+            console.log(e, ' unable to process skill data for message history log')
         }
     }
 
@@ -499,29 +534,23 @@ function UserViewChat() {
                 <ScrollContainer scrollCta="New Message!" isNewSession={isNewSession} >
                     {
                         (chatHistory as ChatHistoryType)?.map((m, i) => {
-                            // Determine if this message is the last one and an assistant message to potentially show loading/forms
-                            const isLastMessage = (chatHistory.length - 1) === i;
-                            const showFormsForThisMessage = isLastMessage && m.role === 'assistant';
+                            // isLoading for a specific message can be true if it's the last assistant message and global isLoading is true.
+                            const showLoadingForThisMessage = m.role === 'assistant' && isLoading && (chatHistory.length -1 === i);
+                            // For forms/custom components, they are now part of the message object itself if customComponentType is set.
+                            // The `formData` prop in Message.tsx will be used for this.
 
                             return (
                                 <div key={m.id || `msg-${i}`}> {/* Ensure key is always unique */}
                                     <Message
-                                        key={m.id || `msg-item-${i}`}
+                                        key={m.id || `msg-item-${i}`} // Unique key for the Message component
                                         message={m}
-                                        isLoading={showFormsForThisMessage && isLoading}
-                                        // formData prop will be used for custom components like search results
-                                        formData={
-                                            m.customComponentType === 'semantic_search_results' && m.customComponentProps?.results ?
-                                            // Dynamically import SearchResultsDisplay (will create this component next)
-                                            // For now, a placeholder or simple rendering can be used if SearchResultsDisplay isn't ready
-                                            // React.createElement(React.lazy(() => import('@components/chat/custom/SearchResultsDisplay')), m.customComponentProps)
-                                            // Using a placeholder div for now until SemanticSearchResultsDisplay is created
-                                            // This demonstrates where the custom component would go.
-                                            // The actual import will be: React.createElement(React.lazy(() => import('@components/chat/custom/SemanticSearchResultsDisplay')), { results: m.customComponentProps.results })
-                                             <div>Render SearchResultsDisplay here with results: {JSON.stringify(m.customComponentProps.results.length)} items</div>
-                                            : (showFormsForThisMessage && isForm ? renderSelectTimezone() : undefined)
-                                        }
-                                        htmlEmail={showFormsForThisMessage && m.role === 'assistant' ? htmlEmail : undefined} // Only pass htmlEmail for assistant messages
+                                        isLoading={showLoadingForThisMessage}
+                                        // The formData prop in Message.tsx will now directly use m.customComponentProps
+                                        // if m.customComponentType indicates it.
+                                        // No need to pass complex React.createElement here.
+                                        // Message.tsx will handle the rendering based on m.customComponentType.
+                                        formData={undefined} // This specific prop might be deprecated if Message directly uses m.customComponentType
+                                        htmlEmail={m.role === 'assistant' ? htmlEmail : undefined}
                                     />
                                 </div>
                             )
