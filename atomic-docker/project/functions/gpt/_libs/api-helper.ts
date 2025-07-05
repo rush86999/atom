@@ -117,80 +117,125 @@ hasuraGotBreaker.on('reject', () => { // Fired when a call is rejected because t
 //   }, `Breaker action failed for ${hasuraGotBreaker.name}`);
 // });
 
+// --- Circuit Breaker for OpenAI calls ---
+const openAIBreakerOptions = {
+  timeout: false, // async-retry and OpenAI SDK handle individual attempt timeouts
+  errorThresholdPercentage: 50,
+  resetTimeout: 60000, // 60 seconds
+  volumeThreshold: 5,   // Minimum requests in rolling window
+  name: 'OpenAIBreaker',
+};
 
-export const callOpenAI = async (systemMessage: string, userMessage: string, exampleInput?: string, exampleOutput?: string, model?: string): Promise<CallOpenAIResponse> => {
+const openAIBreaker = new Opossum(async (
+  systemMessage: string,
+  userMessage: string,
+  exampleInput?: string,
+  exampleOutput?: string,
+  model?: string
+) => {
+  // This is the action opossum will fire, which is our existing retry logic for OpenAI
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: 'system', content: systemMessage }];
   if (exampleInput && exampleOutput) { messages.push({ role: 'user', content: exampleInput }); messages.push({ role: 'assistant', content: exampleOutput }); }
   messages.push({ role: 'user', content: userMessage });
   const chosenModel = model || 'gpt-3.5-turbo-1106';
-  const operation_name = 'OpenAICall';
+  const operation_name_inner = 'OpenAICall_AttemptLogic'; // More specific name for inner logic
 
   return await retry(
     async (bail, attemptNumber) => {
       try {
-        // console.log(`[${operation_name}] Attempt ${attemptNumber} to call OpenAI...`); // Placeholder for logger
+        // console.log(`[${operation_name_inner}] Attempt ${attemptNumber} to call OpenAI...`); // Placeholder
         const completion = await openai.chat.completions.create({
           model: chosenModel,
           messages,
           timeout: 20000, // 20s timeout per attempt
         });
+        // Explicitly return success structure expected by opossum's .fire() and outer function
         return { success: true, content: completion?.choices?.[0]?.message?.content };
       } catch (error: any) {
-        // console.error(`[${operation_name}] Error on attempt ${attemptNumber}:`, error.message); // Placeholder
-        if (error.response) { // Error from OpenAI API itself
-          // Don't retry on 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
-          if ([400, 401, 403, 404].includes(error.response.status)) {
-            // console.warn(`[${operation_name}] Non-retryable OpenAI API error (status ${error.response.status}). Bailing.`); // Placeholder
-            bail(error); // Stop retrying for these errors
-            // The error thrown by bail will be caught by the outer catch block of async-retry
-            // We need to return the structured error from there. This bail just stops retries.
-            // To immediately return the structured error, we'd have to throw the structured one here.
-            // For now, let bail throw, and the outer catch will format it.
-            return; // Should not be reached if bail throws
-          }
-          // For other API errors (e.g., 429, 5xx), let retry happen
-          throw error; // Re-throw to trigger retry
-        } else { // Network error or other non-API error
-          throw error; // Re-throw to trigger retry
-        }
-      }
-    },
-    {
-      retries: 3, // Total attempts = initial + 3 retries = 4
-      factor: 2,
-      minTimeout: 1000, // 1 second
-      maxTimeout: 10000, // 10 seconds
-      onRetry: (error, attemptNumber) => {
-        const logContext: any = {
-          operation_name: `${operation_name}_RetryAttempt`,
+        const logContextRetry: any = {
+          operation_name: `${operation_name_inner}_Retry`, // Keep this distinct
           attempt: attemptNumber,
           error_message: error.message,
           error_type: error.constructor.name,
         };
         if (error.response && error.response.status) {
-          logContext.error_status = error.response.status;
+          logContextRetry.error_status = error.response.status;
         }
-        // This will use global console.warn. Ideally, a passed-in or global Winston logger is used.
-        console.warn("Retrying OpenAI call", logContext);
+        // console.warn("OpenAI call attempt failed", logContextRetry); // Placeholder
+
+        if (error.response && [400, 401, 403, 404].includes(error.response.status)) {
+          // console.warn(`[${operation_name_inner}] Non-retryable OpenAI API error (status ${error.response.status}). Bailing.`); // Placeholder
+          bail(error); // Stop retrying for these client errors
+          return; // bail will throw, so this won't be reached.
+        }
+        throw error; // Re-throw other errors to trigger retry
+      }
+    },
+    {
+      retries: 3, factor: 2, minTimeout: 1000, maxTimeout: 10000,
+      onRetry: (error, attemptNumber) => { // This onRetry is for async-retry
+        const logContextOnRetry: any = {
+          operation_name: `${openAIBreaker.name}_AsyncRetry_OnRetry`, // Distinguish this log
+          attempt: attemptNumber,
+          error_message: error.message,
+          error_type: error.constructor.name,
+        };
+        if (error.response && error.response.status) {
+          logContextOnRetry.error_status = error.response.status;
+        }
+        console.warn("Retrying OpenAI call (async-retry)", logContextOnRetry);
       },
     }
-  ).catch(error => { // Catch error from retry (if all retries failed or bailed after `bail(error)` was called)
+  );
+}, openAIBreakerOptions);
+
+// Event listeners for the OpenAI circuit breaker
+openAIBreaker.on('open', () => {
+  console.error({ circuit_breaker_name: openAIBreaker.name, event: 'open', message: `Circuit breaker ${openAIBreaker.name} opened.` }, `CB Opened: ${openAIBreaker.name}`);
+});
+openAIBreaker.on('close', () => {
+  console.warn({ circuit_breaker_name: openAIBreaker.name, event: 'close', message: `Circuit breaker ${openAIBreaker.name} closed.` }, `CB Closed: ${openAIBreaker.name}`);
+});
+openAIBreaker.on('halfOpen', () => {
+  console.warn({ circuit_breaker_name: openAIBreaker.name, event: 'halfOpen', message: `Circuit breaker ${openAIBreaker.name} half-open.` }, `CB HalfOpen: ${openAIBreaker.name}`);
+});
+openAIBreaker.on('reject', () => {
+  console.warn({ circuit_breaker_name: openAIBreaker.name, event: 'reject', message: `Call rejected by ${openAIBreaker.name} (circuit open).` }, `CB Rejected Call: ${openAIBreaker.name}`);
+});
+
+// This is the actual exported function that uses the circuit breaker.
+export const callOpenAI = async (systemMessage: string, userMessage: string, exampleInput?: string, exampleOutput?: string, model?: string): Promise<CallOpenAIResponse> => {
+  const operation_name = 'OpenAICall_CircuitWrapped'; // For outer logging context
+  try {
+    // Pass the original arguments to the breaker.fire() method.
+    // Opossum will then pass these to the async function defined in its constructor.
+    const result = await openAIBreaker.fire(systemMessage, userMessage, exampleInput, exampleOutput, model);
+    // The action wrapped by openAIBreaker already returns the {success: true/false, ...} structure from async-retry's resolution.
+    return result as CallOpenAIResponse;
+  } catch (e: any) {
+    // This catch block handles errors primarily from the circuit breaker itself (e.g., EOPENBREAKER)
+    // or if the action passed to opossum had an unhandled promise rejection NOT caught by async-retry's .catch()
+    // (which shouldn't happen with the current setup as async-retry's .catch() returns a value).
+
+    const errorMessagePrefix = e.code === 'EOPENBREAKER'
+      ? `Circuit breaker ${openAIBreaker.name} is open for OpenAI.`
+      : `Circuit breaker error for ${operation_name}.`; // Default for unexpected errors from breaker
+
     const finalErrorContext: any = {
-        operation_name: `${operation_name}_FinalFailure`,
-        error_message: error.message,
-        error_type: error.constructor.name,
-        was_bailed: error.bail // async-retry adds `bail` property to error if bail() was called
+        operation_name: `${operation_name}_BreakerFailure`,
+        circuit_breaker_status: e.code === 'EOPENBREAKER' ? 'Open' : 'UnknownBreakerError',
+        error_message: e.message,
+        error_type: e.constructor.name,
     };
-    if (error.response) { // Error from OpenAI API
-      finalErrorContext.error_status = error.response.status;
-      finalErrorContext.error_data = error.response.data;
-      // console.error("OpenAI API Error after retries or bail", finalErrorContext); // Placeholder
-      return { success: false, error: { type: 'OPENAI_API_ERROR', status: error.response.status, data: error.response.data, message: `OpenAI API request failed: ${error.message}` } };
-    } else { // Network or other request error
-      // console.error("Error calling OpenAI after retries", finalErrorContext); // Placeholder
-      return { success: false, error: { type: 'OPENAI_REQUEST_ERROR', message: error.message } };
+    console.error("Error from OpenAI circuit breaker:", finalErrorContext); // Placeholder
+
+    if (e.code === 'EOPENBREAKER') {
+        return { success: false, error: { type: 'CIRCUIT_BREAKER_OPEN', message: errorMessagePrefix, details: e.message } };
     }
-  });
+    // Fallback for other types of errors caught by the breaker's .fire()
+    // These should be rare if the wrapped action (with async-retry) correctly formats all its errors.
+    return { success: false, error: { type: 'OPENAI_REQUEST_ERROR', message: errorMessagePrefix, details: e.message } };
+  }
 };
 
 export const getCalendarIntegration = async (userId: string, resource: string): Promise<SuccessResponseType<CalendarIntegrationType | undefined> | FailureResponseType> => {
