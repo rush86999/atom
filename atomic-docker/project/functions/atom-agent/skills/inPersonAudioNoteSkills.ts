@@ -1,26 +1,11 @@
 // In: atomic-docker/project/functions/atom-agent/skills/inPersonAudioNoteSkills.ts
 
 import { listUpcomingEvents } from './calendarSkills'; // Import the calendar skill
-import { CalendarEvent, ProcessedNLUResponse } from '../types'; // Import central types
+// Import central types including AgentSkillContext and AgentClientCommand
+import { CalendarEvent, ProcessedNLUResponse, AgentSkillContext, AgentClientCommand } from '../types';
 
-// --- Redefined types to match handler.ts until they are centralized ---
-// Ideally, these would be imported from a shared types file used by both handler and skills.
-// For now, ensuring they match the definitions in handler.ts.
-
-interface AgentClientCommand {
-  command_id: string;
-  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION';
-  payload?: {
-    suggestedTitle?: string;
-    linkedEventId?: string;
-  };
-}
-
-interface AgentSkillContext {
-  userId: string;
-  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>; // Matches handler.ts
-}
-// --- End Redefined types ---
+// Local/redefined types for AgentClientCommand and AgentSkillContext are removed.
+// They are now imported from ../types
 
 
 // This response type is specific to this skill's handlers
