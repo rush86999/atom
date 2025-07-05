@@ -1,9 +1,12 @@
 import { UserChatType } from "@lib/dataTypes/Messaging/MessagingTypes";
 import { dayjs } from "@lib/date-utils";
-import React, { useRef, useEffect } from "react"; // Added useEffect
+import React, { useRef, useEffect, Suspense } from "react"; // Added Suspense
 import { useAudioMode } from "@lib/contexts/AudioModeContext"; // Import useAudioMode
 import { ChatMessageActions } from "./chat-message-actions";
 import { EmailContentCopy } from "./email-content-copy";
+
+// Dynamically import the SearchResultsDisplay component
+const SearchResultsDisplay = React.lazy(() => import('./custom/SearchResultsDisplay'));
 
 
 type Props = {
@@ -108,14 +111,23 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
                                     }
                                 </div>
                                 <div className="pb-2">
-                                    {
-                                        htmlEmail ? (
-                                            <div className="group/email">
-                                                <EmailContentCopy emailContent={divRef} />
-                                                <div ref={divRef} dangerouslySetInnerHTML={{ __html: htmlEmail }} />
-                                            </div>
-                                        ) : null
-                                    }
+                                    {/* Render custom component if type matches */}
+                                    {message.customComponentType === 'semantic_search_results' && message.customComponentProps?.results && (
+                                        <Suspense fallback={<div>Loading search results...</div>}>
+                                            <SearchResultsDisplay results={message.customComponentProps.results} />
+                                        </Suspense>
+                                    )}
+                                    {/* Render HTML email if present */}
+                                    {htmlEmail && !message.customComponentType && ( // Avoid rendering if custom component already shown
+                                        <div className="group/email">
+                                            <EmailContentCopy emailContent={divRef} />
+                                            <div ref={divRef} dangerouslySetInnerHTML={{ __html: htmlEmail }} />
+                                        </div>
+                                    )}
+                                    {/* Render generic formData if present and no other custom content took precedence */}
+                                    {formData && !message.customComponentType && !htmlEmail && (
+                                        <div>{formData}</div>
+                                    )}
                                 </div>
                             </div>
                             )}
