@@ -1,0 +1,36 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  awsxray:
+    region: ${AWS_REGION} # AWS_REGION will be injected as an environment variable
+  awsemf:
+    region: ${AWS_REGION} # AWS_REGION will be injected as an environment variable
+    log_group_name: '/aws/ecs/otel-metrics/${CLUSTER_NAME}' # Example log group for metrics
+    log_stream_name: 'otel-metrics-stream-${TASK_ID}' # Example log stream
+    namespace: 'AtomicApp/CustomMetrics' # CloudWatch namespace for metrics
+    # resource_to_telemetry_conversion:
+    #   enabled: true # Converts resource attributes to metric dimensions
+
+processors:
+  batch: {} # Batches telemetry data before sending to exporters
+
+extensions:
+  health_check: {}
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsemf]
