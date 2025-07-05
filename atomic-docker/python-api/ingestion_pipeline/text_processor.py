@@ -4,6 +4,7 @@ import asyncio # Required for asyncio.to_thread
 from typing import List, Optional, Tuple
 from openai import OpenAI, APIError, RateLimitError, AuthenticationError, APIConnectionError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import tiktoken # Import tiktoken
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -12,6 +13,7 @@ if not logger.hasHandlers(): # Basic configuration if run standalone
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 EMBEDDING_MODEL = "text-embedding-ada-002" # OpenAI's recommended model for most use cases
+DEFAULT_TOKENIZER_MODEL = "cl100k_base" # Default tokenizer for text-embedding-ada-002
 
 # Initialize OpenAI client
 _openai_client_instance: Optional[OpenAI] = None
@@ -26,44 +28,65 @@ def get_openai_client() -> Optional[OpenAI]:
             logger.warning("OPENAI_API_KEY not set. OpenAI client cannot be initialized by text_processor.")
     return _openai_client_instance
 
-def chunk_text(text: str, max_chunk_size_words: int = 400, overlap_words: int = 50) -> List[str]:
+def chunk_text(
+    text: str,
+    max_chunk_tokens: int = 500, # Max tokens per chunk (e.g., for text-embedding-ada-002, max is 8191)
+    overlap_tokens: int = 50,    # Number of tokens to overlap between chunks
+    tokenizer_model_name: str = DEFAULT_TOKENIZER_MODEL
+) -> List[str]:
     """
-    Splits text into chunks based on approximate word count, with overlap.
-
-    NOTE: This is a simplified word-based chunker. For production, using a
-    tokenizer like 'tiktoken' to count actual tokens and split based on model
-    limits (e.g., 8191 tokens for text-embedding-ada-002) and desired chunk
-    token size is strongly recommended for accuracy and to avoid exceeding API limits.
-    This implementation approximates tokens with words.
+    Splits text into chunks based on token count using tiktoken, with overlap.
     """
     if not text:
         return []
 
-    words = text.split() # Splits by any whitespace and handles multiple spaces.
-    if not words:
+    try:
+        tokenizer = tiktoken.get_encoding(tokenizer_model_name)
+    except Exception as e:
+        logger.error(f"Failed to get tokenizer for '{tokenizer_model_name}': {e}. Falling back to default 'cl100k_base'.")
+        try:
+            tokenizer = tiktoken.get_encoding("cl100k_base")
+        except Exception as e_fallback:
+            logger.error(f"Failed to get fallback tokenizer 'cl100k_base': {e_fallback}. Cannot chunk text.")
+            # As a last resort, could fall back to word-based, but for now, we'll indicate failure.
+            # Or, raise the error to make it clear chunking isn't possible.
+            raise ValueError(f"Could not initialize tiktoken tokenizer: {e_fallback}")
+
+
+    tokens = tokenizer.encode(text)
+    if not tokens:
         return []
 
-    chunks: List[str] = []
+    chunks_text: List[str] = []
     current_pos = 0
 
-    while current_pos < len(words):
-        end_pos = min(current_pos + max_chunk_size_words, len(words))
-        chunk_words = words[current_pos:end_pos]
-        chunks.append(" ".join(chunk_words))
+    while current_pos < len(tokens):
+        end_pos = min(current_pos + max_chunk_tokens, len(tokens))
+        chunk_tokens = tokens[current_pos:end_pos]
 
-        if end_pos == len(words): # Reached the end
+        # Decode the tokens back to text for this chunk
+        # Note: decode can sometimes produce slightly different text than the original slice
+        # if the split occurs mid-multi-token character sequence. This is generally acceptable.
+        chunks_text.append(tokenizer.decode(chunk_tokens))
+
+        if end_pos == len(tokens): # Reached the end
             break
 
         # Move current_pos for the next chunk, considering overlap
-        # Ensure we don't create an infinite loop with overlap if max_chunk_size_words is too small
-        advance_by = max(1, max_chunk_size_words - overlap_words)
+        # Ensure we don't create an infinite loop with overlap if max_chunk_tokens is too small
+        advance_by = max(1, max_chunk_tokens - overlap_tokens)
         current_pos += advance_by
+        # Safety break if advance_by is too small or overlap is >= max_chunk_tokens
+        if advance_by <= 0 :
+            logger.warning(f"Chunking advance_by is <=0 ({advance_by}), breaking to avoid infinite loop. Check overlap_tokens ({overlap_tokens}) vs max_chunk_tokens ({max_chunk_tokens}).")
+            break
 
-    if not chunks and text.strip(): # If text was not empty but somehow resulted in no chunks
-        chunks.append(text.strip())
 
-    logger.info(f"Chunked text into {len(chunks)} chunks. Original words: {len(words)}. Max words/chunk: {max_chunk_size_words}, Overlap: {overlap_words}")
-    return chunks
+    if not chunks_text and text.strip(): # If text was not empty but somehow resulted in no chunks
+        chunks_text.append(text.strip()) # Fallback to the whole text if chunking produced nothing
+
+    logger.info(f"Chunked text into {len(chunks_text)} chunks. Original tokens: {len(tokens)}. Max tokens/chunk: {max_chunk_tokens}, Overlap tokens: {overlap_tokens}")
+    return chunks_text
 
 
 @retry(
@@ -113,12 +136,13 @@ async def generate_embedding(text_chunk: str, openai_client: Optional[OpenAI] = 
 
 async def process_text_for_embeddings(
     full_text: str,
-    max_tokens_per_chunk_approx: int = 400, # Using word count as proxy
-    chunk_overlap_approx: int = 50,       # Using word count as proxy
+    max_chunk_tokens: int = 500, # Renamed from max_tokens_per_chunk_approx
+    chunk_overlap_tokens: int = 50, # Renamed from chunk_overlap_approx
+    tokenizer_model_name: str = DEFAULT_TOKENIZER_MODEL, # Added tokenizer model name
     openai_client_override: Optional[OpenAI] = None
 ) -> List[Tuple[str, Optional[List[float]]]]:
     """
-    Chunks text and generates embeddings for each chunk.
+    Chunks text using tiktoken and generates embeddings for each chunk.
     Returns a list of tuples: (text_chunk, embedding_vector_or_None).
     """
     client = openai_client_override or get_openai_client()
@@ -126,12 +150,20 @@ async def process_text_for_embeddings(
         logger.error("OpenAI client not available for processing text for embeddings.")
         return []
 
-    text_chunks = chunk_text(full_text,
-                             max_chunk_size_words=max_tokens_per_chunk_approx,
-                             overlap_words=chunk_overlap_approx)
+    try:
+        text_chunks = chunk_text(
+            full_text,
+            max_chunk_tokens=max_chunk_tokens,
+            overlap_tokens=chunk_overlap_tokens,
+            tokenizer_model_name=tokenizer_model_name
+        )
+    except ValueError as e: # Catch tokenizer initialization errors
+        logger.error(f"Cannot process text for embeddings due to tokenizer error: {e}")
+        return []
+
 
     if not text_chunks:
-        logger.info("No text chunks to process after chunking.")
+        logger.info("No text chunks to process after token-based chunking.")
         return []
 
     results = []
@@ -154,7 +186,7 @@ if __name__ == '__main__':
             print("Please set OPENAI_API_KEY for testing text_processor.")
             return
 
-        sample_text_short = "This is a short test sentence."
+        sample_text_short = "This is a short test sentence. Tiktoken helps manage token limits."
         sample_text_long = (
             "This is the first paragraph of a long document. It discusses various interesting topics. "
             "The quick brown fox jumps over the lazy dog. This sentence is here to add more content. "
@@ -164,36 +196,44 @@ if __name__ == '__main__':
             "Yet another sentence to make the text even longer and test the chunking logic properly. "
             "The art of chunking is to find the right balance between context preservation and individual chunk size. "
             "Too small, and you lose context. Too large, and you might exceed model limits or dilute the embedding's focus. "
+            "Using tiktoken for accurate token counting is essential for robust OpenAI API interactions, especially with models like text-embedding-ada-002. "
         ) * 3 # Repeat to make it longer
 
-        print(f"Processing short sample text (length: {len(sample_text_short)} chars)...")
+        tokenizer_for_test = tiktoken.get_encoding(DEFAULT_TOKENIZER_MODEL)
+
+        print(f"Processing short sample text (length: {len(sample_text_short)} chars, tokens: {len(tokenizer_for_test.encode(sample_text_short))})...")
         chunk_embedding_pairs_short = await process_text_for_embeddings(
             sample_text_short,
-            max_tokens_per_chunk_approx=50, # small chunks for testing
-            chunk_overlap_approx=5
+            max_chunk_tokens=10, # small token chunks for testing
+            chunk_overlap_tokens=2,
+            tokenizer_model_name=DEFAULT_TOKENIZER_MODEL
         )
         print(f"\nProcessed {len(chunk_embedding_pairs_short)} chunks for short text:")
         for i, (chunk, embedding) in enumerate(chunk_embedding_pairs_short):
             status = "Success" if embedding else "Failed"
             dim = len(embedding) if embedding else "N/A"
-            print(f"  Chunk {i+1} (len: {len(chunk.split())} words) - Embedding: {status} (Dim: {dim}) | Text: '{chunk[:70]}...'")
+            chunk_tokens = len(tokenizer_for_test.encode(chunk))
+            print(f"  Chunk {i+1} (tokens: {chunk_tokens}) - Embedding: {status} (Dim: {dim}) | Text: '{chunk[:70]}...'")
             if embedding: print(f"    Embedding vector preview: {embedding[:3]}...")
 
-        print(f"\nProcessing long sample text (length: {len(sample_text_long)} chars)...")
+        print(f"\nProcessing long sample text (length: {len(sample_text_long)} chars, tokens: {len(tokenizer_for_test.encode(sample_text_long))})...")
         chunk_embedding_pairs_long = await process_text_for_embeddings(
             sample_text_long,
-            max_tokens_per_chunk_approx=100,
-            chunk_overlap_approx=20
+            max_chunk_tokens=100, # Max tokens per chunk
+            chunk_overlap_tokens=20,  # Overlap in tokens
+            tokenizer_model_name=DEFAULT_TOKENIZER_MODEL
         )
         print(f"\nProcessed {len(chunk_embedding_pairs_long)} chunks for long text:")
         for i, (chunk, embedding) in enumerate(chunk_embedding_pairs_long):
             status = "Success" if embedding else "Failed"
             dim = len(embedding) if embedding else "N/A"
-            print(f"  Chunk {i+1} (len: {len(chunk.split())} words) - Embedding: {status} (Dim: {dim}) | Text: '{chunk[:70]}...'")
+            chunk_tokens = len(tokenizer_for_test.encode(chunk))
+            print(f"  Chunk {i+1} (tokens: {chunk_tokens}) - Embedding: {status} (Dim: {dim}) | Text: '{chunk[:70]}...'")
             if embedding: print(f"    Embedding vector preview: {embedding[:3]}...")
 
     # To run this test:
     # 1. Make sure OPENAI_API_KEY is in your environment.
+    # 2. Ensure tiktoken is installed (`pip install tiktoken`)
     # 2. Uncomment the line below.
     # asyncio.run(main_test_processor())
     pass

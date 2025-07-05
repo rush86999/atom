@@ -386,6 +386,10 @@ def create_processed_audio_note_in_notion(
     client = notion_client_param or notion # Use global or passed client
     if not client: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
 
+    # Initialize logger for this function
+    logger_func = logging.getLogger(__name__ + ".create_processed_audio_note_in_notion")
+
+
     db_id_to_use = notion_db_id or NOTION_NOTES_DATABASE_ID_GLOBAL
     if not db_id_to_use: return {"status": "error", "message": "Notion database ID not configured for notes.", "code": "NOTION_CONFIG_ERROR"}
 
@@ -457,18 +461,53 @@ def create_processed_audio_note_in_notion(
         response = client.pages.create(
             parent={"database_id": db_id_to_use},
             properties=properties,
-            children=page_content_blocks[:100] # Notion API limit for children on create
+            children=page_content_blocks[:100] # Send the first batch of blocks (up to 100)
         )
-        # TODO: If page_content_blocks > 100, need to append remaining blocks in batches.
-        # This initial implementation truncates if more than 100 blocks are generated.
-        if len(page_content_blocks) > 100:
-            print(f"Warning: Notion note content for '{title}' was truncated to 100 blocks on creation. Further appends needed for full content.")
-            # Implement append logic here if needed.
 
-        return {"status": "success", "data": {"page_id": response["id"], "url": response.get("url")}}
+        page_id = response["id"]
+        page_url = response.get("url")
+
+        # If there are more than 100 blocks, append the rest in batches
+        if len(page_content_blocks) > 100:
+            logger_func.info(f"Notion note '{title}' has {len(page_content_blocks)} blocks. Appending remaining blocks in batches...")
+            for i in range(100, len(page_content_blocks), 100):
+                batch_to_append = page_content_blocks[i:i+100]
+                try:
+                    client.blocks.children.append(
+                        block_id=page_id,
+                        children=batch_to_append
+                    )
+                    logger_func.info(f"Successfully appended batch of {len(batch_to_append)} blocks to Notion page '{title}' (ID: {page_id}).")
+                except APIResponseError as e_append:
+                    logger_func.error(f"Notion API error appending blocks to page {page_id} for '{title}': {e_append.body.get('message', str(e_append))}")
+                    # Decide if this should be a fatal error for the whole function
+                    # For now, we'll return success for the page creation but log the append error.
+                    # The main page is created, but content might be incomplete.
+                    # Or, return an error indicating partial success.
+                    # Let's add a warning to the success message.
+                    return {
+                        "status": "warning",
+                        "message": f"Page created, but failed to append all content blocks due to API error: {e_append.body.get('message', str(e_append))}",
+                        "data": {"page_id": page_id, "url": page_url, "append_error": True},
+                        "code": f"NOTION_API_APPEND_{e_append.code.upper()}",
+                        "details": e_append.body
+                    }
+                except Exception as e_append_general:
+                    logger_func.error(f"General error appending blocks to page {page_id} for '{title}': {str(e_append_general)}")
+                    return {
+                        "status": "warning",
+                        "message": f"Page created, but failed to append all content blocks due to a general error: {str(e_append_general)}",
+                        "data": {"page_id": page_id, "url": page_url, "append_error": True},
+                        "code": "NOTION_APPEND_ERROR"
+                    }
+            logger_func.info(f"All blocks successfully appended for Notion page '{title}' (ID: {page_id}).")
+
+        return {"status": "success", "data": {"page_id": page_id, "url": page_url}}
     except APIResponseError as e:
+        logger_func.error(f"Notion API error creating page '{title}': {e.body.get('message', str(e))}")
         return {"status": "error", "message": f"Notion API error: {e.body.get('message', str(e))}", "code": f"NOTION_API_{e.code.upper()}", "details": e.body}
     except Exception as e:
+        logger_func.error(f"Error creating Notion processed audio note '{title}': {str(e)}")
         return {"status": "error", "message": f"Error creating Notion processed audio note: {str(e)}", "code": "NOTION_CREATE_ERROR"}
 
 

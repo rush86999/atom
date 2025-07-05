@@ -32,6 +32,8 @@ import {
   ProcessedNLUResponse,
   LtmQueryResult,
   SkillArgs, // Added for SemanticSearchMeetingNotes
+  // Semantic Search Result Type - for structured data
+  ApiMeetingSearchResult, // Assuming this type can be imported or defined
   // Task Management Types
   CreateNotionTaskParams,
   QueryNotionTasksParams,
@@ -55,6 +57,26 @@ import {
   ExecutedSubTaskResult,
   OrchestratedComplexTaskReport,
 } from '../types';
+
+// Import the specific skill response type if available, or define locally
+// For SemanticSearchMeetingNotes, the skill returns Promise<string | { displayType: 'semantic_search_results'; summaryText: string; data: ApiMeetingSearchResult[] }>
+// We need ApiMeetingSearchResult definition. For now, let's assume it's available via '../types' or we'll define a placeholder.
+// If it's not in types, let's define a placeholder for the data part of semantic search
+interface PlaceholderApiMeetingSearchResult {
+    notion_page_id: string;
+    notion_page_title: string;
+    notion_page_url: string;
+    text_preview: string;
+    last_edited: string;
+    score: number;
+}
+
+interface SemanticSearchStructuredData {
+    displayType: 'semantic_search_results';
+    summaryText: string;
+    data: PlaceholderApiMeetingSearchResult[];
+}
+
 
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
 
@@ -213,6 +235,7 @@ export interface HandleMessageResponse {
   text: string;
   audioUrl?: string;
   error?: string;
+  structuredData?: any; // Added field for structured skill responses
 }
 
 // Extend existing options for _internalHandleMessage to include the sendCommandToClientFunction.
@@ -232,8 +255,9 @@ async function _internalHandleMessage(
   userId: string,
   // Options now uses the extended interface
   options?: InternalHandleMessageOptions
-): Promise<{text: string, nluResponse?: ProcessedNLUResponse}> {
+): Promise<{text: string, nluResponse?: ProcessedNLUResponse, structuredData?: any}> {
   let textResponse: string;
+  let structuredDataResponse: any = undefined; // Variable to hold structured data
   let conversationLtmContext: LtmQueryResult[] | null = null;
   let nluResponse: ProcessedNLUResponse;
 
@@ -319,7 +343,7 @@ async function _internalHandleMessage(
             console.log(`[Handler][${interfaceType}] Augmented error response with LTM context: ${ltmPreamble}`);
         }
     }
-    return { text: textResponse, nluResponse };
+    return { text: textResponse, nluResponse, structuredData: structuredDataResponse };
   }
 
   // Process NLU response and execute skills
@@ -1679,13 +1703,30 @@ async function _internalHandleMessage(
               textResponse = "Please specify what you'd like to search for in your meeting notes.";
           } else {
               console.log(`[Handler][${interfaceType}] Calling handleSemanticSearchMeetingNotesSkill with query: "${skillArgs.params.query}" for user ${userId}`);
-              textResponse = await handleSemanticSearchMeetingNotesSkill(skillArgs); // No ApiHelper needed now
+              const skillOutput = await handleSemanticSearchMeetingNotesSkill(skillArgs);
+
+              if (typeof skillOutput === 'string') {
+                  textResponse = skillOutput;
+                  structuredDataResponse = undefined;
+              } else if (typeof skillOutput === 'object' && skillOutput.displayType === 'semantic_search_results') {
+                  // This is the structured response
+                  textResponse = skillOutput.summaryText; // Use the summary text for verbal/main text response
+                  structuredDataResponse = skillOutput; // Pass the full structured data
+                  console.log(`[Handler][${interfaceType}] SemanticSearchMeetingNotes returned structured data.`);
+              } else {
+                  // Fallback if the response is not a string and not the expected object structure
+                  textResponse = "Received an unexpected data format from the search skill.";
+                  structuredDataResponse = undefined;
+                  console.warn(`[Handler][${interfaceType}] SemanticSearchMeetingNotes returned an unexpected data type:`, skillOutput);
+              }
           }
 
-          console.log(`[Handler][${interfaceType}] SemanticSearchMeetingNotes response: ${textResponse.substring(0, 200)}...`);
+          // Console log for textResponse, as structuredDataResponse might be large
+          console.log(`[Handler][${interfaceType}] SemanticSearchMeetingNotes textResponse: ${textResponse.substring(0, 200)}...`);
         } catch (error: any) {
           console.error(`[Handler][${interfaceType}] Error in NLU Intent "SemanticSearchMeetingNotes":`, error.message, error.stack);
           textResponse = "Sorry, an error occurred while searching your meeting notes.";
+          structuredDataResponse = undefined;
         }
         break;
 
@@ -1816,7 +1857,7 @@ You can also use specific commands:
       }
   }
 
-  return { text: textResponse, nluResponse };
+  return { text: textResponse, nluResponse, structuredData: structuredDataResponse };
 }
 
 
@@ -1885,7 +1926,8 @@ export async function handleInterruptWrapper(): Promise<{ status: string; messag
  * Expects payload: { "text": "user's transcribed speech" }
  */
 export async function handleConversationInputWrapper(
-  payload: { text: string }
+  payload: { text: string },
+  optionsFromCaller?: TempOptionsForCaller // Added optionsFromCaller for passing sendCommandToClient
 ): Promise<HandleMessageResponse | { error: string; active: boolean; message?: string }> {
   const interfaceType: InterfaceType = 'voice'; // This wrapper is for voice interactions
   const { text } = payload;
@@ -1914,7 +1956,15 @@ export async function handleConversationInputWrapper(
   conversationManager.setAgentResponding(interfaceType, true);
 
   console.log(`[Handler][${interfaceType}] Conversation active. Processing message...`);
-  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(interfaceType, text, userId);
+  // Destructure structuredData as well from _internalHandleMessage
+  const { text: coreResponseText, nluResponse, structuredData: structuredDataFromInternal } = await _internalHandleMessage(
+    interfaceType,
+    text,
+    userId,
+    // Pass the sendCommandToClient function in options for voice interactions
+    // This needs to be correctly implemented in the server layer (e.g. server.ts for WebSockets)
+    { sendCommandToClientFunction: optionsFromCaller?.sendCommandToClientFunction } // Assuming optionsFromCaller is passed to handleConversationInputWrapper
+  );
 
   // Record agent's core text response (before TTS) into conversation history
   // NLU results (intent, entities) from this turn can also be added to turnHistory here.
@@ -1951,24 +2001,36 @@ export async function handleConversationInputWrapper(
       if (ttsResult.audio_url) {
         console.log(`[Handler][${interfaceType}] TTS synthesis successful. Audio URL generated.`);
         conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing and responding
-        return { text: coreResponseText, audioUrl: ttsResult.audio_url };
+        // Include structuredData in the response if present
+        return { text: coreResponseText, audioUrl: ttsResult.audio_url, structuredData: structuredDataFromInternal };
       } else {
         console.error(`[Handler][${interfaceType}] TTS response OK, but no audio_url:`, ttsResult);
         conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing (with error)
-        return { text: coreResponseText, error: "TTS synthesis succeeded but no audio URL was returned." };
+        return { text: coreResponseText, error: "TTS synthesis succeeded but no audio URL was returned.", structuredData: structuredDataFromInternal };
       }
     } else {
       const errorBody = await ttsResponse.text();
       console.error(`[Handler][${interfaceType}] TTS request failed:`, ttsResponse.status, errorBody);
       conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing (with error)
-      return { text: coreResponseText, error: `Failed to synthesize audio. Status: ${ttsResponse.status}` };
+      return { text: coreResponseText, error: `Failed to synthesize audio. Status: ${ttsResponse.status}`, structuredData: structuredDataFromInternal };
     }
   } catch (error: any) {
     console.error(`[Handler][${interfaceType}] Error calling TTS service:`, error.message, error.stack);
     conversationManager.setAgentResponding(interfaceType, false); // Agent finished processing (with error)
-    return { text: coreResponseText, error: "Error occurred during audio synthesis." };
+    return { text: coreResponseText, error: "Error occurred during audio synthesis.", structuredData: structuredDataFromInternal };
   }
 }
+
+// Temporary: Define optionsFromCaller type if not passed to handleConversationInputWrapper
+// This is just for type-checking within this file, actual implementation is in the calling server.
+interface TempOptionsForCaller {
+    sendCommandToClientFunction?: (userId: string, command: AgentClientCommand) => Promise<boolean>;
+}
+// Make sure handleConversationInputWrapper receives options: TempOptionsForCaller
+// export async function handleConversationInputWrapper(
+//   payload: { text: string },
+//   optionsFromCaller?: TempOptionsForCaller // Added for passing sendCommandToClient
+// ): Promise<HandleMessageResponse | { error: string; active: boolean; message?: string }> { ... }
 
 
 /**
@@ -1992,7 +2054,16 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
   }
   conversationManager.recordUserInteraction(interfaceType, message);
 
-  const { text: coreResponseText, nluResponse } = await _internalHandleMessage(interfaceType, message, userId);
+  // Destructure structuredData as well
+  const { text: coreResponseText, nluResponse, structuredData: structuredDataFromInternal } = await _internalHandleMessage(
+    interfaceType,
+    message,
+    userId,
+    // For Hasura/text, sendCommandToClient is typically not available or needed unless specifically designed.
+    // So, we might not pass sendCommandToClientFunction here, or pass a stub.
+    // For now, assuming the default stub in _internalHandleMessage is sufficient if not provided.
+    {} // Empty options, relying on default sendCommandToClient stub if skill attempts to use it.
+  );
 
   // Record agent's response
   const currentTurnIntent = nluResponse?.intent || undefined;
@@ -2018,8 +2089,8 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
   // For now, let's assume single interaction for Hasura.
   conversationManager.deactivateConversation(interfaceType, "completed_text_interaction");
 
-
-  return { text: coreResponseText }; // No audioUrl or error from TTS for text interface.
+  // Include structuredData in the response
+  return { text: coreResponseText, structuredData: structuredDataFromInternal };
 }
 
 // Example for testing the conversation state (manual activation)
