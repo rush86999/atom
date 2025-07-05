@@ -421,11 +421,24 @@ function UserViewChat() {
 
                 const atomResponse: UserChatType = {
                     id: chatHistory.length + 1, // Or a more robust ID generation, consider uuid
-                    content: content,
+                    content: data.text, // Default to data.text
                     role: 'assistant',
                     date: dayjs().format(),
-                    audioUrl: data.audioUrl, // Add the audioUrl from the response
+                    audioUrl: data.audioUrl,
                 };
+
+                // Check for structured data from the agent
+                if (data.structuredData && data.structuredData.displayType === 'semantic_search_results') {
+                    atomResponse.customComponentType = 'semantic_search_results';
+                    atomResponse.customComponentProps = { results: data.structuredData.data };
+                    // Use summaryText from structuredData if available, otherwise keep original data.text
+                    atomResponse.content = data.structuredData.summaryText || data.text;
+                    console.log("UserViewChat: Populated customComponent for semantic_search_results", atomResponse);
+                } else {
+                    // Ensure content is set if no structuredData or not the expected type
+                    atomResponse.content = content;
+                }
+
                 setChatHistory(prevChatHistory => [...prevChatHistory, atomResponse]);
 
             } catch (e: any) {
@@ -496,9 +509,16 @@ function UserViewChat() {
                                         key={m.id || `msg-item-${i}`}
                                         message={m}
                                         isLoading={showFormsForThisMessage && isLoading}
+                                        // formData prop will be used for custom components like search results
                                         formData={
-                                            showFormsForThisMessage && m.customComponentType === 'semantic_search_results' && m.customComponentProps ?
-                                            React.createElement(React.lazy(() => import('@components/chat/custom/SearchResultsDisplay')), m.customComponentProps)
+                                            m.customComponentType === 'semantic_search_results' && m.customComponentProps?.results ?
+                                            // Dynamically import SearchResultsDisplay (will create this component next)
+                                            // For now, a placeholder or simple rendering can be used if SearchResultsDisplay isn't ready
+                                            // React.createElement(React.lazy(() => import('@components/chat/custom/SearchResultsDisplay')), m.customComponentProps)
+                                            // Using a placeholder div for now until SemanticSearchResultsDisplay is created
+                                            // This demonstrates where the custom component would go.
+                                            // The actual import will be: React.createElement(React.lazy(() => import('@components/chat/custom/SemanticSearchResultsDisplay')), { results: m.customComponentProps.results })
+                                             <div>Render SearchResultsDisplay here with results: {JSON.stringify(m.customComponentProps.results.length)} items</div>
                                             : (showFormsForThisMessage && isForm ? renderSelectTimezone() : undefined)
                                         }
                                         htmlEmail={showFormsForThisMessage && m.role === 'assistant' ? htmlEmail : undefined} // Only pass htmlEmail for assistant messages
