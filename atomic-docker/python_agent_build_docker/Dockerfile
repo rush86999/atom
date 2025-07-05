@@ -10,7 +10,24 @@ WORKDIR /app
 COPY ../project /app/project
 
 # Install Python dependencies
-RUN pip install --no-cache-dir notion-client deepgram-sdk requests httpx lancedb pyarrow sentence-transformers flask openai
+RUN pip install --no-cache-dir \
+    notion-client \
+    deepgram-sdk \
+    requests \
+    httpx \
+    lancedb \
+    pyarrow \
+    sentence-transformers \
+    flask \
+    openai \
+    # OpenTelemetry Dependencies
+    opentelemetry-api \
+    opentelemetry-sdk \
+    opentelemetry-exporter-otlp-proto-http \
+    opentelemetry-instrumentation-requests \
+    opentelemetry-instrumentation-boto3 \
+    opentelemetry-instrumentation-logging
+    # opentelemetry-instrumentation-flask # Uncomment if Flask is used
 
 # Set PYTHONPATH. With this, Python will look for /app/project/...
 # For imports like `from project.functions...` this is correct.

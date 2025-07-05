@@ -2567,4 +2567,130 @@ fields @timestamp, @message, trace_id, span_id, error_message, exception_type, o
         value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${appServiceDashboard.dashboardName}`,
         description: 'URL of the AppService Performance Deep Dive CloudWatch Dashboard.',
     });
+
+    // --- Application Performance Deep Dive Dashboard for PythonAgentService ---
+    const pythonAgentServiceDashboard = new cloudwatch.Dashboard(this, 'PythonAgentServicePerfDashboard', {
+        dashboardName: `${this.stackName}-PythonAgentService-Performance`,
+    });
+
+    // --- Widgets for PythonAgentService Dashboard ---
+
+    // 1. Key Alarms for PythonAgentService (Example: CPU Alarm - assuming one would be created if needed)
+    // const pythonAgentServiceCpuAlarm = new cloudwatch.Alarm(...); // Define if not already a class member
+    // For now, we'll leave this empty or add a placeholder if no specific alarms are pre-defined for it as a non-HTTP service.
+    const pythonAgentServiceAlarmsWidget = new cloudwatch.AlarmStatusWidget({
+        title: 'PythonAgentService - Key Alarm Status',
+        width: 24,
+        alarms: [
+            // this.pythonAgentServiceCpuAlarm, // Add if defined
+        ],
+    });
+    // Try to find if a generic CPU alarm was created for it, or add one if necessary.
+    // Assuming PythonAgentService is an FargateService instance named `pythonAgentServiceInstance`
+    const pythonAgentServiceInstance = this.node.tryFindChild('PythonAgentService') as ecs.FargateService;
+    let pythonAgentCpuAlarmMetric: cloudwatch.IMetric | undefined;
+    if (pythonAgentServiceInstance) {
+        pythonAgentCpuAlarmMetric = pythonAgentServiceInstance.metricCPUUtilization({
+            period: cdk.Duration.minutes(5),
+            statistic: 'Average',
+        });
+        const tempPythonAgentCpuAlarm = new cloudwatch.Alarm(this, 'PythonAgentTempCpuAlarm', {
+            metric: pythonAgentCpuAlarmMetric,
+            threshold: 85, // Example threshold
+            evaluationPeriods: 3,
+            alarmDescription: 'PythonAgentService CPU Utilization High (placeholder alarm for dashboard)',
+            alarmName: `${this.stackName}-PythonAgentService-HighCPU-Temp`, // Unique name
+        });
+        // tempPythonAgentCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic)); // Optionally add action
+        pythonAgentServiceAlarmsWidget.addAlarm(tempPythonAgentCpuAlarm);
+    }
+
+
+    // 2. ECS Metrics for pythonAgentService
+    const pythonAgentEcsCpuUtilWidget = new cloudwatch.GraphWidget({
+        title: 'PythonAgentService - ECS CPU Utilization',
+        width: 12,
+        left: pythonAgentCpuAlarmMetric ? [pythonAgentCpuAlarmMetric] : [], // Reuse metric if available
+    });
+    const pythonAgentEcsMemoryUtilWidget = new cloudwatch.GraphWidget({
+        title: 'PythonAgentService - ECS Memory Utilization',
+        width: 12,
+        left: pythonAgentServiceInstance ? [pythonAgentServiceInstance.metricMemoryUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })] : [],
+    });
+    const pythonAgentEcsRunningTasksWidget = new cloudwatch.GraphWidget({
+        title: 'PythonAgentService - Running Tasks',
+        width: 12,
+        left: pythonAgentServiceInstance ? [
+             pythonAgentServiceInstance.metric('RunningTaskCount', {
+                period: cdk.Duration.minutes(1),
+                statistic: 'Average',
+                label: 'Running Tasks'
+            })
+        ] : [],
+    });
+
+    // 3. Custom Application Metrics for PythonAgentService (namespace 'AtomicApp/PythonAgentService')
+    const pythonAgentCustomMetricsNamespace = 'AtomicApp/PythonAgentService';
+
+    const pythonAgentCustomOpsTotalWidget = new cloudwatch.GraphWidget({
+        title: 'PythonAgentService - Operations Total (Custom Placeholder)',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: pythonAgentCustomMetricsNamespace,
+            metricName: 'python_agent_operations_total', // Example metric name
+            dimensionsMap: { }, // Add dimensions like operation_type, success if used
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+        })],
+    });
+
+    const pythonAgentCustomDurationWidget = new cloudwatch.GraphWidget({
+        title: 'PythonAgentService - Processing Duration (Custom Placeholder, P90)',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: pythonAgentCustomMetricsNamespace,
+            metricName: 'python_agent_processing_duration_seconds', // Example metric name
+            dimensionsMap: { }, // Add dimensions
+            statistic: 'p90',
+            period: cdk.Duration.minutes(1),
+        })],
+    });
+
+    // 4. Log Insights Widget for PythonAgentService Errors
+    const pythonAgentLogGroup = this.node.tryFindChild('PythonAgentLogGroup') as logs.LogGroup;
+    let pythonAgentLogErrorWidget: cloudwatch.IWidget = new cloudwatch.TextWidget({ markdown: "PythonAgentLogGroup not found for Log Insights.", width: 24});
+    if (pythonAgentLogGroup) {
+        pythonAgentLogErrorWidget = new cloudwatch.LogQueryWidget({
+            title: 'PythonAgentService - Recent Error Logs',
+            width: 24,
+            logGroupNames: [pythonAgentLogGroup.logGroupName],
+            queryString: `
+fields @timestamp, @message, trace_id, span_id, error_message, exception_type, funcName, lineno
+| filter level = 'ERROR' or @message like /error/i or @message like /exception/i
+| sort @timestamp desc
+| limit 20`,
+        });
+    }
+
+    // --- Add Widgets to PythonAgentService Dashboard ---
+    pythonAgentServiceDashboard.addWidgets(
+        new cloudwatch.Row(pythonAgentServiceAlarmsWidget)
+    );
+     pythonAgentServiceDashboard.addWidgets(
+        new cloudwatch.Row(pythonAgentEcsCpuUtilWidget, pythonAgentEcsMemoryUtilWidget)
+    );
+    pythonAgentServiceDashboard.addWidgets(
+        new cloudwatch.Row(pythonAgentEcsRunningTasksWidget) // Can be paired if another similar sized widget exists
+    );
+    pythonAgentServiceDashboard.addWidgets(
+        new cloudwatch.Row(pythonAgentCustomOpsTotalWidget, pythonAgentCustomDurationWidget)
+    );
+    pythonAgentServiceDashboard.addWidgets(
+        new cloudwatch.Row(pythonAgentLogErrorWidget)
+    );
+
+    new cdk.CfnOutput(this, 'PythonAgentServicePerformanceDashboardUrl', {
+        value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${pythonAgentServiceDashboard.dashboardName}`,
+        description: 'URL of the PythonAgentService Performance Deep Dive CloudWatch Dashboard.',
+    });
 }
