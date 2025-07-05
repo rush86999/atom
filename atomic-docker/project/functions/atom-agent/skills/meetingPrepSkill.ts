@@ -15,8 +15,7 @@ import {
 } from '../types'; // Assuming types.ts is in the parent directory of skills
 
 // Import other necessary skills if they are to be called directly
-// Example:
-// import * as emailSkills from './emailSkills';
+import * as gmailSkills from './gmailSkills'; // Added for searchEmailsForPrep
 // import * as slackSkills from './slackSkills';
 // import * as notionSkills from './notionAndResearchSkills';
 import * as calendarSkills from './calendarSkills'; // Import calendarSkills
@@ -90,34 +89,30 @@ export async function fetchMeetingPrepInfo(
       switch (request.source) {
         case 'gmail':
           const gmailParams = request.search_parameters as GmailSearchParameters;
-          logger.info(`[meetingPrepSkill] Calling Gmail skill with params:`, gmailParams);
-          // TODO: Replace with actual call to an enhanced email skill
-          // const gmailResults: GmailMessageSnippet[] = await emailSkills.searchEmailsForPrep(
-          //   userId,
-          //   gmailParams,
-          //   aggregatedResults.identified_calendar_event // Pass resolved meeting for context
-          // );
-          // sourceResultEntry.results = gmailResults;
-          // sourceResultEntry.count = gmailResults.length;
-          // sourceResultEntry.search_query_executed = "Actual Gmail query built by emailSkills";
+          logger.info(`[meetingPrepSkill] Calling searchEmailsForPrep with params: ${JSON.stringify(gmailParams)} and meeting context: ${aggregatedResults.identified_calendar_event?.summary}`);
 
-          // Placeholder implementation for Gmail
-          if (gmailParams.body_keywords?.includes("Acme Corp")) {
-            sourceResultEntry.results = [{
-              id: "gmail_sim_1",
-              subject: "Re: Acme Corp Proposal",
-              from: "ceo@acme.com",
-              date: new Date().toISOString(),
-              snippet: "Thanks for the proposal, let's discuss...",
-              link: "https://mail.google.com/mail/u/0/#inbox/sim_1"
-            }];
-            sourceResultEntry.count = 1;
+          const gmailSearchResponse = await gmailSkills.searchEmailsForPrep(
+            userId,
+            gmailParams,
+            aggregatedResults.identified_calendar_event, // Pass resolved meeting for context
+            5 // Limit to 5 results for now
+          );
+
+          if (gmailSearchResponse.ok && gmailSearchResponse.data) {
+            sourceResultEntry.results = gmailSearchResponse.data.results;
+            sourceResultEntry.count = gmailSearchResponse.data.results.length;
+            sourceResultEntry.search_query_executed = gmailSearchResponse.data.query_executed;
+            logger.info(`[meetingPrepSkill] searchEmailsForPrep returned ${sourceResultEntry.count} results. Query: ${sourceResultEntry.search_query_executed}`);
           } else {
-            sourceResultEntry.results = [];
-            sourceResultEntry.count = 0;
+            logger.error(`[meetingPrepSkill] searchEmailsForPrep failed: ${gmailSearchResponse.error?.message}`);
+            sourceResultEntry.error_message = gmailSearchResponse.error?.message || "Failed to fetch Gmail results.";
+            // Also add to overall errors
+            aggregatedResults.errors_encountered?.push({
+              source_attempted: 'gmail',
+              message: sourceResultEntry.error_message,
+              details: JSON.stringify(gmailSearchResponse.error?.details)
+            });
           }
-          logger.warn(`[meetingPrepSkill] Gmail source processing is currently using placeholder data.`);
-          // End Placeholder
           break;
         case 'slack':
           const slackParams = request.search_parameters as SlackSearchParameters;
