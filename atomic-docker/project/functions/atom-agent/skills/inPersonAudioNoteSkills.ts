@@ -1,66 +1,42 @@
 // In: atomic-docker/project/functions/atom-agent/skills/inPersonAudioNoteSkills.ts
 
 import { listUpcomingEvents } from './calendarSkills'; // Import the calendar skill
-import { CalendarEvent } from '../types'; // Import CalendarEvent type
+import { CalendarEvent, ProcessedNLUResponse } from '../types'; // Import central types
 
-// --- Define Placeholder Types (replace with actual types from your project) ---
-interface NluEntity {
-  entity: string;
-  value: any;
-  // other properties like confidence, start, end
-}
+// --- Redefined types to match handler.ts until they are centralized ---
+// Ideally, these would be imported from a shared types file used by both handler and skills.
+// For now, ensuring they match the definitions in handler.ts.
 
-interface NluIntent {
-  name: string;
-  confidence: number;
-}
-
-interface NluIntentResult {
-  intent: NluIntent;
-  entities?: NluEntity[];
-  raw_input?: string;
-}
-
-interface AgentContext {
-  userId: string;
-  // other contextual information like current session, device capabilities, etc.
-  // Function to send command to client - this needs to be part of the context or globally available
-  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<void>;
-}
-
-// NEW/REVISED Placeholder Types for Agent-Client Communication
 interface AgentClientCommand {
-  command_id: string; // Unique ID for this command
+  command_id: string;
   action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION';
   payload?: {
     suggestedTitle?: string;
     linkedEventId?: string;
-    // Other parameters like recording quality hints, max duration, etc.
   };
 }
 
-// ClientAckEvent is not directly used by agent skill sending commands, but good for context
-// interface ClientAckEvent { // Client sends this back to agent
-//   command_id: string; // Corresponds to the AgentClientCommand
-//   status: 'ACKNOWLEDGED' | 'STARTED' | 'ERROR' | 'USER_DENIED_PERMISSION';
-//   payload?: any; // e.g., error message
-// }
+interface AgentSkillContext {
+  userId: string;
+  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>; // Matches handler.ts
+}
+// --- End Redefined types ---
 
+
+// This response type is specific to this skill's handlers
 interface AgentSkillResponse {
   success: boolean;
-  message: string; // Text response for the user
-  // No clientActionHint in the old sense, commands are direct
-  sessionTrackingId?: string; // Optional: if agent needs to track this session via command_id
+  message: string;
+  sessionTrackingId?: string;
 }
-// --- End Placeholder Types ---
 
 
 /**
  * Handles the START_IN_PERSON_AUDIO_NOTE intent with direct client control.
  */
 export async function handleStartInPersonAudioNoteDirect(
-  nluResult: NluIntentResult,
-  context: AgentContext
+  nluResult: ProcessedNLUResponse, // Use imported ProcessedNLUResponse
+  context: AgentSkillContext       // Use redefined AgentSkillContext
 ): Promise<AgentSkillResponse> {
   console.log(`Agent Skill (Direct): Handling START_IN_PERSON_AUDIO_NOTE for user ${context.userId}`);
 
@@ -69,16 +45,17 @@ export async function handleStartInPersonAudioNoteDirect(
   let resolvedEventSummary: string | undefined = undefined; // To store summary for title update
   let calendarFeedbackMessage = ""; // For user feedback regarding calendar linking
 
-  const noteTitleEntity = nluResult.entities?.find(e => e.entity === 'NOTE_TITLE');
-  const originalNoteTitleProvided = noteTitleEntity && typeof noteTitleEntity.value === 'string' && noteTitleEntity.value.trim() !== '';
+  // Access entities directly from nluResult.entities (which is Record<string, any>)
+  const noteTitleFromEntities = nluResult.entities?.NOTE_TITLE as string | undefined;
+  const originalNoteTitleProvided = noteTitleFromEntities && noteTitleFromEntities.trim() !== '';
 
   if (originalNoteTitleProvided) {
-    suggestedTitle = noteTitleEntity!.value!.trim();
+    suggestedTitle = noteTitleFromEntities!.trim();
   }
 
-  const calendarEventContextEntity = nluResult.entities?.find(e => e.entity === 'CALENDAR_EVENT_CONTEXT');
-  if (calendarEventContextEntity && typeof calendarEventContextEntity.value === 'string' && calendarEventContextEntity.value.trim() !== '') {
-    const contextQuery = calendarEventContextEntity.value.trim().toLowerCase();
+  const calendarEventContextFromEntities = nluResult.entities?.CALENDAR_EVENT_CONTEXT as string | undefined;
+  if (calendarEventContextFromEntities && calendarEventContextFromEntities.trim() !== '') {
+    const contextQuery = calendarEventContextFromEntities.trim().toLowerCase();
     console.log(`Agent Skill (Direct): Calendar event context found: "${contextQuery}". Attempting resolution.`);
 
     try {
@@ -130,14 +107,14 @@ export async function handleStartInPersonAudioNoteDirect(
             // calendarFeedbackMessage = ` (Linked to: '${resolvedEventSummary}')`; // Optional: positive feedback
           } else {
             console.log(`Agent Skill (Direct): Could not resolve calendar context "${contextQuery}" to a specific event.`);
-            calendarFeedbackMessage = ` (Note: I couldn't find a specific calendar event matching "${calendarEventContextEntity.value.trim()}" to link this note.)`;
+            calendarFeedbackMessage = ` (Note: I couldn't find a specific calendar event matching "${calendarEventContextFromEntities.trim()}" to link this note.)`;
           }
         } else { // eventsResponse.data.length === 0
             console.log("Agent Skill (Direct): No calendar events found in the time window for context resolution.");
-            calendarFeedbackMessage = ` (Note: I couldn't find any calendar events around this time to link the note to "${calendarEventContextEntity.value.trim()}".)`;
+            calendarFeedbackMessage = ` (Note: I couldn't find any calendar events around this time to link the note to "${calendarEventContextFromEntities.trim()}".)`;
         }
       } else if (!eventsResponse.ok) { // Error fetching events
-        console.warn("Agent Skill (Direct): Failed to fetch calendar events for context resolution:", eventsResponse.error);
+        console.warn("Agent Skill (Direct): Failed to fetch calendar events for context resolution:", eventsResponse.error?.message);
         calendarFeedbackMessage = " (Note: I had trouble accessing your calendar to link this note.)";
       }
     } catch (error: any) {
@@ -184,8 +161,8 @@ export async function handleStartInPersonAudioNoteDirect(
  * Handles the STOP_IN_PERSON_AUDIO_NOTE intent with direct client control.
  */
 export async function handleStopInPersonAudioNoteDirect(
-  nluResult: NluIntentResult,
-  context: AgentContext
+  nluResult: ProcessedNLUResponse, // Use imported ProcessedNLUResponse
+  context: AgentSkillContext       // Use redefined AgentSkillContext
 ): Promise<AgentSkillResponse> {
   console.log(`Agent Skill (Direct): Handling STOP_IN_PERSON_AUDIO_NOTE for user ${context.userId}`);
 
@@ -216,8 +193,8 @@ export async function handleStopInPersonAudioNoteDirect(
  * Handles the CANCEL_IN_PERSON_AUDIO_NOTE intent with direct client control.
  */
 export async function handleCancelInPersonAudioNoteDirect(
-  nluResult: NluIntentResult,
-  context: AgentContext
+  nluResult: ProcessedNLUResponse, // Use imported ProcessedNLUResponse
+  context: AgentSkillContext       // Use redefined AgentSkillContext
 ): Promise<AgentSkillResponse> {
   console.log(`Agent Skill (Direct): Handling CANCEL_IN_PERSON_AUDIO_NOTE for user ${context.userId}`);
 
