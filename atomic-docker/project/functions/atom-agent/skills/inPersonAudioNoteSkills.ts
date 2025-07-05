@@ -1,5 +1,8 @@
 // In: atomic-docker/project/functions/atom-agent/skills/inPersonAudioNoteSkills.ts
 
+import { listUpcomingEvents } from './calendarSkills'; // Import the calendar skill
+import { CalendarEvent } from '../types'; // Import CalendarEvent type
+
 // --- Define Placeholder Types (replace with actual types from your project) ---
 interface NluEntity {
   entity: string;
@@ -63,18 +66,87 @@ export async function handleStartInPersonAudioNoteDirect(
 
   let suggestedTitle = "Audio Note " + new Date().toISOString(); // Default title
   let linkedEventId: string | undefined = undefined;
+  let resolvedEventSummary: string | undefined = undefined;
 
   const noteTitleEntity = nluResult.entities?.find(e => e.entity === 'NOTE_TITLE');
-  if (noteTitleEntity && typeof noteTitleEntity.value === 'string') {
-    suggestedTitle = noteTitleEntity.value;
+  if (noteTitleEntity && typeof noteTitleEntity.value === 'string' && noteTitleEntity.value.trim() !== '') {
+    suggestedTitle = noteTitleEntity.value.trim();
   }
 
-  const calendarEventEntity = nluResult.entities?.find(e => e.entity === 'CALENDAR_EVENT_CONTEXT');
-  if (calendarEventEntity && typeof calendarEventEntity.value === 'string') {
-    // TODO: Resolve calendarEventEntity.value to an eventId and potentially update suggestedTitle
-    // linkedEventId = await context.agent.skills.calendar.resolveEventToId(calendarEventEntity.value, context.userId);
-    // if (!noteTitleEntity && resolvedEventTitle) suggestedTitle = `Audio Note for ${resolvedEventTitle}`;
-    console.log("Agent Skill (Direct): Calendar event context found (resolution not implemented):", calendarEventEntity.value);
+  const calendarEventContextEntity = nluResult.entities?.find(e => e.entity === 'CALENDAR_EVENT_CONTEXT');
+  if (calendarEventContextEntity && typeof calendarEventContextEntity.value === 'string' && calendarEventContextEntity.value.trim() !== '') {
+    const contextQuery = calendarEventContextEntity.value.trim().toLowerCase();
+    console.log(`Agent Skill (Direct): Calendar event context found: "${contextQuery}". Attempting resolution.`);
+
+    try {
+      // Fetch events from a window: last 12 hours to next 24 hours
+      const now = new Date();
+      const timeMin = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
+      const timeMax = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+      const eventsResponse = await listUpcomingEvents(context.userId, 15, timeMin, timeMax);
+
+      if (eventsResponse.ok && eventsResponse.data && eventsResponse.data.length > 0) {
+        const allFetchedEvents: CalendarEvent[] = eventsResponse.data;
+        let matchedEvent: CalendarEvent | undefined = undefined;
+
+        // Attempt to find a relevant event
+        // Priority:
+        // 1. Currently active event matching context
+        // 2. Next upcoming event matching context
+        // 3. Most recent past event matching context (within window)
+        // 4. Any other event matching context (first found)
+
+        const currentTime = new Date().getTime();
+
+        const matchingEvents = allFetchedEvents.filter(event =>
+          event.summary.toLowerCase().includes(contextQuery) ||
+          (event.description && event.description.toLowerCase().includes(contextQuery))
+        );
+
+        if (matchingEvents.length > 0) {
+          // Sort matching events: current, then upcoming, then past (most recent first)
+          matchingEvents.sort((a, b) => {
+            const aStart = new Date(a.startTime).getTime();
+            const aEnd = new Date(a.endTime).getTime();
+            const bStart = new Date(b.startTime).getTime();
+            const bEnd = new Date(b.endTime).getTime();
+
+            const aIsCurrent = aStart <= currentTime && aEnd >= currentTime;
+            const bIsCurrent = bStart <= currentTime && bEnd >= currentTime;
+
+            if (aIsCurrent && !bIsCurrent) return -1;
+            if (!aIsCurrent && bIsCurrent) return 1;
+
+            if (aStart > currentTime && bStart > currentTime) return aStart - bStart; // Upcoming: soonest first
+            if (aStart < currentTime && bStart < currentTime) return bEnd - aEnd; // Past: most recent first (end time)
+
+            if (aStart > currentTime) return -1; // a is upcoming, b is past
+            if (bStart > currentTime) return 1;  // b is upcoming, a is past
+
+            return bEnd - aEnd; // Default: sort by most recent end time if one is past and other is current/upcoming edge case
+          });
+          matchedEvent = matchingEvents[0];
+        }
+
+        if (matchedEvent) {
+          linkedEventId = matchedEvent.id;
+          resolvedEventSummary = matchedEvent.summary;
+          console.log(`Agent Skill (Direct): Resolved calendar context "${contextQuery}" to event: "${resolvedEventSummary}" (ID: ${linkedEventId})`);
+          if (!(noteTitleEntity && typeof noteTitleEntity.value === 'string' && noteTitleEntity.value.trim() !== '')) { // if original note title was empty or not provided
+            suggestedTitle = `Audio Note for '${resolvedEventSummary}'`;
+          }
+        } else {
+          console.log(`Agent Skill (Direct): Could not resolve calendar context "${contextQuery}" to a specific event.`);
+        }
+      } else if (!eventsResponse.ok) {
+        console.warn("Agent Skill (Direct): Failed to fetch calendar events for context resolution:", eventsResponse.error);
+      } else {
+        console.log("Agent Skill (Direct): No calendar events found in the time window for context resolution.");
+      }
+    } catch (error: any) {
+      console.error("Agent Skill (Direct): Error during calendar event context resolution:", error.message);
+    }
   }
 
   const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
