@@ -493,6 +493,136 @@ const main = async () => {
     logger.info({ operation_name: 'HttpServer2Start', port: PORT2 }, `HTTP Server 2 listening`);
   });
 
+  // Centralized Error Handling Middleware for 'app'
+  // This MUST be the last middleware added to the app stack.
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    const traceId = trace.getSpan(otelContext.active())?.spanContext().traceId;
+
+    logger.error(
+      {
+        // Standard log fields will be added by Winston format (service_name, version, timestamp)
+        // trace_id, span_id should be added by WinstonInstrumentation logHook
+        error_message: err.message,
+        error_stack: err.stack, // Be cautious about logging full stacks in prod depending on sensitivity
+        error_name: err.name,
+        error_code_property: err.code, // e.g., from opossum EOPENBREAKER or other libs
+        http_method: req.method,
+        http_path: req.originalUrl || req.url,
+        // trace_id: traceId, // Explicitly adding for clarity, though hook should do it.
+      },
+      `Unhandled error caught by central error handler for app1: ${err.message}`
+    );
+
+    // Set OpenTelemetry Span Status to error
+    const currentSpan = trace.getSpan(otelContext.active());
+    if (currentSpan) {
+      currentSpan.recordException(err); // Records error details on the span
+      currentSpan.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+    }
+
+    if (!res.headersSent) {
+      let statusCode = err.status || err.statusCode || 500;
+      if (typeof statusCode !== 'number' || statusCode < 400 || statusCode > 599) {
+        statusCode = 500; // Ensure it's a valid HTTP error status
+      }
+
+      let errorCode = 'UNEXPECTED_ERROR';
+      if (err.code) { // From opossum (EOPENBREAKER) or other libs
+        errorCode = err.code;
+      } else {
+        switch (statusCode) {
+          case 400: errorCode = 'BAD_REQUEST'; break;
+          case 401: errorCode = 'UNAUTHORIZED'; break;
+          case 403: errorCode = 'FORBIDDEN'; break;
+          case 404: errorCode = 'NOT_FOUND'; break;
+          case 500: errorCode = 'INTERNAL_SERVER_ERROR'; break;
+          case 502: errorCode = 'BAD_GATEWAY'; break;
+          case 503: errorCode = 'SERVICE_UNAVAILABLE'; break;
+          case 504: errorCode = 'GATEWAY_TIMEOUT'; break;
+        }
+      }
+
+      const responseMessage = (statusCode >= 500 && process.env.NODE_ENV === 'production')
+        ? 'An internal server error occurred. Please try again later.'
+        : err.message || 'An unexpected error occurred.';
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: responseMessage
+        }
+      });
+    } else {
+      next(err); // Delegate to default Express error handler if headers already sent
+    }
+  });
+
+  // Centralized Error Handling Middleware for 'app2'
+  app2.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    // Re-get traceId for app2's context, though it should be same if one request flows to both.
+    // const traceId = trace.getSpan(otelContext.active())?.spanContext().traceId;
+    // Logging and OTel span status already handled above this section in the previous diff.
+
+    logger.error( // This log was already added and is good.
+      {
+        error_message: err.message,
+        error_stack: err.stack,
+        error_name: err.name,
+        error_code_property: err.code,
+        http_method: req.method,
+        http_path: req.originalUrl || req.url,
+        app_instance: 'app2'
+      },
+      `Unhandled error caught by central error handler for app2: ${err.message}`
+    );
+
+    const currentSpanApp2 = trace.getSpan(otelContext.active());
+    if (currentSpanApp2) { // Ensure to use a potentially different span if app2 has its own root span for some reason
+      currentSpanApp2.recordException(err);
+      currentSpanApp2.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+    }
+
+
+    if (!res.headersSent) {
+      let statusCode = err.status || err.statusCode || 500;
+      if (typeof statusCode !== 'number' || statusCode < 400 || statusCode > 599) {
+        statusCode = 500;
+      }
+
+      let errorCode = 'UNEXPECTED_ERROR_APP2';
+       if (err.code) {
+        errorCode = err.code;
+      } else {
+        switch (statusCode) {
+          case 400: errorCode = 'BAD_REQUEST_APP2'; break;
+          case 401: errorCode = 'UNAUTHORIZED_APP2'; break;
+          case 403: errorCode = 'FORBIDDEN_APP2'; break;
+          case 404: errorCode = 'NOT_FOUND_APP2'; break;
+          case 500: errorCode = 'INTERNAL_SERVER_ERROR_APP2'; break;
+          case 502: errorCode = 'BAD_GATEWAY_APP2'; break;
+          case 503: errorCode = 'SERVICE_UNAVAILABLE_APP2'; break;
+          case 504: errorCode = 'GATEWAY_TIMEOUT_APP2'; break;
+        }
+      }
+
+      const responseMessage = (statusCode >= 500 && process.env.NODE_ENV === 'production')
+        ? 'An internal server error occurred on app2. Please try again later.'
+        : err.message || 'An unexpected error occurred on app2.';
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: responseMessage
+        }
+      });
+    } else {
+      next(err);
+    }
+  });
+
+
   const shutdown = async (signal: string) => {
     logger.info({ operation_name: 'ShutdownProcess', signal }, `Received signal. Shutting down...`);
     await stopAgenda();
