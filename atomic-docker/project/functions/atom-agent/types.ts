@@ -1246,3 +1246,34 @@ export interface OrchestratedComplexTaskReport {
   // Example: output of sub-task 1 (e.g., an email ID) could be stored here to be used as input for sub-task 2.
   inter_task_context?: Record<string, any>;
 }
+
+// --- Agent Skill Context and Client Command Types (centralized from handler.ts) ---
+
+/**
+ * Defines the structure of commands sent from the agent to the client (e.g., via WebSocket)
+ * This should align with the command structure expected by the frontend client.
+ */
+export interface AgentClientCommand {
+  command_id: string; // Unique ID for tracking the command
+  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION'; // Specific actions client can perform
+  payload?: {
+    suggestedTitle?: string;
+    linkedEventId?: string;
+    // Other relevant parameters for the client action, e.g. recording quality hints
+  };
+}
+
+/**
+ * Defines the context object that will be passed to agent skills.
+ * It includes common utilities or functions that skills might need.
+ */
+export interface AgentSkillContext {
+  userId: string;
+  // Function to send a command to the connected client.
+  // The actual implementation of this function is expected to be injected by the calling environment (e.g., WebSocket handler in server.ts).
+  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>;
+  // Potentially add other context items:
+  // - Access to LTM/STM (though memoryManager functions are currently imported directly)
+  // - User preferences relevant to skills
+  // - API clients if they are not globally available or need user-specific configuration
+}

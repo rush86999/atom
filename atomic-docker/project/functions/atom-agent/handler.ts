@@ -56,6 +56,8 @@ import {
   ComplexTaskSubTaskNlu,
   ExecutedSubTaskResult,
   OrchestratedComplexTaskReport,
+  AgentClientCommand, // Import from central types
+  AgentSkillContext,  // Import from central types
 } from '../types';
 
 // Import the specific skill response type if available, or define locally
@@ -81,31 +83,8 @@ interface SemanticSearchStructuredData {
 import { executeGraphQLQuery } from './_libs/graphqlClient'; // For getUserIdByEmail
 
 // --- Interface Definitions for Agent-Client Communication and Skill Context ---
-
-// Defines the structure of commands sent from the agent to the client (e.g., via WebSocket)
-// This should align with the command structure expected by the frontend client.
-interface AgentClientCommand {
-  command_id: string; // Unique ID for tracking the command
-  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION'; // Specific actions client can perform
-  payload?: {
-    suggestedTitle?: string;
-    linkedEventId?: string;
-    // Other relevant parameters for the client action
-  };
-}
-
-// Defines the context object that will be passed to agent skills.
-// It includes common utilities or functions that skills might need.
-interface AgentSkillContext {
-  userId: string;
-  // Function to send a command to the connected client.
-  // The actual implementation of this function is expected to be injected by the calling environment (e.g., WebSocket handler in server.ts).
-  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>;
-  // Potentially add other context items:
-  // - Access to LTM/STM (though memoryManager functions are currently imported directly)
-  // - User preferences relevant to skills
-  // - API clients if they are not globally available or need user-specific configuration
-}
+// Local definitions of AgentClientCommand and AgentSkillContext are removed.
+// They are now imported from '../types'.
 
 // Extend existing options for _internalHandleMessage to include the sendCommandToClientFunction.
 // This allows the core message handling logic to be equipped with the capability to send commands to the client.
