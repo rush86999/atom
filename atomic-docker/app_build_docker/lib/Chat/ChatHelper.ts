@@ -118,158 +118,82 @@ export const receiveMessageFromBrain = async (
     chatHistory: ChatHistoryType,
 import { SemanticSearchResultsPayload } from "../dataTypes/SearchResultsTypes"; // Import the new payload type
 
+// Import for structuredData, assuming it's part of SkillMessageHistoryType or a related type
+// For now, we'll assume skillMessageHistory might contain an optional 'structuredData' field.
+// Actual type definition for what agent sends over WebSocket for structured data would be:
+// interface AgentWebSocketMessage {
+//   text: string;
+//   audioUrl?: string;
+//   structuredData?: { displayType: string; data: any; summaryText?: string; };
+//   // Other fields like skill, query, messages for the skill log part
+//   skill?: string;
+//   query?: string;
+//   messages?: {role: string; content: string}[];
+//   // etc.
+// }
+// For receiveMessageFromBrain, skillMessageHistory is used for the skill log part.
+// The part that constructs UserChatType for display is now in UserViewChat.tsx.
+
 export const receiveMessageFromBrain = async (
-    skillMessageHistory: SkillMessageHistoryType & { searchResultsPayload?: SemanticSearchResultsPayload }, // Augment type for this function
-    chatHistory: ChatHistoryType,
+    skillDataForLog: SkillMessageHistoryType, // Renamed to reflect its purpose for logging
     messageHistory: SkillChatHistoryType,
-    setChatHistory: React.Dispatch<React.SetStateAction<ChatHistoryType | []>>,
     setMessageHistory: React.Dispatch<React.SetStateAction<[] | SkillChatHistoryType>>,
-    setIsLoading:  React.Dispatch<React.SetStateAction<boolean>>,
+    // setChatHistory and setIsLoading are removed as they are handled by the caller (UserViewChat.tsx)
 ) => {
     try {
-        // Check for special semantic search results payload
-        if (skillMessageHistory.searchResultsPayload && skillMessageHistory.searchResultsPayload.type === 'semantic_search_results') {
-            const payload = skillMessageHistory.searchResultsPayload;
-            const assistantMessage: UserChatType = {
-                id: chatHistory.length, // New ID for this message
-                role: 'assistant',
-                content: payload.summaryText || "Here are your search results:",
-                date: dayjs().format(),
-                customComponentType: 'semantic_search_results',
-                customComponentProps: { results: payload.results },
-            };
+        // This function now *only* updates messageHistory (the skill log).
+        // It does not construct or set the visual chat messages in chatHistory.
 
-            // Update the last "working..." message or add new.
-            // The existing logic tries to update the "working..." message.
-            const reverseChatHistory = _.cloneDeep(chatHistory)?.reverse() || [];
-            const workingMessageIndex = reverseChatHistory.findIndex(c => ((c?.role === 'assistant') && (c?.content === 'working ...')));
+        // The existing switch logic was mainly for updating chatHistory's "working..." message
+        // and then setting messageHistory.
+        // Since chatHistory is handled by the caller, we simplify this.
 
-            let newChatHistory: ChatHistoryType;
-            if (workingMessageIndex !== -1) {
-                const originalIndex = chatHistory.length - 1 - workingMessageIndex;
-                newChatHistory = [
-                    ...chatHistory.slice(0, originalIndex),
-                    assistantMessage, // Replace "working..." with the new message
-                    ...chatHistory.slice(originalIndex + 1)
-                ];
+        // We need to decide how to update messageHistory based on skillDataForLog.
+        // The old logic replaced the last item in messageHistory if it was 'pending'
+        // and then added a new 'pending' item if the query was 'completed' or 'event_not_found'.
+
+        let updatedMessageHistory = [...messageHistory];
+
+        if (skillDataForLog.query === 'missing_fields') {
+            // Replace the last 'pending' message in messageHistory with the new skillDataForLog
+            if (updatedMessageHistory.length > 0 && updatedMessageHistory[updatedMessageHistory.length - 1].query === 'pending') {
+                updatedMessageHistory[updatedMessageHistory.length - 1] = skillDataForLog;
             } else {
-                // Should not happen if "working..." was added, but as a fallback:
-                newChatHistory = [...chatHistory, assistantMessage];
+                // This case should ideally not happen if addMessageToBrain correctly sets up a pending state.
+                updatedMessageHistory.push(skillDataForLog);
             }
-            setChatHistory(newChatHistory);
-
-            // Update messageHistory (skill log)
-            const updatedSkillMessage: SkillMessageHistoryType = {
-                ...skillMessageHistory, // Preserve other skill data
-                query: 'completed', // Mark this interaction part as completed
-                messages: [ // Update messages to reflect what's shown
-                    ...(skillMessageHistory.messages || []),
-                    { role: 'assistant', content: payload.summaryText } // Add the summary text as the last message content
-                ],
-                // searchResultsPayload will still be on skillMessageHistory from agent if needed for full log
-            };
-            const oldMessageHistory_sliced = messageHistory?.slice(0, messageHistory?.length - 1) || [];
-            const newMessageHistory_completed = oldMessageHistory_sliced.concat([updatedSkillMessage, {
-                skill: 'pending', // Reset for next interaction
+            setMessageHistory(updatedMessageHistory);
+        } else if (skillDataForLog.query === 'completed' || skillDataForLog.query === 'event_not_found' || skillDataForLog.query === 'error' ) {
+            // Replace the last 'pending' message and add a new 'pending' state for the next interaction.
+             if (updatedMessageHistory.length > 0 && updatedMessageHistory[updatedMessageHistory.length - 1].query === 'pending') {
+                updatedMessageHistory[updatedMessageHistory.length - 1] = skillDataForLog;
+            } else {
+                updatedMessageHistory.push(skillDataForLog);
+            }
+            // Add a new pending state for the next turn
+            updatedMessageHistory.push({
+                skill: 'pending',
                 query: 'pending',
                 messages: [],
-            }]);
-            setMessageHistory(newMessageHistory_completed);
-            setIsLoading(false);
-            return; // Handled search results
+            });
+            setMessageHistory(updatedMessageHistory);
+        } else if (skillDataForLog.query === 'pending') {
+            // If the incoming data itself is 'pending' (e.g. an ack), update the last item.
+            // This might happen if the agent sends multiple updates for a single turn.
+            if (updatedMessageHistory.length > 0) {
+                 updatedMessageHistory[updatedMessageHistory.length - 1] = skillDataForLog;
+                 setMessageHistory(updatedMessageHistory);
+            } else {
+                 setMessageHistory([skillDataForLog]);
+            }
+        } else {
+            // Default behavior: just append if the query state is unknown or doesn't fit above.
+            // This ensures the log captures it.
+            console.warn("receiveMessageFromBrain: Unhandled skillDataForLog.query state:", skillDataForLog.query, "Appending to log.");
+            setMessageHistory([...updatedMessageHistory, skillDataForLog]);
         }
 
-        // Original switch logic for other message types
-        switch(skillMessageHistory.query) {
-            case 'missing_fields':
-                const reverseMessages = _.cloneDeep(skillMessageHistory?.messages)?.reverse() || []
-                const updateAssistantContent = reverseMessages?.find(m => (m?.role === 'assistant'))?.content
-                const reverseChatHistory = _.cloneDeep(chatHistory)?.reverse() || []
-                const foundChat = reverseChatHistory?.find(c => ((c?.role === 'assistant') && (c?.content === 'working ...')))
-                if (foundChat) {
-                    foundChat.content = updateAssistantContent
-                    for (const chat of chatHistory) {
-                        if (chat?.id === foundChat.id) {
-                            chat.content = foundChat.content
-                            break
-                        }
-                    }
-
-                    const newChatHistory = _.cloneDeep(chatHistory)
-                    const oldMessageHistory_sliced = messageHistory?.slice(0, messageHistory?.length - 1)
-                    const newMessageHistory_mf = oldMessageHistory_sliced.concat([skillMessageHistory])
-                    setChatHistory(newChatHistory)
-                    setMessageHistory(newMessageHistory_mf)
-
-                }
-                setIsLoading(false)
-                break
-            case 'completed':
-                const newSkillMessageHistory: SkillMessageHistoryType = {
-                    skill: 'pending',
-                    query: 'pending',
-                    messages: [],
-                }
-                
-                const reverseMessages_c = _.cloneDeep(skillMessageHistory?.messages)?.reverse()
-                const updateAssistantContent_c = reverseMessages_c?.find(m => (m?.role === 'assistant'))?.content
-                const reverseChatHistory_c = _.cloneDeep(chatHistory)?.reverse()
-                console.log(reverseChatHistory_c, ' reverseChatHistory_c')
-                const foundChat_c = reverseChatHistory_c?.find(c => ((c?.role === 'assistant') && (c?.content === 'working ...')))
-                if (foundChat_c) {
-                    foundChat_c.content = updateAssistantContent_c
-                    for (const chat of chatHistory) {
-                        if (chat?.id === foundChat_c.id) {
-                            chat.content = foundChat_c.content
-                            break
-                        }
-                    }
-
-                    const newChatHistory_c = _.cloneDeep(chatHistory)
-                    const oldMessageHistory_sliced_c = messageHistory?.slice(0, messageHistory?.length - 1)
-                    const newMessageHistory_com = oldMessageHistory_sliced_c
-                        .concat([skillMessageHistory])
-                        .concat([newSkillMessageHistory])
-                    setChatHistory(newChatHistory_c)
-                    setMessageHistory(newMessageHistory_com)
-                }
-                setIsLoading(false)
-                break
-            case 'event_not_found':
-                const newSkillMessageHistory_not_found: SkillMessageHistoryType = {
-                    skill: 'pending',
-                    query: 'pending',
-                    messages: [],
-                }
-                
-                const reverseMessages_not_found = _.cloneDeep(skillMessageHistory?.messages)?.reverse()
-                const updateAssistantContent_not_found = reverseMessages_not_found?.find(m => (m?.role === 'assistant'))?.content
-                const reverseChatHistory_not_found = _.cloneDeep(chatHistory)?.reverse()
-                const foundChat_not_found = reverseChatHistory_not_found?.find(c => ((c?.role === 'assistant') && (c?.content === 'working ...')))
-
-                if (foundChat_not_found) {
-                    foundChat_not_found.content = updateAssistantContent_not_found
-                    for (const chat of chatHistory) {
-                        if (chat?.id === foundChat_not_found.id) {
-                            chat.content = foundChat_not_found.content
-                            break
-                        }
-                    }
-                    const newChatHistory_not_found = _.cloneDeep(chatHistory)
-                    const oldMessageHistory_sliced_not_found = messageHistory?.slice(0, messageHistory?.length - 2)
-                    const newMessageHistory_not_found = oldMessageHistory_sliced_not_found
-                        .concat([skillMessageHistory])
-                        .concat([newSkillMessageHistory_not_found])
-                    setChatHistory(newChatHistory_not_found)
-                    setMessageHistory(newMessageHistory_not_found)
-
-                }
-                
-                setIsLoading(false)
-                break
-           
-        }
-
+        // setIsLoading(false) is now handled by the caller (UserViewChat.tsx)
 
     } catch (e) {
         console.log(e, ' unabl eto receive message from brain')
