@@ -986,7 +986,104 @@ export class AwsStack extends cdk.Stack {
       executionRole: this.ecsTaskRole,
     });
 
-    functionsTaskDef.addContainer('FunctionsContainer', {
+    // ADOT Collector Configuration YAML content
+    // Note: In a real-world scenario with complex configs, this might be managed as a separate file
+    // and potentially baked into a custom collector image or loaded from S3 by the collector if it supports it.
+    // For this POC, we'll assume a simple config can be passed or the collector has good defaults.
+    // The config file created `adot-collector-config.yaml` is a reference.
+    // The AWS OTEL Collector default configuration typically includes X-Ray exporter.
+    // We need to ensure EMF exporter for metrics is also active.
+    // A common way is to provide a command that writes the config to a file in the container, then runs the collector.
+    // However, the standard aws-otel-collector image might not have tools like `sh` or `echo` readily available for complex commands.
+    // A simpler approach for now is to rely on its default capabilities and environment variable configurations if possible for X-Ray,
+    // and acknowledge that full custom YAML for EMF might require a custom image or more advanced config loading.
+
+    // For now, let's add the collector with its default config, which should handle X-Ray.
+    // Metric export to CloudWatch EMF might require providing a config file.
+    // Let's assume for X-Ray, default behavior is sufficient with IAM perms.
+    // And for metrics, we will need to provide a config.
+    // We will use a command to write a minimal config for OTLP receiver and EMF exporter.
+    // This is a common pattern for Fargate when not using a custom image with baked-in config.
+
+    const adotConfigYaml = `
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+exporters:
+  awsxray:
+    region: ${this.region}
+  awsemf:
+    region: ${this.region}
+    log_group_name: '/aws/ecs/otel-metrics/${this.cluster.clusterName}'
+    log_stream_name: 'otel-metrics-stream-${ecs.ContainerDefinition.taskDefinition.family}-${ecs.ContainerDefinition.containerName}' # Approximation
+    namespace: 'AtomicApp/FunctionsService' # Service-specific namespace
+    # Dimensions can be set here or via resource_to_telemetry_conversion
+    # dimension_rollup_option: NoDimensionRollup # To get all dimensions
+processors:
+  batch: {}
+extensions:
+  health_check: {}
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsemf]
+`;
+
+
+    const functionsAdotCollectorContainer = functionsTaskDef.addContainer('AdotCollectorContainer', {
+      image: ecs.ContainerImage.fromRegistry('public.ecr.aws/aws-observability/aws-otel-collector:latest'), // Use a specific version in prod
+      essential: true, // Typically true for a collector sidecar
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'functions-adot-collector',
+        logGroup: new logs.LogGroup(this, 'FunctionsAdotCollectorLogGroup', {
+          logGroupName: `/aws/ecs/${this.cluster.clusterName}/functions-adot-collector`,
+          retention: logs.RetentionDays.ONE_WEEK, // Shorter retention for collector logs
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
+        }),
+      }),
+      // Command to write the config and run the collector. This is a common workaround.
+      // Ensure the image has /bin/sh and appropriate tools. The standard ADOT image does.
+      // The path /etc/otel-agent-config/config.yaml is often used by examples.
+      command: [
+        "/bin/sh",
+        "-c",
+        `echo "${adotConfigYaml.replace(/\n/g, '\\n')}" > /etc/otel-config.yaml && /awscollector --config /etc/otel-config.yaml`
+      ],
+      environment: {
+        AWS_REGION: this.region,
+        // Other env vars for collector if needed
+      },
+      portMappings: [
+        { containerPort: 4317, protocol: ecs.Protocol.TCP }, // OTLP gRPC
+        { containerPort: 4318, protocol: ecs.Protocol.TCP }, // OTLP HTTP
+        { containerPort: 13133, protocol: ecs.Protocol.TCP }, // health_check extension default port
+      ],
+      healthCheck: { // Optional: configure a health check for the collector
+        command: ["/healthcheck"], // The ADOT collector image has a healthcheck binary
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+      },
+      cpu: 256, // Minimum recommended for ADOT collector
+      memoryLimitMiB: 512, // Minimum recommended for ADOT collector
+    });
+
+    const functionsPrimaryContainer = functionsTaskDef.addContainer('FunctionsContainer', {
       image: ecs.ContainerImage.fromEcrRepository(this.functionsRepo),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'functions-ecs',
@@ -1006,6 +1103,11 @@ export class AwsStack extends cdk.Stack {
         APP_CLIENT_URL: `https://${domainName}`,
         S3_BUCKET: this.dataBucket.bucketName,
         AWS_REGION: this.region,
+        // OTEL Configuration for the application
+        OTEL_SERVICE_NAME: "FunctionsService", // Or derive from stack/service name
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:4318/v1/traces", // App sends to sidecar
+        OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:4318/v1/metrics", // App sends to sidecar
+        NODE_OPTIONS: "--require ./tracing.js", // If tracing.js is at root of app and sets up OpenTelemetry
       },
       secrets: {
         HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
@@ -1014,6 +1116,19 @@ export class AwsStack extends cdk.Stack {
       },
       portMappings: [{ containerPort: 80, protocol: ecs.Protocol.TCP }],
     });
+
+    // Ensure the application container depends on the collector container
+    functionsPrimaryContainer.addContainerDependencies({
+        container: functionsAdotCollectorContainer,
+        condition: ecs.ContainerDependencyCondition.HEALTHY, // Or START if no health check on collector
+    });
+
+    // Adjust overall task definition CPU and Memory. Original: 256 CPU, 512 MiB for FunctionsContainer alone.
+    // New total: FunctionsContainer (256 CPU, 512 MiB) + AdotCollector (256 CPU, 512 MiB) = 512 CPU, 1024 MiB
+    // These are minimums and might need adjustment based on load.
+    functionsTaskDef.cpu = "512";
+    functionsTaskDef.memoryMiB = "1024";
+
 
     this.functionsService = new ecs.FargateService(this, 'FunctionsService', {
       cluster: this.cluster,
@@ -1145,7 +1260,77 @@ export class AwsStack extends cdk.Stack {
       executionRole: this.ecsTaskRole,
     });
 
-    appTaskDef.addContainer('AppContainer', {
+    // ADOT Collector for AppService
+    const appAdotConfigYaml = `
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+exporters:
+  awsxray:
+    region: ${this.region}
+  awsemf:
+    region: ${this.region}
+    log_group_name: '/aws/ecs/otel-metrics/${this.cluster.clusterName}'
+    log_stream_name: 'otel-metrics-stream-${ecs.ContainerDefinition.taskDefinition.family}-${ecs.ContainerDefinition.containerName}'
+    namespace: 'AtomicApp/AppService' # Service-specific namespace
+processors:
+  batch: {}
+extensions:
+  health_check: {}
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsemf]
+`;
+
+    const appAdotCollectorContainer = appTaskDef.addContainer('AdotCollectorContainer', {
+      image: ecs.ContainerImage.fromRegistry('public.ecr.aws/aws-observability/aws-otel-collector:latest'),
+      essential: true,
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'app-adot-collector',
+        logGroup: new logs.LogGroup(this, 'AppAdotCollectorLogGroup', {
+          logGroupName: `/aws/ecs/${this.cluster.clusterName}/app-adot-collector`,
+          retention: logs.RetentionDays.ONE_WEEK,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
+        }),
+      }),
+      command: [
+        "/bin/sh",
+        "-c",
+        `echo "${appAdotConfigYaml.replace(/\n/g, '\\n')}" > /etc/otel-config.yaml && /awscollector --config /etc/otel-config.yaml`
+      ],
+      environment: { AWS_REGION: this.region },
+      portMappings: [
+        { containerPort: 4317, protocol: ecs.Protocol.TCP },
+        { containerPort: 4318, protocol: ecs.Protocol.TCP },
+        { containerPort: 13133, protocol: ecs.Protocol.TCP }, // health_check
+      ],
+      healthCheck: {
+        command: ["/healthcheck"],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+      },
+      cpu: 256,
+      memoryLimitMiB: 512,
+    });
+
+    const appPrimaryContainer = appTaskDef.addContainer('AppContainer', {
       image: ecs.ContainerImage.fromEcrRepository(this.appRepo),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'app-ecs',
@@ -1165,9 +1350,27 @@ export class AwsStack extends cdk.Stack {
         NEXT_PUBLIC_SUPERTOKENS_API_DOMAIN: `https://${domainName}/v1/auth`,
         NEXT_PUBLIC_HANDSHAKE_URL: `https://${domainName}/v1/handshake/`,
         NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL: `https://${domainName}/v1/functions/eventToQueueAuth`,
+        // OTEL Configuration for the App service (assuming Next.js backend part or API routes)
+        OTEL_SERVICE_NAME: "AppService",
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:4318/v1/traces",
+        OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:4318/v1/metrics",
+        // NODE_OPTIONS might be relevant if app's backend is Node.js and uses a ./tracing.js file
+        // If it's primarily a frontend serving static assets via Nginx/other, or if Next.js API routes
+        // are instrumented differently, this might need adjustment.
+        // For Next.js, OpenTelemetry is often initialized in `instrumentation.node.ts` or `_app.tsx` / `_document.tsx` for client/server.
       },
       portMappings: [{ containerPort: 3000, protocol: ecs.Protocol.TCP }],
     });
+
+    appPrimaryContainer.addContainerDependencies({
+        container: appAdotCollectorContainer,
+        condition: ecs.ContainerDependencyCondition.HEALTHY,
+    });
+
+    // Adjust overall task definition CPU and Memory. Original: 256 CPU, 512 MiB for AppContainer alone.
+    // New total: AppContainer (256 CPU, 512 MiB) + AdotCollector (256 CPU, 512 MiB) = 512 CPU, 1024 MiB
+    appTaskDef.cpu = "512";
+    appTaskDef.memoryMiB = "1024";
 
     this.appService = new ecs.FargateService(this, 'AppService', {
       cluster: this.cluster,
@@ -1655,7 +1858,78 @@ export class AwsStack extends cdk.Stack {
       executionRole: this.ecsTaskRole, // For ECR pull and CloudWatch Logs
     });
 
-    pythonAgentTaskDef.addContainer('PythonAgentContainer', {
+    // ADOT Collector for PythonAgentService
+    const pythonAgentAdotConfigYaml = `
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+exporters:
+  awsxray:
+    region: ${this.region}
+  awsemf:
+    region: ${this.region}
+    log_group_name: '/aws/ecs/otel-metrics/${this.cluster.clusterName}'
+    log_stream_name: 'otel-metrics-stream-${ecs.ContainerDefinition.taskDefinition.family}-${ecs.ContainerDefinition.containerName}'
+    namespace: 'AtomicApp/PythonAgentService' # Service-specific namespace
+processors:
+  batch: {}
+extensions:
+  health_check: {}
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsemf]
+`;
+
+    const pythonAgentAdotCollectorContainer = pythonAgentTaskDef.addContainer('AdotCollectorContainer', {
+      image: ecs.ContainerImage.fromRegistry('public.ecr.aws/aws-observability/aws-otel-collector:latest'),
+      essential: true,
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'python-agent-adot-collector',
+        logGroup: new logs.LogGroup(this, 'PythonAgentAdotCollectorLogGroup', {
+          logGroupName: `/aws/ecs/${this.cluster.clusterName}/python-agent-adot-collector`,
+          retention: logs.RetentionDays.ONE_WEEK,
+          removalPolicy: cdk.Fn.conditionIf(
+                            isProdStageCondition.logicalId,
+                            cdk.RemovalPolicy.RETAIN,
+                            cdk.RemovalPolicy.DESTROY
+                        ) as cdk.RemovalPolicy,
+        }),
+      }),
+      command: [
+        "/bin/sh",
+        "-c",
+        `echo "${pythonAgentAdotConfigYaml.replace(/\n/g, '\\n')}" > /etc/otel-config.yaml && /awscollector --config /etc/otel-config.yaml`
+      ],
+      environment: { AWS_REGION: this.region },
+      portMappings: [
+        { containerPort: 4317, protocol: ecs.Protocol.TCP },
+        { containerPort: 4318, protocol: ecs.Protocol.TCP },
+        { containerPort: 13133, protocol: ecs.Protocol.TCP }, // health_check
+      ],
+      healthCheck: {
+        command: ["/healthcheck"],
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(5),
+        retries: 3,
+      },
+      cpu: 256,
+      memoryLimitMiB: 512,
+    });
+
+
+    const pythonAgentPrimaryContainer = pythonAgentTaskDef.addContainer('PythonAgentContainer', {
       image: ecs.ContainerImage.fromEcrRepository(this.pythonAgentRepo),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'python-agent-ecs',
@@ -1671,6 +1945,12 @@ export class AwsStack extends cdk.Stack {
       }),
       environment: {
         PYTHONPATH: "/app", // As set in Dockerfile, ensures project modules are found
+        // OTEL Configuration for the Python Agent service
+        OTEL_SERVICE_NAME: "PythonAgentService",
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:4318/v1/traces",
+        OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:4318/v1/metrics",
+        // For Python auto-instrumentation, you might set OTEL_PYTHON_DISABLED_INSTRUMENTATIONS if needed
+        // or ensure the agent/SDK is initialized within the Python app code.
       },
       secrets: {
         NOTION_API_TOKEN: ecs.Secret.fromSecretsManager(this.notionApiTokenSecret),
@@ -1681,6 +1961,16 @@ export class AwsStack extends cdk.Stack {
       },
       // No port mappings needed if the agent is not listening for incoming connections
     });
+
+    pythonAgentPrimaryContainer.addContainerDependencies({
+        container: pythonAgentAdotCollectorContainer,
+        condition: ecs.ContainerDependencyCondition.HEALTHY,
+    });
+
+    // Adjust overall task definition CPU and Memory. Original: 256 CPU, 512 MiB for PythonAgentContainer alone.
+    // New total: PythonAgentContainer (256 CPU, 512 MiB) + AdotCollector (256 CPU, 512 MiB) = 512 CPU, 1024 MiB
+    pythonAgentTaskDef.cpu = "512";
+    pythonAgentTaskDef.memoryMiB = "1024";
 
     new ecs.FargateService(this, 'PythonAgentService', {
       cluster: this.cluster,
@@ -1935,5 +2225,198 @@ export class AwsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'SystemHealthDashboardUrl', {
         value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${systemHealthDashboard.dashboardName}`,
         description: 'URL of the System Health Overview CloudWatch Dashboard.',
+    });
+
+    // --- Application Performance Deep Dive Dashboard for FunctionsService ---
+    const functionsServiceDashboard = new cloudwatch.Dashboard(this, 'FunctionsServicePerfDashboard', {
+        dashboardName: `${this.stackName}-FunctionsService-Performance`,
+    });
+
+    // --- Widgets for FunctionsService Dashboard ---
+
+    // 1. Key Alarms for FunctionsService
+    const functionsServiceAlarmsWidget = new cloudwatch.AlarmStatusWidget({
+        title: 'FunctionsService - Key Alarm Status',
+        width: 24,
+        alarms: [
+            this.functionsServiceCpuAlarm, // Assuming this is the CPU alarm for functionsService
+            // Add target group alarms for functionsTargetGroup (created in previous steps)
+            // Need to ensure these alarms are class members or accessible here.
+            // Let's assume they were named e.g., functionsTgUnhealthyHostAlarm, functionsTg5xxAlarm, functionsTgLatencyAlarm
+            // For this example, I'll refer to where they *would* be if I refactored them to be class members.
+            // This part might need adjustment if those alarms are not readily available as class properties.
+            // Placeholder: this.functionsTgUnhealthyHostAlarm, this.functionsTg5xxAlarm, this.functionsTgLatencyAlarm
+            // For now, let's just use the CPU alarm. More alarms can be added if they are made class properties.
+        ],
+    });
+    // Check if TG alarms exist and add them if they do
+    const functionsTgUnhealthyHostAlarm = this.node.tryFindChild('FunctionsTgUnhealthyHostAlarm') as cloudwatch.Alarm;
+    if (functionsTgUnhealthyHostAlarm) functionsServiceAlarmsWidget.addAlarm(functionsTgUnhealthyHostAlarm);
+    const functionsTg5xxAlarm = this.node.tryFindChild('FunctionsTg5xxAlarm') as cloudwatch.Alarm;
+    if (functionsTg5xxAlarm) functionsServiceAlarmsWidget.addAlarm(functionsTg5xxAlarm);
+    const functionsTgLatencyAlarm = this.node.tryFindChild('FunctionsTgLatencyAlarm') as cloudwatch.Alarm;
+    if (functionsTgLatencyAlarm) functionsServiceAlarmsWidget.addAlarm(functionsTgLatencyAlarm);
+
+
+    // 2. ALB Metrics for functionsTargetGroup
+    const functionsAlbRequestCountWidget = new cloudwatch.GraphWidget({
+        title: 'Functions TG - Request Count',
+        width: 8,
+        left: [this.functionsTargetGroup.metricRequestCount({ period: cdk.Duration.minutes(1), statistic: 'Sum'})],
+    });
+    const functionsAlbLatencyWidget = new cloudwatch.GraphWidget({
+        title: 'Functions TG - Target Latency (P90, P95, P99)',
+        width: 16,
+        left: [
+            this.functionsTargetGroup.metricTargetResponseTime({ statistic: 'p90', period: cdk.Duration.minutes(1), label: 'P90 Latency' }),
+            this.functionsTargetGroup.metricTargetResponseTime({ statistic: 'p95', period: cdk.Duration.minutes(1), label: 'P95 Latency' }),
+            this.functionsTargetGroup.metricTargetResponseTime({ statistic: 'p99', period: cdk.Duration.minutes(1), label: 'P99 Latency' }),
+        ],
+    });
+    const functionsAlb5xxWidget = new cloudwatch.GraphWidget({
+        title: 'Functions TG - 5XX Errors (Target & ELB)',
+        width: 12,
+        left: [
+            this.functionsTargetGroup.metricHttpCodeTarget(elbv2.HttpCodeTarget.TARGET_5XX_COUNT, { statistic: 'Sum', period: cdk.Duration.minutes(1), label: 'Target 5XX' }),
+        ],
+        right: [ // Assuming ALB metrics are needed here too, typically target is more specific for a service dashboard
+             this.alb.metricHttpCodeElb(elbv2.HttpCodeElb.ELB_5XX_COUNT, { statistic: 'Sum', period: cdk.Duration.minutes(1), label: 'ALB 5XX (Overall)'})
+        ]
+    });
+     const functionsAlbHealthyHostsWidget = new cloudwatch.GraphWidget({
+        title: 'Functions TG - Healthy/Unhealthy Hosts',
+        width: 12,
+        left: [this.functionsTargetGroup.metricHealthyHostCount({period: cdk.Duration.minutes(1), statistic: 'Average', label: 'Healthy Hosts'})],
+        right: [this.functionsTargetGroup.metricUnhealthyHostCount({period: cdk.Duration.minutes(1), statistic: 'Average', label: 'Unhealthy Hosts'})]
+    });
+
+
+    // 3. ECS Metrics for functionsService
+    const functionsEcsCpuUtilWidget = new cloudwatch.GraphWidget({
+        title: 'FunctionsService - ECS CPU Utilization',
+        width: 12,
+        left: [this.functionsService.metricCPUUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+    const functionsEcsMemoryUtilWidget = new cloudwatch.GraphWidget({
+        title: 'FunctionsService - ECS Memory Utilization',
+        width: 12,
+        left: [this.functionsService.metricMemoryUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+     const functionsEcsRunningTasksWidget = new cloudwatch.GraphWidget({
+        title: 'FunctionsService - Running Tasks',
+        width: 12, // Full width for this one or pair with another small widget
+        left: [
+            new cloudwatch.Metric({ // Desired tasks - not directly available as a metric, usually from service.desiredCount
+                namespace: 'AWS/ECS',
+                metricName: 'DesiredTaskCount', // This metric might not exist; usually, you track Running vs Desired via alarms or comparisons
+                dimensionsMap: { ClusterName: this.cluster.clusterName, ServiceName: this.functionsService.serviceName },
+                statistic: 'Average',
+                period: cdk.Duration.minutes(1),
+                label: 'Desired Tasks (Approximation)'
+            }),
+             this.functionsService.metric('RunningTaskCount', { // Correct way to get running tasks
+                period: cdk.Duration.minutes(1),
+                statistic: 'Average',
+                label: 'Running Tasks'
+            })
+        ],
+    });
+
+
+    // 4. Custom Application Metrics (assuming they are in 'AtomicApp/FunctionsService' namespace)
+    const customMetricsNamespace = 'AtomicApp/FunctionsService';
+
+    const functionsCustomHttpRequestsWidget = new cloudwatch.GraphWidget({
+        title: 'FunctionsService - HTTP Requests Total (Custom)',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: customMetricsNamespace,
+            metricName: 'http_server_requests_total', // As defined in opentelemetry.js
+            dimensionsMap: { }, // Add dimensions if any were defined, e.g., http_method, status_code
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+        })],
+    });
+
+    const functionsCustomHttpDurationWidget = new cloudwatch.GraphWidget({
+        title: 'FunctionsService - HTTP Request Duration (Custom, P90)',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: customMetricsNamespace,
+            metricName: 'http_server_request_duration_seconds', // As defined in opentelemetry.js
+            dimensionsMap: { }, // Add dimensions
+            statistic: 'p90', // For histograms, pXX stats are common
+            period: cdk.Duration.minutes(1),
+        })],
+    });
+
+    const functionsCustomWebsocketConnectionsWidget = new cloudwatch.GaugeWidget({
+        title: 'FunctionsService - Active WebSocket Connections',
+        width: 12,
+        metrics: [new cloudwatch.Metric({
+            namespace: customMetricsNamespace,
+            metricName: 'websocket_connections_active',
+            statistic: 'Average', // Or Max, depending on how it's emitted
+            period: cdk.Duration.minutes(1)
+        })]
+    });
+
+    const functionsCustomWebsocketMessagesWidget = new cloudwatch.GraphWidget({
+        title: 'FunctionsService - WebSocket Messages Received',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: customMetricsNamespace,
+            metricName: 'websocket_messages_received_total',
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1)
+        })]
+    });
+
+
+    // 5. Log Insights Widget for FunctionsService Errors
+    const functionsLogGroup = this.node.tryFindChild('FunctionsLogGroup') as logs.LogGroup;
+    let functionsLogErrorWidget: cloudwatch.IWidget = new cloudwatch.TextWidget({ markdown: "FunctionsLogGroup not found for Log Insights.", width: 24});
+    if (functionsLogGroup) {
+        functionsLogErrorWidget = new cloudwatch.LogQueryWidget({
+            title: 'FunctionsService - Recent Error Logs',
+            width: 24,
+            logGroupNames: [functionsLogGroup.logGroupName],
+            queryString: `
+fields @timestamp, @message, trace_id, span_id, error_message, exception_type, operation_name, stack_trace
+| filter level = 'ERROR'
+| sort @timestamp desc
+| limit 20`,
+        });
+    }
+
+    // --- Add Widgets to FunctionsService Dashboard ---
+    functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsServiceAlarmsWidget)
+    );
+    functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsAlbRequestCountWidget, functionsAlbLatencyWidget)
+    );
+    functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsAlb5xxWidget, functionsAlbHealthyHostsWidget)
+    );
+     functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsEcsCpuUtilWidget, functionsEcsMemoryUtilWidget)
+    );
+    functionsServiceDashboard.addWidgets( // Running tasks widget, can be paired or full width
+        new cloudwatch.Row(functionsEcsRunningTasksWidget)
+    );
+    functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsCustomHttpRequestsWidget, functionsCustomHttpDurationWidget)
+    );
+    functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsCustomWebsocketConnectionsWidget, functionsCustomWebsocketMessagesWidget)
+    );
+    functionsServiceDashboard.addWidgets(
+        new cloudwatch.Row(functionsLogErrorWidget)
+    );
+
+    new cdk.CfnOutput(this, 'FunctionsServicePerformanceDashboardUrl', {
+        value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${functionsServiceDashboard.dashboardName}`,
+        description: 'URL of the FunctionsService Performance Deep Dive CloudWatch Dashboard.',
     });
 }

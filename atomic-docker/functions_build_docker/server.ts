@@ -1,582 +1,518 @@
-import path from 'path'
-import express, { Request } from 'express'
-import morgan from 'morgan'
-import glob from 'glob'
-// import * as jwt from 'jsonwebtoken'
-// import qs from 'qs'
-import { WebSocketServer, WebSocket } from 'ws'; // Added WebSocket for typing
-// import JsonWebToken, { JwtHeader, SigningKeyCallback } from 'jsonwebtoken'
-// import jwksClient from 'jwks-rsa'
-import qs from 'qs'
-import * as jose from 'jose'
-import http from 'http'
+// IMPORTANT: The OpenTelemetry SDK must be initialized BEFORE any other modules that need to be instrumented.
+// This is typically handled by NODE_OPTIONS="--require ./opentelemetry.js" in the container environment.
+// Ensure `opentelemetry.js` is in the same directory as this `server.ts` or adjust path.
+
+import path from 'path';
+import express, { Request, Response, NextFunction } from 'express'; // Added Response, NextFunction
+import glob from 'glob';
+import { WebSocketServer, WebSocket } from 'ws';
+import qs from 'qs';
+import * as jose from 'jose';
+import http from 'http';
+import winston from 'winston';
+import expressWinston from 'express-winston';
+import { trace, context as otelContext, SpanStatusCode, Attributes } from '@opentelemetry/api'; // For manual span attributes
+
+// Import custom metrics from opentelemetry.js
+import {
+  httpServerRequestsTotal,
+  httpServerRequestDurationSeconds,
+  activeWebsocketConnections,
+  websocketMessagesReceivedTotal,
+} from './opentelemetry'; // Assuming opentelemetry.js is in the same directory
 
 // Agenda imports
-import { startAgenda, stopAgenda } from '../../project/functions/agendaService' // Adjust path if needed
-import { _internalHandleMessage } from '../../project/functions/atom-agent/handler' // Adjust path if needed
-import type { InterfaceType } from '../../project/functions/atom-agent/conversationState' // Adjust path if needed
+import { startAgenda, stopAgenda } from '../../project/functions/agendaService';
+import { _internalHandleMessage } from '../../project/functions/atom-agent/handler';
+import type { InterfaceType } from '../../project/functions/atom-agent/conversationState';
 
+const PORT = process.env.PORT || 3000; // Standardized PORT usage
+const PORT2 = process.env.PORT2 || 3030; // Standardized PORT2 usage
 
-const PORT = 3000
+const serviceName = process.env.OTEL_SERVICE_NAME || 'functions-service';
+const serviceVersion = process.env.OTEL_SERVICE_VERSION || '1.0.0';
 
-const PORT2 = 3030
+// Configure Winston Logger
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json(), // Output logs in JSON format
+    winston.format((info) => { // Custom formatter to add standard fields
+      info.service_name = serviceName;
+      info.version = serviceVersion;
+      // trace_id and span_id should be added by WinstonInstrumentation logHook
+      // If not, or for logs outside spans, add them manually here if possible:
+      const currentSpan = trace.getSpan(otelContext.active());
+      if (currentSpan) {
+        const spanContext = currentSpan.spanContext();
+        if (spanContext && spanContext.traceId) {
+          info.trace_id = spanContext.traceId;
+          info.span_id = spanContext.spanId;
+        }
+      }
+      return info;
+    })()
+  ),
+  transports: [
+    new winston.transports.Console(), // Log to console (stdout/stderr)
+  ],
+  exitOnError: false, // Do not exit on handled exceptions
+});
 
-function onSocketError(err) {
-  console.error(err);
+function onSocketError(err: Error) { // Typed error
+  logger.error({ message: 'WebSocket socket error', error: err.message, stack_trace: err.stack });
 }
 
-// var client = jwksClient({
-//   jwksUri: `${process.env.APP_CLIENT_URL}/api/auth/jwt/jwks.json`
-// });
+const JWKS = jose.createRemoteJWKSet(new URL(`${process.env.APP_CLIENT_URL}/api/auth/jwt/jwks.json`));
 
-const JWKS = jose.createRemoteJWKSet(new URL(`${process.env.APP_CLIENT_URL}/api/auth/jwt/jwks.json`))
-
-// function getKey(header: JwtHeader, callback: SigningKeyCallback) {
-//   client.getSigningKey(header.kid, function (err, key) {
-//     var signingKey = key!.getPublicKey();
-//     callback(err, signingKey);
-//   });
-// }
-
-// Map to store userId to WebSocket connection
 const connectedClients = new Map<string, WebSocket>();
 
-// Define AgentClientCommand structure (should align with frontend and agent skill definitions)
 interface AgentClientCommand {
-    command_id: string;
-    action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION';
-    payload?: {
-        suggestedTitle?: string;
-        linkedEventId?: string;
-    };
+  command_id: string;
+  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION';
+  payload?: {
+    suggestedTitle?: string;
+    linkedEventId?: string;
+  };
 }
 
 export async function sendCommandToUser(userId: string, command: AgentClientCommand): Promise<boolean> {
-    const clientSocket = connectedClients.get(userId);
-    if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
-        const messageToSend = { type: 'AGENT_COMMAND', payload: command }; // Wrap command
-        try {
-            clientSocket.send(JSON.stringify(messageToSend));
-            console.log(`[sendCommandToUser] Sent command to user ${userId}:`, messageToSend);
-            return true;
-        } catch (error) {
-            console.error(`[sendCommandToUser] Error sending command to user ${userId}:`, error);
-            return false;
-        }
-    } else {
-        console.warn(`[sendCommandToUser] No active WebSocket for user ${userId} or socket not open.`);
-        return false;
+  const clientSocket = connectedClients.get(userId);
+  const operation_name = 'SendCommandToUser';
+  if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
+    const messageToSend = { type: 'AGENT_COMMAND', payload: command };
+    try {
+      clientSocket.send(JSON.stringify(messageToSend));
+      logger.info({ operation_name, user_id: userId, command_action: command.action, success: true }, 'Sent command to user');
+      return true;
+    } catch (error: any) {
+      logger.error({ operation_name, user_id: userId, command_action: command.action, success: false, error_message: error.message, stack_trace: error.stack }, 'Error sending command to user');
+      return false;
     }
+  } else {
+    logger.warn({ operation_name, user_id: userId, command_action: command.action, success: false, reason: 'No active WebSocket or socket not open' }, 'Failed to send command to user');
+    return false;
+  }
 }
-// Note: This sendCommandToUser function needs to be made available to the agent skill execution context.
-// How this is done depends on the agent framework structure. For example, it could be passed
-// as part of an `AgentContext` object to skill handlers.
 
 const main = async () => {
-  const app = express()
-  const app2 = express()
+  const app = express();
+  const app2 = express();
 
-  // log middleware
-  // skipping /healthz because docker health checks it every second or so
-  app.use(
-    morgan('tiny', {
-      skip: (req) => req.url === '/healthz'
-    })
-  )
+  // Replace Morgan with express-winston for structured request logging
+  app.use(expressWinston.logger({
+    winstonInstance: logger,
+    meta: true, // Log metadata such as req.url, req.method, etc.
+    msg: "HTTP {{req.method}} {{req.url}} {{res.statusCode}} {{res.responseTime}}ms",
+    expressFormat: false, // Use winston's format, not morgan's
+    colorize: false, // JSON logs should not be colorized
+    skip: (req, _res) => req.path === '/healthz', // Skip health checks
+    dynamicMeta: (req, res) => { // Add custom attributes to request logs
+        const meta: Attributes = {};
+        if (req) {
+            meta.http_method = req.method;
+            meta.http_path = req.originalUrl || req.url;
+            // meta.user_id = req.user?.id; // If user context is available
+        }
+        if (res) {
+            meta.http_status_code = res.statusCode;
+        }
+        return meta;
+    }
+  }));
+  app2.use(expressWinston.logger({ // Apply to app2 as well
+    winstonInstance: logger,
+    meta: true,
+    msg: "HTTP {{req.method}} {{req.url}} {{res.statusCode}} {{res.responseTime}}ms (app2)",
+    expressFormat: false,
+    colorize: false,
+    skip: (req, _res) => req.path === '/healthz',
+    dynamicMeta: (req, res) => {
+        const meta: Attributes = {};
+        if (req) {
+            meta.http_method = req.method;
+            meta.http_path = req.originalUrl || req.url;
+        }
+        if (res) {
+            meta.http_status_code = res.statusCode;
+        }
+        return meta;
+    }
+  }));
 
-  app2.use(
-    morgan('tiny', {
-      skip: (req) => req.url === '/healthz'
-    })
-  )
 
-  // * Same settings as in Watchtower
+  // Middleware for custom metrics for all requests
+  const recordHttpMetrics = (req: Request, res: Response, next: NextFunction) => {
+    const startEpoch = Date.now();
+    res.on('finish', () => {
+      const endEpoch = Date.now();
+      const durationSeconds = (endEpoch - startEpoch) / 1000;
+
+      const attributes = {
+        http_route: req.route ? req.route.path : (req.originalUrl || req.url).split('?')[0], // Use route path if available, else full path
+        http_method: req.method,
+        status_code: res.statusCode,
+      };
+      httpServerRequestsTotal.add(1, attributes);
+      httpServerRequestDurationSeconds.record(durationSeconds, attributes);
+    });
+    next();
+  };
+  app.use(recordHttpMetrics);
+  app2.use(recordHttpMetrics); // Apply to app2 as well
+
   app.use(
     express.json({
       limit: '6MB',
       verify: (req, _res, buf) => {
-        // adding the raw body to the reqest object so it can be used for
-        // signature verification(e.g.Stripe Webhooks)
-        (req as any).rawBody = buf.toString()
-      }
+        (req as any).rawBody = buf.toString();
+      },
     })
-  )
-
+  );
   app2.use(
     express.json({
       limit: '6MB',
       verify: (req, _res, buf) => {
-        // adding the raw body to the reqest object so it can be used for
-        // signature verification(e.g.Stripe Webhooks)
-        (req as any).rawBody = buf.toString()
-      }
+        (req as any).rawBody = buf.toString();
+      },
     })
-  )
+  );
 
-  app.use(express.urlencoded({ extended: true }))
+  app.use(express.urlencoded({ extended: true }));
+  app2.use(express.urlencoded({ extended: true }));
 
-  app2.use(express.urlencoded({ extended: true }))
-
-  app.use(async (req, res, next) => {
-
-    // paths with /public/ are skipped
-    if (req.path.match(/\/public/)) {
+  // Authentication middleware (app)
+  app.use(async (req: Request, res: Response, next: NextFunction) => { // Typed req, res, next
+    const operation_name = `AuthMiddlewareApp1`;
+    if (req.path.match(/\/public/) || req.path.match(/\-public$/)) {
       return next();
     }
-
-    // paths ending with -public are skipped
-    if (req.path.match(/\-public$/)) {
-      return next();
-    }
-
-    // paths ending with in -admin are skipped
     if (req.path.match(/\-admin$/)) {
-      // verify basic auth header: `Basic username:password` 
-      const authorizationToken = req.headers.authorization
-
-      const encodedCreds = authorizationToken.split(' ')[1]
-      const verifyToken = (Buffer.from(encodedCreds, 'base64')).toString().split(':')[1]
-
-      if (
-          verifyToken !== process.env.BASIC_AUTH
-      ) {
-          return res.status(401).send("Unauthorized");
+      const authorizationToken = req.headers.authorization;
+      if (!authorizationToken || !authorizationToken.startsWith('Basic ')) {
+        logger.warn({ operation_name, path: req.path, reason: 'Missing or malformed Basic auth for admin path' });
+        return res.status(401).send("Unauthorized");
+      }
+      const encodedCreds = authorizationToken.split(' ')[1];
+      const verifyToken = Buffer.from(encodedCreds, 'base64').toString().split(':')[1];
+      if (verifyToken !== process.env.BASIC_AUTH) {
+        logger.warn({ operation_name, path: req.path, reason: 'Invalid Basic auth token for admin path' });
+        return res.status(401).send("Unauthorized");
       }
       return next();
     }
-
     const authHeader = req.headers.authorization;
-    if (authHeader) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      
       try {
-        const result = await jose.jwtVerify(token, JWKS)
-        console.log(result, ' success jwtVerfiy')
-        next()
-      } catch (e) {
-        console.log(e, ' e')
-        return res.sendStatus(403)
+        const result = await jose.jwtVerify(token, JWKS);
+        logger.debug({ operation_name, path: req.path, user_id: result.payload.sub }, 'JWT verified successfully');
+        (req as any).user = result.payload; // Attach user payload to request
+        next();
+      } catch (e: any) {
+        logger.warn({ operation_name, path: req.path, error_message: e.message, reason: 'JWT verification failed' });
+        return res.sendStatus(403);
       }
     } else {
+      logger.warn({ operation_name, path: req.path, reason: 'Missing Bearer token' });
       res.sendStatus(401);
     }
   });
 
-  app2.use(async (req, res, next) => {
-
-    // paths with /public/ are skipped
-    if (req.path.match(/\/public/)) {
+  // Authentication middleware (app2) - DRY principle violation, consider refactoring to a shared function
+  app2.use(async (req: Request, res: Response, next: NextFunction) => {
+    const operation_name = `AuthMiddlewareApp2`;
+    if (req.path.match(/\/public/) || req.path.match(/\-public$/)) {
       return next();
     }
-
-    // paths ending with -public are skipped
-    if (req.path.match(/\-public$/)) {
-      return next();
-    }
-
-    // paths ending with in -admin are skipped
     if (req.path.match(/\-admin$/)) {
-      // verify basic auth header: `Basic username:password` 
-      const authorizationToken = req.headers.authorization
-
-      const encodedCreds = authorizationToken.split(' ')[1]
-      const verifyToken = (Buffer.from(encodedCreds, 'base64')).toString().split(':')[1]
-
-      if (
-          verifyToken !== process.env.BASIC_AUTH
-      ) {
-          return res.status(401).send("Unauthorized");
+      const authorizationToken = req.headers.authorization;
+       if (!authorizationToken || !authorizationToken.startsWith('Basic ')) {
+        logger.warn({ operation_name, path: req.path, reason: 'Missing or malformed Basic auth for admin path on app2' });
+        return res.status(401).send("Unauthorized");
+      }
+      const encodedCreds = authorizationToken.split(' ')[1];
+      const verifyToken = Buffer.from(encodedCreds, 'base64').toString().split(':')[1];
+      if (verifyToken !== process.env.BASIC_AUTH) {
+         logger.warn({ operation_name, path: req.path, reason: 'Invalid Basic auth token for admin path on app2' });
+        return res.status(401).send("Unauthorized");
       }
       return next();
     }
-
     const authHeader = req.headers.authorization;
-    if (authHeader) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      
       try {
-        const result = await jose.jwtVerify(token, JWKS)
-        console.log(result, ' success jwtVerfiy')
-        next()
-      } catch (e) {
-        console.log(e, ' e')
-        return res.sendStatus(403)
+        const result = await jose.jwtVerify(token, JWKS);
+        logger.debug({ operation_name, path: req.path, user_id: result.payload.sub }, 'JWT verified successfully for app2');
+        (req as any).user = result.payload;
+        next();
+      } catch (e: any) {
+        logger.warn({ operation_name, path: req.path, error_message: e.message, reason: 'JWT verification failed for app2' });
+        return res.sendStatus(403);
       }
     } else {
+      logger.warn({ operation_name, path: req.path, reason: 'Missing Bearer token for app2' });
       res.sendStatus(401);
     }
   });
 
+  app.disable('x-powered-by');
+  app2.disable('x-powered-by');
 
-  app.disable('x-powered-by')
+  app.get('/healthz', (_req: Request, res: Response) => { // Typed req, res
+    res.status(200).send('ok');
+  });
+  app2.get('/healthz', (_req: Request, res: Response) => { // Typed req, res
+    res.status(200).send('ok');
+  });
 
-  app2.disable('x-powered-by')
-
-  app.get('/healthz', (_req, res) => {
-    res.status(200).send('ok')
-  })
-
-  app2.get('/healthz', (_req, res) => {
-    res.status(200).send('ok')
-  })
-
-  const functionsPath = path.join(process.cwd(), process.env.FUNCTIONS_RELATIVE_PATH)
+  const functionsPath = path.join(process.cwd(), process.env.FUNCTIONS_RELATIVE_PATH!); // Added non-null assertion
   const files = glob.sync('**/*.@(js|ts)', {
     cwd: functionsPath,
     ignore: [
-      '**/node_modules/**', // ignore node_modules directories
-      '**/_*/**', // ignore files inside directories that start with _
-      '**/_*' // ignore files that start with _
-    ]
-  })
+      '**/node_modules/**',
+      '**/_*/**',
+      '**/_*',
+    ],
+  });
 
   for (const file of files) {
-    const { default: handler } = await import(path.join(functionsPath, file))
+    const operation_name = `LoadRouteHandler`;
+    try {
+      const { default: handler } = await import(path.join(functionsPath, file));
+      const relativePath = path.relative(process.env.NHOST_PROJECT_PATH!, file); // Added non-null assertion
 
-    // File path relative to the project root directory. Used for logging.
-    const relativePath = path.relative(process.env.NHOST_PROJECT_PATH, file)
-
-    if (handler) {
-      const route = `/${file}`.replace(/(\.ts|\.js)$/, '').replace(/\/index$/, '/')
-
-      try {
-        app.all(route, handler)
-        app2.all(route, handler)
-      } catch (error) {
-        console.warn(`Unable to load file ${relativePath} as a Serverless Function`)
-        continue
+      if (handler) {
+        const route = `/${file}`.replace(/(\.ts|\.js)$/, '').replace(/\/index$/, '/');
+        app.all(route, handler);
+        app2.all(route, handler);
+        logger.info({ operation_name, route, file: relativePath }, `Loaded route from file`);
+      } else {
+        logger.warn({ operation_name, file: relativePath, reason: 'No default export' });
       }
-
-      console.log(`Loaded route ${route} from ${relativePath}`)
-    } else {
-      console.warn(`No default export at ${relativePath}`)
+    } catch (error: any) {
+      logger.error({ operation_name, file, error_message: error.message, stack_trace: error.stack }, `Unable to load file as a Serverless Function`);
+      continue;
     }
   }
 
-  const httpServer = http.createServer(app)
+  const httpServer = http.createServer(app);
+  const httpServer2 = http.createServer(app2);
 
-  const httpServer2 = http.createServer(app2)
-
-  //
-  // Create a WebSocket server completely detached from the HTTP server.
-  //
   const wss = new WebSocketServer({ clientTracking: false, noServer: true });
-
   const wss2 = new WebSocketServer({ clientTracking: false, noServer: true });
-  // process message
-  const wsFiles = glob.sync('**/_chat/chat_brain/handler.ts', {
+
+  const wsFiles = glob.sync('**/_chat/chat_brain/handler.ts', { // This seems very specific, ensure it's correct
     cwd: functionsPath,
-    ignore: [
-      '**/node_modules/**', // ignore node_modules directories
-     
-    ]
-  })
+    ignore: ['**/node_modules/**'],
+  });
 
-  httpServer.on('upgrade', async function (request: Request, socket, head) {
-    socket.on('error', onSocketError);
-    
+  // Common WebSocket upgrade logic
+  async function handleWebSocketUpgrade(
+    wssInstance: WebSocketServer,
+    request: Request,
+    socket: NodeJS.Socket, // http.IncomingMessage uses stream.Duplex, but WebSocketServer expects NodeJS.Socket
+    head: Buffer,
+    serverName: string
+  ) {
+    const operation_name = `WebSocketUpgrade_${serverName}`;
+    socket.on('error', onSocketError); // onSocketError now uses logger
 
-    console.log('Parsing session from request... httpServer');
-    console.log(request.url, ' request.url')
+    logger.info({ operation_name, url: request.url }, `Attempting WebSocket upgrade`);
 
-    console.log(request.query, ' request.query')
-    // weird query and url value = '/?Auth=adfd...'
+    const string2Parse = request.url?.slice(2); // Assuming URL like "/?Auth=Bearer%20token"
+    const queryParams = qs.parse(string2Parse || "");
+    const authHeader = queryParams.Auth as string;
 
-    const string2Parse = request.url?.slice(2)
-
-    const queryParams = qs.parse(string2Parse)
-    const authHeader = queryParams.Auth as string
-
-    console.log(authHeader, ' authHeader')
-
-    if (authHeader) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      
       try {
-        // console.log(authHeader, ' authHeader') // Debug
-        // console.log(JWKS, ' JWKS') // Debug
-        const result = await jose.jwtVerify(token, JWKS)
-        // console.log(result, ' success jwtVerfy') // Debug
-        // Attach userId to the request object so it's available in 'connection'
+        const result = await jose.jwtVerify(token, JWKS);
         if (result.payload.sub && typeof result.payload.sub === 'string') {
-            (request as any).userId = result.payload.sub;
+          (request as any).userId = result.payload.sub;
+           logger.info({ operation_name, user_id: result.payload.sub }, `WebSocket JWT verified`);
         } else {
-            console.error("[UpgradeAuth] User ID (sub) not found or invalid in JWT payload for httpServer.");
-            socket.write('HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n');
-            socket.destroy();
-            return;
+          logger.error({ operation_name, reason: "User ID (sub) not found or invalid in JWT payload" });
+          socket.write('HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n');
+          socket.destroy();
+          return;
         }
-      } catch (e) {
-        console.log(e, ' error jwtVerfy httpServer')
+      } catch (e: any) {
+        logger.error({ operation_name, error_message: e.message, reason: "WebSocket JWT verification failed" });
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
       }
     } else {
-      console.log('HTTP/1.1 401 Unauthorized inside httpServer')
+      logger.warn({ operation_name, reason: "Missing or malformed Auth query parameter for WebSocket" });
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       return;
     }
 
     socket.removeListener('error', onSocketError);
-
-    wss.handleUpgrade(request, socket, head, function done(ws) {
-      wss.emit('connection', ws, request);
+    wssInstance.handleUpgrade(request as http.IncomingMessage, socket, head, function done(ws) {
+      wssInstance.emit('connection', ws, request);
     });
-  });
-
-  httpServer2.on('upgrade', async function (request: Request, socket, head) {
-    socket.on('error', onSocketError);
-    
-
-    console.log('Parsing session from request... httpServer2');
-    console.log(request.url, ' request.url')
-
-
-    console.log(request.query, ' request.query')
-
-    // weird query value = '/?Auth=adfd...'
-
-    const string2Parse = request.url?.slice(2)
-
-    const queryParams = qs.parse(string2Parse)
-    
-    const authHeader = queryParams.Auth as string
-
-    console.log(authHeader, ' authHeader')
-
-    if (authHeader) {
-      const token = authHeader.split(' ')[1];
-      
-      try {
-        // console.log(authHeader, ' authHeader') // Debug
-        // console.log(JWKS, ' JWKS') // Debug
-        const result = await jose.jwtVerify(token, JWKS)
-        // console.log(result, ' success2 jwtVerify2') // Debug
-         // Attach userId to the request object so it's available in 'connection'
-        if (result.payload.sub && typeof result.payload.sub === 'string') {
-            (request as any).userId = result.payload.sub;
-        } else {
-            console.error("[UpgradeAuth] User ID (sub) not found or invalid in JWT payload for httpServer2.");
-            socket.write('HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n');
-            socket.destroy();
-            return;
-        }
-      } catch (e) {
-        console.log(e, ' error2 jwtVerify2 httpServer2')
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-    } else {
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-      socket.destroy();
-      return;
-    }
-
-    socket.removeListener('error', onSocketError);
-
-    wss2.handleUpgrade(request, socket, head, function done(ws) {
-      wss2.emit('connection', ws, request);
-    });
-  });
-
-  const keepAlivePeriod = 50000
-  wss.on('connection', async function connection(ws: WebSocket, request: Request & { userId?: string }) {
-    const userId = request.userId; // Retrieve userId attached in 'upgrade'
-
-    if (userId) {
-        console.log(`[wss] WebSocket connection established for user: ${userId}`);
-        connectedClients.set(userId, ws);
-
-        ws.on('error', (error) => {
-            console.error(`[wss] WebSocket error for user ${userId}:`, error);
-        });
-
-        const keepAliveId = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify('ping'));
-            }
-        }, keepAlivePeriod);
-
-        ws.on('message', async function incoming(messageBuffer) {
-            const message = messageBuffer.toString(); // Assuming text messages
-            console.log(`[wss] Received from user ${userId}: %s`, message);
-            try {
-                // The existing handler likely expects the raw message and handles JSON parsing internally if needed.
-                // It also might be designed to interact with the agent core.
-                // We need to ensure this handler can also potentially receive acknowledgements or specific events from client
-                // if we implement two-way comms for audio control status. For now, it's one-way (agent->client for commands).
-                const { default: handler } = await import(path.join(functionsPath, wsFiles?.[0])) // Assuming wsFiles[0] is correct chat_brain handler
-                // Pass sendCommandToUser to the handler, along with other necessary params
-                const replyMessage = await handler(message, userId, request, sendCommandToUser);
-
-                if (replyMessage && ws.readyState === WebSocket.OPEN) {
-                    ws.send(replyMessage); // replyMessage is expected to be stringified JSON or string
-                }
-            } catch (e) {
-                console.error(`[wss] Error processing message from user ${userId}:`, e);
-                // Optionally send error to client, be careful not to create loops or overwhelm
-                // if (ws.readyState === WebSocket.OPEN) {
-                //    ws.send(JSON.stringify({ type: "ERROR", payload: { message: "Failed to process your request on server." } }));
-                // }
-            }
-        });
-
-        ws.on('close', () => {
-            console.log(`[wss] WebSocket connection closed for user: ${userId}`);
-            connectedClients.delete(userId);
-            clearInterval(keepAliveId);
-        });
-    } else {
-        console.error("[wss] WebSocket connection established without a userId. Closing.");
-        ws.close(1008, "User ID not available after upgrade"); // 1008: Policy Violation
-    }
-  });
-
-  wss2.on('connection', async function connection(ws: WebSocket, request: Request & { userId?: string }) {
-    const userId = request.userId; // Retrieve userId attached in 'upgrade'
-
-    if (userId) {
-        console.log(`[wss2] WebSocket connection established for user: ${userId}`);
-        connectedClients.set(userId, ws); // Also add to the same map, or use a separate map if wss/wss2 serve different user groups/purposes
-
-        ws.on('error', (error) => {
-            console.error(`[wss2] WebSocket error for user ${userId}:`, error);
-        });
-
-        const keepAliveId = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify('ping'));
-            }
-        }, keepAlivePeriod);
-
-        ws.on('message', async function incoming(messageBuffer) {
-            const message = messageBuffer.toString();
-            console.log(`[wss2] Received from user ${userId}: %s`, message);
-            try {
-                const { default: handler } = await import(path.join(functionsPath, wsFiles?.[0]))
-                 // Pass sendCommandToUser to the handler for wss2 as well
-                const replyMessage = await handler(message, userId, request, sendCommandToUser);
-                if (replyMessage && ws.readyState === WebSocket.OPEN) {
-                    ws.send(replyMessage);
-                }
-            } catch (e) {
-                console.error(`[wss2] Error processing message from user ${userId}:`, e);
-                 // if (ws.readyState === WebSocket.OPEN) {
-                //    ws.send(JSON.stringify({ type: "ERROR", payload: { message: "Failed to process your request on server." } }));
-                // }
-            }
-        });
-
-        ws.on('close', () => {
-            console.log(`[wss2] WebSocket connection closed for user: ${userId}`);
-            connectedClients.delete(userId); // Remove from map
-            clearInterval(keepAliveId);
-        });
-    } else {
-        console.error("[wss2] WebSocket connection established without a userId. Closing.");
-        ws.close(1008, "User ID not available after upgrade");
-    }
-  });
-  
-  // get all worker files 
-  const workerFiles = glob.sync('**/*_/*.@(js|ts)', {
-    cwd: functionsPath,
-    ignore: [
-      '**/node_modules/**', // ignore node_modules directories
-    ]
-  })
-
-  // activate kafka consumers
-  const workerHandlers = []
-  
-  for (const workerFile of workerFiles) {
-    const { default: handler } = await import(path.join(functionsPath, workerFile))
-
-    workerHandlers.push(handler)
   }
 
-  await Promise.all(workerHandlers?.map(handler => handler()))
+  httpServer.on('upgrade', (req, socket, head) =>
+    handleWebSocketUpgrade(wss, req as Request, socket, head, 'httpServer1')
+  );
+  httpServer2.on('upgrade', (req, socket, head) =>
+    handleWebSocketUpgrade(wss2, req as Request, socket, head, 'httpServer2')
+  );
 
-  // Start Agenda
-  await startAgenda().catch(error => {
-    console.error('Failed to start Agenda:', error)
-    // Optionally exit or handle critical failure
+  const keepAlivePeriod = 50000;
+
+  // Common WebSocket connection logic
+  async function onWebSocketConnection(
+    ws: WebSocket,
+    request: Request & { userId?: string },
+    serverName: string
+  ) {
+    const userId = request.userId;
+    const operation_name = `WebSocketConnect_${serverName}`;
+
+    if (userId) {
+      activeWebsocketConnections.add(1, { server: serverName });
+      logger.info({ operation_name, user_id: userId }, `WebSocket connection established`);
+      connectedClients.set(userId, ws);
+
+      ws.on('error', (error: Error) => { // Typed error
+        logger.error({ operation_name, user_id: userId, error_message: error.message, stack_trace: error.stack }, `WebSocket error`);
+      });
+
+      const keepAliveId = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({type: 'ping'})); // Send JSON ping
+        }
+      }, keepAlivePeriod);
+
+      ws.on('message', async function incoming(messageBuffer) {
+        const messageOpName = `WebSocketMessage_${serverName}`;
+        websocketMessagesReceivedTotal.add(1, { server: serverName });
+        const message = messageBuffer.toString();
+        logger.debug({ messageOpName, user_id: userId, received_message_length: message.length }, `Received message`);
+
+        try {
+          if (wsFiles.length === 0) {
+            logger.error({ messageOpName, user_id: userId, reason: "No WebSocket message handler file found (wsFiles empty)"});
+            return;
+          }
+          // Assuming wsFiles[0] is the correct chat_brain handler
+          const { default: handler } = await import(path.join(functionsPath, wsFiles[0]));
+          const replyMessage = await handler(message, userId, request, sendCommandToUser);
+
+          if (replyMessage && ws.readyState === WebSocket.OPEN) {
+            ws.send(replyMessage); // replyMessage is expected to be stringified JSON or string
+          }
+        } catch (e: any) {
+          logger.error({ messageOpName, user_id: userId, error_message: e.message, stack_trace: e.stack }, `Error processing message`);
+        }
+      });
+
+      ws.on('close', (code, reason) => {
+        activeWebsocketConnections.add(-1, { server: serverName });
+        logger.info({ operation_name: `WebSocketClose_${serverName}`, user_id: userId, code, reason: reason.toString() }, `WebSocket connection closed`);
+        connectedClients.delete(userId);
+        clearInterval(keepAliveId);
+      });
+    } else {
+      logger.error({ operation_name, reason: "WebSocket connection established without a userId. Closing." });
+      ws.close(1008, "User ID not available after upgrade");
+    }
+  }
+
+  wss.on('connection', (ws, req) => onWebSocketConnection(ws, req as Request & { userId?: string }, 'wss1'));
+  wss2.on('connection', (ws, req) => onWebSocketConnection(ws, req as Request & { userId?: string }, 'wss2'));
+  
+  const workerFiles = glob.sync('**/*_/*.@(js|ts)', { // e.g. _dayScheduleWorker_
+    cwd: functionsPath,
+    ignore: ['**/node_modules/**'],
   });
 
-  // Define the /api/agent-handler endpoint
-  // This endpoint is called by Agenda jobs to execute scheduled tasks.
-  // It should be protected if exposed externally, but here assuming it's internal or appropriately firewalled.
-  // The main app `app` uses port 3000, `app2` uses 3030.
-  // We'll add this to `app` which listens on PORT (3000 by default).
-  // The AGENT_INTERNAL_INVOKE_URL in agendaService.ts was set to 'http://localhost:3001/api/agent-handler'.
-  // This needs to align. If this server.ts runs on 3000, then AGENT_INTERNAL_INVOKE_URL should be 3000.
-  // For now, I'll add the handler to `app` (PORT 3000).
-  // If AGENT_INTERNAL_INVOKE_URL is meant to be a different port, this needs adjustment.
-  app.post('/api/agent-handler', async (req: Request, res) => {
-    console.log('[/api/agent-handler] Received request from Agenda job runner');
+  const workerHandlers: (() => Promise<any>)[] = []; // Typed array
+  for (const workerFile of workerFiles) {
+    const opName = `LoadWorkerHandler`;
+    try {
+      const { default: handler } = await import(path.join(functionsPath, workerFile));
+      if (typeof handler === 'function') {
+        workerHandlers.push(handler);
+        logger.info({ opName, file: workerFile }, `Loaded worker handler`);
+      } else {
+        logger.warn({ opName, file: workerFile, reason: 'No default export function found' });
+      }
+    } catch (error: any) {
+       logger.error({ opName, file: workerFile, error_message: error.message, stack_trace: error.stack }, `Error loading worker handler`);
+    }
+  }
+
+  if (workerHandlers.length > 0) {
+    logger.info({ operation_name: "InitializeWorkers" , count: workerHandlers.length }, "Initializing Kafka consumer workers...");
+    await Promise.all(workerHandlers.map(handler => handler())).catch(err => {
+        logger.error({ operation_name: "InitializeWorkers", error_message: err.message, stack_trace: err.stack }, "Error during worker initialization");
+    });
+  } else {
+     logger.info({ operation_name: "InitializeWorkers" }, "No Kafka consumer workers found to initialize.");
+  }
+
+  await startAgenda().catch(error => {
+    logger.error({ operation_name: 'StartAgenda', error_message: error.message, stack_trace: error.stack }, 'Failed to start Agenda');
+  });
+
+  app.post('/api/agent-handler', async (req: Request, res: Response) => { // Typed req, res
+    const operation_name = 'AgentHandlerScheduledTask';
+    logger.info({ operation_name }, 'Received request from Agenda job runner');
     const { message, userId, intentName, entities, requestSource, conversationId } = req.body;
 
     if (!userId || !intentName || !requestSource || requestSource !== 'ScheduledJobExecutor') {
-      console.error('[/api/agent-handler] Invalid payload:', req.body);
+      logger.warn({ operation_name, error_code: 'VALIDATION_001', payload: req.body }, 'Invalid payload for scheduled task');
       return res.status(400).json({ error: 'Invalid payload for scheduled task' });
     }
 
     try {
-      // Determine interfaceType. For scheduled tasks, 'text' or a dedicated type.
-      const interfaceType: InterfaceType = 'text'; // Or 'scheduled' if defined in InterfaceType
-
-      const options = {
-        requestSource,
-        intentName,
-        entities,
-        conversationId
-      };
-
-      // `message` from payload is the descriptive one like "Execute scheduled task: ${originalUserIntent}"
+      const interfaceType: InterfaceType = 'text';
+      const options = { requestSource, intentName, entities, conversationId };
       const result = await _internalHandleMessage(interfaceType, message, userId, options);
 
-      console.log('[/api/agent-handler] Task processed. Result:', result.text);
-      // The response to Agenda job doesn't need to be complex, just indicate success/failure.
-      // The actual outcome of the task (e.g., email sent) is handled by the skill.
+      logger.info({ operation_name, user_id: userId, intent: intentName, success: true, result_text_length: result.text?.length }, 'Scheduled task processed successfully');
       return res.status(200).json({ success: true, message: "Task processed", details: result.text });
     } catch (error: any) {
-      console.error('[/api/agent-handler] Error processing scheduled task:', error);
+      logger.error({ operation_name, user_id: userId, intent: intentName, success: false, error_message: error.message, stack_trace: error.stack }, 'Error processing scheduled task');
       return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
     }
   });
 
-
   httpServer.listen(PORT, () => {
-    console.log(`HTTP Server with Agent Handler listening on port ${PORT}`)
-  })
-
+    logger.info({ operation_name: 'HttpServerStart', port: PORT }, `HTTP Server with Agent Handler listening`);
+  });
   httpServer2.listen(PORT2, () => {
-    console.log(`HTTP Server 2 listening on port ${PORT2}`)
-  })
+    logger.info({ operation_name: 'HttpServer2Start', port: PORT2 }, `HTTP Server 2 listening`);
+  });
 
-  // Graceful shutdown
   const shutdown = async (signal: string) => {
-    console.log(`\n${signal} received. Shutting down...`);
+    logger.info({ operation_name: 'ShutdownProcess', signal }, `Received signal. Shutting down...`);
     await stopAgenda();
-    // Add any other cleanup here
+    // Add any other cleanup here (e.g. wss.close(), sdk.shutdown() - though sdk handles SIGTERM/SIGINT)
     httpServer.close(() => {
-      console.log('HTTP server closed.');
+      logger.info({ operation_name: 'HttpServerStop' },'HTTP server closed.');
       httpServer2.close(() => {
-        console.log('HTTP server 2 closed.');
-        process.exit(0);
+        logger.info({ operation_name: 'HttpServer2Stop' }, 'HTTP server 2 closed.');
+        // process.exit(0) will be handled by OpenTelemetry SDK's shutdown hooks if it's registered for the signal
       });
     });
   };
 
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-
-}
+  // SIGINT and SIGTERM are handled by OpenTelemetry SDK's shutdown hooks in opentelemetry.js
+  // If additional cleanup specific to this server is needed beyond what OTel SDK does,
+  // it can be added here, but ensure it doesn't conflict with SDK's process.exit().
+  // For instance, OTel SDK calls process.exit(0) after its shutdown.
+};
 
 main().catch(error => {
-  console.error("Error during main execution:", error);
+  logger.fatal({ operation_name: 'MainExecutionError', error_message: error.message, stack_trace: error.stack }, "Fatal error during main execution, exiting.");
   process.exit(1);
 });
