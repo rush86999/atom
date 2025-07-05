@@ -1354,10 +1354,10 @@ service:
         OTEL_SERVICE_NAME: "AppService",
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:4318/v1/traces",
         OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:4318/v1/metrics",
-        // NODE_OPTIONS might be relevant if app's backend is Node.js and uses a ./tracing.js file
-        // If it's primarily a frontend serving static assets via Nginx/other, or if Next.js API routes
-        // are instrumented differently, this might need adjustment.
-        // For Next.js, OpenTelemetry is often initialized in `instrumentation.node.ts` or `_app.tsx` / `_document.tsx` for client/server.
+        NODE_OPTIONS: "--require ./instrumentation.node.js", // Ensure OTel SDK is preloaded for server-side
+        // For Next.js, if `experimental.instrumentationHook = true` is in next.config.js,
+        // Next.js will also try to load `instrumentation.node.js` and run its `register` function.
+        // The --require ensures it loads even if that hook isn't explicitly enabled or for older Next.js versions.
       },
       portMappings: [{ containerPort: 3000, protocol: ecs.Protocol.TCP }],
     });
@@ -2418,5 +2418,153 @@ fields @timestamp, @message, trace_id, span_id, error_message, exception_type, o
     new cdk.CfnOutput(this, 'FunctionsServicePerformanceDashboardUrl', {
         value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${functionsServiceDashboard.dashboardName}`,
         description: 'URL of the FunctionsService Performance Deep Dive CloudWatch Dashboard.',
+    });
+
+    // --- Application Performance Deep Dive Dashboard for AppService ---
+    const appServiceDashboard = new cloudwatch.Dashboard(this, 'AppServicePerfDashboard', {
+        dashboardName: `${this.stackName}-AppService-Performance`,
+    });
+
+    // --- Widgets for AppService Dashboard ---
+
+    // 1. Key Alarms for AppService
+    const appServiceAlarmsWidget = new cloudwatch.AlarmStatusWidget({
+        title: 'AppService - Key Alarm Status',
+        width: 24,
+        alarms: [
+            this.appServiceCpuAlarm, // Defined earlier
+            // Add AppService Target Group alarms if they are class members
+            // Placeholder: this.appTgUnhealthyHostAlarm, this.appTg5xxAlarm, this.appTgLatencyAlarm
+        ],
+    });
+    const appTgUnhealthyHostAlarm = this.node.tryFindChild('AppTgUnhealthyHostAlarm') as cloudwatch.Alarm;
+    if (appTgUnhealthyHostAlarm) appServiceAlarmsWidget.addAlarm(appTgUnhealthyHostAlarm);
+    const appTg5xxAlarm = this.node.tryFindChild('AppTg5xxAlarm') as cloudwatch.Alarm;
+    if (appTg5xxAlarm) appServiceAlarmsWidget.addAlarm(appTg5xxAlarm);
+    const appTgLatencyAlarm = this.node.tryFindChild('AppTgLatencyAlarm') as cloudwatch.Alarm;
+    if (appTgLatencyAlarm) appServiceAlarmsWidget.addAlarm(appTgLatencyAlarm);
+
+    // 2. ALB Metrics for appTargetGroup
+    const appAlbRequestCountWidget = new cloudwatch.GraphWidget({
+        title: 'App TG - Request Count',
+        width: 8,
+        left: [this.appTargetGroup.metricRequestCount({ period: cdk.Duration.minutes(1), statistic: 'Sum'})],
+    });
+    const appAlbLatencyWidget = new cloudwatch.GraphWidget({
+        title: 'App TG - Target Latency (P90, P95, P99)',
+        width: 16,
+        left: [
+            this.appTargetGroup.metricTargetResponseTime({ statistic: 'p90', period: cdk.Duration.minutes(1), label: 'P90 Latency' }),
+            this.appTargetGroup.metricTargetResponseTime({ statistic: 'p95', period: cdk.Duration.minutes(1), label: 'P95 Latency' }),
+            this.appTargetGroup.metricTargetResponseTime({ statistic: 'p99', period: cdk.Duration.minutes(1), label: 'P99 Latency' }),
+        ],
+    });
+    const appAlb5xxWidget = new cloudwatch.GraphWidget({
+        title: 'App TG - 5XX Errors (Target)',
+        width: 12,
+        left: [
+            this.appTargetGroup.metricHttpCodeTarget(elbv2.HttpCodeTarget.TARGET_5XX_COUNT, { statistic: 'Sum', period: cdk.Duration.minutes(1), label: 'Target 5XX' }),
+        ]
+    });
+     const appAlbHealthyHostsWidget = new cloudwatch.GraphWidget({
+        title: 'App TG - Healthy/Unhealthy Hosts',
+        width: 12,
+        left: [this.appTargetGroup.metricHealthyHostCount({period: cdk.Duration.minutes(1), statistic: 'Average', label: 'Healthy Hosts'})],
+        right: [this.appTargetGroup.metricUnhealthyHostCount({period: cdk.Duration.minutes(1), statistic: 'Average', label: 'Unhealthy Hosts'})]
+    });
+
+    // 3. ECS Metrics for appService
+    const appEcsCpuUtilWidget = new cloudwatch.GraphWidget({
+        title: 'AppService - ECS CPU Utilization',
+        width: 12,
+        left: [this.appService.metricCPUUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+    const appEcsMemoryUtilWidget = new cloudwatch.GraphWidget({
+        title: 'AppService - ECS Memory Utilization',
+        width: 12,
+        left: [this.appService.metricMemoryUtilization({ period: cdk.Duration.minutes(1), statistic: 'Average' })],
+    });
+    const appEcsRunningTasksWidget = new cloudwatch.GraphWidget({
+        title: 'AppService - Running Tasks',
+        width: 12,
+        left: [
+             this.appService.metric('RunningTaskCount', {
+                period: cdk.Duration.minutes(1),
+                statistic: 'Average',
+                label: 'Running Tasks'
+            })
+            // Add desired tasks if a reliable way to get it as a metric is found
+        ],
+    });
+
+    // 4. Custom Application Metrics for AppService (namespace 'AtomicApp/AppService')
+    const appCustomMetricsNamespace = 'AtomicApp/AppService';
+
+    const appCustomApiRequestsWidget = new cloudwatch.GraphWidget({
+        title: 'AppService - API Requests Total (Custom)',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: appCustomMetricsNamespace,
+            metricName: 'app_api_request_count', // As defined in app's instrumentation.node.js
+            dimensionsMap: { }, // Add dimensions like http_route, status_code if used
+            statistic: 'Sum',
+            period: cdk.Duration.minutes(1),
+        })],
+    });
+
+    const appCustomApiDurationWidget = new cloudwatch.GraphWidget({
+        title: 'AppService - API Request Duration (Custom, P90)',
+        width: 12,
+        left: [new cloudwatch.Metric({
+            namespace: appCustomMetricsNamespace,
+            metricName: 'app_api_request_latency_seconds', // As defined in app's instrumentation.node.js
+            dimensionsMap: { }, // Add dimensions
+            statistic: 'p90',
+            period: cdk.Duration.minutes(1),
+        })],
+    });
+
+    // 5. Log Insights Widget for AppService Errors
+    const appLogGroup = this.node.tryFindChild('AppLogGroup') as logs.LogGroup;
+    let appLogErrorWidget: cloudwatch.IWidget = new cloudwatch.TextWidget({ markdown: "AppLogGroup not found for Log Insights.", width: 24});
+    if (appLogGroup) {
+        appLogErrorWidget = new cloudwatch.LogQueryWidget({
+            title: 'AppService - Recent Error Logs',
+            width: 24,
+            logGroupNames: [appLogGroup.logGroupName],
+            queryString: `
+fields @timestamp, @message, trace_id, span_id, error_message, exception_type, operation_name, http_path
+| filter level = 'ERROR' or @message like /error/i or @message like /exception/i
+| sort @timestamp desc
+| limit 20`,
+        });
+    }
+
+    // --- Add Widgets to AppService Dashboard ---
+    appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appServiceAlarmsWidget)
+    );
+    appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appAlbRequestCountWidget, appAlbLatencyWidget)
+    );
+    appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appAlb5xxWidget, appAlbHealthyHostsWidget)
+    );
+     appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appEcsCpuUtilWidget, appEcsMemoryUtilWidget)
+    );
+    appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appEcsRunningTasksWidget)
+    );
+    appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appCustomApiRequestsWidget, appCustomApiDurationWidget)
+    );
+    appServiceDashboard.addWidgets(
+        new cloudwatch.Row(appLogErrorWidget)
+    );
+
+    new cdk.CfnOutput(this, 'AppServicePerformanceDashboardUrl', {
+        value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${appServiceDashboard.dashboardName}`,
+        description: 'URL of the AppService Performance Deep Dive CloudWatch Dashboard.',
     });
 }
