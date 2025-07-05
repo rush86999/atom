@@ -44,6 +44,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // --- Helper Function Implementations (condensed, from previous steps) ---
 import retry from 'async-retry'; // Import async-retry
+import Opossum from 'opossum'; // Import opossum
 
 // Standard retry configuration for got
 const defaultGotRetryConfig = {
@@ -56,6 +57,66 @@ const defaultGotRetryConfig = {
     return Math.pow(2, attemptCount - 1) * 500 + Math.random() * 200; // Exponential backoff with jitter
   }
 };
+
+// --- Circuit Breaker for Hasura calls using got ---
+const hasuraGotBreakerOptions = {
+  timeout: false, // got handles its own timeouts per attempt
+  errorThresholdPercentage: 50,
+  resetTimeout: 30000, // 30 seconds
+  volumeThreshold: 10, // Minimum number of requests in a rolling window before breaker considers statistics
+  name: 'HasuraGotBreaker', // Name for logging/identification
+};
+
+const hasuraGotBreaker = new Opossum(async (action: () => Promise<any>) => {
+  // The 'action' will be the got.post call.
+  // Opossum expects the action to be a function that returns a Promise.
+  return action();
+}, hasuraGotBreakerOptions);
+
+// Event listeners for the Hasura circuit breaker
+hasuraGotBreaker.on('open', () => {
+  console.error({ // Using console.error for state changes that indicate problems
+    circuit_breaker_name: hasuraGotBreaker.name,
+    event: 'open',
+    message: `Circuit breaker ${hasuraGotBreaker.name} has opened. Calls will be rejected temporarily.`,
+  }, `Circuit Breaker Opened: ${hasuraGotBreaker.name}`);
+});
+
+hasuraGotBreaker.on('close', () => {
+  console.warn({ // Using console.warn for recovery states
+    circuit_breaker_name: hasuraGotBreaker.name,
+    event: 'close',
+    message: `Circuit breaker ${hasuraGotBreaker.name} has closed. Calls are now flowing normally.`,
+  }, `Circuit Breaker Closed: ${hasuraGotBreaker.name}`);
+});
+
+hasuraGotBreaker.on('halfOpen', () => {
+  console.warn({
+    circuit_breaker_name: hasuraGotBreaker.name,
+    event: 'halfOpen',
+    message: `Circuit breaker ${hasuraGotBreaker.name} is now half-open. Test calls will be allowed.`,
+  }, `Circuit Breaker HalfOpen: ${hasuraGotBreaker.name}`);
+});
+
+hasuraGotBreaker.on('reject', () => { // Fired when a call is rejected because the circuit is open
+  console.warn({
+    circuit_breaker_name: hasuraGotBreaker.name,
+    event: 'reject',
+    message: `Call rejected by ${hasuraGotBreaker.name} because circuit is open.`,
+  }, `Circuit Breaker Rejected Call: ${hasuraGotBreaker.name}`);
+});
+
+// Opossum also has 'success' and 'failure' events for the wrapped action,
+// which could be used for more detailed logging if needed, but might be verbose.
+// hasuraGotBreaker.on('failure', (error, executionTime) => {
+//   console.error({
+//     circuit_breaker_name: hasuraGotBreaker.name,
+//     event: 'failure',
+//     error_message: error.message,
+//     execution_time_ms: executionTime,
+//   }, `Breaker action failed for ${hasuraGotBreaker.name}`);
+// });
+
 
 export const callOpenAI = async (systemMessage: string, userMessage: string, exampleInput?: string, exampleOutput?: string, model?: string): Promise<CallOpenAIResponse> => {
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: 'system', content: systemMessage }];
@@ -136,14 +197,15 @@ export const getCalendarIntegration = async (userId: string, resource: string): 
   const query = `query GetCalendarIntegration($userId: String!, $resource: String!) { Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}, limit: 1) { id userId clientType token refreshToken expiresAt resource syncEnabled primaryCalendarId } }`;
   const operation_name = 'HasuraGetCalendarIntegration';
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    // Wrap the got call with the circuit breaker
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query, variables: { userId, resource } },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 10000 },
       retry: defaultGotRetryConfig
-    });
-    const body = response.body as any;
+    }));
+    const body = response.body as any; // response from got, breaker passes it through on success
     if (body.errors) {
       /* console.error(`[${operation_name}] Hasura API errors:`, body.errors); */
       return { success: false, error: { message: 'Hasura API error during getCalendarIntegration.', details: body.errors } };
@@ -154,8 +216,9 @@ export const getCalendarIntegration = async (userId: string, resource: string): 
     }
     return { success: true, data: body.data.Calendar_Integration?.[0] };
   } catch (e: any) {
-    /* console.error(`[${operation_name}] Network or request error:`, e.message); */
-    return { success: false, error: { message: 'Network/request error during getCalendarIntegration.', details: e.message, rawResponse: e.response?.body } };
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
   }
 };
 
@@ -205,18 +268,22 @@ export const updateCalendarIntegration = async (id: string, token: string | null
   if (typeof syncEnabled === 'boolean') variables.syncEnabled = syncEnabled;
 
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query: mutation, variables },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 10000 },
       retry: defaultGotRetryConfig
-    });
+    }));
     const body = response.body as any;
     if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during updateCalendarIntegration.', details: body.errors } }; }
     if (!body.data || !body.data.update_Calendar_Integration_by_pk) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure or ID not found during updateCalendarIntegration.', details: body } }; }
     return { success: true };
-  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during updateCalendarIntegration.', details: e.message, rawResponse: e.response?.body } }; }
+  } catch (e: any) {
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
+  }
 };
 
 export const getGoogleAPIToken = async (userId: string, resource: string): Promise<{success: true, token: string} | FailureResponseType> => { /* ... */
@@ -251,86 +318,106 @@ export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<Ups
   const objects = uniqueEvents.map(event => ({ ...event, provider: event.provider || 'google_calendar', status: event.status || 'confirmed' }));
   const mutation = `mutation UpsertEvents($objects: [Event_insert_input!]!) { insert_Event(objects: $objects, on_conflict: { constraint: Event_pkey, update_columns: [summary, description, startDateTime, endDateTime, timezone, gEventId, provider, updatedAt, taskId, projectId, status, parentEventId] }) { affected_rows returning { id } } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query: mutation, variables: { objects } },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 15000 }, // Longer timeout for potentially large upserts
       retry: defaultGotRetryConfig
-    });
+    }));
     const body = response.body as any;
     if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during event upsert.', details: body.errors } }; }
     if (!body.data || !body.data.insert_Event) { /* console.warn(`[${operation_name}] Unexpected Hasura response:`, body); */ return { success: false, error: { message: 'Unexpected Hasura response during event upsert.', details: body } }; }
     return { success: true, data: body.data.insert_Event };
-  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during event upsert.', details: e.message, rawResponse: e.response?.body } }; }
+  } catch (e: any) {
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
+  }
 };
 export const getGlobalCalendar = async (userId: string): Promise<SuccessResponseType<GlobalCalendarType | undefined> | FailureResponseType> => {
   const operation_name = 'HasuraGetGlobalCalendar';
   const query = `query GetGlobalCalendar($userId: String!) { Calendar(where: {userId: {_eq: $userId}, type: {_eq: "global"}}, limit: 1) { id userId primaryCalendarId } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query, variables: { userId } },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 10000 },
       retry: defaultGotRetryConfig
-    });
+    }));
     const body = response.body as any;
     if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during getGlobalCalendar.', details: body.errors } }; }
     if (!body.data || !body.data.hasOwnProperty('Calendar')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during getGlobalCalendar.', details: body } }; }
     return { success: true, data: body.data.Calendar?.[0] };
-  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during getGlobalCalendar.', details: e.message, rawResponse: e.response?.body } }; }
+  } catch (e: any) {
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
+  }
 };
 export const listEventsForDate = async (userId: string, startDate: string, endDate: string, timezoneParam: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => {
   const operation_name = 'HasuraListEventsForDate';
   const query = `query ListEventsForDate($userId: String!, $startDate: timestamptz!, $endDate: timestamptz!) { Event(where: {userId: {_eq: $userId}, startDateTime: {_gte: $startDate}, endDateTime: {_lte: $endDate}, _or: [{isDeleted: {_is_null: true}}, {isDeleted: {_eq: false}}]}, order_by: {startDateTime: asc}) { id userId summary startDateTime endDateTime timezone } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query, variables: { userId, startDate, endDate } },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 10000 },
       retry: defaultGotRetryConfig
-    });
+    }));
     const body = response.body as any;
     if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during listEventsForDate.', details: body.errors } }; }
     if (!body.data || !body.data.hasOwnProperty('Event')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForDate.', details: body } }; }
     return { success: true, data: body.data.Event || [] };
-  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during listEventsForDate.', details: e.message, rawResponse: e.response?.body } }; }
+  } catch (e: any) {
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
+  }
 };
 export const listEventsForUserGivenDates = async (userId: string, senderStartDate: string, senderEndDate: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => {
   const operation_name = 'HasuraListEventsForUserGivenDates';
   const query = `query ListEventsForUserGivenDates($userId: String!, $startDate: timestamptz!, $endDate: timestamptz!) { Event(where: {userId: {_eq: $userId}, startDateTime: {_gte: $startDate}, endDateTime: {_lte: $endDate}, _or: [{isDeleted: {_is_null: true}}, {isDeleted: {_eq: false}}]}, order_by: {startDateTime: asc}) { id userId summary startDateTime endDateTime timezone } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query, variables: { userId, startDate: senderStartDate, endDate: senderEndDate } },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 10000 },
       retry: defaultGotRetryConfig
-    });
+    }));
     const body = response.body as any;
     if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during listEventsForUserGivenDates.', details: body.errors } }; }
     if (!body.data || !body.data.hasOwnProperty('Event')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForUserGivenDates.', details: body } }; }
     return { success: true, data: body.data.Event || [] };
-  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during listEventsForUserGivenDates.', details: e.message, rawResponse: e.response?.body } }; }
+  } catch (e: any) {
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
+  }
 };
 export const getUserPreferences = async (userId: string): Promise<SuccessResponseType<UserPreferenceType | undefined> | FailureResponseType> => {
   const operation_name = 'HasuraGetUserPreferences';
   const query = `query GetUserPreferences($userId: String!) { User_Preferences(where: {userId: {_eq: $userId}}, limit: 1) { id userId somePreference workHoursStartTime workHoursEndTime workDays slotDuration timezone bufferBetweenMeetings } }`; // Added more fields
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+    const response = await hasuraGotBreaker.fire(() => got.post(process.env.HASURA_ENDPOINT_URL || '', {
       json: { query, variables: { userId } },
       headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
       responseType: 'json',
       timeout: { request: 10000 },
       retry: defaultGotRetryConfig
-    });
+    }));
     const body = response.body as any;
     if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during getUserPreferences.', details: body.errors } }; }
     if (!body.data || !body.data.hasOwnProperty('User_Preferences')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during getUserPreferences.', details: body } }; }
     return { success: true, data: body.data.User_Preferences?.[0] };
-  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during getUserPreferences.', details: e.message, rawResponse: e.response?.body } }; }
+  } catch (e: any) {
+    const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
+    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
+  }
 };
 export const sendAgendaEmail = async (to: string, name: string, title: string, body: string): Promise<EmailResponse> => { /* ... */
   // Note: sendEmail itself needs retry logic if it makes network calls. For now, this wrapper doesn't add retries.
