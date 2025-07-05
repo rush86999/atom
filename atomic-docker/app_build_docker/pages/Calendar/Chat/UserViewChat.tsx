@@ -227,6 +227,13 @@ function UserViewChat() {
                                 newAssistantMessage.customComponentProps = { results: agentMessagePayload.structuredData.data };
                                 newAssistantMessage.content = agentMessagePayload.structuredData.summaryText || agentMessagePayload.text;
                                 console.log("UserViewChat (WebSocket): Populated customComponent for semantic_search_results", newAssistantMessage);
+                            } else if (agentMessagePayload.structuredData && agentMessagePayload.structuredData.displayType === 'meeting_prep_results') {
+                                newAssistantMessage.customComponentType = 'meeting_prep_results';
+                                // Assuming the 'data' field in structuredData contains the AggregatedPrepResults object
+                                newAssistantMessage.customComponentProps = { briefing: agentMessagePayload.structuredData.data };
+                                // Use a summary text or the original text if no specific summary is provided for the component
+                                newAssistantMessage.content = agentMessagePayload.structuredData.summaryText || agentMessagePayload.text || "Here's your meeting preparation:";
+                                console.log("UserViewChat (WebSocket): Populated customComponent for meeting_prep_results", newAssistantMessage);
                             }
 
                             // Update chatHistory: Replace "working..." or append
@@ -466,9 +473,13 @@ function UserViewChat() {
                 if (data.structuredData && data.structuredData.displayType === 'semantic_search_results') {
                     atomResponse.customComponentType = 'semantic_search_results';
                     atomResponse.customComponentProps = { results: data.structuredData.data };
-                    // Use summaryText from structuredData if available, otherwise keep original data.text
                     atomResponse.content = data.structuredData.summaryText || data.text;
-                    console.log("UserViewChat: Populated customComponent for semantic_search_results", atomResponse);
+                    console.log("UserViewChat (HTTP): Populated customComponent for semantic_search_results", atomResponse);
+                } else if (data.structuredData && data.structuredData.displayType === 'meeting_prep_results') {
+                    atomResponse.customComponentType = 'meeting_prep_results';
+                    atomResponse.customComponentProps = { briefing: data.structuredData.data };
+                    atomResponse.content = data.structuredData.summaryText || data.text || "Here's your meeting preparation:";
+                    console.log("UserViewChat (HTTP): Populated customComponent for meeting_prep_results", atomResponse);
                 } else {
                     // Ensure content is set if no structuredData or not the expected type
                     atomResponse.content = content;

@@ -3,14 +3,13 @@ import { Credentials as OAuth2Token } from 'google-auth-library'; // Use the off
 import {
     CalendarEvent,
     CreateEventResponse,
-    // ListGoogleMeetEventsResponse, // Not directly returned by a public skill function
-    // GetGoogleMeetEventDetailsResponse, // Not directly returned by a public skill function
     ConferenceData,
     ConferenceSolution,
     ConferenceEntryPoint,
     SlackMessageResponse,
     CalendarSkillResponse,
-    SkillError, // Make sure SkillError is imported
+    SkillError,
+    CalendarEventSummary, // Added for findEventByFuzzyReference
 } from '../types';
 import {
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
@@ -491,6 +490,134 @@ export async function getGoogleMeetEventDetails(userId: string, eventId: string)
 
   return { ok: true, data: event };
 }
+
+
+/**
+ * Finds a calendar event based on a fuzzy reference string.
+ *
+ * @param userId The ID of the user.
+ * @param reference The fuzzy string to identify the meeting (e.g., "Acme Corp call", "next meeting").
+ * @param overallLookbackPeriod Optional string describing the lookback period (e.g., "today", "next 3 days").
+ * @returns A promise that resolves to a CalendarSkillResponse containing a CalendarEventSummary or null if no confident match.
+ */
+export async function findEventByFuzzyReference(
+  userId: string,
+  reference: string,
+  overallLookbackPeriod?: string // Note: nluEntities.overall_lookback_period
+): Promise<CalendarSkillResponse<CalendarEventSummary | null>> {
+  console.log(`[calendarSkills] Finding event for user ${userId} by fuzzy reference: "${reference}", lookback: "${overallLookbackPeriod}"`);
+
+  let timeMin = new Date(); // Default to now
+  let timeMax = new Date();
+  timeMax.setDate(timeMin.getDate() + 7); // Default to 7 days in the future
+
+  // Basic parsing for overallLookbackPeriod - can be enhanced
+  if (overallLookbackPeriod) {
+    const lookbackLower = overallLookbackPeriod.toLowerCase();
+    if (lookbackLower === 'today') {
+      timeMax = new Date();
+      timeMax.setHours(23, 59, 59, 999); // End of today
+    } else if (lookbackLower.includes('next') && lookbackLower.includes('days')) {
+      const daysMatch = lookbackLower.match(/next\s+(\d+)\s+days/);
+      if (daysMatch && daysMatch[1]) {
+        const numDays = parseInt(daysMatch[1], 10);
+        timeMax = new Date();
+        timeMax.setDate(timeMin.getDate() + numDays);
+      }
+    }
+    // Add more parsing for specific dates or other ranges if NLU provides them
+  }
+
+  // Fetch a decent number of events to match against.
+  // The listUpcomingEvents already returns CalendarEvent which is compatible with CalendarEventSummary
+  // Using a slightly larger limit internally for matching purposes.
+  const eventsResponse = await listUpcomingEvents(userId, 50, timeMin.toISOString(), timeMax.toISOString());
+
+  if (!eventsResponse.ok || !eventsResponse.data) {
+    // Propagate error, or return a specific error for this function
+    return { ok: false, error: eventsResponse.error || { code: "FUZZY_FETCH_FAILED", message: "Failed to fetch events for fuzzy matching."} , data: null };
+  }
+
+  const events: CalendarEventSummary[] = eventsResponse.data; // CalendarEvent is compatible as CalendarEventSummary is a subset or identical
+  if (events.length === 0) {
+    console.log(`[calendarSkills] No events found in the specified range for fuzzy matching (User: ${userId}).`);
+    return { ok: true, data: null }; // No events to match against
+  }
+
+  const normalizedReference = reference.toLowerCase().trim();
+
+  // Handle "next meeting" explicitly
+  if (normalizedReference === "next meeting" || normalizedReference === "my next meeting") {
+    if (events.length > 0) {
+      // Assuming events are sorted by start time from listUpcomingEvents
+      console.log(`[calendarSkills] Matched "next meeting" to: ${events[0].summary} (User: ${userId})`);
+      return { ok: true, data: events[0] };
+    } else {
+      return { ok: true, data: null }; // No upcoming events
+    }
+  }
+
+  let bestMatch: CalendarEventSummary | null = null;
+  let highestScore = -1;
+
+  for (const event of events) {
+    const eventSummaryLower = event.summary?.toLowerCase() || '';
+    const eventDescriptionLower = event.description?.toLowerCase() || '';
+
+    // 1. Exact match on summary
+    if (eventSummaryLower === normalizedReference) {
+      console.log(`[calendarSkills] Exact summary match found: ${event.summary} (User: ${userId})`);
+      return { ok: true, data: event };
+    }
+
+    let currentScore = 0;
+
+    // 2. Partial match (reference contained in summary) - high weight
+    if (eventSummaryLower.includes(normalizedReference)) {
+      currentScore = 0.75 + (normalizedReference.length / eventSummaryLower.length) * 0.25; // Base score + length proportion
+    }
+
+    // 3. Keyword scoring (if not a strong partial match already)
+    if (currentScore < 0.75) { // Only do keyword scoring if not already a very strong partial match
+      const referenceKeywords = normalizedReference.split(/\s+/).filter(kw => kw.length > 2 && !["the", "a", "an", "for", "with", "on", "at", "to", "meeting", "call", "my"].includes(kw));
+      if (referenceKeywords.length > 0) {
+        let keywordHits = 0;
+        for (const kw of referenceKeywords) {
+          if (eventSummaryLower.includes(kw)) {
+            keywordHits++;
+          }
+          // Optionally, check description too, with lower weight
+          // if (eventDescriptionLower.includes(kw)) {
+          //   keywordHits += 0.5;
+          // }
+        }
+        const keywordMatchScore = keywordHits / referenceKeywords.length;
+        // Combine with partial match score, or use if partial was 0
+        currentScore = Math.max(currentScore, keywordMatchScore * 0.7); // Max score for keywords is 0.7
+      }
+    }
+
+    // Consider events happening sooner as slightly more relevant if scores are similar
+    // This is a simple tie-breaker; more sophisticated relevance could be added.
+    // For now, just use the score. A small bonus for being sooner could be event.startTime.
+    // We need to be careful as currentScore is between 0 and 1.
+    // Example: currentScore -= (new Date(event.startTime).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30) * 0.01; // Penalty for being far in future
+
+    if (currentScore > highestScore) {
+      highestScore = currentScore;
+      bestMatch = event;
+    }
+  }
+
+  if (bestMatch && highestScore > 0.4) { // Threshold for considering a match "confident"
+    console.log(`[calendarSkills] Best fuzzy match (Score: ${highestScore.toFixed(2)}): ${bestMatch.summary} (User: ${userId})`);
+    return { ok: true, data: bestMatch };
+  }
+
+  console.log(`[calendarSkills] No confident fuzzy match found for "${reference}" (User: ${userId}, Highest Score: ${highestScore.toFixed(2)})`);
+  return { ok: true, data: null }; // No confident match
+}
+
 
 export async function slackMyAgenda(userId: string, limit: number = 5): Promise<SlackMessageResponse> {
   console.log(`slackMyAgenda called for userId: ${userId} with limit: ${limit}`);

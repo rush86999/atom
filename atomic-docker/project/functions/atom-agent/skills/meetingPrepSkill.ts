@@ -19,7 +19,7 @@ import {
 // import * as emailSkills from './emailSkills';
 // import * as slackSkills from './slackSkills';
 // import * as notionSkills from './notionAndResearchSkills';
-// import * as calendarSkills from './calendarSkills';
+import * as calendarSkills from './calendarSkills'; // Import calendarSkills
 
 import { logger } from '../../_utils/logger'; // Assuming a logger utility
 
@@ -43,41 +43,39 @@ export async function fetchMeetingPrepInfo(
   };
 
   // 1. Resolve nluEntities.meeting_reference to a specific calendar event.
+  let resolvedEvent: CalendarEventSummary | null = null;
   try {
-    logger.info(`[meetingPrepSkill] Attempting to resolve meeting_reference: "${nluEntities.meeting_reference}"`);
-    // const identifiedEvent = await calendarSkills.findEventByFuzzyReference(
-    //   userId,
-    //   nluEntities.meeting_reference,
-    //   nluEntities.overall_lookback_period
-    // ); // This skill needs to be implemented or an existing one adapted.
+    logger.info(`[meetingPrepSkill] Attempting to resolve meeting_reference: "${nluEntities.meeting_reference}" using findEventByFuzzyReference.`);
+    const eventResponse = await calendarSkills.findEventByFuzzyReference(
+      userId,
+      nluEntities.meeting_reference,
+      nluEntities.overall_lookback_period
+    );
 
-    // Placeholder for actual calendar event resolution logic:
-    let identifiedEvent: CalendarEventSummary | undefined = undefined;
-    // For now, we'll simulate finding an event if the reference contains "Acme Corp" for testing flow
-    if (nluEntities.meeting_reference.toLowerCase().includes("acme corp")) {
-        identifiedEvent = {
-            id: "simulated_event_id_123",
-            summary: "Simulated Meeting with Acme Corp",
-            start: new Date().toISOString(),
-            end: new Date(Date.now() + 3600 * 1000).toISOString(),
-            attendees: [{ email: "user@example.com" }, { email: "contact@acme.com" }]
-        };
-        logger.info(`[meetingPrepSkill] Simulated: Found event for "${nluEntities.meeting_reference}"`);
+    if (eventResponse.ok && eventResponse.data) {
+      resolvedEvent = eventResponse.data;
+      aggregatedResults.identified_calendar_event = resolvedEvent; // Store the resolved event
+      logger.info(`[meetingPrepSkill] Successfully resolved meeting reference to event: "${resolvedEvent.summary}" (ID: ${resolvedEvent.id})`);
+    } else if (eventResponse.error) {
+      logger.warn(`[meetingPrepSkill] Could not resolve meeting_reference "${nluEntities.meeting_reference}" to a specific event. Error: ${eventResponse.error.message}`);
+      aggregatedResults.errors_encountered?.push({
+        source_attempted: 'calendar_lookup',
+        message: `Could not resolve meeting reference: ${eventResponse.error.message}`,
+        details: JSON.stringify(eventResponse.error.details),
+      });
     } else {
-        logger.warn(`[meetingPrepSkill] Actual calendar event resolution for "${nluEntities.meeting_reference}" is not yet implemented. Proceeding without specific event context.`);
-    }
-
-    if (identifiedEvent) {
-      aggregatedResults.identified_calendar_event = identifiedEvent;
+      logger.info(`[meetingPrepSkill] No specific calendar event found for reference: "${nluEntities.meeting_reference}". Proceeding without specific event context.`);
     }
   } catch (error: any) {
-    logger.error(`[meetingPrepSkill] Error resolving meeting_reference "${nluEntities.meeting_reference}": ${error.message}`, error);
+    logger.error(`[meetingPrepSkill] Critical error during findEventByFuzzyReference for "${nluEntities.meeting_reference}": ${error.message}`, error);
     aggregatedResults.errors_encountered?.push({
       source_attempted: 'calendar_lookup',
-      message: `Failed to resolve meeting reference: ${error.message}`,
+      message: `Critical error resolving meeting reference: ${error.message}`,
       details: error.stack,
     });
   }
+  // Ensure aggregatedResults.identified_calendar_event is correctly passed along if resolution happened
+  // This is already handled above by assigning to aggregatedResults.identified_calendar_event
 
   for (const request of nluEntities.information_requests) {
     const sourceResultEntry: PrepResultSourceEntry = {
@@ -229,21 +227,38 @@ export async function fetchMeetingPrepInfo(
   // TODO:
   // 2. Optionally, generate an overall_summary_notes using an LLM based on all aggregatedResults.results_by_source.
   try {
-    if (aggregatedResults.results_by_source.some(rs => rs.results.length > 0)) {
-      // Only attempt summary if there's something to summarize
-      logger.info(`[meetingPrepSkill] Placeholder for AI summarization of collected data.`);
+    const foundItems = aggregatedResults.results_by_source.reduce((acc, rs) => acc + rs.count, 0);
+    if (foundItems > 0) {
+      // Construct a simple dynamic summary based on counts
+      const summaryParts: string[] = [];
+      aggregatedResults.results_by_source.forEach(rs => {
+        if (rs.count > 0) {
+          summaryParts.push(`${rs.count} item(s) from ${rs.source}`);
+        }
+      });
+      if (summaryParts.length > 0) {
+        aggregatedResults.overall_summary_notes = `Found: ${summaryParts.join(', ')}. (Detailed AI summary pending full data source integration.)`;
+        logger.info(`[meetingPrepSkill] Generated basic summary: ${aggregatedResults.overall_summary_notes}`);
+      } else {
+        // This case should ideally not be hit if foundItems > 0, but as a fallback:
+        aggregatedResults.overall_summary_notes = "Some items were found, but counts per source are zero. (Detailed AI summary pending.)";
+        logger.info(`[meetingPrepSkill] Items found but no counts per source for summary.`);
+      }
+
+      // Keep LLM summarization commented out for now
+      // logger.info(`[meetingPrepSkill] Placeholder for AI summarization of collected data.`);
       // const summaryContext = aggregatedResults.results_by_source
       //   .filter(rs => rs.results.length > 0)
-      //   .map(rs => `Source ${rs.source} found ${rs.count} items: ${JSON.stringify(rs.results.slice(0, 2))}...`) // Limit context for prompt
+      //   .map(rs => `Source ${rs.source} found ${rs.count} items: ${JSON.stringify(rs.results.slice(0, 2))}...`)
       //   .join('\n');
       // aggregatedResults.overall_summary_notes = await llmUtilities.summarizeText(
       //   `Summarize the key information found for the meeting preparation regarding "${aggregatedResults.meeting_reference_identified}". Context: ${summaryContext}`,
       //   // maxTokens: 200
       // );
-      aggregatedResults.overall_summary_notes = "Placeholder: AI-generated summary of all findings would appear here.";
-      logger.warn(`[meetingPrepSkill] AI summarization is currently using placeholder data.`);
+      // logger.warn(`[meetingPrepSkill] AI summarization is currently using placeholder data.`);
     } else {
-      logger.info(`[meetingPrepSkill] No data found by any source, skipping AI summarization.`);
+      logger.info(`[meetingPrepSkill] No data found by any source, skipping summary generation.`);
+      aggregatedResults.overall_summary_notes = "No specific information items were found from the requested sources.";
     }
   } catch (summaryError: any) {
     logger.error(`[meetingPrepSkill] Error during AI summarization: ${summaryError.message}`, summaryError);
