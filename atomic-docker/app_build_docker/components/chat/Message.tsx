@@ -7,6 +7,7 @@ import { EmailContentCopy } from "./email-content-copy";
 
 // Dynamically import the SearchResultsDisplay component
 const SearchResultsDisplay = React.lazy(() => import('./custom/SearchResultsDisplay'));
+const MeetingPrepDisplay = React.lazy(() => import('./custom/MeetingPrepDisplay')); // Added MeetingPrepDisplay
 
 
 type Props = {
@@ -115,6 +116,12 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
                                     {message.customComponentType === 'semantic_search_results' && message.customComponentProps?.results && (
                                         <Suspense fallback={<div>Loading search results...</div>}>
                                             <SearchResultsDisplay results={message.customComponentProps.results} />
+                                        </Suspense>
+                                    )}
+                                    {/* Render Meeting Prep Display if type matches */}
+                                    {message.customComponentType === 'meeting_prep_results' && message.customComponentProps?.briefing && (
+                                        <Suspense fallback={<div>Loading meeting preparation...</div>}>
+                                            <MeetingPrepDisplay briefing={message.customComponentProps.briefing} />
                                         </Suspense>
                                     )}
                                     {/* Render HTML email if present */}
