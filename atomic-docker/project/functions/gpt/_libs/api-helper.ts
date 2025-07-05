@@ -100,16 +100,33 @@ export const callOpenAI = async (systemMessage: string, userMessage: string, exa
       minTimeout: 1000, // 1 second
       maxTimeout: 10000, // 10 seconds
       onRetry: (error, attemptNumber) => {
-        // console.warn(`[${operation_name}] Retrying, attempt number ${attemptNumber}. Error: ${error.message}`); // Placeholder for logger
+        const logContext: any = {
+          operation_name: `${operation_name}_RetryAttempt`,
+          attempt: attemptNumber,
+          error_message: error.message,
+          error_type: error.constructor.name,
+        };
+        if (error.response && error.response.status) {
+          logContext.error_status = error.response.status;
+        }
+        // This will use global console.warn. Ideally, a passed-in or global Winston logger is used.
+        console.warn("Retrying OpenAI call", logContext);
       },
     }
-  ).catch(error => { // Catch error from retry (if all retries failed or bailed)
-    // Format the error into the standard OpenAIFailureResponse
-    if (error.response) { // Error from OpenAI API (likely one that caused a bail)
-      /* console.error(`[${operation_name}] OpenAI API Error after retries (or bail):`, error.response.status, error.response.data); */
-      return { success: false, error: { type: 'OPENAI_API_ERROR', status: error.response.status, data: error.response.data, message: 'OpenAI API request failed after retries or due to non-retryable error.' } };
+  ).catch(error => { // Catch error from retry (if all retries failed or bailed after `bail(error)` was called)
+    const finalErrorContext: any = {
+        operation_name: `${operation_name}_FinalFailure`,
+        error_message: error.message,
+        error_type: error.constructor.name,
+        was_bailed: error.bail // async-retry adds `bail` property to error if bail() was called
+    };
+    if (error.response) { // Error from OpenAI API
+      finalErrorContext.error_status = error.response.status;
+      finalErrorContext.error_data = error.response.data;
+      // console.error("OpenAI API Error after retries or bail", finalErrorContext); // Placeholder
+      return { success: false, error: { type: 'OPENAI_API_ERROR', status: error.response.status, data: error.response.data, message: `OpenAI API request failed: ${error.message}` } };
     } else { // Network or other request error
-      /* console.error(`[${operation_name}] Error calling OpenAI after retries:`, error.message); */
+      // console.error("Error calling OpenAI after retries", finalErrorContext); // Placeholder
       return { success: false, error: { type: 'OPENAI_REQUEST_ERROR', message: error.message } };
     }
   });
