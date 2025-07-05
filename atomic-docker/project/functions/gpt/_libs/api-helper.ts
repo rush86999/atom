@@ -43,120 +43,281 @@ interface ParsedScheduleTask { start_time: string; end_time: string; task: strin
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // --- Helper Function Implementations (condensed, from previous steps) ---
-export const callOpenAI = async (systemMessage: string, userMessage: string, exampleInput?: string, exampleOutput?: string, model?: string): Promise<CallOpenAIResponse> => { /* ... */
+import retry from 'async-retry'; // Import async-retry
+
+// Standard retry configuration for got
+const defaultGotRetryConfig = {
+  limit: 3,
+  methods: ['GET', 'POST', 'PUT', 'HEAD', 'DELETE', 'OPTIONS', 'TRACE'], // Retrying POST/PUT for Hasura assuming idempotency or acceptance
+  statusCodes: [408, 429, 500, 502, 503, 504],
+  errorCodes: ['ETIMEDOUT', 'ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'],
+  calculateDelay: ({attemptCount}: {attemptCount: number}) => {
+    // console.warn(`Retrying got request, attempt ${attemptCount}`); // Placeholder for proper logger
+    return Math.pow(2, attemptCount - 1) * 500 + Math.random() * 200; // Exponential backoff with jitter
+  }
+};
+
+export const callOpenAI = async (systemMessage: string, userMessage: string, exampleInput?: string, exampleOutput?: string, model?: string): Promise<CallOpenAIResponse> => {
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: 'system', content: systemMessage }];
   if (exampleInput && exampleOutput) { messages.push({ role: 'user', content: exampleInput }); messages.push({ role: 'assistant', content: exampleOutput }); }
   messages.push({ role: 'user', content: userMessage });
   const chosenModel = model || 'gpt-3.5-turbo-1106';
+  const operation_name = 'OpenAICall';
+
+  return await retry(
+    async (bail, attemptNumber) => {
+      try {
+        // console.log(`[${operation_name}] Attempt ${attemptNumber} to call OpenAI...`); // Placeholder for logger
+        const completion = await openai.chat.completions.create({
+          model: chosenModel,
+          messages,
+          timeout: 20000, // 20s timeout per attempt
+        });
+        return { success: true, content: completion?.choices?.[0]?.message?.content };
+      } catch (error: any) {
+        // console.error(`[${operation_name}] Error on attempt ${attemptNumber}:`, error.message); // Placeholder
+        if (error.response) { // Error from OpenAI API itself
+          // Don't retry on 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
+          if ([400, 401, 403, 404].includes(error.response.status)) {
+            // console.warn(`[${operation_name}] Non-retryable OpenAI API error (status ${error.response.status}). Bailing.`); // Placeholder
+            bail(error); // Stop retrying for these errors
+            // The error thrown by bail will be caught by the outer catch block of async-retry
+            // We need to return the structured error from there. This bail just stops retries.
+            // To immediately return the structured error, we'd have to throw the structured one here.
+            // For now, let bail throw, and the outer catch will format it.
+            return; // Should not be reached if bail throws
+          }
+          // For other API errors (e.g., 429, 5xx), let retry happen
+          throw error; // Re-throw to trigger retry
+        } else { // Network error or other non-API error
+          throw error; // Re-throw to trigger retry
+        }
+      }
+    },
+    {
+      retries: 3, // Total attempts = initial + 3 retries = 4
+      factor: 2,
+      minTimeout: 1000, // 1 second
+      maxTimeout: 10000, // 10 seconds
+      onRetry: (error, attemptNumber) => {
+        // console.warn(`[${operation_name}] Retrying, attempt number ${attemptNumber}. Error: ${error.message}`); // Placeholder for logger
+      },
+    }
+  ).catch(error => { // Catch error from retry (if all retries failed or bailed)
+    // Format the error into the standard OpenAIFailureResponse
+    if (error.response) { // Error from OpenAI API (likely one that caused a bail)
+      /* console.error(`[${operation_name}] OpenAI API Error after retries (or bail):`, error.response.status, error.response.data); */
+      return { success: false, error: { type: 'OPENAI_API_ERROR', status: error.response.status, data: error.response.data, message: 'OpenAI API request failed after retries or due to non-retryable error.' } };
+    } else { // Network or other request error
+      /* console.error(`[${operation_name}] Error calling OpenAI after retries:`, error.message); */
+      return { success: false, error: { type: 'OPENAI_REQUEST_ERROR', message: error.message } };
+    }
+  });
+};
+
+export const getCalendarIntegration = async (userId: string, resource: string): Promise<SuccessResponseType<CalendarIntegrationType | undefined> | FailureResponseType> => {
+  const query = `query GetCalendarIntegration($userId: String!, $resource: String!) { Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}, limit: 1) { id userId clientType token refreshToken expiresAt resource syncEnabled primaryCalendarId } }`;
+  const operation_name = 'HasuraGetCalendarIntegration';
   try {
-    const completion = await openai.chat.completions.create({ model: chosenModel, messages });
-    return { success: true, content: completion?.choices?.[0]?.message?.content };
-  } catch (error: any) {
-    if (error.response) { console.log('OpenAI API Error Status:', error.response.status, error.response.data); return { success: false, error: { type: 'OPENAI_API_ERROR', status: error.response.status, data: error.response.data, message: 'OpenAI API request failed' } }; }
-    else { console.log('Error calling OpenAI:', error.message); return { success: false, error: { type: 'OPENAI_REQUEST_ERROR', message: error.message } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query, variables: { userId, resource } },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 10000 },
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) {
+      /* console.error(`[${operation_name}] Hasura API errors:`, body.errors); */
+      return { success: false, error: { message: 'Hasura API error during getCalendarIntegration.', details: body.errors } };
+    }
+    if (!body.data || !body.data.hasOwnProperty('Calendar_Integration')) {
+      /* console.warn(`[${operation_name}] Unexpected response structure:`, body); */
+      return { success: false, error: { message: 'Unexpected response structure during getCalendarIntegration.', details: body } };
+    }
+    return { success: true, data: body.data.Calendar_Integration?.[0] };
+  } catch (e: any) {
+    /* console.error(`[${operation_name}] Network or request error:`, e.message); */
+    return { success: false, error: { message: 'Network/request error during getCalendarIntegration.', details: e.message, rawResponse: e.response?.body } };
   }
 };
-export const getCalendarIntegration = async (userId: string, resource: string): Promise<SuccessResponseType<CalendarIntegrationType | undefined> | FailureResponseType> => { /* ... */
-  const query = `query GetCalendarIntegration($userId: String!, $resource: String!) { Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}, limit: 1) { id userId clientType token refreshToken expiresAt resource syncEnabled primaryCalendarId } }`;
-  try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId, resource } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in getCalendarIntegration:', body.errors); return { success: false, error: { message: 'Hasura API error during getCalendarIntegration.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Calendar_Integration')) { console.log('Unexpected response structure in getCalendarIntegration:', body); return { success: false, error: { message: 'Unexpected response structure during getCalendarIntegration.', details: body } }; }
-    return { success: true, data: body.data.Calendar_Integration?.[0] };
-  } catch (e: any) { console.log('Network error in getCalendarIntegration:', e.message); return { success: false, error: { message: 'Network error during getCalendarIntegration.', details: e.message } }; }
-};
-export const refreshGoogleToken = async (refreshTokenVal: string, clientType: CalendarIntegrationType['clientType']): Promise<SuccessResponseType<GoogleTokenResponseType> | FailureResponseType> => { /* ... */
+
+export const refreshGoogleToken = async (refreshTokenVal: string, clientType: CalendarIntegrationType['clientType']): Promise<SuccessResponseType<GoogleTokenResponseType> | FailureResponseType> => {
   const clientId = clientType === 'web' ? process.env.GOOGLE_CLIENT_ID_WEB : process.env.GOOGLE_CLIENT_ID_IOS;
   const clientSecret = clientType === 'web' ? process.env.GOOGLE_CLIENT_SECRET_WEB : process.env.GOOGLE_CLIENT_SECRET_IOS;
-  if (!clientId || !clientSecret) { const msg = `Google client ID or secret not configured for clientType: ${clientType}`; console.log(msg); return { success: false, error: { message: msg }}; }
+  const operation_name = 'GoogleRefreshToken';
+  if (!clientId || !clientSecret) {
+    const msg = `Google client ID or secret not configured for clientType: ${clientType}`;
+    /* console.error(`[${operation_name}] ${msg}`); */
+    return { success: false, error: { message: msg } };
+  }
   try {
-    const response = await got.post('https://oauth2.googleapis.com/token', { form: { client_id: clientId, client_secret: clientSecret, refresh_token: refreshTokenVal, grant_type: 'refresh_token' }, responseType: 'json' });
+    const response = await got.post('https://oauth2.googleapis.com/token', {
+      form: { client_id: clientId, client_secret: clientSecret, refresh_token: refreshTokenVal, grant_type: 'refresh_token' },
+      responseType: 'json',
+      timeout: { request: 15000 },
+      retry: { // Slightly different retry for token refresh if needed, or use default
+        limit: 2,
+        methods: ['POST'],
+        statusCodes: [408, 429, 500, 502, 503, 504],
+        errorCodes: ['ETIMEDOUT', 'ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'],
+        calculateDelay: ({attemptCount}: {attemptCount: number}) => Math.pow(2, attemptCount - 1) * 1000 + Math.random() * 300
+      }
+    });
     return { success: true, data: response.body as GoogleTokenResponseType };
-  } catch (e: any) { console.log('Error refreshing Google token:', e.message); return { success: false, error: { message: 'Failed to refresh Google token: ' + e.message, details: e.response?.body } }; }
+  } catch (e: any) {
+    /* console.error(`[${operation_name}] Error refreshing Google token:`, e.message, e.response?.body); */
+    return { success: false, error: { message: 'Failed to refresh Google token: ' + e.message, details: e.response?.body } };
+  }
 };
-export const updateCalendarIntegration = async (id: string, token: string | null, expiresAt: string | null, refreshTokenVal?: string | null, syncEnabled?: boolean): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
-  let setClause = '_set: {'; if (token !== undefined) setClause += `token: $token, `; if (expiresAt !== undefined) setClause += `expiresAt: $expiresAt, `; if (refreshTokenVal !== undefined) setClause += `refreshToken: $refreshToken, `; if (typeof syncEnabled === 'boolean') setClause += `syncEnabled: $syncEnabled, `; setClause += `updatedAt: "now()" }`;
+
+export const updateCalendarIntegration = async (id: string, token: string | null, expiresAt: string | null, refreshTokenVal?: string | null, syncEnabled?: boolean): Promise<GenericSuccessResponse | FailureResponseType> => {
+  const operation_name = 'HasuraUpdateCalendarIntegration';
+  let setClause = '_set: {';
+  if (token !== undefined) setClause += `token: $token, `;
+  if (expiresAt !== undefined) setClause += `expiresAt: $expiresAt, `;
+  if (refreshTokenVal !== undefined) setClause += `refreshToken: $refreshToken, `;
+  if (typeof syncEnabled === 'boolean') setClause += `syncEnabled: $syncEnabled, `;
+  setClause += `updatedAt: "now()" }`;
+
   const mutation = `mutation UpdateCalendarIntegration($id: uuid!, ${token !== undefined ? '$token: String,' : ''} ${expiresAt !== undefined ? '$expiresAt: timestamptz,' : ''} ${refreshTokenVal !== undefined ? '$refreshToken: String,' : ''} ${typeof syncEnabled === 'boolean' ? '$syncEnabled: Boolean,' : ''}) { update_Calendar_Integration_by_pk(pk_columns: {id: $id}, ${setClause}) { id } }`;
-  const variables: any = { id }; if (token !== undefined) variables.token = token; if (expiresAt !== undefined) variables.expiresAt = expiresAt; if (refreshTokenVal !== undefined) variables.refreshToken = refreshTokenVal; if (typeof syncEnabled === 'boolean') variables.syncEnabled = syncEnabled;
+  const variables: any = { id };
+  if (token !== undefined) variables.token = token;
+  if (expiresAt !== undefined) variables.expiresAt = expiresAt;
+  if (refreshTokenVal !== undefined) variables.refreshToken = refreshTokenVal;
+  if (typeof syncEnabled === 'boolean') variables.syncEnabled = syncEnabled;
+
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query: mutation, variables }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in updateCalendarIntegration:', body.errors); return { success: false, error: { message: 'Hasura API error during updateCalendarIntegration.', details: body.errors } }; }
-    if (!body.data || !body.data.update_Calendar_Integration_by_pk) { console.log('Unexpected response or ID not found in updateCalendarIntegration:', body); return { success: false, error: { message: 'Unexpected response structure or ID not found during updateCalendarIntegration.', details: body } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query: mutation, variables },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 10000 },
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during updateCalendarIntegration.', details: body.errors } }; }
+    if (!body.data || !body.data.update_Calendar_Integration_by_pk) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure or ID not found during updateCalendarIntegration.', details: body } }; }
     return { success: true };
-  } catch (e: any) { console.log('Network error in updateCalendarIntegration:', e.message); return { success: false, error: { message: 'Network error during updateCalendarIntegration.', details: e.message } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during updateCalendarIntegration.', details: e.message, rawResponse: e.response?.body } }; }
 };
+
 export const getGoogleAPIToken = async (userId: string, resource: string): Promise<{success: true, token: string} | FailureResponseType> => { /* ... */
   const iResult = await getCalendarIntegration(userId, resource); if (!iResult.success) return { success: false, error: { message: 'Failed to acquire Google API token: Could not get calendar integration', details: iResult.error } };
   const int = iResult.data; if (!int) return { success: false, error: { message: 'Failed to acquire Google API token: No calendar integration found.' } };
   if (int.token && int.expiresAt && dayjs(int.expiresAt).isAfter(dayjs().add(5, 'minutes'))) return { success: true, token: int.token };
-  if (!int.refreshToken) { console.log(`User ${userId} resource ${resource} needs refresh but no refresh token.`); if (int.id && int.syncEnabled !== false) await updateCalendarIntegration(int.id, null, null, null, false).catch(e => console.log("Failed to disable sync:", e.message)); return { success: false, error: { message: 'Refresh needed but no refresh token available.' } }; }
-  const rResult = await refreshGoogleToken(int.refreshToken, int.clientType); if (!rResult.success) { if (int.id && int.syncEnabled !== false) await updateCalendarIntegration(int.id, null, null, null, false).catch(e => console.log("Failed to disable sync:", e.message)); return { success: false, error: { message: 'Token refresh failed', details: rResult.error } }; }
+  if (!int.refreshToken) { /* console.warn(`User ${userId} resource ${resource} needs refresh but no refresh token.`); */ if (int.id && int.syncEnabled !== false) await updateCalendarIntegration(int.id, null, null, null, false).catch(e => console.warn("Failed to disable sync:", e.message)); return { success: false, error: { message: 'Refresh needed but no refresh token available.' } }; }
+  const rResult = await refreshGoogleToken(int.refreshToken, int.clientType); if (!rResult.success) { if (int.id && int.syncEnabled !== false) await updateCalendarIntegration(int.id, null, null, null, false).catch(e => console.warn("Failed to disable sync:", e.message)); return { success: false, error: { message: 'Token refresh failed', details: rResult.error } }; }
   const { access_token, expires_in } = rResult.data; const newExp = dayjs().add(expires_in, 'seconds').toISOString();
-  if (!int.id) { console.log(`Critical: Integration ID missing for user ${userId} post-refresh.`); return { success: false, error: { message: 'Integration ID missing post-refresh.' }}; }
+  if (!int.id) { /* console.error(`Critical: Integration ID missing for user ${userId} post-refresh.`); */ return { success: false, error: { message: 'Integration ID missing post-refresh.' }}; }
   const uResult = await updateCalendarIntegration(int.id, access_token, newExp, int.refreshToken, typeof int.syncEnabled === 'boolean' ? int.syncEnabled : true);
   if (!uResult.success) return { success: false, error: { message: 'Failed to update integration with new token', details: uResult.error } };
   return { success: true, token: access_token };
 };
 export const createGoogleEvent = async (userId: string, calendarIdVal: string, clientTypeVal: CalendarIntegrationType['clientType'], summaryVal: string, startDateTimeVal: string, endDateTimeVal: string, timezoneVal: string, descriptionVal?: string, attendeesVal?: { email: string }[], conferenceSolutionVal?: 'eventHangout' | 'hangoutsMeet' | null): Promise<CreateGoogleEventResponse> => { /* ... */
+  const operation_name = "GoogleCreateEvent";
   const tokenResult = await getGoogleAPIToken(userId, 'google_calendar'); if (!tokenResult.success) return { success: false, error: { message: 'Token acquisition failure for Google event.', details: tokenResult.error } };
   const oAuth2Client = new Auth.OAuth2Client(); oAuth2Client.setCredentials({ access_token: tokenResult.token });
   const calendar = google.calendar({ version: 'v3', auth: oAuth2Client }); const generatedId = uuidv4();
   const event: any = { summary: summaryVal, description: descriptionVal, start: { dateTime: startDateTimeVal, timeZone: timezoneVal }, end: { dateTime: endDateTimeVal, timeZone: timezoneVal }, attendees: attendeesVal, reminders: { useDefault: true } };
   if (conferenceSolutionVal) event.conferenceData = { createRequest: { requestId: generatedId, conferenceSolutionKey: { type: conferenceSolutionVal } } };
   try {
+    // Note: googleapis library might have its own retry. If insufficient, wrap with async-retry.
     const gEvent = await calendar.events.insert({ calendarId: calendarIdVal, requestBody: event, conferenceDataVersion: conferenceSolutionVal ? 1 : 0 });
     if (!gEvent.data.id) return { success: false, error: { message: 'Google API did not return event ID.', details: gEvent.data }};
     const gEventId = gEvent.data.id; return { success: true, data: { id: `${gEventId}#${calendarIdVal}`, googleEventId: gEventId, generatedId, calendarId: calendarIdVal, generatedEventId: generatedId.split('_')?.[0] } };
-  } catch (e: any) { console.log('Error creating Google Calendar event:', e.message); return { success: false, error: { message: 'Google Calendar API error during event creation.', details: e.response?.data || e.errors || e } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Error creating Google Calendar event:`, e.message); */ return { success: false, error: { message: 'Google Calendar API error during event creation.', details: e.response?.data || e.errors || e } }; }
 };
-export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<UpsertEventsPostPlannerResponse> => { /* ... */
+export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<UpsertEventsPostPlannerResponse> => {
+  const operation_name = 'HasuraUpsertEvents';
   const uniqueEvents = _.uniqBy(events.filter(e => e), 'id'); if (uniqueEvents.length === 0) return { success: true, data: { affected_rows: 0, returning: [] } };
   const objects = uniqueEvents.map(event => ({ ...event, provider: event.provider || 'google_calendar', status: event.status || 'confirmed' }));
   const mutation = `mutation UpsertEvents($objects: [Event_insert_input!]!) { insert_Event(objects: $objects, on_conflict: { constraint: Event_pkey, update_columns: [summary, description, startDateTime, endDateTime, timezone, gEventId, provider, updatedAt, taskId, projectId, status, parentEventId] }) { affected_rows returning { id } } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query: mutation, variables: { objects } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in upsertEventsPostPlanner:', body.errors); return { success: false, error: { message: 'Hasura API error during event upsert.', details: body.errors } }; }
-    if (!body.data || !body.data.insert_Event) { console.log('Unexpected Hasura response in upsertEventsPostPlanner:', body); return { success: false, error: { message: 'Unexpected Hasura response during event upsert.', details: body } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query: mutation, variables: { objects } },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 15000 }, // Longer timeout for potentially large upserts
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during event upsert.', details: body.errors } }; }
+    if (!body.data || !body.data.insert_Event) { /* console.warn(`[${operation_name}] Unexpected Hasura response:`, body); */ return { success: false, error: { message: 'Unexpected Hasura response during event upsert.', details: body } }; }
     return { success: true, data: body.data.insert_Event };
-  } catch (e: any) { console.log('Network error in upsertEventsPostPlanner:', e.message); return { success: false, error: { message: 'Network error during event upsert.', details: e.message } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during event upsert.', details: e.message, rawResponse: e.response?.body } }; }
 };
-export const getGlobalCalendar = async (userId: string): Promise<SuccessResponseType<GlobalCalendarType | undefined> | FailureResponseType> => { /* ... */
+export const getGlobalCalendar = async (userId: string): Promise<SuccessResponseType<GlobalCalendarType | undefined> | FailureResponseType> => {
+  const operation_name = 'HasuraGetGlobalCalendar';
   const query = `query GetGlobalCalendar($userId: String!) { Calendar(where: {userId: {_eq: $userId}, type: {_eq: "global"}}, limit: 1) { id userId primaryCalendarId } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in getGlobalCalendar:', body.errors); return { success: false, error: { message: 'Hasura API error during getGlobalCalendar.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Calendar')) { console.log('Unexpected response in getGlobalCalendar:', body); return { success: false, error: { message: 'Unexpected response structure during getGlobalCalendar.', details: body } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query, variables: { userId } },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 10000 },
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during getGlobalCalendar.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Calendar')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during getGlobalCalendar.', details: body } }; }
     return { success: true, data: body.data.Calendar?.[0] };
-  } catch (e: any) { console.log('Network error in getGlobalCalendar:', e.message); return { success: false, error: { message: 'Network error during getGlobalCalendar.', details: e.message } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during getGlobalCalendar.', details: e.message, rawResponse: e.response?.body } }; }
 };
-export const listEventsForDate = async (userId: string, startDate: string, endDate: string, timezoneParam: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => { /* ... */
+export const listEventsForDate = async (userId: string, startDate: string, endDate: string, timezoneParam: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => {
+  const operation_name = 'HasuraListEventsForDate';
   const query = `query ListEventsForDate($userId: String!, $startDate: timestamptz!, $endDate: timestamptz!) { Event(where: {userId: {_eq: $userId}, startDateTime: {_gte: $startDate}, endDateTime: {_lte: $endDate}, _or: [{isDeleted: {_is_null: true}}, {isDeleted: {_eq: false}}]}, order_by: {startDateTime: asc}) { id userId summary startDateTime endDateTime timezone } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId, startDate, endDate } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in listEventsForDate:', body.errors); return { success: false, error: { message: 'Hasura API error during listEventsForDate.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Event')) { console.log('Unexpected response in listEventsForDate:', body); return { success: false, error: { message: 'Unexpected response structure during listEventsForDate.', details: body } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query, variables: { userId, startDate, endDate } },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 10000 },
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during listEventsForDate.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Event')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForDate.', details: body } }; }
     return { success: true, data: body.data.Event || [] };
-  } catch (e: any) { console.log('Network error in listEventsForDate:', e.message); return { success: false, error: { message: 'Network error during listEventsForDate.', details: e.message } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during listEventsForDate.', details: e.message, rawResponse: e.response?.body } }; }
 };
-export const listEventsForUserGivenDates = async (userId: string, senderStartDate: string, senderEndDate: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => { /* ... */
+export const listEventsForUserGivenDates = async (userId: string, senderStartDate: string, senderEndDate: string): Promise<SuccessResponseType<EventType[]> | FailureResponseType> => {
+  const operation_name = 'HasuraListEventsForUserGivenDates';
   const query = `query ListEventsForUserGivenDates($userId: String!, $startDate: timestamptz!, $endDate: timestamptz!) { Event(where: {userId: {_eq: $userId}, startDateTime: {_gte: $startDate}, endDateTime: {_lte: $endDate}, _or: [{isDeleted: {_is_null: true}}, {isDeleted: {_eq: false}}]}, order_by: {startDateTime: asc}) { id userId summary startDateTime endDateTime timezone } }`;
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId, startDate: senderStartDate, endDate: senderEndDate } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in listEventsForUserGivenDates:', body.errors); return { success: false, error: { message: 'Hasura API error during listEventsForUserGivenDates.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Event')) { console.log('Unexpected response in listEventsForUserGivenDates:', body); return { success: false, error: { message: 'Unexpected response structure during listEventsForUserGivenDates.', details: body } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query, variables: { userId, startDate: senderStartDate, endDate: senderEndDate } },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 10000 },
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during listEventsForUserGivenDates.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Event')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForUserGivenDates.', details: body } }; }
     return { success: true, data: body.data.Event || [] };
-  } catch (e: any) { console.log('Network error in listEventsForUserGivenDates:', e.message); return { success: false, error: { message: 'Network error during listEventsForUserGivenDates.', details: e.message } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during listEventsForUserGivenDates.', details: e.message, rawResponse: e.response?.body } }; }
 };
-export const getUserPreferences = async (userId: string): Promise<SuccessResponseType<UserPreferenceType | undefined> | FailureResponseType> => { /* ... */
+export const getUserPreferences = async (userId: string): Promise<SuccessResponseType<UserPreferenceType | undefined> | FailureResponseType> => {
+  const operation_name = 'HasuraGetUserPreferences';
   const query = `query GetUserPreferences($userId: String!) { User_Preferences(where: {userId: {_eq: $userId}}, limit: 1) { id userId somePreference workHoursStartTime workHoursEndTime workDays slotDuration timezone bufferBetweenMeetings } }`; // Added more fields
   try {
-    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', { json: { query, variables: { userId } }, headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' }, responseType: 'json' });
-    const body = response.body as any; if (body.errors) { console.log('Hasura errors in getUserPreferences:', body.errors); return { success: false, error: { message: 'Hasura API error during getUserPreferences.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('User_Preferences')) { console.log('Unexpected response in getUserPreferences:', body); return { success: false, error: { message: 'Unexpected response structure during getUserPreferences.', details: body } }; }
+    const response = await got.post(process.env.HASURA_ENDPOINT_URL || '', {
+      json: { query, variables: { userId } },
+      headers: { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET || '' },
+      responseType: 'json',
+      timeout: { request: 10000 },
+      retry: defaultGotRetryConfig
+    });
+    const body = response.body as any;
+    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during getUserPreferences.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('User_Preferences')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during getUserPreferences.', details: body } }; }
     return { success: true, data: body.data.User_Preferences?.[0] };
-  } catch (e: any) { console.log('Network error in getUserPreferences:', e.message); return { success: false, error: { message: 'Network error during getUserPreferences.', details: e.message } }; }
+  } catch (e: any) { /* console.error(`[${operation_name}] Network error:`, e.message); */ return { success: false, error: { message: 'Network error during getUserPreferences.', details: e.message, rawResponse: e.response?.body } }; }
 };
 export const sendAgendaEmail = async (to: string, name: string, title: string, body: string): Promise<EmailResponse> => { /* ... */
+  // Note: sendEmail itself needs retry logic if it makes network calls. For now, this wrapper doesn't add retries.
+  const operation_name = "SendAgendaEmail";
   try { await sendEmail({ template: 'agenda', locals: { name, title, body, to }, subject: `Your Meeting Agenda: ${title}`, to }); return { success: true }; }
   catch (e: any) { console.log(`Error sending agenda email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send agenda email.', details: e.message } }; }
 };
@@ -185,10 +346,10 @@ export const createAgenda = async (userId: string, clientType: CalendarIntegrati
     if (!gCalRes.success || !gCalRes.data?.primaryCalendarId) { console.log('createAgenda: GlobalCal fail', gCalRes.error); return { success: false, error: { message: 'Failed to create agenda due to global calendar retrieval failure.', details: gCalRes.error } }; }
     const startDT = dayjs.tz(`${userDate}T09:00:00`, userTimezone).toISOString(); const endDT = dayjs.tz(`${userDate}T10:00:00`, userTimezone).toISOString();
     const createGEventRes = await createGoogleEvent(userId, gCalRes.data.primaryCalendarId, clientType, agendaSum, startDT, endDT, userTimezone, agendaDesc);
-    if (!createGEventRes.success) { console.log('createAgenda: CreateGEvent fail', createGEventRes.error); return { success: false, error: { message: 'Failed to create agenda due to Google event creation failure.', details: createGEventRes.error } }; }
+  if (!createGEventRes.success) { /* console.error('createAgenda: CreateGEvent fail', createGEventRes.error); */ return { success: false, error: { message: 'Failed to create agenda due to Google event creation failure.', details: createGEventRes.error } }; }
     const eventToUpsert: EventInput = { userId, calendarId: gCalRes.data.id, gEventId: createGEventRes.data.googleEventId, summary: agendaSum, description: agendaDesc, startDateTime: startDT, endDateTime: endDT, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
     const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
-    if (!upsertRes.success) { console.log('createAgenda: Upsert fail', upsertRes.error); return { success: false, error: { message: 'Failed to create agenda due to database event upsert failure.', details: upsertRes.error } }; }
+  if (!upsertRes.success) { /* console.error('createAgenda: Upsert fail', upsertRes.error); */ return { success: false, error: { message: 'Failed to create agenda due to database event upsert failure.', details: upsertRes.error } }; }
     if (email && nameVal) {
       const emailRes = await sendAgendaEmail(email, nameVal, "Your Generated Agenda", agendaDesc);
       if (!emailRes.success) { console.log('createAgenda: Email fail', emailRes.error); return { success: false, error: { message: 'Failed to create agenda due to email sending failure.', details: emailRes.error } }; }
