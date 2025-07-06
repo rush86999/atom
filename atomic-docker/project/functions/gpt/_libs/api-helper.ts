@@ -210,7 +210,7 @@ const openAIBreaker = new Opossum(async (
         if (error.response && error.response.status) {
           logContextOnRetry.error_status = error.response.status;
         }
-        console.warn("Retrying OpenAI call (async-retry)", logContextOnRetry);
+        localApiHelperLogger.warn("Retrying OpenAI call (async-retry)", logContextOnRetry);
       },
     }
   );
@@ -218,16 +218,16 @@ const openAIBreaker = new Opossum(async (
 
 // Event listeners for the OpenAI circuit breaker
 openAIBreaker.on('open', () => {
-  console.error({ circuit_breaker_name: openAIBreaker.name, event: 'open', message: `Circuit breaker ${openAIBreaker.name} opened.` }, `CB Opened: ${openAIBreaker.name}`);
+  localApiHelperLogger.error(`CB Opened: ${openAIBreaker.name}`, { circuit_breaker_name: openAIBreaker.name, event: 'open', message: `Circuit breaker ${openAIBreaker.name} opened.` });
 });
 openAIBreaker.on('close', () => {
-  console.warn({ circuit_breaker_name: openAIBreaker.name, event: 'close', message: `Circuit breaker ${openAIBreaker.name} closed.` }, `CB Closed: ${openAIBreaker.name}`);
+  localApiHelperLogger.warn(`CB Closed: ${openAIBreaker.name}`, { circuit_breaker_name: openAIBreaker.name, event: 'close', message: `Circuit breaker ${openAIBreaker.name} closed.` });
 });
 openAIBreaker.on('halfOpen', () => {
-  console.warn({ circuit_breaker_name: openAIBreaker.name, event: 'halfOpen', message: `Circuit breaker ${openAIBreaker.name} half-open.` }, `CB HalfOpen: ${openAIBreaker.name}`);
+  localApiHelperLogger.warn(`CB HalfOpen: ${openAIBreaker.name}`, { circuit_breaker_name: openAIBreaker.name, event: 'halfOpen', message: `Circuit breaker ${openAIBreaker.name} half-open.` });
 });
 openAIBreaker.on('reject', () => {
-  console.warn({ circuit_breaker_name: openAIBreaker.name, event: 'reject', message: `Call rejected by ${openAIBreaker.name} (circuit open).` }, `CB Rejected Call: ${openAIBreaker.name}`);
+  localApiHelperLogger.warn(`CB Rejected Call: ${openAIBreaker.name}`, { circuit_breaker_name: openAIBreaker.name, event: 'reject', message: `Call rejected by ${openAIBreaker.name} (circuit open).` });
 });
 
 // This is the actual exported function that uses the circuit breaker.
@@ -254,7 +254,7 @@ export const callOpenAI = async (systemMessage: string, userMessage: string, exa
         error_message: e.message,
         error_type: e.constructor.name,
     };
-    console.error("Error from OpenAI circuit breaker:", finalErrorContext); // Placeholder
+    localApiHelperLogger.error("Error from OpenAI circuit breaker:", finalErrorContext);
 
     if (e.code === 'EOPENBREAKER') {
         return { success: false, error: { type: 'CIRCUIT_BREAKER_OPEN', message: errorMessagePrefix, details: e.message } };
@@ -411,9 +411,8 @@ export const createGoogleEvent = async (userId: string, calendarIdVal: string, c
             calendarId: calendarIdVal,
             requestBody: event,
             conferenceDataVersion: conferenceSolutionVal ? 1 : 0,
-            // Consider adding a timeout to the googleapis call if the library supports it directly,
-            // or rely on overall timeout of async-retry if that's shorter.
-          });
+            // Add timeout to the request options for googleapis
+          }, { timeout: 20000 }); // 20 second timeout per attempt
 
           if (!gEvent.data.id) {
             // This is an unexpected success response, should not retry.
@@ -462,7 +461,7 @@ export const createGoogleEvent = async (userId: string, calendarIdVal: string, c
             error_code: error.code, // HTTP status code
             error_reason: error.errors && error.errors[0] ? error.errors[0].reason : null,
           };
-          console.warn("Retrying Google event creation", logContext); // Placeholder
+          localApiHelperLogger.warn("Retrying Google event creation", logContext);
         },
       }
     );
@@ -588,190 +587,203 @@ export const sendAgendaEmail = async (to: string, name: string, title: string, b
   // Note: sendEmail itself needs retry logic if it makes network calls. For now, this wrapper doesn't add retries.
   const operation_name = "SendAgendaEmail";
   try { await sendEmail({ template: 'agenda', locals: { name, title, body, to }, subject: `Your Meeting Agenda: ${title}`, to }); return { success: true }; }
-  catch (e: any) { console.log(`Error sending agenda email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send agenda email.', details: e.message } }; }
+  catch (e: any) { localApiHelperLogger.error(`Error sending agenda email to ${to}:`, { error: e.message, details: e }); return { success: false, error: { message: 'Failed to send agenda email.', details: e.message } }; }
 };
 export const sendSummaryEmail = async (to: string, name: string, title: string, summary: string): Promise<EmailResponse> => { /* ... */
   try { await sendEmail({ template: 'summary', locals: { name, title, summary, to }, subject: `Your Meeting Summary: ${title}`, to }); return { success: true }; }
-  catch (e: any) { console.log(`Error sending summary email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send summary email.', details: e.message } }; }
+  catch (e: any) { localApiHelperLogger.error(`Error sending summary email to ${to}:`, { error: e.message, details: e }); return { success: false, error: { message: 'Failed to send summary email.', details: e.message } }; }
 };
 export const emailTaskBreakDown = async (to: string, name: string, title: string, tasks: string): Promise<EmailResponse> => { /* ... */
   try { await sendEmail({ template: 'task_breakdown', locals: { name, title, tasks, to }, subject: `Your Task Breakdown for: ${title}`, to }); return { success: true }; }
-  catch (e: any) { console.log(`Error sending task breakdown email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send task breakdown email.', details: e.message } }; }
+  catch (e: any) { localApiHelperLogger.error(`Error sending task breakdown email to ${to}:`, { error: e.message, details: e }); return { success: false, error: { message: 'Failed to send task breakdown email.', details: e.message } }; }
 };
 export const sendGenericTaskEmail = async (to: string, name: string, title: string, body: string): Promise<EmailResponse> => { /* ... */
   try { await sendEmail({ template: 'generic_task', locals: { name, title, body, to }, subject: title, to }); return { success: true }; }
-  catch (e: any) { console.log(`Error sending generic task email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send generic task email.', details: e.message } }; }
+  catch (e: any) { localApiHelperLogger.error(`Error sending generic task email to ${to}:`, { error: e.message, details: e }); return { success: false, error: { message: 'Failed to send generic task email.', details: e.message } }; }
 };
 export const sendMeetingRequestTemplate = async (to: string, name: string, title: string, body: string, yesLink: string, noLink: string): Promise<EmailResponse> => { /* ... */
   try { await sendEmail({ template: 'meeting_request', locals: { name, title, body, yesLink, noLink, to }, subject: `Meeting Request: ${title}`, to }); return { success: true }; }
-  catch (e: any) { console.log(`Error sending meeting request email to ${to}:`, e.message); return { success: false, error: { message: 'Failed to send meeting request email.', details: e.message } }; }
+  catch (e: any) { localApiHelperLogger.error(`Error sending meeting request email to ${to}:`, { error: e.message, details: e }); return { success: false, error: { message: 'Failed to send meeting request email.', details: e.message } }; }
 };
 export const createAgenda = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, userDate: string, promptVal: string, email?: string, nameVal?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  const operationName = "createAgenda";
   try {
     const openAIRes = await callOpenAI(`Create agenda for ${userDate} in ${userTimezone}.`, promptVal);
-    if (!openAIRes.success || !openAIRes.content) { console.log('createAgenda: OpenAI fail', openAIRes.error); return { success: false, error: { message: 'Failed to create agenda due to OpenAI call failed or no content.', details: openAIRes.error } }; }
+    if (!openAIRes.success || !openAIRes.content) { localApiHelperLogger.warn(`${operationName}: OpenAI call failed or no content.`, { userId, error: openAIRes.error }); return { success: false, error: { message: 'Failed to create agenda due to OpenAI call failed or no content.', details: openAIRes.error } }; }
     const agendaSum = "Generated Agenda Event"; const agendaDesc = openAIRes.content;
     const gCalRes = await getGlobalCalendar(userId);
-    if (!gCalRes.success || !gCalRes.data?.primaryCalendarId) { console.log('createAgenda: GlobalCal fail', gCalRes.error); return { success: false, error: { message: 'Failed to create agenda due to global calendar retrieval failure.', details: gCalRes.error } }; }
+    if (!gCalRes.success || !gCalRes.data?.primaryCalendarId) { localApiHelperLogger.warn(`${operationName}: GlobalCalendar retrieval failed.`, { userId, error: gCalRes.error }); return { success: false, error: { message: 'Failed to create agenda due to global calendar retrieval failure.', details: gCalRes.error } }; }
     const startDT = dayjs.tz(`${userDate}T09:00:00`, userTimezone).toISOString(); const endDT = dayjs.tz(`${userDate}T10:00:00`, userTimezone).toISOString();
     const createGEventRes = await createGoogleEvent(userId, gCalRes.data.primaryCalendarId, clientType, agendaSum, startDT, endDT, userTimezone, agendaDesc);
-  if (!createGEventRes.success) { /* console.error('createAgenda: CreateGEvent fail', createGEventRes.error); */ return { success: false, error: { message: 'Failed to create agenda due to Google event creation failure.', details: createGEventRes.error } }; }
+  if (!createGEventRes.success) { localApiHelperLogger.warn(`${operationName}: Google event creation failed.`, { userId, error: createGEventRes.error }); return { success: false, error: { message: 'Failed to create agenda due to Google event creation failure.', details: createGEventRes.error } }; }
     const eventToUpsert: EventInput = { userId, calendarId: gCalRes.data.id, gEventId: createGEventRes.data.googleEventId, summary: agendaSum, description: agendaDesc, startDateTime: startDT, endDateTime: endDT, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
     const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
-  if (!upsertRes.success) { /* console.error('createAgenda: Upsert fail', upsertRes.error); */ return { success: false, error: { message: 'Failed to create agenda due to database event upsert failure.', details: upsertRes.error } }; }
+  if (!upsertRes.success) { localApiHelperLogger.warn(`${operationName}: Database event upsert failed.`, { userId, error: upsertRes.error }); return { success: false, error: { message: 'Failed to create agenda due to database event upsert failure.', details: upsertRes.error } }; }
     if (email && nameVal) {
       const emailRes = await sendAgendaEmail(email, nameVal, "Your Generated Agenda", agendaDesc);
-      if (!emailRes.success) { console.log('createAgenda: Email fail', emailRes.error); return { success: false, error: { message: 'Failed to create agenda due to email sending failure.', details: emailRes.error } }; }
+      if (!emailRes.success) { localApiHelperLogger.warn(`${operationName}: Email sending failed.`, { userId, email, error: emailRes.error }); return { success: false, error: { message: 'Failed to create agenda due to email sending failure.', details: emailRes.error } }; }
     }
+    localApiHelperLogger.info(`${operationName}: Successfully created agenda.`, { userId });
     return { success: true };
-  } catch (e: any) { console.log('Unexpected error in createAgenda:', e.message); return { success: false, error: { message: 'Unexpected error during agenda creation.', details: e.message } }; }
+  } catch (e: any) { localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, error: e.message, details: e }); return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } }; }
 };
 export const createSummaryOfTimePeriod = async (userId: string, startDate: string, endDate: string, timezone: string, email?: string, name?: string): Promise<SuccessResponseType<string> | FailureResponseType> => { /* ... */
+  const operationName = "createSummaryOfTimePeriod";
   try {
     const eventsResult = await listEventsForDate(userId, startDate, endDate, timezone);
-    if (!eventsResult.success) { console.log('createSummary: listEventsForDate failed', eventsResult.error); return { success: false, error: { message: 'Failed to create summary due to event listing failure.', details: eventsResult.error } }; }
-    if (!eventsResult.data || eventsResult.data.length === 0) { console.log('createSummary: No events found.'); return { success: false, error: { message: 'No events found to summarize.' } }; }
+    if (!eventsResult.success) { localApiHelperLogger.warn(`${operationName}: listEventsForDate failed.`, { userId, startDate, endDate, error: eventsResult.error }); return { success: false, error: { message: 'Failed to create summary due to event listing failure.', details: eventsResult.error } }; }
+    if (!eventsResult.data || eventsResult.data.length === 0) { localApiHelperLogger.info(`${operationName}: No events found to summarize.`, { userId, startDate, endDate }); return { success: false, error: { message: 'No events found to summarize.' } }; }
     const eventsText = eventsResult.data.map(event => `${event.summary} (from ${event.startDateTime} to ${event.endDateTime})`).join('\n');
     const prompt = `Summarize the following events that occurred between ${startDate} and ${endDate}:\n${eventsText}`;
     const openAIResult = await callOpenAI("You are an assistant that summarizes a list of calendar events.", prompt);
-    if (!openAIResult.success || !openAIResult.content) { console.log('createSummary: callOpenAI failed', openAIResult.error); return { success: false, error: { message: 'Failed to create summary due to OpenAI call failure.', details: openAIResult.error } }; }
+    if (!openAIResult.success || !openAIResult.content) { localApiHelperLogger.warn(`${operationName}: callOpenAI failed.`, { userId, error: openAIResult.error }); return { success: false, error: { message: 'Failed to create summary due to OpenAI call failure.', details: openAIResult.error } }; }
     const summaryText = openAIResult.content;
     if (email && name) {
       const emailResult = await sendSummaryEmail(email, name, `Summary for ${startDate} to ${endDate}`, summaryText);
-      if (!emailResult.success) { console.log('createSummary: sendSummaryEmail failed', emailResult.error); return { success: false, error: { message: 'Failed to send summary email.', details: emailResult.error } }; }
+      if (!emailResult.success) { localApiHelperLogger.warn(`${operationName}: sendSummaryEmail failed.`, { userId, email, error: emailResult.error }); return { success: false, error: { message: 'Failed to send summary email.', details: emailResult.error } }; }
     }
+    localApiHelperLogger.info(`${operationName}: Successfully created summary.`, { userId, startDate, endDate });
     return { success: true, data: summaryText };
-  } catch (e: any) { console.log('Unexpected error in createSummaryOfTimePeriod:', e.message); return { success: false, error: { message: 'Unexpected error during summary creation.', details: e.message } }; }
+  } catch (e: any) { localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, error: e.message, details: e }); return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } }; }
 };
 const createEventHelper = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, eventSummary: string, eventDescription: string | undefined, startDateTime: string, endDateTime: string, isAllDay: boolean): Promise<CreateGoogleEventResponse> => { /* ... */
+    const operationName = "createEventHelper";
     const globalCalResult = await getGlobalCalendar(userId);
-    if (!globalCalResult.success || !globalCalResult.data?.primaryCalendarId) { console.log('EventHelper: GlobalCal fail', globalCalResult.error); return { success: false, error: { message: 'Global calendar retrieval failed for event creation.', details: globalCalResult.error } }; }
+    if (!globalCalResult.success || !globalCalResult.data?.primaryCalendarId) { localApiHelperLogger.warn(`${operationName}: GlobalCalendar retrieval failed.`, { userId, error: globalCalResult.error }); return { success: false, error: { message: 'Global calendar retrieval failed for event creation.', details: globalCalResult.error } }; }
     const calendarIdToUse = globalCalResult.data.primaryCalendarId;
     let eventStartDT = startDateTime; let eventEndDT = endDateTime;
     if(isAllDay) { eventStartDT = dayjs(startDateTime).format('YYYY-MM-DD'); eventEndDT = dayjs(endDateTime).add(1, 'day').format('YYYY-MM-DD'); }
     return createGoogleEvent(userId, calendarIdToUse, clientType, eventSummary, eventStartDT, eventEndDT, userTimezone, eventDescription);
 };
 export const breakDownTask = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, taskTitle: string, taskDescription: string, isAllDay: boolean, startDate: string, endDate: string, email?: string, name?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  const operationName = "breakDownTask";
   try {
     const openAIResult = await callOpenAI("You are an assistant that breaks down a task into smaller sub-events for a calendar.", `Break down the task: "${taskTitle}" (Description: ${taskDescription}) into smaller calendar events. Main task is from ${startDate} to ${endDate} (isAllDay: ${isAllDay}).`);
-    if (!openAIResult.success || !openAIResult.content) { console.log('breakDownTask: OpenAI fail', openAIResult.error); return { success: false, error: { message: 'OpenAI call failed during task breakdown.', details: openAIResult.error } }; }
+    if (!openAIResult.success || !openAIResult.content) { localApiHelperLogger.warn(`${operationName}: OpenAI call failed.`, { userId, taskTitle, error: openAIResult.error }); return { success: false, error: { message: 'OpenAI call failed during task breakdown.', details: openAIResult.error } }; }
     const breakdownText = openAIResult.content;
     const createEventRes = await createEventHelper(userId, clientType, userTimezone, taskTitle, breakdownText, startDate, endDate, isAllDay);
-    if (!createEventRes.success) { console.log('breakDownTask: CreateGEvent fail', createEventRes.error); return { success: false, error: { message: 'Google event creation failed for task breakdown.', details: createEventRes.error } }; }
-    const globalCal = await getGlobalCalendar(userId); if(!globalCal.success || !globalCal.data?.id) { console.log('breakDownTask: getGlobalCalendar for DB ID failed', globalCal.error); return { success: false, error: { message: 'Failed to get global calendar ID for DB upsert.', details: globalCal.error } }; }
+    if (!createEventRes.success) { localApiHelperLogger.warn(`${operationName}: Google event creation failed.`, { userId, taskTitle, error: createEventRes.error }); return { success: false, error: { message: 'Google event creation failed for task breakdown.', details: createEventRes.error } }; }
+    const globalCal = await getGlobalCalendar(userId); if(!globalCal.success || !globalCal.data?.id) { localApiHelperLogger.warn(`${operationName}: getGlobalCalendar for DB ID failed.`, { userId, taskTitle, error: globalCal.error }); return { success: false, error: { message: 'Failed to get global calendar ID for DB upsert.', details: globalCal.error } }; }
     const eventToUpsert: EventInput = { userId, calendarId: globalCal.data.id, gEventId: createEventRes.data.googleEventId, summary: taskTitle, description: breakdownText, startDateTime: startDate, endDateTime: endDate, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
     const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
-    if (!upsertRes.success) { console.log('breakDownTask: Upsert fail', upsertRes.error); return { success: false, error: { message: 'Database event upsert failed for task breakdown.', details: upsertRes.error } }; }
+    if (!upsertRes.success) { localApiHelperLogger.warn(`${operationName}: Database event upsert failed.`, { userId, taskTitle, error: upsertRes.error }); return { success: false, error: { message: 'Database event upsert failed for task breakdown.', details: upsertRes.error } }; }
     if (email && name) {
       const emailRes = await emailTaskBreakDown(email, name, taskTitle, breakdownText);
-      if (!emailRes.success) { console.log('breakDownTask: Email fail', emailRes.error); return { success: false, error: { message: 'Email sending failed for task breakdown.', details: emailRes.error } }; }
+      if (!emailRes.success) { localApiHelperLogger.warn(`${operationName}: Email sending failed.`, { userId, email, taskTitle, error: emailRes.error }); return { success: false, error: { message: 'Email sending failed for task breakdown.', details: emailRes.error } }; }
     }
+    localApiHelperLogger.info(`${operationName}: Successfully broke down task.`, { userId, taskTitle });
     return { success: true };
-  } catch (e: any) { console.log('Unexpected error in breakDownTask:', e.message); return { success: false, error: { message: 'Unexpected error during task breakdown.', details: e.message } }; }
+  } catch (e: any) { localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, taskTitle, error: e.message, details: e }); return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } }; }
 };
 export const howToTask = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, taskTitle: string, isAllDay: boolean, startDate: string, endDate: string, email?: string, name?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  const operationName = "howToTask";
   try {
     const openAIResult = await callOpenAI("You are an assistant that provides instructions on how to complete a task and schedules it.", `Provide instructions for task: "${taskTitle}". Schedule it from ${startDate} to ${endDate} (isAllDay: ${isAllDay}).`);
-    if (!openAIResult.success || !openAIResult.content) { console.log('howToTask: OpenAI fail', openAIResult.error); return { success: false, error: { message: 'OpenAI call failed for how-to task.', details: openAIResult.error } }; }
+    if (!openAIResult.success || !openAIResult.content) { localApiHelperLogger.warn(`${operationName}: OpenAI call failed.`, { userId, taskTitle, error: openAIResult.error }); return { success: false, error: { message: 'OpenAI call failed for how-to task.', details: openAIResult.error } }; }
     const howToContent = openAIResult.content;
     const createEventRes = await createEventHelper(userId, clientType, userTimezone, `How to: ${taskTitle}`, howToContent, startDate, endDate, isAllDay);
-    if (!createEventRes.success) { console.log('howToTask: CreateGEvent fail', createEventRes.error); return { success: false, error: { message: 'Google event creation failed for how-to task.', details: createEventRes.error } }; }
-    const globalCal = await getGlobalCalendar(userId); if(!globalCal.success || !globalCal.data?.id) { console.log('howToTask: getGlobalCalendar for DB ID failed', globalCal.error); return { success: false, error: { message: 'Failed to get global calendar ID for DB upsert (how-to).', details: globalCal.error } }; }
+    if (!createEventRes.success) { localApiHelperLogger.warn(`${operationName}: Google event creation failed.`, { userId, taskTitle, error: createEventRes.error }); return { success: false, error: { message: 'Google event creation failed for how-to task.', details: createEventRes.error } }; }
+    const globalCal = await getGlobalCalendar(userId); if(!globalCal.success || !globalCal.data?.id) { localApiHelperLogger.warn(`${operationName}: getGlobalCalendar for DB ID failed.`, { userId, taskTitle, error: globalCal.error }); return { success: false, error: { message: 'Failed to get global calendar ID for DB upsert (how-to).', details: globalCal.error } }; }
     const eventToUpsert: EventInput = { userId, calendarId: globalCal.data.id, gEventId: createEventRes.data.googleEventId, summary: `How to: ${taskTitle}`, description: howToContent, startDateTime: startDate, endDateTime: endDate, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' };
     const upsertRes = await upsertEventsPostPlanner([eventToUpsert]);
-    if (!upsertRes.success) { console.log('howToTask: Upsert fail', upsertRes.error); return { success: false, error: { message: 'Database event upsert failed for how-to task.', details: upsertRes.error } }; }
+    if (!upsertRes.success) { localApiHelperLogger.warn(`${operationName}: Database event upsert failed.`, { userId, taskTitle, error: upsertRes.error }); return { success: false, error: { message: 'Database event upsert failed for how-to task.', details: upsertRes.error } }; }
     if (email && name) {
       const emailRes = await sendGenericTaskEmail(email, name, `Instructions for: ${taskTitle}`, howToContent);
-      if (!emailRes.success) { console.log('howToTask: Email fail', emailRes.error); return { success: false, error: { message: 'Email sending failed for how-to task.', details: emailRes.error } }; }
+      if (!emailRes.success) { localApiHelperLogger.warn(`${operationName}: Email sending failed.`, { userId, email, taskTitle, error: emailRes.error }); return { success: false, error: { message: 'Email sending failed for how-to task.', details: emailRes.error } }; }
     }
+    localApiHelperLogger.info(`${operationName}: Successfully processed how-to task.`, { userId, taskTitle });
     return { success: true };
-  } catch (e: any) { console.log('Unexpected error in howToTask:', e.message); return { success: false, error: { message: 'Unexpected error during how-to task processing.', details: e.message } }; }
+  } catch (e: any) { localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, taskTitle, error: e.message, details: e }); return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } }; }
 };
 export const meetingRequest = async (userId: string, clientType: CalendarIntegrationType['clientType'], userTimezone: string, userDateContext: string, attendees: string, subject: string, promptVal: string, durationMinutes: number, shareAvailability: boolean, availabilityUserDateStart?: string, availabilityUserDateEnd?: string, emailTo?: string, emailName?: string, yesLink?: string, noLink?: string): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+    const operationName = "meetingRequest";
     try {
         let availabilitySummary = "Not applicable.";
         if (shareAvailability) {
-            if (!availabilityUserDateStart || !availabilityUserDateEnd) return { success: false, error: { message: "Availability start and end dates are required when shareAvailability is true." } };
+            if (!availabilityUserDateStart || !availabilityUserDateEnd) return { success: false, error: { message: "Availability start and end dates are required when shareAvailability is true." } }; // No logger needed, validation error
             const genAvailRes = await generateAvailability(userId, availabilityUserDateStart, availabilityUserDateEnd, userTimezone /*, clientType - clientType not used by generateAvailability directly */);
-            if (!genAvailRes.success) { console.log('meetingRequest: generateAvailability failed', genAvailRes.error); return { success: false, error: { message: 'Failed to generate availability.', details: genAvailRes.error } }; }
-            if (!genAvailRes.data || genAvailRes.data.length === 0) { console.log('meetingRequest: No availability slots found.'); return { success: false, error: { message: 'No availability slots found to share.' } }; }
+            if (!genAvailRes.success) { localApiHelperLogger.warn(`${operationName}: generateAvailability failed.`, { userId, subject, error: genAvailRes.error }); return { success: false, error: { message: 'Failed to generate availability.', details: genAvailRes.error } }; }
+            if (!genAvailRes.data || genAvailRes.data.length === 0) { localApiHelperLogger.info(`${operationName}: No availability slots found.`, { userId, subject }); return { success: false, error: { message: 'No availability slots found to share.' } }; }
             const slotsByDate = _.groupBy(genAvailRes.data, slot => dayjs(slot.startDate).tz(userTimezone).format('YYYY-MM-DD'));
             let dailySummaries: string[] = [];
             for (const date in slotsByDate) {
                 const slots = slotsByDate[date].map(slot => `${dayjs(slot.startDate).tz(userTimezone).format('h:mm A')} - ${dayjs(slot.endDate).tz(userTimezone).format('h:mm A')}`).join(', ');
                 const dailySummaryRes = await callOpenAI("Summarize daily availability.", `Summarize these availability slots for ${date}: ${slots}`);
-                if (!dailySummaryRes.success || !dailySummaryRes.content) { console.log(`meetingRequest: OpenAI daily summary failed for ${date}`, dailySummaryRes.error); return { success: false, error: { message: `Failed to summarize availability for date ${date}.`, details: dailySummaryRes.error } }; }
+                if (!dailySummaryRes.success || !dailySummaryRes.content) { localApiHelperLogger.warn(`${operationName}: OpenAI daily summary failed for date ${date}.`, { userId, subject, date, error: dailySummaryRes.error }); return { success: false, error: { message: `Failed to summarize availability for date ${date}.`, details: dailySummaryRes.error } }; }
                 dailySummaries.push(dailySummaryRes.content);
             }
-            if (dailySummaries.length === 0) return { success: false, error: { message: 'No availability slots found after processing.' } }; // Should be caught by earlier check
+            if (dailySummaries.length === 0) { localApiHelperLogger.info(`${operationName}: No availability slots after processing.`, { userId, subject }); return { success: false, error: { message: 'No availability slots found after processing.' } }; }
             const combinedSummaryRes = await callOpenAI("Combine daily availability summaries.", `Combine these daily availability summaries:\n${dailySummaries.join('\n')}`);
-            if (!combinedSummaryRes.success || !combinedSummaryRes.content) { console.log('meetingRequest: OpenAI combined summary failed', combinedSummaryRes.error); return { success: false, error: { message: 'Failed to generate combined availability summary.', details: combinedSummaryRes.error } }; }
+            if (!combinedSummaryRes.success || !combinedSummaryRes.content) { localApiHelperLogger.warn(`${operationName}: OpenAI combined summary failed.`, { userId, subject, error: combinedSummaryRes.error }); return { success: false, error: { message: 'Failed to generate combined availability summary.', details: combinedSummaryRes.error } }; }
             availabilitySummary = combinedSummaryRes.content;
         }
         const emailDraftPrompt = `Draft a meeting request email. Subject: ${subject} Attendees: ${attendees} User's request: ${promptVal} Meeting duration: ${durationMinutes} minutes. Contextual user date: ${userDateContext}. User's timezone: ${userTimezone}. ${shareAvailability ? `Include this availability: ${availabilitySummary}` : "Ask for their availability."} Polite, clear call to action. Placeholders for response links if applicable.`;
         const emailBodyRes = await callOpenAI("Draft a meeting request email.", emailDraftPrompt);
-        if (!emailBodyRes.success || !emailBodyRes.content) { console.log('meetingRequest: OpenAI email draft failed', emailBodyRes.error); return { success: false, error: { message: 'Failed to draft meeting request email body.', details: emailBodyRes.error } }; }
+        if (!emailBodyRes.success || !emailBodyRes.content) { localApiHelperLogger.warn(`${operationName}: OpenAI email draft failed.`, { userId, subject, error: emailBodyRes.error }); return { success: false, error: { message: 'Failed to draft meeting request email body.', details: emailBodyRes.error } }; }
         if (emailTo && emailName && yesLink && noLink) {
             const sendEmailRes = await sendMeetingRequestTemplate(emailTo, emailName, subject, emailBodyRes.content, yesLink, noLink);
-            if (!sendEmailRes.success) { console.log('meetingRequest: sendMeetingRequestTemplate failed', sendEmailRes.error); return { success: false, error: { message: 'Failed to send meeting request email.', details: sendEmailRes.error } }; }
-        } else { console.log('meetingRequest: Email recipient details not provided. Drafted body:', emailBodyRes.content); }
+            if (!sendEmailRes.success) { localApiHelperLogger.warn(`${operationName}: sendMeetingRequestTemplate failed.`, { userId, emailTo, subject, error: sendEmailRes.error }); return { success: false, error: { message: 'Failed to send meeting request email.', details: sendEmailRes.error } }; }
+        } else { localApiHelperLogger.info(`${operationName}: Email recipient details not provided, email not sent.`, { userId, subject, draftedBody: emailBodyRes.content }); }
+        localApiHelperLogger.info(`${operationName}: Successfully processed meeting request.`, { userId, subject, emailSent: !!(emailTo && emailName) });
         return { success: true };
-    } catch (e: any) { console.log('Unexpected error in meetingRequest:', e.message); return { success: false, error: { message: 'Unexpected error during meeting request processing.', details: e.message } }; }
+    } catch (e: any) { localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, subject, error: e.message, details: e }); return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } }; }
 };
 export const createDaySchedule = async ( userId: string, clientType: CalendarIntegrationType['clientType'], userDate: string, userTimezone: string, prompt: string, isAllDay: boolean, email?: string, name?: string ): Promise<GenericSuccessResponse | FailureResponseType> => { /* ... */
+  const operationName = "createDaySchedule";
   try {
     const dayStart = dayjs.tz(userDate, userTimezone).startOf('day').toISOString(); const dayEnd = dayjs.tz(userDate, userTimezone).endOf('day').toISOString();
     const existingEventsRes = await listEventsForUserGivenDates(userId, dayStart, dayEnd);
-    if (!existingEventsRes.success) { console.log('createDaySchedule: listEventsForUserGivenDates failed', existingEventsRes.error); return { success: false, error: { message: 'Failed to list existing events for schedule context.', details: existingEventsRes.error } }; }
+    if (!existingEventsRes.success) { localApiHelperLogger.warn(`${operationName}: listEventsForUserGivenDates failed.`, { userId, userDate, error: existingEventsRes.error }); return { success: false, error: { message: 'Failed to list existing events for schedule context.', details: existingEventsRes.error } }; }
     const existingEventsText = existingEventsRes.data.map(e => `${e.summary} from ${dayjs(e.startDateTime).tz(userTimezone).format('h:mm A')} to ${dayjs(e.endDateTime).tz(userTimezone).format('h:mm A')}`).join('\n') || "No existing events scheduled.";
     const openAIPrompt = `Given the user's request: "${prompt}", and their existing schedule for ${userDate} in ${userTimezone}:\n${existingEventsText}\n\nCreate a schedule of new tasks as a JSON array. Each task object should have "start_time" (e.g., "9:00 AM"), "end_time" (e.g., "10:30 AM"), "task" (summary), and optionally "description". Ensure new tasks do not overlap with existing events unless the prompt explicitly asks to replace or modify them. For an all-day schedule, the tasks should collectively represent the day's plan without specific times, just a list of tasks and descriptions. This is an ${isAllDay ? 'all-day' : 'itemized time'} schedule.`;
     const openAIResponse = await callOpenAI("You are a scheduling assistant.", openAIPrompt);
-    if (!openAIResponse.success || !openAIResponse.content) { console.log('createDaySchedule: callOpenAI failed', openAIResponse.error); return { success: false, error: { message: 'Failed to generate schedule via OpenAI.', details: openAIResponse.error } }; }
+    if (!openAIResponse.success || !openAIResponse.content) { localApiHelperLogger.warn(`${operationName}: callOpenAI failed.`, { userId, userDate, error: openAIResponse.error }); return { success: false, error: { message: 'Failed to generate schedule via OpenAI.', details: openAIResponse.error } }; }
     let parsedTasks: ParsedScheduleTask[];
     try { parsedTasks = JSON.parse(openAIResponse.content); }
-    catch (e: any) { console.log('createDaySchedule: Failed to parse OpenAI response as JSON', e.message); return { success: false, error: { message: 'Failed to parse schedule from OpenAI response as JSON.', details: e.message, rawResponse: openAIResponse.content } }; }
-    if (!Array.isArray(parsedTasks)) { console.log('createDaySchedule: OpenAI response is not a valid array', parsedTasks); return { success: false, error: { message: 'OpenAI schedule response is not a valid array.', parsedResponse: parsedTasks } }; }
+    catch (e: any) { localApiHelperLogger.error(`${operationName}: Failed to parse OpenAI response as JSON.`, { userId, userDate, error: e.message, rawResponse: openAIResponse.content, details: e }); return { success: false, error: { message: 'Failed to parse schedule from OpenAI response as JSON.', details: e.message, rawResponse: openAIResponse.content } }; }
+    if (!Array.isArray(parsedTasks)) { localApiHelperLogger.warn(`${operationName}: OpenAI response is not a valid array.`, { userId, userDate, parsedResponse: parsedTasks }); return { success: false, error: { message: 'OpenAI schedule response is not a valid array.', parsedResponse: parsedTasks } }; }
     if (parsedTasks.length === 0) {
-      console.log('createDaySchedule: No new tasks parsed from OpenAI response.');
-      if (email && name) { const emailResult = await sendGenericTaskEmail(email, name, `Your Schedule for ${userDate}`, "No new tasks were scheduled based on your request and current calendar."); if (!emailResult.success) { console.log('createDaySchedule: Failed to send no-tasks email.', emailResult.error); return { success: false, error: { message: 'Failed to send schedule update email (no new tasks).', details: emailResult.error } }; } }
+      localApiHelperLogger.info(`${operationName}: No new tasks parsed from OpenAI response.`, { userId, userDate });
+      if (email && name) { const emailResult = await sendGenericTaskEmail(email, name, `Your Schedule for ${userDate}`, "No new tasks were scheduled based on your request and current calendar."); if (!emailResult.success) { localApiHelperLogger.warn(`${operationName}: Failed to send no-tasks email.`, { userId, userDate, email, error: emailResult.error }); return { success: false, error: { message: 'Failed to send schedule update email (no new tasks).', details: emailResult.error } }; } }
       return { success: true };
     }
     const globalCalendarResult = await getGlobalCalendar(userId);
-    if (!globalCalendarResult.success || !globalCalendarResult.data?.primaryCalendarId || !globalCalendarResult.data?.id) { console.log('createDaySchedule: Failed to get global calendar or primaryCalendarId/id.', globalCalendarResult.error); return { success: false, error: { message: 'Failed to get global calendar for scheduling.', details: globalCalendarResult.error } }; }
+    if (!globalCalendarResult.success || !globalCalendarResult.data?.primaryCalendarId || !globalCalendarResult.data?.id) { localApiHelperLogger.warn(`${operationName}: Failed to get global calendar.`, { userId, userDate, error: globalCalendarResult.error }); return { success: false, error: { message: 'Failed to get global calendar for scheduling.', details: globalCalendarResult.error } }; }
     const { primaryCalendarId: googleCalendarIdForEvents, id: dbCalendarId } = globalCalendarResult.data;
     const eventsToUpsert: EventInput[] = [];
     if (isAllDay) {
       const allDayTaskSummary = `Day Schedule: ${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}`; const allDayTaskDescription = parsedTasks.map(task => `${task.task}${task.description ? `:\n${task.description}` : ''}`).join('\n\n---\n\n');
       const allDayStartDate = dayjs.tz(userDate, userTimezone).startOf('day').format('YYYY-MM-DD'); const allDayEndDate = dayjs.tz(userDate, userTimezone).add(1, 'day').startOf('day').format('YYYY-MM-DD');
       const createEventRes = await createGoogleEvent(userId, googleCalendarIdForEvents, clientType, allDayTaskSummary, allDayStartDate, allDayEndDate, userTimezone, allDayTaskDescription);
-      if (!createEventRes.success) { console.log('createDaySchedule: Failed to create all-day Google event.', createEventRes.error); return { success: false, error: { message: 'Failed to create all-day Google Calendar event.', details: createEventRes.error } }; }
+      if (!createEventRes.success) { localApiHelperLogger.warn(`${operationName}: Failed to create all-day Google event.`, { userId, userDate, error: createEventRes.error }); return { success: false, error: { message: 'Failed to create all-day Google Calendar event.', details: createEventRes.error } }; }
       eventsToUpsert.push({ userId, calendarId: dbCalendarId, gEventId: createEventRes.data.googleEventId, summary: allDayTaskSummary, description: allDayTaskDescription, startDateTime: allDayStartDate, endDateTime: allDayEndDate, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' });
     } else {
       for (const task of parsedTasks) {
         const taskStart = dayjs.tz(`${userDate} ${task.start_time}`, 'YYYY-MM-DD h:mm A', userTimezone); const taskEnd = dayjs.tz(`${userDate} ${task.end_time}`, 'YYYY-MM-DD h:mm A', userTimezone);
-        if (!taskStart.isValid() || !taskEnd.isValid()) { console.log(`createDaySchedule: Invalid time format for task "${task.task}"`); return { success: false, error: { message: `Invalid time format for task "${task.task}". Please use HH:MM AM/PM.`, details: { task } }}; }
+        if (!taskStart.isValid() || !taskEnd.isValid()) { localApiHelperLogger.warn(`${operationName}: Invalid time format for task "${task.task}"`, { userId, userDate, task }); return { success: false, error: { message: `Invalid time format for task "${task.task}". Please use HH:MM AM/PM.`, details: { task } }}; }
         const startDateTime = taskStart.toISOString(); const endDateTime = taskEnd.toISOString();
         const overlaps = existingEventsRes.data.some(existingEvent => dayjs(startDateTime).isBefore(dayjs(existingEvent.endDateTime)) && dayjs(endDateTime).isAfter(dayjs(existingEvent.startDateTime)));
-        if (overlaps) { console.log(`createDaySchedule: Task "${task.task}" overlaps. Skipping.`); continue; }
+        if (overlaps) { localApiHelperLogger.info(`${operationName}: Task "${task.task}" overlaps. Skipping.`, { userId, userDate, task }); continue; }
         const createEventRes = await createGoogleEvent(userId, googleCalendarIdForEvents, clientType, task.task, startDateTime, endDateTime, userTimezone, task.description);
-        if (!createEventRes.success) { console.log('createDaySchedule: Failed to create Google event for task.', task, createEventRes.error); return { success: false, error: { message: `Failed to create Google Calendar event for task: "${task.task}".`, details: createEventRes.error } }; }
+        if (!createEventRes.success) { localApiHelperLogger.warn(`${operationName}: Failed to create Google event for task.`, { userId, userDate, task, error: createEventRes.error }); return { success: false, error: { message: `Failed to create Google Calendar event for task: "${task.task}".`, details: createEventRes.error } }; }
         eventsToUpsert.push({ userId, calendarId: dbCalendarId, gEventId: createEventRes.data.googleEventId, summary: task.task, description: task.description, startDateTime, endDateTime, timezone: userTimezone, provider: 'google_calendar', status: 'confirmed' });
       }
     }
     if (eventsToUpsert.length === 0) {
-        console.log('createDaySchedule: No new non-overlapping tasks to schedule.');
-        if (email && name) { const emailBody = "Your day schedule was processed. After checking for overlaps with existing events, no new tasks were added to your calendar."; const emailResult = await sendGenericTaskEmail(email, name, `Your Schedule for ${userDate}`, emailBody); if (!emailResult.success) { console.log('createDaySchedule: Failed to send no-new-tasks email.', emailResult.error); return { success: false, error: { message: 'Failed to send schedule update email (no new tasks after filtering).', details: emailResult.error } }; } }
+        localApiHelperLogger.info(`${operationName}: No new non-overlapping tasks to schedule.`, { userId, userDate });
+        if (email && name) { const emailBody = "Your day schedule was processed. After checking for overlaps with existing events, no new tasks were added to your calendar."; const emailResult = await sendGenericTaskEmail(email, name, `Your Schedule for ${userDate}`, emailBody); if (!emailResult.success) { localApiHelperLogger.warn(`${operationName}: Failed to send no-new-tasks email.`, { userId, userDate, email, error: emailResult.error }); return { success: false, error: { message: 'Failed to send schedule update email (no new tasks after filtering).', details: emailResult.error } }; } }
         return { success: true };
     }
     const upsertResult = await upsertEventsPostPlanner(eventsToUpsert);
-    if (!upsertResult.success) { console.log('createDaySchedule: upsertEventsPostPlanner failed', upsertResult.error); return { success: false, error: { message: 'Failed to save scheduled events to database.', details: upsertResult.error } }; }
+    if (!upsertResult.success) { localApiHelperLogger.warn(`${operationName}: upsertEventsPostPlanner failed.`, { userId, userDate, error: upsertResult.error }); return { success: false, error: { message: 'Failed to save scheduled events to database.', details: upsertResult.error } }; }
     if (email && name) {
-      const emailBodyContent = openAIResponse.content;
+      const emailBodyContent = openAIResponse.content; // This is the JSON string of tasks. Consider formatting for email.
       const emailResult = await sendGenericTaskEmail(email, name, `Your Daily Schedule for ${userDate}`, emailBodyContent);
-      if (!emailResult.success) { console.log('createDaySchedule: emailDailySchedule failed', emailResult.error); return { success: false, error: { message: 'Failed to send daily schedule email.', details: emailResult.error } }; }
+      if (!emailResult.success) { localApiHelperLogger.warn(`${operationName}: emailDailySchedule failed.`, { userId, userDate, email, error: emailResult.error }); return { success: false, error: { message: 'Failed to send daily schedule email.', details: emailResult.error } }; }
     }
+    localApiHelperLogger.info(`${operationName}: Successfully created day schedule.`, { userId, userDate, tasksScheduled: eventsToUpsert.length });
     return { success: true };
-  } catch (e: any) { console.log('Unexpected error in createDaySchedule:', e.message, e); return { success: false, error: { message: 'Unexpected error during day schedule creation.', details: e.message } }; }
+  } catch (e: any) { localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, userDate, error: e.message, details: e }); return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } }; }
 };
 
 // --- Availability Generation Functions (Refactored) ---
@@ -901,14 +913,15 @@ export const generateAvailability = async (
     receiverGeneratedTimezone: string, // Target timezone for the slots
     // clientType is not directly used here but might be used by listEvents if it were more complex
 ): Promise<SuccessResponseType<AvailabilitySlot[]> | FailureResponseType> => {
+  const operationName = "generateAvailability";
   try {
     const prefsResult = await getUserPreferences(userId);
     if (!prefsResult.success) {
-      console.log('generateAvailability: getUserPreferences failed', prefsResult.error);
+      localApiHelperLogger.warn(`${operationName}: getUserPreferences failed.`, { userId, error: prefsResult.error });
       return { success: false, error: { message: 'Failed to get user preferences for availability generation.', details: prefsResult.error } };
     }
     if (!prefsResult.data) {
-      console.log('generateAvailability: User preferences not found.');
+      localApiHelperLogger.warn(`${operationName}: User preferences not found.`, { userId });
       return { success: false, error: { message: 'User preferences not found, cannot generate availability.' } };
     }
     const senderPreferences = prefsResult.data;
@@ -920,7 +933,7 @@ export const generateAvailability = async (
 
     const eventsResult = await listEventsForUserGivenDates(userId, scanStartUtc, scanEndUtc);
     if (!eventsResult.success) {
-      console.log('generateAvailability: listEventsForUserGivenDates failed', eventsResult.error);
+      localApiHelperLogger.warn(`${operationName}: listEventsForUserGivenDates failed.`, { userId, scanStartUtc, scanEndUtc, error: eventsResult.error });
       return { success: false, error: { message: 'Failed to list existing events for availability generation.', details: eventsResult.error } };
     }
     const existingEvents = eventsResult.data; // These are already in UTC from Hasura (assuming timestamptz)
@@ -934,11 +947,11 @@ export const generateAvailability = async (
       existingEvents,
       receiverGeneratedTimezone // Slots should be generated considering this as the target display timezone context
     );
-
+    localApiHelperLogger.info(`${operationName}: Successfully generated availability slots.`, { userId, slotsCount: availabilityResult.availableSlots.length });
     return { success: true, data: availabilityResult.availableSlots };
 
   } catch (e: any) {
-    console.log('Unexpected error in generateAvailability:', e.message, e);
-    return { success: false, error: { message: 'Unexpected error during availability generation.', details: e.message } };
+    localApiHelperLogger.error(`Unexpected error in ${operationName}:`, { userId, error: e.message, details: e });
+    return { success: false, error: { message: `Unexpected error during ${operationName}.`, details: e.message } };
   }
 };

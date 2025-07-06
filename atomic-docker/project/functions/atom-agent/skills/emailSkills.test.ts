@@ -208,6 +208,64 @@ describe('Email Skills', () => {
       expect(response.message).toContain('Email sending is not configured (missing source email)');
       expect(mockSend).not.toHaveBeenCalled(); // SES client initialization might throw or sendEmail returns early
     });
+
+    it('should retry sending email and succeed on the second attempt', async () => {
+      const freshEmailSkills = require('./emailSkills');
+      const { logger } = require('../../_utils/logger'); // Get access to the mocked logger
+
+      mockSend
+        .mockRejectedValueOnce(new Error('SES Send Error Attempt 1'))
+        .mockResolvedValueOnce({ MessageId: 'ses-message-id-retry-success' });
+
+      const emailDetails: emailSkills.EmailDetails = {
+        to: 'recipient@example.com',
+        subject: 'Retry Test Subject',
+        body: 'Retry Test Body',
+      };
+      const response = await freshEmailSkills.sendEmail(emailDetails);
+
+      expect(response.success).toBe(true);
+      expect(response.emailId).toBe('ses-message-id-retry-success');
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Attempt 1 to send email via SES failed. Retrying...'),
+        expect.anything()
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Email sent successfully via SES on attempt 2.'),
+        expect.objectContaining({ messageId: 'ses-message-id-retry-success' })
+      );
+    });
+
+    it('should fail after all retry attempts', async () => {
+      const freshEmailSkills = require('./emailSkills');
+      const { logger } = require('../../_utils/logger');
+
+      mockSend
+        .mockRejectedValueOnce(new Error('SES Send Error Attempt 1'))
+        .mockRejectedValueOnce(new Error('SES Send Error Attempt 2'))
+        .mockRejectedValueOnce(new Error('SES Send Error Attempt 3'));
+
+      const emailDetails: emailSkills.EmailDetails = {
+        to: 'recipient@example.com',
+        subject: 'Retry Fail Subject',
+        body: 'Retry Fail Body',
+      };
+      const response = await freshEmailSkills.sendEmail(emailDetails);
+
+      expect(response.success).toBe(false);
+      expect(response.emailId).toBeUndefined();
+      expect(response.message).toContain('Failed to send email via AWS SES after 3 attempts: SES Send Error Attempt 3');
+      expect(mockSend).toHaveBeenCalledTimes(3);
+      expect(logger.warn).toHaveBeenCalledTimes(3); // Called for each failed attempt that leads to a retry
+      expect(logger.warn).toHaveBeenNthCalledWith(1, expect.stringContaining('Attempt 1'), expect.anything());
+      expect(logger.warn).toHaveBeenNthCalledWith(2, expect.stringContaining('Attempt 2'), expect.anything());
+      expect(logger.warn).toHaveBeenNthCalledWith(3, expect.stringContaining('Attempt 3'), expect.anything());
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error sending email via AWS SES after multiple retries:'),
+        expect.objectContaining({ errorMessage: 'SES Send Error Attempt 3' })
+      );
+    });
   });
 });
 
