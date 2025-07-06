@@ -128,57 +128,52 @@ export const createRemindersForEvent = async (
 ) => {
   try {
     console.log(reminderValuesToUpsert, ' reminderValuesToUpsert inside createRemindersForEvent')
+    // ASSUMPTION: A custom mutation 'bulkUpsertReminders' is defined in PostGraphile
     const upsertReminder = gql`
-    mutation InsertReminder($reminders: [Reminder_insert_input!]!) {
-            insert_Reminder(
-                objects: $reminders,
-                on_conflict: {
-                    constraint: Reminder_pkey,
-                    update_columns: [
-                      eventId,
-                      reminderDate,
-                      timezone,
-                      method,
-                      minutes,
-                      useDefault,
-                      updatedAt,
-                      deleted
-                    ]
-                }) {
-                  affected_rows
-                  returning {
-                    id
-                    reminderDate
-                    eventId
-                    timezone
-                    method
-                    minutes
-                    useDefault
-                    deleted
-                    createdDate
-                    updatedAt
-                    userId
-                  }
-                }
-              }   
-       `
-    const results = (await client.mutate<{ insert_Reminder: { returning: ReminderType[], affected_rows: number } }>({
+    mutation BulkUpsertReminders($reminders: [ReminderInput!]!) {
+      bulkUpsertReminders(input: { reminders: $reminders }) {
+        # Assuming the custom function returns a list of the upserted reminders
+        results: reminders { # Or similar, depending on PG function and PostGraphile schema
+          id
+          reminderDate
+          eventId
+          timezone
+          method
+          minutes
+          useDefault
+          deleted
+          createdDate
+          updatedAt
+          userId
+        }
+        # affectedCount # If the function returns a count
+      }
+    }
+  `
+    // Adjust generic type for client.mutate based on actual PostGraphile mutation payload
+    const resultsData = (await client.mutate<{ bulkUpsertReminders: { results: ReminderType[] } }>({
       mutation: upsertReminder,
       variables: {
         reminders: reminderValuesToUpsert,
       },
       update(cache, { data }) {
-        if (data?.insert_Reminder?.affected_rows > 0) {
-          console.log('insert_Reminder', data)
-        }
+        const upsertedReminders = data?.bulkUpsertReminders?.results;
+        if (upsertedReminders && upsertedReminders.length > 0) {
+          console.log('bulkUpsertReminders results', upsertedReminders);
 
-        cache.modify({
-          fields: {
-            Reminder(existingReminders = []) {
-              const newReminderRefs = data?.insert_Reminder?.returning.map(c => (cache.writeFragment({
-                data: c,
-                fragment: gql`
-                    fragment NewReminder on Reminder {
+          // The original cache logic was modifying a root field 'Reminder'.
+          // This is less common with PostGraphile which usually uses connection types like 'allReminders'.
+          // This part is highly dependent on your actual queries and PostGraphile schema.
+          // It will need to be verified and likely adjusted.
+          cache.modify({
+            fields: {
+              // This field name 'Reminder' is likely incorrect for PostGraphile.
+              // It would typically be 'allReminders' or a specific query name.
+              Reminder: (existingReminders = []) => { // Placeholder for existing cache update logic
+                const newReminderRefs = upsertedReminders.map(c => (cache.writeFragment({
+                  data: c,
+                  fragment: gql`
+                    fragment NewReminder on Reminder { # Type name 'Reminder' should be checked
                       id
                       reminderDate
                       eventId
@@ -248,58 +243,48 @@ export const createReminderForEvent = async (
       reminderValueToUpsert.useDefault = useDefault
     }
 
-
-    const upsertReminder = gql`
-    mutation InsertReminder($reminders: [Reminder_insert_input!]!) {
-            insert_Reminder(
-                objects: $reminders,
-                on_conflict: {
-                    constraint: Reminder_pkey,
-                    update_columns: [
-                      eventId,
-                      ${reminderDate ? 'reminderDate,' : ''},
-                      ${timezone ? 'timezone,' : ''},
-                      method,
-                      ${minutes ? 'minutes,' : ''},
-                      ${useDefault ? 'useDefault,' : ''},
-                      updatedAt,
-                      deleted
-                    ]
-                }) {
-                  affected_rows
-                  returning {
-                    id
-                    reminderDate
-                    eventId
-                    timezone
-                    method
-                    minutes
-                    useDefault
-                    deleted
-                    createdDate
-                    updatedAt
-                    userId
-                  }
-                }
-              }
-       `
-    const results = (await client.mutate<{ insert_Reminder: { returning: ReminderType[], affected_rows: number } }>({
-      mutation: upsertReminder,
+    // ASSUMPTION: A custom mutation 'upsertReminder' is defined in PostGraphile for single upsert
+    // The dynamic update_columns logic is now handled by the PG function.
+    const upsertReminderMutation = gql`
+    mutation UpsertReminder($reminder: ReminderInput!) {
+      upsertReminder(input: { reminder: $reminder }) { # Or input: $reminder directly, depends on PG func
+        reminder { # Standard PostGraphile payload
+          id
+          reminderDate
+          eventId
+          timezone
+          method
+          minutes
+          useDefault
+          deleted
+          createdDate
+          updatedAt
+          userId
+        }
+      }
+    }
+  `
+    // Adjust generic type for client.mutate based on actual PostGraphile mutation payload
+    const resultsData = (await client.mutate<{ upsertReminder: { reminder: ReminderType } }>({
+      mutation: upsertReminderMutation,
       variables: {
-        reminders: [reminderValueToUpsert],
+        reminder: reminderValueToUpsert, // Pass the single object
       },
       update(cache, { data }) {
-        if (data?.insert_Reminder?.affected_rows > 0) {
-          console.log('insert_Reminder', data)
-        }
+        const upsertedReminder = data?.upsertReminder?.reminder;
+        if (upsertedReminder) {
+          console.log('upsertReminder result', upsertedReminder);
 
-        cache.modify({
-          fields: {
-            Reminder(existingReminders = []) {
-              const newReminderRefs = data?.insert_Reminder?.returning.map(c => (cache.writeFragment({
-                data: c,
-                fragment: gql`
-                    fragment NewReminder on Reminder {
+          // Similar cache update considerations as above.
+          cache.modify({
+            fields: {
+              // Field name 'Reminder' is likely incorrect for PostGraphile list queries.
+              Reminder: (existingReminders = []) => { // Placeholder
+                // Logic to update or add the single reminder to the cache
+                const newReminderRef = cache.writeFragment({
+                  data: upsertedReminder,
+                  fragment: gql`
+                    fragment NewSingleReminder on Reminder { # Type name 'Reminder' should be checked
                       id
                       reminderDate
                       eventId

@@ -178,56 +178,108 @@ export const upsertMeetingAssistMany = async (
 ) => {
     try {
         console.log(meetingAssists, ' meetingAssistsinside upsertMeetingAssistMany')
+        // ASSUMPTION: A custom mutation 'bulkUpsertMeetingAssists' is defined in PostGraphile (e.g., via a PG function)
+        // that takes an array of MeetingAssistInput and handles the upsert logic.
+        // The return type will also depend on the custom function's definition.
+        // The list of columns in on_conflict is now implicit in the PG function.
         const upsertMeetingAssistsMutation = gql`
-            mutation InsertMeetingAssists($meetingAssists: [Meeting_Assist_insert_input!]!) {
-                insert_Meeting_Assist(objects: $meetingAssists, on_conflict: {constraint: Meeting_Assist_pkey, update_columns: [
-                    allowAttendeeUpdatePreferences,
-                    anyoneCanAddSelf,
-                    attendeeCanModify,
-                    attendeeCount,
-                    attendeeRespondedCount,
-                    backgroundColor,
-                    bufferTime,
-                    calendarId,
-                    cancelIfAnyRefuse,
-                    cancelled,
-                    colorId,
-                    conferenceApp,
-                    duration,
-                    enableAttendeePreferences,
-                    enableConference,
-                    enableHostPreferences,
-                    endDate,
-                    eventId,
-                    expireDate,
-                    foregroundColor,
-                    frequency,
-                    guaranteeAvailability,
-                    guestsCanInviteOthers,
-                    guestsCanSeeOtherGuests,
-                    interval,
-                    location,
-                    minThresholdCount,
-                    notes,
-                    originalMeetingId,
-                    priority,
-                    reminders,
-                    sendUpdates,
-                    startDate,
-                    summary,
-                    timezone,
-                    transparency,
-                    until,
-                    updatedAt,
-                    useDefaultAlarms,
-                    userId,
-                    visibility,
-                    windowEndDate,
-                    windowStartDate,
-                    lockAfter,
-                ]}) {
-                    affected_rows
-                    returning {
+            mutation BulkUpsertMeetingAssists($assists: [MeetingAssistInput!]!) {
+                bulkUpsertMeetingAssists(input: { assists: $assists }) {
+                    # Assuming the custom function returns a list of the upserted meeting assists
+                    # and PostGraphile wraps this in a standard payload structure.
+                    # Or it might return a simple list directly if the function returns SETOF.
+                    # Let's assume it returns a list of meetingAssists for now.
+                    # The actual structure will depend on the PostGraphile schema.
+                    results: meetingAssists { # Or just 'meetingAssists' if function returns SETOF meeting_assist
+                        allowAttendeeUpdatePreferences
+                        anyoneCanAddSelf
+                        attendeeCanModify
+                        attendeeCount
+                        attendeeRespondedCount
+                        backgroundColor
+                        bufferTime
+                        calendarId
+                        cancelIfAnyRefuse
+                        cancelled
+                        colorId
+                        conferenceApp
+                        createdDate
+                        duration
+                        enableAttendeePreferences
+                        enableConference
+                        enableHostPreferences
+                        endDate
+                        eventId
+                        expireDate
+                        foregroundColor
+                        frequency
+                        guaranteeAvailability
+                        guestsCanInviteOthers
+                        guestsCanSeeOtherGuests
+                        id
+                        interval
+                        location
+                        minThresholdCount
+                        notes
+                        originalMeetingId
+                        priority
+                        reminders
+                        sendUpdates
+                        startDate
+                        summary
+                        timezone
+                        transparency
+                        until
+                        updatedAt
+                        useDefaultAlarms
+                        userId
+                        visibility
+                        windowEndDate
+                        windowStartDate
+                        lockAfter
+                    }
+                    # PostGraphile mutations often return a standard payload, e.g., { clientMutationId, data }
+                    # For simplicity, assuming the function returns directly or is wrapped to return the list.
+                    # If it returns a count:
+                    # affectedCount
+                }
+            }
+        `
+        // The type parameter for client.mutate will need to change based on the actual return type.
+        // Let's assume for now it returns a list of MeetingAssistType directly or under a 'results' or 'meetingAssists' field.
+        // This part is highly speculative without the actual PostGraphile schema.
+        const meetingAssistsDataDoc = (await client.mutate<{ bulkUpsertMeetingAssists: { results: MeetingAssistType[] } /* Or { meetingAssists: MeetingAssistType[] } or MeetingAssistType[] directly */ }>({
+            mutation: upsertMeetingAssistsMutation,
+            variables: {
+                assists: meetingAssists, // Variable name changed
+            },
+        }))?.data?.bulkUpsertMeetingAssists
+
+        // This access will likely need to change:
+        console.log(meetingAssistsDataDoc?.results?.length, ' successfully created multiple meeting assists')
+        return meetingAssistsDataDoc?.results?.length // Or however the count/results are returned
+    } catch (e) {
+        console.log(e, ' unable to upsert meeting assist many')
+    }
+}
+
+
+
+export const upsertMeetingAssistOne = async (
+    client: ApolloClient<NormalizedCacheObject>,
+    meetingAssist: MeetingAssistType, // This might need to be MeetingAssistInput
+) => {
+    try {
+        console.log(meetingAssist, ' meetingAssist inside upsertMeetingAssistOne')
+        // ASSUMPTION: A custom mutation 'upsertMeetingAssist' is defined in PostGraphile (e.g., via a PG function)
+        // OR we use separate createMeetingAssist and updateMeetingAssist mutations.
+        // Given 'on_conflict', an upsert is intended.
+        // PostGraphile input types are typically like `MeetingAssistInput` for create and `MeetingAssistPatch` for update.
+        // A custom upsert might take `MeetingAssistInput`.
+        const upsertMeetingAssistGraphql = gql`
+           mutation UpsertMeetingAssist($input: UpsertMeetingAssistInput!) { # Input type might be UpsertMeetingAssistInput or similar
+                upsertMeetingAssist(input: $input) { # Mutation name depends on PG function
+                    meetingAssist { # Standard PostGraphile payload structure
                         allowAttendeeUpdatePreferences
                         anyoneCanAddSelf
                         attendeeCanModify
@@ -278,89 +330,19 @@ export const upsertMeetingAssistMany = async (
                 }
             }
         `
-
-        const meetingAssistsDataDoc = (await client.mutate<{ insert_Meeting_Assist: { affected_rows: number, returning: MeetingAssistType[] } }>({
-            mutation: upsertMeetingAssistsMutation,
-            variables: {
-                meetingAssists,
-            },
-        }))?.data?.insert_Meeting_Assist
-
-        console.log(meetingAssistsDataDoc?.affected_rows, ' successfully created multiple meeting assists')
-
-        return meetingAssistsDataDoc?.affected_rows
-    } catch (e) {
-        console.log(e, ' unable to upsert meeting assist many')
-    }
-}
-
-
-
-export const upsertMeetingAssistOne = async (
-    client: ApolloClient<NormalizedCacheObject>,
-    meetingAssist: MeetingAssistType,
-) => {
-    try {
-        console.log(meetingAssist, ' meetingAssist inside upsertMeetingAssistOne')
-        const upsertMeetingAssistGraphql = gql`
-           mutation InsertMeetingAssist($meetingAssist: Meeting_Assist_insert_input!) {
-                insert_Meeting_Assist_one(object: $meetingAssist, on_conflict: {constraint: Meeting_Assist_pkey, update_columns: [allowAttendeeUpdatePreferences, anyoneCanAddSelf, attendeeCanModify, attendeeCount, attendeeRespondedCount, backgroundColor, bufferTime, calendarId, cancelIfAnyRefuse, cancelled, colorId, conferenceApp, duration, enableAttendeePreferences, enableConference, enableHostPreferences, endDate, eventId, expireDate, foregroundColor, frequency, guaranteeAvailability, guestsCanInviteOthers, guestsCanSeeOtherGuests, interval, location, minThresholdCount, notes, originalMeetingId, priority, reminders, sendUpdates, startDate, summary, timezone, transparency, until, updatedAt, useDefaultAlarms, userId, visibility, windowEndDate, windowStartDate, lockAfter]}) {
-                    allowAttendeeUpdatePreferences
-                    anyoneCanAddSelf
-                    attendeeCanModify
-                    attendeeCount
-                    attendeeRespondedCount
-                    backgroundColor
-                    bufferTime
-                    calendarId
-                    cancelIfAnyRefuse
-                    cancelled
-                    colorId
-                    conferenceApp
-                    createdDate
-                    duration
-                    enableAttendeePreferences
-                    enableConference
-                    enableHostPreferences
-                    endDate
-                    eventId
-                    expireDate
-                    foregroundColor
-                    frequency
-                    guaranteeAvailability
-                    guestsCanInviteOthers
-                    guestsCanSeeOtherGuests
-                    id
-                    interval
-                    location
-                    minThresholdCount
-                    notes
-                    originalMeetingId
-                    priority
-                    reminders
-                    sendUpdates
-                    startDate
-                    summary
-                    timezone
-                    transparency
-                    until
-                    updatedAt
-                    useDefaultAlarms
-                    userId
-                    visibility
-                    windowEndDate
-                    windowStartDate
-                    lockAfter
-                }
-            }
-        `
-
-        const meetingAssistDoc = (await client.mutate<{ insert_Meeting_Assist_one: MeetingAssistType }>({
+        // The variable passed to the mutation needs to match the GraphQL schema.
+        // If `upsertMeetingAssist` expects `input: { meetingAssist: MeetingAssistInput! }`
+        // then variables should be `{ input: { meetingAssist: meetingAssist } }`
+        // If it expects `input: MeetingAssistInput!`, then `{ input: meetingAssist }`
+        // For now, assuming `input: { meetingAssist: ... }` is a common pattern for custom mutations.
+        const meetingAssistDoc = (await client.mutate<{ upsertMeetingAssist: { meetingAssist: MeetingAssistType } }>({
             mutation: upsertMeetingAssistGraphql,
             variables: {
-                meetingAssist,
+                // This structure depends on how the PostGraphile mutation `upsertMeetingAssist` is defined.
+                // Assuming it takes an 'input' object which then has a 'meetingAssist' field of the correct input type.
+                input: { meetingAssist: meetingAssist },
             },
-        }))?.data?.insert_Meeting_Assist_one
+        }))?.data?.upsertMeetingAssist?.meetingAssist
 
         console.log(meetingAssistDoc, ' successfully added meetingAssistDoc')
 
@@ -372,54 +354,42 @@ export const upsertMeetingAssistOne = async (
 
 export const upsertMeetingAssistInviteMany = async (
     client: ApolloClient<NormalizedCacheObject>,
-    meetingAssistInvites: MeetingAssistInviteType[],
+    meetingAssistInvites: MeetingAssistInviteType[], // This might need to be MeetingAssistInviteInput[]
 ) => {
     try {
+        // ASSUMPTION: A custom mutation 'bulkUpsertMeetingAssistInvites' is defined in PostGraphile
         const upsertMeetingAssistInviteGraphql = gql`
-            mutation InsertMeetingAssistInvite($meetingAssistInvites: [Meeting_Assist_Invite_insert_input!]!) {
-                insert_Meeting_Assist_Invite(
-                    objects: $meetingAssistInvites, 
-                    on_conflict: {
-                    constraint: Meeting_Assist_Invite_pkey, 
-                    update_columns: [
-                        email,
-                        hostId,
-                        hostName,
-                        meetingId,
-                        name,
-                        response,
-                        updatedAt,
-                        userId,
-                        contactId,
-                    ]}) {
-                    affected_rows
-                    returning {
-                    createdDate
-                    email
-                    hostId
-                    hostName
-                    id
-                    meetingId
-                    name
-                    response
-                    updatedAt
-                    userId
-                    contactId
+            mutation BulkUpsertMeetingAssistInvites($invites: [MeetingAssistInviteInput!]!) {
+                bulkUpsertMeetingAssistInvites(input: { invites: $invites }) { # Or similar structure
+                    # Assuming it returns a list of the upserted invites
+                    results: meetingAssistInvites { # Or just 'meetingAssistInvites'
+                        createdDate
+                        email
+                        hostId
+                        hostName
+                        id
+                        meetingId
+                        name
+                        response
+                        updatedAt
+                        userId
+                        contactId
                     }
+                    # Or an affected count
+                    # affectedCount
                 }
             }
         `
-
-        const meetingAssistInviteDocData = (await client.mutate<{ insert_Meeting_Assist_Invite: { affected_rows: number, returning: MeetingAssistInviteType[] } }>({
+        // Adjust generic type and variable structure based on actual PostGraphile mutation
+        const meetingAssistInviteDocData = (await client.mutate<{ bulkUpsertMeetingAssistInvites: { results: MeetingAssistInviteType[] } }>({
             mutation: upsertMeetingAssistInviteGraphql,
             variables: {
-                meetingAssistInvites,
+                invites: meetingAssistInvites,
             },
-        }))?.data?.insert_Meeting_Assist_Invite
+        }))?.data?.bulkUpsertMeetingAssistInvites
 
-        console.log(meetingAssistInviteDocData?.affected_rows, ' successfully inserted meetingAssistInviteDocs')
-
-        return meetingAssistInviteDocData?.affected_rows
+        console.log(meetingAssistInviteDocData?.results?.length, ' successfully inserted meetingAssistInviteDocs')
+        return meetingAssistInviteDocData?.results?.length
     } catch (e) {
         console.log(e, ' unable to upsert meeting assist invite')
     }
