@@ -656,4 +656,56 @@ def search_similar_notes_route():
         print(message)
         raise
 
+@app.route('/get-notion-page-summary', methods=['POST'])
+def get_notion_page_summary_route():
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    page_id = data.get('page_id')
+    # user_id = data.get('user_id') # Available for logging if needed
+    notion_api_token = data.get('notion_api_token')
+
+    if not page_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "page_id is required"}}), 400
+    if not notion_api_token: # Crucial for this specific operation
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "notion_api_token is required for get-notion-page-summary as it might operate on various user contexts or non-global tokens."}}), 400
+
+    # Initialize Notion client specifically for this request using the provided token.
+    # This is important if the global `note_utils.notion` client isn't suitable or if tokens vary.
+    # For simplicity, we can rely on `_ensure_notion_client` if it re-initializes with new token,
+    # or handle client initialization here.
+    # Let's use a dedicated client instance for this route to ensure token from request is used.
+    try:
+        current_notion_client = Client(auth=notion_api_token)
+        # Temporarily set it for note_utils if its functions rely on the global `notion` client.
+        # This is a bit of a hack; ideally, note_utils functions would accept a client instance.
+        original_global_notion_client = note_utils.notion
+        note_utils.notion = current_notion_client
+
+        result = note_utils.get_notion_page_summary_details(page_id=page_id)
+
+        note_utils.notion = original_global_notion_client # Restore global client
+
+    except APIResponseError as e: # Catch auth errors during client init if any (though Client() might not raise for bad token immediately)
+        if e.status == 401 or e.status == 403:
+             return jsonify({"ok": False, "error": {"code": "NOTION_AUTH_ERROR", "message": "Notion API authentication/authorization error with provided token.", "details": str(e)}}), e.status
+        return jsonify({"ok": False, "error": {"code": "NOTION_CLIENT_INIT_ERROR", "message": "Failed to initialize Notion client with provided token.", "details": str(e)}}), 500
+    except Exception as client_init_e: # Catch other client init errors
+        return jsonify({"ok": False, "error": {"code": "NOTION_CLIENT_INIT_ERROR", "message": "Unexpected error initializing Notion client.", "details": str(client_init_e)}}), 500
+
+
+    if result["status"] == "success":
+        return jsonify({"ok": True, "data": result.get("data")}), 200
+    else:
+        # Map specific error codes from note_utils if needed, or use a generic one
+        error_code = result.get("code", "PYTHON_ERROR_GET_PAGE_SUMMARY_FAILED")
+        status_code = 500 # Default
+        if error_code == "NOTION_API_OBJECTNOTFOUND": # Assuming this code from APIResponseError mapping
+            status_code = 404
+        elif error_code.startswith("NOTION_API_UNAUTHORIZED") or error_code.startswith("NOTION_API_RESTRICTEDRESOURCE"): # Example mapping
+             status_code = 401 # or 403
+
+        return jsonify({"ok": False, "error": {"code": error_code, "message": result.get("message"), "details": result.get("details")}}), status_code
+
 [end of atomic-docker/project/functions/python_api_service/note_handler.py]
