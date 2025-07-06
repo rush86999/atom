@@ -361,105 +361,116 @@ async def process_live_audio_for_notion(
 # ... (These functions remain as they were in the last successful 'overwrite_file_with_block' for note_utils.py - Subtask 25 & 27)
 # ... For brevity, their full code is not repeated here, but they are assumed to be present and correct.
 
-def get_notion_page_summary_details(page_id: str) -> dict:
+# New function to fetch and structure Notion page details for NotionPageSummary
+def get_notion_page_summary_details(page_id: str, client: Optional[Client] = None) -> dict:
     """
-    Fetches and formats Notion page details into the NotionPageSummary structure.
+    Fetches and formats Notion page details into a structure compatible with
+    the TypeScript NotionPageSummary interface.
+    Accepts an optional Notion client instance.
     """
-    if not notion:
+    notion_client_to_use = client or notion # Use passed client or global
+    if not notion_client_to_use:
         return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
 
     try:
-        page_properties = notion.pages.retrieve(page_id=page_id)
+        page_data = notion_client_to_use.pages.retrieve(page_id=page_id)
 
         # --- Title Extraction ---
-        # Notion's title property can vary. Common names are 'Name' or 'title'.
-        # It's usually a property of type 'title'.
         extracted_title = "Untitled Page" # Default
-        properties_dict = page_properties.get('properties', {})
+        properties = page_data.get('properties', {})
 
-        # Try common title property names first
-        potential_title_props = ['title', 'Name', 'Page Title'] # Add other common names if known
-        for prop_name in potential_title_props:
-            title_property_data = properties_dict.get(prop_name)
-            if title_property_data and title_property_data.get('type') == 'title' and title_property_data.get('title'):
-                extracted_title = "".join(t.get('plain_text', '') for t in title_property_data['title']).strip()
-                if extracted_title:
-                    break # Found a title
+        # Common property names for titles in Notion databases
+        # Order can be adjusted based on likelihood or specific conventions
+        title_prop_names_to_check = ['title', 'Name', 'Page Title', 'Task']
 
-        # If still no title and it's a database page, sometimes the actual content implies title.
-        # However, for a summary, relying on a structured title property is best.
+        for prop_name in title_prop_names_to_check:
+            title_property = properties.get(prop_name)
+            if title_property and title_property.get('type') == 'title' and title_property.get('title'):
+                extracted_title = "".join(t.get('plain_text', '') for t in title_property['title']).strip()
+                if extracted_title: # Found a non-empty title
+                    break
 
-        page_url = page_properties.get('url')
-        last_edited_time = page_properties.get('last_edited_time')
-        created_time = page_properties.get('created_time')
-        icon_data = page_properties.get('icon') # This will be an object (e.g., {"type": "emoji", "emoji": "📄"}) or null
+        page_url = page_data.get('url')
+        last_edited_time = page_data.get('last_edited_time')
+        created_time = page_data.get('created_time')
+
+        # Icon handling: Notion API returns an object for icon or null
+        # Example: { "type": "emoji", "emoji": "🎉" } or { "type": "external", "external": { "url": "..." } }
+        page_icon_obj = page_data.get('icon')
 
         # --- Preview Text Generation ---
         preview_text = ""
-        MAX_PREVIEW_LENGTH = 300  # Characters
-        MAX_BLOCKS_FOR_PREVIEW = 10 # Fetch up to 10 blocks
+        MAX_PREVIEW_LENGTH = 300  # Target max characters for the preview
+        MAX_BLOCKS_FOR_PREVIEW = 10 # Fetch up to 10 blocks for generating preview
 
-        blocks_response = notion.blocks.children.list(block_id=page_id, page_size=MAX_BLOCKS_FOR_PREVIEW)
+        # Fetch blocks for the page
+        blocks_response = notion_client_to_use.blocks.children.list(block_id=page_id, page_size=MAX_BLOCKS_FOR_PREVIEW)
 
         for block in blocks_response.get('results', []):
             if len(preview_text) >= MAX_PREVIEW_LENGTH:
-                break
+                break # Stop if preview is already long enough
 
             block_type = block.get('type')
-            text_content_for_block = ""
+            current_block_text = ""
 
+            # Extract text from common block types that contain 'rich_text'
             if block_type in ['paragraph', 'heading_1', 'heading_2', 'heading_3',
                               'bulleted_list_item', 'numbered_list_item',
                               'to_do', 'quote', 'callout', 'toggle']:
-                # These blocks have a 'rich_text' array under their type key
-                # For 'toggle', we take the toggle's own text, not its children for preview
+                # The 'rich_text' array is directly under the block_type key (e.g., block['paragraph']['rich_text'])
                 rich_text_array = block.get(block_type, {}).get('rich_text', [])
-                for rich_text_item in rich_text_array:
-                    if rich_text_item.get('type') == 'text':
-                        text_content_for_block += rich_text_item.get('plain_text', '')
+                for rt_item in rich_text_array:
+                    if rt_item.get('type') == 'text':
+                        current_block_text += rt_item.get('plain_text', '')
 
-            if text_content_for_block:
-                # Add a space if preview_text already has content and we are adding more
-                if preview_text:
+            if current_block_text:
+                if preview_text: # Add a space if appending to existing preview content
                     preview_text += " "
 
+                # Calculate remaining space for the preview text
                 remaining_space = MAX_PREVIEW_LENGTH - len(preview_text)
-                if len(text_content_for_block) > remaining_space:
-                    preview_text += text_content_for_block[:remaining_space-3] + "..." # Account for ellipsis
-                    break
+
+                if len(current_block_text) > remaining_space:
+                    preview_text += current_block_text[:remaining_space - 3] + "..." # Ensure space for ellipsis
+                    break # Preview is full
                 else:
-                    preview_text += text_content_for_block
+                    preview_text += current_block_text
 
         preview_text = preview_text.strip()
-        # Ensure ellipsis if truncated exactly at max length without space for it
+        # Final check for truncation if exactly at max length without ellipsis
         if len(preview_text) == MAX_PREVIEW_LENGTH and not preview_text.endswith("..."):
-            preview_text = preview_text[:MAX_PREVIEW_LENGTH-3] + "..."
+            preview_text = preview_text[:MAX_PREVIEW_LENGTH - 3] + "..."
 
-
+        # Construct the summary dictionary matching NotionPageSummary
         summary_data = {
             "id": page_id,
-            "title": extracted_title,
+            "title": extracted_title if extracted_title else "Untitled Page", # Ensure title is never null
             "url": page_url,
             "last_edited_time": last_edited_time,
             "created_time": created_time,
-            "preview_text": preview_text if preview_text else None, # Return None if empty
-            "icon": icon_data
+            "preview_text": preview_text if preview_text else None, # Return None if preview is empty
+            "icon": page_icon_obj # This directly matches the structure expected by TS if icon is {type: string, emoji?: string, ...}
         }
         return {"status": "success", "data": summary_data}
 
     except APIResponseError as e:
-        # Specific handling for object_not_found is done by the route handler
-        # Here, we just return a generic API error structure for note_utils
+        # Log the error for server-side debugging
+        # print(f"Notion API Error for page {page_id}: {e}", file=sys.stderr) # Or use proper logging
+        error_code_str = e.code.value if hasattr(e.code, 'value') else str(e.code) # Handle if e.code is Enum or str
         return {
             "status": "error",
-            "message": f"Notion API error fetching page details: {e.body.get('message', str(e))}",
-            "code": f"NOTION_API_{e.code.value.upper() if hasattr(e.code, 'value') else e.code.upper()}", # Use e.code.value for Enum
+            "message": f"Notion API error: {e.body.get('message', str(e))}",
+            "code": f"NOTION_API_{error_code_str.upper()}",
             "details": e.body
         }
     except Exception as e:
-        # logger.error(f"Unexpected error in get_notion_page_summary_details for page {page_id}: {e}", exc_info=True) # Add logging
-        return {"status": "error", "message": f"Unexpected error fetching Notion page details: {str(e)}", "code": "INTERNAL_ERROR_PAGE_DETAILS"}
-
+        # print(f"Unexpected error processing page {page_id}: {e}", file=sys.stderr) # Or use proper logging
+        return {
+            "status": "error",
+            "message": f"An unexpected error occurred while fetching Notion page details: {str(e)}",
+            "code": "PYTHON_INTERNAL_ERROR_PAGE_SUMMARY",
+            "details": str(e)
+        }
 
 def transcribe_audio_deepgram(audio_file_path: str, deepgram_api_key_param: str = None) -> dict:
     dg_key_to_use = deepgram_api_key_param or DEEPGRAM_API_KEY_GLOBAL
