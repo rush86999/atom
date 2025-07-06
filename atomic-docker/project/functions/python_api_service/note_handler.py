@@ -343,8 +343,86 @@ def get_notion_page_summary_route():
 
         return jsonify({"ok": False, "error": error_payload}), http_status_code
 
+
+# --- Endpoints for LanceDB Storage of Email Snippets and Notion Summaries ---
+@app.route('/api/lancedb/store-email-snippet', methods=['POST'])
+async def store_email_snippet_route(): # Made async
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    email_data_ts = data.get('email_data') # This is the GmailMessageSnippet from TS
+    user_id = data.get('user_id')
+
+    if not email_data_ts or not email_data_ts.get("id"):
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "email_data (with id) is required."}}), 400
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    # Ensure lancedb_handler can be imported and embedding function is available
+    try:
+        from ingestion_pipeline import lancedb_handler
+        if not lancedb_handler.EMBEDDING_FUNCTION_AVAILABLE: # Check flag set during lancedb_handler import
+            raise ImportError("Embedding function (note_utils) not available in lancedb_handler.")
+    except ImportError as e:
+        logger.error(f"Failed to import lancedb_handler or its dependencies for store-email-snippet: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "LanceDB or embedding service not available."}}), 503
+
+    db_conn = await lancedb_handler.get_lancedb_connection()
+    if not db_conn:
+        return jsonify({"ok": False, "error": {"code": "LANCEDB_CONNECTION_ERROR", "message": "Failed to connect to LanceDB."}}), 500
+
+    # Pass user_id explicitly to the upsert function
+    result = await lancedb_handler.upsert_email_snippet(db_conn, email_data_ts, user_id)
+
+    if result["status"] == "success":
+        return jsonify({"ok": True, "data": {"email_id": result.get("email_id"), "message": "Email snippet stored."}}), 201
+    else:
+        return jsonify({"ok": False, "error": {"code": result.get("code", "LANCEDB_STORE_EMAIL_FAILED"), "message": result.get("message")}}), 500
+
+
+@app.route('/api/lancedb/store-notion-summary', methods=['POST'])
+async def store_notion_summary_route(): # Made async
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    page_data_ts = data.get('page_data') # This is the NotionPageSummary from TS
+    user_id = data.get('user_id')
+
+    if not page_data_ts or not page_data_ts.get("id"):
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "page_data (with id) is required."}}), 400
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    try:
+        from ingestion_pipeline import lancedb_handler
+        if not lancedb_handler.EMBEDDING_FUNCTION_AVAILABLE:
+            raise ImportError("Embedding function (note_utils) not available in lancedb_handler.")
+    except ImportError as e:
+        logger.error(f"Failed to import lancedb_handler or its dependencies for store-notion-summary: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "LanceDB or embedding service not available."}}), 503
+
+    db_conn = await lancedb_handler.get_lancedb_connection()
+    if not db_conn:
+        return jsonify({"ok": False, "error": {"code": "LANCEDB_CONNECTION_ERROR", "message": "Failed to connect to LanceDB."}}), 500
+
+    # Pass user_id explicitly to the upsert function
+    result = await lancedb_handler.upsert_notion_page_summary(db_conn, page_data_ts, user_id)
+
+    if result["status"] == "success":
+        return jsonify({"ok": True, "data": {"notion_page_id": result.get("notion_page_id"), "message": "Notion page summary stored."}}), 201
+    else:
+        return jsonify({"ok": False, "error": {"code": result.get("code", "LANCEDB_STORE_NOTION_FAILED"), "message": result.get("message")}}), 500
+
+
 # Main execution
 if __name__ == '__main__':
+    # Need to import logger for this file too if not already at top
+    # import logging
+    # logging.basicConfig(level=logging.INFO)
+    # logger = logging.getLogger(__name__) # then use logger.info etc.
+
     flask_port = int(os.environ.get("NOTE_HANDLER_PORT", 5057))
     app.run(host='0.0.0.0', port=flask_port, debug=True)
 
