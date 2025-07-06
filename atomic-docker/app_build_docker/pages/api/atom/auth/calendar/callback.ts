@@ -11,8 +11,11 @@ import { backendConfig } from '../../../../../config/backendConfig' // Adjusted 
 import { Credentials as OAuth2Token } from 'google-auth-library';
 
 // Assuming these are needed for GraphQL client used by saveUserTokensInternal
+// These constants might be better sourced from a shared constants file within app-service if possible,
+// or ensure the path is robust.
 import { HASURA_GRAPHQL_URL, HASURA_ADMIN_SECRET } from '../../../../../../project/functions/atom-agent/_libs/constants';
 import { executeGraphQLMutation } from '../../../../../../project/functions/atom-agent/_libs/graphqlClient';
+import appServiceLogger from '../../../../../lib/logger'; // Import the shared app-service logger
 
 const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
 
@@ -43,10 +46,11 @@ function runMiddleware(
 // This function is an adaptation of saveUserTokens from calendarSkills.ts
 // to be used directly within this API route.
 async function saveUserTokensInternal(userId: string, tokens: OAuth2Token): Promise<{ ok: boolean; error?: any }> {
-  console.log(`AUTH_CALLBACK: Saving tokens for userId: ${userId}, service: ${GOOGLE_CALENDAR_SERVICE_NAME}`);
+  const operationName = 'saveUserTokensInternal_GoogleCalendarAuthCallback';
+  appServiceLogger.info(`[${operationName}] Attempting to save tokens.`, { userId, service: GOOGLE_CALENDAR_SERVICE_NAME });
 
   if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
-    console.error("AUTH_CALLBACK: GraphQL client is not configured for saveUserTokensInternal.");
+    appServiceLogger.error(`[${operationName}] GraphQL client configuration missing (Hasura URL/Secret).`, { userId });
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'GraphQL client is not configured.' } };
   }
 
@@ -82,20 +86,19 @@ async function saveUserTokensInternal(userId: string, tokens: OAuth2Token): Prom
     const response = await executeGraphQLMutation<{ insert_user_tokens: { affected_rows: number } }>(
         mutation,
         variables,
-        operationName,
-        userId // Assuming executeGraphQLMutation can take userId for context/logging
+        operationName, // This is 'UpsertUserToken' from the GQL mutation name
+        userId
     );
 
     if (response && response.insert_user_tokens && response.insert_user_tokens.affected_rows > 0) {
-      console.log(`AUTH_CALLBACK: Tokens saved successfully to user_tokens table for user ${userId}.`);
+      appServiceLogger.info(`[${operationName}] Tokens saved successfully to user_tokens table.`, { userId });
       return { ok: true };
     } else {
-      console.warn(`AUTH_CALLBACK: Token save operation for user ${userId} (user_tokens table) reported 0 affected_rows or no response.`, response);
-      // Potentially an issue if tokens were expected to be new or different
+      appServiceLogger.warn(`[${operationName}] Token save operation (user_tokens table) reported 0 affected_rows or no/unexpected response.`, { userId, response });
       return { ok: false, error: {code: 'DB_NO_ROWS_AFFECTED', message: 'Token save did not affect any rows.'}};
     }
   } catch (error: any) {
-    console.error(`AUTH_CALLBACK: Exception during saveUserTokensInternal for userId ${userId}:`, error);
+    appServiceLogger.error(`[${operationName}] Exception during token save.`, { userId, error: error.message, stack: error.stack, details: error });
     return {
         ok: false,
         error: {
@@ -122,69 +125,67 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const session = req.session;
         const userId = session?.getUserId();
+        const operationName = 'GoogleCalendarAuthCallback'; // For logging context
 
         if (!userId) {
-            console.error("AUTH_CALLBACK: User not authenticated in callback.");
-            // Redirect to login or an error page if not authenticated
+            appServiceLogger.error(`[${operationName}] User not authenticated in callback. Session may be missing or invalid.`, { headers: req.headers });
             return res.redirect('/User/Login/UserLogin?error=session_expired_oauth_callback');
         }
+        appServiceLogger.info(`[${operationName}] Processing callback for user.`, { userId });
 
-        const thisUrl = new URL(req.url as string, `https://${req.headers.host}`)
-        const queryParams = qs.parse(thisUrl.search.substring(1)); // Use qs to parse query
+        const thisUrl = new URL(req.url as string, `https://${req.headers.host}`);
+        const queryParams = qs.parse(thisUrl.search.substring(1));
 
         if (queryParams.error) {
             const error = queryParams.error as string;
-            console.warn(`AUTH_CALLBACK: Error from Google OAuth provider: ${error}`);
-            // Redirect to settings page with an error message
-            // The settings page should be prepared to display this error to the user.
+            appServiceLogger.warn(`[${operationName}] Error from Google OAuth provider.`, { userId, error, queryParams });
             return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent(error)}&atom_agent=true`);
         }
 
         const code = queryParams.code as string;
-        const state = queryParams.state as string; // This should be the userId
+        const state = queryParams.state as string;
 
         if (state !== userId) {
-            console.error(`AUTH_CALLBACK: Invalid OAuth state. Expected: ${userId}, Received: ${state}`);
+            appServiceLogger.error(`[${operationName}] Invalid OAuth state. CSRF attempt?`, { expectedState: userId, receivedState: state });
             return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=invalid_state&atom_agent=true`);
         }
 
         if (!code) {
-            console.error("AUTH_CALLBACK: No authorization code received from Google.");
+            appServiceLogger.error(`[${operationName}] No authorization code received from Google.`, { userId });
             return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=no_code_received&atom_agent=true`);
         }
+        appServiceLogger.debug(`[${operationName}] Authorization code received.`, { userId, codePrefix: code?.substring(0,10) });
 
         const tokens = await exchangeCodeForTokens(code);
 
         if (!tokens || !tokens.access_token) {
-            console.error("AUTH_CALLBACK: Failed to exchange code for tokens or access_token missing.", tokens);
+            appServiceLogger.error(`[${operationName}] Failed to exchange code for tokens or access_token missing.`, { userId, tokensReceived: !!tokens, accessTokenPresent: !!tokens?.access_token });
             return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=token_exchange_failed&atom_agent=true`);
         }
 
-        console.log('AUTH_CALLBACK: Tokens received from Google:', {
-            accessToken: tokens.access_token ? 'PRESENT' : 'MISSING',
-            refreshToken: tokens.refresh_token ? 'PRESENT' : 'MISSING',
-            expiresIn: tokens.expiry_date, // This is actually expiry_date (timestamp) from googleapis
+        appServiceLogger.info(`[${operationName}] Tokens received from Google successfully.`, {
+            userId,
+            accessTokenPresent: !!tokens.access_token,
+            refreshTokenPresent: !!tokens.refresh_token,
+            expiresAt: tokens.expiry_date,
             scope: tokens.scope,
         });
 
-        // Save tokens to the user_tokens table using the internal helper
         const saveResult = await saveUserTokensInternal(userId, tokens);
 
         if (!saveResult.ok) {
-            console.error("AUTH_CALLBACK: Failed to save tokens to user_tokens table.", saveResult.error);
+            appServiceLogger.error(`[${operationName}] Failed to save tokens to user_tokens table.`, { userId, errorDetails: saveResult.error });
             const errorMessage = saveResult.error?.message || 'failed_to_save_tokens';
             return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent(errorMessage)}&atom_agent=true`);
         }
 
-        console.log(`AUTH_CALLBACK: Google Calendar connected successfully for user ${userId}.`);
-        // Redirect to settings page with success message
+        appServiceLogger.info(`[${operationName}] Google Calendar connected and tokens saved successfully.`, { userId });
         return res.redirect('/Settings/UserViewSettings?calendar_auth_success=true&atom_agent=true');
 
-    } catch (e: unknown) {
-        console.error('AUTH_CALLBACK: General error in Google OAuth callback handler:', e);
-        const errorMessage = e instanceof Error ? e.message : 'Internal server error in OAuth callback.';
-        // It's crucial to avoid exposing sensitive error details.
-        // Log the detailed error server-side and redirect with a generic error message.
+    } catch (e: any) { // Catching 'any' to access potential properties like 'message'
+        const operationName = 'GoogleCalendarAuthCallback_OuterCatch'; // Specific for this catch
+        appServiceLogger.error(`[${operationName}] General error in Google OAuth callback handler.`, { error: e.message, stack: e.stack, details: e });
+        // Avoid exposing sensitive error details in redirect.
         return res.redirect(`/Settings/UserViewSettings?calendar_auth_error=${encodeURIComponent('callback_processing_failed')}&atom_agent=true`);
     }
 }

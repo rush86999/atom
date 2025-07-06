@@ -1,12 +1,13 @@
 
 
-import { dayjs } from '@lib/date-utils'
-
-import {
-  hasuraApiUrl,
-} from '@lib/constants'
-import { CalendarIntegrationType } from '@lib/dataTypes/Calendar_IntegrationType'
-import { ApolloClient, gql, NormalizedCacheObject } from '@apollo/client'
+import { dayjs } from '@lib/date-utils';
+// Unused import: hasuraApiUrl
+// import {
+//   hasuraApiUrl,
+// } from '@lib/constants';
+import { CalendarIntegrationType } from '@lib/dataTypes/Calendar_IntegrationType';
+import { ApolloClient, gql, NormalizedCacheObject } from '@apollo/client';
+import appServiceLogger from './logger'; // Import the shared logger
 
 // dayjs.extend(utc)
 
@@ -81,8 +82,16 @@ export const updateCalendarIntegration = async (
     }))?.data?.update_Calendar_Integration_by_pk
 
     return results
-  } catch (e) {
-    console.log(e, ' unable to updatecalendar_integration')
+  } catch (e: any) { // Added type annotation for e
+    appServiceLogger.error({
+      message: 'Unable to update calendar_integration in api-helper',
+      calIntegId,
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    // Decide if to rethrow or return undefined/specific error structure
+    // Original code implicitly returned undefined. Maintaining that for now.
   }
 }
 

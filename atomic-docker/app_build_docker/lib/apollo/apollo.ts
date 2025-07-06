@@ -5,8 +5,10 @@
 import {
   ApolloClient,
   InMemoryCache,
-  split, HttpLink, from
+  split, HttpLink, from,
+  ServerError, // For RetryLink
 } from "@apollo/client"
+import { RetryLink } from "@apollo/client/link/retry"; // Import RetryLink
 import { setContext } from '@apollo/client/link/context'
 import { getMainDefinition } from '@apollo/client/utilities'
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions'
@@ -24,35 +26,60 @@ const makeApolloClient = (token: String) => {
   
   const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) => {
     if (graphQLErrors) {
+      appServiceLogger.warn({ type: 'GraphQL Error', errors: graphQLErrors, operationName: operation?.operationName }, 'GraphQL errors occurred in Apollo operation.');
       for (let err of graphQLErrors) {
-        switch (err.extensions.code) {
-          // Apollo Server sets code to UNAUTHENTICATED
-          // when an AuthenticationError is thrown in a resolver
-          case 'UNAUTHENTICATED':
-
+        // Existing UNAUTHENTICATED handling
+        if (err.extensions?.code === 'UNAUTHENTICATED') {
+            appServiceLogger.info({ operationName: operation.operationName, msg: 'GraphQL Error: UNAUTHENTICATED. Attempting token refresh and retry.' });
             // Modify the operation context with a new token
-            const oldHeaders = operation.getContext().headers;
             operation.setContext(async (_: any, { headers }: any) => {
               const accessToken = await Session.getAccessToken();
+              appServiceLogger.debug({ operationName: operation.operationName, msg: `Retrying with new token: ${accessToken ? 'present' : 'absent'}` });
               return {
                 headers: {
                   ...headers,
                   Authorization: accessToken ? `Bearer ${accessToken}` : ''
                 }
               }
-            })
-            // Retry the request, returning the new observable
+            });
             return forward(operation);
         }
+        // Log other GraphQL errors
+        // appServiceLogger.error({ err, type: 'GraphQLErrorDetail', operationName: operation?.operationName }, `GraphQL Error Detail: ${err.message}`);
       }
     }
 
-    // To retry on network errors, we recommend the RetryLink
-    // instead of the onError link. This just logs the error.
     if (networkError) {
-      console.log(`[Network error]: ${networkError}`);
+      appServiceLogger.error({ err: networkError, type: 'NetworkError', operationName: operation?.operationName }, `[ApolloLinkNetworkError]: ${networkError.message}`);
     }
   });
+
+  const retryLink = new RetryLink({
+    delay: {
+      initial: 300, // Initial delay
+      max: Infinity,
+      jitter: true, // Add jitter to avoid thundering herd problem
+    },
+    attempts: {
+      max: 3, // Max number of retries (total 4 attempts)
+      retryIf: (error, _operation) => {
+        // Retry on network errors
+        if (error && (error as ServerError).statusCode && (error as ServerError).statusCode >= 500) {
+            appServiceLogger.warn({ operationName: _operation.operationName, error: error.message, statusCode: (error as ServerError).statusCode }, 'RetryLink: Retrying due to server error.');
+            return true;
+        }
+        if (error && !(error as ServerError).statusCode) { // This typically means a network error without an HTTP response
+            appServiceLogger.warn({ operationName: _operation.operationName, error: error.message }, 'RetryLink: Retrying due to network error.');
+            return true;
+        }
+        // Potentially retry on specific GraphQL errors if needed, though errorLink handles UNAUTHENTICATED
+        // Example: if (graphQLErrors) { graphQLErrors.some(e => e.extensions?.code === 'SOME_RETRYABLE_GQL_ERROR') }
+        appServiceLogger.debug({ operationName: _operation.operationName, error: error?.message, statusCode: (error as ServerError)?.statusCode }, 'RetryLink: Not retrying this error.');
+        return false;
+      },
+    },
+  });
+
 
   // IMPORTANT: PostGraphile V4 subscriptions require server-side setup
   // with plugins like @graphile/pg-pubsub. The endpoint path might also differ (e.g., /graphql/subscriptions).
@@ -103,10 +130,13 @@ const makeApolloClient = (token: String) => {
       );
     },
     wsLink,
-    from([errorLink, linkTokenHeader, httpLink]),
+    from([retryLink, errorLink, linkTokenHeader, httpLink]), // Added retryLink before errorLink
   )
   // create an inmemory cache instance for caching graphql data
-  const cache = new InMemoryCache()
+  const cache = new InMemoryCache({
+    // Optional: Configure cache policies if needed, e.g., for specific types or queries
+    // typePolicies: { ... }
+  })
 
   // instantiate apollo client with apollo link instance and cache instance
   const client = new ApolloClient({
