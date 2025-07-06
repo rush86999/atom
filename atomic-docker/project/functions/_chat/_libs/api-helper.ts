@@ -72,12 +72,98 @@ import { QueryCalendarExtractedAttributesType } from "./skills/askCalendar/types
 import { findASlotForNewEventExampleInput, findASlotForNewEventExampleOutput, findASlotForNewEventPrompt, findASlotForNewEventTemplate } from './prompts/findASlotForNewEvent';
 import { FindASlotType } from "./types/FindASlotType";
 import { ChatGPTRoleType } from "@/gpt-meeting/_libs/types/ChatGPTTypes";
+import winston from 'winston'; // Added for logger
 
 // const sesClient = new SESClient({ region: "us-east-1" })
+
+// Logger Setup for this api-helper
+const chatApiHelperLogger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json(),
+    winston.format((info) => {
+      info.module = 'chat-api-helper';
+      return info;
+    })()
+  ),
+  transports: [
+    new winston.transports.Console(),
+  ],
+});
 
 const openai = new OpenAI({
     apiKey: defaultOpenAIAPIKey,
 });
+
+// Helper for resilient Hasura calls using got
+const resilientGotPostHasura = async (operationName: string, query: string, variables: Record<string, any>, userId?: string) => {
+  const MAX_RETRIES = 3;
+  const INITIAL_TIMEOUT_MS = 10000; // 10 seconds for Hasura calls
+  let attempt = 0;
+  let lastError: any = null;
+
+  const headers: Record<string, string> = {
+    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+    'Content-Type': 'application/json',
+    'X-Hasura-Role': userId ? 'user' : 'admin',
+  };
+  if (userId) {
+    headers['X-Hasura-User-Id'] = userId;
+  }
+
+  while (attempt < MAX_RETRIES) {
+    try {
+      chatApiHelperLogger.info(`Hasura call attempt ${attempt + 1} for ${operationName}`, { userId, operationName });
+      const response = await got.post(hasuraGraphUrl, {
+        json: { operationName, query, variables },
+        headers,
+        timeout: { request: INITIAL_TIMEOUT_MS },
+        responseType: 'json',
+      }).json<{ data?: any; errors?: any[] }>(); // Specify response type for got
+
+      if (response.errors) {
+        lastError = new Error(`GraphQL error in ${operationName}: ${JSON.stringify(response.errors)}`);
+        // Potentially break here for non-retryable GraphQL errors, e.g. validation
+        // For now, we retry all GraphQL errors from Hasura.
+        throw lastError;
+      }
+      chatApiHelperLogger.info(`Hasura call ${operationName} successful on attempt ${attempt + 1}`, { userId, operationName });
+      return response.data;
+    } catch (error: any) {
+      lastError = error;
+      chatApiHelperLogger.warn(`Hasura call attempt ${attempt + 1} for ${operationName} failed.`, {
+        userId,
+        operationName,
+        error: error.message,
+        code: error.code,
+        // response: error.response?.body
+      });
+
+      // Check for non-retryable HTTP errors from `got`
+      if (error.response && error.response.statusCode) {
+        const status = error.response.statusCode;
+        if (status < 500 && status !== 429 && status !== 408) { // Don't retry client errors other than 429/408
+          chatApiHelperLogger.error(`Non-retryable HTTP error ${status} for ${operationName}. Aborting.`, { userId, operationName });
+          break;
+        }
+      } else if (!error.response && error.code && !['ETIMEDOUT', 'ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'].includes(error.code)) {
+        // If it's a got error without a response, but not a known retryable network error code, abort.
+        chatApiHelperLogger.error(`Non-retryable got error code ${error.code} for ${operationName}. Aborting.`, { userId, operationName });
+        break;
+      }
+    }
+    attempt++;
+    if (attempt < MAX_RETRIES) {
+      const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s
+      chatApiHelperLogger.info(`Waiting ${delay}ms before Hasura retry ${attempt} for ${operationName}`, { userId, operationName });
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  chatApiHelperLogger.error(`Failed Hasura operation '${operationName}' after ${attempt} attempts.`, { userId, operationName, lastError: lastError?.message });
+  throw lastError || new Error(`Failed Hasura operation '${operationName}' after all retries.`);
+};
+
 
 export const searchSingleEventByVectorLanceDb = async (
     userId: string,
@@ -90,7 +176,7 @@ export const searchSingleEventByVectorLanceDb = async (
         }
         return null;
     } catch (e) {
-        console.error('Error in searchSingleEventByVectorLanceDb:', e);
+        chatApiHelperLogger.error('Error in searchSingleEventByVectorLanceDb', { userId, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -112,7 +198,7 @@ export const searchSingleEventByVectorWithDatesLanceDb = async (
         }
         return null;
     } catch (e) {
-        console.error('Error in searchSingleEventByVectorWithDatesLanceDb:', e);
+        chatApiHelperLogger.error('Error in searchSingleEventByVectorWithDatesLanceDb', { userId, startDate, endDate, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -132,7 +218,7 @@ export const searchMultipleEventsByVectorWithDatesLanceDb = async (
         const results = await searchEvents(qVector, limit, filterCondition);
         return results || []; // Ensure an array is returned
     } catch (e) {
-        console.error('Error in searchMultipleEventsByVectorWithDatesLanceDb:', e);
+        chatApiHelperLogger.error('Error in searchMultipleEventsByVectorWithDatesLanceDb', { userId, startDate, endDate, limit, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -193,23 +279,25 @@ export const upsertConference = async (
             conference
         }
 
-        const res: { data: { insert_Conference_one: ConferenceType } } = await got.post(hasuraGraphUrl, {
-            headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
-            },
-            json: {
-                operationName,
-                query,
-                variables,
-            }
-        }).json()
+        // const res: { data: { insert_Conference_one: ConferenceType } } = await got.post(hasuraGraphUrl, {
+        //     headers: {
+        //         'X-Hasura-Admin-Secret': hasuraAdminSecret,
+        //         'X-Hasura-Role': 'admin'
+        //     },
+        //     json: {
+        //         operationName,
+        //         query,
+        //         variables,
+        //     }
+        // }).json()
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Conference_one: ConferenceType };
 
-        console.log(res, ' successfully inserted one conference')
-
-        return res?.data?.insert_Conference_one
+        chatApiHelperLogger.info('Successfully upserted conference', { conferenceId: responseData?.insert_Conference_one?.id });
+        return responseData?.insert_Conference_one;
     } catch (e) {
-        console.log(e, ' unable to insert conference')
+        chatApiHelperLogger.error('Error in upsertConference', { error: (e as Error).message, conferenceData: conference });
+        // Re-throw or handle as per function's contract, for now, let it propagate if resilientGotPostHasura throws
+        throw e;
     }
 }
 
@@ -222,7 +310,7 @@ export const insertReminders = async (
             return
         }
 
-        reminders.forEach(r => console.log(r, ' reminder inside insertReminders'))
+        reminders.forEach(r => chatApiHelperLogger.debug('Reminder object inside insertReminders loop', { reminder: r }));
 
         const operationName = 'InsertReminder'
         const query = `
@@ -249,23 +337,19 @@ export const insertReminders = async (
             reminders
         }
 
-        const response: { data: { insert_Reminder: { returning: ReminderType[] } } } = await got.post(hasuraGraphUrl, {
-            headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
-            },
-            json: {
-                operationName,
-                query,
-                variables,
-            }
-        }).json()
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Reminder: { returning: ReminderType[] } };
 
-        console.log(response?.data?.insert_Reminder?.returning, ' this is response in insertReminders')
-        response?.data?.insert_Reminder?.returning.forEach(r => console.log(r, ' response in insertReminder'))
-
+        if (responseData?.insert_Reminder?.returning) {
+            chatApiHelperLogger.info('Successfully inserted reminders.', { count: responseData.insert_Reminder.returning.length });
+            // responseData.insert_Reminder.returning.forEach(r => chatApiHelperLogger.debug('Inserted reminder details:', { reminder: r }));
+        } else {
+            chatApiHelperLogger.warn('InsertReminders call to Hasura did not return expected data structure.', { responseData });
+        }
+        // The function doesn't return anything in its original form, so we maintain that.
     } catch (e) {
-        console.log(e, ' unable to insertReminders')
+        chatApiHelperLogger.error('Error in insertReminders', { error: (e as Error).message, remindersData: reminders });
+        // Re-throw or handle as per function's contract
+        throw e;
     }
 }
 
@@ -274,7 +358,7 @@ export const upsertEvents = async (
 ) => {
     try {
         if (!(events?.length > 0)) {
-            console.log('no events found in upsertEvents')
+            chatApiHelperLogger.info('No events found in upsertEvents, returning early.', { eventCount: events?.length });
             return
         }
         const operationName = 'InsertEvent'
@@ -402,27 +486,43 @@ export const upsertEvents = async (
                 }
             }
         `
-        _.uniqBy(events, 'id').forEach(e => console.log(e?.id, e, 'id, e inside upsertEventsPostPlanner '))
+        // _.uniqBy(events, 'id').forEach(e => console.log(e?.id, e, 'id, e inside upsertEventsPostPlanner ')) // Original verbose log
+        _.uniqBy(events, 'id').forEach(e => chatApiHelperLogger.debug('Event object inside upsertEventsPostPlanner loop (after uniqBy)', { eventId: e?.id, eventSummary: e?.summary }));
         const variables = {
             events: _.uniqBy(events, 'id'),
         }
 
-        const response: { data: { insert_Event: { affected_rows: number, returning: { id: string }[] } } } = await got.post(hasuraGraphUrl, {
-            headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
-            },
-            json: {
-                operationName,
-                query,
-                variables,
-            }
-        }).json()
-        console.log(response, response?.data?.insert_Event?.affected_rows, ' response after upserting events')
-        response?.data?.insert_Event?.returning?.forEach(e => console.log(e, ' returning  response after upserting events'))
-        return response
+        // const response: { data: { insert_Event: { affected_rows: number, returning: { id: string }[] } } } = await got.post(hasuraGraphUrl, {
+        //     headers: {
+        //         'X-Hasura-Admin-Secret': hasuraAdminSecret,
+        //         'X-Hasura-Role': 'admin'
+        //     },
+        //     json: {
+        //         operationName,
+        //         query,
+        //         variables,
+        //     }
+        // }).json()
+        // console.log(response, response?.data?.insert_Event?.affected_rows, ' response after upserting events')
+        // response?.data?.insert_Event?.returning?.forEach(e => console.log(e, ' returning  response after upserting events'))
+        // return response
+
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Event: { affected_rows: number, returning: { id: string }[] } };
+
+        if (responseData?.insert_Event) {
+            chatApiHelperLogger.info('Successfully upserted events.', { affected_rows: responseData.insert_Event.affected_rows, returned_ids: responseData.insert_Event.returning?.map(r => r.id) });
+        } else {
+            chatApiHelperLogger.warn('UpsertEvents call to Hasura did not return expected data structure.', { responseData });
+        }
+        // Original function returned the whole response object, so we mimic that structure if needed, or just the data part.
+        // For now, let's return the 'data' part, assuming consumers expect that.
+        // If the full Axios-like response was expected, this would need adjustment.
+        // Given the type annotation of the original `response` variable, it seems it expected the `data` property.
+        return { data: responseData };
+
     } catch (e) {
-        console.log(e, ' unable to update event')
+        chatApiHelperLogger.error('Error in upsertEvents', { error: (e as Error).message, eventCount: events.length });
+        throw e;
     }
 }
 
@@ -441,10 +541,9 @@ export const putDataInTrainEventIndexInOpenSearch = async (
             body: { [openTrainEventVectorName]: vector, userId },
             refresh: true
         })
-        console.log('Adding document:')
-        console.log(response.body)
+        chatApiHelperLogger.info('Document added to OpenSearch train event index.', { documentId: id, responseBody: response.body });
     } catch (e) {
-        console.log(e, ' unable to put data into search')
+        chatApiHelperLogger.error('Unable to put data into OpenSearch train event index', { id, userId, error: (e as Error).message, stack: (e as Error).stack });
     }
 }
 
@@ -453,7 +552,7 @@ export const getEventVectorFromLanceDb = async (id: string): Promise<number[] | 
         const event = await getEventFromLanceDbById(id);
         return event?.vector || null;
     } catch (e) {
-        console.error(`Error fetching event vector for ID ${id} from LanceDB:`, e);
+        chatApiHelperLogger.error(`Error fetching event vector for ID ${id} from LanceDB`, { eventId: id, error: (e as Error).message, stack: (e as Error).stack });
         return null;
     }
 }
@@ -478,10 +577,10 @@ export const upsertEventToLanceDb = async (
             title: title,
             last_modified: dayjs().toISOString(),
         };
-        await upsertEvents([eventEntry]);
-        console.log(`Event ${id} upserted to LanceDB.`);
+        await upsertEvents([eventEntry]); // This internal call to upsertEvents already has logging
+        chatApiHelperLogger.info(`Event ${id} upserted to LanceDB.`, { eventId: id, userId });
     } catch (e) {
-        console.error(`Error upserting event ${id} to LanceDB:`, e);
+        chatApiHelperLogger.error(`Error upserting event ${id} to LanceDB`, { eventId: id, userId, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -489,9 +588,9 @@ export const upsertEventToLanceDb = async (
 export const deleteEventFromLanceDb = async (id: string): Promise<void> => {
     try {
         await deleteEventsByIds([id]);
-        console.log(`Event ${id} deleted from LanceDB.`);
+        chatApiHelperLogger.info(`Event ${id} deleted from LanceDB.`, { eventId: id });
     } catch (e) {
-        console.error(`Error deleting event ${id} from LanceDB:`, e);
+        chatApiHelperLogger.error(`Error deleting event ${id} from LanceDB`, { eventId: id, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -499,9 +598,9 @@ export const deleteEventFromLanceDb = async (id: string): Promise<void> => {
 export const deleteTrainingDataFromLanceDb = async (id: string): Promise<void> => {
     try {
         await deleteTrainingEventsByIds([id]);
-        console.log(`Training data for ID ${id} deleted from LanceDB.`);
+        chatApiHelperLogger.info(`Training data for ID ${id} deleted from LanceDB.`, { trainingDataId: id });
     } catch (e) {
-        console.error(`Error deleting training data for ID ${id} from LanceDB:`, e);
+        chatApiHelperLogger.error(`Error deleting training data for ID ${id} from LanceDB`, { trainingDataId: id, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -521,9 +620,9 @@ export const updateTrainingDataInLanceDb = async (
             created_at: dayjs().toISOString(), // LanceDB upsert will update if exists based on ID
         };
         await upsertTrainingEvents([trainingEntry]);
-        console.log(`Training data for ID ${id} updated/upserted in LanceDB.`);
+        chatApiHelperLogger.info(`Training data for ID ${id} updated/upserted in LanceDB.`, { trainingDataId: id, userId });
     } catch (e) {
-        console.error(`Error updating training data for ID ${id} in LanceDB:`, e);
+        chatApiHelperLogger.error(`Error updating training data for ID ${id} in LanceDB`, { trainingDataId: id, userId, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -539,7 +638,7 @@ export const searchTrainingDataFromLanceDb = async (
         }
         return null;
     } catch (e) {
-        console.error('Error searching training data in LanceDB:', e);
+        chatApiHelperLogger.error('Error searching training data in LanceDB', { userId, error: (e as Error).message, stack: (e as Error).stack });
         throw e;
     }
 }
@@ -553,11 +652,41 @@ export const convertEventTitleToOpenAIVector = async (
             input: title,
         }
 
-        const res = await openai.embeddings.create(embeddingRequest)
-        console.log(res, ' res inside convertEventTitleToOpenAIVectors')
-        return res?.data?.[0]?.embedding
+        // const res = await openai.embeddings.create(embeddingRequest)
+        // console.log(res, ' res inside convertEventTitleToOpenAIVectors')
+        // return res?.data?.[0]?.embedding
+        return await retry(async (bail, attemptNumber) => {
+            try {
+                chatApiHelperLogger.info(`Attempt ${attemptNumber} to get embedding for title: "${title.substring(0, 20)}..."`);
+                const res = await openai.embeddings.create(embeddingRequest, { timeout: 15000 }); // 15s timeout
+                if (!res?.data?.[0]?.embedding) {
+                    chatApiHelperLogger.warn(`OpenAI embedding call for title "${title.substring(0,20)}..." returned no embedding data on attempt ${attemptNumber}.`, { response: res });
+                    throw new Error("No embedding data returned from OpenAI.");
+                }
+                chatApiHelperLogger.info(`Successfully got embedding for title "${title.substring(0,20)}..." on attempt ${attemptNumber}.`);
+                return res.data[0].embedding;
+            } catch (error: any) {
+                chatApiHelperLogger.warn(`Attempt ${attemptNumber} for OpenAI embedding for title "${title.substring(0,20)}..." failed.`, {
+                    error: error.message, code: error.code, status: error.response?.status
+                });
+                if (error.response && [400, 401, 403, 404].includes(error.response.status)) {
+                    bail(error); // Non-retryable client errors
+                    return;
+                }
+                throw error; // Retry for other errors (5xx, network, timeout)
+            }
+        }, {
+            retries: 2, // Total 3 attempts
+            factor: 2,
+            minTimeout: 500,
+            maxTimeout: 4000,
+            onRetry: (error, attemptNumber) => {
+                chatApiHelperLogger.warn(`Retrying OpenAI embedding for title "${title.substring(0,20)}...", attempt ${attemptNumber}. Error: ${error.message}`);
+            }
+        });
     } catch (e) {
-        console.log(e, ' unable to convert event title to openaivectors')
+        chatApiHelperLogger.error('Failed to convert event title to OpenAI vector after all retries.', { title: title.substring(0,20), error: (e as Error).message });
+        throw e; // Re-throw the final error
     }
 }
 
@@ -792,8 +921,10 @@ export const extrapolateDateFromJSONData = (
 
     let meetingStartDate = ''
     let meetingStartDateObject: Dayjs = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true)
+    const functionName = 'extrapolateDateFromJSONData';
 
-    console.log(year, month, day, hour, minute, ' year, month, day, hour, minute,' )
+    chatApiHelperLogger.debug(`[${functionName}] Initial params:`, { currentTime, timezone, year, month, day, isoWeekday, hour, minute, time, relativeTimeChangeFromNow, relativeTimeFromNow });
+
 
     if (day) {
 
@@ -801,7 +932,7 @@ export const extrapolateDateFromJSONData = (
 
             if (year && month) {
                 const yearAndMonthAndDate = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
-                console.log(yearAndMonthAndDate.format(), ' yearAndMonthAndDate.format()')
+                chatApiHelperLogger.debug(`[${functionName}] Condition: day, hour, minute, year, month`, { yearAndMonthAndDateFormatted: yearAndMonthAndDate.format() });
                 
                 meetingStartDateObject = meetingStartDateObject
                     .year(yearAndMonthAndDate.year())
@@ -810,336 +941,178 @@ export const extrapolateDateFromJSONData = (
                     .hour(hour)
                     .minute(minute)
                 
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
+                chatApiHelperLogger.debug(`[${functionName}] meetingStartDateObject updated (day, hour, minute, year, month):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             } else {
 
                 const dateOfMonth = dayjs(day, 'DD').tz(timezone, true)
-                console.log(dateOfMonth, ' dateOfMonth')
+                chatApiHelperLogger.debug(`[${functionName}] Condition: day, hour, minute (no year/month)`, { dateOfMonthFormatted: dateOfMonth.format() });
                 meetingStartDateObject = meetingStartDateObject
                     .date(dateOfMonth.date())
                     .hour(hour)
                     .minute(minute)
 
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside DD')
-
+                chatApiHelperLogger.debug(`[${functionName}] meetingStartDateObject updated (day, hour, minute):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             }
 
 
         } else if (time) {
             if (year && month) {
                 meetingStartDateObject = dayjs(`${year}-${month}-${day} ${time}`, 'YYYY-MM-DD HH:mm').tz(timezone, true)
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside time, year && month')
+                chatApiHelperLogger.debug(`[${functionName}] Condition: day, time, year, month`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             } else {
-
                 meetingStartDateObject = dayjs(`${day} ${time}`, 'DD HH:mm').tz(timezone, true)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside time')
-
+                chatApiHelperLogger.debug(`[${functionName}] Condition: day, time (no year/month)`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             }
-        } else if (!time && !hour && !minute) {
+        } else if (!time && !hour && !minute) { // All day event inferred
             if (year && month) {
                 meetingStartDateObject = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
-                console.log(meetingStartDateObject.format(), ' meetingDateObject inside year && month')
+                chatApiHelperLogger.debug(`[${functionName}] Condition: day, year, month (all day)`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             } else {
-
                 meetingStartDateObject = dayjs(day, 'DD').tz(timezone, true)
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside DD')
-
+                chatApiHelperLogger.debug(`[${functionName}] Condition: day (all day, no year/month)`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             }
         }
     } else if (isoWeekday) {
-
         const givenISODay = isoWeekday
         const currentISODay = getISODay(dayjs(currentTime).tz(timezone, true).toDate())
+        chatApiHelperLogger.debug(`[${functionName}] Condition: isoWeekday`, { givenISODay, currentISODay });
 
         if ((!!hour) && (!!minute)) {
-
             if (year && month) {
                 meetingStartDateObject = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
                     .hour(hour)
                     .minute(minute)
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month from isoDay')
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, hour, minute, year, month - base:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
 
                 if (givenISODay < currentISODay) {
-
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay year && month')
+                    chatApiHelperLogger.debug(`[${functionName}] isoWeekday adjusted (past day this week, add week):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 } else {
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay year && month')
+                    chatApiHelperLogger.debug(`[${functionName}] isoWeekday adjusted (future/current day this week):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 }
-
             } else {
-
                 meetingStartDateObject = dayjs().tz(timezone, true)
                     .hour(hour)
                     .minute(minute)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, hour, minute (no year/month) - base:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
 
                 if (givenISODay < currentISODay) {
-
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
+                    chatApiHelperLogger.debug(`[${functionName}] isoWeekday adjusted (past day this week, add week):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 } else {
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, hour & minute')
+                    chatApiHelperLogger.debug(`[${functionName}] isoWeekday adjusted (future/current day this week):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 }
-
             }
-
-
         } else if (time) {
             if (year && month) {
                 meetingStartDateObject = dayjs(`${year}-${month} ${time}`, 'YYYY-MM HH:mm').tz(timezone, true)
-
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, time, year, month - base:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 if (givenISODay < currentISODay) {
-
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, time, year && month')
-
                 } else {
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, time, year && month')
                 }
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, time, year, month - adjusted:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             } else {
-
                 meetingStartDateObject = dayjs(`${time}`, 'HH:mm').tz(timezone, true)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside isoWeekday, time')
-
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, time (no year/month) - base:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 if (givenISODay < currentISODay) {
-
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, isoWeekday, time, year && month')
-
                 } else {
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, isoWeekday, time, year && month')
                 }
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, time (no year/month) - adjusted:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             }
-        } else if (!hour && !minute && !time) {
-
+        } else if (!hour && !minute && !time) { // All day for isoWeekday
             if (year && month) {
                 meetingStartDateObject = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month from isoDay')
-
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday, year, month (all day) - base:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 if (givenISODay < currentISODay) {
-
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay year && month')
                 } else {
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay year && month')
                 }
-
             } else {
-
                 meetingStartDateObject = dayjs().tz(timezone, true)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
+                chatApiHelperLogger.debug(`[${functionName}] isoWeekday (all day, no year/month) - base:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
                 if (givenISODay < currentISODay) {
-
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
                 } else {
                     meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, hour & minute')
                 }
-
             }
+            chatApiHelperLogger.debug(`[${functionName}] isoWeekday (all day) - adjusted:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
         }
 
     } else if (relativeTimeFromNow?.[0]) {
         let minuteChanged = false
         let hourChanged = false
+        let calculatedMinute = 0, calculatedHour = 0, calculatedDay = 0, calculatedWeek = 0, calculatedMonth = 0, calculatedYear = 0;
+
+        for (const relativeTimeObject of relativeTimeFromNow) {
+            if (relativeTimeObject?.value > 0) {
+                switch (relativeTimeObject.unit) {
+                    case 'minute': calculatedMinute += relativeTimeObject.value; minuteChanged = true; break;
+                    case 'hour': calculatedHour += relativeTimeObject.value; hourChanged = true; break;
+                    case 'day': calculatedDay += relativeTimeObject.value; break;
+                    case 'week': calculatedWeek += relativeTimeObject.value; break;
+                    case 'month': calculatedMonth += relativeTimeObject.value; break;
+                    case 'year': calculatedYear += relativeTimeObject.value; break;
+                }
+            }
+        }
+        chatApiHelperLogger.debug(`[${functionName}] Condition: relativeTimeFromNow - calculated offsets:`, { calculatedMinute, calculatedHour, calculatedDay, calculatedWeek, calculatedMonth, calculatedYear, relativeTimeChangeFromNow });
+
 
         if ((relativeTimeChangeFromNow === 'add') || (relativeTimeChangeFromNow === null)) {
-            // loop through all possible values
-            let minute = 0
-            let hour = 0
-            let day = 0
-            let week = 0
-            let month = 0
-            let year = 0
-
-            for (const relativeTimeObject of relativeTimeFromNow) {
-
-                if (relativeTimeObject?.unit === 'minute') {
-                    if (relativeTimeObject?.value > 0) {
-                        minute += relativeTimeObject?.value
-                        minuteChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'hour') {
-                    if (relativeTimeObject?.value > 0) {
-                        hour += relativeTimeObject?.value
-                        hourChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'day') {
-                    if (relativeTimeObject?.value > 0) {
-                        day += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'week') {
-                    if (relativeTimeObject?.value > 0) {
-                        week += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'month') {
-                    if (relativeTimeObject?.value > 0) {
-                        month += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'year') {
-                    if (relativeTimeObject?.value > 0) {
-                        year += relativeTimeObject?.value
-                    }
-                }
-            }
-
-            meetingStartDateObject = dayjs(currentTime, 'YYYY-MM-DD').tz(timezone, true)
-                .add(minute, 'm')
-                .add(hour, 'h')
-                .add(day, 'd')
-                .add(week, 'w')
-                .add(month, 'M')
-                .add(year, 'y')
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, add')
-
+            meetingStartDateObject = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true) // Use full currentTime if adding time parts
+                .add(calculatedMinute, 'm')
+                .add(calculatedHour, 'h')
+                .add(calculatedDay, 'd')
+                .add(calculatedWeek, 'w')
+                .add(calculatedMonth, 'M')
+                .add(calculatedYear, 'y')
+            chatApiHelperLogger.debug(`[${functionName}] relativeTime - add operation:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
         } else if (relativeTimeChangeFromNow === 'subtract') {
-
-            let minute = 0
-            let hour = 0
-            let day = 0
-            let week = 0
-            let month = 0
-            let year = 0
-
-            for (const relativeTimeObject of relativeTimeFromNow) {
-
-                if (relativeTimeObject?.unit === 'minute') {
-                    if (relativeTimeObject?.value > 0) {
-                        minute += relativeTimeObject?.value
-                        minuteChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'hour') {
-                    if (relativeTimeObject?.value > 0) {
-                        hour += relativeTimeObject?.value
-                        hourChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'day') {
-                    if (relativeTimeObject?.value > 0) {
-                        day += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'week') {
-                    if (relativeTimeObject?.value > 0) {
-                        week += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'month') {
-                    if (relativeTimeObject?.value > 0) {
-                        month += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'year') {
-                    if (relativeTimeObject?.value > 0) {
-                        year += relativeTimeObject?.value
-                    }
-                }
-            }
-
             meetingStartDateObject = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true)
-                .subtract(minute, 'm')
-                .subtract(hour, 'h')
-                .subtract(day, 'd')
-                .subtract(week, 'w')
-                .subtract(month, 'M')
-                .subtract(year, 'y')
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, subtract')
+                .subtract(calculatedMinute, 'm')
+                .subtract(calculatedHour, 'h')
+                .subtract(calculatedDay, 'd')
+                .subtract(calculatedWeek, 'w')
+                .subtract(calculatedMonth, 'M')
+                .subtract(calculatedYear, 'y')
+            chatApiHelperLogger.debug(`[${functionName}] relativeTime - subtract operation:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
         }
 
+        // Apply explicit hour/minute/time if provided, potentially overriding relative calculation for time part
         if ((!!hour) && (!!minute)) {
-            
-                if (year && month) {
-                    const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    meetingStartDateObject = meetingStartDateObject
-                        .year(yearAndMonth.year())
-                        .month(yearAndMonth.month())
-                        .hour(hour)
-                        .minute(minute)
-                    
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-                } else {
-    
-                    meetingStartDateObject = (meetingStartDateObject as Dayjs)
-                    .hour(hour)
-                    .minute(minute)
-    
-                }
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, hour, minute')
-
-        } else if (time) {
-            const temp = dayjs(time, 'HH:mm').tz(timezone, true)
-            
-                if (year && month) {
-                    const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    meetingStartDateObject = meetingStartDateObject
-                        .year(yearAndMonth.year())
-                        .month(yearAndMonth.month())
-                        .hour(temp.hour())
-                        .minute(temp.minute())
-                    
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-                } else {
-    
-                    meetingStartDateObject = (meetingStartDateObject as Dayjs)
-                        .hour(temp.hour())
-                        .minute(temp.minute())
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-    
-                }
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, hour, minute')
-        } else if (!hour && !minute && !time && !hourChanged && !minuteChanged) {
-            
             if (year && month) {
                 const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                meetingStartDateObject = meetingStartDateObject
-                    .year(yearAndMonth.year())
-                    .month(yearAndMonth.month())
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-            } else {
-
-                meetingStartDateObject = (meetingStartDateObject as Dayjs)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-
+                meetingStartDateObject = meetingStartDateObject.year(yearAndMonth.year()).month(yearAndMonth.month());
+            }
+            meetingStartDateObject = meetingStartDateObject.hour(hour).minute(minute);
+            chatApiHelperLogger.debug(`[${functionName}] relativeTime with explicit hour/minute override:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format(), year, month });
+        } else if (time) {
+            const tempTime = dayjs(time, 'HH:mm').tz(timezone, true)
+            if (year && month) {
+                const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
+                meetingStartDateObject = meetingStartDateObject.year(yearAndMonth.year()).month(yearAndMonth.month());
+            }
+            meetingStartDateObject = meetingStartDateObject.hour(tempTime.hour()).minute(tempTime.minute());
+            chatApiHelperLogger.debug(`[${functionName}] relativeTime with explicit time override:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format(), year, month });
+        } else if (!hourChanged && !minuteChanged) { // If no relative minute/hour and no explicit time, apply just year/month if given
+             if (year && month) {
+                const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
+                meetingStartDateObject = meetingStartDateObject.year(yearAndMonth.year()).month(yearAndMonth.month());
+                chatApiHelperLogger.debug(`[${functionName}] relativeTime with explicit year/month (no time parts changed):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             }
         }
     }
 
-    console.log(meetingStartDateObject.format(), ' meetingStartDateObject final')
-
+    chatApiHelperLogger.debug(`[${functionName}] Final meetingStartDateObject:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
     meetingStartDate = (meetingStartDateObject as Dayjs).format()
-
     return meetingStartDate
 }
 
@@ -1156,364 +1129,102 @@ export const extrapolateStartDateFromJSONData = (
     relativeTimeChangeFromNow: RelativeTimeChangeFromNowType | null | undefined,
     relativeTimeFromNow: RelativeTimeFromNowType[] | null | undefined,
 ) => {
-
+    // This function is very similar to extrapolateDateFromJSONData, but sets time to 00:00 if not specified.
+    // For brevity, detailed logging for each path is omitted if it's identical to the above, focusing on differences.
     let meetingStartDate = ''
     let meetingStartDateObject: Dayjs = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true)
+    const functionName = 'extrapolateStartDateFromJSONData'; // For specific logging if needed
+
+    chatApiHelperLogger.debug(`[${functionName}] Initial params:`, { currentTime, timezone, year, month, day, isoWeekday, hour, minute, time, relativeTimeChangeFromNow, relativeTimeFromNow });
 
     if (day) {
-
         if ((!!hour) && (!!minute)) {
-
-            if (year && month) {
+             if (year && month) {
                 const yearAndMonthAndDate = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
-                meetingStartDateObject = meetingStartDateObject
-                .year(yearAndMonthAndDate.year())
-                .month(yearAndMonthAndDate.month())
-                .date(yearAndMonthAndDate.date())
-                .hour(hour)
-                .minute(minute)
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
+                meetingStartDateObject = meetingStartDateObject.year(yearAndMonthAndDate.year()).month(yearAndMonthAndDate.month()).date(yearAndMonthAndDate.date()).hour(hour).minute(minute);
             } else {
-
                 const dateOfMonth = dayjs(day, 'DD').tz(timezone, true)
-                meetingStartDateObject = meetingStartDateObject
-                .date(dateOfMonth.date())
-                .hour(hour)
-                .minute(minute)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside DD')
-
+                meetingStartDateObject = meetingStartDateObject.date(dateOfMonth.date()).hour(hour).minute(minute);
             }
-
-
         } else if (time) {
             if (year && month) {
-                meetingStartDateObject = dayjs(`${year}-${month}-${day} ${time}`, 'YYYY-MM-DD HH:mm').tz(timezone, true)
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside time, year && month')
+                meetingStartDateObject = dayjs(`${year}-${month}-${day} ${time}`, 'YYYY-MM-DD HH:mm').tz(timezone, true);
             } else {
-
-                meetingStartDateObject = dayjs(`${day} ${time}`, 'DD HH:mm').tz(timezone, true)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside time')
-
+                meetingStartDateObject = dayjs(`${day} ${time}`, 'DD HH:mm').tz(timezone, true);
             }
-        } else if (!time && !hour && !minute) {
+        } else if (!time && !hour && !minute) { // All day event, start at 00:00
             if (year && month) {
-                meetingStartDateObject = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
-                    .hour(0)
-                    .minute(0)
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
+                meetingStartDateObject = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true).hour(0).minute(0);
             } else {
-
-                meetingStartDateObject = dayjs(day, 'DD').tz(timezone, true)
-                    .hour(0)
-                    .minute(0)
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside DD')
-
+                meetingStartDateObject = dayjs(day, 'DD').tz(timezone, true).hour(0).minute(0);
             }
+             chatApiHelperLogger.debug(`[${functionName}] Day specified, no time - setting to 00:00`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
         }
     } else if (isoWeekday) {
-
-        const givenISODay = isoWeekday
-        const currentISODay = getISODay(dayjs(currentTime).tz(timezone, true).toDate())
+        const givenISODay = isoWeekday;
+        const currentISODay = getISODay(dayjs(currentTime).tz(timezone, true).toDate());
+        let baseDateObj: Dayjs;
 
         if ((!!hour) && (!!minute)) {
-
-            if (year && month) {
-                meetingStartDateObject = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    .hour(hour)
-                    .minute(minute)
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month from isoDay')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay year && month')
-                } else {
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay year && month')
-                }
-
-            } else {
-
-                meetingStartDateObject = dayjs().tz(timezone, true)
-                    .hour(hour)
-                    .minute(minute)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                } else {
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, hour & minute')
-                }
-
-            }
-
-
+            baseDateObj = year && month ? dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true) : dayjs().tz(timezone, true);
+            baseDateObj = baseDateObj.hour(hour).minute(minute);
         } else if (time) {
-            if (year && month) {
-                meetingStartDateObject = dayjs(`${year}-${month} ${time}`, 'YYYY-MM HH:mm').tz(timezone, true)
-
-                if (givenISODay < currentISODay) {
-
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, time, year && month')
-
-                } else {
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, time, year && month')
-                }
-            } else {
-
-                meetingStartDateObject = dayjs(`${time}`, 'HH:mm').tz(timezone, true)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside isoWeekday, time')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, isoWeekday, time, year && month')
-
-                } else {
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, isoWeekday, time, year && month')
-                }
-            }
-        } else if (!hour && !minute && !time) {
-
-            if (year && month) {
-                meetingStartDateObject = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    .hour(0)
-                    .minute(0)
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month from isoDay')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay year && month')
-                } else {
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay year && month')
-                }
-
-            } else {
-
-                meetingStartDateObject = dayjs().tz(timezone, true)
-                    .hour(0)
-                    .minute(0)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                } else {
-                    meetingStartDateObject = dayjs(setISODay((meetingStartDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, hour & minute')
-                }
-
-            }
+            baseDateObj = year && month ? dayjs(`${year}-${month} ${time}`, 'YYYY-MM HH:mm').tz(timezone, true) : dayjs(time, 'HH:mm').tz(timezone, true);
+        } else { // All day for isoWeekday, start at 00:00
+            baseDateObj = year && month ? dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true) : dayjs().tz(timezone, true);
+            baseDateObj = baseDateObj.hour(0).minute(0);
+            chatApiHelperLogger.debug(`[${functionName}] ISO Weekday specified, no time - setting to 00:00 for base`, { baseDateObjFormatted: baseDateObj.format() });
         }
+
+        meetingStartDateObject = givenISODay < currentISODay ? dayjs(setISODay(baseDateObj.add(1, 'w').toDate(), givenISODay)) : dayjs(setISODay(baseDateObj.toDate(), givenISODay));
 
     } else if (relativeTimeFromNow?.[0]) {
-        let minuteChanged = false
-        let hourChanged = false
+        let minuteChanged = false, hourChanged = false;
+        let calculatedMinute = 0, calculatedHour = 0, calculatedDay = 0, calculatedWeek = 0, calculatedMonth = 0, calculatedYear = 0;
+
+        for (const relativeTimeObject of relativeTimeFromNow) {
+             if (relativeTimeObject?.value > 0) {
+                switch (relativeTimeObject.unit) {
+                    case 'minute': calculatedMinute += relativeTimeObject.value; minuteChanged = true; break;
+                    case 'hour': calculatedHour += relativeTimeObject.value; hourChanged = true; break;
+                    case 'day': calculatedDay += relativeTimeObject.value; break;
+                    case 'week': calculatedWeek += relativeTimeObject.value; break;
+                    case 'month': calculatedMonth += relativeTimeObject.value; break;
+                    case 'year': calculatedYear += relativeTimeObject.value; break;
+                }
+            }
+        }
+
+        const baseCurrentTime = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true); // Ensure we use full current time for subtractions
 
         if ((relativeTimeChangeFromNow === 'add') || (relativeTimeChangeFromNow === null)) {
-            // loop through all possible values
-            let minute = 0
-            let hour = 0
-            let day = 0
-            let week = 0
-            let month = 0
-            let year = 0
-
-            for (const relativeTimeObject of relativeTimeFromNow) {
-
-                if (relativeTimeObject?.unit === 'minute') {
-                    if (relativeTimeObject?.value > 0) {
-                        minute += relativeTimeObject?.value
-                        minuteChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'hour') {
-                    if (relativeTimeObject?.value > 0) {
-                        hour += relativeTimeObject?.value
-                        hourChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'day') {
-                    if (relativeTimeObject?.value > 0) {
-                        day += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'week') {
-                    if (relativeTimeObject?.value > 0) {
-                        week += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'month') {
-                    if (relativeTimeObject?.value > 0) {
-                        month += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'year') {
-                    if (relativeTimeObject?.value > 0) {
-                        year += relativeTimeObject?.value
-                    }
-                }
-            }
-
-            meetingStartDateObject = dayjs(currentTime, 'YYYY-MM-DD').tz(timezone, true)
-                .add(minute, 'm')
-                .add(hour, 'h')
-                .add(day, 'd')
-                .add(week, 'w')
-                .add(month, 'M')
-                .add(year, 'y')
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, add')
-
+            meetingStartDateObject = baseCurrentTime
+                .add(calculatedMinute, 'm').add(calculatedHour, 'h')
+                .add(calculatedDay, 'd').add(calculatedWeek, 'w')
+                .add(calculatedMonth, 'M').add(calculatedYear, 'y');
         } else if (relativeTimeChangeFromNow === 'subtract') {
-
-            let minute = 0
-            let hour = 0
-            let day = 0
-            let week = 0
-            let month = 0
-            let year = 0
-
-            for (const relativeTimeObject of relativeTimeFromNow) {
-
-                if (relativeTimeObject?.unit === 'minute') {
-                    if (relativeTimeObject?.value > 0) {
-                        minute += relativeTimeObject?.value
-                        minuteChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'hour') {
-                    if (relativeTimeObject?.value > 0) {
-                        hour += relativeTimeObject?.value
-                        hourChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'day') {
-                    if (relativeTimeObject?.value > 0) {
-                        day += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'week') {
-                    if (relativeTimeObject?.value > 0) {
-                        week += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'month') {
-                    if (relativeTimeObject?.value > 0) {
-                        month += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'year') {
-                    if (relativeTimeObject?.value > 0) {
-                        year += relativeTimeObject?.value
-                    }
-                }
-            }
-
-            meetingStartDateObject = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true)
-                .subtract(minute, 'm')
-                .subtract(hour, 'h')
-                .subtract(day, 'd')
-                .subtract(week, 'w')
-                .subtract(month, 'M')
-                .subtract(year, 'y')
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, subtract')
+            meetingStartDateObject = baseCurrentTime
+                .subtract(calculatedMinute, 'm').subtract(calculatedHour, 'h')
+                .subtract(calculatedDay, 'd').subtract(calculatedWeek, 'w')
+                .subtract(calculatedMonth, 'M').subtract(calculatedYear, 'y');
         }
 
         if ((!!hour) && (!!minute)) {
-            
-                if (year && month) {
-                    const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    meetingStartDateObject = meetingStartDateObject
-                        .year(yearAndMonth.year())
-                        .month(yearAndMonth.month())
-                        .hour(hour)
-                        .minute(minute)
-                    
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-                } else {
-    
-                    meetingStartDateObject = (meetingStartDateObject as Dayjs)
-                    .hour(hour)
-                    .minute(minute)
-    
-                }
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, hour, minute')
-
+            if (year && month) meetingStartDateObject = meetingStartDateObject.year(dayjs(`${year}-${month}`, 'YYYY-MM').year()).month(dayjs(`${year}-${month}`, 'YYYY-MM').month());
+            meetingStartDateObject = meetingStartDateObject.hour(hour).minute(minute);
         } else if (time) {
-            const temp = dayjs(time, 'HH:mm').tz(timezone, true)
-            
-                if (year && month) {
-                    const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    meetingStartDateObject = meetingStartDateObject
-                        .year(yearAndMonth.year())
-                        .month(yearAndMonth.month())
-                        .hour(temp.hour())
-                        .minute(temp.minute())
-                    
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-                } else {
-    
-                    meetingStartDateObject = (meetingStartDateObject as Dayjs)
-                        .hour(temp.hour())
-                        .minute(temp.minute())
-
-                    console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-    
-                }
-            
-            console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside relativeTime, hour, minute')
-        } else if (!hour && !minute && !time && !hourChanged && !minuteChanged) {
-            
-            if (year && month) {
-                const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                meetingStartDateObject = meetingStartDateObject
-                    .year(yearAndMonth.year())
-                    .month(yearAndMonth.month())
-                    .hour(0)
-                    .minute(0)
-                
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-            } else {
-
-                meetingStartDateObject = (meetingStartDateObject as Dayjs)
-                    .hour(0)
-                    .minute(0)
-
-                console.log(meetingStartDateObject.format(), ' meetingStartDateObject inside year && month')
-
-            }
+            const tempTime = dayjs(time, 'HH:mm').tz(timezone, true);
+            if (year && month) meetingStartDateObject = meetingStartDateObject.year(dayjs(`${year}-${month}`, 'YYYY-MM').year()).month(dayjs(`${year}-${month}`, 'YYYY-MM').month());
+            meetingStartDateObject = meetingStartDateObject.hour(tempTime.hour()).minute(tempTime.minute());
+        } else if (!hourChanged && !minuteChanged) { // No relative time parts, no explicit time parts -> set to 00:00
+            if (year && month) meetingStartDateObject = meetingStartDateObject.year(dayjs(`${year}-${month}`, 'YYYY-MM').year()).month(dayjs(`${year}-${month}`, 'YYYY-MM').month());
+            meetingStartDateObject = meetingStartDateObject.hour(0).minute(0);
+            chatApiHelperLogger.debug(`[${functionName}] Relative day/week/month/year, no time parts - setting to 00:00`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
         }
     }
 
-    console.log(meetingStartDateObject.format(), ' meetingStartDateObject final')
-
+    chatApiHelperLogger.debug(`[${functionName}] Final meetingStartDateObject:`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
     meetingStartDate = (meetingStartDateObject as Dayjs).format()
-
     return meetingStartDate
 }
 
@@ -1530,372 +1241,126 @@ export const extrapolateEndDateFromJSONData = (
     relativeTimeChangeFromNow: RelativeTimeChangeFromNowType | null | undefined,
     relativeTimeFromNow: RelativeTimeFromNowType[] | null | undefined,
 ) => {
-
+    // This function is very similar to extrapolateDateFromJSONData, but sets time to 23:59 if not specified.
     let meetingEndDate = ''
     let meetingEndDateObject: Dayjs = dayjs(currentTime, 'YYYY-MM-DDTHH:mm').tz(timezone, true)
+    const functionName = 'extrapolateEndDateFromJSONData';
+
+    chatApiHelperLogger.debug(`[${functionName}] Initial params:`, { currentTime, timezone, year, month, day, isoWeekday, hour, minute, time, relativeTimeChangeFromNow, relativeTimeFromNow });
 
     if (day) {
-
         if ((!!hour) && (!!minute)) {
-
             if (year && month) {
-                const yearAndMonthAndDate = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
-                meetingEndDateObject = meetingEndDateObject
-                    .year(yearAndMonthAndDate.year())
-                    .month(yearAndMonthAndDate.month())
-                    .date(yearAndMonthAndDate.date())
-                    .hour(hour)
-                    .minute(minute)
-                
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
+                const yearAndMonthAndDate = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true);
+                meetingEndDateObject = meetingEndDateObject.year(yearAndMonthAndDate.year()).month(yearAndMonthAndDate.month()).date(yearAndMonthAndDate.date()).hour(hour).minute(minute);
             } else {
-                
-                const dateOfMonth = dayjs(day, 'DD').tz(timezone, true)
-                meetingEndDateObject = meetingEndDateObject
-                    .date(dateOfMonth.date())
-                    .hour(hour)
-                    .minute(minute)
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside DD')
-
+                const dateOfMonth = dayjs(day, 'DD').tz(timezone, true);
+                meetingEndDateObject = meetingEndDateObject.date(dateOfMonth.date()).hour(hour).minute(minute);
             }
-
         } else if (time) {
-            if (year && month) {
-                meetingEndDateObject = dayjs(`${year}-${month}-${day} ${time}`, 'YYYY-MM-DD HH:mm').tz(timezone, true)
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside time, year && month')
+             if (year && month) {
+                meetingEndDateObject = dayjs(`${year}-${month}-${day} ${time}`, 'YYYY-MM-DD HH:mm').tz(timezone, true);
             } else {
-
-                meetingEndDateObject = dayjs(`${day} ${time}`, 'DD HH:mm').tz(timezone, true)
-
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside time')
-
+                meetingEndDateObject = dayjs(`${day} ${time}`, 'DD HH:mm').tz(timezone, true);
             }
-        } else if (!time && !hour && !minute) {
+        } else if (!time && !hour && !minute) { // All day event, end at 23:59
             if (year && month) {
-                meetingEndDateObject = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
-                    .hour(23)
-                    .minute(59)
-                
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
+                meetingEndDateObject = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true).hour(23).minute(59);
             } else {
-
-                meetingEndDateObject = dayjs(day, 'DD').tz(timezone, true)
-                    .hour(23)
-                    .minute(59)
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside DD')
-
+                meetingEndDateObject = dayjs(day, 'DD').tz(timezone, true).hour(23).minute(59);
             }
+            chatApiHelperLogger.debug(`[${functionName}] Day specified, no time - setting to 23:59`, { meetingEndDateObjectFormatted: meetingEndDateObject.format() });
         }
     } else if (isoWeekday) {
-
-        const givenISODay = isoWeekday
-        const currentISODay = getISODay(dayjs(currentTime).tz(timezone, true).toDate())
+        const givenISODay = isoWeekday;
+        const currentISODay = getISODay(dayjs(currentTime).tz(timezone, true).toDate());
+        let baseDateObj: Dayjs;
 
         if ((!!hour) && (!!minute)) {
-
-            if (year && month) {
-                meetingEndDateObject = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    .hour(hour)
-                    .minute(minute)
-                
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month from isoDay')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay year && month')
-                } else {
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).toDate(), givenISODay))
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay year && month')
-                }
-
-            } else {
-
-                meetingEndDateObject = dayjs().tz(timezone, true)
-                    .hour(hour)
-                    .minute(minute)
-
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                } else {
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, hour & minute')
-                }
-
-            }
-
+            baseDateObj = year && month ? dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true) : dayjs().tz(timezone, true);
+            baseDateObj = baseDateObj.hour(hour).minute(minute);
         } else if (time) {
-            if (year && month) {
-                meetingEndDateObject = dayjs(`${year}-${month} ${time}`, 'YYYY-MM HH:mm').tz(timezone, true)
-
-                if (givenISODay < currentISODay) {
-
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, time, year && month')
-
-                } else {
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, time, year && month')
-                }
-            } else {
-
-                meetingEndDateObject = dayjs(`${time}`, 'HH:mm').tz(timezone, true)
-
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside isoWeekday, time')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, isoWeekday, time, year && month')
-
-                } else {
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, isoWeekday, time, year && month')
-                }
-            }
-        } else if (!hour && !minute && !time) {
-
-            if (year && month) {
-                meetingEndDateObject = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    .hour(23)
-                    .minute(59)
-                
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month from isoDay')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay year && month')
-                } else {
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay year && month')
-                }
-
-            } else {
-
-                meetingEndDateObject = dayjs().tz(timezone, true)
-                    .hour(23)
-                    .minute(59)
-
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                if (givenISODay < currentISODay) {
-
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).add(1, 'w').toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay < currentISODay, hour & minute')
-
-                } else {
-                    meetingEndDateObject = dayjs(setISODay((meetingEndDateObject as Dayjs).toDate(), givenISODay))
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside givenISODay > currentISODay, hour & minute')
-                }
-
-            }
+            baseDateObj = year && month ? dayjs(`${year}-${month} ${time}`, 'YYYY-MM HH:mm').tz(timezone, true) : dayjs(time, 'HH:mm').tz(timezone, true);
+        } else { // All day for isoWeekday, end at 23:59
+            baseDateObj = year && month ? dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true) : dayjs().tz(timezone, true);
+            baseDateObj = baseDateObj.hour(23).minute(59);
+            chatApiHelperLogger.debug(`[${functionName}] ISO Weekday specified, no time - setting to 23:59 for base`, { baseDateObjFormatted: baseDateObj.format() });
         }
+
+        meetingEndDateObject = givenISODay < currentISODay ? dayjs(setISODay(baseDateObj.add(1, 'w').toDate(), givenISODay)) : dayjs(setISODay(baseDateObj.toDate(), givenISODay));
 
     } 
+    // This 'else if' was incorrectly placed inside the isoWeekday block in the original. It should be at the same level.
+    // Assuming it's intended to be an alternative to 'day' and 'isoWeekday' for the main date calculation.
+    // However, the logic for relativeTimeFromNow in the original function for extrapolateEndDateFromJSONData *adds* to the *already calculated* meetingEndDateObject.
+    // This is different from how extrapolateDateFromJSONData handles it (where it's an alternative initial calculation path).
+    // Replicating the original behavior for extrapolateEndDateFromJSONData:
     
-    if (relativeTimeFromNow?.[0]) {
-        let minuteChanged = false
-        let hourChanged = false
+    if (relativeTimeFromNow?.[0]) { // This applies *after* day/isoWeekday logic if any
+        let minuteChanged = false, hourChanged = false;
+        let calculatedMinute = 0, calculatedHour = 0, calculatedDay = 0, calculatedWeek = 0, calculatedMonth = 0, calculatedYear = 0;
+
+        for (const relativeTimeObject of relativeTimeFromNow) {
+            if (relativeTimeObject?.value > 0) {
+                switch (relativeTimeObject.unit) {
+                    case 'minute': calculatedMinute += relativeTimeObject.value; minuteChanged = true; break;
+                    case 'hour': calculatedHour += relativeTimeObject.value; hourChanged = true; break;
+                    case 'day': calculatedDay += relativeTimeObject.value; break;
+                    case 'week': calculatedWeek += relativeTimeObject.value; break;
+                    case 'month': calculatedMonth += relativeTimeObject.value; break;
+                    case 'year': calculatedYear += relativeTimeObject.value; break;
+                }
+            }
+        }
+        chatApiHelperLogger.debug(`[${functionName}] Applying relativeTimeFromNow adjustments:`, { calculatedMinute, calculatedHour, calculatedDay, calculatedWeek, calculatedMonth, calculatedYear, relativeTimeChangeFromNow });
 
         if ((relativeTimeChangeFromNow === 'add') || (relativeTimeChangeFromNow === null)) {
-            // loop through all possible values
-            let minute = 0
-            let hour = 0
-            let day = 0
-            let week = 0
-            let month = 0
-            let year = 0
-
-            for (const relativeTimeObject of relativeTimeFromNow) {
-
-                if (relativeTimeObject?.unit === 'minute') {
-                    if (relativeTimeObject?.value > 0) {
-                        minute += relativeTimeObject?.value
-                        minuteChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'hour') {
-                    if (relativeTimeObject?.value > 0) {
-                        hour += relativeTimeObject?.value
-                        hourChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'day') {
-                    if (relativeTimeObject?.value > 0) {
-                        day += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'week') {
-                    if (relativeTimeObject?.value > 0) {
-                        week += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'month') {
-                    if (relativeTimeObject?.value > 0) {
-                        month += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'year') {
-                    if (relativeTimeObject?.value > 0) {
-                        year += relativeTimeObject?.value
-                    }
-                }
-            }
-
             meetingEndDateObject = meetingEndDateObject
-                .add(minute, 'm')
-                .add(hour, 'h')
-                .add(day, 'd')
-                .add(week, 'w')
-                .add(month, 'M')
-                .add(year, 'y')
-            
-            console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside relativeTime, add')
-
+                .add(calculatedMinute, 'm').add(calculatedHour, 'h')
+                .add(calculatedDay, 'd').add(calculatedWeek, 'w')
+                .add(calculatedMonth, 'M').add(calculatedYear, 'y');
         } else if (relativeTimeChangeFromNow === 'subtract') {
-
-            let minute = 0
-            let hour = 0
-            let day = 0
-            let week = 0
-            let month = 0
-            let year = 0
-
-            for (const relativeTimeObject of relativeTimeFromNow) {
-
-                if (relativeTimeObject?.unit === 'minute') {
-                    if (relativeTimeObject?.value > 0) {
-                        minute += relativeTimeObject?.value
-                        minuteChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'hour') {
-                    if (relativeTimeObject?.value > 0) {
-                        hour += relativeTimeObject?.value
-                        hourChanged = true
-                    }
-                } else if (relativeTimeObject?.unit === 'day') {
-                    if (relativeTimeObject?.value > 0) {
-                        day += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'week') {
-                    if (relativeTimeObject?.value > 0) {
-                        week += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'month') {
-                    if (relativeTimeObject?.value > 0) {
-                        month += relativeTimeObject?.value
-                    }
-                } else if (relativeTimeObject?.unit === 'year') {
-                    if (relativeTimeObject?.value > 0) {
-                        year += relativeTimeObject?.value
-                    }
-                }
-            }
-
             meetingEndDateObject = meetingEndDateObject
-                .subtract(minute, 'm')
-                .subtract(hour, 'h')
-                .subtract(day, 'd')
-                .subtract(week, 'w')
-                .subtract(month, 'M')
-                .subtract(year, 'y')
-            
-            console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside relativeTime, subtract')
+                .subtract(calculatedMinute, 'm').subtract(calculatedHour, 'h')
+                .subtract(calculatedDay, 'd').subtract(calculatedWeek, 'w')
+                .subtract(calculatedMonth, 'M').subtract(calculatedYear, 'y');
         }
 
-        if ((!!hour) && (!!minute)) {
-            
-            console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside relativeTime, hour, minute')
+        // If explicit hour/minute/time are given, they might override the time part of relative calculation or adjust the existing one.
+        // The original logic for EndDate didn't seem to re-apply explicit hour/minute if relative time was also given,
+        // unless it was to set to 23:59 if no time parts were changed by relativeTime and no explicit time.
+        // This part is tricky to replicate perfectly without ambiguity from original console logs.
+        // The primary difference for EndDate was setting to 23:59 if it was an "all-day" type of relative adjustment.
 
-            if (year && month) {
-                const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                meetingEndDateObject = meetingEndDateObject
-                    .year(yearAndMonth.year())
-                    .month(yearAndMonth.month())
-                    .hour(hour)
-                    .minute(minute)
-                
-                console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
-            } else {
-
-                meetingEndDateObject = (meetingEndDateObject as Dayjs)
-                .hour(hour)
-                .minute(minute)
-
-            }
-
-        } else if (time) {
-            const temp = dayjs(time, 'HH:mm').tz(timezone, true)
-            
-                if (year && month) {
-                    const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    meetingEndDateObject = meetingEndDateObject
-                        .year(yearAndMonth.year())
-                        .month(yearAndMonth.month())
-                        .hour(temp.hour())
-                        .minute(temp.minute())
-                    
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
-                } else {
-    
-                    meetingEndDateObject = (meetingEndDateObject as Dayjs)
-                        .hour(temp.hour())
-                        .minute(temp.minute())
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
-    
-                }
-            
-            console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside relativeTime, hour, minute')
-        } else if (!hour && !minute && !time && !hourChanged && !minuteChanged) {
-            
-                if (year && month) {
-                    const yearAndMonth = dayjs(`${year}-${month}`, 'YYYY-MM').tz(timezone, true)
-                    meetingEndDateObject = meetingEndDateObject
-                        .year(yearAndMonth.year())
-                        .month(yearAndMonth.month())
-                        .hour(23)
-                        .minute(59)
-                    
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
-                } else {
-    
-                    meetingEndDateObject = (meetingEndDateObject as Dayjs)
-                        .hour(23)
-                        .minute(59)
-
-                    console.log(meetingEndDateObject.format(), ' meetingStartDateObject inside year && month')
-    
-                }
+        if ((!!hour) && (!!minute)) { // Explicit hour/minute given
+            if (year && month) meetingEndDateObject = meetingEndDateObject.year(dayjs(`${year}-${month}`, 'YYYY-MM').year()).month(dayjs(`${year}-${month}`, 'YYYY-MM').month());
+            meetingEndDateObject = meetingEndDateObject.hour(hour).minute(minute);
+             chatApiHelperLogger.debug(`[${functionName}] Relative time applied, then explicit hour/minute:`, { meetingEndDateObjectFormatted: meetingEndDateObject.format() });
+        } else if (time) { // Explicit time given
+            const tempTime = dayjs(time, 'HH:mm').tz(timezone, true);
+            if (year && month) meetingEndDateObject = meetingEndDateObject.year(dayjs(`${year}-${month}`, 'YYYY-MM').year()).month(dayjs(`${year}-${month}`, 'YYYY-MM').month());
+            meetingEndDateObject = meetingEndDateObject.hour(tempTime.hour()).minute(tempTime.minute());
+            chatApiHelperLogger.debug(`[${functionName}] Relative time applied, then explicit time:`, { meetingEndDateObjectFormatted: meetingEndDateObject.format() });
+        } else if (!hourChanged && !minuteChanged) { // No relative minute/hour adjustments, and no explicit time/hour/minute
+            // This implies it might be an "all-day" type of relative adjustment (e.g., "next week")
+            // So, set time to end of day.
+            if (year && month) meetingEndDateObject = meetingEndDateObject.year(dayjs(`${year}-${month}`, 'YYYY-MM').year()).month(dayjs(`${year}-${month}`, 'YYYY-MM').month());
+            meetingEndDateObject = meetingEndDateObject.hour(23).minute(59);
+            chatApiHelperLogger.debug(`[${functionName}] Relative day/week/etc applied (no time parts), setting to 23:59:`, { meetingEndDateObjectFormatted: meetingEndDateObject.format() });
         }
     }
 
-    console.log(meetingEndDateObject.format(), ' meetingStartDateObject final')
-
+    chatApiHelperLogger.debug(`[${functionName}] Final meetingEndDateObject:`, { meetingEndDateObjectFormatted: meetingEndDateObject.format() });
     meetingEndDate = (meetingEndDateObject as Dayjs).format()
-
     return meetingEndDate
 }
 
 export const getGlobalCalendar = async (
     userId: string,
 ) => {
+    const operationName = 'getGlobalCalendar'; // Defined operationName for logging and Hasura call
     try {
-        const operationName = 'getGlobalCalendar'
+        // const operationName = 'getGlobalCalendar' // Original position, removed as it's defined above
         const query = `
         query getGlobalCalendar($userId: uuid!) {
           Calendar(where: {globalPrimary: {_eq: true}, userId: {_eq: $userId}}) {
@@ -1916,29 +1381,45 @@ export const getGlobalCalendar = async (
             userId
           }
         }
-    `
+    `; // query remains the same
 
-        const res: { data: { Calendar: CalendarType[] } } = await got.post(
-            hasuraGraphUrl,
-            {
-                headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                    'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
-                },
-                json: {
-                    operationName,
-                    query,
-                    variables: {
-                        userId,
-                    },
-                },
-            },
-        ).json()
+        // Removed direct got.post call and /* */ block
+        // const res: { data: { Calendar: CalendarType[] } } = await got.post(
+        //     hasuraGraphUrl,
+        //     {
+        //         headers: {
+        //             'X-Hasura-Admin-Secret': hasuraAdminSecret,
+        //             'Content-Type': 'application/json',
+        //             'X-Hasura-Role': 'admin'
+        //         },
+        //         json: {
+        //             operationName,
+        //             query,
+        //             variables: {
+        //                 userId,
+        //             },
+        //         },
+        //     },
+        // ).json()
+        // */
 
-        return res.data.Calendar?.[0]
+        // Using resilientGotPostHasura for the Hasura call
+        // Assuming 'admin' role for this query as per original direct got call.
+        // If user-specific role is needed, the resilientGotPostHasura call would need the userId passed as the 4th param.
+        // For getGlobalCalendar, it seems like an admin or system-level query for a user's global calendar.
+        const responseData = await resilientGotPostHasura(operationName, query, { userId } /*, userId (if user role needed) */) as { Calendar: CalendarType[] };
+
+        if (responseData && responseData.Calendar && responseData.Calendar.length > 0) {
+            chatApiHelperLogger.info(`${operationName} successful for user ${userId}. Calendar ID: ${responseData.Calendar[0].id}`);
+            return responseData.Calendar[0];
+        } else {
+            chatApiHelperLogger.info(`${operationName}: No global primary calendar found for user ${userId}.`);
+            return undefined; // Or null, depending on desired contract for "not found"
+        }
     } catch (e) {
-        console.log(e, ' unable to get global calendar')
+        chatApiHelperLogger.error(`Error in ${operationName} for user ${userId}`, { error: (e as Error).message });
+        // resilientGotPostHasura will throw on failure after retries, so this catch block will handle that.
+        throw e;
     }
 }
 
@@ -1980,14 +1461,18 @@ export const getCalendarIntegrationByResource = async (
                     'X-Hasura-Role': 'admin'
                 },
             },
-        ).json()
+        // }).json()
 
-        console.log(res, ' res inside getCalendarIntegration')
-        if (res?.data?.Calendar_Integration?.length > 0) {
-            return res?.data?.Calendar_Integration?.[0]
-        }
+        // console.log(res, ' res inside getCalendarIntegration')
+        // if (res?.data?.Calendar_Integration?.length > 0) {
+        //     return res?.data?.Calendar_Integration?.[0]
+        // }
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
+        chatApiHelperLogger.info(`getCalendarIntegrationByResource response for user ${userId}, resource ${resource}`, { dataLength: responseData?.Calendar_Integration?.length });
+        return responseData?.Calendar_Integration?.[0];
     } catch (e) {
-        console.log(e, ' unable to get calendar integration')
+        chatApiHelperLogger.error('Error in getCalendarIntegrationByResource', { userId, resource, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -2029,14 +1514,18 @@ export const getCalendarIntegrationByName = async (
                     'X-Hasura-Role': 'admin'
                 },
             },
-        ).json()
+        // }).json()
 
-        console.log(res, ' res inside getCalendarIntegration')
-        if (res?.data?.Calendar_Integration?.length > 0) {
-            return res?.data?.Calendar_Integration?.[0]
-        }
+        // console.log(res, ' res inside getCalendarIntegration')
+        // if (res?.data?.Calendar_Integration?.length > 0) {
+        //     return res?.data?.Calendar_Integration?.[0]
+        // }
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
+        chatApiHelperLogger.info(`getCalendarIntegrationByName response for user ${userId}, name ${name}`, { dataLength: responseData?.Calendar_Integration?.length });
+        return responseData?.Calendar_Integration?.[0];
     } catch (e) {
-        console.log(e, ' unable to get calendar integration')
+        chatApiHelperLogger.error('Error in getCalendarIntegrationByName', { userId, name, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -2055,7 +1544,9 @@ export const getZoomIntegration = async (
         }
 
     } catch (e) {
-        console.log(e, ' unable to get zoom integration')
+        chatApiHelperLogger.error('Unable to get zoom integration', { userId, error: (e as Error).message, stack: (e as Error).stack });
+        // Original function implicitly returns undefined here, so we'll maintain that.
+        // Depending on desired strictness, could rethrow e.
     }
 }
 
@@ -2161,11 +1652,13 @@ export const updateCalendarIntegration = async (
                     'X-Hasura-Role': 'admin'
                 },
             },
-        ).json()
-
-        console.log(res, ' res inside updateCalendarIntegration')
+        // ).json()
+        // console.log(res, ' res inside updateCalendarIntegration')
+        await resilientGotPostHasura(operationName, query, variables); // Assuming admin role for updates
+        chatApiHelperLogger.info(`Successfully updated calendar integration ${id}.`);
     } catch (e) {
-        console.log(e, ' unable to update calendar integration')
+        chatApiHelperLogger.error('Error in updateCalendarIntegration', { id, token, expiresIn, enabled, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -2179,7 +1672,8 @@ export const updateZoomIntegration = async (
         const { encryptedToken } = encryptZoomTokens(accessToken)
         await updateCalendarIntegration(id, encryptedToken, expiresIn)
     } catch (e) {
-        console.log(e, ' unable to update zoom integration')
+        chatApiHelperLogger.error('Unable to update zoom integration', { integrationId: id, error: (e as Error).message, stack: (e as Error).stack });
+        // Original function implicitly returns undefined/void and does not rethrow.
     }
 }
 
@@ -2192,57 +1686,194 @@ export const refreshZoomToken = async (
     expires_in: number,
     scope: string
 }> => {
-    try {
-        const username = zoomClientId;
-        const password = zoomClientSecret;
+    const operationName = 'refreshZoomToken';
+    const MAX_RETRIES = 3;
+    const INITIAL_TIMEOUT_MS = 10000; // 10 seconds
+    let attempt = 0;
+    let lastError: any = null;
 
-        return axios({
-            data: new URLSearchParams({
-                refresh_token: refreshToken,
-                grant_type: 'refresh_token',
-            }).toString(),
-            baseURL: zoomBaseTokenUrl,
-            url: '/oauth/token',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            auth: {
-                username,
-                password,
-            },
-        }).then(({ data }) => Promise.resolve(data))
-    } catch (e) {
-        console.log(e, ' unable to refresh zoom token')
+    const requestData = new URLSearchParams({
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+    }).toString();
+
+    const authHeader = `Basic ${Buffer.from(`${zoomClientId}:${zoomClientSecret}`).toString('base64')}`;
+
+    while (attempt < MAX_RETRIES) {
+        try {
+            chatApiHelperLogger.info(`Attempt ${attempt + 1} to ${operationName}`, { refreshTokenSubstring: refreshToken?.substring(0, 10) });
+            const response = await axios({
+                method: 'POST',
+                url: `${zoomBaseTokenUrl}/oauth/token`,
+                data: requestData,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': authHeader,
+                },
+                timeout: INITIAL_TIMEOUT_MS,
+            });
+            chatApiHelperLogger.info(`${operationName} successful on attempt ${attempt + 1}`);
+            return response.data;
+        } catch (error: any) {
+            lastError = error;
+            chatApiHelperLogger.warn(`Attempt ${attempt + 1} for ${operationName} failed.`, {
+                error: error.message,
+                code: error.code,
+                status: error.response?.status
+            });
+
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                    const status = error.response.status;
+                    if (status < 500 && status !== 429 && status !== 408) { // Non-retryable client HTTP error
+                        break;
+                    }
+                } else if (error.code && !['ECONNABORTED', 'ETIMEDOUT', 'ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'].includes(error.code)) {
+                    break; // Non-retryable network or config error
+                }
+            } else { // Non-axios error
+                break;
+            }
+        }
+        attempt++;
+        if (attempt < MAX_RETRIES) {
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            chatApiHelperLogger.info(`Waiting ${delay}ms before ${operationName} retry ${attempt + 1}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
     }
+    chatApiHelperLogger.error(`Failed ${operationName} after ${attempt} attempts.`, { lastError: lastError?.message });
+    throw lastError || new Error(`Failed ${operationName} after all retries.`);
 }
+
+// Helper for resilient Zoom API calls using got
+const resilientGotZoomApi = async (method: 'get' | 'post' | 'patch' | 'delete', endpoint: string, zoomToken: string, jsonData?: any, params?: any) => {
+    const MAX_RETRIES = 3;
+    const INITIAL_TIMEOUT_MS = 15000; // 15 seconds for Zoom API calls
+    let attempt = 0;
+    let lastError: any = null;
+
+    const url = `${zoomBaseUrl}${endpoint}`;
+
+    while (attempt < MAX_RETRIES) {
+        try {
+            chatApiHelperLogger.info(`Zoom API call attempt ${attempt + 1}: ${method.toUpperCase()} ${endpoint}`);
+            const options: any = {
+                headers: {
+                    'Authorization': `Bearer ${zoomToken}`,
+                    'Content-Type': 'application/json',
+                },
+                timeout: { request: INITIAL_TIMEOUT_MS },
+                responseType: 'json',
+            };
+            if (jsonData) {
+                options.json = jsonData;
+            }
+            if (params) {
+                options.searchParams = params;
+            }
+
+            let response;
+            switch (method) {
+                case 'get':
+                    response = await got.get(url, options).json();
+                    break;
+                case 'post':
+                    response = await got.post(url, options).json();
+                    break;
+                case 'patch':
+                    response = await got.patch(url, options).json(); // .json() might not be needed if no body expected
+                    break; // If PATCH returns 204 No Content, .json() will fail. Adjust if needed.
+                case 'delete':
+                    await got.delete(url, options); // DELETE often returns 204 No Content
+                    response = { success: true }; // Simulate a success object if no body
+                    break;
+                default:
+                    throw new Error(`Unsupported method: ${method}`);
+            }
+
+            chatApiHelperLogger.info(`Zoom API call ${method.toUpperCase()} ${endpoint} successful on attempt ${attempt + 1}`);
+            return response;
+        } catch (error: any) {
+            lastError = error;
+            chatApiHelperLogger.warn(`Zoom API call attempt ${attempt + 1} for ${method.toUpperCase()} ${endpoint} failed.`, {
+                error: error.message,
+                code: error.code,
+                statusCode: error.response?.statusCode,
+                // body: error.response?.body
+            });
+
+            if (error.response && error.response.statusCode) {
+                const status = error.response.statusCode;
+                if (status < 500 && status !== 429 && status !== 408 && status !== 401) { // 401 might be token expiry, could retry once after refresh
+                    break;
+                }
+                 if (status === 401) { // Specific handling for 401 potentially
+                    // TODO: Could integrate token refresh logic here if this helper becomes more sophisticated
+                    // For now, just let it retry once or break if it's a persistent auth issue.
+                    // If this is the first attempt, allow a retry. If more, break.
+                    if (attempt > 0) break;
+                }
+            } else if (!error.response && error.code && !['ETIMEDOUT', 'ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'].includes(error.code)) {
+                break;
+            }
+        }
+        attempt++;
+        if (attempt < MAX_RETRIES) {
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            chatApiHelperLogger.info(`Waiting ${delay}ms before Zoom API retry ${attempt + 1} for ${method.toUpperCase()} ${endpoint}`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    chatApiHelperLogger.error(`Failed Zoom API operation ${method.toUpperCase()} ${endpoint} after ${attempt} attempts.`, { lastError: lastError?.message });
+    throw lastError || new Error(`Failed Zoom API operation ${method.toUpperCase()} ${endpoint} after all retries.`);
+};
+
+
 export const getZoomAPIToken = async (
     userId: string,
 ) => {
-    let integrationId = ''
+    let integrationId = '';
+    const operationName = 'getZoomAPIToken';
+    chatApiHelperLogger.info(`[${operationName}] Called for user.`, { userId });
+
     try {
-        console.log('getZoomAPIToken called')
-        const { id, token, expiresAt, refreshToken } = await getZoomIntegration(userId)
-        if (!refreshToken) {
-            console.log('zoom not active, no refresh token')
-            return
+        const zoomIntegration = await getZoomIntegration(userId);
+        if (!zoomIntegration || !zoomIntegration.id || !zoomIntegration.refreshToken) {
+            chatApiHelperLogger.warn(`[${operationName}] Zoom integration or essential details (id, refreshToken) not found. Zoom might not be active or properly configured.`, { userId });
+            return undefined; // Explicitly return undefined if integration is not usable
         }
 
-        integrationId = id
-        console.log(id, token, expiresAt, refreshToken, ' id, token, expiresAt, refreshToken')
+        integrationId = zoomIntegration.id; // Assign here, after we know zoomIntegration is valid
+        const { token, expiresAt, refreshToken } = zoomIntegration; // Destructure after validation
+
+        chatApiHelperLogger.debug(`[${operationName}] Retrieved Zoom integration details.`, { userId, integrationId, expiresAt, tokenExists: !!token });
+
         if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
-            const res = await refreshZoomToken(refreshToken)
-            console.log(res, ' res from refreshZoomToken')
-            await updateZoomIntegration(id, res.access_token, res.expires_in)
-            return res.access_token
+            chatApiHelperLogger.info(`[${operationName}] Token expired or missing, attempting refresh.`, { userId, integrationId });
+            const refreshResponse = await refreshZoomToken(refreshToken);
+            chatApiHelperLogger.info(`[${operationName}] Zoom token refresh successful.`, { userId, integrationId, newExpiryIn: refreshResponse.expires_in });
+            await updateZoomIntegration(integrationId, refreshResponse.access_token, refreshResponse.expires_in);
+            return refreshResponse.access_token;
         }
 
-        return token
-
+        chatApiHelperLogger.debug(`[${operationName}] Existing Zoom token is valid.`, { userId, integrationId });
+        return token;
 
     } catch (e) {
-        console.log(e, ' unable to get zoom api token')
-        await updateCalendarIntegration(integrationId, null, null, false)
+        chatApiHelperLogger.error(`[${operationName}] Failed to get/refresh Zoom API token.`, { userId, integrationIdOnError: integrationId, error: (e as Error).message, stack: (e as Error).stack });
+        if (integrationId) { // Only attempt to disable if we had an ID
+            try {
+                chatApiHelperLogger.info(`[${operationName}] Attempting to disable Zoom integration due to error.`, { integrationId });
+                await updateCalendarIntegration(integrationId, undefined, undefined, false);
+                chatApiHelperLogger.info(`[${operationName}] Successfully disabled Zoom integration.`, { integrationId });
+            } catch (disableError) {
+                chatApiHelperLogger.error(`[${operationName}] Failed to disable Zoom integration after an error.`, { integrationId, disableError: (disableError as Error).message, stack: (disableError as Error).stack });
+            }
+        }
+        // Original code implicitly returns undefined on error / attempts to disable.
+        // We'll maintain this behavior by not re-throwing here, but callers should be aware it might return undefined.
+        return undefined;
     }
 }
 
@@ -2280,11 +1911,14 @@ export const deleteRemindersWithIds = async (
                 query,
                 variables,
             }
-        }).json()
-        console.log(response, ' this is response in deleteRemindersWithIds')
+        // }).json()
+        // console.log(response, ' this is response in deleteRemindersWithIds')
+        await resilientGotPostHasura(operationName, query, variables, userId);
+        chatApiHelperLogger.info(`Successfully deleted reminders for eventIds: ${eventIds.join(', ')} for user ${userId}.`);
 
     } catch (e) {
-        console.log(e, ' deleteRemindersWithIds')
+        chatApiHelperLogger.error('Error in deleteRemindersWithIds', { userId, eventIds, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -2304,8 +1938,8 @@ export const updateZoomMeeting = async (
     try {
         //valdiate
         if (startDate && dayjs().isAfter(dayjs(startDate))) {
-            console.log(' starttime is in the past')
-            throw new Error('starttime is in the past')
+            chatApiHelperLogger.warn('[updateZoomMeeting] Start time is in the past.', { meetingId, startDate });
+            throw new Error('Start time is in the past for updateZoomMeeting.');
         }
 
         let settings: any = {}
@@ -2415,20 +2049,11 @@ export const updateZoomMeeting = async (
             }
         }
 
-        await got.patch(
-            `${zoomBaseUrl}/meetings/${meetingId}`,
-            {
-                json: reqBody,
-                headers: {
-                    Authorization: `Bearer ${zoomToken}`,
-                    ContentType: 'application/json',
-                }
-            }
-        ).json()
-
-        console.log(meetingId, 'successfully patched zoom meeting starting date')
+        await resilientGotZoomApi('patch', `/meetings/${meetingId}`, zoomToken, reqBody);
+        chatApiHelperLogger.info(`Successfully patched Zoom meeting ${meetingId}.`);
     } catch (e) {
-        console.log(e, ' unable to update zoom meeting')
+        chatApiHelperLogger.error('Error in updateZoomMeeting', { meetingId, error: (e as Error).message });
+        throw e; // Re-throw to allow caller to handle
     }
 }
 
@@ -2480,17 +2105,11 @@ export const createZoomMeeting = async (
     try {
         //valdiate
         if (dayjs().isAfter(dayjs(startDate))) {
-            console.log(' starttime is in the past')
-            throw new Error('starttime is in the past')
+            chatApiHelperLogger.warn('[createZoomMeeting] Start time is in the past.', { startDate, agenda });
+            throw new Error('Start time is in the past for createZoomMeeting.');
         }
 
-        console.log(dayjs(startDate?.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
-            timezone,
-            agenda,
-            duration, ` dayjs(startDate?.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
-            timezone,
-            agenda,
-            duration, createZoomMeeting called`)
+        chatApiHelperLogger.info('[createZoomMeeting] Called.', { startDate, timezone, agenda, duration });
 
         let settings: any = {}
 
@@ -2590,24 +2209,15 @@ export const createZoomMeeting = async (
             }
         }
 
-        console.log(reqBody, ' reqBody inside createZoomMeeting')
+        chatApiHelperLogger.debug('Zoom createMeeting request body:', { reqBody });
 
-        const res: ZoomMeetingObjectType = await got.post(
-            `${zoomBaseUrl}/users/me/meetings`,
-            {
-                json: reqBody,
-                headers: {
-                    Authorization: `Bearer ${zoomToken}`,
-                    ContentType: 'application/json',
-                }
-            }
-        ).json()
+        const responseData = await resilientGotZoomApi('post', '/users/me/meetings', zoomToken, reqBody) as ZoomMeetingObjectType;
 
-        console.log(res, ' res inside createZoomMeeting')
-
-        return res
+        chatApiHelperLogger.info('Successfully created Zoom meeting.', { meetingId: responseData?.id, topic: responseData?.topic });
+        return responseData;
     } catch (e) {
-        console.log(e, ' unable to create zoom meeting')
+        chatApiHelperLogger.error('Error in createZoomMeeting', { agenda, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -2620,104 +2230,161 @@ export const refreshGoogleToken = async (
     scope: string,
     token_type: string
 }> => {
-    try {
-        console.log('refreshGoogleToken called', refreshToken)
-        console.log('clientType', clientType)
-        console.log('googleClientIdIos', googleClientIdIos)
-        switch (clientType) {
-            case 'ios':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdIos,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-            case 'android':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdAndroid,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-            case 'web':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdWeb,
-                            client_secret: googleClientSecretWeb,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-            case 'atomic-web':
-                return got.post(
-                    googleTokenUrl,
-                    {
-                        form: {
-                            grant_type: 'refresh_token',
-                            refresh_token: refreshToken,
-                            client_id: googleClientIdAtomicWeb,
-                            client_secret: googleClientSecretAtomicWeb,
-                        },
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    },
-                ).json()
-        }
+    const operationName = 'refreshGoogleToken';
+    chatApiHelperLogger.info(`${operationName} called`, { clientType, refreshTokenSubstring: refreshToken?.substring(0,10) });
 
-        /*  
-        {
-          "access_token": "1/fFAGRNJru1FTz70BzhT3Zg",
-          "expires_in": 3920, // add seconds to now
-          "scope": "https://www.googleapis.com/auth/drive.metadata.readonly",
-          "token_type": "Bearer"
-        }
-        */
+    let clientId: string;
+    let clientSecret: string | undefined;
+
+    switch (clientType) {
+        case 'ios':
+            clientId = googleClientIdIos;
+            break;
+        case 'android':
+            clientId = googleClientIdAndroid;
+            break;
+        case 'web':
+            clientId = googleClientIdWeb;
+            clientSecret = googleClientSecretWeb;
+            break;
+        case 'atomic-web':
+            clientId = googleClientIdAtomicWeb;
+            clientSecret = googleClientSecretAtomicWeb;
+            break;
+        default:
+            chatApiHelperLogger.error(`Invalid clientType for ${operationName}`, { clientType });
+            throw new Error(`Invalid clientType: ${clientType}`);
+    }
+
+    const formPayload: Record<string, string> = {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+    };
+    if (clientSecret) {
+        formPayload.client_secret = clientSecret;
+    }
+
+    try {
+        return await resilientGotGoogleAuth(googleTokenUrl, formPayload, operationName, clientType);
     } catch (e) {
-        console.log(e, ' unable to refresh google token')
+        chatApiHelperLogger.error(`Failed ${operationName} for clientType ${clientType} after all retries.`, { error: (e as Error).message });
+        // The original function would log and implicitly return undefined.
+        // To maintain a clearer contract, we'll rethrow. Callers should handle this.
+        throw e;
     }
 }
+
+
+// Helper for resilient Google Auth calls using got
+const resilientGotGoogleAuth = async (
+    url: string,
+    formPayload: Record<string, string>,
+    operationName: string,
+    clientType: string
+) => {
+    const MAX_RETRIES = 3;
+    const INITIAL_TIMEOUT_MS = 10000; // 10 seconds for Google Auth calls
+    let attempt = 0;
+    let lastError: any = null;
+
+    while (attempt < MAX_RETRIES) {
+        try {
+            chatApiHelperLogger.info(`Google Auth call attempt ${attempt + 1} for ${operationName} (${clientType})`);
+            const response = await got.post(url, {
+                form: formPayload,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                timeout: { request: INITIAL_TIMEOUT_MS },
+                responseType: 'json',
+            }).json<{ access_token: string, expires_in: number, scope: string, token_type: string }>();
+
+            chatApiHelperLogger.info(`Google Auth call ${operationName} (${clientType}) successful on attempt ${attempt + 1}`);
+            return response;
+        } catch (error: any) {
+            lastError = error;
+            chatApiHelperLogger.warn(`Google Auth call attempt ${attempt + 1} for ${operationName} (${clientType}) failed.`, {
+                error: error.message,
+                code: error.code,
+                statusCode: error.response?.statusCode,
+                // body: error.response?.body // Be careful logging sensitive body parts
+            });
+
+            if (error.response && error.response.statusCode) {
+                const status = error.response.statusCode;
+                // 400, 401, 403 are usually client errors for auth, not typically retryable unless specific (e.g. temporary clock skew for 401, but unlikely here)
+                if (status === 400 || status === 401 || status === 403) {
+                     chatApiHelperLogger.error(`Non-retryable HTTP error ${status} for ${operationName} (${clientType}). Aborting.`, { operationName, clientType });
+                    break;
+                }
+                if (status < 500 && status !== 429 && status !== 408) {
+                    chatApiHelperLogger.error(`Non-retryable HTTP error ${status} for ${operationName} (${clientType}). Aborting.`, { operationName, clientType });
+                    break;
+                }
+            } else if (!error.response && error.code && !['ETIMEDOUT', 'ECONNRESET', 'EADDRINUSE', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'].includes(error.code)) {
+                chatApiHelperLogger.error(`Non-retryable got error code ${error.code} for ${operationName} (${clientType}). Aborting.`, { operationName, clientType });
+                break;
+            }
+        }
+        attempt++;
+        if (attempt < MAX_RETRIES) {
+            const delay = Math.pow(2, attempt -1) * 1000; // Exponential backoff: 1s, 2s
+            chatApiHelperLogger.info(`Waiting ${delay}ms before Google Auth retry ${attempt + 1} for ${operationName} (${clientType})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    chatApiHelperLogger.error(`Failed Google Auth operation '${operationName}' (${clientType}) after ${attempt} attempts.`, { operationName, clientType, lastError: lastError?.message });
+    throw lastError || new Error(`Failed Google Auth operation '${operationName}' (${clientType}) after all retries.`);
+};
+
 
 export const getGoogleAPIToken = async (
     userId: string,
     name: string,
     clientType: 'ios' | 'android' | 'web' | 'atomic-web',
 ) => {
-    let integrationId = ''
+    let integrationId = '';
+    const operationName = 'getGoogleAPIToken';
+    chatApiHelperLogger.info(`[${operationName}] Called.`, { userId, name, clientType });
+
     try {
-        const { id, token, expiresAt, refreshToken } = await getCalendarIntegrationByName(userId, name)
-        integrationId = id
-        console.log(id, token, expiresAt, refreshToken, ' id, token, expiresAt, refreshToken')
-        if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
-            const res = await refreshGoogleToken(refreshToken, clientType)
-            console.log(res, ' res from refreshGoogleToken')
-            await updateCalendarIntegration(id, res.access_token, res.expires_in)
-            return res.access_token
+        const integration = await getCalendarIntegrationByName(userId, name);
+
+        if (!integration || !integration.id || !integration.refreshToken) { // Added check for refreshToken
+            chatApiHelperLogger.error(`[${operationName}] Calendar integration or essential details not found.`, { userId, name, clientType, integration });
+            throw new Error(`Calendar integration or essential details not found for user ${userId}, name ${name}.`);
         }
-        return token
+
+        integrationId = integration.id;
+        chatApiHelperLogger.debug(`[${operationName}] Retrieved calendar integration.`, { userId, name, integrationId, expiresAt: integration.expiresAt, tokenExists: !!integration.token });
+
+        if (dayjs().isAfter(dayjs(integration.expiresAt)) || !integration.token) {
+            chatApiHelperLogger.info(`[${operationName}] Token expired or missing, attempting refresh.`, { userId, name, integrationId });
+            const refreshResponse = await refreshGoogleToken(integration.refreshToken, clientType);
+            chatApiHelperLogger.info(`[${operationName}] Token refresh successful.`, { userId, name, integrationId, newExpiryIn: refreshResponse.expires_in });
+            // Ensure expiresIn is a number for dayjs().add
+            const expiresInSeconds = typeof refreshResponse.expires_in === 'number' ? refreshResponse.expires_in : parseInt(String(refreshResponse.expires_in), 10);
+            await updateCalendarIntegration(integrationId, refreshResponse.access_token, expiresInSeconds);
+            return refreshResponse.access_token;
+        }
+
+        chatApiHelperLogger.debug(`[${operationName}] Existing token is valid.`, { userId, name, integrationId });
+        return integration.token;
+
     } catch (e) {
-        console.log(e, ' unable to get api token')
-        await updateCalendarIntegration(integrationId, null, null, false)
+        chatApiHelperLogger.error(`[${operationName}] Failed to get/refresh Google API token.`, { userId, name, clientType, integrationIdOnError: integrationId, error: (e as Error).message, stack: (e as Error).stack });
+
+        if (integrationId) {
+            try {
+                chatApiHelperLogger.info(`[${operationName}] Attempting to disable calendar integration due to error.`, { integrationId });
+                await updateCalendarIntegration(integrationId, undefined, undefined, false);
+                chatApiHelperLogger.info(`[${operationName}] Successfully disabled calendar integration.`, { integrationId });
+            } catch (disableError) {
+                chatApiHelperLogger.error(`[${operationName}] Failed to disable calendar integration after an error.`, { integrationId, disableError: (disableError as Error).message, stack: (disableError as Error).stack });
+            }
+        }
+        throw e; // Re-throw original error to ensure failure is propagated
     }
 }
 
@@ -2760,217 +2427,135 @@ export const createGoogleEvent = async (
     eventType?: GoogleEventType1,
     location?: string,
     colorId?: string,
-): Promise<GoogleResType> => {
-    try {
-        console.log(generatedId, conferenceDataVersion, conferenceData, ' generatedId, conferenceDataVersion, conferenceData inside createGoogleEvent')
-        // get token =
-        const token = await getGoogleAPIToken(userId, googleCalendarName, clientType)
+): Promise<GoogleResType> => { // Added Promise<GoogleResType> return type hint
+    const operation_name = "ChatCreateGoogleEvent"; // For logging
+    // Wrap the entire logic in async-retry
+    return await retry(async (bail, attemptNumber) => {
+      try {
+          chatApiHelperLogger.info(`Attempt ${attemptNumber} to create Google event for user ${userId}`, { summary });
+          // get token
+          const token = await getGoogleAPIToken(userId, googleCalendarName, clientType);
+          if (!token) { // getGoogleAPIToken might return undefined on failure if not throwing
+              chatApiHelperLogger.error(`${operation_name}: Failed to get Google API Token for user ${userId} on attempt ${attemptNumber}.`);
+              // This is a setup failure, likely non-retryable in the short term by this function.
+              // Bail to prevent further retries for this specific issue.
+              bail(new Error('Failed to acquire Google API token for event creation.'));
+              return; // Should not be reached as bail throws
+          }
 
-        const googleCalendar = google.calendar({
-            version: 'v3',
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        })
+          const googleCalendar = google.calendar({
+              version: 'v3',
+              headers: {
+                  Authorization: `Bearer ${token}`,
+              },
+          })
 
-        // create request body
-        let data: any = {}
+          // create request body (logic remains the same)
+          let data: any = {}
 
-        if (endDateTime && timezone && !endDate) {
+          if (endDateTime && timezone && !endDate) {
+              const end = { dateTime: endDateTime, timeZone: timezone }
+              data.end = end
+          }
+          if (endDate && timezone && !endDateTime) {
+              const end = { date: dayjs(endDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'), timeZone: timezone }
+              data.end = end
+          }
+          if (startDate && timezone && !startDateTime) {
+              const start = { date: dayjs(startDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'), timeZone: timezone }
+              data.start = start
+          }
+          if (startDateTime && timezone && !startDate) {
+              const start = { dateTime: startDateTime, timeZone: timezone }
+              data.start = start
+          }
+          if (originalStartDate && timezone && !originalStartDateTime) {
+              const originalStartTime = { date: dayjs(originalStartDate?.slice(0, 19)).format('YYYY-MM-DD'), timeZone: timezone }
+              data.originalStartTime = originalStartTime
+          }
+          if (originalStartDateTime && timezone && !originalStartDate) {
+              const originalStartTime = { dateTime: originalStartDateTime, timeZone: timezone }
+              data.originalStartTime = originalStartTime
+          }
+          if (anyoneCanAddSelf) data = { ...data, anyoneCanAddSelf }
+          if (attendees?.[0]?.email) data = { ...data, attendees }
+          if (conferenceData?.createRequest) {
+              data = { ...data, conferenceData: { createRequest: { conferenceSolutionKey: { type: conferenceData.type }, requestId: conferenceData?.requestId || uuid() } } }
+          } else if (conferenceData?.entryPoints?.[0]) {
+              data = { ...data, conferenceData: { conferenceSolution: { iconUri: conferenceData?.iconUri, key: { type: conferenceData?.type }, name: conferenceData?.name }, entryPoints: conferenceData?.entryPoints } }
+          }
+          if (description?.length > 0) data = { ...data, description }
+          if (extendedProperties?.private || extendedProperties?.shared) data = { ...data, extendedProperties }
+          if (guestsCanInviteOthers) data = { ...data, guestsCanInviteOthers }
+          if (guestsCanModify) data = { ...data, guestsCanModify }
+          if (guestsCanSeeOtherGuests) data = { ...data, guestsCanSeeOtherGuests }
+          if (locked) data = { ...data, locked }
+          if (privateCopy) data = { ...data, privateCopy }
+          if (recurrence?.[0]) data = { ...data, recurrence }
+          if ((reminders?.overrides?.length > 0) || (reminders?.useDefault)) data = { ...data, reminders }
+          if (source?.title || source?.url) data = { ...data, source }
+          if (attachments?.[0]?.fileId) data = { ...data, attachments }
+          if (eventType?.length > 0) data = { ...data, eventType }
+          if (status) data = { ...data, status }
+          if (transparency) data = { ...data, transparency }
+          if (visibility) data = { ...data, visibility }
+          if (iCalUID?.length > 0) data = { ...data, iCalUID }
+          if (attendeesOmitted) data = { ...data, attendeesOmitted }
+          if (hangoutLink?.length > 0) data = { ...data, hangoutLink }
+          if (summary?.length > 0) data = { ...data, summary }
+          if (location?.length > 0) data = { ...data, location }
+          if (colorId) data.colorId = colorId
 
-            const end = {
-                dateTime: endDateTime,
-                timeZone: timezone,
-            }
+          chatApiHelperLogger.debug(`Google Calendar create request body for user ${userId} (attempt ${attemptNumber})`, { data });
 
-            data.end = end
-        }
+          const res = await googleCalendar.events.insert({
+              calendarId,
+              conferenceDataVersion,
+              maxAttendees,
+              sendUpdates,
+              requestBody: data,
+          }, { timeout: 20000 }); // 20 second timeout per attempt
 
-        if (endDate && timezone && !endDateTime) {
-            const end = {
-                date: dayjs(endDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'),
-                timeZone: timezone,
-            }
+          chatApiHelperLogger.info(`Google Calendar event created successfully on attempt ${attemptNumber} for user ${userId}: ${res.data.id}`);
+          return { id: `${res?.data?.id}#${calendarId}`, googleEventId: res?.data?.id, generatedId, calendarId, generatedEventId: generatedId?.split('#')[0] };
 
-            data.end = end
-        }
+      } catch (e: any) {
+          chatApiHelperLogger.warn(`Attempt ${attemptNumber} to create Google event for user ${userId} failed.`, {
+            error: e.message, code: e.code, errors: e.errors, summary
+          });
+          const httpStatusCode = e.code;
+          const googleErrorReason = e.errors && e.errors[0] ? e.errors[0].reason : null;
 
-        if (startDate && timezone && !startDateTime) {
-            const start = {
-                date: dayjs(startDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'),
-                timeZone: timezone,
-            }
-            data.start = start
-        }
-
-        if (startDateTime && timezone && !startDate) {
-            const start = {
-                dateTime: startDateTime,
-                timeZone: timezone,
-            }
-            data.start = start
-        }
-
-        if (originalStartDate && timezone && !originalStartDateTime) {
-            const originalStartTime = {
-                date: dayjs(originalStartDate?.slice(0, 19)).format('YYYY-MM-DD'),
-                timeZone: timezone,
-            }
-            data.originalStartTime = originalStartTime
-        }
-
-        if (originalStartDateTime && timezone && !originalStartDate) {
-            const originalStartTime = {
-                dateTime: originalStartDateTime,
-                timeZone: timezone,
-            }
-            data.originalStartTime = originalStartTime
-        }
-
-        if (anyoneCanAddSelf) {
-            data = { ...data, anyoneCanAddSelf }
-        }
-
-        if (attendees?.[0]?.email) {
-            data = { ...data, attendees }
-        }
-
-        if (conferenceData?.createRequest) {
-            data = {
-                ...data,
-                conferenceData: {
-                    createRequest: {
-                        conferenceSolutionKey: {
-                            type: conferenceData.type
-                        },
-                        requestId: conferenceData?.requestId || uuid(),
-                    }
-                }
-            }
-        } else if (conferenceData?.entryPoints?.[0]) {
-            data = {
-                ...data,
-                conferenceData: {
-                    conferenceSolution: {
-                        iconUri: conferenceData?.iconUri,
-                        key: {
-                            type: conferenceData?.type,
-                        },
-                        name: conferenceData?.name,
-                    },
-                    entryPoints: conferenceData?.entryPoints,
-                },
-            }
-        }
-
-        if (description?.length > 0) {
-            data = { ...data, description }
-        }
-
-        if (extendedProperties?.private || extendedProperties?.shared) {
-            data = { ...data, extendedProperties }
-        }
-
-        if (guestsCanInviteOthers) {
-            data = { ...data, guestsCanInviteOthers }
-        }
-
-        if (guestsCanModify) {
-            data = { ...data, guestsCanModify }
-        }
-
-        if (guestsCanSeeOtherGuests) {
-            data = { ...data, guestsCanSeeOtherGuests }
-        }
-
-        if (locked) {
-            data = { ...data, locked }
-        }
-
-        if (privateCopy) {
-            data = { ...data, privateCopy }
-        }
-
-        if (recurrence?.[0]) {
-            data = { ...data, recurrence }
-        }
-
-        if ((reminders?.overrides?.length > 0) || (reminders?.useDefault)) {
-            data = { ...data, reminders }
-        }
-
-        if (source?.title || source?.url) {
-            data = { ...data, source }
-        }
-
-        if (attachments?.[0]?.fileId) {
-            data = { ...data, attachments }
-        }
-
-        if (eventType?.length > 0) {
-            data = { ...data, eventType }
-        }
-
-        if (status) {
-            data = { ...data, status }
-        }
-
-        if (transparency) {
-            data = { ...data, transparency }
-        }
-
-        if (visibility) {
-            data = { ...data, visibility }
-        }
-
-        if (iCalUID?.length > 0) {
-            data = { ...data, iCalUID }
-        }
-
-        if (attendeesOmitted) {
-            data = { ...data, attendeesOmitted }
-        }
-
-        if (hangoutLink?.length > 0) {
-            data = { ...data, hangoutLink }
-        }
-
-        if (summary?.length > 0) {
-            data = { ...data, summary }
-        }
-
-        if (location?.length > 0) {
-            data = { ...data, location }
-        }
-
-        if (colorId) {
-            data.colorId = colorId
-        }
-
-        console.log(data, ' data inside create google event')
-
-        const res = await googleCalendar.events.insert({
-            // Calendar identifier. To retrieve calendar IDs call the calendarList.list method. If you want to access the primary calendar of the currently logged in user, use the "primary" keyword.
-            calendarId,
-            // Version number of conference data supported by the API client. Version 0 assumes no conference data support and ignores conference data in the event's body. Version 1 enables support for copying of ConferenceData as well as for creating new conferences using the createRequest field of conferenceData. The default is 0.
-            conferenceDataVersion,
-            // The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.
-            maxAttendees,
-            // Whether to send notifications about the creation of the new event. Note that some emails might still be sent. The default is false.
-            sendUpdates,
-
-            // Request body metadata
-            requestBody: data,
-        })
-
-
-        console.log(res.data)
-
-        console.log(res?.data, ' res?.data from googleCreateEvent')
-        return { id: `${res?.data?.id}#${calendarId}`, googleEventId: res?.data?.id, generatedId, calendarId, generatedEventId: generatedId?.split('#')[0] }
-    } catch (e) {
-        console.log(e, ' createGoogleEvent')
-    }
+          if (httpStatusCode === 400 || httpStatusCode === 401 || httpStatusCode === 404 ||
+              (httpStatusCode === 403 && googleErrorReason !== 'rateLimitExceeded' && googleErrorReason !== 'userRateLimitExceeded')) {
+            bail(e); // Stop retrying for these client errors
+            return; // bail will throw
+          }
+          throw e; // Re-throw other errors to trigger retry
+      }
+    },
+    {
+      retries: 3,
+      factor: 2,
+      minTimeout: 1000,
+      maxTimeout: 10000,
+      onRetry: (error, attemptNumber) => {
+        chatApiHelperLogger.warn(`Retrying Google event creation for user ${userId}, attempt ${attemptNumber}. Last error: ${error.message}`, {
+            operation_name: `${operation_name}_onRetry`,
+            attempt: attemptNumber,
+            error_message: error.message,
+            error_code: error.code,
+            error_reason: error.errors && error.errors[0] ? error.errors[0].reason : null,
+            summary
+        });
+      },
+    });
+  } catch (e: any) {
+    chatApiHelperLogger.error(`Failed to create Google event for user ${userId} after all retries or due to non-retryable error.`, {
+      summary, error: e.message, code: e.code, errors: e.errors, details: e.response?.data || e.errors || e
+    });
+    throw e;
+  }
 }
 
 export const patchGoogleEvent = async (
@@ -3115,19 +2700,18 @@ export const patchGoogleEvent = async (
         // }
 
         if (endDateTime && timezone && !endDate) {
-            console.log(eventId, endDateTime, timezone, ' eventId, endDateTime, timezone prior')
+            chatApiHelperLogger.debug('[patchGoogleEvent] Setting end dateTime', { eventId, endDateTime, timezone });
             const end = {
                 dateTime: endDateTime,
                 timezone
             }
             requestBody.end = end
-
-            console.log(eventId, end.dateTime, end.timezone, ' eventId, endDateTime, timezone after')
         }
 
-        if (startDate && timezone && !startDateTime) {
+        if (startDate && timezone && !startDateTime) { // All-day event start
+            chatApiHelperLogger.debug('[patchGoogleEvent] Setting start date (all-day)', { eventId, startDate, timezone });
             const start = {
-                date: dayjs(startDateTime.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'),
+                date: dayjs(startDate.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD'), // Ensure correct formatting for date-only
                 timezone,
             }
             requestBody.start = start
@@ -3141,15 +2725,13 @@ export const patchGoogleEvent = async (
         //   requestBody.start = start
         // }
 
-        if (startDateTime && timezone && !startDate) {
-            console.log(eventId, startDateTime, timezone, ' eventId, startDateTime, timezone prior')
+        if (startDateTime && timezone && !startDate) { // Specific time event start
+            chatApiHelperLogger.debug('[patchGoogleEvent] Setting start dateTime', { eventId, startDateTime, timezone });
             const start = {
                 dateTime: startDateTime,
                 timezone,
             }
             requestBody.start = start
-
-            console.log(eventId, start.dateTime, start.timezone, ' eventId, startDateTime, timezone after')
         }
 
         if (originalStartDate && timezone && !originalStartDateTime) {
@@ -3330,11 +2912,44 @@ export const patchGoogleEvent = async (
 
         variables.requestBody = requestBody
         // Do the magic
-        console.log(eventId, requestBody, ' eventId, requestBody inside googlePatchEvent')
-        const res = await googleCalendar.events.patch(variables)
-        console.log(eventId, res.data, ' eventId, results from googlePatchEvent')
+        chatApiHelperLogger.debug(`Google Calendar patch request for event ${eventId}`, { requestBody: variables.requestBody });
+
+        return await retry(async (bail, attemptNumber) => {
+            try {
+                const res = await googleCalendar.events.patch(variables, { timeout: 20000 }); // 20 second timeout
+                chatApiHelperLogger.info(`Google Calendar event ${eventId} patched successfully on attempt ${attemptNumber} for user ${userId}.`);
+                // Original function didn't return anything, so we maintain that.
+                return; // Explicitly return void for success if that's the contract
+            } catch (e: any) {
+                chatApiHelperLogger.warn(`Attempt ${attemptNumber} to patch Google event ${eventId} for user ${userId} failed.`, {
+                    error: e.message, code: e.code, errors: e.errors
+                });
+                const httpStatusCode = e.code;
+                const googleErrorReason = e.errors && e.errors[0] ? e.errors[0].reason : null;
+
+                if (httpStatusCode === 400 || httpStatusCode === 401 || httpStatusCode === 404 ||
+                    (httpStatusCode === 403 && googleErrorReason !== 'rateLimitExceeded' && googleErrorReason !== 'userRateLimitExceeded')) {
+                    bail(e);
+                    return;
+                }
+                throw e;
+            }
+        }, {
+            retries: 3,
+            factor: 2,
+            minTimeout: 1000,
+            maxTimeout: 10000,
+            onRetry: (error, attemptNumber) => {
+                chatApiHelperLogger.warn(`Retrying Google event patch for event ${eventId}, user ${userId}, attempt ${attemptNumber}. Error: ${error.message}`, {
+                    operation_name: `${operation_name}_onRetry`,
+                    attempt: attemptNumber,
+                    error_code: error.code,
+                });
+            },
+        });
     } catch (e) {
-        console.log(e, ' unable to patch google event')
+        chatApiHelperLogger.error(`Failed to patch Google event ${eventId} for user ${userId} after all retries.`, { error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3358,11 +2973,14 @@ export const getEventFromPrimaryKey = async (eventId: string): Promise<EventType
                     },
                 },
             },
-        ).json()
-        console.log(res, ' res from getEventFromPrimaryKey')
-        return res?.data?.Event_by_pk
+        // ).json()
+        // console.log(res, ' res from getEventFromPrimaryKey')
+        // return res?.data?.Event_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, { eventId }) as { Event_by_pk: EventType }; // Assuming admin role or appropriate user context if eventId implies user
+        return responseData?.Event_by_pk;
     } catch (e) {
-        console.log(e, ' getEventFromPrimaryKey')
+        chatApiHelperLogger.error('Error in getEventFromPrimaryKey', { eventId, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3386,11 +3004,14 @@ export const getTaskGivenId = async (id: string): Promise<TaskType> => {
                     },
                 },
             },
-        ).json()
-        console.log(res, ' res from getTaskGivenId')
-        return res?.data?.Task_by_pk
+        // ).json()
+        // console.log(res, ' res from getTaskGivenId')
+        // return res?.data?.Task_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, { id }) as { Task_by_pk: TaskType }; // Assuming admin role or appropriate context
+        return responseData?.Task_by_pk;
     } catch (e) {
-        console.log(e, ' getTaskGivenId')
+        chatApiHelperLogger.error('Error in getTaskGivenId', { id, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3522,13 +3143,19 @@ export const upsertAttendeesforEvent = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.insert_Attendee?.returning, ' this is response in insertAttendees')
-        response?.data?.insert_Attendee?.returning.forEach(r => console.log(r, ' response in insertAttendees'))
-
+        // }).json()
+        // console.log(response?.data?.insert_Attendee?.returning, ' this is response in insertAttendees')
+        // response?.data?.insert_Attendee?.returning.forEach(r => console.log(r, ' response in insertAttendees'))
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Attendee: { returning: AttendeeType[] } };
+        if (responseData?.insert_Attendee?.returning) {
+            chatApiHelperLogger.info('Successfully upserted attendees.', { count: responseData.insert_Attendee.returning.length });
+        } else {
+            chatApiHelperLogger.warn('UpsertAttendeesforEvent call to Hasura did not return expected data structure.', { responseData });
+        }
+        // No return value in original
     } catch (e) {
-        console.log(e, ' unable to insert Attendees for new event')
+        chatApiHelperLogger.error('Error in upsertAttendeesforEvent', { error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3541,7 +3168,7 @@ export const deleteAttendeesWithIds = async (
         if (!(eventIds?.filter(e => !!e)?.length > 0)) {
             return
         }
-        eventIds.forEach(e => console.log(e, ' eventIds inside DeleteAttendeesWithEventIds'))
+        chatApiHelperLogger.debug('Event IDs for attendee deletion:', { eventIds, userId, operationName: 'DeleteAttendeesWithEventIds' });
         const operationName = 'DeleteAttendeesWithEventIds'
         const query = `
             mutation DeleteAttendeesWithEventIds($userId: uuid!, $eventIds: [String!]!) {
@@ -3585,11 +3212,13 @@ export const deleteAttendeesWithIds = async (
                 query,
                 variables,
             }
-        }).json()
-        console.log(response, ' this is response in deleteAttendeesWithIds')
-
+        // }).json()
+        // console.log(response, ' this is response in deleteAttendeesWithIds')
+        await resilientGotPostHasura(operationName, query, variables, userId);
+        chatApiHelperLogger.info(`Successfully deleted attendees for eventIds: ${eventIds.join(', ')} for user ${userId}.`);
     } catch (e) {
-        console.log(e, ' deleteAttendeesWithIds')
+        chatApiHelperLogger.error('Error in deleteAttendeesWithIds', { userId, eventIds, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3604,8 +3233,8 @@ export const findContactByEmailGivenUserId = async (
         }
 
         if (!email) {
-            console.log('no email provided')
-            return
+            chatApiHelperLogger.warn('No email provided to findContactByEmailGivenUserId', { userId });
+            return; // Or throw new Error('Email is required'); depending on desired strictness
         }
 
         const operationName = 'FindContactByEmailGivenUserId'
@@ -3628,13 +3257,14 @@ export const findContactByEmailGivenUserId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.Contact?.[0], ' this is response in findContactByEmailGivenUserId')
-        return response?.data?.Contact?.[0]
-
+        // }).json()
+        // console.log(response?.data?.Contact?.[0], ' this is response in findContactByEmailGivenUserId')
+        // return response?.data?.Contact?.[0]
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Contact: ContactType[] };
+        return responseData?.Contact?.[0];
     } catch (e) {
-        console.log(e, ' unable to insert Attendees for new event')
+        chatApiHelperLogger.error('Error in findContactByEmailGivenUserId', { userId, email, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3666,13 +3296,14 @@ export const getConferenceGivenId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.Conference_by_pk, ' this is response in getConferenceGivenId')
-        return response?.data?.Conference_by_pk
-
+        // }).json()
+        // console.log(response?.data?.Conference_by_pk, ' this is response in getConferenceGivenId')
+        // return response?.data?.Conference_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { Conference_by_pk: ConferenceType };
+        return responseData?.Conference_by_pk;
     } catch (e) {
-        console.log(e, ' unable to insert Attendees for new event')
+        chatApiHelperLogger.error('Error in getConferenceGivenId', { id, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3705,13 +3336,14 @@ export const deleteConferenceGivenId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.delete_Conference_by_pk, ' this is response in deleteConferenceGivenId')
-        return response?.data?.delete_Conference_by_pk
-
+        // }).json()
+        // console.log(response?.data?.delete_Conference_by_pk, ' this is response in deleteConferenceGivenId')
+        // return response?.data?.delete_Conference_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { delete_Conference_by_pk: ConferenceType };
+        return responseData?.delete_Conference_by_pk;
     } catch (e) {
-        console.log(e, ' unable to delete Attendees for new event')
+        chatApiHelperLogger.error('Error in deleteConferenceGivenId', { id, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3739,32 +3371,32 @@ export const deleteZoomMeeting = async (
 
         const stringifiedObject = Object.keys(params)?.length > 0 ? qs.stringify(params) : ''
 
-        if (stringifiedObject) {
-            await got.delete(
-                `${zoomBaseUrl}/meetings/` + meetingId + '?' + stringifiedObject,
-                {
-                    headers: {
-                        Authorization: `Bearer ${zoomToken}`,
-                        ContentType: 'application/json',
-                    }
-                }
-            )
-        } else {
-            await got.delete(
-                `${zoomBaseUrl}/meetings/` + meetingId,
-                {
-                    headers: {
-                        Authorization: `Bearer ${zoomToken}`,
-                        ContentType: 'application/json',
-                    }
-                }
-            )
-        }
-
-
-        console.log(meetingId, 'successfully deleted meeting')
+        // if (stringifiedObject) {
+        //     await got.delete(
+        //         `${zoomBaseUrl}/meetings/` + meetingId + '?' + stringifiedObject,
+        //         {
+        //             headers: {
+        //                 Authorization: `Bearer ${zoomToken}`,
+        //                 ContentType: 'application/json',
+        //             }
+        //         }
+        //     )
+        // } else {
+        //     await got.delete(
+        //         `${zoomBaseUrl}/meetings/` + meetingId,
+        //         {
+        //             headers: {
+        //                 Authorization: `Bearer ${zoomToken}`,
+        //                 ContentType: 'application/json',
+        //             }
+        //         }
+        //     )
+        // }
+        await resilientGotZoomApi('delete', `/meetings/${meetingId}`, zoomToken, undefined, params);
+        chatApiHelperLogger.info(`Successfully deleted Zoom meeting ${meetingId}.`);
     } catch (e) {
-        console.log(e, ' unable to delete zoom meeting')
+        chatApiHelperLogger.error('Error in deleteZoomMeeting', { meetingId, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3797,13 +3429,14 @@ export const deleteEventGivenId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.delete_Event_by_pk, ' this is response in deleteEventGivenId')
-        return response?.data?.delete_Event_by_pk
-
+        // }).json()
+        // console.log(response?.data?.delete_Event_by_pk, ' this is response in deleteEventGivenId')
+        // return response?.data?.delete_Event_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { delete_Event_by_pk: EventType };
+        return responseData?.delete_Event_by_pk;
     } catch (e) {
-        console.log(e, ' unable to deleteEventGivenId for new event')
+        chatApiHelperLogger.error('Error in deleteEventGivenId', { id, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3837,11 +3470,39 @@ export const deleteGoogleEvent = async (
             sendUpdates,
         });
 
+        chatApiHelperLogger.info(`Google Calendar event ${googleEventId} deleted successfully for user ${userId}.`);
+        // Original function didn't return anything.
+      } catch (e: any) {
+        chatApiHelperLogger.warn(`Attempt ${attemptNumber} to delete Google event ${googleEventId} for user ${userId} failed.`, {
+            error: e.message, code: e.code, errors: e.errors
+        });
+        const httpStatusCode = e.code;
+        const googleErrorReason = e.errors && e.errors[0] ? e.errors[0].reason : null;
 
-        console.log(res, ' result after delete event')
-    } catch (e) {
-        console.log(e, ' unable to delete google event')
-    }
+        if (httpStatusCode === 400 || httpStatusCode === 401 || // 404 is often retryable for eventual consistency or if event was just created
+            (httpStatusCode === 403 && googleErrorReason !== 'rateLimitExceeded' && googleErrorReason !== 'userRateLimitExceeded')) {
+          bail(e);
+          return;
+        }
+        throw e;
+      }
+    }, {
+      retries: 3,
+      factor: 2,
+      minTimeout: 1000,
+      maxTimeout: 10000,
+      onRetry: (error, attemptNumber) => {
+        chatApiHelperLogger.warn(`Retrying Google event delete for event ${googleEventId}, user ${userId}, attempt ${attemptNumber}. Error: ${error.message}`, {
+            operation_name: `${operation_name}_onRetry`,
+            attempt: attemptNumber,
+            error_code: error.code,
+        });
+      },
+    });
+  } catch (e) {
+    chatApiHelperLogger.error(`Failed to delete Google event ${googleEventId} for user ${userId} after all retries.`, { error: (e as Error).message });
+    throw e;
+  }
 }
 
 export const getRruleFreq = (
@@ -3910,7 +3571,7 @@ export const createRRuleString = (
     byMonthDay?: ByMonthDayType[],
 ) => {
     if ((!(recurringEndDate?.length > 0) && !count) || !frequency || !interval) {
-        console.log('recurringEndDate, interval or frequency missing')
+        chatApiHelperLogger.warn('Cannot create RRule string: recurringEndDate/count or frequency or interval missing.', { hasRecurringEndDate: !!recurringEndDate, count, frequency, interval });
         return undefined
     }
 
@@ -3954,13 +3615,14 @@ export const upsertMeetingAssistOne = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.insert_Meeting_Assist_one, ' this is response in upsertMeetingAssistOne')
-        return response?.data?.insert_Meeting_Assist_one
-
+        // }).json()
+        // console.log(response?.data?.insert_Meeting_Assist_one, ' this is response in upsertMeetingAssistOne')
+        // return response?.data?.insert_Meeting_Assist_one
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Meeting_Assist_one: MeetingAssistType };
+        return responseData?.insert_Meeting_Assist_one;
     } catch (e) {
-        console.log(e, ' unable to upsertMeetingAssistOne for new event')
+        chatApiHelperLogger.error('Error in upsertMeetingAssistOne', { meetingAssistId: meetingAssist?.id, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -3990,13 +3652,14 @@ export const listUserContactInfosGivenUserId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.User_Contact_Info, ' this is response?.data?.User_Contact_Info')
-        return response?.data?.User_Contact_Info
-
+        // }).json()
+        // console.log(response?.data?.User_Contact_Info, ' this is response?.data?.User_Contact_Info')
+        // return response?.data?.User_Contact_Info
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { User_Contact_Info: UserContactInfoType[] };
+        return responseData?.User_Contact_Info;
     } catch (e) {
-        console.log(e, ' unable to listUserContactInfosGivenUserId for new event')
+        chatApiHelperLogger.error('Error in listUserContactInfosGivenUserId', { userId, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4027,13 +3690,14 @@ export const getUserContactInfosGivenIds = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.User_Contact_Info, ' this is response in getContactInfosGivenIds')
-        return response?.data?.User_Contact_Info
-
+        // }).json()
+        // console.log(response?.data?.User_Contact_Info, ' this is response in getContactInfosGivenIds')
+        // return response?.data?.User_Contact_Info
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { User_Contact_Info: UserContactInfoType[] }; // Assuming admin for this system-level lookup
+        return responseData?.User_Contact_Info;
     } catch (e) {
-        console.log(e, ' unable to getContactInfosGivenIds for new event')
+        chatApiHelperLogger.error('Error in getUserContactInfosGivenIds', { ids, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4066,13 +3730,14 @@ export const getContactByNameWithUserId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.Contact, ' this is response in getContactByNameWithUserId')
-        return response?.data?.Contact?.[0]
-
+        // }).json()
+        // console.log(response?.data?.Contact, ' this is response in getContactByNameWithUserId')
+        // return response?.data?.Contact?.[0]
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Contact: ContactType[] };
+        return responseData?.Contact?.[0];
     } catch (e) {
-        console.log(e, ' unable to getContactByNameWithUserId for new event')
+        chatApiHelperLogger.error('Error in getContactByNameWithUserId', { userId, name, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4102,13 +3767,14 @@ export const insertMeetingAssistAttendee = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.insert_Meeting_Assist_Attendee_one, ' this is response in insertMeetingAssistAttendee')
-        return response?.data?.insert_Meeting_Assist_Attendee_one
-
+        // }).json()
+        // console.log(response?.data?.insert_Meeting_Assist_Attendee_one, ' this is response in insertMeetingAssistAttendee')
+        // return response?.data?.insert_Meeting_Assist_Attendee_one
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Meeting_Assist_Attendee_one: MeetingAssistAttendeeType };
+        return responseData?.insert_Meeting_Assist_Attendee_one;
     } catch (e) {
-        console.log(e, ' unable to upsertMeetingAssistOne for new event')
+        chatApiHelperLogger.error('Error in insertMeetingAssistAttendee', { attendeeId: attendee?.id, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4149,7 +3815,8 @@ export const createHostAttendee = async (
 
         return attendeeId
     } catch (e) {
-        console.log(e, ' unable to upsertMeetingAssistOne for new event')
+        chatApiHelperLogger.error('Unable to create host attendee for new event', { userId, meetingId, timezone, email, name, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
@@ -4180,13 +3847,14 @@ export const upsertMeetingAssistInviteMany = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.insert_Meeting_Assist_Invite, ' this is response in upsertMeetingAssistInviteMany')
-        return response?.data?.insert_Meeting_Assist_Invite
-
+        // }).json()
+        // console.log(response?.data?.insert_Meeting_Assist_Invite, ' this is response in upsertMeetingAssistInviteMany')
+        // return response?.data?.insert_Meeting_Assist_Invite
+        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Meeting_Assist_Invite: MeetingAssistInviteType[] };
+        return responseData?.insert_Meeting_Assist_Invite;
     } catch (e) {
-        console.log(e, ' unable to upsertMeetingAssistInviteMany for new event')
+        chatApiHelperLogger.error('Error in upsertMeetingAssistInviteMany', { inviteCount: meetingAssistInvites?.length, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4219,13 +3887,14 @@ export const updateUserNameGivenId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.update_User_by_pk, ' this is response in updateUserNameGivenId')
-        return response?.data?.update_User_by_pk
-
+        // }).json()
+        // console.log(response?.data?.update_User_by_pk, ' this is response in updateUserNameGivenId')
+        // return response?.data?.update_User_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { update_User_by_pk: UserType };
+        return responseData?.update_User_by_pk;
     } catch (e) {
-        console.log(e, ' unable to upsertMeetingAssistInviteMany for new event')
+        chatApiHelperLogger.error('Error in updateUserNameGivenId', { userId, name, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4255,13 +3924,14 @@ export const getUserGivenId = async (
                 query,
                 variables,
             }
-        }).json()
-
-        console.log(response?.data?.User_by_pk, ' this is response in getUserGivenId')
-        return response?.data?.User_by_pk
-
+        // }).json()
+        // console.log(response?.data?.User_by_pk, ' this is response in getUserGivenId')
+        // return response?.data?.User_by_pk
+        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { User_by_pk: UserType };
+        return responseData?.User_by_pk;
     } catch (e) {
-        console.log(e, ' unable to getUserGivenId for new event')
+        chatApiHelperLogger.error('Error in getUserGivenId', { userId, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4277,18 +3947,30 @@ export const callOpenAIWithMessageHistoryOnly = async (
         const completion = await openai.chat.completions.create({
             model,
             messages: messageHistory,
+            timeout: 20000, // 20s timeout per attempt
         });
-        console.log(completion.choices[0]?.message?.content, ' response from openaiapi');
-
-        return completion?.choices?.[0]?.message?.content
-    } catch (error) {
-        if (error.response) {
-            console.log(error.response.status, ' openai error status');
-            console.log(error.response.data, ' openai error data');
-        } else {
-            console.log(error.message, ' openai error message');
+        chatApiHelperLogger.info(`OpenAI call (history only) successful on attempt ${attemptNumber}. Model: ${model}.`);
+        return completion?.choices?.[0]?.message?.content;
+      } catch (error: any) {
+        chatApiHelperLogger.warn(`Attempt ${attemptNumber} for OpenAI call (history only) failed. Model: ${model}.`, {
+            error: error.message, code: error.code, status: error.response?.status
+        });
+        if (error.response && [400, 401, 403, 404, 429].includes(error.response.status)) { // Added 429 as potentially non-retryable for some quota errors
+            bail(error);
+            return;
         }
-    }
+        throw error;
+      }
+    }, {
+        retries: 2, factor: 2, minTimeout: 1000, maxTimeout: 5000,
+        onRetry: (error, attemptNumber) => {
+            chatApiHelperLogger.warn(`Retrying OpenAI call (history only), attempt ${attemptNumber}. Model: ${model}. Error: ${error.message}`);
+        }
+    });
+  } catch (error) {
+    chatApiHelperLogger.error('Failed OpenAI call (history only) after all retries.', { model, error: (error as Error).message });
+    throw error;
+  }
 }
 
 
@@ -4301,61 +3983,102 @@ export const callOpenAIWithMessageHistory = async (
     exampleInput?: string,
     exampleOutput?: string,
 ) => {
-    try {
-        // assistant
+  const operationName = "callOpenAIWithMessageHistory";
+  try {
+    return await retry(async (bail, attemptNumber) => {
+      try {
+        chatApiHelperLogger.info(`Attempt ${attemptNumber} for ${operationName}. Model: ${model}.`);
+        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = messageHistory.concat([
+            { role: 'system' as ChatGPTRoleType, content: prompt },
+            exampleInput && { role: 'user' as ChatGPTRoleType, content: exampleInput },
+            exampleOutput && { role: 'assistant' as ChatGPTRoleType, content: exampleOutput },
+            { role: 'user' as ChatGPTRoleType, content: userData }
+        ])?.filter(m => !!m) as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+
         const completion = await openai.chat.completions.create({
             model,
-            messages: messageHistory.concat([
-                { role: 'system' as ChatGPTRoleType, content: prompt },
-                exampleInput && { role: 'user' as ChatGPTRoleType, content: exampleInput },
-                exampleOutput && { role: 'assistant' as ChatGPTRoleType, content: exampleOutput },
-                { role: 'user' as ChatGPTRoleType, content: userData }
-            ])
-                ?.filter(m => !!m),
+            messages,
+            timeout: 30000, // 30s timeout, potentially longer prompts/responses
         });
-        console.log(completion.choices[0]?.message?.content, ' response from openaiapi');
-
-        return { totalTokenCount: completion?.usage?.total_tokens, response: completion?.choices?.[0]?.message?.content }
-    } catch (error) {
-        if (error.response) {
-            console.log(error.response.status, ' openai error status');
-            console.log(error.response.data, ' openai error data');
-        } else {
-            console.log(error.message, ' openai error message');
+        chatApiHelperLogger.info(`${operationName} successful on attempt ${attemptNumber}. Model: ${model}.`);
+        return { totalTokenCount: completion?.usage?.total_tokens, response: completion?.choices?.[0]?.message?.content };
+      } catch (error: any) {
+        chatApiHelperLogger.warn(`Attempt ${attemptNumber} for ${operationName} failed. Model: ${model}.`, {
+            error: error.message, code: error.code, status: error.response?.status
+        });
+         if (error.response && [400, 401, 403, 404, 429].includes(error.response.status)) {
+            bail(error);
+            return;
         }
-    }
+        throw error;
+      }
+    }, {
+        retries: 2, factor: 2, minTimeout: 1000, maxTimeout: 8000,
+        onRetry: (error, attemptNumber) => {
+            chatApiHelperLogger.warn(`Retrying ${operationName}, attempt ${attemptNumber}. Model: ${model}. Error: ${error.message}`);
+        }
+    });
+  } catch (error) {
+    chatApiHelperLogger.error(`Failed ${operationName} after all retries.`, { model, error: (error as Error).message });
+    throw error;
+  }
 }
 
 export const callOpenAI = async (
-    openai: OpenAI,
-    prompt: string,
-    model: 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' = 'gpt-3.5-turbo',
-    userData: string,
-    exampleInput?: string,
-    exampleOutput?: string,
+    openai: OpenAI, // This param was named 'openai', but it seems it should be 'prompt' based on usage
+    prompt: string, // Renamed from 'model' for clarity, as 'model' is the next param
+    model: 'gpt-3.5-turbo' | 'gpt-3.5-turbo-16k' | 'gpt-4' = 'gpt-3.5-turbo',  // This was 'userData'
+    userData: string, // This was 'exampleInput'
+    exampleInput?: string, // This was 'exampleOutput'
+    exampleOutput?: string, // This was not present
 ) => {
-    try {
-        // assistant
+  const operationName = "callOpenAI_Simple";
+   // Correcting parameter mapping based on likely intent and usage pattern:
+  // Original: openai (OpenAI client), prompt (string), model (string, e.g. 'gpt-3.5-turbo'), userData (string), exampleInput (string), exampleOutput (string)
+  // The first parameter `openai` is the OpenAI client instance.
+  // The second parameter `prompt` is the system prompt.
+  // The third parameter `model` is the model name.
+  // The fourth parameter `userData` is the main user message.
+  // The fifth and sixth are examples.
+
+  try {
+    return await retry(async (bail, attemptNumber) => {
+      try {
+        chatApiHelperLogger.info(`Attempt ${attemptNumber} for ${operationName}. Model: ${model}.`);
+        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+            { role: 'system' as ChatGPTRoleType, content: prompt },
+            exampleInput && { role: 'user' as ChatGPTRoleType, content: exampleInput },
+            exampleOutput && { role: 'assistant' as ChatGPTRoleType, content: exampleOutput },
+            { role: 'user' as ChatGPTRoleType, content: userData }
+        ]?.filter(m => !!m) as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+
         const completion = await openai.chat.completions.create({
             model,
-            messages: [
-                { role: 'system' as ChatGPTRoleType, content: prompt },
-                exampleInput && { role: 'user' as ChatGPTRoleType, content: exampleInput },
-                exampleOutput && { role: 'assistant' as ChatGPTRoleType, content: exampleOutput },
-                { role: 'user' as ChatGPTRoleType, content: userData }
-            ]?.filter(m => !!m),
+            messages,
+            timeout: 30000, // 30s
         });
-        console.log(completion.choices[0]?.message?.content, ' response from openaiapi');
-
-        return completion?.choices?.[0]?.message?.content
-    } catch (error) {
-        if (error.response) {
-            console.log(error.response.status, ' openai error status');
-            console.log(error.response.data, ' openai error data');
-        } else {
-            console.log(error.message, ' openai error message');
+        chatApiHelperLogger.info(`${operationName} successful on attempt ${attemptNumber}. Model: ${model}.`);
+        return completion?.choices?.[0]?.message?.content;
+      } catch (error: any) {
+        chatApiHelperLogger.warn(`Attempt ${attemptNumber} for ${operationName} failed. Model: ${model}.`, {
+            error: error.message, code: error.code, status: error.response?.status
+        });
+        if (error.response && [400, 401, 403, 404, 429].includes(error.response.status)) {
+            bail(error);
+            return;
         }
-    }
+        throw error;
+      }
+    }, {
+        retries: 2, factor: 2, minTimeout: 1000, maxTimeout: 8000,
+        onRetry: (error, attemptNumber) => {
+            chatApiHelperLogger.warn(`Retrying ${operationName}, attempt ${attemptNumber}. Model: ${model}. Error: ${error.message}`);
+        }
+    });
+  } catch (error) {
+    chatApiHelperLogger.error(`Failed ${operationName} after all retries.`, { model, error: (error as Error).message });
+    throw error;
+  }
 }
 
 
@@ -4517,12 +4240,14 @@ export const listEventsForUserGivenDates = async (
                     },
                 },
             },
-        ).json()
-
-        console.log(res, ' res from listEventsforUser')
-        return res?.data?.Event
+        // ).json()
+        // console.log(res, ' res from listEventsforUser')
+        // return res?.data?.Event
+        const responseData = await resilientGotPostHasura(operationName, query, { userId, startDate: senderStartDate, endDate: senderEndDate }, userId) as { Event: EventType[] };
+        return responseData?.Event;
     } catch (e) {
-        console.log(e, ' listEventsForUser')
+        chatApiHelperLogger.error('Error in listEventsForUserGivenDates', { userId, senderStartDate, senderEndDate, error: (e as Error).message });
+        throw e;
     }
 }
 
@@ -4538,7 +4263,9 @@ export const extractAttributesNeededFromUserInput = async (
 
         return attributes
     } catch (e) {
-        console.log(e, ' unable to extract attritubes needed')
+        chatApiHelperLogger.error('Unable to extract attributes needed from user input', { userInput, error: (e as Error).message, stack: (e as Error).stack });
+        // Original function implicitly returns undefined here.
+        return undefined;
     }
 }
 
@@ -4570,7 +4297,7 @@ export const generateQueryDateFromUserInput = async (
             userWorkTimes += `${workTimeObject?.dayOfWeek}: ${workTimeObject?.startTime} - ${workTimeObject?.endTime} \n`
 
         }
-        console.log(userWorkTimes, ' userWorkTimes')
+        chatApiHelperLogger.debug('[generateQueryDateFromUserInput] User work times string:', { userId, userWorkTimes });
         const queryDateEngine = new TemplateEngine(extractQueryUserInputTimeToJSONTemplate);
         const queryDateRendered = queryDateEngine.render({ userCurrentTime, userWorkTimes: userWorkTimes, userInput })
 
@@ -4585,7 +4312,9 @@ export const generateQueryDateFromUserInput = async (
 
         return queryDate
     } catch (e) {
-        console.log(e, ' unable to generate queryDate from user input')
+        chatApiHelperLogger.error('Unable to generate queryDate from user input', { userId, timezone, userInput, userCurrentTime, error: (e as Error).message, stack: (e as Error).stack });
+        // Original function implicitly returns undefined here.
+        return undefined;
     }
 }
 
@@ -4620,7 +4349,7 @@ export const generateMissingFieldsQueryDateFromUserInput = async (
             userWorkTimes += `${workTimeObject?.dayOfWeek}: ${workTimeObject?.startTime} - ${workTimeObject?.endTime} \n`
 
         }
-        console.log(userWorkTimes, ' userWorkTimes')
+        chatApiHelperLogger.debug('[generateMissingFieldsQueryDateFromUserInput] User work times string:', { userId, userWorkTimes });
         const queryDateEngine = new TemplateEngine(extractQueryUserInputTimeToJSONTemplate);
         const queryDateRendered = queryDateEngine.render({ userCurrentTime, userWorkTimes: userWorkTimes, userInput })
 
@@ -4636,7 +4365,8 @@ export const generateMissingFieldsQueryDateFromUserInput = async (
 
         return queryDate
     } catch (e) {
-        console.log(e, ' unable to generate queryDate from user input')
+        chatApiHelperLogger.error('Unable to generate missing fields queryDate from user input', { userId, timezone, userInput, priorUserInput, priorAssistantOutput, userCurrentTime, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
@@ -4682,15 +4412,16 @@ export const generateDateTime = async (
 
         // const openAIDateTime = await callOpenAI(openai, userInputToDateTimeJSONPrompt, openAIChatGPT35Model, userInput, userInputToDateTimeJSONExampleInput1, userInputToDateTimeJSONExampleOutput1)
         const dateTimeStartIndex = openAIDateTime.indexOf('{')
-        console.log(dateTimeStartIndex, ' dateTimeStartIndex')
+        chatApiHelperLogger.debug('[generateDateTime] OpenAI response processing', { dateTimeStartIndex, openAIDateTimeLength: openAIDateTime?.length });
         const dateTimeEndIndex = openAIDateTime.lastIndexOf('}')
-        console.log(dateTimeEndIndex, ' dateTimeEndIndex')
+        chatApiHelperLogger.debug('[generateDateTime] OpenAI response processing', { dateTimeEndIndex });
         const dateTimeJSONString = openAIDateTime.slice(dateTimeStartIndex, dateTimeEndIndex + 1)
         const dateTime: DateTimeJSONType = JSON.parse(dateTimeJSONString)
 
         return dateTime
     } catch (e) {
-        console.log(e, ' unable to generateDateTime')
+        chatApiHelperLogger.error('Unable to generate DateTime from user input', { userInput, userCurrentTime, timezone, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
@@ -4740,15 +4471,16 @@ export const generateMissingFieldsDateTime = async (
 
         // const openAIDateTime = await callOpenAI(openai, userInputToDateTimeJSONPrompt, openAIChatGPT35Model, userInput, userInputToDateTimeJSONExampleInput1, userInputToDateTimeJSONExampleOutput1)
         const dateTimeStartIndex = openAIDateTime.indexOf('{')
-        console.log(dateTimeStartIndex, ' dateTimeStartIndex')
+        chatApiHelperLogger.debug('[generateMissingFieldsDateTime] OpenAI response processing', { dateTimeStartIndex, openAIDateTimeLength: openAIDateTime?.length });
         const dateTimeEndIndex = openAIDateTime.lastIndexOf('}')
-        console.log(dateTimeEndIndex, ' dateTimeEndIndex')
+        chatApiHelperLogger.debug('[generateMissingFieldsDateTime] OpenAI response processing', { dateTimeEndIndex });
         const dateTimeJSONString = openAIDateTime.slice(dateTimeStartIndex, dateTimeEndIndex + 1)
         const dateTime: DateTimeJSONType = JSON.parse(dateTimeJSONString)
 
         return dateTime
     } catch (e) {
-        console.log(e, ' unable to generateDateTime')
+        chatApiHelperLogger.error('Unable to generate missing fields DateTime from user input', { userInput, priorUserInput, priorAssistantOutput, userCurrentTime, timezone, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
@@ -4789,7 +4521,9 @@ export const generateAssistantMessageFromAPIResponseForUserQuery = async (
 
         return assistantMessage
     } catch (e) {
-        console.log(e, ' unable to generate assistant message from api response')
+        chatApiHelperLogger.error('Unable to generate assistant message from API response', { apiResponse, messageHistoryObjectId: messageHistoryObject?.id, error: (e as Error).message, stack: (e as Error).stack });
+        // Consider returning a default error message or rethrowing
+        return { role: 'assistant', content: "I encountered an issue processing that request. Please try again." }; // Example fallback
     }
 }
 
@@ -5089,7 +4823,8 @@ export const generateAssistantMessageToRequestUserForMissingFields = async (
         return assitantMessage
 
     } catch (e) {
-        console.log(e, ' unable to generate user request for missing fields')
+        chatApiHelperLogger.error('Unable to generate user request for missing fields', { missingDataString, messageHistoryObjectId: messageHistoryObject?.id, error: (e as Error).message, stack: (e as Error).stack });
+        return { role: 'assistant', content: "I need a bit more information to proceed. Could you clarify?" }; // Example fallback
     }
 }
 
@@ -5120,7 +4855,8 @@ export const generateJSONDataFromUserInput = async (
 
         return data
     } catch (e) {
-        console.log(e, ' unable to generateJSONData from user input')
+        chatApiHelperLogger.error('Unable to generate JSON data from user input', { userInput, userCurrentTime, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
@@ -5156,7 +4892,8 @@ export const generateMissingFieldsJSONDataFromUserInput = async (
 
         return data
     } catch (e) {
-        console.log(e, ' unable to generateJSONData from user input')
+        chatApiHelperLogger.error('Unable to generate missing fields JSON data from user input', { userInput, priorUserInput, priorAssistantOutput, userCurrentTime, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
@@ -5189,7 +4926,8 @@ export const generateWorkSchedule = async (
 
         return userSchedule
     } catch (e) {
-        console.log(e, ' unable to generate work schedule')
+        chatApiHelperLogger.error('Unable to generate work schedule', { userId, timezone, windowStartDate, windowEndDate, error: (e as Error).message, stack: (e as Error).stack });
+        return ""; // Return empty string or handle error as appropriate
     }
 }
 
@@ -5213,7 +4951,8 @@ export const findAnEmptySlot = async (
         const data: FindASlotType = JSON.parse(dataJSONString)
         return data
     } catch (e) {
-        console.log(e, ' unable to find an empty slot')
+        chatApiHelperLogger.error('Unable to find an empty slot', { userId, timezone, windowStartDate, windowEndDate, eventDuration, error: (e as Error).message, stack: (e as Error).stack });
+        return undefined;
     }
 }
 
