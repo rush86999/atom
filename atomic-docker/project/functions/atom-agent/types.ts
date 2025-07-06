@@ -1277,3 +1277,37 @@ export interface AgentSkillContext {
   // - User preferences relevant to skills
   // - API clients if they are not globally available or need user-specific configuration
 }
+
+// --- LanceDB Semantic Search Types ---
+export type SearchResultSourceType = "document_chunk" | "email_snippet" | "notion_summary";
+
+export interface UniversalSearchResultItem {
+  // Common fields
+  id: string;
+  user_id: string;
+  source_type: SearchResultSourceType;
+  title: string;
+  snippet: string;
+  vector_score: number;
+  original_url_or_link?: string;
+  created_at?: string; // ISO 8601
+  last_modified_at?: string; // ISO 8601
+  ingested_at?: string; // ISO 8601
+
+  // For "document_chunk"
+  document_id?: string;
+  parent_document_title?: string;
+  chunk_sequence?: number;
+  document_source_uri?: string;
+  document_doc_type?: string;
+
+  // For "email_snippet"
+  email_thread_id?: string;
+  email_from_sender?: string;
+  email_date?: string; // ISO 8601
+
+  // For "notion_summary"
+  notion_icon_json?: string;
+
+  metadata_json?: string;
+}
