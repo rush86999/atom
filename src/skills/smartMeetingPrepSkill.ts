@@ -38,7 +38,8 @@ export interface SmartMeetingPrepSkillOutput {
   preparationNotes?: string;
   relatedDocuments?: any[]; // Using any for mock documents for now
   relatedEmails?: GmailMessageSnippet[];
-  relatedNotionPages?: NotionPageSummary[]; // Added for Notion results
+  relatedNotionPages?: NotionPageSummary[];
+  semanticallyRelatedItems?: UniversalSearchResultItem[]; // Added for semantic search results
   // other output fields
 }
 
@@ -442,12 +443,71 @@ export class SmartMeetingPrepSkill {
         dataFetchingErrors,
         topEmails.map(e => e.item),
         topNotionPages.map(p => p.item),
-        eventTitleKeywords, // Pass extracted keywords
-        eventDescKeywords   // Pass extracted keywords
+        eventTitleKeywords,
+        eventDescKeywords,
+        uniqueSemanticallyRelatedItems // Pass de-duplicated semantic results
       );
 
       // Use logger for this type of info as well
       logger.info(`SmartMeetingPrepSkill: Successfully generated preparation materials for "${resolvedEvent.title}".`);
+
+
+      // Step 4d: Perform Semantic Search for additional context
+      let semanticallyRelatedItems: UniversalSearchResultItem[] = [];
+      const semanticQueryText = resolvedEvent.title + (eventDescKeywords.length > 0 ? " " + eventDescKeywords.join(" ") : "");
+
+      if (semanticQueryText.trim()) {
+        const searchFilters: SemanticSearchFilters = {
+          source_types: ["document_chunk", "email_snippet", "notion_summary"],
+          // Optional: Add date filters if desired, e.g., based on meeting date
+          // date_before: meetingStartDate.toISOString(),
+          // date_after: new Date(meetingStartDate.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+
+        logger.info(`SmartMeetingPrepSkill: Performing semantic search with query: "${semanticQueryText.substring(0, 100)}..."`);
+        try {
+          const semanticSearchResponse = await semanticSearchLanceDb(
+            input.userId,
+            semanticQueryText,
+            searchFilters,
+            5 // Limit to 5 semantic results for now
+          );
+
+          if (semanticSearchResponse.ok && semanticSearchResponse.data) {
+            semanticallyRelatedItems = semanticSearchResponse.data;
+            logger.info(`SmartMeetingPrepSkill: Semantic search returned ${semanticallyRelatedItems.length} items.`);
+          } else {
+            const semSearchErrorMsg = `Semantic search failed: ${semanticSearchResponse.error?.message || 'Unknown error'}`;
+            logger.warn(`SmartMeetingPrepSkill: ${semSearchErrorMsg}`);
+            dataFetchingErrors.push(semSearchErrorMsg);
+          }
+        } catch (semSearchCatchError: any) {
+            const semSearchErrorMsg = `Semantic search execution error: ${semSearchCatchError.message}`;
+            logger.error(`SmartMeetingPrepSkill: ${semSearchErrorMsg}`, semSearchCatchError);
+            dataFetchingErrors.push(semSearchErrorMsg);
+        }
+      } else {
+        logger.info("SmartMeetingPrepSkill: Skipping semantic search due to empty query text.");
+      }
+
+      // De-duplicate semanticallyRelatedItems against already fetched emails and Notion pages
+      const existingItemIds = new Set<string>();
+      relatedEmails.forEach(email => existingItemIds.add(email.id));
+      relatedNotionPages.forEach(page => existingItemIds.add(page.id));
+
+      const uniqueSemanticallyRelatedItems = semanticallyRelatedItems.filter(item => {
+        // For document_chunks, they are always new in this context as we don't fetch full docs otherwise
+        if (item.source_type === "document_chunk") return true;
+        // For emails and notion summaries, check if their ID is already in our direct-fetched lists
+        return !existingItemIds.has(item.id);
+      });
+
+      if (semanticallyRelatedItems.length !== uniqueSemanticallyRelatedItems.length) {
+        logger.info(`SmartMeetingPrepSkill: De-duplicated semantic search results. Original: ${semanticallyRelatedItems.length}, Unique: ${uniqueSemanticallyRelatedItems.length}`);
+      }
+      // Use uniqueSemanticallyRelatedItems going forward for output and notes
+      // This variable will be added to skill output in the next step.
+
 
       // Asynchronously store fetched items in LanceDB - "fire and forget" style for now
       const storagePromises = [];
@@ -496,6 +556,7 @@ export class SmartMeetingPrepSkill {
       relatedDocuments: relatedDocuments, // Still mock documents
       relatedEmails: relatedEmails,
       relatedNotionPages: relatedNotionPages,
+      semanticallyRelatedItems: uniqueSemanticallyRelatedItems, // Added here
       preparationNotes: preparationNotes,
       // Optionally, include dataFetchingErrors in the output if the caller needs them structured
     };
@@ -566,9 +627,10 @@ export class SmartMeetingPrepSkill {
     topEmails: GmailMessageSnippet[], // Top scored emails
     topNotionPages: NotionPageSummary[], // Top scored Notion pages
     eventTitleKeywords: string[], // Keywords from meeting title
-    eventDescKeywords: string[]   // Keywords from meeting description
+    eventDescKeywords: string[],   // Keywords from meeting description
+    semanticallyRelatedItems?: UniversalSearchResultItem[] // Added for semantic search results
   ): Promise<string> {
-    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), and ${errors.length} errors.`);
+    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), ${semanticallyRelatedItems?.length || 0} semantic items, and ${errors.length} errors.`);
     const titleLower = event.title.toLowerCase();
     const descriptionLower = event.description?.toLowerCase() || "";
 
@@ -707,6 +769,40 @@ export class SmartMeetingPrepSkill {
     } else {
       notes += "**Related Notion Pages:**\n- No Notion pages automatically found related to this meeting's title or description keywords.\n\n";
     }
+
+    // Section for Semantically Related Items
+    if (semanticallyRelatedItems && semanticallyRelatedItems.length > 0) {
+      notes += "📚 **Additional Context from Knowledge Base (Semantic Search)**\n\n";
+      semanticallyRelatedItems.forEach(item => {
+        let itemTypeDisplay = "Item";
+        if (item.source_type === "document_chunk") itemTypeDisplay = "Document Chunk";
+        else if (item.source_type === "email_snippet") itemTypeDisplay = "Email";
+        else if (item.source_type === "notion_summary") itemTypeDisplay = "Notion Page";
+
+        notes += `- **Type:** ${itemTypeDisplay}\n`;
+        notes += `  - **Title/Subject:** "${item.title || 'N/A'}"\n`;
+        if (item.source_type === "document_chunk" && item.parent_document_title && item.parent_document_title !== item.title) {
+            notes += `    (From Document: "${item.parent_document_title}")\n`;
+        }
+        notes += `  - **Snippet:** ${item.snippet || 'N/A'}...\n`;
+        if (item.original_url_or_link) {
+          notes += `  - **Link:** ${item.original_url_or_link}\n`;
+        }
+        if (item.last_modified_at) {
+          notes += `  - **Last Modified:** ${new Date(item.last_modified_at).toLocaleDateString()}\n`;
+        } else if (item.email_date) { // For emails, email_date is more relevant than a generic last_modified
+            notes += `  - **Date:** ${new Date(item.email_date).toLocaleDateString()}\n`;
+        } else if (item.created_at) {
+            notes += `  - **Created:** ${new Date(item.created_at).toLocaleDateString()}\n`;
+        }
+        // LanceDB distance score (lower is better). We might want to translate this to "relevance" where higher is better.
+        // For now, just show the raw score.
+        notes += `  - **Relevance Score (raw distance):** ${item.vector_score.toFixed(4)}\n`;
+        notes += "\n";
+      });
+      notes += "---\n\n";
+    }
+
 
     // Display any data fetching errors
     if (errors.length > 0) {
