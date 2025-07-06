@@ -233,3 +233,79 @@ def process_audio_note_data_route():
         import traceback
         traceback.print_exc()
         return jsonify({"ok": False, "error": {"message": f"Internal server error processing audio: {str(e)}", "code": "AUDIO_PROCESSING_ERROR"}}), 500
+
+# Attempt to import the new search service and lancedb_handler for connection
+try:
+    from ingestion_pipeline import lancedb_search_service, lancedb_handler # Assuming they are in ingestion_pipeline package/directory
+    LANCEDB_SERVICE_AVAILABLE = True
+except ImportError as e_ls:
+    print(f"Warning: Could not import lancedb_search_service or lancedb_handler: {e_ls}. /api/lancedb/semantic-search will not be fully functional.", file=sys.stderr)
+    LANCEDB_SERVICE_AVAILABLE = False
+    # Define mock/placeholder if needed for app to load, actual calls will fail
+    class MockLanceDBSearchService:
+        async def search_lancedb_all(self, **kwargs): # Make it async
+            return [{"id": "mock", "title": "LanceDB Search Service Unavailable", "snippet": str(e_ls), "score": 0, "source_type": "error"}]
+    lancedb_search_service = MockLanceDBSearchService()
+
+    class MockLanceDBHandler:
+        async def get_lancedb_connection(self): # Make it async
+            return None
+    if 'lancedb_handler' not in locals(): # If previous import failed
+        lancedb_handler = MockLanceDBHandler()
+
+
+@search_routes_bp.route('/api/lancedb/semantic-search', methods=['POST'])
+async def lancedb_semantic_search_route(): # Made async
+    if not LANCEDB_SERVICE_AVAILABLE:
+        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "LanceDB search service or its dependencies are not available."}}), 503
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    query_text = data.get('query_text')
+    user_id = data.get('user_id')
+    filters = data.get('filters', {}) # e.g., { date_after, date_before, source_types, doc_type_filter }
+    limit = data.get('limit', 10)
+
+    if not query_text:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "query_text is required."}}), 400
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    # 1. Get embedding for the query_text
+    # Assuming get_text_embedding_openai is available (imported at top of file)
+    # The note_utils.get_text_embedding_openai uses OPENAI_API_KEY_GLOBAL from env
+    openai_api_key_param = data.get('openai_api_key') # Allow override from request if needed by some agents
+
+    embedding_response = get_text_embedding_openai(
+        text_to_embed=query_text,
+        openai_api_key_param=openai_api_key_param
+    )
+    if embedding_response.get("status") != "success":
+        print(f"Error generating query embedding for semantic search: {embedding_response.get('message')}", file=sys.stderr)
+        return jsonify({"ok": False, "error": {"code": embedding_response.get("code", "EMBEDDING_FAILED"), "message": f"Failed to process query for search: {embedding_response.get('message')}"}}), 500
+    query_vector = embedding_response["data"]
+
+    # 2. Get LanceDB connection
+    db_conn = await lancedb_handler.get_lancedb_connection()
+    if not db_conn:
+        return jsonify({"ok": False, "error": {"code": "LANCEDB_CONNECTION_ERROR", "message": "Failed to connect to LanceDB for search."}}), 500
+
+    # 3. Call the search_lancedb_all function
+    try:
+        search_results = await lancedb_search_service.search_lancedb_all(
+            db_conn=db_conn,
+            query_vector=query_vector,
+            user_id=user_id,
+            filters=filters,
+            limit_total=limit
+        )
+        # search_lancedb_all should return a list of UniversalSearchResultItem compatible dicts
+        return jsonify({"ok": True, "data": search_results}), 200
+
+    except Exception as e:
+        print(f"Error during lancedb_semantic_search_route execution: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({"ok": False, "error": {"code": "LANCEDB_SEARCH_EXECUTION_ERROR", "message": f"An error occurred during semantic search: {str(e)}" }}), 500

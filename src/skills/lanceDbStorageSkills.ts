@@ -176,4 +176,68 @@ export async function processAndStoreDocument(
     return handleAxiosError(error as AxiosError, 'processAndStoreDocument');
   }
 }
+
+// --- Semantic Search Functionality ---
+
+export interface SemanticSearchFilters {
+  date_after?: string; // ISO 8601 string
+  date_before?: string; // ISO 8601 string
+  source_types?: SearchResultSourceType[]; // Use SearchResultSourceType from types.ts
+  doc_type_filter?: string; // e.g., "pdf", "docx" - specific to document_chunk source_type
+  // Add other potential filters as the backend evolves
+}
+
+// Ensure UniversalSearchResultItem is imported from types.ts
+import { UniversalSearchResultItem, SearchResultSourceType } from '../../atomic-docker/project/functions/atom-agent/types';
+
+export async function semanticSearchLanceDb(
+  userId: string,
+  queryText: string,
+  filters?: SemanticSearchFilters,
+  limit: number = 10,
+): Promise<SkillResponse<UniversalSearchResultItem[]>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    const errorMsg = "PYTHON_API_SERVICE_BASE_URL is not configured for semantic search.";
+    logger.error(`[semanticSearchLanceDb] ${errorMsg}`);
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: errorMsg } };
+  }
+  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.'}};
+  if (!queryText || queryText.trim() === "") return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'queryText cannot be empty.'}};
+
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/lancedb/semantic-search`;
+  const payload = {
+    user_id: userId,
+    query_text: queryText,
+    filters: filters || {}, // Send empty object if no filters
+    limit: limit,
+  };
+
+  logger.info(`[semanticSearchLanceDb] Performing semantic search for user ${userId} with query "${queryText.substring(0, 50)}..."`);
+
+  try {
+    const response = await axios.post<SkillResponse<UniversalSearchResultItem[]>>(endpoint, payload, {
+      timeout: LANCE_DB_STORAGE_API_TIMEOUT * 2 // Search might take longer
+    });
+    // Assuming Python endpoint directly returns SkillResponse-like structure with "ok" and "data" or "error"
+    if (response.data && response.data.ok && response.data.data) {
+      logger.info(`[semanticSearchLanceDb] Successfully received ${response.data.data.length} search results.`);
+      return { ok: true, data: response.data.data };
+    } else if (response.data && !response.data.ok && response.data.error) { // Python returned ok:false
+        logger.warn(`[semanticSearchLanceDb] Semantic search failed. API ok:false`, response.data.error);
+        return { ok: false, error: response.data.error };
+    } else { // Unexpected response structure from Python
+        logger.warn(`[semanticSearchLanceDb] Unexpected response structure from semantic search API.`, response.data);
+        return {
+            ok: false,
+            error: {
+              code: 'PYTHON_API_UNEXPECTED_RESPONSE',
+              message: 'Unexpected response structure from Python semantic search API.' ,
+              details: response.data
+            }
+        };
+    }
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'semanticSearchLanceDb');
+  }
+}
 ```
