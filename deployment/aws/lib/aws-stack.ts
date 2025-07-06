@@ -44,7 +44,7 @@ export class AwsStack extends cdk.Stack {
   // Target Groups for Dashboard
   private readonly appTargetGroup: elbv2.ApplicationTargetGroup;
   private readonly functionsTargetGroup: elbv2.ApplicationTargetGroup;
-  private readonly hasuraTargetGroup: elbv2.ApplicationTargetGroup;
+  private readonly postgraphileTargetGroup: elbv2.ApplicationTargetGroup; // Renamed from hasuraTargetGroup
   private readonly supertokensTargetGroup: elbv2.ApplicationTargetGroup;
   private readonly handshakeTargetGroup: elbv2.ApplicationTargetGroup;
   private readonly oauthTargetGroup: elbv2.ApplicationTargetGroup;
@@ -62,10 +62,10 @@ export class AwsStack extends cdk.Stack {
   private readonly ecsTaskRole: iam.Role;
 
   // Secrets
-  private readonly hasuraAdminSecret: secretsmanager.ISecret;
+  private readonly postgraphileAdminSecret: secretsmanager.ISecret; // Effectively the PG admin for PostGraphile, or a dedicated role secret
   private readonly supertokensDbConnStringSecret: secretsmanager.ISecret;
-  private readonly hasuraDbConnStringSecret: secretsmanager.ISecret;
-  private readonly hasuraJwtSecret: secretsmanager.ISecret; // Renamed from placeholderHasuraJwtSecret
+  private readonly postgraphileDbConnStringSecret: secretsmanager.ISecret; // Renamed from hasuraDbConnStringSecret
+  private readonly postgraphileJwtSecret: secretsmanager.ISecret; // Renamed from hasuraJwtSecret
   private readonly apiTokenSecret: secretsmanager.ISecret;
   private readonly openAiApiKeySecret: secretsmanager.ISecret; // Existing
   public optaplannerDbConnStringSecret: secretsmanager.ISecret; // Made public for now
@@ -85,7 +85,7 @@ export class AwsStack extends cdk.Stack {
   private readonly supertokensTaskDef: ecs.TaskDefinition;
 
   // Service-specific Security Groups (if they need to be referenced by other SGs)
-  private readonly hasuraSG: ec2.SecurityGroup;
+  private readonly postgraphileSG: ec2.SecurityGroup; // Renamed from hasuraSG
   private readonly functionsSG: ec2.SecurityGroup;
   private readonly appSG: ec2.SecurityGroup;
   private readonly handshakeSG: ec2.SecurityGroup;
@@ -94,7 +94,7 @@ export class AwsStack extends cdk.Stack {
   // ECS Services for Dashboard
   private readonly appService: ecs.FargateService;
   private readonly functionsService: ecs.FargateService;
-  private readonly hasuraService: ecs.FargateService;
+  private readonly postgraphileService: ecs.FargateService; // Renamed from hasuraService
   private readonly supertokensService: ecs.FargateService;
   public optaplannerService!: ecs.FargateService; // Already public, will ensure it's assigned to this.optaplannerService
   // Handshake and OAuth services could also be monitored if needed
@@ -544,35 +544,27 @@ export class AwsStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'SupertokensDbConnStringSecretArn', { value: this.supertokensDbConnStringSecret.secretArn });
 
-    this.hasuraDbConnStringSecret = new secretsmanager.Secret(this, 'HasuraDbConnStringSecret', {
-      secretName: `${this.stackName}/HasuraDbConnString`,
-      description: `Manually populate with the Hasura PostgreSQL connection string. Format: postgres://<DB_USER>:<DB_PASS>@<DB_HOST>:<DB_PORT>/<DB_NAME>. Obtain DB_HOST and DB_PORT from DbInstanceEndpoint CfnOutput. Obtain DB_USER, DB_PASS from the RDS instance's primary secret (DbSecretArn CfnOutput). DB_NAME is 'atomicdb'.`,
+    this.postgraphileDbConnStringSecret = new secretsmanager.Secret(this, 'PostGraphileDbConnStringSecret', {
+      secretName: `${this.stackName}/PostGraphileDbConnString`,
+      description: `Manually populate with the PostGraphile PostgreSQL connection string. Format: postgres://<DB_USER>:<DB_PASS>@<DB_HOST>:<DB_PORT>/<DB_NAME>. Obtain DB_HOST and DB_PORT from DbInstanceEndpoint CfnOutput. Obtain DB_USER, DB_PASS from the RDS instance's primary secret (DbSecretArn CfnOutput). DB_NAME is 'atomicdb'. This will be used as DATABASE_URL for PostGraphile.`,
     });
-    new cdk.CfnOutput(this, 'HasuraDbConnStringSecretArn', { value: this.hasuraDbConnStringSecret.secretArn });
+    new cdk.CfnOutput(this, 'PostGraphileDbConnStringSecretArn', { value: this.postgraphileDbConnStringSecret.secretArn });
 
-    // Automated Hasura JWT Secret (auto-generates a strong key)
-    const hasuraJwtSecret = new secretsmanager.Secret(this, 'HasuraJwtSecret', {
-      secretName: `${this.stackName}/HasuraJwtSecret`,
-      description: 'Automatically generated HASURA_GRAPHQL_JWT_SECRET with a strong key.',
+    // Automated PostGraphile JWT Secret (auto-generates a strong key)
+    const postgraphileJwtSecret = new secretsmanager.Secret(this, 'PostGraphileJwtSecret', {
+      secretName: `${this.stackName}/PostGraphileJwtSecret`,
+      description: 'Automatically generated PGRAPHILE_JWT_SECRET with a strong key. Ensure the content matches what PostGraphile expects (e.g., a simple string, not necessarily JSON unless PostGraphile is configured for it).',
       generateSecretString: {
-        secretStringTemplate: JSON.stringify({
-          type: "HS256",
-          issuer: "supertokens"
-          // The key itself will be generated
-        }),
-        generateStringKey: "key", // The key for the generated part of the secret
-        passwordLength: 32, // Generates a 32-character random string for the "key"
-        excludePunctuation: true, // Avoids characters that might cause issues in JSON or headers, sticks to alphanum.
-        // For a 256-bit key, a 64-character hex string or a 32-character ASCII string (if sufficiently random) is often used.
-        // A 32-char random string from default charset (alphanum + some punctuation) is strong.
-        // If specific hex format is needed, a custom resource might be better, or ensure charset is hex.
-        // AWS default is good. For more specific entropy (e.g. 256 bits), consider length 44 for base64 like characters, or 64 for hex.
-        // Length 32 is a good balance of strong and manageable.
+        // PostGraphile typically expects a raw secret string for PGRAPHILE_JWT_SECRET.
+        // The JSON structure that Hasura used (with type, key, issuer) is specific to Hasura/SuperTokens.
+        // For PostGraphile, we just need a strong secret string.
+        passwordLength: 32,
+        excludePunctuation: true,
       },
     });
     // Make sure the class property is updated if it's referenced elsewhere.
-    this.hasuraJwtSecret = hasuraJwtSecret; // Assign to the renamed class property
-    new cdk.CfnOutput(this, 'HasuraJwtSecretArn', { value: this.hasuraJwtSecret.secretArn });
+    this.postgraphileJwtSecret = postgraphileJwtSecret; // Assign to the renamed class property
+    new cdk.CfnOutput(this, 'PostGraphileJwtSecretArn', { value: this.postgraphileJwtSecret.secretArn });
 
 
     this.apiTokenSecret = new secretsmanager.Secret(this, 'ApiTokenSecret', {
@@ -635,28 +627,24 @@ export class AwsStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, 'MskBootstrapBrokersSecretArn', { value: this.mskBootstrapBrokersSecret.secretArn });
 
+    // PostGraphile doesn't have a direct "admin secret" for API access like Hasura.
+    // Access is controlled via PostgreSQL roles and JWT claims.
+    // We might need a secret for a privileged PostgreSQL user if PostGraphile needs one for schema watching,
+    // but the main DATABASE_URL should use a less privileged role for query execution.
+    // For now, we'll remove the direct HasuraAdminSecret equivalent and manage access through PG roles and JWT.
+    // this.postgraphileAdminSecret = new secretsmanager.Secret(this, 'PostGraphileAdminSecret', { ... });
+    // new cdk.CfnOutput(this, 'PostGraphileAdminSecretOutput', { value: this.postgraphileAdminSecret.secretArn });
 
-    this.hasuraAdminSecret = new secretsmanager.Secret(this, 'HasuraAdminSecret', {
-      secretName: `${this.stackName}/HasuraAdminSecret`,
-      description: 'Admin secret for Hasura GraphQL engine',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({ HASURA_GRAPHQL_ADMIN_SECRET: 'dummyPasswordPlaceholder' }),
-        generateStringKey: 'HASURA_GRAPHQL_ADMIN_SECRET_VALUE',
-        passwordLength: 32,
-        excludePunctuation: true,
-      },
-    });
-    new cdk.CfnOutput(this, 'HasuraAdminSecretOutput', { value: this.hasuraAdminSecret.secretArn });
 
     // Add policies to ECS Task Role now that secrets are defined
     this.ecsTaskRole.addToPolicy(new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue'],
         resources: [
             this.dbSecret.secretArn,
-            this.hasuraAdminSecret.secretArn,
+            // this.postgraphileAdminSecret.secretArn, // Removed as PostGraphile doesn't use it in the same way
             this.supertokensDbConnStringSecret.secretArn,
-            this.hasuraDbConnStringSecret.secretArn,
-            this.hasuraJwtSecret.secretArn, // Updated reference
+            this.postgraphileDbConnStringSecret.secretArn, // Renamed
+            this.postgraphileJwtSecret.secretArn, // Renamed
             this.apiTokenSecret.secretArn,
             this.openAiApiKeySecret.secretArn, // Existing
             this.optaplannerDbConnStringSecret.secretArn, // Existing
@@ -836,29 +824,29 @@ export class AwsStack extends cdk.Stack {
     });
     supertokensTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    // --- Hasura GraphQL Engine Service ---
-    this.hasuraSG = new ec2.SecurityGroup(this, 'HasuraSG', { vpc: this.vpc, allowAllOutbound: true });
-    this.hasuraSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(8080), 'Allow Hasura from ALB');
-    this.rdsSecurityGroup.addIngressRule(this.hasuraSG, ec2.Port.tcp(5432), 'Allow Hasura to connect to RDS');
+    // --- PostGraphile Service ---
+    this.postgraphileSG = new ec2.SecurityGroup(this, 'PostgraphileSG', { vpc: this.vpc, allowAllOutbound: true });
+    this.postgraphileSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(5000), 'Allow PostGraphile from ALB'); // Port 5000 for PostGraphile
+    this.rdsSecurityGroup.addIngressRule(this.postgraphileSG, ec2.Port.tcp(5432), 'Allow PostGraphile to connect to RDS');
 
-    const hasuraTaskDef = new ecs.TaskDefinition(this, 'HasuraTaskDef', {
-      family: 'hasura-fargate',
+    const postgraphileTaskDef = new ecs.TaskDefinition(this, 'PostgraphileTaskDef', {
+      family: 'postgraphile-fargate',
       compatibility: ecs.Compatibility.FARGATE,
-      cpu: "256", // Changed from 512
-      memoryMiB: "512", // Changed from 1024
+      cpu: "256",
+      memoryMiB: "512",
       runtimePlatform: {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
         cpuArchitecture: ecs.CpuArchitecture.X86_64,
       },
-      taskRole: this.ecsTaskRole,
+      taskRole: this.ecsTaskRole, // Ensure this role has SecretManager read access for DB creds and JWT secret
     });
 
-    hasuraTaskDef.addContainer('HasuraContainer', {
-      image: ecs.ContainerImage.fromRegistry('hasura/graphql-engine:v2.38.0'),
+    postgraphileTaskDef.addContainer('PostgraphileContainer', {
+      image: ecs.ContainerImage.fromRegistry('graphile/postgraphile:4'), // Using version 4
       logging: ecs.LogDrivers.awsLogs({
-        streamPrefix: 'hasura-ecs',
-        logGroup: new logs.LogGroup(this, 'HasuraLogGroup', {
-          logGroupName: `/aws/ecs/${this.cluster.clusterName}/hasura`,
+        streamPrefix: 'postgraphile-ecs',
+        logGroup: new logs.LogGroup(this, 'PostgraphileLogGroup', {
+          logGroupName: `/aws/ecs/${this.cluster.clusterName}/postgraphile`,
           retention: logs.RetentionDays.ONE_MONTH,
           removalPolicy: cdk.Fn.conditionIf(
                             isProdStageCondition.logicalId,
@@ -868,65 +856,67 @@ export class AwsStack extends cdk.Stack {
         }),
       }),
       environment: {
-        HASURA_GRAPHQL_UNAUTHORIZED_ROLE: 'public',
-        HASURA_GRAPHQL_LOG_LEVEL: 'debug',
-        HASURA_GRAPHQL_ENABLE_CONSOLE: 'true',
-        HASURA_GRAPHQL_DEV_MODE: 'true',
+        PGRAPHILE_WATCH_PG: 'true',
+        PGRAPHILE_ENABLE_GRAPHIQL: 'true',
+        PGRAPHILE_PG_DEFAULT_ROLE: 'public', // Example, adjust as needed
+        // PGRAPHILE_SCHEMA_NAMES: 'public,app_public', // Specify schemas if not just 'public'
+        // Add other PostGraphile specific environment variables here
       },
       secrets: {
-        HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
-        HASURA_GRAPHQL_JWT_SECRET: ecs.Secret.fromSecretsManager(this.hasuraJwtSecret), // Updated reference
-        HASURA_GRAPHQL_DATABASE_URL: ecs.Secret.fromSecretsManager(this.hasuraDbConnStringSecret),
+        DATABASE_URL: ecs.Secret.fromSecretsManager(this.postgraphileDbConnStringSecret),
+        PGRAPHILE_JWT_SECRET: ecs.Secret.fromSecretsManager(this.postgraphileJwtSecret),
+        // PGRAPHILE_JWT_PG_ROLE: ecs.Secret.fromSecretsManager(...), // If JWT role is also a secret or fixed string
       },
-      portMappings: [{ containerPort: 8080, protocol: ecs.Protocol.TCP }],
+      portMappings: [{ containerPort: 5000, protocol: ecs.Protocol.TCP }], // PostGraphile default port
     });
 
-    this.hasuraService = new ecs.FargateService(this, 'HasuraService', {
+    this.postgraphileService = new ecs.FargateService(this, 'PostgraphileService', { // Renamed service
       cluster: this.cluster,
-      taskDefinition: hasuraTaskDef,
+      taskDefinition: postgraphileTaskDef,
       desiredCount: 1,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [this.hasuraSG],
+      securityGroups: [this.postgraphileSG], // Use renamed SG
       assignPublicIp: false,
     });
 
-    const hasuraServiceCpuAlarm = new cloudwatch.Alarm(this, 'HasuraServiceHighCpuAlarm', {
-      alarmName: `${this.stackName}-HasuraService-HighCPU`,
-      alarmDescription: 'Alarm if HasuraService CPU utilization is too high.',
-      metric: hasuraService.metricCPUUtilization({
+    const postgraphileServiceCpuAlarm = new cloudwatch.Alarm(this, 'PostgraphileServiceHighCpuAlarm', {
+      alarmName: `${this.stackName}-PostgraphileService-HighCPU`,
+      alarmDescription: 'Alarm if PostgraphileService CPU utilization is too high.',
+      metric: this.postgraphileService.metricCPUUtilization({ // Use renamed service
         period: cdk.Duration.minutes(5),
         statistic: cloudwatch.Statistic.AVERAGE,
       }),
-      threshold: 85, // Services without autoscaling might need different thresholds
+      threshold: 85,
       evaluationPeriods: 3,
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    hasuraServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    postgraphileServiceCpuAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    this.hasuraTargetGroup = new elbv2.ApplicationTargetGroup(this, 'HasuraTargetGroup', {
+    this.postgraphileTargetGroup = new elbv2.ApplicationTargetGroup(this, 'PostgraphileTargetGroup', { // Renamed TG
       vpc: this.vpc,
-      port: 8080,
+      port: 5000, // PostGraphile port
       protocol: elbv2.ApplicationProtocol.HTTP,
       targetType: elbv2.TargetType.IP,
-      targets: [hasuraService],
+      targets: [this.postgraphileService], // Use renamed service
       healthCheck: {
-        path: '/healthz',
+        path: '/graphql?query={__typename}', // Basic PostGraphile health check
         interval: cdk.Duration.seconds(30),
+        port: '5000',
       },
     });
 
-    new elbv2.ApplicationListenerRule(this, 'HasuraListenerRule', {
-      listener: httpsListener, // Changed from this.httpListener
-      priority: 20,
-      conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/graphql/*'])],
-      action: elbv2.ListenerAction.forward([hasuraTargetGroup]),
+    new elbv2.ApplicationListenerRule(this, 'PostgraphileListenerRule', { // Renamed ListenerRule
+      listener: httpsListener,
+      priority: 20, // Keep same priority or adjust
+      conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/graphql/*'])], // Keep same path or adjust if PostGraphile uses a different default path
+      action: elbv2.ListenerAction.forward([this.postgraphileTargetGroup]), // Use renamed TG
     });
 
-    const hasuraTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'HasuraTgUnhealthyHostAlarm', {
-      alarmName: `${this.stackName}-Hasura-Unhealthy-Hosts`,
-      alarmDescription: 'Alarm if Hasura Target Group has unhealthy hosts.',
-      metric: hasuraTargetGroup.metricUnhealthyHostCount({
+    const postgraphileTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'PostgraphileTgUnhealthyHostAlarm', {
+      alarmName: `${this.stackName}-Postgraphile-Unhealthy-Hosts`,
+      alarmDescription: 'Alarm if PostGraphile Target Group has unhealthy hosts.',
+      metric: this.postgraphileTargetGroup.metricUnhealthyHostCount({
         period: cdk.Duration.minutes(5),
         statistic: cloudwatch.Statistic.AVERAGE,
       }),
@@ -935,12 +925,12 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    hasuraTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    postgraphileTgUnhealthyHostAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const hasuraTg5xxAlarm = new cloudwatch.Alarm(this, 'HasuraTg5xxAlarm', {
-      alarmName: `${this.stackName}-Hasura-Target-5XX-Errors`,
-      alarmDescription: 'Alarm if Hasura Target Group experiences 5XX errors.',
-      metric: hasuraTargetGroup.metricHttpCodeTarget(
+    const postgraphileTg5xxAlarm = new cloudwatch.Alarm(this, 'PostgraphileTg5xxAlarm', {
+      alarmName: `${this.stackName}-Postgraphile-Target-5XX-Errors`,
+      alarmDescription: 'Alarm if PostGraphile Target Group experiences 5XX errors.',
+      metric: this.postgraphileTargetGroup.metricHttpCodeTarget(
         elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
         {
           statistic: cloudwatch.Statistic.SUM,
@@ -952,26 +942,26 @@ export class AwsStack extends cdk.Stack {
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    hasuraTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    postgraphileTg5xxAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
-    const hasuraTgLatencyAlarm = new cloudwatch.Alarm(this, 'HasuraTgLatencyAlarm', {
-      alarmName: `${this.stackName}-Hasura-Target-HighLatency`,
-      alarmDescription: 'Alarm if Hasura Target Group P90 latency is high.',
-      metric: hasuraTargetGroup.metricTargetResponseTime({
+    const postgraphileTgLatencyAlarm = new cloudwatch.Alarm(this, 'PostgraphileTgLatencyAlarm', {
+      alarmName: `${this.stackName}-Postgraphile-Target-HighLatency`,
+      alarmDescription: 'Alarm if PostGraphile Target Group P90 latency is high.',
+      metric: this.postgraphileTargetGroup.metricTargetResponseTime({
         statistic: cloudwatch.Statistic.P90,
         period: cdk.Duration.minutes(5),
       }),
-      threshold: 1, // 1 second (adjust as needed)
+      threshold: 1,
       evaluationPeriods: 3,
       comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    hasuraTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    postgraphileTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- Functions Service ---
     this.functionsSG = new ec2.SecurityGroup(this, 'FunctionsSG', { vpc: this.vpc, allowAllOutbound: true });
     this.functionsSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(80), 'Allow Functions from ALB on its container port');
-    this.hasuraSG.connections.allowFrom(this.functionsSG, ec2.Port.tcp(8080), 'Allow Functions to connect to Hasura');
+    this.postgraphileSG.connections.allowFrom(this.functionsSG, ec2.Port.tcp(5000), 'Allow Functions to connect to PostGraphile'); // Port 5000
 
     const functionsTaskDef = new ecs.TaskDefinition(this, 'FunctionsTaskDef', {
       family: 'functions-fargate',
@@ -1108,11 +1098,14 @@ service:
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "http://localhost:4318/v1/traces", // App sends to sidecar
         OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://localhost:4318/v1/metrics", // App sends to sidecar
         NODE_OPTIONS: "--require ./tracing.js", // If tracing.js is at root of app and sets up OpenTelemetry
+        POSTGRAPHILE_GRAPHQL_URL: `https://${domainName}/v1/graphql`, // For functions service to call PostGraphile
       },
       secrets: {
-        HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
+        // HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret), // Not directly used by PostGraphile
         OPENAI_API_KEY: ecs.Secret.fromSecretsManager(this.openAiApiKeySecret),
         KAFKA_BOOTSTRAP_SERVERS: ecs.Secret.fromSecretsManager(this.mskBootstrapBrokersSecret),
+        // If functions need to connect to PostGraphile with a specific role/token not covered by JWT:
+        // POSTGRAPHILE_CLIENT_TOKEN: ecs.Secret.fromSecretsManager(...)
       },
       portMappings: [{ containerPort: 80, protocol: ecs.Protocol.TCP }],
     });
@@ -1244,8 +1237,9 @@ service:
     functionsTgLatencyAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
     // --- App Service (Frontend) ---
-    this.appSG = new ec2.SecurityGroup(this, 'AppSG', { vpc: this.vpc, allowAllOutbound: true }); // Corrected: this.appSG
+    this.appSG = new ec2.SecurityGroup(this, 'AppSG', { vpc: this.vpc, allowAllOutbound: true });
     this.appSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(3000), 'Allow App from ALB on its container port');
+    // No direct connection from AppService to PostGraphile needed if all GraphQL is client-side or via internal API calls
 
     const appTaskDef = new ecs.TaskDefinition(this, 'AppTaskDef', {
       family: 'app-fargate',
@@ -1345,8 +1339,8 @@ service:
         }),
       }),
       environment: {
-        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
-        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL: `wss://${domainName}/v1/graphql`, // Also update ws to wss
+        NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL: `https://${domainName}/v1/graphql`, // Updated for PostGraphile
+        // NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_WS_URL: `wss://${domainName}/v1/graphql`, // PostGraphile V4 needs pg_pubsub for this; comment out if not implemented
         NEXT_PUBLIC_SUPERTOKENS_API_DOMAIN: `https://${domainName}/v1/auth`,
         NEXT_PUBLIC_HANDSHAKE_URL: `https://${domainName}/v1/handshake/`,
         NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL: `https://${domainName}/v1/functions/eventToQueueAuth`,
@@ -1488,7 +1482,7 @@ service:
     // --- Handshake Service ---
     this.handshakeSG = new ec2.SecurityGroup(this, 'HandshakeSG', { vpc: this.vpc, allowAllOutbound: true });
     this.handshakeSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(80), 'Allow Handshake from ALB on its container port');
-    this.hasuraSG.connections.allowFrom(this.handshakeSG, ec2.Port.tcp(8080), 'Allow Handshake to connect to Hasura');
+    this.postgraphileSG.connections.allowFrom(this.handshakeSG, ec2.Port.tcp(5000), 'Allow Handshake to connect to PostGraphile'); // Port 5000
 
     const handshakeTaskDef = new ecs.TaskDefinition(this, 'HandshakeTaskDef', {
       family: 'handshake-fargate',
@@ -1518,12 +1512,12 @@ service:
         }),
       }),
       environment: {
-        HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
+        POSTGRAPHILE_GRAPHQL_URL: `https://${domainName}/v1/graphql`, // Updated for PostGraphile
         MEETING_ASSIST_ADMIN_URL: `https://${domainName}/v1/functions/schedule-assist/placeholder`,
       },
       secrets: {
         API_TOKEN: ecs.Secret.fromSecretsManager(this.apiTokenSecret),
-        HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
+        // HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret), // Not directly used by PostGraphile
       },
       portMappings: [{ containerPort: 80, protocol: ecs.Protocol.TCP }],
     });
@@ -1604,7 +1598,7 @@ service:
     // --- OAuth Service ---
     this.oauthSG = new ec2.SecurityGroup(this, 'OAuthSG', { vpc: this.vpc, allowAllOutbound: true });
     this.oauthSG.connections.allowFrom(this.albSecurityGroup, ec2.Port.tcp(80), 'Allow OAuth from ALB on its container port');
-    this.hasuraSG.connections.allowFrom(this.oauthSG, ec2.Port.tcp(8080), 'Allow OAuth to connect to Hasura');
+    this.postgraphileSG.connections.allowFrom(this.oauthSG, ec2.Port.tcp(5000), 'Allow OAuth to connect to PostGraphile'); // Port 5000
     this.handshakeSG.connections.allowFrom(this.oauthSG, ec2.Port.tcp(80), 'Allow OAuth to connect to Handshake');
 
     const oauthTaskDef = new ecs.TaskDefinition(this, 'OAuthTaskDef', {
@@ -1635,11 +1629,11 @@ service:
         }),
       }),
       environment: {
-        HASURA_GRAPHQL_GRAPHQL_URL: `https://${domainName}/v1/graphql`,
+        POSTGRAPHILE_GRAPHQL_URL: `https://${domainName}/v1/graphql`, // Updated for PostGraphile
         HANDSHAKE_URL: `https://${domainName}/v1/handshake`,
       },
       secrets: {
-        HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret),
+        // HASURA_GRAPHQL_ADMIN_SECRET: ecs.Secret.fromSecretsManager(this.hasuraAdminSecret), // Not directly used by PostGraphile
       },
       portMappings: [{ containerPort: 80, protocol: ecs.Protocol.TCP }],
     });
@@ -2105,6 +2099,7 @@ service:
             this.rdsHighConnectionsAlarm,
             this.appServiceCpuAlarm,
             this.functionsServiceCpuAlarm,
+            // Add PostGraphile CPU alarm if it's made a class member, e.g., this.postgraphileServiceCpuAlarm
         ],
     });
 
@@ -2124,7 +2119,7 @@ service:
     const keyTargetGroupsForDashboard = [
         { name: 'App', tg: this.appTargetGroup },
         { name: 'Functions', tg: this.functionsTargetGroup },
-        { name: 'Hasura', tg: this.hasuraTargetGroup },
+        { name: 'PostGraphile', tg: this.postgraphileTargetGroup }, // Renamed from Hasura
         { name: 'Supertokens', tg: this.supertokensTargetGroup },
         { name: 'Handshake', tg: this.handshakeTargetGroup },
         { name: 'OAuth', tg: this.oauthTargetGroup },
@@ -2142,7 +2137,7 @@ service:
     const keyEcsServicesForDashboard = [
         { name: 'App', service: this.appService },
         { name: 'Functions', service: this.functionsService },
-        { name: 'Hasura', service: this.hasuraService },
+        { name: 'PostGraphile', service: this.postgraphileService }, // Renamed from Hasura
         { name: 'Supertokens', service: this.supertokensService },
         { name: 'Optaplanner', service: this.optaplannerService },
     ];
