@@ -121,12 +121,15 @@ export async function storeNotionPageSummaryInLanceDb(
   }
 }
 
+import * as fs from 'fs'; // For reading file content
+import * as path from 'path'; // For getting filename from path
+
 export async function processAndStoreDocument(
   userId: string,
-  file: File, // Using browser File object type for conceptual client-side usage
+  filePath: string, // Changed from file: File
   docType: string, // e.g., 'pdf', 'docx'
   title?: string,
-  sourceUri?: string, // Optional: original URI if not just filename
+  sourceUri?: string, // Optional: original URI if not just filename (could be same as filePath)
 ): Promise<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
     const errorMsg = "PYTHON_API_SERVICE_BASE_URL is not configured for document processing.";
@@ -134,21 +137,37 @@ export async function processAndStoreDocument(
     return { ok: false, error: { code: 'CONFIG_ERROR', message: errorMsg } };
   }
   if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.'}};
-  if (!file) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'File object is required.'}};
+  if (!filePath) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'filePath is required.'}};
+  if (!fs.existsSync(filePath)) {
+    logger.error(`[processAndStoreDocument] File not found at path: ${filePath}`);
+    return { ok: false, error: {code: 'FILE_NOT_FOUND', message: `File not found at path: ${filePath}`}};
+  }
 
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/ingest-document`;
+  let fileBuffer: Buffer;
+  try {
+    fileBuffer = fs.readFileSync(filePath);
+  } catch (readError: any) {
+    logger.error(`[processAndStoreDocument] Error reading file ${filePath}: ${readError.message}`);
+    return {ok: false, error: {code: 'FILE_READ_ERROR', message: `Error reading file: ${readError.message}`}};
+  }
 
   const formData = new FormData();
-  formData.append('file', file);
+  const fileName = path.basename(filePath);
+  formData.append('file', fileBuffer, fileName); // Send buffer with filename
   formData.append('user_id', userId);
   formData.append('doc_type', docType);
-  if (title) formData.append('title', title);
-  if (sourceUri) formData.append('source_uri', sourceUri);
+
+  const effectiveTitle = title || fileName;
+  formData.append('title', effectiveTitle);
+
+  const effectiveSourceUri = sourceUri || filePath; // Use filePath as sourceUri if not otherwise provided
+  formData.append('source_uri', effectiveSourceUri);
+
   // Note: openai_api_key could be passed here if needed by backend per user/request
   // formData.append('openai_api_key', 'USER_SPECIFIC_KEY_IF_ANY');
 
-
-  logger.info(`[processAndStoreDocument] Uploading document ${file.name} for user ${userId}, type ${docType}`);
+  logger.info(`[processAndStoreDocument] Uploading document ${fileName} (from path ${filePath}) for user ${userId}, type ${docType}, title ${effectiveTitle}, sourceUri ${effectiveSourceUri}`);
 
   try {
     const response = await axios.post(endpoint, formData, {
