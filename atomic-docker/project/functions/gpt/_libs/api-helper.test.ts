@@ -1263,6 +1263,76 @@ describe('createSummaryOfTimePeriod', () => {
             expect(result.error.details).toEqual(emailError);
         }
     });
+
+  it('should retry and succeed if Google Calendar API insert fails initially then succeeds', async () => {
+    getGoogleAPITokenSpy.mockResolvedValue({ success: true, token: 'dummy_auth_token' });
+    const apiError = new Error("Google API Error Attempt 1");
+    (apiError as any).code = 500; // Retryable error
+    const mockSuccessfulApiResponse = { data: { id: 'gcal_event_retry_success', summary: basicEventDetails.summary } };
+
+    mockGoogleEventsInsert
+      .mockRejectedValueOnce(apiError) // Fails first time
+      .mockResolvedValueOnce(mockSuccessfulApiResponse); // Succeeds second time
+
+    const result = await createGoogleEvent(
+      basicEventDetails.userId, basicEventDetails.calendarId, basicEventDetails.clientType,
+      basicEventDetails.summary, basicEventDetails.startDateTime, basicEventDetails.endDateTime,
+      basicEventDetails.timezone
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.googleEventId).toBe('gcal_event_retry_success');
+    }
+    expect(mockGoogleEventsInsert).toHaveBeenCalledTimes(2); // Called twice (1 initial + 1 retry)
+    // Check logger.warn was called for the retry
+    const { localApiHelperLogger } = require('./api-helper'); // Access actual logger if tests are in same module, or mock
+    expect(localApiHelperLogger.warn).toHaveBeenCalledWith(
+        "Retrying Google event creation",
+        expect.objectContaining({
+            operation_name: "GoogleCreateEvent_onRetry",
+            attempt: 2, // onRetry is called *before* the next attempt, so attempt 2 is the one being prepared
+            error_message: "Google API Error Attempt 1",
+        })
+    );
+  });
+
+  it('should fail after all retries if Google Calendar API insert consistently fails', async () => {
+    getGoogleAPITokenSpy.mockResolvedValue({ success: true, token: 'dummy_auth_token' });
+    const apiError1 = new Error("Google API Error Attempt 1"); (apiError1 as any).code = 503;
+    const apiError2 = new Error("Google API Error Attempt 2"); (apiError2 as any).code = 503;
+    const apiError3 = new Error("Google API Error Attempt 3"); (apiError3 as any).code = 503;
+     // async-retry default is 3 retries, so 4 calls total (1 initial + 3 retries)
+     // However, the current config in createGoogleEvent is retries: 3 (meaning 1 initial + up to 3 retries, total 4 attempts)
+     // Let's adjust to match the current implementation: retries: 3 means 1 initial + 3 retries (4 total calls).
+     // The provided code has retries: 3 in the retry options, which typically means 1 initial + 3 retries = 4 total attempts.
+     // The test should mock it to fail 4 times if that's the config.
+     // The createGoogleEvent has `retries: 3`. async-retry's `retries` option means "total number of attempts is retries + 1".
+     // So, 3 retries means 4 attempts.
+    mockGoogleEventsInsert
+      .mockRejectedValueOnce(apiError1)
+      .mockRejectedValueOnce(apiError2)
+      .mockRejectedValueOnce(apiError3)
+      .mockRejectedValueOnce(new Error("Google API Error Attempt 4")); // Should fail on the 4th attempt if retries = 3
+
+    const result = await createGoogleEvent(
+      basicEventDetails.userId, basicEventDetails.calendarId, basicEventDetails.clientType,
+      basicEventDetails.summary, basicEventDetails.startDateTime, basicEventDetails.endDateTime,
+      basicEventDetails.timezone
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.message).toContain('Google Calendar API error during event creation: Google API Error Attempt 4');
+    }
+    expect(mockGoogleEventsInsert).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
+    const { localApiHelperLogger } = require('./api-helper');
+    expect(localApiHelperLogger.warn).toHaveBeenCalledTimes(3); // Warns on each retry
+    // Check the final error log if one is added in the catch block of createGoogleEvent after all retries
+    // The current createGoogleEvent re-throws, so the final error comes from async-retry's last attempt.
+    // localApiHelperLogger.error would be called if the function itself caught the final error and logged it.
+    // The test already asserts the error message.
+  });
 });
 
 
