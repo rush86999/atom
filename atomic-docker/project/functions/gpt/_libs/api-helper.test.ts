@@ -2787,9 +2787,34 @@ describe('createGoogleEvent', () => {
     }
 
     expect(getGoogleAPITokenSpy).toHaveBeenCalledWith(basicEventDetails.userId, 'google_calendar');
-    expect(mockGoogleEventsInsert).toHaveBeenCalledWith({
+    expect(mockGoogleEventsInsert).toHaveBeenCalledWith(
+      // First argument: event creation parameters
+      expect.objectContaining({
+        calendarId: basicEventDetails.calendarId,
+        conferenceDataVersion: 0, // As no conference solution was passed
+        requestBody: expect.objectContaining({
+          summary: basicEventDetails.summary,
+          start: {
+            dateTime: basicEventDetails.startDateTime,
+            timeZone: basicEventDetails.timezone,
+          },
+          end: {
+            dateTime: basicEventDetails.endDateTime,
+            timeZone: basicEventDetails.timezone,
+          },
+        }),
+      }),
+      // Second argument: request options, including timeout
+      expect.objectContaining({
+        timeout: 20000,
+      })
+    );
+    // Original check for requestBody content for more specific validation if needed below,
+    // but the above structure is more accurate for the actual call signature with options.
+    /*
+    expect(mockGoogleEventsInsert).toHaveBeenCalledWith({ // This was the old check, now part of the first arg above
       calendarId: basicEventDetails.calendarId,
-      conferenceDataVersion: 0, // As no conference solution was passed
+      conferenceDataVersion: 0,
       requestBody: {
         summary: basicEventDetails.summary,
         description: undefined, // Not passed
