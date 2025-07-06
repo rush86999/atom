@@ -11,6 +11,25 @@ import { searchEmailsForPrep } from '../../atomic-docker/project/functions/atom-
 // Assuming types.ts is correctly located relative to gmailSkills.ts for these:
 import { GmailSearchParameters, GmailMessageSnippet, NotionPageSummary } from '../../atomic-docker/project/functions/atom-agent/types';
 import { searchNotionNotes, getNotionPageSummaryById } from '../../atomic-docker/project/functions/atom-agent/skills/notionAndResearchSkills';
+import { logger } from '../../../atomic-docker/project/functions/_utils/logger'; // Assuming logger path
+import { NOTION_NOTES_DATABASE_ID } from '../../../atomic-docker/project/functions/atom-agent/_libs/constants';
+
+const COMMON_STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'if', 'in', 'into', 'is', 'it', 'its',
+  'of', 'on', 'or', 'our', 'so', 'such', 'that', 'the', 'their', 'theirs', 'them', 'then', 'there', 'these',
+  'they', 'this', 'to', 'was', 'will', 'with', 'about', 'above', 'after', 'again', 'all', 'am', 'any',
+  'because', 'been', 'before', 'being', 'below', 'between', 'both', 'can', 'did', 'do', 'does', 'doing',
+  'down', 'during', 'each', 'few', 'from', 'further', 'had', 'has', 'have', 'having', 'he', 'her', 'here',
+  'hers', 'herself', 'him', 'himself', 'his', 'how', 'i', 'just', 'me', 'my', 'myself', 'no', 'nor', 'not',
+  'now', 'only', 'other', 'ought', 'out', 'over', 'own', 'same', 'she', 'should', 'some', 'still', 'than',
+  'too', 'under', 'until', 'up', 'very', 'was', 'we', 'were', 'what', 'when', 'where', 'which', 'while',
+  'who', 'whom', 'why', 'would', 'you', 'your', 'yours', 'yourself', 'yourselves',
+  // Common meeting/calendar terms that might not be good search keywords
+  'meeting', 'call', 'sync', 'update', 'discuss', 'review', 'agenda', 'minutes', 'notes', 'event', 'schedule',
+  'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+  'am', 'pm', 'morning', 'afternoon', 'evening', 'daily', 'weekly', 'monthly', 'quarterly', 'annual'
+]);
+
 
 // Define the expected structure of the skill's output
 export interface SmartMeetingPrepSkillOutput {
@@ -26,6 +45,28 @@ export class SmartMeetingPrepSkill {
   constructor() {
     // Initialization logic for the skill, if any (e.g., API clients, settings)
   }
+
+  private _extractKeywords(text: string, minLength = 3, maxKeywords = 10): string[] {
+    if (!text) return [];
+    const words = text.toLowerCase().split(/[^a-z0-9'-]+/); // Split by non-alphanumeric, keep hyphens/apostrophes
+    const keywords = words.filter(word => {
+      if (word.length < minLength) return false;
+      if (COMMON_STOP_WORDS.has(word)) return false;
+      if (/^\d+$/.test(word)) return false; // Exclude numbers-only strings
+      return true;
+    });
+    // Simple frequency analysis to get most relevant terms if too many keywords
+    if (keywords.length > maxKeywords * 2) { // Heuristic: only do frequency if significantly more keywords
+        const freqMap = new Map<string, number>();
+        keywords.forEach(kw => freqMap.set(kw, (freqMap.get(kw) || 0) + 1));
+        return Array.from(freqMap.entries())
+            .sort((a, b) => b[1] - a[1]) // Sort by frequency desc
+            .slice(0, maxKeywords)
+            .map(entry => entry[0]);
+    }
+    return Array.from(new Set(keywords)).slice(0, maxKeywords); // Return unique keywords up to maxKeywords
+  }
+
 
   /**
    * Executes the smart meeting preparation skill.
@@ -51,6 +92,7 @@ export class SmartMeetingPrepSkill {
     let relatedDocuments: any[] = [];
     let relatedEmails: GmailMessageSnippet[] = [];
     let relatedNotionPages: NotionPageSummary[] = [];
+    const dataFetchingErrors: string[] = [];
 
     if (resolvedEvent) {
       console.log(`SmartMeetingPrepSkill: Resolved event - Title: ${resolvedEvent.title}, StartTime: ${resolvedEvent.startTime}`);
@@ -79,10 +121,14 @@ export class SmartMeetingPrepSkill {
           relatedEmails = emailSearchResponse.data.results;
           console.log(`SmartMeetingPrepSkill: Found ${relatedEmails.length} related emails.`);
         } else {
-          console.warn(`SmartMeetingPrepSkill: Email search failed or returned no results. Error: ${emailSearchResponse.error?.message}`);
+          const errorMsg = `Email search failed or returned no results. Error: ${emailSearchResponse.error?.message || 'Unknown email search error'}`;
+          logger.warn(`SmartMeetingPrepSkill: ${errorMsg}`);
+          dataFetchingErrors.push(errorMsg);
         }
       } catch (error: any) {
-        console.error(`SmartMeetingPrepSkill: Error calling searchEmailsForPrep: ${error.message}`, error);
+        const errorMsg = `Error calling searchEmailsForPrep: ${error.message}`;
+        logger.error(`SmartMeetingPrepSkill: ${errorMsg}`, error);
+        dataFetchingErrors.push(errorMsg);
       }
 
       // Step 4: Find related Notion pages
@@ -121,57 +167,92 @@ export class SmartMeetingPrepSkill {
             const pageSummaryResponse = await getNotionPageSummaryById(input.userId, pageId);
             if (pageSummaryResponse.ok && pageSummaryResponse.data) {
               notionPageMap.set(pageSummaryResponse.data.id, pageSummaryResponse.data);
-              console.log(`SmartMeetingPrepSkill: Fetched Notion page "${pageSummaryResponse.data.title}" by ID ${pageId} from link.`);
+              logger.info(`SmartMeetingPrepSkill: Fetched Notion page "${pageSummaryResponse.data.title}" by ID ${pageId} from link.`);
             } else {
-              console.warn(`SmartMeetingPrepSkill: Could not fetch Notion page by ID ${pageId} from link. Error: ${pageSummaryResponse.error?.message}`);
+              const errorMsg = `Could not fetch Notion page by ID ${pageId} from link. Error: ${pageSummaryResponse.error?.message || 'Unknown error'}`;
+              logger.warn(`SmartMeetingPrepSkill: ${errorMsg}`);
+              dataFetchingErrors.push(errorMsg);
             }
           } catch (error: any) {
-            console.error(`SmartMeetingPrepSkill: Error calling getNotionPageSummaryById for ${pageId}: ${error.message}`, error);
+            const errorMsg = `Error calling getNotionPageSummaryById for ${pageId}: ${error.message}`;
+            logger.error(`SmartMeetingPrepSkill: ${errorMsg}`, error);
+            dataFetchingErrors.push(errorMsg);
           }
         }
       }
 
       // 4b. Keyword search if not enough found or to supplement
-      // For simplicity, let's always do a keyword search for now and merge.
-      // More advanced: only do keyword search if notionPageMap.size < desired_count
-      let keywordQueryText = resolvedEvent.title; // Start with meeting title
-      // Optional: Add main attendee names to queryText if available and sensible
-      // const mainAttendees = resolvedEvent.attendees?.map(a => a.split('<')[0].trim()).filter(name => name.length > 2).join(' ');
-      // if (mainAttendees) keywordQueryText += ` ${mainAttendees}`;
+      const titleKeywords = this._extractKeywords(resolvedEvent.title, 3, 5);
+      const descriptionKeywords = resolvedEvent.description ? this._extractKeywords(resolvedEvent.description, 3, 7) : [];
 
-      console.log(`SmartMeetingPrepSkill: Searching Notion with keywords: "${keywordQueryText}"`);
-      try {
-        const keywordSearchResponse = await searchNotionNotes(
-          input.userId,
-          keywordQueryText,
-          // Consider making NOTION_NOTES_DATABASE_ID a configurable default or pass from skill input
-          undefined, // Searches default DB or all accessible if backend supports
-          5 - notionPageMap.size // Fetch fewer if we already have some from links
-        );
+      let attendeeKeywords: string[] = [];
+      if (resolvedEvent.attendees) {
+        const attendeeNames = resolvedEvent.attendees.map(att => {
+          const namePart = att.split('<')[0].trim();
+          // Further split namePart if it's multiple words, take first 1-2 significant words
+          return namePart.split(/\s+/).slice(0,2).join(' '); // e.g. "John Doe" -> "John Doe", "Dr. Jane Smith" -> "Dr. Jane"
+        }).join(' ');
+        attendeeKeywords = this._extractKeywords(attendeeNames, 3, 5);
+      }
 
-        if (keywordSearchResponse.ok && keywordSearchResponse.data) {
-          console.log(`SmartMeetingPrepSkill: Found ${keywordSearchResponse.data.length} Notion pages from keyword search.`);
-          keywordSearchResponse.data.forEach(page => {
-            if (!notionPageMap.has(page.id)) { // Avoid duplicates
-              notionPageMap.set(page.id, page);
+      const combinedKeywords = new Set([...titleKeywords, ...descriptionKeywords, ...attendeeKeywords]);
+      const keywordQueryText = Array.from(combinedKeywords).join(' ');
+
+      // Use logger instead of console.log for skill internals
+      logger.info(`SmartMeetingPrepSkill: Notion keyword query: "${keywordQueryText}" (TitleKWs: [${titleKeywords.join(', ')}], DescKWs: [${descriptionKeywords.join(', ')}], AttKWs: [${attendeeKeywords.join(', ')}])`);
+
+      if (keywordQueryText.trim().length > 0) {
+        try {
+          const searchLimit = Math.max(0, 5 - notionPageMap.size); // Ensure limit is not negative
+          if (searchLimit > 0) {
+            const keywordSearchResponse = await searchNotionNotes(
+              input.userId,
+              keywordQueryText,
+              NOTION_NOTES_DATABASE_ID || undefined, // Use configured default, pass undefined if not set
+              searchLimit
+            );
+            logger.info(`SmartMeetingPrepSkill: Notion keyword search using DB ID: ${NOTION_NOTES_DATABASE_ID || 'None (backend default)'}`);
+
+            if (keywordSearchResponse.ok && keywordSearchResponse.data) {
+              logger.info(`SmartMeetingPrepSkill: Found ${keywordSearchResponse.data.length} Notion pages from keyword search.`);
+              keywordSearchResponse.data.forEach(page => {
+                if (!notionPageMap.has(page.id)) { // Avoid duplicates
+                  notionPageMap.set(page.id, page);
+                }
+              });
+            } else {
+              const errorMsg = `Notion keyword search failed or returned no results. Error: ${keywordSearchResponse.error?.message || 'Unknown Notion keyword search error'}`;
+              logger.warn(`SmartMeetingPrepSkill: ${errorMsg}`);
+              dataFetchingErrors.push(errorMsg);
             }
-          });
-        } else {
-          console.warn(`SmartMeetingPrepSkill: Notion keyword search failed or returned no results. Error: ${keywordSearchResponse.error?.message}`);
+          } else {
+            logger.info("SmartMeetingPrepSkill: Skipping keyword search for Notion as enough pages found from links or limit is zero.");
+          }
+        } catch (error: any) {
+          const errorMsg = `Error calling searchNotionNotes: ${error.message}`;
+          logger.error(`SmartMeetingPrepSkill: ${errorMsg}`, error);
+          dataFetchingErrors.push(errorMsg);
         }
-      } catch (error: any) {
-        console.error(`SmartMeetingPrepSkill: Error calling searchNotionNotes: ${error.message}`, error);
+      } else {
+        logger.info("SmartMeetingPrepSkill: No valid keywords generated for Notion search. Skipping keyword search.");
       }
       relatedNotionPages = Array.from(notionPageMap.values());
 
 
       // Step 5: Generate preparation notes
-      preparationNotes = await this._generatePreparationNotes(resolvedEvent, relatedDocuments, relatedEmails, relatedNotionPages);
+      preparationNotes = await this._generatePreparationNotes(
+        resolvedEvent,
+        relatedDocuments,
+        relatedEmails,
+        relatedNotionPages,
+        dataFetchingErrors // Pass errors to notes generator
+      );
 
-      console.log(`SmartMeetingPrepSkill: Successfully generated preparation materials for "${resolvedEvent.title}".`);
+      // Use logger for this type of info as well
+      logger.info(`SmartMeetingPrepSkill: Successfully generated preparation materials for "${resolvedEvent.title}".`);
 
     } else {
-      console.log(`SmartMeetingPrepSkill: Could not resolve a specific calendar event for "${input.meeting_reference}". No preparation materials will be generated.`);
+      logger.warn(`SmartMeetingPrepSkill: Could not resolve a specific calendar event for "${input.meeting_reference}". No preparation materials will be generated.`);
       preparationNotes = `Could not resolve a specific calendar event for reference: "${input.meeting_reference}". Please try a more specific query or check your calendar.`;
     }
 
@@ -181,9 +262,10 @@ export class SmartMeetingPrepSkill {
       relatedEmails: relatedEmails,
       relatedNotionPages: relatedNotionPages,
       preparationNotes: preparationNotes,
+      // Optionally, include dataFetchingErrors in the output if the caller needs them structured
     };
 
-    console.log("[SmartMeetingPrepSkill.execute] Final output:", JSON.stringify(output, null, 2));
+    logger.info("[SmartMeetingPrepSkill.execute] Final output:", JSON.stringify(output, null, 2));
     return output;
   }
 
@@ -244,9 +326,10 @@ export class SmartMeetingPrepSkill {
     event: CalendarEventSummary,
     documents: any[], // Mock documents
     emails: GmailMessageSnippet[],
-    notionPages: NotionPageSummary[]
+    notionPages: NotionPageSummary[],
+    errors: string[] // New parameter for data fetching errors
   ): Promise<string> {
-    console.log(`[SmartMeetingPrepSkill._generatePreparationNotes] Dynamically generating notes for event: "${event.title}"`);
+    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} emails, ${notionPages.length} Notion pages, and ${errors.length} errors.`);
     const titleLower = event.title.toLowerCase();
     const descriptionLower = event.description?.toLowerCase() || "";
 
@@ -334,9 +417,17 @@ export class SmartMeetingPrepSkill {
       });
       notes += "\n";
     } else {
-      notes += "**Related Notion Pages:**\n- No specific Notion pages found related to this meeting.\n\n";
+      notes += "**Related Notion Pages:**\n- No Notion pages automatically found related to this meeting's title or description keywords.\n\n";
     }
 
+    // Display any data fetching errors
+    if (errors.length > 0) {
+      notes += "**Data Retrieval Issues Encountered:**\n";
+      errors.forEach(err => {
+        notes += `- ${err}\n`;
+      });
+      notes += "\n";
+    }
 
     notes += "**Potential Action Items to Consider from This Meeting (TODO):**\n";
     notes += "- [Assign owners and deadlines for new tasks]\n";
@@ -377,7 +468,7 @@ export class SmartMeetingPrepSkill {
 
 
     notes += "---\nGenerated by SmartMeetingPrepSkill";
-    console.log(`[SmartMeetingPrepSkill._generatePreparationNotes] Dynamically generated notes for "${event.title}". Length: ${notes.length}`);
+    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Notes generated for "${event.title}". Length: ${notes.length}`);
     return notes;
   }
 }
