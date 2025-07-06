@@ -13,29 +13,79 @@ const HASURA_ACTION_HEADERS = (userId: string) => ({
     'X-Hasura-User-Id': userId,
 });
 
-async function callHasuraActionGraphQL(userId: string, query: string, variables: Record<string, any>) {
-    try {
-        const response = await fetch(HASURA_GRAPHQL_ENDPOINT, {
-            method: 'POST',
-            headers: HASURA_ACTION_HEADERS(userId),
-            body: JSON.stringify({ query, variables }),
-        });
+async function callHasuraActionGraphQL(userId: string, queryText: string, variables: Record<string, any>) {
+    const MAX_RETRIES = 3;
+    const INITIAL_TIMEOUT_MS = 15000; // 15 seconds
 
-        if (!response.ok) {
-            const errorBody = await response.text();
-            console.error(`Hasura GQL call failed with status ${response.status}: ${errorBody}`);
-            throw new Error(`Hasura GQL call failed: ${response.statusText}`);
+    let attempt = 0;
+    let lastError: any = null;
+
+    while (attempt < MAX_RETRIES) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), INITIAL_TIMEOUT_MS);
+
+        try {
+            logger.info(`Attempt ${attempt + 1} to call Hasura GQL action for user ${userId}.`);
+            const response = await fetch(HASURA_GRAPHQL_ENDPOINT, {
+                method: 'POST',
+                headers: HASURA_ACTION_HEADERS(userId),
+                body: JSON.stringify({ query: queryText, variables }),
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                const status = response.status;
+                logger.warn(`Hasura GQL call attempt ${attempt + 1} failed with status ${status}: ${errorBody}`);
+                // Retry on server errors (5xx) or rate limiting (429)
+                if (status >= 500 || status === 429) {
+                    throw new Error(`Hasura GQL call failed with status ${status} (retryable): ${response.statusText}`);
+                } else {
+                    // Non-retryable client error (e.g., 400, 401, 403)
+                    lastError = new Error(`Hasura GQL call failed with status ${status} (non-retryable): ${response.statusText} - ${errorBody}`);
+                    break; // Do not retry client errors
+                }
+            }
+
+            const jsonResponse = await response.json();
+            if (jsonResponse.errors) {
+                logger.warn(`Hasura GQL call attempt ${attempt + 1} returned errors: ${JSON.stringify(jsonResponse.errors)}`);
+                // Consider if specific GraphQL errors should be retryable. For now, treat them as non-retryable.
+                lastError = new Error(`Hasura GQL call returned errors: ${jsonResponse.errors.map((e: any) => e.message).join(', ')}`);
+                break;
+            }
+            logger.info(`Hasura GQL call attempt ${attempt + 1} successful.`);
+            return jsonResponse.data;
+
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            lastError = error;
+            logger.warn(`Error during Hasura GQL call attempt ${attempt + 1} for user ${userId}: ${error.message}`);
+
+            // Check if it's an AbortError (timeout)
+            if (error.name === 'AbortError') {
+                logger.warn(`Hasura GQL call attempt ${attempt + 1} timed out after ${INITIAL_TIMEOUT_MS}ms.`);
+            }
+            // If it's a known retryable error type (e.g. network issue, or specific status codes handled above)
+            // or if it's any other error that isn't explicitly a non-retryable one from above.
+            // The check `lastError.message.includes('(non-retryable)')` is a bit fragile; ideally, custom error types would be better.
+            if (lastError && lastError.message && lastError.message.includes('(non-retryable)')) {
+                 break; // Break if error was marked non-retryable
+            }
+
         }
-        const jsonResponse = await response.json();
-        if (jsonResponse.errors) {
-            console.error(`Hasura GQL call returned errors: ${JSON.stringify(jsonResponse.errors)}`);
-            throw new Error(`Hasura GQL call returned errors: ${jsonResponse.errors.map((e: any) => e.message).join(', ')}`);
+
+        attempt++;
+        if (attempt < MAX_RETRIES) {
+            const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 1s, 2s
+            logger.info(`Waiting ${delay}ms before next Hasura GQL retry (attempt ${attempt + 1}).`);
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
-        return jsonResponse.data;
-    } catch (error) {
-        console.error('Error calling Hasura Action GQL:', error);
-        throw error; // Re-throw to be handled by the skill
     }
+
+    logger.error(`Failed to call Hasura GQL action for user ${userId} after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`, { error: lastError });
+    throw lastError || new Error('Failed to call Hasura Action GQL after multiple retries.');
 }
 
 
@@ -475,16 +525,38 @@ export async function sendEmail(emailDetails: EmailDetails): Promise<SendEmailRe
   try {
     logger.info(`Sending email to ${emailDetails.to} via SES from ${ENV.SES_SOURCE_EMAIL}`);
     const command = new SendEmailCommand(params);
-    const data = await client.send(command);
-    logger.info('Email sent successfully via SES.', { messageId: data.MessageId });
-    return { success: true, emailId: data.MessageId, message: 'Email sent successfully via AWS SES.' };
-  } catch (error: any) {
-    logger.error('Error sending email via AWS SES:', {
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorDetails: error,
+
+    const MAX_RETRIES = 3;
+    let attempt = 0;
+    let lastError: any = null;
+
+    while (attempt < MAX_RETRIES) {
+      try {
+        const data = await client.send(command);
+        logger.info(`Email sent successfully via SES on attempt ${attempt + 1}.`, { messageId: data.MessageId });
+        return { success: true, emailId: data.MessageId, message: 'Email sent successfully via AWS SES.' };
+      } catch (error: any) {
+        lastError = error;
+        logger.warn(`Attempt ${attempt + 1} to send email via SES failed. Retrying...`, {
+          errorMessage: error.message,
+          recipient: emailDetails.to,
+          attempt: attempt + 1,
+          maxRetries: MAX_RETRIES,
+        });
+        attempt++;
+        if (attempt < MAX_RETRIES) {
+          const delay = Math.pow(2, attempt -1) * 1000; // Exponential backoff: 1s, 2s
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    logger.error('Error sending email via AWS SES after multiple retries:', {
+      errorMessage: lastError?.message,
+      errorStack: lastError?.stack,
+      errorDetails: lastError,
       recipient: emailDetails.to,
     });
-    return { success: false, message: `Failed to send email via AWS SES: ${error.message}` };
+    return { success: false, message: `Failed to send email via AWS SES after ${MAX_RETRIES} attempts: ${lastError?.message}` };
   }
 }

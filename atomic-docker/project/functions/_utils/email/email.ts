@@ -47,14 +47,38 @@ export const emailClient = new Email<EmailLocals>({
         };
       }
   
-      await emailClient.send({
-        ...options,
-        message: { ...options.message, headers },
-      });
-    } catch (err) {
-      const error = err as Error;
-      logger.warn(
-        `SMTP error`,
+      const MAX_RETRIES = 3;
+      let attempt = 0;
+      let lastError: any = null;
+
+      while (attempt < MAX_RETRIES) {
+        try {
+          await emailClient.send({
+            ...options,
+            message: { ...options.message, headers },
+          });
+          logger.info(`Email sent successfully via SMTP on attempt ${attempt + 1}.`, { template: options.template, to: options.message.to });
+          return; // Success
+        } catch (err) {
+          lastError = err;
+          logger.warn(`Attempt ${attempt + 1} to send email via SMTP failed. Retrying...`, {
+            errorMessage: (err as Error).message,
+            template: options.template,
+            to: options.message.to,
+            attempt: attempt + 1,
+            maxRetries: MAX_RETRIES,
+          });
+          attempt++;
+          if (attempt < MAX_RETRIES) {
+            const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 1s, 2s
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      // If all retries fail, log and rethrow the last error
+      const finalError = lastError as Error;
+      logger.error( // Changed from logger.warn to logger.error for final failure
+        `SMTP error after ${MAX_RETRIES} attempts`,
         Object.entries(error).reduce(
           (acc, [key, value]) => ({
             ...acc,
