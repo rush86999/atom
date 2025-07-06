@@ -23,6 +23,8 @@ export interface GoogleDriveFile {
   // Add other fields as needed, e.g., iconLink, size, owners
 }
 
+import { AuthService } from '../services/authService'; // Adjust path if necessary
+
 // Helper to construct SkillResponse from axios errors (copied from lanceDbStorageSkills.ts for now)
 // TODO: Move this to a shared utility file if more skills use it.
 function handleAxiosError(error: AxiosError, operationName: string): SkillResponse<null> {
@@ -53,8 +55,7 @@ function handleAxiosError(error: AxiosError, operationName: string): SkillRespon
 }
 
 export async function listGoogleDriveFiles(
-  // userId: string, // Not strictly needed by Python if token is user-specific, but good for logging/consistency
-  accessToken: string, // User's GDrive access token
+  userId: string,
   folderId?: string,
   query?: string, // Search query string
   pageSize: number = 50,
@@ -63,8 +64,19 @@ export async function listGoogleDriveFiles(
   if (!PYTHON_API_SERVICE_BASE_URL) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
   }
+  if (!userId) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required to list Google Drive files.' }};
+  }
+
+  const accessToken = await AuthService.getGoogleDriveAccessToken(userId);
   if (!accessToken) {
-    return { ok: false, error: { code: 'AUTH_ERROR', message: 'Google Drive access token is required.' }};
+    return {
+      ok: false,
+      error: {
+        code: 'AUTH_TOKEN_MISSING',
+        message: 'Failed to retrieve Google Drive access token. Please ensure your Google Drive account is connected and authorized.'
+      }
+    };
   }
 
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/gdrive/list-files`;
@@ -103,7 +115,7 @@ export async function listGoogleDriveFiles(
 
 export async function triggerGoogleDriveFileIngestion(
   userId: string,
-  accessToken: string, // User's GDrive access token
+  // accessToken: string, // User's GDrive access token - REMOVED, will fetch via AuthService
   gdriveFileId: string,
   originalFileMetadata: { // Pass essential metadata for processing and context
     name: string;
@@ -115,10 +127,21 @@ export async function triggerGoogleDriveFileIngestion(
      return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
   }
   if (!userId) return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'userId is required.'}};
-  if (!accessToken) return { ok: false, error: {code: 'AUTH_ERROR', message: 'Google Drive access token is required.'}};
+  // No direct accessToken check, will be handled by AuthService call
   if (!gdriveFileId) return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'gdriveFileId is required.'}};
   if (!originalFileMetadata || !originalFileMetadata.name || !originalFileMetadata.mimeType) {
     return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'originalFileMetadata (with name and mimeType) is required.'}};
+  }
+
+  const accessToken = await AuthService.getGoogleDriveAccessToken(userId);
+  if (!accessToken) {
+    return {
+      ok: false,
+      error: {
+        code: 'AUTH_TOKEN_MISSING',
+        message: 'Failed to retrieve Google Drive access token for ingestion. Please ensure your Google Drive account is connected and authorized.'
+      }
+    };
   }
 
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/ingest-gdrive-document`;
