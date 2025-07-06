@@ -100,23 +100,32 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-  graphql-engine:
-    image: hasura/graphql-engine:v2.15.2
+  postgraphile:
+    image: graphile/postgraphile:4 # Using latest V4, V5 is still in beta
     depends_on:
       postgres:
         condition: service_healthy
     restart: always
     ports:
-      - '8080:8080'
+      - '5000:5000' # Default PostGraphile port
     environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres
-      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
-      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
-      HASURA_GRAPHQL_LOG_LEVEL: debug
-      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+      DATABASE_URL: postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres
+      PGRAPHILE_WATCH_PG: 'true' # Enable watch mode for schema changes
+      PGRAPHILE_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET} # Re-using existing JWT secret variable for now
+      PGRAPHILE_JWT_PG_ROLE: public # Default role if not authenticated, or specify a dedicated one
+      PGRAPHILE_PG_DEFAULT_ROLE: public # Role to use for unauthenticated requests
+      # PGRAPHILE_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET} # PostGraphile doesn't have a direct admin secret concept like Hasura for API access. Access control is via PG roles.
+      # For enhanced security, consider using a dedicated read-only role for PostGraphile unless mutations are needed.
+      # PGRAPHILE_OWNER_CONNECTION_STRING: postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres # For schema watching and migrations if needed with a more privileged user
+      PGRAPHILE_ENABLE_GRAPHIQL: 'true'
+      # Add any other necessary PostGraphile environment variables here
+      # e.g., PGRAPHILE_SCHEMA_NAMES: public,app_public # Specify schemas to expose
+      # PGRAPHILE_APPEND_PLUGINS: @graphile-contrib/pg-simplify-inflector,@graphile/pg-pubsub
+      # PGRAPHILE_SIMPLE_COLLECTIONS: omit # or 'both' or 'only'
+      # PGRAPHILE_ENHANCE_GRAPHIQL: 'true'
+      # PGRAPHILE_ALLOW_EXPLAIN: 'true' # For debugging, be cautious in production
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/graphql?query={__typename} || exit 1"] # Basic healthcheck query
       interval: 30s
       timeout: 10s
       retries: 3
@@ -142,7 +151,7 @@ services:
       - kafka1
       - optaplanner
       - postgres
-      - graphql-engine
+      - postgraphile # Changed from graphql-engine
       - mongo # Added mongo dependency
     environment:
       BASIC_AUTH: ${BASIC_AUTH}
@@ -153,9 +162,9 @@ services:
       GOOGLE_CLIENT_ID_WEB: ${GOOGLE_CLIENT_ID_WEB}
       GOOGLE_CLIENT_ID_ATOMIC_WEB: ${GOOGLE_CLIENT_ID_ATOMIC_WEB}
       GOOGLE_CLIENT_SECRET_ATOMIC_WEB: ${GOOGLE_CLIENT_SECRET_ATOMIC_WEB}
-      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
-      HASURA_GRAPHQL_GRAPHQL_URL: http://graphql-engine:8080/v1/graphql
-      HASURA_GRAPHQL_METADATA_URL: http://graphql-engine:8080/v1/metadata
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET} # Keep for other services if they use it, though PostGraphile doesn't use it directly
+      POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql # New URL for PostGraphile
+      # HASURA_GRAPHQL_METADATA_URL: http://graphql-engine:8080/v1/metadata # Not applicable for PostGraphile
       GOOGLE_CLIENT_SECRET_WEB: ${GOOGLE_CLIENT_SECRET_WEB}
       EMAIL: ${EMAIL}
       # Base URL for the Python API service (running in python-agent)
@@ -361,13 +370,13 @@ services:
       context: ../handshake_build_docker
       args:
         API_TOKEN: ${API_TOKEN}
-        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET} # Keep if other parts of handshake use it, PostGraphile doesn't use it directly
         NEXT_PUBLIC_ATOMIC_HANDSHAKE_API: https://${HOST_NAME}/v1/functions/handshake-api/createRecurMeetAssists/create-recur-meet-assists-public
-        HASURA_GRAPHQL_GRAPHQL_URL: http://graphql-engine:8080/v1/graphql
+        POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql # New URL for PostGraphile
         MEETING_ASSIST_ADMIN_URL: http://functions:3000/schedule-assist/publisherScheduleMeeting/schedule-meeting-to-queue-admin
     container_name: handshake
     depends_on: 
-      - graphql-engine
+      - postgraphile # Changed from graphql-engine
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.strip-handshake.stripprefix.prefixes=/v1/handshake"
@@ -395,8 +404,8 @@ services:
     build:
       context: ../oauth_build_docker
       args:
-        HASURA_GRAPHQL_GRAPHQL_URL: http://graphql-engine:8080/v1/graphql
-        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+        POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql # New URL for PostGraphile
+        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET} # Keep if used by oauth, PostGraphile doesn't use it
         NEXT_PUBLIC_APP_URL: https://${HOST_NAME}
         GOOGLE_CLIENT_ID_WEB: ${GOOGLE_CLIENT_ID_WEB}
         GOOGLE_CLIENT_SECRET_WEB: ${GOOGLE_CLIENT_SECRET_WEB}
@@ -440,11 +449,11 @@ services:
     build:
       context: ../app_build_docker
       args:
-        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET} # Keep if used by app, PostGraphile doesn't use it
         NEXT_PUBLIC_ATOMIC_HANDSHAKE_API: https://${HOST_NAME}/v1/functions/handshake-api/createRecurMeetAssists/create-recur-meet-assists-public
-        HASURA_GRAPHQL_GRAPHQL_URL: http://graphql-engine:8080/v1/graphql
-        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL: http://localhost:8080/v1/graphql
-        NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL: ws://localhost:8080/v1/graphql
+        POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql # Internal URL for server-side rendering or API routes if needed
+        NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL: http://localhost:5000/graphql # URL for client-side
+        # NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL: ws://localhost:8080/v1/graphql # PostGraphile V4 doesn't support subscriptions over WebSockets out-of-the-box in the same way. This needs @graphile/pg-pubsub or similar.
         NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL: https://${HOST_NAME}/v1/functions/schedule-event/publisherScheduleEvent/schedule-event-auth
         NEXT_PUBLIC_EVENT_TO_QUEUE_SHORT_AUTH_URL: https://${HOST_NAME}/v1/functions/schedule-event/publisherScheduleShortEvent/schedule-short-event-auth
         NEXT_PUBLIC_CALENDAR_TO_QUEUE_AUTH_URL: https://${HOST_NAME}/v1/functions/schedule-assist/publisherScheduleMeeting/schedule-meeting-to-queue-auth
