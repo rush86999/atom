@@ -13,6 +13,7 @@ import { GmailSearchParameters, GmailMessageSnippet, NotionPageSummary } from '.
 import { searchNotionNotes, getNotionPageSummaryById } from '../../atomic-docker/project/functions/atom-agent/skills/notionAndResearchSkills';
 import { logger } from '../../../atomic-docker/project/functions/_utils/logger'; // Assuming logger path
 import { NOTION_NOTES_DATABASE_ID } from '../../../atomic-docker/project/functions/atom-agent/_libs/constants';
+import { storeEmailSnippetInLanceDb, storeNotionPageSummaryInLanceDb } from './lanceDbStorageSkills'; // Added LanceDB storage
 
 const COMMON_STOP_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'if', 'in', 'into', 'is', 'it', 'its',
@@ -447,6 +448,43 @@ export class SmartMeetingPrepSkill {
 
       // Use logger for this type of info as well
       logger.info(`SmartMeetingPrepSkill: Successfully generated preparation materials for "${resolvedEvent.title}".`);
+
+      // Asynchronously store fetched items in LanceDB - "fire and forget" style for now
+      const storagePromises = [];
+      if (relatedEmails.length > 0) {
+        logger.info(`SmartMeetingPrepSkill: Attempting to store ${relatedEmails.length} email snippets in LanceDB.`);
+        for (const email of relatedEmails) {
+          storagePromises.push(
+            storeEmailSnippetInLanceDb(input.userId, email)
+              .then(res => {
+                if (!res.ok) logger.warn(`Failed to store email ${email.id} in LanceDB: ${res.error?.message}`);
+                // else logger.debug(`Stored email ${email.id} in LanceDB.`);
+              })
+              .catch(err => logger.error(`Error during storeEmailSnippetInLanceDb for ${email.id}: ${err.message}`))
+          );
+        }
+      }
+      if (relatedNotionPages.length > 0) {
+        logger.info(`SmartMeetingPrepSkill: Attempting to store ${relatedNotionPages.length} Notion page summaries in LanceDB.`);
+        for (const page of relatedNotionPages) {
+          storagePromises.push(
+            storeNotionPageSummaryInLanceDb(input.userId, page)
+              .then(res => {
+                if (!res.ok) logger.warn(`Failed to store Notion page ${page.id} in LanceDB: ${res.error?.message}`);
+                // else logger.debug(`Stored Notion page ${page.id} in LanceDB.`);
+              })
+              .catch(err => logger.error(`Error during storeNotionPageSummaryInLanceDb for ${page.id}: ${err.message}`))
+          );
+        }
+      }
+      // We don't await Promise.allSettled(storagePromises) here to avoid blocking response to user.
+      // These are background tasks. Proper background job queue would be better for production.
+      if (storagePromises.length > 0) {
+          Promise.allSettled(storagePromises).then(() => {
+              logger.info("LanceDB storage attempts completed (background).");
+          });
+      }
+
 
     } else {
       logger.warn(`SmartMeetingPrepSkill: Could not resolve a specific calendar event for "${input.meeting_reference}". No preparation materials will be generated.`);
