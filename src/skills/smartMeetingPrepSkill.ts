@@ -9,14 +9,16 @@ export interface SmartMeetingPrepSkillInput {
 
 import { searchEmailsForPrep } from '../../atomic-docker/project/functions/atom-agent/skills/gmailSkills';
 // Assuming types.ts is correctly located relative to gmailSkills.ts for these:
-import { GmailSearchParameters, GmailMessageSnippet } from '../../atomic-docker/project/functions/atom-agent/types';
+import { GmailSearchParameters, GmailMessageSnippet, NotionPageSummary } from '../../atomic-docker/project/functions/atom-agent/types';
+import { searchNotionNotes, getNotionPageSummaryById } from '../../atomic-docker/project/functions/atom-agent/skills/notionAndResearchSkills';
 
 // Define the expected structure of the skill's output
 export interface SmartMeetingPrepSkillOutput {
   resolvedEvent?: CalendarEventSummary;
   preparationNotes?: string;
   relatedDocuments?: any[]; // Using any for mock documents for now
-  relatedEmails?: GmailMessageSnippet[]; // Added for Gmail results
+  relatedEmails?: GmailMessageSnippet[];
+  relatedNotionPages?: NotionPageSummary[]; // Added for Notion results
   // other output fields
 }
 
@@ -48,6 +50,7 @@ export class SmartMeetingPrepSkill {
     let preparationNotes: string | undefined = undefined;
     let relatedDocuments: any[] = [];
     let relatedEmails: GmailMessageSnippet[] = [];
+    let relatedNotionPages: NotionPageSummary[] = [];
 
     if (resolvedEvent) {
       console.log(`SmartMeetingPrepSkill: Resolved event - Title: ${resolvedEvent.title}, StartTime: ${resolvedEvent.startTime}`);
@@ -82,8 +85,88 @@ export class SmartMeetingPrepSkill {
         console.error(`SmartMeetingPrepSkill: Error calling searchEmailsForPrep: ${error.message}`, error);
       }
 
-      // Step 4: Generate preparation notes
-      preparationNotes = await this._generatePreparationNotes(resolvedEvent, relatedDocuments, relatedEmails);
+      // Step 4: Find related Notion pages
+      const notionPageMap = new Map<string, NotionPageSummary>(); // To store unique pages by ID
+
+      // 4a. Extract Notion links from description
+      if (resolvedEvent.description) {
+        const notionUrlRegex = /https:\/\/www\.notion\.so\/([\w.-]+?\/)?([\w-]+)(?:\?pvs=[\w-]+)?(?:#[\w-]+)?/g;
+        let match;
+        const pageIdsFromLinks: string[] = [];
+        while ((match = notionUrlRegex.exec(resolvedEvent.description)) !== null) {
+          // The last part of the path before any query params is usually the page ID, sometimes prefixed by title-slug
+          // match[2] should be the page_id part (e.g., workspaceName/pageTitle-pageID -> pageID, or pageTitleAndID -> ID part)
+          // Notion page IDs are typically 32 hex characters, but can also be part of a slug.
+          // A common pattern is title-and-slug-RandomPageID, where RandomPageID is what we want.
+          // Or for DB items, just the ID.
+          const potentialId = match[2].split('-').pop(); // Get the last part after splitting by hyphen
+          if (potentialId && potentialId.length >= 32) { // Heuristic for typical Notion ID length
+             // Remove any non-hex characters just in case, though Notion IDs are usually clean hex
+            pageIdsFromLinks.push(potentialId.replace(/[^a-f0-9]/gi, ''));
+          } else if (potentialId) {
+            // If it's shorter, it might be a custom slug or an older ID format.
+            // For simplicity, we'll try it if it doesn't look like a common word.
+            // A more robust solution would involve checking Notion API if a slug is a page.
+            // For now, we'll assume the long ID is the primary target.
+            // console.log(`Potential shorter ID or slug found: ${potentialId} from URL ${match[0]}. Skipping for now unless logic is enhanced.`);
+          }
+        }
+
+        const uniquePageIds = [...new Set(pageIdsFromLinks)];
+        console.log(`SmartMeetingPrepSkill: Found ${uniquePageIds.length} unique Notion page IDs from description: ${uniquePageIds.join(', ')}`);
+
+        for (const pageId of uniquePageIds) {
+          try {
+            // Using the mocked getNotionPageSummaryById for now
+            const pageSummaryResponse = await getNotionPageSummaryById(input.userId, pageId);
+            if (pageSummaryResponse.ok && pageSummaryResponse.data) {
+              notionPageMap.set(pageSummaryResponse.data.id, pageSummaryResponse.data);
+              console.log(`SmartMeetingPrepSkill: Fetched Notion page "${pageSummaryResponse.data.title}" by ID ${pageId} from link.`);
+            } else {
+              console.warn(`SmartMeetingPrepSkill: Could not fetch Notion page by ID ${pageId} from link. Error: ${pageSummaryResponse.error?.message}`);
+            }
+          } catch (error: any) {
+            console.error(`SmartMeetingPrepSkill: Error calling getNotionPageSummaryById for ${pageId}: ${error.message}`, error);
+          }
+        }
+      }
+
+      // 4b. Keyword search if not enough found or to supplement
+      // For simplicity, let's always do a keyword search for now and merge.
+      // More advanced: only do keyword search if notionPageMap.size < desired_count
+      let keywordQueryText = resolvedEvent.title; // Start with meeting title
+      // Optional: Add main attendee names to queryText if available and sensible
+      // const mainAttendees = resolvedEvent.attendees?.map(a => a.split('<')[0].trim()).filter(name => name.length > 2).join(' ');
+      // if (mainAttendees) keywordQueryText += ` ${mainAttendees}`;
+
+      console.log(`SmartMeetingPrepSkill: Searching Notion with keywords: "${keywordQueryText}"`);
+      try {
+        const keywordSearchResponse = await searchNotionNotes(
+          input.userId,
+          keywordQueryText,
+          // Consider making NOTION_NOTES_DATABASE_ID a configurable default or pass from skill input
+          undefined, // Searches default DB or all accessible if backend supports
+          5 - notionPageMap.size // Fetch fewer if we already have some from links
+        );
+
+        if (keywordSearchResponse.ok && keywordSearchResponse.data) {
+          console.log(`SmartMeetingPrepSkill: Found ${keywordSearchResponse.data.length} Notion pages from keyword search.`);
+          keywordSearchResponse.data.forEach(page => {
+            if (!notionPageMap.has(page.id)) { // Avoid duplicates
+              notionPageMap.set(page.id, page);
+            }
+          });
+        } else {
+          console.warn(`SmartMeetingPrepSkill: Notion keyword search failed or returned no results. Error: ${keywordSearchResponse.error?.message}`);
+        }
+      } catch (error: any) {
+        console.error(`SmartMeetingPrepSkill: Error calling searchNotionNotes: ${error.message}`, error);
+      }
+      relatedNotionPages = Array.from(notionPageMap.values());
+
+
+      // Step 5: Generate preparation notes
+      preparationNotes = await this._generatePreparationNotes(resolvedEvent, relatedDocuments, relatedEmails, relatedNotionPages);
 
       console.log(`SmartMeetingPrepSkill: Successfully generated preparation materials for "${resolvedEvent.title}".`);
 
@@ -94,8 +177,9 @@ export class SmartMeetingPrepSkill {
 
     const output: SmartMeetingPrepSkillOutput = {
       resolvedEvent: resolvedEvent,
-      relatedDocuments: relatedDocuments,
+      relatedDocuments: relatedDocuments, // Still mock documents
       relatedEmails: relatedEmails,
+      relatedNotionPages: relatedNotionPages,
       preparationNotes: preparationNotes,
     };
 
@@ -158,8 +242,9 @@ export class SmartMeetingPrepSkill {
 
   private async _generatePreparationNotes(
     event: CalendarEventSummary,
-    documents: any[],
-    emails: GmailMessageSnippet[]
+    documents: any[], // Mock documents
+    emails: GmailMessageSnippet[],
+    notionPages: NotionPageSummary[]
   ): Promise<string> {
     console.log(`[SmartMeetingPrepSkill._generatePreparationNotes] Dynamically generating notes for event: "${event.title}"`);
     const titleLower = event.title.toLowerCase();
@@ -230,6 +315,26 @@ export class SmartMeetingPrepSkill {
       notes += "\n";
     } else {
         notes += "**Recently Exchanged Emails:**\n- No specific recent emails found with attendees around the meeting time.\n\n";
+    }
+
+    if (notionPages.length > 0) {
+      notes += "**Related Notion Pages:**\n";
+      notionPages.forEach(page => {
+        notes += `- **Title:** "${page.title || 'Untitled Page'}"`;
+        if (page.last_edited_time) {
+          notes += ` (Last edited: ${new Date(page.last_edited_time).toLocaleDateString()})`;
+        }
+        notes += "\n";
+        if (page.preview_text) {
+          notes += `  *Preview:* ${page.preview_text}...\n`;
+        }
+        if (page.url) {
+          notes += `  *Link:* ${page.url}\n`;
+        }
+      });
+      notes += "\n";
+    } else {
+      notes += "**Related Notion Pages:**\n- No specific Notion pages found related to this meeting.\n\n";
     }
 
 

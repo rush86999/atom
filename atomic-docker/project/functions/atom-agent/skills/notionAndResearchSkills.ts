@@ -16,7 +16,9 @@ import {
   CreateTaskData,    // For SkillResponse<CreateTaskData>
   UpdateTaskData,    // For SkillResponse<UpdateTaskData>
   NotionTask,        // For TaskQueryResponse.tasks and PythonApiResponse<NotionTask[]>
+  NotionPageSummary, // Added for getNotionPageSummaryById
 } from '../types';
+import { logger } from '../../_utils/logger'; // Added logger
 import {
   PYTHON_RESEARCH_API_URL,
   PYTHON_NOTE_API_URL,
@@ -299,6 +301,75 @@ export async function processResearchQueue(
   }
 }
 
+// Helper to map NotionSearchResultData to NotionPageSummary
+function mapNotionSearchResultToPageSummary(searchResult: NotionSearchResultData): NotionPageSummary {
+  // Assuming Python backend might pass through more fields than defined in NotionSearchResultData
+  const unknownProps = searchResult as any;
+  return {
+    id: searchResult.id,
+    title: searchResult.title,
+    url: searchResult.url,
+    preview_text: searchResult.content, // Map 'content' to 'preview_text'
+    // Timestamps and icon would ideally come from the backend if available
+    last_edited_time: unknownProps.last_edited_time || unknownProps.properties?.last_edited_time?.last_edited_time || undefined,
+    created_time: unknownProps.created_time || unknownProps.properties?.created_time?.created_time || undefined,
+    icon: unknownProps.icon || undefined, // Assuming icon structure matches NotionPageSummary's icon type
+  };
+}
+
+/**
+ * Placeholder for fetching detailed summary of a specific Notion page by its ID.
+ * This would call a Python backend endpoint (e.g., /get-notion-page-summary).
+ * The Python backend would use Notion API to get page details and format them.
+ * @param userId The ID of the user.
+ * @param pageId The ID of the Notion page.
+ * @returns A promise that resolves to a SkillResponse containing the NotionPageSummary.
+ */
+export async function getNotionPageSummaryById(
+  userId: string,
+  pageId: string
+): Promise<SkillResponse<NotionPageSummary>> { // Assuming NotionPageSummary is defined in types
+  logger.info(`[getNotionPageSummaryById] Called for userId: ${userId}, pageId: ${pageId}`);
+  if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
+  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!pageId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Page ID is required.'}};
+
+  // This is a placeholder. In a real implementation:
+  // 1. Define a Python endpoint (e.g., GET /get-notion-page-summary/:page_id)
+  // 2. Python endpoint uses Notion API to fetch page properties and content block summaries.
+  // 3. Python endpoint formats this into a structure matching NotionPageSummary.
+  // 4. Call that endpoint here using axios.
+
+  logger.warn(`[getNotionPageSummaryById] This function is a placeholder and does not call a real backend yet.`);
+  // Mock response for now:
+  // return Promise.resolve({
+  //   ok: false,
+  //   error: { code: 'NOT_IMPLEMENTED', message: 'getNotionPageSummaryById is not implemented yet.'}
+  // });
+
+  // For testing smartMeetingPrepSkill, let's return a mock success if a known ID is passed.
+  if (pageId === "mock-page-id-from-description") {
+    return Promise.resolve({
+      ok: true,
+      data: {
+        id: pageId,
+        title: "Mocked Page from Description",
+        url: `https://www.notion.so/${pageId}`,
+        preview_text: "This is a mock summary for a page explicitly linked in a meeting description...",
+        last_edited_time: new Date().toISOString(),
+        created_time: new Date().toISOString(),
+        // icon: { type: "emoji", emoji: "📄" }
+      }
+    });
+  }
+
+  return Promise.resolve({
+    ok: false,
+    error: { code: 'NOT_FOUND_OR_NOT_IMPLEMENTED', message: `Page ${pageId} not found (or feature not fully implemented).` }
+  });
+}
+
+
 // --- Note-Taking Skills ---
 
 export async function createNotionNote(
@@ -388,7 +459,7 @@ export async function searchNotionNotes(
   queryText: string,
   notionDbId?: string,
   source?: string // Optional filter by 'Source' property
-): Promise<SkillResponse<NotionSearchResultData[]>> {
+): Promise<SkillResponse<NotionPageSummary[]>> { // Changed return type
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
   if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
 
@@ -407,7 +478,20 @@ export async function searchNotionNotes(
       `${PYTHON_NOTE_API_URL}/search-notes`,
       payload
     );
-    return handlePythonApiResponse(response.data, 'SearchNotionNotes');
+
+    // Use handlePythonApiResponse and then map the results
+    const pythonResponse = handlePythonApiResponse<NotionSearchResultData[]>(response.data, 'SearchNotionNotes');
+    if (pythonResponse.ok && pythonResponse.data) {
+      return {
+        ok: true,
+        data: pythonResponse.data.map(mapNotionSearchResultToPageSummary)
+      };
+    }
+    return { // Error case from handlePythonApiResponse
+      ok: false,
+      error: pythonResponse.error
+    };
+
   } catch (error: any) {
     const axiosError = error as AxiosError;
     return {
