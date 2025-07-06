@@ -45,6 +45,33 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // --- Helper Function Implementations (condensed, from previous steps) ---
 import retry from 'async-retry'; // Import async-retry
 import Opossum from 'opossum'; // Import opossum
+import winston from 'winston'; // Import winston
+
+// --- Logger Setup for api-helper.ts ---
+// This local logger will be used for resilience-related events (retries, circuit breaker states)
+// and for logging errors within this helper module.
+// It's expected that OpenTelemetry's WinstonInstrumentation will patch this instance
+// to include trace_id and span_id when an OTel context is active.
+const serviceNameForLogger = process.env.OTEL_SERVICE_NAME || 'functions-service';
+const serviceVersionForLogger = process.env.OTEL_SERVICE_VERSION || '1.0.0';
+
+const localApiHelperLogger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json(),
+    winston.format((info) => { // Add service context to logs from this helper
+      info.service_name = serviceNameForLogger;
+      info.version = serviceVersionForLogger;
+      info.module = 'gpt-api-helper'; // Identify logs from this specific module
+      return info;
+    })()
+  ),
+  transports: [
+    new winston.transports.Console(),
+  ],
+});
+
 
 // Standard retry configuration for got
 const defaultGotRetryConfig = {
@@ -75,35 +102,35 @@ const hasuraGotBreaker = new Opossum(async (action: () => Promise<any>) => {
 
 // Event listeners for the Hasura circuit breaker
 hasuraGotBreaker.on('open', () => {
-  console.error({ // Using console.error for state changes that indicate problems
+  localApiHelperLogger.error(`Circuit Breaker Opened: ${hasuraGotBreaker.name}`, {
     circuit_breaker_name: hasuraGotBreaker.name,
     event: 'open',
     message: `Circuit breaker ${hasuraGotBreaker.name} has opened. Calls will be rejected temporarily.`,
-  }, `Circuit Breaker Opened: ${hasuraGotBreaker.name}`);
+  });
 });
 
 hasuraGotBreaker.on('close', () => {
-  console.warn({ // Using console.warn for recovery states
+  localApiHelperLogger.warn(`Circuit Breaker Closed: ${hasuraGotBreaker.name}`, {
     circuit_breaker_name: hasuraGotBreaker.name,
     event: 'close',
     message: `Circuit breaker ${hasuraGotBreaker.name} has closed. Calls are now flowing normally.`,
-  }, `Circuit Breaker Closed: ${hasuraGotBreaker.name}`);
+  });
 });
 
 hasuraGotBreaker.on('halfOpen', () => {
-  console.warn({
+  localApiHelperLogger.warn(`Circuit Breaker HalfOpen: ${hasuraGotBreaker.name}`, {
     circuit_breaker_name: hasuraGotBreaker.name,
     event: 'halfOpen',
     message: `Circuit breaker ${hasuraGotBreaker.name} is now half-open. Test calls will be allowed.`,
-  }, `Circuit Breaker HalfOpen: ${hasuraGotBreaker.name}`);
+  });
 });
 
 hasuraGotBreaker.on('reject', () => { // Fired when a call is rejected because the circuit is open
-  console.warn({
+  localApiHelperLogger.warn(`Circuit Breaker Rejected Call: ${hasuraGotBreaker.name}`, {
     circuit_breaker_name: hasuraGotBreaker.name,
     event: 'reject',
     message: `Call rejected by ${hasuraGotBreaker.name} because circuit is open.`,
-  }, `Circuit Breaker Rejected Call: ${hasuraGotBreaker.name}`);
+  });
 });
 
 // Opossum also has 'success' and 'failure' events for the wrapped action,
@@ -452,8 +479,6 @@ export const createGoogleEvent = async (userId: string, calendarIdVal: string, c
   }
 };
 
-export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<UpsertEventsPostPlannerResponse> => {
-  const operation_name = 'HasuraUpsertEvents';
   const uniqueEvents = _.uniqBy(events.filter(e => e), 'id'); if (uniqueEvents.length === 0) return { success: true, data: { affected_rows: 0, returning: [] } };
   const objects = uniqueEvents.map(event => ({ ...event, provider: event.provider || 'google_calendar', status: event.status || 'confirmed' }));
   const mutation = `mutation UpsertEvents($objects: [Event_insert_input!]!) { insert_Event(objects: $objects, on_conflict: { constraint: Event_pkey, update_columns: [summary, description, startDateTime, endDateTime, timezone, gEventId, provider, updatedAt, taskId, projectId, status, parentEventId] }) { affected_rows returning { id } } }`;
@@ -466,12 +491,12 @@ export const upsertEventsPostPlanner = async (events: EventInput[]): Promise<Ups
       retry: defaultGotRetryConfig
     }));
     const body = response.body as any;
-    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during event upsert.', details: body.errors } }; }
-    if (!body.data || !body.data.insert_Event) { /* console.warn(`[${operation_name}] Unexpected Hasura response:`, body); */ return { success: false, error: { message: 'Unexpected Hasura response during event upsert.', details: body } }; }
+    if (body.errors) { /* localApiHelperLogger.error(`[${operation_name}] Hasura errors:`, {details: body.errors}); */ return { success: false, error: { message: 'Hasura API error during event upsert.', details: body.errors } }; }
+    if (!body.data || !body.data.insert_Event) { /* localApiHelperLogger.warn(`[${operation_name}] Unexpected Hasura response:`, {body}); */ return { success: false, error: { message: 'Unexpected Hasura response during event upsert.', details: body } }; }
     return { success: true, data: body.data.insert_Event };
   } catch (e: any) {
     const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
-    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    /* localApiHelperLogger.error(`[${operation_name}] Error: ${errorMessage}`, {error_message: e.message, error_code: e.code, raw_response: e.response?.body}); */
     return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
   }
 };
@@ -487,12 +512,12 @@ export const getGlobalCalendar = async (userId: string): Promise<SuccessResponse
       retry: defaultGotRetryConfig
     }));
     const body = response.body as any;
-    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during getGlobalCalendar.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Calendar')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during getGlobalCalendar.', details: body } }; }
+    if (body.errors) { /* localApiHelperLogger.error(`[${operation_name}] Hasura errors:`, {details: body.errors}); */ return { success: false, error: { message: 'Hasura API error during getGlobalCalendar.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Calendar')) { /* localApiHelperLogger.warn(`[${operation_name}] Unexpected response:`, {body}); */ return { success: false, error: { message: 'Unexpected response structure during getGlobalCalendar.', details: body } }; }
     return { success: true, data: body.data.Calendar?.[0] };
   } catch (e: any) {
     const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
-    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    /* localApiHelperLogger.error(`[${operation_name}] Error: ${errorMessage}`, {error_message: e.message, error_code: e.code, raw_response: e.response?.body}); */
     return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
   }
 };
@@ -508,12 +533,12 @@ export const listEventsForDate = async (userId: string, startDate: string, endDa
       retry: defaultGotRetryConfig
     }));
     const body = response.body as any;
-    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during listEventsForDate.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Event')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForDate.', details: body } }; }
+    if (body.errors) { /* localApiHelperLogger.error(`[${operation_name}] Hasura errors:`, {details: body.errors}); */ return { success: false, error: { message: 'Hasura API error during listEventsForDate.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Event')) { /* localApiHelperLogger.warn(`[${operation_name}] Unexpected response:`, {body}); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForDate.', details: body } }; }
     return { success: true, data: body.data.Event || [] };
   } catch (e: any) {
     const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
-    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    /* localApiHelperLogger.error(`[${operation_name}] Error: ${errorMessage}`, {error_message: e.message, error_code: e.code, raw_response: e.response?.body}); */
     return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
   }
 };
@@ -529,12 +554,12 @@ export const listEventsForUserGivenDates = async (userId: string, senderStartDat
       retry: defaultGotRetryConfig
     }));
     const body = response.body as any;
-    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during listEventsForUserGivenDates.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('Event')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForUserGivenDates.', details: body } }; }
+    if (body.errors) { /* localApiHelperLogger.error(`[${operation_name}] Hasura errors:`, {details: body.errors}); */ return { success: false, error: { message: 'Hasura API error during listEventsForUserGivenDates.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('Event')) { /* localApiHelperLogger.warn(`[${operation_name}] Unexpected response:`, {body}); */ return { success: false, error: { message: 'Unexpected response structure during listEventsForUserGivenDates.', details: body } }; }
     return { success: true, data: body.data.Event || [] };
   } catch (e: any) {
     const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
-    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    /* localApiHelperLogger.error(`[${operation_name}] Error: ${errorMessage}`, {error_message: e.message, error_code: e.code, raw_response: e.response?.body}); */
     return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
   }
 };
@@ -550,12 +575,12 @@ export const getUserPreferences = async (userId: string): Promise<SuccessRespons
       retry: defaultGotRetryConfig
     }));
     const body = response.body as any;
-    if (body.errors) { /* console.error(`[${operation_name}] Hasura errors:`, body.errors); */ return { success: false, error: { message: 'Hasura API error during getUserPreferences.', details: body.errors } }; }
-    if (!body.data || !body.data.hasOwnProperty('User_Preferences')) { /* console.warn(`[${operation_name}] Unexpected response:`, body); */ return { success: false, error: { message: 'Unexpected response structure during getUserPreferences.', details: body } }; }
+    if (body.errors) { /* localApiHelperLogger.error(`[${operation_name}] Hasura errors:`, {details: body.errors}); */ return { success: false, error: { message: 'Hasura API error during getUserPreferences.', details: body.errors } }; }
+    if (!body.data || !body.data.hasOwnProperty('User_Preferences')) { /* localApiHelperLogger.warn(`[${operation_name}] Unexpected response:`, {body}); */ return { success: false, error: { message: 'Unexpected response structure during getUserPreferences.', details: body } }; }
     return { success: true, data: body.data.User_Preferences?.[0] };
   } catch (e: any) {
     const errorMessage = e.code === 'EOPENBREAKER' ? `Circuit breaker ${hasuraGotBreaker.name} is open.` : `Network/request error during ${operation_name}.`;
-    /* console.error(`[${operation_name}] Error: ${errorMessage}`, e.message); */
+    /* localApiHelperLogger.error(`[${operation_name}] Error: ${errorMessage}`, {error_message: e.message, error_code: e.code, raw_response: e.response?.body}); */
     return { success: false, error: { message: errorMessage, details: e.message, rawResponse: e.response?.body, code: e.code } };
   }
 };
