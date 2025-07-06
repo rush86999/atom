@@ -2,10 +2,10 @@ import { gql } from '@apollo/client';
 
 export default gql`
 query GetCalendarById($id: String!) {
-  Calendar_by_pk(id: $id) {
+  calendarById(id: $id) { # Renamed from Calendar_by_pk
     id
     title
-    colorId
+    colorId # Assuming field names remain similar or are camelCased by PostGraphile
     account
     accessLevel
     modifiable
@@ -20,6 +20,7 @@ query GetCalendarById($id: String!) {
     backgroundColor
     pageToken
     syncToken
+    # Ensure all field names are camelCase if originally snake_case in DB
   }
 }
 `

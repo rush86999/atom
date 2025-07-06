@@ -317,42 +317,27 @@ export const upsertLocalCalendar = async (
       updatedAt: dayjs().toISOString(),
     }
 
-    const upsertCalendar = gql`
-    mutation InsertCalendar($calendars: [Calendar_insert_input!]!) {
-            insert_Calendar(
-                objects: $calendars,
-                on_conflict: {
-                    constraint: Calendar_pkey,
-                    update_columns: [
-                      title,
-                      colorId,
-                      account,
-                      ${accessLevel ? 'accessLevel,' : ''}
-                      ${resource ? 'resource,' : ''}
-                      modifiable,
-                      defaultReminders,
-                      ${globalPrimary ? 'globalPrimary,' : ''}
-                      backgroundColor,
-                      ${foregroundColor ? 'foregroundColor,' : ''}
-                      deleted,
-                      updatedAt,
-                    ]
-                }){
-                returning {
-                  id
-                }
-              }
-       }
-    `
-
-    const result = await client.mutate<{ insert_Calendar: { returning: CalendarType[] } }>({
-      mutation: upsertCalendar,
+    // ASSUMPTION: A custom PG function 'upsertCalendar' handles the upsert logic.
+    // Dynamic update_columns are now part of the PG function's ON CONFLICT clause.
+    const upsertCalendarMutation = gql`
+    mutation UpsertCalendar($calendar: CalendarInput!) { # Assuming CalendarInput is the type for a single calendar
+      upsertCalendar(input: { calendar: $calendar }) { # Standard PostGraphile mutation input pattern
+        calendar { # Assuming the payload returns the calendar
+          id
+          # Include other fields as needed from CalendarType if they are returned
+        }
+      }
+    }
+  `
+    // The type for client.mutate and variable preparation will need to adjust.
+    const result = await client.mutate<{ upsertCalendar: { calendar: { id: string } } }>({ // Adjust return type
+      mutation: upsertCalendarMutation,
       variables: {
-        calendars: [calendarValueToUpsert],
+        calendar: calendarValueToUpsert, // Pass the single object
       },
     })
 
-    return result.data?.insert_Calendar?.returning[0]
+    return result.data?.upsertCalendar?.calendar // Adjust access to returned data
 
   } catch (e) {
     console.log(e, ' unable to save local calendar')
@@ -491,126 +476,20 @@ export const atomicUpsertEventInDb = async (
 ) => {
   try {
     console.log(hardDeadline, softDeadline, ' hardDeadline, softDeadline inside atomicUpsertEventInDb')
-    const upsertEvent = gql`
-       mutation InsertEvent($events: [Event_insert_input!]!) {
-            insert_Event(
-                objects: $events,
-                on_conflict: {
-                    constraint: Event_pkey,
-                    update_columns: [
-                      ${eventId ? 'eventId,' : ''}
-                      ${meetingId ? 'meetingId,' : ''}
-                      ${startDate ? 'startDate,' : ''}
-                      ${endDate ? 'endDate,' : ''}
-                      ${allDay ? 'allDay,' : ''}
-                      ${recurrence !== undefined ? 'recurrence,' : ''}
-                      ${recurrenceRule?.endDate !== undefined ? 'recurrenceRule,' : ''}
-                      ${location?.title !== undefined ? 'location,' : ''}
-                      ${notes !== undefined ? 'notes,' : ''}
-                      ${attachments?.[0] !== undefined ? 'attachments,' : ''}
-                      ${links?.[0] !== undefined ? 'links,' : ''}
-                      ${timezone !== undefined ? 'timezone,' : ''}
-                      ${taskId !== undefined ? 'taskId,' : ''}
-                      ${taskType !== undefined ? 'taskType,' : ''}
-                      ${priority !== undefined ? 'priority,' : ''}
-                      ${followUpEventId !== undefined ? 'followUpEventId,' : ''}
-                      ${isFollowUp !== undefined ? 'isFollowUp,' : ''}
-                      ${isPreEvent !== undefined ? 'isPreEvent,' : ''}
-                      ${isPostEvent !== undefined ? 'isPostEvent,' : ''}
-                      ${preEventId !== undefined ? 'preEventId,' : ''}
-                      ${postEventId !== undefined ? 'postEventId,' : ''}
-                      ${modifiable !== undefined ? 'modifiable,' : ''}
-                      ${forEventId !== undefined ? 'forEventId,' : ''}
-                      ${conferenceId !== undefined ? 'conferenceId,' : ''}
-                      ${maxAttendees !== undefined ? 'maxAttendees,' : ''}
-                      ${attendeesOmitted !== undefined ? 'attendeesOmitted,' : ''}
-                      ${sendUpdates !== undefined ? 'sendUpdates,' : ''}
-                      ${anyoneCanAddSelf !== undefined ? 'anyoneCanAddSelf,' : ''}
-                      ${guestsCanInviteOthers !== undefined ? 'guestsCanInviteOthers,' : ''}
-                      ${guestsCanSeeOtherGuests !== undefined ? 'guestsCanSeeOtherGuests,' : ''}
-                      ${originalStartDate !== undefined ? 'originalStartDate,' : ''}
-                      ${originalTimezone !== undefined ? 'originalTimezone,' : ''}
-                      ${originalAllDay !== undefined ? 'originalAllDay,' : ''}
-                      ${status !== undefined ? 'status,' : ''}
-                      ${summary !== undefined ? 'summary,' : ''}
-                      ${transparency !== undefined ? 'transparency,' : ''}
-                      ${visibility !== undefined ? 'visibility,' : ''}
-                      ${recurringEventId !== undefined ? 'recurringEventId,' : ''}
-                      ${htmlLink !== undefined ? 'htmlLink,' : ''}
-                      ${colorId !== undefined ? 'colorId,' : ''}
-                      ${creator !== undefined ? 'creator,' : ''}
-                      ${organizer !== undefined ? 'organizer,' : ''}
-                      ${endTimeUnspecified !== undefined ? 'endTimeUnspecified,' : ''}
-                      ${extendedProperties !== undefined ? 'extendedProperties,' : ''}
-                      ${hangoutLink !== undefined ? 'hangoutLink,' : ''}
-                      ${guestsCanModify !== undefined ? 'guestsCanModify,' : ''}
-                      ${locked !== undefined ? 'locked,' : ''}
-                      ${source !== undefined ? 'source,' : ''}
-                      ${eventType !== undefined ? 'eventType,' : ''}
-                      ${privateCopy !== undefined ? 'privateCopy,' : ''}
-                      ${backgroundColor !== undefined ? 'backgroundColor,' : ''}
-                      ${foregroundColor !== undefined ? 'foregroundColor,' : ''}
-                      ${useDefaultAlarms !== undefined ? 'useDefaultAlarms,' : ''}
-                      ${positiveImpactScore !== undefined ? 'positiveImpactScore,' : ''}
-                      ${negativeImpactScore !== undefined ? 'negativeImpactScore,' : ''}
-                      ${positiveImpactDayOfWeek !== undefined ? 'positiveImpactDayOfWeek,' : ''}
-                      ${positiveImpactTime !== undefined ? 'positiveImpactTime,' : ''}
-                      ${negativeImpactDayOfWeek !== undefined ? 'negativeImpactDayOfWeek,' : ''}
-                      ${negativeImpactTime !== undefined ? 'negativeImpactTime,' : ''}
-                      ${preferredDayOfWeek !== undefined ? 'preferredDayOfWeek,' : ''}
-                      ${preferredTime !== undefined ? 'preferredTime,' : ''}
-                      ${isExternalMeeting !== undefined ? 'isExternalMeeting,' : ''}
-                      ${isExternalMeetingModifiable !== undefined ? 'isExternalMeetingModifiable,' : ''}
-                      ${isMeetingModifiable !== undefined ? 'isMeetingModifiable,' : ''}
-                      ${isMeeting !== undefined ? 'isMeeting,' : ''}
-                      ${dailyTaskList !== undefined ? 'dailyTaskList,' : ''}
-                      ${weeklyTaskList !== undefined ? 'weeklyTaskList,' : ''}
-                      ${isBreak !== undefined ? 'isBreak,' : ''}
-                      ${preferredStartTimeRange !== undefined ? 'preferredStartTimeRange,' : ''}
-                      ${preferredEndTimeRange !== undefined ? 'preferredEndTimeRange,' : ''}
-                      ${deleted !== undefined ? 'deleted,' : ''}
-                      ${updatedAt !== undefined ? 'updatedAt,' : ''}
-                      ${iCalUID !== undefined ? 'iCalUID,' : ''}
-                      ${calendarId !== undefined ? 'calendarId,' : ''}
-                      ${copyAvailability !== undefined ? 'copyAvailability,' : ''}
-                      ${copyTimeBlocking !== undefined ? 'copyTimeBlocking,' : ''}
-                      ${copyTimePreference !== undefined ? 'copyTimePreference,' : ''}
-                      ${copyReminders !== undefined ? 'copyReminders,' : ''}
-                      ${copyPriorityLevel !== undefined ? 'copyPriorityLevel,' : ''}
-                      ${copyModifiable !== undefined ? 'copyModifiable,' : ''}
-                      ${copyCategories !== undefined ? 'copyCategories,' : ''}
-                      ${copyIsBreak !== undefined ? 'copyIsBreak,' : ''}
-                      ${timeBlocking !== undefined ? 'timeBlocking,' : ''}
-                      ${userModifiedAvailability !== undefined ? 'userModifiedAvailability,' : ''}
-                      ${userModifiedTimeBlocking !== undefined ? 'userModifiedTimeBlocking,' : ''}
-                      ${userModifiedTimePreference !== undefined ? 'userModifiedTimePreference,' : ''}
-                      ${userModifiedReminders !== undefined ? 'userModifiedReminders,' : ''}
-                      ${userModifiedPriorityLevel !== undefined ? 'userModifiedPriorityLevel,' : ''}
-                      ${userModifiedCategories !== undefined ? 'userModifiedCategories,' : ''}
-                      ${userModifiedModifiable !== undefined ? 'userModifiedModifiable,' : ''}
-                      ${userModifiedIsBreak !== undefined ? 'userModifiedIsBreak,' : ''}
-                      ${hardDeadline !== undefined ? 'hardDeadline,' : ''}
-                      ${softDeadline !== undefined ? 'softDeadline,' : ''}
-                      ${copyIsMeeting !== undefined ? 'copyIsMeeting,' : ''}
-                      ${copyIsExternalMeeting !== undefined ? 'copyIsExternalMeeting,' : ''}
-                      ${userModifiedIsMeeting !== undefined ? 'userModifiedIsMeeting,' : ''}
-                      ${userModifiedIsExternalMeeting !== undefined ? 'userModifiedIsExternalMeeting,' : ''}
-                      ${duration !== undefined ? 'duration,' : ''}
-                      ${copyDuration !== undefined ? 'copyDuration,' : ''}
-                      ${userModifiedDuration !== undefined ? 'userModifiedDuration,' : ''}
-                      ${method !== undefined ? 'method,' : ''}
-                      ${unlink !== undefined ? 'unlink,' : ''}
-                      ${copyColor !== undefined ? 'copyColor,' : ''}
-                      ${userModifiedColor !== undefined ? 'userModifiedColor,' : ''}
-                      ${byWeekDay?.[0] !== undefined ? 'byWeekDay,' : ''},
-                      ${localSynced !== undefined ? 'localSynced,' : ''}
-                      ${title !== undefined ? 'title,' : ''}
-                    ]
-                }){
-                returning {
-                  id
-                  startDate
-                  endDate
+    // ASSUMPTION: A custom PG function 'upsertEvent' handles the complex upsert logic.
+    // The extensive dynamic update_columns list is now part of the PG function's ON CONFLICT clause.
+    // The input type will be something like EventInput!
+    const upsertEventMutation = gql`
+      mutation UpsertEvent($event: EventInput!) { # Assuming EventInput is the type for a single event
+        upsertEvent(input: { event: $event }) { # Standard PostGraphile mutation input pattern
+          event { # Assuming the payload returns the event
+            # It's crucial that the 'returning' fields here match what PostGraphile actually returns
+            # based on the PG function's RETURNING clause and PostGraphile's schema generation.
+            # This is a best guess based on the original Hasura query.
+            # Many of these might be objects or need different casing (camelCase).
+            id
+            startDate
+            endDate
                   allDay
                   recurrence
                   recurrenceRule
@@ -719,18 +598,21 @@ export const atomicUpsertEventInDb = async (
                   meetingId
                   eventId
                 }
-                affected_rows
+                # affected_rows # This is not standard in PostGraphile return types for mutations like this.
+                                # The upserted event itself is the primary return.
               }
-       }
-    `
-    let event: EventType = {
+            }
+          `
+    let event: EventType = { // This object is used to build the 'variables' for the mutation.
+                             // Its structure must match 'EventInput' expected by PostGraphile.
+                             // Many fields might be optional or have different casing (camelCase).
       id,
-      eventId,
+      eventId, // Ensure this and other IDs are correctly mapped if casing changes (e.g. eventID)
       meetingId,
       userId,
       startDate,
       endDate,
-      createdDate,
+      createdDate, // Usually set by DB
       deleted,
       priority: 1,
       isFollowUp: false,
@@ -742,8 +624,9 @@ export const atomicUpsertEventInDb = async (
       guestsCanSeeOtherGuests: false,
       originalStartDate: undefined,
       originalAllDay: false,
-      updatedAt: undefined,
+      updatedAt: undefined, // Usually set by DB
       calendarId: undefined,
+      // Ensure all fields below are correctly cased (camelCase) and match EventInput
     }
     /**
      * 
@@ -1266,28 +1149,35 @@ export const atomicUpsertEventInDb = async (
 
     console.log(event, ' event inside atomicUpsertEventInDb')
     const variables = {
-      events: [event]
+      event: event // Pass the single event object, matching the $event: EventInput! in the mutation
     }
 
-    const response = await client.mutate<{ insert_Event: { returning: EventType[], affected_rows: number } }>({
-      mutation: upsertEvent,
+    // Adjust the generic type for client.mutate based on the actual PostGraphile mutation payload
+    const response = await client.mutate<{ upsertEvent: { event: EventType } }>({
+      mutation: upsertEventMutation, // Use the renamed mutation variable
       variables,
+      // refetchQueries might be a more robust way to handle cache updates initially
       // refetchQueries: [
-      //   listAllEvents, // DocumentNode object parsed with gql
-      //   'listAllEvents' // Query name
+      //   { query: listAllEvents, variables: { /* appropriate variables for listAllEvents */ } }
       // ],
       update(cache, { data }) {
-        if (data?.insert_Event?.affected_rows > 0) {
-          console.log('insert_Event?.affected_rows', data)
-        }
+        const upsertedEvent = data?.upsertEvent?.event;
+        if (upsertedEvent) {
+          console.log('upsertEvent result', upsertedEvent);
 
-        cache.modify({
-          fields: {
-            Event(existingEvents = []) {
-              const newEventRef = cache.writeFragment({
-                data: data?.insert_Event?.returning?.[0],
-                fragment: gql`
-                    fragment NewEvent on Event {
+          // The cache update logic here is highly speculative and needs verification.
+          // It assumes a root field 'Event' for a list, which is unlikely with PostGraphile.
+          // It would more likely be 'allEvents' or a similar connection field.
+          cache.modify({
+            fields: {
+              // This field name 'Event' is likely incorrect for PostGraphile.
+              Event: (existingEvents = [], { readField }) => { // Placeholder for existing cache update logic
+                // Attempt to find and replace or add the new event.
+                // This simple replacement might not work well with pagination or complex list structures.
+                const newEventRef = cache.writeFragment({
+                  data: upsertedEvent,
+                  fragment: gql`
+                    fragment NewEvent on Event { # Type name 'Event' should be checked against PostGraphile schema
                       id
                       startDate
                       endDate

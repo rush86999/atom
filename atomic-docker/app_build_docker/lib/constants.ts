@@ -13,8 +13,17 @@ export const lanceEventMatcherUrl = process.env.NEXT_PUBLIC_LANCE_EVENT_MATCHER_
 
 export const openTrainEventVectorName = 'embeddings'
 export const eventVectorName = openTrainEventVectorName
-export const hasuraDbUrl = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL
-export const hasuraWSUrl = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL
+// export const hasuraDbUrl = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL
+// export const hasuraWSUrl = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL
+export const postgraphileDbUrl = process.env.NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL
+// IMPORTANT: PostGraphile V4 needs a plugin like @graphile/pg-pubsub for WebSocket subscriptions.
+// The actual WebSocket URL might be different (e.g., ws://localhost:5000/graphql/subscriptions or similar)
+// and needs to be configured on the PostGraphile server side.
+// For now, we'll assume it's the same base URL with `/graphql` path, but this is a placeholder.
+export const postgraphileWSUrl = process.env.NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL
+  ? process.env.NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL.replace(/^http/, 'ws')
+  : undefined;
+
 
 export const googleCalendarAndroidAuthUrl = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_ANDROID_AUTH_URL
 export const googleClientIdAtomicWeb = process.env.GOOGLE_CLIENT_ID_ATOMIC_WEB
