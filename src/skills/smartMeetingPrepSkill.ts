@@ -168,6 +168,58 @@ export class SmartMeetingPrepSkill {
     return score;
   }
 
+  private _getContextualSnippet(text: string | undefined | null, keywords: string[], maxLength: number = 150, contextWindow: number = 70): string {
+    if (!text || text.trim() === "") return "";
+
+    const lowerText = text.toLowerCase();
+    let foundKeywordInfo: { index: number, length: number } | null = null;
+
+    for (const kw of keywords) {
+      if (!kw || kw.trim() === "") continue;
+      const kwLower = kw.toLowerCase();
+      const index = lowerText.indexOf(kwLower);
+      if (index !== -1) {
+        foundKeywordInfo = { index, length: kwLower.length };
+        break;
+      }
+    }
+
+    if (foundKeywordInfo) {
+      const keywordStartIndex = foundKeywordInfo.index;
+      const keywordEndIndex = keywordStartIndex + foundKeywordInfo.length;
+
+      let start = Math.max(0, keywordStartIndex - contextWindow);
+      let end = Math.min(text.length, keywordEndIndex + contextWindow);
+
+      let prefix = start > 0 ? "... " : "";
+      let suffix = end < text.length ? " ..." : "";
+
+      let snippet = text.substring(start, end);
+
+      // Adjust if snippet is too long with prefix/suffix
+      if ((prefix + snippet + suffix).length > maxLength) {
+        const remainingLength = maxLength - prefix.length - suffix.length;
+        // Try to keep keyword somewhat centered if possible
+        const keywordVisibleStart = Math.max(0, keywordStartIndex - start); // keyword start relative to snippet start
+        const idealCutStart = Math.max(0, keywordVisibleStart - Math.floor(remainingLength / 2));
+        const idealCutEnd = idealCutStart + remainingLength;
+
+        snippet = snippet.substring(idealCutStart, idealCutEnd);
+      }
+       // Ensure snippet itself is not over maxLength if prefix/suffix are empty
+      if (snippet.length > maxLength) {
+        snippet = snippet.substring(0, maxLength -3) + "...";
+      }
+
+
+      return prefix + snippet + suffix;
+    } else {
+      // No keyword found, return beginning of text
+      if (text.length <= maxLength) return text;
+      return text.substring(0, maxLength - 3) + "...";
+    }
+  }
+
   /**
    * Executes the smart meeting preparation skill.
    *
@@ -386,9 +438,11 @@ export class SmartMeetingPrepSkill {
         relatedDocuments,
         relatedEmails, // Pass all for now
         relatedNotionPages, // Pass all for now
-        dataFetchingErrors, // Pass errors to notes generator
-        topEmails.map(e => e.item), // Pass top items specifically for potential highlighting
-        topNotionPages.map(p => p.item)
+        dataFetchingErrors,
+        topEmails.map(e => e.item),
+        topNotionPages.map(p => p.item),
+        eventTitleKeywords, // Pass extracted keywords
+        eventDescKeywords   // Pass extracted keywords
       );
 
       // Use logger for this type of info as well
@@ -472,7 +526,9 @@ export class SmartMeetingPrepSkill {
     notionPages: NotionPageSummary[], // All fetched Notion pages
     errors: string[],
     topEmails: GmailMessageSnippet[], // Top scored emails
-    topNotionPages: NotionPageSummary[] // Top scored Notion pages
+    topNotionPages: NotionPageSummary[], // Top scored Notion pages
+    eventTitleKeywords: string[], // Keywords from meeting title
+    eventDescKeywords: string[]   // Keywords from meeting description
   ): Promise<string> {
     logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), and ${errors.length} errors.`);
     const titleLower = event.title.toLowerCase();
@@ -487,9 +543,14 @@ export class SmartMeetingPrepSkill {
         notes += "**Potentially Relevant Emails:**\n";
         topEmails.forEach(email => {
           const emailDate = email.date ? new Date(email.date).toLocaleDateString() : "N/A";
+          const combinedKeywords = [...eventTitleKeywords, ...eventDescKeywords];
+          const contextualSnippet = this._getContextualSnippet(email.snippet, combinedKeywords);
+
           notes += `- **Subject:** "${email.subject || '(No Subject)'}" (From: ${email.from || 'N/A'}, Date: ${emailDate})\n`;
-          if (email.snippet) {
-            notes += `  *Snippet:* ${email.snippet}...\n`;
+          if (contextualSnippet) {
+            notes += `  *Contextual Snippet:* ${contextualSnippet}\n`;
+          } else if (email.snippet) { // Fallback to original snippet if contextual one is empty
+            notes += `  *Snippet:* ${email.snippet.substring(0,150)}...\n`;
           }
           if (email.link) {
             notes += `  *Link:* ${email.link}\n`;
@@ -500,13 +561,18 @@ export class SmartMeetingPrepSkill {
       if (topNotionPages.length > 0) {
         notes += "**Potentially Relevant Notion Pages:**\n";
         topNotionPages.forEach(page => {
+          const combinedKeywords = [...eventTitleKeywords, ...eventDescKeywords];
+          const contextualPreview = this._getContextualSnippet(page.preview_text, combinedKeywords);
+
           notes += `- **Title:** "${page.title || 'Untitled Page'}"`;
           if (page.last_edited_time) {
             notes += ` (Last edited: ${new Date(page.last_edited_time).toLocaleDateString()})`;
           }
           notes += "\n";
-          if (page.preview_text) {
-            notes += `  *Preview:* ${page.preview_text}...\n`;
+          if (contextualPreview) {
+            notes += `  *Contextual Preview:* ${contextualPreview}\n`;
+          } else if (page.preview_text) { // Fallback to original preview
+            notes += `  *Preview:* ${page.preview_text.substring(0,150)}...\n`;
           }
           if (page.url) {
             notes += `  *Link:* ${page.url}\n`;
