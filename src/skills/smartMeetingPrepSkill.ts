@@ -7,12 +7,16 @@ export interface SmartMeetingPrepSkillInput {
   // Potentially other context like preferred language for summaries, etc.
 }
 
-// Define the expected structure of the skill's output (for now, just the event or nothing)
-// This would expand to include prep notes, document links, etc.
+import { searchEmailsForPrep } from '../../atomic-docker/project/functions/atom-agent/skills/gmailSkills';
+// Assuming types.ts is correctly located relative to gmailSkills.ts for these:
+import { GmailSearchParameters, GmailMessageSnippet } from '../../atomic-docker/project/functions/atom-agent/types';
+
+// Define the expected structure of the skill's output
 export interface SmartMeetingPrepSkillOutput {
   resolvedEvent?: CalendarEventSummary;
   preparationNotes?: string;
   relatedDocuments?: any[]; // Using any for mock documents for now
+  relatedEmails?: GmailMessageSnippet[]; // Added for Gmail results
   // other output fields
 }
 
@@ -43,6 +47,7 @@ export class SmartMeetingPrepSkill {
 
     let preparationNotes: string | undefined = undefined;
     let relatedDocuments: any[] = [];
+    let relatedEmails: GmailMessageSnippet[] = [];
 
     if (resolvedEvent) {
       console.log(`SmartMeetingPrepSkill: Resolved event - Title: ${resolvedEvent.title}, StartTime: ${resolvedEvent.startTime}`);
@@ -50,8 +55,35 @@ export class SmartMeetingPrepSkill {
       // Step 2: Find related documents (mocked)
       relatedDocuments = await this._findRelatedDocuments(resolvedEvent);
 
-      // Step 3: Generate preparation notes (mocked)
-      preparationNotes = await this._generatePreparationNotes(resolvedEvent, relatedDocuments);
+      // Step 3: Find related emails
+      const gmailSearchParams: GmailSearchParameters = {
+        // Initially, let's use a generic date query and rely on meetingContext for date refinement.
+        // Specific keywords can be added later if needed, or derived from event title/description.
+        date_query: "recent", // `searchEmailsForPrep` will use meeting context to refine this
+        // body_keywords: resolvedEvent.title, // Optionally add title to body_keywords
+      };
+
+      try {
+        console.log(`SmartMeetingPrepSkill: Searching emails for event "${resolvedEvent.title}"`);
+        const emailSearchResponse = await searchEmailsForPrep(
+          input.userId,
+          gmailSearchParams,
+          resolvedEvent, // Pass the whole event as meetingContext
+          5 // Limit to 5 emails for now
+        );
+
+        if (emailSearchResponse.ok && emailSearchResponse.data?.results) {
+          relatedEmails = emailSearchResponse.data.results;
+          console.log(`SmartMeetingPrepSkill: Found ${relatedEmails.length} related emails.`);
+        } else {
+          console.warn(`SmartMeetingPrepSkill: Email search failed or returned no results. Error: ${emailSearchResponse.error?.message}`);
+        }
+      } catch (error: any) {
+        console.error(`SmartMeetingPrepSkill: Error calling searchEmailsForPrep: ${error.message}`, error);
+      }
+
+      // Step 4: Generate preparation notes
+      preparationNotes = await this._generatePreparationNotes(resolvedEvent, relatedDocuments, relatedEmails);
 
       console.log(`SmartMeetingPrepSkill: Successfully generated preparation materials for "${resolvedEvent.title}".`);
 
@@ -63,6 +95,7 @@ export class SmartMeetingPrepSkill {
     const output: SmartMeetingPrepSkillOutput = {
       resolvedEvent: resolvedEvent,
       relatedDocuments: relatedDocuments,
+      relatedEmails: relatedEmails,
       preparationNotes: preparationNotes,
     };
 
@@ -123,7 +156,11 @@ export class SmartMeetingPrepSkill {
     return uniqueDocs.slice(0, 4); // Cap at 4 documents for brevity
   }
 
-  private async _generatePreparationNotes(event: CalendarEventSummary, documents: any[]): Promise<string> {
+  private async _generatePreparationNotes(
+    event: CalendarEventSummary,
+    documents: any[],
+    emails: GmailMessageSnippet[]
+  ): Promise<string> {
     console.log(`[SmartMeetingPrepSkill._generatePreparationNotes] Dynamically generating notes for event: "${event.title}"`);
     const titleLower = event.title.toLowerCase();
     const descriptionLower = event.description?.toLowerCase() || "";
@@ -171,12 +208,30 @@ export class SmartMeetingPrepSkill {
     notes += "**Relevant Materials & Context:**\n";
     if (documents.length > 0) {
       documents.forEach(doc => {
-        notes += `- **${doc.name}** (${doc.type}): Review this document for relevant background/data.\n`;
+        notes += `- **${doc.name}** (${doc.type}): Review this document for relevant background/data. (Mocked Link: ${doc.url})\n`;
       });
     } else {
-      notes += "- No specific documents were automatically linked. Consider searching manually if needed.\n";
+      notes += "- No specific documents were automatically linked (mocked). Consider searching manually if needed.\n";
     }
     notes += "\n";
+
+    if (emails.length > 0) {
+      notes += "**Recently Exchanged Emails (with attendees, around meeting date):**\n";
+      emails.forEach(email => {
+        const emailDate = email.date ? new Date(email.date).toLocaleDateString() : "N/A";
+        notes += `- **Subject:** "${email.subject || '(No Subject)'}" (From: ${email.from || 'N/A'}, Date: ${emailDate})\n`;
+        if (email.snippet) {
+          notes += `  *Snippet:* ${email.snippet}...\n`;
+        }
+        if (email.link) {
+            notes += `  *Link:* ${email.link}\n`;
+        }
+      });
+      notes += "\n";
+    } else {
+        notes += "**Recently Exchanged Emails:**\n- No specific recent emails found with attendees around the meeting time.\n\n";
+    }
+
 
     notes += "**Potential Action Items to Consider from This Meeting (TODO):**\n";
     notes += "- [Assign owners and deadlines for new tasks]\n";

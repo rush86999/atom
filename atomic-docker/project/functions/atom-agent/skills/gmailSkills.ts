@@ -5,7 +5,7 @@ import {
 } from '../types';
 import { logger } from '../../_utils/logger';
 import { understandEmailSearchQueryLLM } from './llm_email_query_understander';
-import { buildGmailQueryString, StructuredEmailQuery } from './nlu_email_helper'; // Assuming nlu_email_helper.ts will export these
+import { buildGmailSearchQuery, StructuredEmailQuery, parseRelativeDateQuery } from './nlu_email_helper'; // Assuming nlu_email_helper.ts will export these
 import { searchMyEmails as searchMyEmailsBackend, readEmail as readEmailBackend, extractInformationFromEmailBody } from './emailSkills';
 
 // --- NLU Entity Interfaces (Conceptual - for documentation and type safety if NLU provides them directly) ---
@@ -36,17 +36,17 @@ export async function handleSearchGmail(
   logger.info(`[handleSearchGmail] User: ${userId}, Query: "${rawUserQuery}", Limit: ${limit}`);
 
   try {
-    const structuredQuery: Partial<StructuredEmailQuery> = await understandEmailSearchQueryLLM(rawUserQuery);
+    let structuredQuery: Partial<StructuredEmailQuery> = await understandEmailSearchQueryLLM(rawUserQuery);
     logger.info(`[handleSearchGmail] LLM structured query: ${JSON.stringify(structuredQuery)}`);
 
-    if (Object.keys(structuredQuery).length === 0 && rawUserQuery.length > 30) { // Vague query but long enough that user expected something
-        logger.warn(`[handleSearchGmail] LLM returned empty structured query for a non-trivial input: "${rawUserQuery}". Passing raw query to backend.`);
-        // Fallback: if LLM gives nothing, but query is substantial, try passing raw query.
-        // Or, decide if this should be an error/clarification request.
-        // For now, let's try to use raw query directly with Gmail's search, which has some NL capabilities.
+    if (Object.keys(structuredQuery).length === 0 && rawUserQuery.length > 0) {
+        logger.warn(`[handleSearchGmail] LLM returned empty structured query for input: "${rawUserQuery}". Using raw query as custom query for backend.`);
+        // Fallback: if LLM gives nothing, use the raw query directly as a custom query part.
+        // Gmail's search has some natural language capabilities.
+        structuredQuery = { customQuery: rawUserQuery, excludeChats: true }; // Default to excluding chats for broad queries
     }
 
-    const gmailApiQueryString = buildGmailQueryString(structuredQuery, rawUserQuery); // Pass raw for potential fallback
+    const gmailApiQueryString = buildGmailSearchQuery(structuredQuery);
     logger.info(`[handleSearchGmail] Constructed Gmail API query string: "${gmailApiQueryString}"`);
 
     if (!gmailApiQueryString || gmailApiQueryString.trim() === "") {
@@ -116,49 +116,126 @@ export async function searchEmailsForPrep(
         eventKeywordsArray.push(...meetingContext.summary.toLowerCase().split(' ').filter(kw => kw.length > 2));
       }
 
-      // Add attendees to a general keyword pool for now, simpler than complex OR logic in from/to
+      // Handle attendees by building a specific (from:X OR to:X OR from:Y OR to:Y) query part.
       if (meetingContext.attendees && meetingContext.attendees.length > 0) {
-        meetingContext.attendees.forEach(a => {
-          if (a.email && a.email !== userId) { // Exclude self
-            eventKeywordsArray.push(a.email);
-            if (a.displayName) { // Add display name parts if available
-                eventKeywordsArray.push(...a.displayName.toLowerCase().split(' ').filter(kw => kw.length > 2));
+        const attendeeEmailQueries: string[] = [];
+        // Extract email from attendee string (e.g., "Display Name <email@example.com>" or just "email@example.com")
+        const emailRegex = /<([^>]+)>/;
+
+        meetingContext.attendees.forEach(attendeeString => {
+          let email: string | undefined = undefined;
+          const match = attendeeString.match(emailRegex);
+          if (match && match[1]) {
+            email = match[1].trim();
+          } else if (attendeeString.includes('@') && !attendeeString.startsWith('<') && !attendeeString.endsWith('>')) {
+            // If it contains '@' and is not already caught by regex (e.g. just "user@example.com")
+            // Also ensure it's not part of a malformed string like "<user@example.com"
+            const potentialEmail = attendeeString.split(/\s+/).find(part => part.includes('@'));
+            if (potentialEmail) {
+                 email = potentialEmail.trim();
             }
           }
+          // Note: We are not attempting to extract emails from display names if no explicit email is provided.
+          // This focuses the search on actual email addresses involved.
+
+          if (email && email.toLowerCase() !== userId.toLowerCase()) { // Exclude self, case-insensitive
+            const sanitizedEmail = email; // Already trimmed if extracted
+            attendeeEmailQueries.push(`from:${sanitizedEmail}`);
+            attendeeEmailQueries.push(`to:${sanitizedEmail}`);
+          }
         });
+
+        if (attendeeEmailQueries.length > 0) {
+          const attendeeQueryPart = `(${attendeeEmailQueries.join(' OR ')})`;
+          structuredQuery.customQuery = structuredQuery.customQuery
+            ? `${structuredQuery.customQuery} ${attendeeQueryPart}`
+            : attendeeQueryPart;
+          logger.info(`[searchEmailsForPrep] Added attendee query part: ${attendeeQueryPart}`);
+        }
       }
 
-      // Combine all event-related keywords and add to body search.
-      // This is a simplified approach. More advanced would be targeted field searches.
+      // Combine event summary keywords and add to body search.
       if (eventKeywordsArray.length > 0) {
-        const uniqueEventKeywords = Array.from(new Set(eventKeywordsArray)); // Remove duplicates
-        const eventKeywordString = uniqueEventKeywords.join(' '); // Join with space for Gmail query
+        const uniqueEventKeywords = Array.from(new Set(eventKeywordsArray));
+        const eventKeywordString = uniqueEventKeywords.join(' ');
         structuredQuery.body = structuredQuery.body ? `${structuredQuery.body} ${eventKeywordString}` : eventKeywordString;
       }
 
-      // Refine date range based on meeting start time if params.date_query is not specific (e.g. "recent", or not set)
-      if (meetingContext.start && (!params.date_query || params.date_query.toLowerCase() === "recent" || params.date_query.trim() === "")) {
-        const meetingDate = new Date(meetingContext.start);
-        const sevenDaysBefore = new Date(meetingDate);
-        sevenDaysBefore.setDate(meetingDate.getDate() - 7);
+      // Refine date range based on meeting start time if params.date_query is not specific or not provided.
+      // The goal is to establish a sensible default window around the meeting.
+      const isDateQueryGeneric = !params.date_query || params.date_query.toLowerCase() === "recent" || params.date_query.trim() === "";
+      if (meetingContext.start && isDateQueryGeneric) {
+        const meetingStartDate = new Date(meetingContext.start);
+        meetingStartDate.setHours(0,0,0,0); // Normalize to start of day for 'after'
 
-        const afterDate = `${sevenDaysBefore.getFullYear()}/${(sevenDaysBefore.getMonth() + 1).toString().padStart(2, '0')}/${sevenDaysBefore.getDate().toString().padStart(2, '0')}`;
-        // Search up to and including the meeting day
-        const beforeMeetingDay = new Date(meetingDate);
-        beforeMeetingDay.setDate(meetingDate.getDate() + 1); // Search until the end of the meeting day
-        const beforeDate = `${beforeMeetingDay.getFullYear()}/${(beforeMeetingDay.getMonth() + 1).toString().padStart(2, '0')}/${beforeMeetingDay.getDate().toString().padStart(2, '0')}`;
+        // Default: 7 days before the meeting start day
+        // TODO: Make this window (7 days) configurable or more dynamic based on meeting proximity.
+        const afterDateObj = new Date(meetingStartDate);
+        afterDateObj.setDate(meetingStartDate.getDate() - 7);
 
-        structuredQuery.after = afterDate;
-        structuredQuery.before = beforeDate;
-        logger.info(`[searchEmailsForPrep] Date range from meeting context: after:${afterDate} before:${beforeDate}`);
+        // Determine 'before' date: day after meeting end, or day after meeting start if end is not available/valid
+        let meetingEndDateForQuery: Date;
+        if (meetingContext.end) {
+            try {
+                meetingEndDateForQuery = new Date(meetingContext.end);
+                // Check if meetingContext.end was a valid date string
+                if (isNaN(meetingEndDateForQuery.getTime())) {
+                    logger.warn(`[searchEmailsForPrep] Invalid meetingContext.end date: ${meetingContext.end}. Falling back to start date.`);
+                    meetingEndDateForQuery = new Date(meetingContext.start);
+                }
+            } catch (e) {
+                logger.warn(`[searchEmailsForPrep] Error parsing meetingContext.end date: ${meetingContext.end}. Falling back to start date.`, e);
+                meetingEndDateForQuery = new Date(meetingContext.start);
+            }
+        } else {
+            meetingEndDateForQuery = new Date(meetingContext.start);
+        }
+        meetingEndDateForQuery.setHours(0,0,0,0); // Normalize
+
+        const beforeDateObj = new Date(meetingEndDateForQuery);
+        beforeDateObj.setDate(meetingEndDateForQuery.getDate() + 1); // Day after the meeting (exclusive end for query)
+
+        const formatDate = (date: Date): string => {
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}/${month}/${day}`;
+        };
+
+        structuredQuery.after = formatDate(afterDateObj);
+        structuredQuery.before = formatDate(beforeDateObj);
+        logger.info(`[searchEmailsForPrep] Date range from meeting context: after:${structuredQuery.after} before:${structuredQuery.before}`);
       }
     }
 
-    // Pass params.date_query directly to buildGmailQueryString if it wasn't overridden by meeting context.
-    // buildGmailQueryString will need to be robust enough to handle it or ignore if not in expected format.
-    const rawDateQueryForBuild = (structuredQuery.after || structuredQuery.before) ? "" : params.date_query || "";
+    // If no date range was set by meetingContext, try to parse params.date_query
+    if (!(structuredQuery.after || structuredQuery.before) && params.date_query) {
+      logger.info(`[searchEmailsForPrep] Attempting to parse params.date_query: "${params.date_query}"`);
+      const parsedDates = parseRelativeDateQuery(params.date_query);
+      if (parsedDates) {
+        if (parsedDates.after) structuredQuery.after = parsedDates.after;
+        if (parsedDates.before) structuredQuery.before = parsedDates.before;
+        logger.info(`[searchEmailsForPrep] Parsed date query to: after:${parsedDates.after}, before:${parsedDates.before}`);
+      } else {
+        // If parseRelativeDateQuery couldn't understand it, and it looks like a raw Gmail query part, add it to customQuery.
+        // This is a fallback for queries like "older_than:7d" or specific "after:YYYY/MM/DD" if not caught by parseRelativeDateQuery's own check.
+        if (params.date_query.includes(":") && (params.date_query.includes("older_than") || params.date_query.includes("newer_than") || params.date_query.match(/(after|before):\d{4}\/\d{2}\/\d{2}/))) {
+            structuredQuery.customQuery = structuredQuery.customQuery
+                ? `${structuredQuery.customQuery} ${params.date_query}`
+                : params.date_query;
+            logger.info(`[searchEmailsForPrep] Using params.date_query as custom query part: "${params.date_query}"`);
+        } else {
+            logger.warn(`[searchEmailsForPrep] Could not parse date_query: "${params.date_query}" and it doesn't look like a direct Gmail date term.`);
+        }
+      }
+    }
 
-    const gmailApiQueryString = buildGmailQueryString(structuredQuery, rawDateQueryForBuild);
+    // Default to excluding chats if not otherwise specified.
+    if (structuredQuery.excludeChats === undefined) {
+        structuredQuery.excludeChats = true;
+    }
+
+    const gmailApiQueryString = buildGmailSearchQuery(structuredQuery);
     logger.info(`[searchEmailsForPrep] Constructed Gmail API query string: "${gmailApiQueryString}"`);
 
     if (!gmailApiQueryString || gmailApiQueryString.trim() === "") {
