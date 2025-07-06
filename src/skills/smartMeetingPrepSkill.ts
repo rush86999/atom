@@ -67,6 +67,106 @@ export class SmartMeetingPrepSkill {
     return Array.from(new Set(keywords)).slice(0, maxKeywords); // Return unique keywords up to maxKeywords
   }
 
+  private _getAttendeeEmails(attendees?: string[]): string[] {
+    if (!attendees || attendees.length === 0) return [];
+    const emailRegex = /<([^>]+)>/;
+    const emails: string[] = [];
+    attendees.forEach(attendeeString => {
+      const match = attendeeString.match(emailRegex);
+      if (match && match[1]) {
+        emails.push(match[1].toLowerCase().trim());
+      } else if (attendeeString.includes('@') && !attendeeString.includes('<') && !attendeeString.includes('>')) {
+        const potentialEmail = attendeeString.split(/\s+/).find(part => part.includes('@'));
+        if (potentialEmail) {
+            emails.push(potentialEmail.toLowerCase().trim());
+        }
+      }
+    });
+    return [...new Set(emails)]; // Unique emails
+  }
+
+  private _scoreEmailRelevance(
+    email: GmailMessageSnippet,
+    titleKeywords: string[],
+    descriptionKeywords: string[],
+    attendeeEmails: string[],
+    meetingStartDate: Date
+  ): number {
+    let score = 0;
+    const emailSubjectLower = (email.subject || '').toLowerCase();
+    const emailSnippetLower = (email.snippet || '').toLowerCase();
+    const emailFromLower = (email.from || '').toLowerCase();
+
+    // Keyword matching
+    titleKeywords.forEach(kw => {
+      if (emailSubjectLower.includes(kw)) score += 3;
+      if (emailSnippetLower.includes(kw)) score += 2; // Snippet match slightly less weight
+    });
+    descriptionKeywords.forEach(kw => {
+      if (emailSubjectLower.includes(kw)) score += 2;
+      if (emailSnippetLower.includes(kw)) score += 1;
+    });
+
+    // Attendee involvement (checking 'from' field)
+    if (attendeeEmails.some(attEmail => emailFromLower.includes(attEmail))) {
+      score += 4;
+    }
+    // TODO: If 'to'/'cc' fields were available, check them too.
+
+    // Recency
+    if (email.date) {
+      try {
+        const emailDate = new Date(email.date);
+        const diffDays = (meetingStartDate.getTime() - emailDate.getTime()) / (1000 * 3600 * 24);
+        if (diffDays >= 0 && diffDays <= 2) score += 3; // Within 2 days before meeting
+        else if (diffDays > 2 && diffDays <= 7) score += 2; // Within 3-7 days
+        else if (diffDays > 7 && diffDays <= 30) score += 1; // Within fetched window (assuming it's not too large)
+      } catch (e) {
+        logger.warn(`Could not parse email date for scoring: ${email.date}`);
+      }
+    }
+    return score;
+  }
+
+  private _scoreNotionPageRelevance(
+    page: NotionPageSummary,
+    titleKeywords: string[],
+    descriptionKeywords: string[],
+    meetingStartDate: Date, // For recency of edit
+    isExplicitLink: boolean
+  ): number {
+    let score = 0;
+    const pageTitleLower = (page.title || '').toLowerCase();
+    const pagePreviewLower = (page.preview_text || '').toLowerCase();
+
+    if (isExplicitLink) {
+      score += 10; // High score for explicitly linked pages
+    }
+
+    // Keyword matching
+    titleKeywords.forEach(kw => {
+      if (pageTitleLower.includes(kw)) score += 3;
+      if (pagePreviewLower.includes(kw)) score += 2;
+    });
+    descriptionKeywords.forEach(kw => {
+      if (pageTitleLower.includes(kw)) score += 2;
+      if (pagePreviewLower.includes(kw)) score += 1;
+    });
+
+    // Recency of edit
+    if (page.last_edited_time) {
+      try {
+        const editedDate = new Date(page.last_edited_time);
+        const diffDays = (meetingStartDate.getTime() - editedDate.getTime()) / (1000 * 3600 * 24);
+        if (diffDays >= -7 && diffDays <= 7) score += 3; // Edited within a week around meeting prep time (allows for future edits too)
+        else if (diffDays > 7 && diffDays <= 30) score += 2; // Edited within 1 month
+        else if (diffDays > 30 && diffDays <= 90) score +=1;
+      } catch (e) {
+        logger.warn(`Could not parse Notion page last_edited_time for scoring: ${page.last_edited_time}`);
+      }
+    }
+    return score;
+  }
 
   /**
    * Executes the smart meeting preparation skill.
@@ -201,6 +301,19 @@ export class SmartMeetingPrepSkill {
       // Use logger instead of console.log for skill internals
       logger.info(`SmartMeetingPrepSkill: Notion keyword query: "${keywordQueryText}" (TitleKWs: [${titleKeywords.join(', ')}], DescKWs: [${descriptionKeywords.join(', ')}], AttKWs: [${attendeeKeywords.join(', ')}])`);
 
+      // Keep track of page IDs that were explicitly linked
+      const explicitLinkPageIds = new Set<string>();
+      if (resolvedEvent.description) {
+          const notionUrlRegex = /https:\/\/www\.notion\.so\/([\w.-]+?\/)?([\w-]+)(?:\?pvs=[\w-]+)?(?:#[\w-]+)?/g;
+          let match;
+          while ((match = notionUrlRegex.exec(resolvedEvent.description)) !== null) {
+              const potentialId = match[2].split('-').pop();
+              if (potentialId && potentialId.length >= 32) {
+                  explicitLinkPageIds.add(potentialId.replace(/[^a-f0-9]/gi, ''));
+              }
+          }
+      }
+
       if (keywordQueryText.trim().length > 0) {
         try {
           const searchLimit = Math.max(0, 5 - notionPageMap.size); // Ensure limit is not negative
@@ -238,14 +351,44 @@ export class SmartMeetingPrepSkill {
       }
       relatedNotionPages = Array.from(notionPageMap.values());
 
+      // Step 4c: Score and select top items
+      const meetingStartDate = new Date(resolvedEvent.startTime); // For recency scoring
+      const eventTitleKeywords = this._extractKeywords(resolvedEvent.title, 2, 5);
+      const eventDescKeywords = resolvedEvent.description ? this._extractKeywords(resolvedEvent.description, 3, 5) : [];
+      const eventAttendeeEmails = this._getAttendeeEmails(resolvedEvent.attendees);
+
+      const scoredEmails = relatedEmails.map(email => ({
+        item: email,
+        score: this._scoreEmailRelevance(email, eventTitleKeywords, eventDescKeywords, eventAttendeeEmails, meetingStartDate)
+      })).sort((a, b) => b.score - a.score);
+
+      const scoredNotionPages = relatedNotionPages.map(page => ({
+        item: page,
+        score: this._scoreNotionPageRelevance(page, eventTitleKeywords, eventDescKeywords, meetingStartDate, explicitLinkPageIds.has(page.id))
+      })).sort((a, b) => b.score - a.score);
+
+      const topEmails = scoredEmails.slice(0, 3); // Select top 3 emails
+      const topNotionPages = scoredNotionPages.slice(0, 2); // Select top 2 Notion pages
+
+      logger.info(`SmartMeetingPrepSkill: Top ${topEmails.length} emails selected (scores: ${topEmails.map(e => e.score.toFixed(1)).join(', ')})`);
+      topEmails.forEach((se, idx) => logger.info(`TopEmail[${idx}] (Score: ${se.score.toFixed(1)}): ${se.item.subject?.substring(0,50)}... (From: ${se.item.from})`));
+
+      logger.info(`SmartMeetingPrepSkill: Top ${topNotionPages.length} Notion pages selected (scores: ${topNotionPages.map(p => p.score.toFixed(1)).join(', ')})`);
+      topNotionPages.forEach((sp, idx) => logger.info(`TopNotion[${idx}] (Score: ${sp.score.toFixed(1)}): ${sp.item.title?.substring(0,50)}... (ExplicitLink: ${explicitLinkPageIds.has(sp.item.id)})`));
+
+      // For now, we still pass all emails/pages to _generatePreparationNotes.
+      // The next step will be to use these topEmails/topNotionPages to create a "Highlights" section.
+      // Or, _generatePreparationNotes could be modified to only show details for these top items.
 
       // Step 5: Generate preparation notes
       preparationNotes = await this._generatePreparationNotes(
         resolvedEvent,
         relatedDocuments,
-        relatedEmails,
-        relatedNotionPages,
-        dataFetchingErrors // Pass errors to notes generator
+        relatedEmails, // Pass all for now
+        relatedNotionPages, // Pass all for now
+        dataFetchingErrors, // Pass errors to notes generator
+        topEmails.map(e => e.item), // Pass top items specifically for potential highlighting
+        topNotionPages.map(p => p.item)
       );
 
       // Use logger for this type of info as well
@@ -325,15 +468,56 @@ export class SmartMeetingPrepSkill {
   private async _generatePreparationNotes(
     event: CalendarEventSummary,
     documents: any[], // Mock documents
-    emails: GmailMessageSnippet[],
-    notionPages: NotionPageSummary[],
-    errors: string[] // New parameter for data fetching errors
+    emails: GmailMessageSnippet[], // All fetched emails
+    notionPages: NotionPageSummary[], // All fetched Notion pages
+    errors: string[],
+    topEmails: GmailMessageSnippet[], // Top scored emails
+    topNotionPages: NotionPageSummary[] // Top scored Notion pages
   ): Promise<string> {
-    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} emails, ${notionPages.length} Notion pages, and ${errors.length} errors.`);
+    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), and ${errors.length} errors.`);
     const titleLower = event.title.toLowerCase();
     const descriptionLower = event.description?.toLowerCase() || "";
 
     let notes = `## Meeting Preparation Notes: ${event.title}\n\n`;
+
+    // Add Key Highlights Section
+    if (topEmails.length > 0 || topNotionPages.length > 0) {
+      notes += "✨ **Key Highlights**\n\n";
+      if (topEmails.length > 0) {
+        notes += "**Potentially Relevant Emails:**\n";
+        topEmails.forEach(email => {
+          const emailDate = email.date ? new Date(email.date).toLocaleDateString() : "N/A";
+          notes += `- **Subject:** "${email.subject || '(No Subject)'}" (From: ${email.from || 'N/A'}, Date: ${emailDate})\n`;
+          if (email.snippet) {
+            notes += `  *Snippet:* ${email.snippet}...\n`;
+          }
+          if (email.link) {
+            notes += `  *Link:* ${email.link}\n`;
+          }
+        });
+        notes += "\n";
+      }
+      if (topNotionPages.length > 0) {
+        notes += "**Potentially Relevant Notion Pages:**\n";
+        topNotionPages.forEach(page => {
+          notes += `- **Title:** "${page.title || 'Untitled Page'}"`;
+          if (page.last_edited_time) {
+            notes += ` (Last edited: ${new Date(page.last_edited_time).toLocaleDateString()})`;
+          }
+          notes += "\n";
+          if (page.preview_text) {
+            notes += `  *Preview:* ${page.preview_text}...\n`;
+          }
+          if (page.url) {
+            notes += `  *Link:* ${page.url}\n`;
+          }
+        });
+        notes += "\n";
+      }
+      notes += "---\n\n"; // Separator after highlights
+    }
+
+
     notes += `**Scheduled:** ${event.startTime.toLocaleString()} - ${event.endTime.toLocaleString()}\n`;
     notes += `**Location:** ${event.location || "Not specified"}\n`;
     notes += `**Organizer:** ${event.organizer || "N/A"}\n`;
