@@ -2,9 +2,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import * as tf from '@tensorflow/tfjs';
 import Meyda from 'meyda';
-import cls from 'classnames'
+// import cls from 'classnames' // cn is preferred now
 import {Textarea} from '@components/chat/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from "@components/chat/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@components/chat/ui/tooltip";
 import { cn } from "@lib/Chat/utils";
 import { buttonVariants, Button } from "@components/chat/ui/button";
 import { IconPlus, IconArrowElbow, IconMic, IconMicOff } from '@components/chat/ui/icons';
@@ -64,7 +64,6 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
 
     const onChangeText = (e: { currentTarget: { value: React.SetStateAction<string>; }; }) => setText(e.currentTarget.value);
 
-    // Memoized stopVoiceCapture for STT
     const stopVoiceCapture = useCallback(() => {
         console.log("stopVoiceCapture called. STT MediaRecorder state:", sttMediaRecorderRef.current?.state);
         if (sttMediaRecorderRef.current && sttMediaRecorderRef.current.state === "recording") {
@@ -79,11 +78,6 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         }
     }, [isSttRecording]);
 
-    // processFeaturesAndPredict needs startVoiceCapture, so define startVoiceCapture first or pass as ref if circular.
-    // For simplicity, ensure startVoiceCapture is defined before processFeaturesAndPredict if directly called.
-    // However, processFeaturesAndPredict is a callback for Meyda.
-    // We'll use a forward declaration pattern by defining startVoiceCapture later, and ensure it's memoized.
-
     const processFeaturesAndPredict = useCallback(async (features: any) => {
         if (!tfModel || !isAudioModeEnabled || isSttRecording || !meydaRef.current?.isRunning() || !features.mfcc || features.mfcc.length !== MEYDA_MFCC_COEFFS) {
             return;
@@ -95,12 +89,11 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
             const inputTensor = tf.tensor3d([featureBufferRef.current], [1, WAKE_WORD_EXPECTED_FRAMES, MEYDA_MFCC_COEFFS]);
             try {
                 const prediction = tfModel.predict(inputTensor) as tf.Tensor;
-                const predictionData = await prediction.data() as Float32Array; // Ensure type
+                const predictionData = await prediction.data() as Float32Array;
                 if (predictionData[0] > WAKE_WORD_THRESHOLD) {
                     console.log("Atom detected with confidence:", predictionData[0]);
                     if(meydaRef.current?.isRunning()) meydaRef.current.stop();
 
-                    // Fully stop wake word audio resources before STT
                     wwMicStreamRef.current?.getTracks().forEach(track => track.stop());
                     wwMicStreamRef.current = null;
                     if (wwAudioContextRef.current && wwAudioContextRef.current.state !== 'closed') {
@@ -110,7 +103,7 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                     wwMediaStreamSourceRef.current = null;
 
                     setWakeWordStatus("Atom detected! Listening for command...");
-                    await startVoiceCapture(true); // isWakeWordFollowUp = true
+                    await startVoiceCapture(true);
                 }
                 tf.dispose([inputTensor, prediction]);
             } catch (error) {
@@ -119,13 +112,14 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                 tf.dispose(inputTensor);
             }
         }
-    }, [tfModel, isAudioModeEnabled, isSttRecording, startVoiceCapture]); // Added startVoiceCapture
+    }, [tfModel, isAudioModeEnabled, isSttRecording, startVoiceCapture]);
 
     const stopWakeWordEngineInternal = useCallback(() => {
         console.log("stopWakeWordEngineInternal: Cleaning up wake word resources.");
         meydaRef.current?.stop();
-        micStreamRef.current?.getTracks().forEach(track => track.stop());
-        micStreamRef.current = null;
+        // micStreamRef is wwMicStreamRef in this context
+        wwMicStreamRef.current?.getTracks().forEach(track => track.stop());
+        wwMicStreamRef.current = null;
         if (wwAudioContextRef.current && wwAudioContextRef.current.state !== 'closed') {
             wwAudioContextRef.current.close().catch(e => console.error("Error closing WW AudioContext:", e));
         }
@@ -157,10 +151,11 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                 if (!wwAudioContextRef.current || wwAudioContextRef.current.state === 'closed') {
                     wwAudioContextRef.current = new AudioContext(); console.log("New AudioContext for WW.");
                 }
-                if (!micStreamRef.current || !micStreamRef.current.active) {
+                 // Use wwMicStreamRef for wake word specific stream
+                if (!wwMicStreamRef.current || !wwMicStreamRef.current.active) {
                     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    micStreamRef.current = stream; console.log("New media stream for WW.");
-                } else { stream = micStreamRef.current; }
+                    wwMicStreamRef.current = stream; console.log("New media stream for WW.");
+                } else { stream = wwMicStreamRef.current; }
             } catch (e) { micError = true; throw e; }
 
             const context = wwAudioContextRef.current;
@@ -190,8 +185,8 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
             else if (audioProcessorError) setWakeWordStatus("Error: Audio feature setup failed. Please try again.");
             else setWakeWordStatus("Error: Engine init failed.");
 
-            if (isAudioModeEnabled) toggleAudioMode(); // Auto-disable mode
-            else stopWakeWordEngineInternal(); // Ensure cleanup if mode was already off
+            if (isAudioModeEnabled) toggleAudioMode();
+            else stopWakeWordEngineInternal();
         }
     }, [isAudioModeEnabled, toggleAudioMode, tfModel, processFeaturesAndPredict, stopWakeWordEngineInternal]);
 
@@ -214,8 +209,9 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         }
 
         setIsSttRecording(true);
-        setSttAudioChunks([]);
+        // setSttAudioChunks([]); // This was problematic, sttAudioChunksRef.current is the source of truth
         sttAudioChunksRef.current = [];
+
 
         if (isWakeWordFollowUp) {
             setWakeWordStatus("Atom detected! Listening for command...");
@@ -226,8 +222,11 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
         }
 
         try {
+            // Ensure STT uses its own stream, separate from WW stream
+            if (sttStreamRef.current) sttStreamRef.current.getTracks().forEach(track => track.stop());
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             sttStreamRef.current = stream;
+
             const recorder = new MediaRecorder(stream);
             sttMediaRecorderRef.current = recorder;
             recordingStartTimeRef.current = Date.now();
@@ -235,13 +234,13 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
 
             recorder.ondataavailable = (event) => {
                 if (event.data.size > 0) sttAudioChunksRef.current.push(event.data);
-                if (isAudioModeEnabled && isSttRecording) {
+                if (isAudioModeEnabled && isSttRecording) { // Check isSttRecording as well
                     lastSpeechTimeRef.current = Date.now();
                     if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
                     silenceTimeoutRef.current = setTimeout(() => {
                         if (Date.now() - lastSpeechTimeRef.current >= SILENCE_THRESHOLD_MS &&
                             Date.now() - recordingStartTimeRef.current > MIN_RECORDING_DURATION_MS &&
-                            isSttRecording) {
+                            isSttRecording) { // Check isSttRecording again before stopping
                             console.log("Silence detected, stopping STT capture.");
                             stopVoiceCapture();
                         }
@@ -254,12 +253,10 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                 if (silenceTimeoutRef.current) { clearTimeout(silenceTimeoutRef.current); silenceTimeoutRef.current = null; }
 
                 setIsTranscribing(true);
-                setWakeWordStatus("Audio Mode: Transcribing speech...");
-                const currentAudioChunks = sttAudioChunksRef.current;
-                const audioBlob = new Blob(currentAudioChunks, { type: 'audio/webm' });
+                setWakeWordStatus(isAudioModeEnabled ? "Audio Mode: Transcribing..." : "Transcribing...");
 
-                sttAudioChunksRef.current = [];
-                setSttAudioChunks([]);
+                const audioBlob = new Blob(sttAudioChunksRef.current, { type: 'audio/webm' });
+                sttAudioChunksRef.current = []; // Clear chunks after creating blob
 
                 if (audioBlob.size > 0) {
                     const audioFile = new File([audioBlob], "voice_input.webm", { type: 'audio/webm' });
@@ -273,158 +270,190 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                         }
                         const result = await response.json();
                         if (result.transcription) {
-                            setText(prevText => prevText ? `${prevText} ${result.transcription}` : result.transcription);
+                            setText(prevText => prevText ? `${prevText} ${result.transcription}`.trim() : result.transcription);
                             if (inputRef.current) inputRef.current.focus();
-                            if (isAudioModeEnabled) setWakeWordStatus("Audio Mode: Agent is processing...");
-                            else setWakeWordStatus("Transcription complete.");
+                             setWakeWordStatus(isAudioModeEnabled ? "Audio Mode: Transcription complete. Ready..." : "Transcription complete.");
                         } else if (result.error) {
                             alert(`Transcription Error: ${result.error}`);
-                            if (isAudioModeEnabled) setWakeWordStatus("Error: Transcription failed. Please try again.");
+                            setWakeWordStatus(isAudioModeEnabled ? "Error: Transcription failed. Try again." : "Transcription Error.");
                         } else {
-                            if (isAudioModeEnabled) setWakeWordStatus("Empty transcription. Agent is processing...");
-                            else setWakeWordStatus("Empty transcription received.");
+                             setWakeWordStatus(isAudioModeEnabled ? "Audio Mode: Empty transcription. Ready..." : "Empty transcription.");
                         }
                     } catch (e: any) {
                         console.error("STT Error:", e);
                         alert(`STT Error: ${e.message}`);
-                        if (isAudioModeEnabled) setWakeWordStatus("Error: Transcription failed. Please try again.");
+                        setWakeWordStatus(isAudioModeEnabled ? "Error: STT request failed. Try again." : "STT Request Error.");
                     }
                 } else {
                     console.log("No audio chunks to process for STT.");
-                     if (isAudioModeEnabled) setWakeWordStatus("No speech detected. Ready...");
-                     else setWakeWordStatus("No speech detected.");
+                    setWakeWordStatus(isAudioModeEnabled ? "Audio Mode: No speech detected. Ready..." : "No speech detected.");
                 }
 
                 setIsTranscribing(false);
                 sttStreamRef.current?.getTracks().forEach(track => track.stop());
-                sttStreamRef.current = null;
-                setIsSttRecording(false);
+                sttStreamRef.current = null; // Clean up STT stream
+                setIsSttRecording(false); // Ensure this is set after all processing
 
+                // If audio mode is still on, re-initialize wake word listening
                 if (isAudioModeEnabled) {
-                    setWakeWordStatus("Processing complete. Ready...");
+                    initializeWakeWordEngine();
                 } else {
                     setWakeWordStatus("Audio Mode Disabled");
                 }
             };
-            recorder.start();
+            recorder.start(1000); // Optional: timeslice to get data more frequently if needed
         } catch (error) {
             console.error("Error starting STT voice capture:", error);
             alert("Could not access microphone for STT. Please check permissions.");
             setIsSttRecording(false);
-            setWakeWordStatus(isAudioModeEnabled ? "Error: Microphone access denied for STT. Please check permissions." : "Audio Mode Disabled");
-            if(isAudioModeEnabled) toggleAudioMode();
+            setWakeWordStatus(isAudioModeEnabled ? "Error: Mic access denied for STT." : "Mic Access Denied.");
+            if(isAudioModeEnabled) {
+                // Consider if toggling audio mode off is the best UX here, or just resetting state.
+                // For now, let's just reset status and not toggle mode off automatically on STT mic error.
+                 initializeWakeWordEngine(); // Try to go back to WW listening if possible
+            }
         }
-    }, [isAudioModeEnabled, isSttRecording, stopVoiceCapture, setText, toggleAudioMode, tfModel]); // tfModel added as initializeWakeWordEngine is in its onStop path indirectly
+    }, [isAudioModeEnabled, isSttRecording, stopVoiceCapture, setText, /*toggleAudioMode,*/ tfModel, initializeWakeWordEngine]);
+
 
     const handleManualSttToggle = () => {
         if (isSttRecording) {
             stopVoiceCapture();
         } else {
+            // If in audio mode and wake word is listening, stop it first.
+            if (isAudioModeEnabled && meydaRef.current?.isRunning()) {
+                meydaRef.current.stop();
+                // No need to fully cleanup WW engine here, just pause listening.
+            }
             startVoiceCapture(false);
         }
     };
 
-    // Effect for Audio Mode ON/OFF (Master effect for wake word engine)
     useEffect(() => {
         if (isAudioModeEnabled) {
-            if (isSttRecording) {
-                console.log("Audio Mode enabled, but STT is active. Deferring WW init until STT completes.");
-            } else {
+            if (!isSttRecording && !isTranscribing) { // Only init WW if not actively doing STT/transcribing
                 initializeWakeWordEngine();
             }
         } else {
-            stopWakeWordEngine();
+            stopWakeWordEngine(); // This will also stop STT if it was initiated by WW
         }
+        // Explicit cleanup for ww engine when component unmounts or isAudioModeEnabled changes from true to false.
         return () => {
-            stopWakeWordEngine();
+            if (isAudioModeEnabled) { // Only run stopWakeWordEngine if it was enabled
+                 stopWakeWordEngine();
+            }
         };
-    }, [isAudioModeEnabled, initializeWakeWordEngine, stopWakeWordEngine]);
+    }, [isAudioModeEnabled, initializeWakeWordEngine, stopWakeWordEngine, isSttRecording, isTranscribing]);
 
-    // Effect for handling reply requests from context
+
     useEffect(() => {
-        if (replyRequestCount > 0 && isAudioModeEnabled && !isSttRecording) {
+        if (replyRequestCount > 0 && isAudioModeEnabled && !isSttRecording && !isTranscribing) {
             console.log(`ChatInput: Context requested listen for reply (count: ${replyRequestCount}).`);
             if (meydaRef.current?.isRunning()) {
                 console.log("Pausing wake word engine for reply capture.");
                 meydaRef.current.stop();
             }
+            // Ensure any existing STT stream is stopped before starting a new one
             sttStreamRef.current?.getTracks().forEach(track => track.stop());
-            if (sttMediaRecorderRef.current?.state === "recording") sttMediaRecorderRef.current.stop();
-            setSttAudioChunks([]);
-            audioChunksRef.current = [];
-            startVoiceCapture(false);
-        }
-    }, [replyRequestCount, isAudioModeEnabled, isSttRecording, startVoiceCapture]);
-
-    // Effect to manage Meyda's running state (wake word listening) based on other states
-    useEffect(() => {
-        if (isAudioModeEnabled && !isSttRecording && tfModel) {
-            if (!meydaRef.current?.isRunning()) { // Check if not already running
-                console.log("ChatInput Effect: Conditions met to listen for wake word. Starting/Re-initializing Meyda.");
-                initializeWakeWordEngine();
-            } else {
-                 if (wakeWordStatus !== "Audio Mode: Listening for 'Atom'..." &&
-                     !wakeWordStatus.startsWith("Atom detected") &&
-                     !wakeWordStatus.startsWith("Listening for") &&
-                     !wakeWordStatus.startsWith("Initializing") &&
-                     !wakeWordStatus.startsWith("Error")) {
-                    setWakeWordStatus("Audio Mode: Listening for 'Atom'...");
-                 }
+            if (sttMediaRecorderRef.current?.state === "recording") {
+                sttMediaRecorderRef.current.stop(); // Stop existing recorder if any
             }
-        } else if (meydaRef.current?.isRunning() && (!isAudioModeEnabled || isSttRecording)) {
-            console.log("ChatInput Effect: Audio Mode off OR STT recording active. Pausing Meyda.");
-            meydaRef.current.stop();
+            sttAudioChunksRef.current = []; // Clear previous chunks
+            startVoiceCapture(false); // Start STT for reply
         }
-    }, [isAudioModeEnabled, isSttRecording, tfModel, wakeWordStatus, initializeWakeWordEngine]);
+    }, [replyRequestCount, isAudioModeEnabled, isSttRecording, isTranscribing, startVoiceCapture]);
+
+    // This effect seems redundant given the logic in initializeWakeWordEngine and the main isAudioModeEnabled effect.
+    // Simplified: if audio mode is on, not doing STT, and WW model loaded, ensure WW is running.
+    useEffect(() => {
+        if (isAudioModeEnabled && !isSttRecording && !isTranscribing && tfModel && !meydaRef.current?.isRunning()) {
+            console.log("ChatInput Effect: Conditions met to (re)start wake word listening.");
+            initializeWakeWordEngine(); // This will re-check conditions and start Meyda if needed
+        } else if (meydaRef.current?.isRunning() && (!isAudioModeEnabled || isSttRecording || isTranscribing)) {
+            console.log("ChatInput Effect: Conditions met to pause Meyda.");
+            meydaRef.current.stop();
+            if (!isSttRecording && !isTranscribing && !isAudioModeEnabled) { // If Meyda stopped because audio mode turned off (and not STT)
+                setWakeWordStatus("Audio Mode Disabled");
+            } else if (!isSttRecording && !isTranscribing && isAudioModeEnabled && wakeWordStatus.startsWith("Audio Mode: Listening for 'Atom'...")) {
+                // If meyda stopped for other reasons but should be listening
+            }
+        }
+    }, [isAudioModeEnabled, isSttRecording, isTranscribing, tfModel, initializeWakeWordEngine, wakeWordStatus]);
 
 
-    const sttMicButtonDisabled = isTranscribing || (
-        isAudioModeEnabled &&
-        !(wakeWordStatus === "Atom detected! Listening for command..." ||
-          wakeWordStatus === "Audio Mode: Listening for your reply/command..." ||
-          wakeWordStatus === "Listening (STT in Audio Mode)...")
-    );
+    const sttMicButtonDisabled = isTranscribing || (isAudioModeEnabled && tfModel && meydaRef.current?.isRunning() && !isSttRecording);
+    // Simplified: Disable if transcribing. If in audio mode with WW running, it means WW is active, so manual STT should be disabled
+    // unless STT is already active (then it's a stop button).
+
+    const onSubmitForm = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (text.trim()) {
+            sendMessage(text);
+            setText('');
+            if (inputRef.current) {
+                inputRef.current.style.height = 'auto'; // Reset height after send
+            }
+        }
+    };
+
+    // Auto-resize textarea
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+        }
+    }, [text]);
+
 
     return (
-        <div className={cls('fixed w-full md:w-1/2 bottom-0 ')}>
-            <div className="flex justify-center items-center mb-1 space-x-2 px-2">
+        <div className={cn('fixed w-full md:max-w-2xl bottom-0 left-1/2 -translate-x-1/2 font-sans z-50 px-2 md:px-0 pb-2 md:pb-4')}>
+            <div className="flex justify-center items-center mb-2 space-x-2 px-2">
                 <Button
                     size="sm"
                     variant={isAudioModeEnabled ? "default" : "outline"}
                     onClick={toggleAudioMode}
-                    className="rounded-full text-xs sm:text-sm"
-                    disabled={isTranscribing || isSttRecording}
+                    className="rounded-full text-xs" // sm:text-sm removed for consistency
+                    disabled={isTranscribing || (!isAudioModeEnabled && isSttRecording) /* Allow disabling if STT is on but audio mode is off */}
                 >
+                    {isAudioModeEnabled ? <IconMicOff className="mr-1 h-4 w-4" /> : <IconMic className="mr-1 h-4 w-4" />}
                     {isAudioModeEnabled ? "Disable Audio Mode" : "Enable Audio Mode"}
                 </Button>
-                <span className="text-xs text-gray-500 truncate">Status: {wakeWordStatus}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1 text-center">
+                    {isTranscribing ? "Transcribing..." : wakeWordStatus}
+                </span>
             </div>
             
-            <form onSubmit={onSubmit}  ref={formRef} className={cls('space-y-4 border-t px-4 py-2 shadow-lg sm:rounded-t-xl sm:border md:py-4 bg-white', { 'opacity-50': isNewSession })}>
-                <label htmlFor="chat-input" className={cls("sr-only")}>Your message</label>
-                <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden sm:rounded-md sm:border ">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                type="button"
-                                disabled={isNewSession}
-                            onClick={e => {
-                                e.preventDefault()
-                                callNewSession()
-                            }}
-                            className={cn(
-                                buttonVariants({ size: 'sm', variant: 'outline' }),
-                                'absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0'
-                            )}
-                            >
-                            <IconPlus />
-                            <span className="sr-only">New Chat</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>New Chat</TooltipContent>
-                    </Tooltip>
+            <form onSubmit={onSubmitForm}  ref={formRef} className={cn(
+                'space-y-0 border-t px-3 py-3 shadow-xl sm:rounded-xl sm:border md:py-3',
+                'bg-white dark:bg-gray-800 dark:border-gray-700',
+                { 'opacity-60 pointer-events-none': isNewSession }
+                )}>
+                {/* <label htmlFor="chat-input" className={cn("sr-only")}>Your message</label> */}
+                <div className="relative flex w-full grow flex-col overflow-hidden items-center"> {/* Added items-center */}
+                    <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost" // Changed to ghost for a cleaner look
+                                    size="icon"
+                                    type="button"
+                                    disabled={isNewSession}
+                                onClick={e => {
+                                    e.preventDefault()
+                                    callNewSession()
+                                }}
+                                className={cn(
+                                    // 'absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0' // Original positioning
+                                    'shrink-0 mr-2 self-center text-gray-500 hover:text-sky-600 dark:text-gray-400 dark:hover:text-sky-500'
+                                )}
+                                >
+                                <IconPlus className="h-5 w-5"/>
+                                <span className="sr-only">New Chat</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">New Chat</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Textarea
                         id="chat-input"
                         ref={inputRef}
@@ -432,37 +461,53 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                         onKeyDown={onKeyDown}
                         spellCheck={false}
                         rows={1}
-                        className={cls("min-h-[60px] w-full focus-within:outline-none sm:text-sm focus:ring-0 focus:ring-offset-0 border-none resize-none py-[1.3rem] pl-12 pr-20")}
+                        className={cn(
+                            "flex-1 min-h-[44px] max-h-[150px] w-full rounded-lg resize-none py-2.5 pl-3 pr-20 sm:text-sm", // Adjusted padding and height
+                            "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700",
+                            "focus:ring-0 focus:ring-offset-0 focus:border-sky-500 dark:focus:border-sky-500" // Simplified focus
+                        )}
                         placeholder="Your message..."
                         value={text}
                         onChange={onChangeText}
                     />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    type="button"
-                                    size="icon"
-                                    variant={isSttRecording ? "destructive" : "outline"}
-                                    onClick={handleManualSttToggle}
-                                    className="h-8 w-8 rounded-full p-0 mr-2"
-                                    disabled={sttMicButtonDisabled}
-                                >
-                                    {isSttRecording ? <IconMicOff /> : <IconMic />}
-                                    <span className="sr-only">{isSttRecording ? "Stop STT recording" : "Start STT recording"}</span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{isTranscribing ? "Transcribing..." : (isSttRecording ? "Stop STT recording" : "Start STT recording")}</TooltipContent>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                        <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant={isSttRecording ? "destructive" : "ghost"} // Changed to ghost
+                                        onClick={handleManualSttToggle}
+                                        className="h-8 w-8 rounded-full p-0 text-gray-500 hover:text-sky-600 dark:text-gray-400 dark:hover:text-sky-500"
+                                        disabled={sttMicButtonDisabled}
+                                    >
+                                        {isSttRecording ? <IconMicOff className="h-5 w-5" /> : <IconMic className="h-5 w-5" />}
+                                        <span className="sr-only">{isSttRecording ? "Stop recording" : "Start recording"}</span>
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">{isTranscribing ? "Transcribing..." : (isSttRecording ? "Stop recording" : "Start recording")}</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider delayDuration={300}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="icon"
+                                        disabled={isNewSession || !text.trim()}
+                                        type="submit"
+                                        className={cn(
+                                            "h-8 w-8 rounded-full p-0 bg-sky-600 hover:bg-sky-700 text-white dark:bg-sky-500 dark:hover:bg-sky-600",
+                                            {"opacity-50 cursor-not-allowed": isNewSession || !text.trim()}
+                                            )}
+                                        >
+                                        <IconArrowElbow className="h-5 w-5" />
+                                        <span className="sr-only">Send message</span>
+                                    </Button>
+                                </TooltipTrigger>
+                            <TooltipContent side="top">Send message</TooltipContent>
                         </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button size="icon" disabled={isNewSession || !text.trim()} type="submit" className={cls("text-white h-8 w-8 rounded-full p-0")}>
-                                    <IconArrowElbow />
-                                    <span className="sr-only">Send message</span>
-                                </Button>
-                            </TooltipTrigger>
-                        <TooltipContent>Send message</TooltipContent>
-                    </Tooltip>
+                        </TooltipProvider>
                     </div>
                 </div>
             </form>
@@ -471,9 +516,3 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
 }
 
 export default ChatInput;
-
-// --- Placeholder Icons (if not available in ui/icons.tsx) ---
-// Assuming IconMic and IconMicOff are defined in @components/chat/ui/icons.tsx
-// For example:
-// export const IconMic = () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 18.75a5.25 5.25 0 005.25-5.25v-3.75a5.25 5.25 0 00-10.5 0v3.75A5.25 5.25 0 0012 18.75zM19.5 9.75v3.75a7.5 7.5 0 01-15 0V9.75a7.5 7.5 0 0115 0zM9 9.75h-.75A.75.75 0 007.5 10.5v3A.75.75 0 008.25 14.25H9a.75.75 0 00.75-.75v-3A.75.75 0 009 9.75zm6 0h-.75a.75.75 0 00-.75.75v3a.75.75 0 00.75.75H15A.75.75 0 0015.75 13.5v-3A.75.75 0 0015 9.75z"></path></svg>;
-// export const IconMicOff = () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3.75a5.25 5.25 0 0010.5 0V6.75A5.25 5.25 0 0012 1.5zm-6.75 5.25a7.5 7.5 0 0115 0v3.75a7.5 7.5 0 01-15 0V6.75zm10.125 9.835a.75.75 0 000-1.06l-2.02-2.02a.75.75 0 00-1.06 0l-.885.884a5.252 5.252 0 01-4.43 0l-.884-.884a.75.75 0 10-1.06 1.06l2.02 2.02a.75.75 0 001.06 0l.22-.22a7.457 7.457 0 004.94-.001l.22.22a.75.75 0 001.06 0z" clipRule="evenodd" /></svg>;

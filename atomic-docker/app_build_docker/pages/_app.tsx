@@ -23,15 +23,15 @@ import makeApolloClient from '@lib/apollo/apollo';
 import { AppProps } from 'next/app'
 
 import { ChakraProvider } from '@chakra-ui/react'
-import { Spinner } from '@chakra-ui/react'
+// import { Spinner } from '@chakra-ui/react' // Spinner seems unused here, consider removing if not needed elsewhere
 import SideBarWithHeader from '@layouts/SideBarWithHeader'
-import {ThemeProvider} from '@shopify/restyle'
+import { ThemeProvider as ShopifyThemeProvider } from '@shopify/restyle' // Aliased to avoid conflict
 
 import {
-  theme,
+  theme as shopifyTheme, // Aliased to avoid conflict
 } from '@lib/theme/theme'
 
-import { useRouter } from 'next/router'
+// import { useRouter } from 'next/router' // useRouter seems unused here
 import { ThemeProvider as MUIThemeProvider } from '@mui/material/styles'
 import { CacheProvider, EmotionCache } from '@emotion/react';
 import MUITheme from '@lib/mui/theme';
@@ -39,10 +39,11 @@ import createEmotionCache from '@lib/mui/createEmotionCache'
 import Head from 'next/head'
 import Modal from 'react-modal'
 
-import { TooltipProvider } from '@components/chat/ui/tooltip'
+import { TooltipProvider as RadixTooltipProvider } from '@components/chat/ui/tooltip' // Aliased
 import { AudioModeProvider } from '@lib/contexts/AudioModeContext';
 import { AgentAudioControlProvider } from 'contexts/AgentAudioControlContext';
 import { WakeWordProvider } from 'contexts/WakeWordContext';
+import { ThemeProvider as AppThemeProvider } from '@lib/contexts/ThemeContext'; // Our new ThemeProvider
 import Session from "supertokens-web-js/recipe/session"
 import SuperTokensReact, { SuperTokensWrapper } from 'supertokens-auth-react'
 import { frontendConfig } from '../config/frontendConfig'
@@ -132,9 +133,9 @@ export function AppState({ children }: any) {
             sub,
             client: client as null,
           }}>
-            <TooltipProvider>
+            <RadixTooltipProvider> {/* Changed TooltipProvider to RadixTooltipProvider */}
               {children}
-            </TooltipProvider>
+            </RadixTooltipProvider>
           
           </AppContext.Provider>
         </ApolloProvider>
@@ -148,19 +149,10 @@ function MyApp({ Component, emotionCache = clientSideEmotionCache, pageProps }: 
   useEffect(() => {
 
     async function doRefresh() {
-        // pageProps.fromSupertokens === 'needs-refresh' will be true
-        // when in getServerSideProps, getSession throws a TRY_REFRESH_TOKEN
-        // error.
-
         if (pageProps.fromSupertokens === 'needs-refresh') {
             if (await Session.attemptRefreshingSession()) {
-                // post session refreshing, we reload the page. This will
-                // send the new access token to the server, and then 
-                // getServerSideProps will succeed
                 location.reload()
             } else {
-                // the user's session has expired. So we redirect
-                // them to the login page
                 redirectToAuth()
             }
         }
@@ -171,15 +163,14 @@ function MyApp({ Component, emotionCache = clientSideEmotionCache, pageProps }: 
 
 
   return (
-     <CacheProvider value={emotionCache}>
-      <Head>
-        <meta name="viewport" content="initial-scale=1, width=device-width" />
-      </Head>
-      <MUIThemeProvider theme={MUITheme}>
-
-
+    <AppThemeProvider> {/* Wrap with our new ThemeProvider */}
+      <CacheProvider value={emotionCache}>
+        <Head>
+          <meta name="viewport" content="initial-scale=1, width=device-width" />
+        </Head>
+        <MUIThemeProvider theme={MUITheme}>
           <ChakraProvider>
-            <ThemeProvider theme={theme}>
+            <ShopifyThemeProvider theme={shopifyTheme}> {/* Use aliased ShopifyThemeProvider and theme */}
               <AudioModeProvider>
                 <AgentAudioControlProvider>
                   <WakeWordProvider>
@@ -191,11 +182,11 @@ function MyApp({ Component, emotionCache = clientSideEmotionCache, pageProps }: 
                   </WakeWordProvider>
                 </AgentAudioControlProvider>
               </AudioModeProvider>
-            </ThemeProvider>
-            </ChakraProvider>
-       
-      </MUIThemeProvider>
-    </CacheProvider>
+            </ShopifyThemeProvider>
+          </ChakraProvider>
+        </MUIThemeProvider>
+      </CacheProvider>
+    </AppThemeProvider>
   )
 }
 
