@@ -350,28 +350,40 @@ export class SmartMeetingPrepSkill {
       notes += "📚 **Additional Context from Knowledge Base (Semantic Search)**\n\n";
       semanticallyRelatedItems.forEach(item => {
         let itemTypeDisplay = "Contextual Item";
-        if (item.source_type === "document_chunk") itemTypeDisplay = "Related Document Excerpt";
-        else if (item.source_type === "email_snippet") itemTypeDisplay = "Related Email";
-        else if (item.source_type === "notion_summary") itemTypeDisplay = "Related Notion Page";
+        let titleDisplay = item.title || 'N/A';
+
+        if (item.source_type === "document_chunk") {
+          itemTypeDisplay = item.document_doc_type ? `${item.document_doc_type.toUpperCase()} Document Excerpt` : "Document Excerpt";
+          // Title for document chunk is now parent document's title.
+          // No need for the (From Document: ...) sub-line if item.title is already parent's title.
+        } else if (item.source_type === "email_snippet") {
+          itemTypeDisplay = "Related Email";
+        } else if (item.source_type === "notion_summary") {
+          itemTypeDisplay = "Related Notion Page";
+        }
 
         notes += `- **Type:** ${itemTypeDisplay}\n`;
-        notes += `  - **Title/Subject:** "${item.title || 'N/A'}"\n`;
-        // For document chunks, show parent document title if available and different from chunk's 'title' (which might be a heading)
-        if (item.source_type === "document_chunk" && item.parent_document_title && item.parent_document_title !== item.title) {
-            notes += `    (From Document: "${item.parent_document_title}")\n`;
-        }
-        notes += `  - **Relevant Snippet:** ${item.snippet || 'N/A'}...\n`; // item.snippet is the core text from semantic match
-        if (item.original_url_or_link) {
-          notes += `  - **Link:** ${item.original_url_or_link}\n`;
+        notes += `  - **Title/Subject:** "${titleDisplay}"\n`;
+
+        // If it's a chunk and we want to explicitly state it's an excerpt, even if title is parent.
+        // if (item.source_type === "document_chunk" && item.parent_document_title) {
+        //     notes += `    (Excerpt from: "${item.parent_document_title}")\n`;
+        // }
+
+        notes += `  - **Relevant Snippet:** ${item.snippet || 'N/A'}...\n`;
+
+        // Use document_source_uri for document chunks if available, otherwise original_url_or_link
+        const linkToDisplay = item.source_type === "document_chunk" ? item.document_source_uri : item.original_url_or_link;
+        if (linkToDisplay) {
+          notes += `  - **Link:** ${linkToDisplay}\n`;
         }
 
-        let itemDate: Optional<string> = null;
+        let itemDate: string | null = null; // Changed Optional<string> to string | null for consistency
         if (item.last_modified_at) itemDate = new Date(item.last_modified_at).toLocaleDateString();
-        else if (item.email_date) itemDate = new Date(item.email_date).toLocaleDateString();
+        else if (item.email_date && item.source_type === "email_snippet") itemDate = new Date(item.email_date).toLocaleDateString();
         else if (item.created_at) itemDate = new Date(item.created_at).toLocaleDateString();
         if (itemDate) notes += `  - **Date:** ${itemDate}\n`;
 
-        // LanceDB distance score (lower is better).
         notes += `  - **Relevance Score (raw distance):** ${item.vector_score.toFixed(4)}\n`;
         notes += "\n";
       });

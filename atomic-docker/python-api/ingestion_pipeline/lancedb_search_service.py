@@ -79,8 +79,7 @@ async def _search_single_table(
     user_id: str,
     filters: Optional[Dict[str, Any]], # Table-specific filters
     limit: int,
-    source_type_label: SearchResultSourceType,
-    parent_doc_titles: Optional[Dict[str, str]] = None # For document_chunks
+    source_type_label: SearchResultSourceType
 ) -> List[UniversalSearchResultItem]:
     """Helper to search a single LanceDB table and map results."""
     if not query_vector: return []
@@ -97,6 +96,10 @@ async def _search_single_table(
 
     # Apply additional filters (example for date range on a 'timestamp_field')
     # This needs to be adapted based on actual filterable fields in each schema
+    # Also, parent_doc_titles is passed in but not used yet; it will be replaced by live fetch.
+    # The `parent_doc_titles` parameter will be removed from this function,
+    # and parent doc data will be fetched internally if source_type_label is "document_chunk".
+
     if filters:
         date_after = filters.get("date_after")
         date_before = filters.get("date_before")
