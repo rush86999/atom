@@ -2,8 +2,10 @@ import logging
 import os
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
-# import psycopg2 # Would be imported in a real setup
-# from psycopg2 import pool # For connection pooling
+
+# Example: For PostgreSQL, one would import psycopg2 and its error types
+# import psycopg2
+# from psycopg2 import pool, errors as psycopg2_errors
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
@@ -11,7 +13,7 @@ if not logger.hasHandlers():
 
 TABLE_NAME = "user_gdrive_oauth_tokens"
 
-# --- Concrete DB Operation Examples (using psycopg2 for PostgreSQL) ---
+# --- Concrete DB Operation Examples (using psycopg2-like syntax for PostgreSQL) ---
 
 def save_or_update_gdrive_tokens(
     db_conn_pool: Any,
@@ -23,8 +25,9 @@ def save_or_update_gdrive_tokens(
     scopes: Optional[str]
 ) -> bool:
     """
-    Saves or updates Google Drive OAuth tokens for a user using UPSERT.
-    Example uses psycopg2 for PostgreSQL.
+    Saves or updates Google Drive OAuth tokens for a user in the database using UPSERT.
+    Example uses psycopg2-like syntax for PostgreSQL.
+    Assumes db_conn_pool is a psycopg2 connection pool.
     """
     sql = f"""
     INSERT INTO {TABLE_NAME}
@@ -51,18 +54,21 @@ def save_or_update_gdrive_tokens(
     logger.info(f"DB: Attempting to save/update GDrive tokens for user_id: {user_id}")
     conn = None
     try:
-        # conn = db_conn_pool.getconn() # Get connection from pool
+        if db_conn_pool is None: # Check if the conceptual pool is passed
+            logger.error("DB: Connection pool is None. Cannot execute save_or_update_gdrive_tokens.")
+            return False
+
+        # conn = db_conn_pool.getconn()
         # with conn.cursor() as cur:
         #     cur.execute(sql, params)
         # conn.commit()
 
-        # Conceptual execution log:
-        logger.info(f"DB_EXECUTE (Conceptual): SQL='{sql.strip()}' PARAMS='{params}'")
+        logger.info(f"DB_EXECUTE (Conceptual - Real driver needed): SQL='{sql.strip()}' PARAMS='{params}'")
         logger.info(f"DB: Successfully executed save/update for GDrive tokens for user_id: {user_id}")
-        return True # Simulate success
-    except Exception as e: # Catch specific DB errors like psycopg2.Error in real code
+        return True
+    except Exception as e: # Replace with specific DB errors e.g., psycopg2.Error
         logger.error(f"DB: Error during save/update GDrive tokens for user_id {user_id}: {e}", exc_info=True)
-        # if conn: conn.rollback()
+        # if conn: conn.rollback() # Rollback on error
         return False
     # finally:
     #     if conn: db_conn_pool.putconn(conn) # Release connection back to pool
@@ -74,11 +80,13 @@ def get_gdrive_oauth_details(
     """
     Retrieves stored GDrive OAuth details for a user.
     Returns a dict with all fields from the table or None if not found/error.
-    Example uses psycopg2.
+    Example uses psycopg2-like syntax.
     """
     sql = f"""
     SELECT user_id, gdrive_user_email, access_token_encrypted, refresh_token_encrypted,
-           expiry_timestamp_ms, scopes_granted, created_at, last_updated_at
+           expiry_timestamp_ms, scopes_granted,
+           created_at AT TIME ZONE 'UTC' AS created_at_utc,
+           last_updated_at AT TIME ZONE 'UTC' AS last_updated_at_utc
     FROM {TABLE_NAME} WHERE user_id = %(user_id)s;
     """
     params = {"user_id": user_id}
@@ -86,6 +94,10 @@ def get_gdrive_oauth_details(
     logger.info(f"DB: Retrieving GDrive OAuth details for user_id: {user_id}")
     conn = None
     try:
+        if db_conn_pool is None:
+            logger.error("DB: Connection pool is None. Cannot execute get_gdrive_oauth_details.")
+            return None
+
         # conn = db_conn_pool.getconn()
         # # For psycopg2, to get dict-like rows:
         # # from psycopg2.extras import RealDictCursor
@@ -94,39 +106,34 @@ def get_gdrive_oauth_details(
         #     cur.execute(sql, params)
         #     record_tuple = cur.fetchone()
         #     if record_tuple:
-        #         # Map tuple to dict based on column order if not using RealDictCursor
-        #         # For RealDictCursor, record_tuple would already be a dict
-        #         # Example mapping (column names must match SELECT order):
-        #         # columns = [desc[0] for desc in cur.description]
-        #         # record = dict(zip(columns, record_tuple))
+        #         columns = [desc[0] for desc in cur.description]
+        #         record = dict(zip(columns, record_tuple))
+        #         # Convert datetime objects to ISO strings if they aren't already
+        #         if isinstance(record.get('created_at_utc'), datetime):
+        #             record['created_at'] = record['created_at_utc'].isoformat()
+        #         if isinstance(record.get('last_updated_at_utc'), datetime):
+        #             record['last_updated_at'] = record['last_updated_at_utc'].isoformat()
         #         logger.info(f"DB: Found GDrive OAuth details for user_id: {user_id}")
         #         return record
         #     else:
         #         logger.info(f"DB: No GDrive OAuth details found for user_id: {user_id}")
         #         return None
 
-        logger.info(f"DB_EXECUTE (Conceptual): SQL='{sql.strip()}' PARAMS='{params}'")
+        logger.info(f"DB_EXECUTE (Conceptual - Real driver needed): SQL='{sql.strip()}' PARAMS='{params}'")
         # Placeholder simulation:
-        if user_id.startswith("user_with_token_"):
-            # Ensure datetime objects are returned if schema expects them, or ISO strings if that's the contract
+        if user_id.startswith("user_with_token_") or user_id.startswith("user_with_expired_token_"):
+            is_expired = user_id.startswith("user_with_expired_token_")
             now_dt = datetime.now(timezone.utc)
+            expiry_dt = now_dt - timedelta(hours=1) if is_expired else now_dt + timedelta(hours=1)
             return {
-                "user_id": user_id, "gdrive_user_email": f"{user_id.replace('user_with_token_', '')}@example.com",
-                "access_token_encrypted": f"encrypted_access_for_{user_id}",
+                "user_id": user_id,
+                "gdrive_user_email": f"{user_id.split('_')[-1]}@example.com",
+                "access_token_encrypted": f"encrypted_{'expired_' if is_expired else ''}access_for_{user_id}",
                 "refresh_token_encrypted": f"encrypted_refresh_for_{user_id}",
-                "expiry_timestamp_ms": int((now_dt + timedelta(hours=1)).timestamp() * 1000),
+                "expiry_timestamp_ms": int(expiry_dt.timestamp() * 1000),
                 "scopes_granted": "['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/userinfo.email']",
-                "created_at": now_dt, "last_updated_at": now_dt
-            }
-        elif user_id.startswith("user_with_expired_token_"):
-             now_dt = datetime.now(timezone.utc)
-             return {
-                "user_id": user_id, "gdrive_user_email": f"{user_id.replace('user_with_expired_token_', '')}@example.com",
-                "access_token_encrypted": f"encrypted_expired_access_for_{user_id}",
-                "refresh_token_encrypted": f"encrypted_refresh_for_{user_id}",
-                "expiry_timestamp_ms": int((now_dt - timedelta(hours=1)).timestamp() * 1000),
-                "scopes_granted": "['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/userinfo.email']",
-                "created_at": now_dt, "last_updated_at": now_dt
+                "created_at_utc": now_dt, # As datetime object
+                "last_updated_at_utc": now_dt # As datetime object
             }
         logger.info(f"DB: (Placeholder) No GDrive OAuth details found for user_id: {user_id}")
         return None
@@ -145,7 +152,7 @@ def update_gdrive_access_token(
 ) -> bool:
     """
     Updates only the access token and its expiry for a user after a refresh.
-    Example uses psycopg2.
+    Example uses psycopg2-like syntax.
     """
     sql = f"""
     UPDATE {TABLE_NAME} SET
@@ -163,6 +170,10 @@ def update_gdrive_access_token(
     logger.info(f"DB: Updating GDrive access token for user_id: {user_id}")
     conn = None
     try:
+        if db_conn_pool is None:
+            logger.error("DB: Connection pool is None. Cannot execute update_gdrive_access_token.")
+            return False
+
         # conn = db_conn_pool.getconn()
         # with conn.cursor() as cur:
         #     cur.execute(sql, params)
@@ -174,9 +185,9 @@ def update_gdrive_access_token(
         #         logger.warn(f"DB: No record found for user_id {user_id} during access token update. Token not updated.")
         #         return False
 
-        logger.info(f"DB_EXECUTE (Conceptual): SQL='{sql.strip()}' PARAMS='{params}'")
+        logger.info(f"DB_EXECUTE (Conceptual - Real driver needed): SQL='{sql.strip()}' PARAMS='{params}'")
         logger.info(f"DB: (Placeholder) Successfully updated GDrive access token for user_id: {user_id}")
-        return True # Simulate success
+        return True
     except Exception as e: # Catch specific DB errors
         logger.error(f"DB: Error updating GDrive access token for user_id {user_id}: {e}", exc_info=True)
         # if conn: conn.rollback()
@@ -186,7 +197,7 @@ def update_gdrive_access_token(
 
 def delete_gdrive_tokens(db_conn_pool: Any, user_id: str) -> bool:
     """
-    Deletes GDrive OAuth tokens for a user. Example uses psycopg2.
+    Deletes GDrive OAuth tokens for a user. Example uses psycopg2-like syntax.
     """
     sql = f"DELETE FROM {TABLE_NAME} WHERE user_id = %(user_id)s;"
     params = {"user_id": user_id}
@@ -194,6 +205,10 @@ def delete_gdrive_tokens(db_conn_pool: Any, user_id: str) -> bool:
     logger.info(f"DB: Deleting GDrive tokens for user_id: {user_id}")
     conn = None
     try:
+        if db_conn_pool is None:
+            logger.error("DB: Connection pool is None. Cannot execute delete_gdrive_tokens.")
+            return False
+
         # conn = db_conn_pool.getconn()
         # with conn.cursor() as cur:
         #     cur.execute(sql, params)
@@ -201,9 +216,9 @@ def delete_gdrive_tokens(db_conn_pool: Any, user_id: str) -> bool:
         #     logger.info(f"DB: Successfully deleted GDrive tokens for user_id: {user_id} (deleted {cur.rowcount} rows).")
         #     return True
 
-        logger.info(f"DB_EXECUTE (Conceptual): SQL='{sql.strip()}' PARAMS='{params}'")
+        logger.info(f"DB_EXECUTE (Conceptual - Real driver needed): SQL='{sql.strip()}' PARAMS='{params}'")
         logger.info(f"DB: (Placeholder) Successfully deleted GDrive tokens for user_id: {user_id}")
-        return True # Simulate success
+        return True
     except Exception as e: # Catch specific DB errors
         logger.error(f"DB: Error deleting GDrive tokens for user_id {user_id}: {e}", exc_info=True)
         # if conn: conn.rollback()
