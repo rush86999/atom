@@ -175,4 +175,50 @@ if __name__ == '__main__':
     # but it won't have other registered blueprints unless main app is structured differently.
     # For testing, one would typically run the main Flask app that includes this blueprint.
     app.run(host='0.0.0.0', port=5060, debug=True) # Use a different port for standalone run
+
+
+@gdrive_bp.route('/api/gdrive/get-file-metadata', methods=['POST'])
+def get_file_metadata_route():
+    if not INGESTION_SERVICES_AVAILABLE: # gdrive_service is part of this check
+        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "GDrive service or its dependencies are not available."}}), 503
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    access_token = data.get('access_token')
+    file_id = data.get('file_id')
+    fields = data.get('fields') # Optional
+
+    if not access_token:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "access_token is required."}}), 400
+    if not file_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "file_id is required."}}), 400
+
+    logger.info(f"Route /api/gdrive/get-file-metadata called for file_id: {file_id}")
+
+    result = gdrive_service.get_gdrive_file_metadata(
+        access_token=access_token,
+        file_id=file_id,
+        fields=fields
+    )
+
+    if result["status"] == "success":
+        return jsonify({"ok": True, "data": result.get("data")}), 200
+    else:
+        error_payload = {
+            "code": result.get("code", "GDRIVE_METADATA_FETCH_FAILED"),
+            "message": result.get("message"),
+            "details": result.get("details")
+        }
+        status_code = 500 # Default
+        if "GDRIVE_API_OBJECT_NOT_FOUND" in (result.get("code") or "") or \
+           "GDRIVE_API_FILE_NOT_FOUND" in (result.get("code") or ""): # Check for common not found codes
+            status_code = 404
+        elif "GDRIVE_API_UNAUTHORIZED" in (result.get("code") or "") or \
+             "GDRIVE_API_FORBIDDEN" in (result.get("code") or ""):
+            status_code = 401 # Or 403
+
+        logger.warn(f"Failed to get metadata for GDrive file {file_id}. Status: {status_code}, Code: {result.get('code')}, Message: {result.get('message')}")
+        return jsonify({"ok": False, "error": error_payload}), status_code
 ```

@@ -4,7 +4,7 @@ import {
   GmailSearchParameters,
   GmailMessageSnippet,
   NotionPageSummary,
-  UniversalSearchResultItem, // Though not used in notes YET, it's part of output
+  UniversalSearchResultItem,
   SearchResultSourceType
 } from '../../atomic-docker/project/functions/atom-agent/types';
 import { searchNotionNotes, getNotionPageSummaryById } from '../../atomic-docker/project/functions/atom-agent/skills/notionAndResearchSkills';
@@ -17,7 +17,8 @@ import {
   SemanticSearchFilters
 } from './lanceDbStorageSkills';
 import { AuthService } from '../services/authService';
-import { listGoogleDriveFiles, triggerGoogleDriveFileIngestion, GoogleDriveFile } from './gdriveSkills';
+// Changed: listGoogleDriveFiles removed, getGoogleDriveFileMetadata imported
+import { getGoogleDriveFileMetadata, triggerGoogleDriveFileIngestion, GoogleDriveFile } from './gdriveSkills';
 
 const COMMON_STOP_WORDS = new Set([
   'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'if', 'in', 'into', 'is', 'it', 'its',
@@ -46,7 +47,7 @@ export interface SmartMeetingPrepSkillOutput {
   relatedEmails?: GmailMessageSnippet[];
   relatedNotionPages?: NotionPageSummary[];
   semanticallyRelatedItems?: UniversalSearchResultItem[];
-  gdriveFilesTriggered?: GoogleDriveFile[]; // Renamed from gdriveFilesForIngestionTrigger for notes param
+  gdriveFilesTriggered?: GoogleDriveFile[];
   dataFetchingErrors?: string[];
 }
 
@@ -145,7 +146,7 @@ export class SmartMeetingPrepSkill {
       }
 
       const notionPageMap = new Map<string, NotionPageSummary>();
-      const explicitNotionLinkPageIds = new Set<string>();
+      const explicitNotionLinkPageIds = new Set<string>(); // For scoring
       if (resolvedEvent.description) {
         const notionUrlRegex = /https:\/\/www\.notion\.so\/([\w.-]+?\/)?([\w-]+)(?:\?pvs=[\w-]+)?(?:#[\w-]+)?/g;
         let match;
@@ -164,8 +165,8 @@ export class SmartMeetingPrepSkill {
         }
       }
 
-      const titleKeywords = this._extractKeywords(resolvedEvent.title, 3, 5);
-      const descriptionKeywords = resolvedEvent.description ? this._extractKeywords(resolvedEvent.description, 3, 7) : [];
+      const titleKeywords = this._extractKeywords(resolvedEvent.title, 3, 5); // Used for Notion keyword search & scoring
+      const descriptionKeywords = resolvedEvent.description ? this._extractKeywords(resolvedEvent.description, 3, 7) : []; // Used for Notion keyword search & scoring
       let attendeeKeywords: string[] = [];
       if (resolvedEvent.attendees) {
         const attendeeNames = resolvedEvent.attendees.map(att => att.split('<')[0].trim().split(/\s+/).slice(0,2).join(' ')).join(' ');
@@ -199,35 +200,45 @@ export class SmartMeetingPrepSkill {
       }
 
       const linkedGDriveFilesMetadata: GoogleDriveFile[] = [];
-      if (gDriveFileIdsFromDescription.size > 0 && AuthService && listGoogleDriveFiles) {
-        const gdriveAccessToken = await AuthService.getGoogleDriveAccessToken(input.userId);
-        if (gdriveAccessToken) {
-          logger.info(`SmartMeetingPrepSkill: Fetching metadata for ${gDriveFileIdsFromDescription.size} GDrive IDs.`);
-          for (const fileId of gDriveFileIdsFromDescription) {
-            try {
-              const listResp = await listGoogleDriveFiles(input.userId, gdriveAccessToken, undefined, `'${fileId}' in ids`, 1);
-              if (listResp.ok && listResp.data && listResp.data.files.length > 0) {
-                const foundFile = listResp.data.files.find(f => f.id === fileId);
-                if (foundFile) { linkedGDriveFilesMetadata.push(foundFile); logger.info(`SmartMeetingPrepSkill: Fetched GDrive metadata for: ${foundFile.name}`);}
-                else { logger.warn(`GDrive file ID ${fileId} not precisely found via list query.`);}
-              } else if (!listResp.ok) { dataFetchingErrors.push(`Failed to get GDrive metadata for ${fileId}: ${listResp.error?.message}`);}
-            } catch (e: any) { dataFetchingErrors.push(`Error fetching GDrive metadata for ${fileId}: ${e.message}`); }
+      if (gDriveFileIdsFromDescription.size > 0 && AuthService && getGoogleDriveFileMetadata) {
+        logger.info(`SmartMeetingPrepSkill: Fetching metadata for ${gDriveFileIdsFromDescription.size} GDrive file IDs using getGoogleDriveFileMetadata.`);
+        for (const fileId of gDriveFileIdsFromDescription) {
+          try {
+            const metadataResp = await getGoogleDriveFileMetadata(input.userId, fileId); // Using the new direct metadata fetch skill
+            if (metadataResp.ok && metadataResp.data) {
+              linkedGDriveFilesMetadata.push(metadataResp.data);
+              logger.info(`SmartMeetingPrepSkill: Successfully fetched GDrive metadata for: ${metadataResp.data.name} (ID: ${fileId})`);
+            } else {
+              const errorMsg = `Failed to get metadata for GDrive file ID ${fileId}: ${metadataResp.error?.message}`;
+              logger.warn(`SmartMeetingPrepSkill: ${errorMsg}`); dataFetchingErrors.push(errorMsg);
+            }
+          } catch (e: any) {
+            const errorMsg = `Error calling getGoogleDriveFileMetadata for GDrive file ID ${fileId}: ${e.message}`;
+            logger.error(`SmartMeetingPrepSkill: ${errorMsg}`, e); dataFetchingErrors.push(errorMsg);
           }
-        } else { dataFetchingErrors.push("Could not get GDrive access token for metadata fetch."); }
+        }
       }
 
-      if (linkedGDriveFilesMetadata.length > 0 && AuthService && triggerGoogleDriveFileIngestion) {
-        const gdriveAccessTokenForIngestion = await AuthService.getGoogleDriveAccessToken(input.userId);
-        if (gdriveAccessTokenForIngestion) {
+      if (linkedGDriveFilesMetadata.length > 0 && triggerGoogleDriveFileIngestion) {
           logger.info(`SmartMeetingPrepSkill: Triggering ingestion for ${linkedGDriveFilesMetadata.length} GDrive files.`);
           linkedGDriveFilesMetadata.forEach(file => {
             gdriveFilesTriggered.push(file);
-            triggerGoogleDriveFileIngestion(input.userId, gdriveAccessTokenForIngestion, file.id,
+            triggerGoogleDriveFileIngestion(input.userId, file.id,
               { name: file.name, mimeType: file.mimeType, webViewLink: file.webViewLink }
-            ).then(res => { if (!res.ok) dataFetchingErrors.push(`GDrive ingestion trigger failed for ${file.name}: ${res.error?.message}`); else logger.info(`GDrive ingestion triggered for ${file.name}`);})
-             .catch(err => dataFetchingErrors.push(`Error calling GDrive ingestion for ${file.name}: ${err.message}`));
+            )
+            .then(ingestionRes => {
+              if (!ingestionRes.ok) {
+                const errMsg = `GDrive ingestion trigger failed for ${file.id} (${file.name}): ${ingestionRes.error?.message}`;
+                logger.warn(`SmartMeetingPrepSkill: ${errMsg}`); dataFetchingErrors.push(errMsg);
+              } else {
+                logger.info(`SmartMeetingPrepSkill: GDrive ingestion successfully triggered for ${file.id} (${file.name}). New Doc ID: ${ingestionRes.data?.doc_id}`);
+              }
+            })
+            .catch(err => {
+              const errMsg = `Error calling triggerGoogleDriveFileIngestion for ${file.id} (${file.name}): ${err.message}`;
+              logger.error(`SmartMeetingPrepSkill: ${errMsg}`, err); dataFetchingErrors.push(errMsg);
+            });
           });
-        } else { dataFetchingErrors.push("Could not get GDrive access token for ingestion trigger.");}
       }
 
       const meetingStartDate = new Date(resolvedEvent.startTime);
@@ -238,6 +249,9 @@ export class SmartMeetingPrepSkill {
       const scoredNotionPages = relatedNotionPages.map(page => ({ item: page, score: this._scoreNotionPageRelevance(page, eventTitleKeywords, eventDescKeywords, meetingStartDate, explicitNotionLinkPageIds.has(page.id)) })).sort((a, b) => b.score - a.score);
       const topEmails = scoredEmails.slice(0, 3);
       const topNotionPages = scoredNotionPages.slice(0, 2);
+      // Logging for top items
+      topEmails.forEach((se, idx) => logger.info(`TopEmail[${idx}] (Score: ${se.score.toFixed(1)}): ${se.item.subject?.substring(0,50)}... (From: ${se.item.from})`));
+      topNotionPages.forEach((sp, idx) => logger.info(`TopNotion[${idx}] (Score: ${sp.score.toFixed(1)}): ${sp.item.title?.substring(0,50)}... (ExplicitLink: ${explicitNotionLinkPageIds.has(sp.item.id)})`));
 
       const semanticQueryText = resolvedEvent.title + (eventDescKeywords.length > 0 ? " " + eventDescKeywords.join(" ") : "");
       if (semanticQueryText.trim() && semanticSearchLanceDb) {
@@ -252,6 +266,9 @@ export class SmartMeetingPrepSkill {
       relatedEmails.forEach(email => existingItemIds.add(email.id));
       relatedNotionPages.forEach(page => existingItemIds.add(page.id));
       uniqueSemanticallyRelatedItems = semanticallyRelatedItems.filter(item => item.source_type === "document_chunk" || !existingItemIds.has(item.id));
+      if (semanticallyRelatedItems.length !== uniqueSemanticallyRelatedItems.length) {
+        logger.info(`SmartMeetingPrepSkill: De-duplicated semantic results. Original: ${semanticallyRelatedItems.length}, Unique: ${uniqueSemanticallyRelatedItems.length}`);
+      }
 
       preparationNotes = await this._generatePreparationNotes(
         resolvedEvent,
@@ -264,7 +281,7 @@ export class SmartMeetingPrepSkill {
         eventTitleKeywords,
         eventDescKeywords,
         gdriveFilesTriggered,
-        uniqueSemanticallyRelatedItems // Pass the de-duplicated semantic results
+        uniqueSemanticallyRelatedItems
       );
       logger.info(`SmartMeetingPrepSkill: Prep materials generated for "${resolvedEvent.title}".`);
 
@@ -300,7 +317,7 @@ export class SmartMeetingPrepSkill {
     if (mockDocs.length === 0) mockDocs.push({ name: `Standard Agenda Template.docx`, url: "internal://templates/agenda.docx", type: "template" });
     const uniqueDocs = Array.from(new Set(mockDocs.map(doc => doc.name))).map(name => mockDocs.find(doc => doc.name === name));
     logger.info(`[SmartMeetingPrepSkill._findRelatedDocuments] Found ${uniqueDocs.length} mock documents dynamically.`);
-    return uniqueDocs!.slice(0, 4); // uniqueDocs will have items if mockDocs has items
+    return uniqueDocs!.slice(0, 4);
   }
 
   private async _generatePreparationNotes(
@@ -308,93 +325,61 @@ export class SmartMeetingPrepSkill {
     notionPages: NotionPageSummary[], errors: string[], topEmails: GmailMessageSnippet[],
     topNotionPages: NotionPageSummary[], eventTitleKeywords: string[], eventDescKeywords: string[],
     gdriveFilesTriggered?: GoogleDriveFile[],
-    semanticallyRelatedItems?: UniversalSearchResultItem[] // Added for semantic search results
+    semanticallyRelatedItems?: UniversalSearchResultItem[]
   ): Promise<string> {
     logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), ${gdriveFilesTriggered?.length || 0} GDrive files triggered, ${semanticallyRelatedItems?.length || 0} semantic items, and ${errors.length} errors.`);
     const titleLower = event.title.toLowerCase(); const descriptionLower = event.description?.toLowerCase() || "";
     let notes = `## Meeting Preparation Notes: ${event.title}\n\n`;
-    // Key Highlights Section (Emails & Notion)
     if (topEmails.length > 0 || topNotionPages.length > 0) {
       notes += "✨ **Key Highlights**\n\n";
-      if (topEmails.length > 0) { /* ... email highlights rendering ... */ }
-      if (topNotionPages.length > 0) { /* ... Notion highlights rendering ... */ }
+      if (topEmails.length > 0) {
+        notes += "**Potentially Relevant Emails:**\n";
+        topEmails.forEach(email => {
+          const emailDate = email.date ? new Date(email.date).toLocaleDateString() : "N/A";
+          const combinedKeywords = [...eventTitleKeywords, ...eventDescKeywords];
+          const contextualSnippet = this._getContextualSnippet(email.snippet, combinedKeywords);
+          notes += `- **Subject:** "${email.subject || '(No Subject)'}" (From: ${email.from || 'N/A'}, Date: ${emailDate})\n`;
+          if (contextualSnippet) notes += `  *Contextual Snippet:* ${contextualSnippet}\n`;
+          else if (email.snippet) notes += `  *Snippet:* ${email.snippet.substring(0,150)}...\n`;
+          if (email.link) notes += `  *Link:* ${email.link}\n`;
+        });
+        notes += "\n";
+      }
+      if (topNotionPages.length > 0) {
+        notes += "**Potentially Relevant Notion Pages:**\n";
+        topNotionPages.forEach(page => {
+          const combinedKeywords = [...eventTitleKeywords, ...eventDescKeywords];
+          const contextualPreview = this._getContextualSnippet(page.preview_text, combinedKeywords);
+          notes += `- **Title:** "${page.title || 'Untitled Page'}"`;
+          if (page.last_edited_time) notes += ` (Last edited: ${new Date(page.last_edited_time).toLocaleDateString()})`;
+          notes += "\n";
+          if (contextualPreview) notes += `  *Contextual Preview:* ${contextualPreview}\n`;
+          else if (page.preview_text) notes += `  *Preview:* ${page.preview_text.substring(0,150)}...\n`;
+          if (page.url) notes += `  *Link:* ${page.url}\n`;
+        });
+        notes += "\n";
+      }
       notes += "---\n\n";
     }
-    // Meeting Details
     notes += `**Scheduled:** ${new Date(event.startTime).toLocaleString()} - ${new Date(event.endTime).toLocaleString()}\n`;
     notes += `**Location:** ${event.location || "Not specified"}\n`;
     notes += `**Organizer:** ${event.organizer || "N/A"}\n`;
     const attendeeList = event.attendees && event.attendees.length > 0 ? event.attendees.map(a => a.split('<')[0].trim()).join(", ") : "No attendees listed";
     notes += `**Attendees:** ${attendeeList}\n\n`;
     if (event.description) notes += `**Description/Agenda:**\n${event.description}\n\n`;
-    // Suggested Discussion Points (Mocked)
-    notes += "**Key Discussion Points (Suggested):**\n"; /* ... */ notes += "\n";
-    // Relevant Materials & Context (Full Lists)
+    notes += "**Key Discussion Points (Suggested):**\n";
+    const discussionPoints: string[] = []; if (titleLower.includes("budget") || descriptionLower.includes("budget")) { discussionPoints.push("Review budget figures and allocations."); const budgetDoc = documents.find(doc => doc.name.toLowerCase().includes("budget")); if (budgetDoc) discussionPoints.push(`Analyze data in "${budgetDoc.name}".`); } if (titleLower.includes("strategy") || titleLower.includes("planning") || descriptionLower.includes("strategy") || descriptionLower.includes("planning")) discussionPoints.push("Define/Review strategic goals and next actions."); if (titleLower.includes("phoenix") || descriptionLower.includes("phoenix")) discussionPoints.push("Assess Project Phoenix progress and address blockers."); if (titleLower.includes("1:1")) { const attendeeName = event.title.replace("1:1 with", "").trim(); discussionPoints.push(`Discuss ${attendeeName}'s progress, goals, and any challenges.`); } if (discussionPoints.length === 0) { discussionPoints.push("Clarify meeting objectives and desired outcomes."); discussionPoints.push("Identify key topics based on participant roles."); } discussionPoints.forEach(point => notes += `- ${point}\n`); notes += "\n";
     notes += "**Relevant Materials & Context:**\n";
-    if (documents.length > 0) { /* ... mock documents rendering ... */ } else { notes += "- No specific documents were automatically linked (mocked).\n"; }
+    if (documents.length > 0) { documents.forEach(doc => { notes += `- **${doc.name}** (${doc.type}): Review this document for relevant background/data. (Mocked Link: ${doc.url})\n`; }); } else { notes += "- No specific documents were automatically linked (mocked).\n"; }
     notes += "\n";
-    if (emails.length > 0) { /* ... all emails rendering ... */ } else { notes += "**Recently Exchanged Emails:**\n- No specific recent emails found.\n\n"; }
-    if (notionPages.length > 0) { /* ... all Notion pages rendering ... */ } else { notes += "**Related Notion Pages:**\n- No Notion pages found related to keywords.\n\n"; }
-
-    // GDrive Ingestion Info
-    if (gdriveFilesTriggered && gdriveFilesTriggered.length > 0) {
-      notes += "ℹ️ **Google Drive Files Identified for Processing:**\n";
-      gdriveFilesTriggered.forEach(file => {
-        notes += `- "${file.name}" (Type: ${file.mimeType})\n`;
-      });
-      notes += "These files are being queued for processing and their content may be available for context in future preparations or searches.\n\n";
-    }
-
-    // Semantically Related Items section
-    if (semanticallyRelatedItems && semanticallyRelatedItems.length > 0) {
-      notes += "📚 **Additional Context from Knowledge Base (Semantic Search)**\n\n";
-      semanticallyRelatedItems.forEach(item => {
-        let itemTypeDisplay = "Contextual Item";
-        let titleDisplay = item.title || 'N/A';
-
-        if (item.source_type === "document_chunk") {
-          itemTypeDisplay = item.document_doc_type ? `${item.document_doc_type.toUpperCase()} Document Excerpt` : "Document Excerpt";
-          // Title for document chunk is now parent document's title.
-          // No need for the (From Document: ...) sub-line if item.title is already parent's title.
-        } else if (item.source_type === "email_snippet") {
-          itemTypeDisplay = "Related Email";
-        } else if (item.source_type === "notion_summary") {
-          itemTypeDisplay = "Related Notion Page";
-        }
-
-        notes += `- **Type:** ${itemTypeDisplay}\n`;
-        notes += `  - **Title/Subject:** "${titleDisplay}"\n`;
-
-        // If it's a chunk and we want to explicitly state it's an excerpt, even if title is parent.
-        // if (item.source_type === "document_chunk" && item.parent_document_title) {
-        //     notes += `    (Excerpt from: "${item.parent_document_title}")\n`;
-        // }
-
-        notes += `  - **Relevant Snippet:** ${item.snippet || 'N/A'}...\n`;
-
-        // Use document_source_uri for document chunks if available, otherwise original_url_or_link
-        const linkToDisplay = item.source_type === "document_chunk" ? item.document_source_uri : item.original_url_or_link;
-        if (linkToDisplay) {
-          notes += `  - **Link:** ${linkToDisplay}\n`;
-        }
-
-        let itemDate: string | null = null; // Changed Optional<string> to string | null for consistency
-        if (item.last_modified_at) itemDate = new Date(item.last_modified_at).toLocaleDateString();
-        else if (item.email_date && item.source_type === "email_snippet") itemDate = new Date(item.email_date).toLocaleDateString();
-        else if (item.created_at) itemDate = new Date(item.created_at).toLocaleDateString();
-        if (itemDate) notes += `  - **Date:** ${itemDate}\n`;
-
-        notes += `  - **Relevance Score (raw distance):** ${item.vector_score.toFixed(4)}\n`;
-        notes += "\n";
-      });
-      notes += "---\n\n";
-    }
-
-    if (errors.length > 0) { /* ... errors rendering ... */ }
-    // Action Items (Mocked)
-    notes += "**Potential Action Items to Consider...**\n"; /* ... */ notes += "\n";
-    notes += "**Action Items from Previous Related Meetings...**\n"; /* ... */ notes += "\n";
-    if (event.attendees) { /* ... attendee specific mock notes ... */ }
+    if (emails.length > 0) { notes += "**Recently Exchanged Emails (with attendees, around meeting date):**\n"; emails.forEach(email => { const emailDate = email.date ? new Date(email.date).toLocaleDateString() : "N/A"; notes += `- **Subject:** "${email.subject || '(No Subject)'}" (From: ${email.from || 'N/A'}, Date: ${emailDate})\n`; if (email.snippet) notes += `  *Snippet:* ${email.snippet}...\n`; if (email.link) notes += `  *Link:* ${email.link}\n`; }); notes += "\n"; } else { notes += "**Recently Exchanged Emails:**\n- No specific recent emails found.\n\n"; }
+    if (notionPages.length > 0) { notes += "**Related Notion Pages:**\n"; notionPages.forEach(page => { notes += `- **Title:** "${page.title || 'Untitled Page'}"`; if (page.last_edited_time) notes += ` (Last edited: ${new Date(page.last_edited_time).toLocaleDateString()})`; notes += "\n"; if (page.preview_text) notes += `  *Preview:* ${page.preview_text}...\n`; if (page.url) notes += `  *Link:* ${page.url}\n`; }); notes += "\n"; } else { notes += "**Related Notion Pages:**\n- No Notion pages found related to keywords.\n\n"; }
+    if (gdriveFilesTriggered && gdriveFilesTriggered.length > 0) { notes += "ℹ️ **Google Drive Files Identified for Processing:**\n"; gdriveFilesTriggered.forEach(file => { notes += `- "${file.name}" (Type: ${file.mimeType})\n`; }); notes += "These files are being queued for processing and their content may be available for context in future preparations or searches.\n\n"; }
+    if (semanticallyRelatedItems && semanticallyRelatedItems.length > 0) { notes += "📚 **Additional Context from Knowledge Base (Semantic Search)**\n\n"; semanticallyRelatedItems.forEach(item => { let itemTypeDisplay = "Contextual Item"; let titleDisplay = item.title || 'N/A'; if (item.source_type === "document_chunk") { itemTypeDisplay = item.document_doc_type ? `${item.document_doc_type.toUpperCase()} Document Excerpt` : "Document Excerpt"; } else if (item.source_type === "email_snippet") itemTypeDisplay = "Related Email"; else if (item.source_type === "notion_summary") itemTypeDisplay = "Related Notion Page"; notes += `- **Type:** ${itemTypeDisplay}\n`; notes += `  - **Title/Subject:** "${titleDisplay}"\n`; if (item.source_type === "document_chunk" && item.parent_document_title && item.parent_document_title !== item.title) { notes += `    (From Document: "${item.parent_document_title}")\n`; } notes += `  - **Relevant Snippet:** ${item.snippet || 'N/A'}...\n`; const linkToDisplay = item.source_type === "document_chunk" ? item.document_source_uri : item.original_url_or_link; if (linkToDisplay) { notes += `  - **Link:** ${linkToDisplay}\n`; } let itemDate: string | null = null; if (item.last_modified_at) itemDate = new Date(item.last_modified_at).toLocaleDateString(); else if (item.email_date && item.source_type === "email_snippet") itemDate = new Date(item.email_date).toLocaleDateString(); else if (item.created_at) itemDate = new Date(item.created_at).toLocaleDateString(); if (itemDate) notes += `  - **Date:** ${itemDate}\n`; notes += `  - **Relevance Score (raw distance):** ${item.vector_score.toFixed(4)}\n`; notes += "\n"; }); notes += "---\n\n"; }
+    if (errors.length > 0) { notes += "**Data Retrieval Issues Encountered:**\n"; errors.forEach(err => { notes += `- ${err}\n`; }); notes += "\n"; }
+    notes += "**Potential Action Items to Consider...**\n"; notes += "- [Assign owners and deadlines for new tasks]\n"; notes += "- [Schedule follow-up meetings if necessary]\n\n";
+    notes += "**Action Items from Previous Related Meetings...**\n"; const actionItemDoc = documents.find(doc => doc.name.toLowerCase().includes("action items")); const minutesDoc = documents.find(doc => doc.name.toLowerCase().includes("minutes")); if (actionItemDoc) notes += `- Review action items from "${actionItemDoc.name}".\n`; else if (minutesDoc) notes += `- Check for open action items in "${minutesDoc.name}".\n`; else notes += "- Check for any outstanding action items from prior relevant meetings.\n"; notes += "\n";
+    if (event.attendees) { const lowerAttendees = event.attendees.map(a => a.toLowerCase()); if (lowerAttendees.some(a => a.includes("alice"))) { const aliceDoc = documents.find(d => d.name.toLowerCase().includes("alice's action items")); if (aliceDoc) notes += `**For Alice:** Please come prepared to discuss items from "${aliceDoc.name}".\n`; else notes += `**For Alice:** Be ready to provide updates on your current tasks.\n`; } if (lowerAttendees.some(a => a.includes("mark"))) { const markDoc = documents.find(d => d.name.toLowerCase().includes("mark's proposal draft")); if (markDoc) notes += `**For Mark:** Key discussion point will be your proposal: "${markDoc.name}".\n`; } notes += "\n"; }
     notes += "---\nGenerated by SmartMeetingPrepSkill";
     logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Notes generated for "${event.title}". Length: ${notes.length}`);
     return notes;
