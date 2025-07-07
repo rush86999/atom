@@ -1,13 +1,14 @@
 import { UserChatType } from "@lib/dataTypes/Messaging/MessagingTypes";
 import { dayjs } from "@lib/date-utils";
-import React, { useRef, useEffect, Suspense } from "react"; // Added Suspense
-import { useAudioMode } from "@lib/contexts/AudioModeContext"; // Import useAudioMode
+import React, { useRef, useEffect, Suspense } from "react";
+import { useAudioMode } from "@lib/contexts/AudioModeContext";
 import { ChatMessageActions } from "./chat-message-actions";
 import { EmailContentCopy } from "./email-content-copy";
+import { cn } from "@lib/Chat/utils"; // Import cn for class utility
 
 // Dynamically import the SearchResultsDisplay component
 const SearchResultsDisplay = React.lazy(() => import('./custom/SearchResultsDisplay'));
-const MeetingPrepDisplay = React.lazy(() => import('./custom/MeetingPrepDisplay')); // Added MeetingPrepDisplay
+const MeetingPrepDisplay = React.lazy(() => import('./custom/MeetingPrepDisplay'));
 
 
 type Props = {
@@ -24,127 +25,99 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
     useEffect(() => {
         if (isAudioModeEnabled && message.role === 'assistant' && message.content && !message.audioUrl) {
             const ttsErrorMessages = [
-                "Failed to synthesize audio.", // From atom-agent TTS request failed (HTTP error)
-                "Error occurred during audio synthesis.", // From atom-agent TTS catch block
-                "TTS synthesis succeeded but no audio URL was returned." // From atom-agent if TTS result is missing audio_url
+                "Failed to synthesize audio.",
+                "Error occurred during audio synthesis.",
+                "TTS synthesis succeeded but no audio URL was returned."
             ];
-            // Check if the message content includes any known TTS error substrings
             const isTtsError = ttsErrorMessages.some(errMsg => message.content.includes(errMsg));
 
             if (isTtsError) {
                 console.log("Message.tsx: TTS error detected in Audio Mode, playing error sound for message:", message.content);
-                const errorAudio = new Audio('/assets/audio/tts_error.mp3'); // Path to the generic error sound
+                const errorAudio = new Audio('/assets/audio/tts_error.mp3');
                 errorAudio.play().catch(e => console.error("Error playing TTS error sound:", e));
             }
         }
     }, [message.content, message.role, message.audioUrl, isAudioModeEnabled]);
 
+    const isUser = message?.role === 'user';
+
+    const bubbleBaseClasses = "group/item relative mb-2 px-4 py-3 max-w-xl lg:max-w-2xl break-words"; // Added break-words
+    const userBubbleClasses = "bg-sky-600 text-white dark:bg-sky-500 dark:text-white rounded-2xl rounded-br-none";
+    const assistantBubbleClasses = "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-none";
+    const loadingBubbleClasses = "bg-gray-200 dark:bg-gray-600 rounded-2xl";
+
     return (
-        <div className=" px-2">
-            {
-                message?.role === 'user'
-                ? (
-                    <div className=" chat chat-end">
+        <div className={cn("flex w-full px-2 my-3 font-sans", isUser ? "justify-end" : "justify-start")}>
+            <div className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
+                <div className={cn("text-xs mb-1", isUser ? "text-right mr-1" : "text-left ml-1",
+                                   "text-gray-600 dark:text-gray-400")}>
+                    {isUser ? "You" : "Assistant"}
+                </div>
 
-                        <div className="chat-header">
-                            You
-                        </div>
-
-                        <div className="group/item chat-bubble chat-bubble-primary">
-                        <ChatMessageActions message={message} />
-                            {message.content}
-                        </div>
-                        <div className="chat-footer opacity-50">
-                            <time className="text-xs opacity-50">{dayjs(message.date).fromNow()}</time>
-                        </div>
+                {isLoading && !isUser ? (
+                    <div className={cn(bubbleBaseClasses, loadingBubbleClasses, "flex items-center justify-center h-16 w-24")}> {/* Adjusted loading style */}
+                        <div className="dot-elastic"></div> {/* Assuming dot-elastic is defined globally or in a CSS file */}
                     </div>
                 ) : (
-                    <div className="chat chat-start">
-
-                        {isLoading
-                        ? (
-                            <div className="">
-                                <div className="chat-header">
-                                    Assistant
-                                </div>
-                                <div className="chat-bubble chat-bubble-secondary flex items-center justify-center">
-                                    <div className="ml-2" />
-                                    <div className="dot-elastic" />
-                                    <div className="mr-2" />
-                                </div>
-                                <div className="chat-footer opacity-50">
-                                    <time className="text-xs opacity-50">{dayjs(message.date).fromNow()}</time>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="">
-                                
-                                <div className="chat-header">
-                                    Assistant
-                                </div>
-                                
-                                <div className="group/item chat-bubble chat-bubble-secondary">
-                                    <ChatMessageActions message={message} />
-                                    {message.content}
-                                    {message.audioUrl && (
-                                        <audio
-                                            key={message.audioUrl}
-                                            src={message.audioUrl}
-                                            autoPlay
-                                            controls={false}
-                                            style={{ display: 'none' }}
-                                            onEnded={() => {
-                                                if (isAudioModeEnabled && message.role === 'assistant') {
-                                                  console.log("Message.tsx: Audio ended, requesting listen for reply.");
-                                                  triggerReplyListen();
-                                                }
-                                              }}
-                                            onError={(e) => console.error('Error playing audio in Message.tsx:', e)}
-                                        />
-                                    )}
-                                </div>
-                                <div className="chat-footer opacity-50">
-                                    <time className="text-xs opacity-50">{dayjs(message.date).fromNow()}</time>
-                                </div>
-                                <div className="pb-2">
-                                    {
-                                        formData ? formData : null
+                    <div className={cn(
+                        bubbleBaseClasses,
+                        isUser ? userBubbleClasses : assistantBubbleClasses,
+                        "text-base" // Ensure base font size for message content
+                    )}>
+                        <ChatMessageActions message={message} className={isUser ? "text-white dark:text-white" : "text-gray-700 dark:text-gray-200"} />
+                        <div className="whitespace-pre-wrap">{message.content}</div> {/* Added whitespace-pre-wrap for text formatting */}
+                        {message.audioUrl && !isUser && ( // Only show audio for assistant messages if needed
+                            <audio
+                                key={message.audioUrl}
+                                src={message.audioUrl}
+                                autoPlay
+                                controls={false} // Keep controls hidden
+                                style={{ display: 'none' }}
+                                onEnded={() => {
+                                    if (isAudioModeEnabled) {
+                                        console.log("Message.tsx: Audio ended, requesting listen for reply.");
+                                        triggerReplyListen();
                                     }
-                                </div>
-                                <div className="pb-2">
-                                    {/* Render custom component if type matches */}
-                                    {message.customComponentType === 'semantic_search_results' && message.customComponentProps?.results && (
-                                        <Suspense fallback={<div>Loading search results...</div>}>
-                                            <SearchResultsDisplay results={message.customComponentProps.results} />
-                                        </Suspense>
-                                    )}
-                                    {/* Render Meeting Prep Display if type matches */}
-                                    {message.customComponentType === 'meeting_prep_results' && message.customComponentProps?.briefing && (
-                                        <Suspense fallback={<div>Loading meeting preparation...</div>}>
-                                            <MeetingPrepDisplay briefing={message.customComponentProps.briefing} />
-                                        </Suspense>
-                                    )}
-                                    {/* Render HTML email if present */}
-                                    {htmlEmail && !message.customComponentType && ( // Avoid rendering if custom component already shown
-                                        <div className="group/email">
-                                            <EmailContentCopy emailContent={divRef} />
-                                            <div ref={divRef} dangerouslySetInnerHTML={{ __html: htmlEmail }} />
-                                        </div>
-                                    )}
-                                    {/* Render generic formData if present and no other custom content took precedence */}
-                                    {formData && !message.customComponentType && !htmlEmail && (
-                                        <div>{formData}</div>
-                                    )}
-                                </div>
-                            </div>
-                            )}
+                                }}
+                                onError={(e) => console.error('Error playing audio in Message.tsx:', e)}
+                            />
+                        )}
                     </div>
-                )
-            }
+                )}
+                <div className={cn("text-xs mt-1 opacity-75", isUser ? "text-right mr-1" : "text-left ml-1",
+                                   "text-gray-500 dark:text-gray-400")}>
+                    <time>{dayjs(message.date).fromNow()}</time>
+                </div>
+
+                {/* Custom content display area, ensuring it's outside the main bubble but associated with the message */}
+                {!isUser && !isLoading && (htmlEmail || formData || message.customComponentType) && (
+                     <div className={cn("mt-2 w-full max-w-xl lg:max-w-2xl", isUser ? "ml-auto" : "mr-auto")}> {/* Ensure custom content also respects max width */}
+                        {message.customComponentType === 'semantic_search_results' && message.customComponentProps?.results && (
+                            <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading search results...</div>}>
+                                <SearchResultsDisplay results={message.customComponentProps.results} />
+                            </Suspense>
+                        )}
+                        {message.customComponentType === 'meeting_prep_results' && message.customComponentProps?.briefing && (
+                            <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading meeting preparation...</div>}>
+                                <MeetingPrepDisplay briefing={message.customComponentProps.briefing} />
+                            </Suspense>
+                        )}
+                        {htmlEmail && !message.customComponentType && (
+                            <div className="group/email p-2 border rounded-lg bg-white dark:bg-gray-800 shadow">
+                                <EmailContentCopy emailContent={divRef} />
+                                <div ref={divRef} className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: htmlEmail }} />
+                            </div>
+                        )}
+                        {formData && !message.customComponentType && !htmlEmail && (
+                            <div className="p-2 border rounded-lg bg-white dark:bg-gray-800 shadow">
+                                {formData}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
-    )
+    );
 }
 
-export default Message
-
-
+export default Message;

@@ -30,11 +30,11 @@ import {
   FiSettings,
   FiMenu,
   FiBell,
-    FiChevronDown,
-    FiUnlock,
-  
+  FiChevronDown,
+  // FiUnlock, // Not used
 } from 'react-icons/fi';
-import { GiArtificialIntelligence } from 'react-icons/gi'
+import { GiArtificialIntelligence } from 'react-icons/gi';
+import { ThemeToggleButton } from '@components/chat/ui/ThemeToggleButton'; // Import the new button
 import { IconType } from 'react-icons';
 import { ReactText } from 'react';
 import Logo from '@layouts/Logo'
@@ -181,6 +181,7 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
       </Text>
 
       <HStack spacing={{ base: '0', md: '6' }}>
+        <ThemeToggleButton /> {/* Added ThemeToggleButton here */}
         <IconButton
           size="lg"
           variant="ghost"
