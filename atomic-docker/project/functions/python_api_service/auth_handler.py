@@ -43,16 +43,59 @@ if not logger.hasHandlers(): # Ensure logger is configured
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # --- Conceptual DB Connection Pool ---
-# In a real Flask app, this would be initialized with the app context, e.g., using Flask-SQLAlchemy
-# For now, this is a placeholder. Functions in db_oauth_gdrive.py expect this.
-def get_db_connection_pool():
-    # Example: return current_app.extensions['psycopg2_pool']
-    # For this conceptual implementation, we'll return None, and DB functions will log.
-    # This highlights that actual DB integration is needed.
-    if 'db_pool' not in current_app.extensions:
-        logger.warning("Conceptual db_pool not found in current_app.extensions. DB operations will be placeholders.")
-        # current_app.extensions['db_pool'] = "mock_pool_for_conceptual_db_calls" # Example setup
-    return current_app.extensions.get('db_pool') # Will be None if not set up by app factory
+# In a real Flask app, this would be initialized with the app context.
+# For psycopg2, this typically involves creating a connection pool when the app starts
+# and making it accessible, often via `current_app.extensions` or a dedicated Flask extension.
+
+# Attempt to import psycopg2 pool for type hinting, if available.
+try:
+    from psycopg2 import pool as psycopg2_pool
+    PSYCOPG2_POOL_TYPE = psycopg2_pool.AbstractConnectionPool
+except ImportError:
+    PSYCOPG2_POOL_TYPE = Any # Fallback type if psycopg2 is not installed in this context
+
+def get_db_connection_pool() -> Optional[PSYCOPG2_POOL_TYPE]:
+    """
+    Conceptual function to retrieve the database connection pool.
+    In a real Flask application, the pool (e.g., a psycopg2.pool.SimpleConnectionPool)
+    would be initialized in the app factory (e.g., from create_app()) using
+    database connection details (typically from environment variables like DATABASE_URL)
+    and stored in `current_app.extensions['db_pool']`.
+
+    Example (in app factory / create_app()):
+    -----------------------------------------
+    # from psycopg2 import pool
+    # app.extensions['db_pool'] = pool.SimpleConnectionPool(
+    #     minconn=1,
+    #     maxconn=10,
+    #     dsn=os.environ.get('DATABASE_URL') # e.g., "postgresql://user:pass@host:port/dbname"
+    # )
+
+    # To close the pool when the app shuts down:
+    # import atexit
+    # def close_db_pool():
+    #     db_pool = current_app.extensions.get('db_pool')
+    #     if db_pool:
+    #         db_pool.closeall()
+    # atexit.register(close_db_pool)
+    -----------------------------------------
+    """
+    if not hasattr(current_app, 'extensions') or 'db_pool' not in current_app.extensions:
+        logger.warning(
+            "Database connection pool ('db_pool') not found in current_app.extensions. "
+            "Database operations in db_oauth_gdrive.py will likely fail or use placeholders if psycopg2 is unavailable. "
+            "Ensure the pool is initialized in your Flask app factory."
+        )
+        return None
+
+    db_pool = current_app.extensions.get('db_pool')
+    # Optional: Add a type check here if you want to be stricter,
+    # though it might be problematic if the actual pool object is wrapped.
+    # if not isinstance(db_pool, psycopg2_pool.AbstractConnectionPool):
+    #     logger.error(f"Retrieved db_pool is not of the expected psycopg2 pool type. Type: {type(db_pool)}")
+    #     return None
+
+    return db_pool
 
 
 # --- Google Drive OAuth Constants ---
