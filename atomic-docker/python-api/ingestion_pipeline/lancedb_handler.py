@@ -87,6 +87,7 @@ class DocumentChunkModel(LanceModel):
     user_id: str
     chunk_sequence: int
     text_content: str
+    parent_doc_type: Optional[str] = None # Added for filtering by parent document type
     metadata_json: Optional[str] = None
     char_count: Optional[int] = None
 

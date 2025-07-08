@@ -173,9 +173,14 @@ async def process_document_and_store(
         embedding_resp = get_text_embedding_openai(text_to_embed=chunk_text_content, openai_api_key_param=openai_api_key_param)
         if embedding_resp["status"] == "success":
             chunks_with_embeddings_data.append({
-                "chunk_sequence": i, "text_content": chunk_text_content, "vector": embedding_resp["data"],
-                "metadata_json": None, "char_count": len(chunk_text_content)
-                # doc_id and user_id will be added by lancedb_handler.add_processed_document
+                "doc_id": document_id, # Ensure doc_id is part of the chunk data
+                "user_id": user_id,   # Ensure user_id is part of the chunk data
+                "parent_doc_type": original_doc_type, # Add parent_doc_type
+                "chunk_sequence": i,
+                "text_content": chunk_text_content,
+                "embedding": embedding_resp["data"], # Ensure key is 'embedding'
+                "metadata_json": None,
+                "char_count": len(chunk_text_content)
             })
         else:
             logger.warning(f"Embedding failed for chunk {i} of doc_id {document_id}: {embedding_resp.get('message')}")

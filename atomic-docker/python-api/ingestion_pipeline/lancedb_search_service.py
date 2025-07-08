@@ -94,44 +94,73 @@ async def _search_single_table(
     # Basic user_id filter (always apply)
     filter_str = f"user_id = '{user_id}'"
 
-    # Apply additional filters (example for date range on a 'timestamp_field')
-    # This needs to be adapted based on actual filterable fields in each schema
-    # Also, parent_doc_titles is passed in but not used yet; it will be replaced by live fetch.
-    # The `parent_doc_titles` parameter will be removed from this function,
-    # and parent doc data will be fetched internally if source_type_label is "document_chunk".
-
+    # Apply additional filters
     if filters:
         date_after = filters.get("date_after")
         date_before = filters.get("date_before")
-        # Assuming a common timestamp field like 'ingested_at' or specific ones like 'email_date'
-        # This part needs to be more robust based on which fields are filterable and their types in LanceDB.
-        # For simplicity, this example assumes 'ingested_at' is a primary date field for filtering.
-        # LanceDB converts datetime to microseconds (int64) for storage.
-        # So, date strings need to be converted to microseconds for filtering.
 
-        # Example: if 'ingested_at' is the target field for date filtering
-        timestamp_field_for_filtering = "ingested_at" # This should be schema-dependent
+        # Determine the timestamp field for filtering based on source type
+        timestamp_field_for_filtering = None
         if source_type_label == "email_snippet":
-            timestamp_field_for_filtering = "email_date"
+            timestamp_field_for_filtering = "email_date" # Assumes this field exists and is datetime in LanceDB
         elif source_type_label == "notion_summary":
-            timestamp_field_for_filtering = "last_edited_time_source" # or created_time_source
+            # Prefer last_edited_time_source, fallback to created_time_source.
+            # These need to be filterable timestamps in LanceDB (e.g. int64 microseconds).
+            # This example assumes last_edited_time_source is the primary one to filter on.
+            timestamp_field_for_filtering = "last_edited_time_source"
+        elif source_type_label == "document_chunk":
+            # Document chunks themselves don't have inherent creation/modification dates
+            # suitable for typical user-facing date filters. Filtering would usually be
+            # on the parent document's dates, which requires denormalization onto chunks
+            # or a join capability not used here for simple LanceDB filtering.
+            # The original code attempted to use 'ingested_at' from DocumentChunkModel,
+            # which might not be what users expect for "document date".
+            # For now, we explicitly disable direct date_after/date_before filtering on chunks
+            # unless a clear, chunk-specific filterable date field is defined and intended.
+            # If 'ingested_at' on chunks *is* desired for filtering, this logic can be changed.
+            logger.debug(f"Date filtering (date_after/date_before) for source_type 'document_chunk' is currently not applied directly to chunks. Filter by parent document date if implemented via denormalization or pre-filtering of doc_ids.")
+            pass # No default timestamp field for document_chunk for date_after/before filters
 
-        if date_after:
-            try:
-                dt_after = datetime.fromisoformat(date_after.replace("Z", "+00:00"))
-                # Convert to microseconds for LanceDB int64 timestamp comparison
-                filter_str += f" AND {timestamp_field_for_filtering} >= {int(dt_after.timestamp() * 1_000_000)}"
-            except ValueError:
-                logger.warning(f"Invalid date_after format: {date_after}")
-        if date_before:
-            try:
-                dt_before = datetime.fromisoformat(date_before.replace("Z", "+00:00"))
-                filter_str += f" AND {timestamp_field_for_filtering} <= {int(dt_before.timestamp() * 1_000_000)}"
-            except ValueError:
-                logger.warning(f"Invalid date_before format: {date_before}")
+        if timestamp_field_for_filtering and (date_after or date_before):
+            # Ensure the field is valid for the current schema (conceptual check)
+            # In a real system, you might introspect schema or have a predefined map.
+            # For now, we assume the chosen field is correctly stored as filterable timestamp (microseconds)
+
+            if date_after:
+                try:
+                    # Handle date-only strings by assuming start of day UTC
+                    dt_after_str = date_after if 'T' in date_after else f"{date_after}T00:00:00"
+                    # Assume UTC if no explicit timezone offset
+                    if not date_after.endswith("Z") and "+" not in date_after[10:] and "-" not in date_after[10:]:
+                        dt_after_str += "Z"
+
+                    dt_obj_after = datetime.fromisoformat(dt_after_str.replace("Z", "+00:00"))
+                    filter_str += f" AND {timestamp_field_for_filtering} >= {int(dt_obj_after.timestamp() * 1_000_000)}"
+                except ValueError as ve:
+                    logger.warning(f"Invalid date_after format: '{date_after}'. Error: {ve}")
+            if date_before:
+                try:
+                    # Handle date-only strings by assuming end of day UTC
+                    dt_before_str = date_before if 'T' in date_before else f"{date_before}T23:59:59.999999"
+                     # Assume UTC if no explicit timezone offset
+                    if not date_before.endswith("Z") and "+" not in date_before[10:] and "-" not in date_before[10:]:
+                        dt_before_str += "Z"
+
+                    dt_obj_before = datetime.fromisoformat(dt_before_str.replace("Z", "+00:00"))
+                    filter_str += f" AND {timestamp_field_for_filtering} <= {int(dt_obj_before.timestamp() * 1_000_000)}"
+                except ValueError as ve:
+                    logger.warning(f"Invalid date_before format: '{date_before}'. Error: {ve}")
+        elif (date_after or date_before) and not timestamp_field_for_filtering:
+            # This case is hit if date filters are provided for a source_type (like document_chunk)
+            # for which we haven't defined a timestamp_field_for_filtering.
+            logger.warning(f"Date filters (date_after/date_before) provided for {source_type_label}, but no suitable timestamp field is configured for direct filtering on this source type.")
 
         if source_type_label == "document_chunk" and filters.get("doc_type_filter"):
-            filter_str += f" AND parent_doc_type = '{filters['doc_type_filter']}'" # Requires parent_doc_type in chunk schema or join
+            # This filter relies on 'parent_doc_type' being available in the DocumentChunkModel schema
+            # or through a mechanism that makes it filterable for chunks.
+            # If 'parent_doc_type' is not in DocumentChunkModel, this filter will fail at LanceDB query time.
+            # This will be addressed in the 'parent document info' step.
+            filter_str += f" AND parent_doc_type = '{filters['doc_type_filter']}'"
 
     if filter_str:
         logger.debug(f"Applying filter to {table_name}: {filter_str}")
@@ -140,12 +169,38 @@ async def _search_single_table(
     raw_results = await asyncio.to_thread(search_req.to_list)
     logger.info(f"Search on {table_name} for user {user_id} returned {len(raw_results)} raw results.")
 
+    parent_docs_metadata = {}
+    if source_type_label == "document_chunk" and raw_results:
+        doc_ids_to_fetch = list(set(r.get("doc_id") for r in raw_results if r.get("doc_id")))
+        if doc_ids_to_fetch:
+            try:
+                # Assuming DocumentMetadataModel is available from lancedb_handler imports
+                docs_table = await create_or_open_table(db_conn, DOCUMENTS_TABLE_NAME, schema=DocumentMetadataModel)
+                if docs_table:
+                    if len(doc_ids_to_fetch) == 1:
+                        parent_filter_str = f"doc_id = '{doc_ids_to_fetch[0]}'"
+                    else:
+                        # Ensure doc_ids are properly quoted for the IN clause
+                        quoted_doc_ids = [f"'{str(id_val)}'" for id_val in doc_ids_to_fetch]
+                        parent_filter_str = f"doc_id IN ({', '.join(quoted_doc_ids)})"
+
+                    logger.debug(f"Fetching parent document metadata with filter: {parent_filter_str}")
+                    parent_docs_raw = await asyncio.to_thread(
+                        docs_table.search() # No vector search needed, attribute lookup
+                        .where(parent_filter_str)
+                        .select(["doc_id", "title", "source_uri", "doc_type"]) # Select only needed fields
+                        .to_list()
+                    )
+                    for p_doc in parent_docs_raw:
+                        parent_docs_metadata[p_doc["doc_id"]] = p_doc
+                else:
+                    logger.warning(f"Could not open documents table '{DOCUMENTS_TABLE_NAME}' to fetch parent metadata.")
+            except Exception as e_parent:
+                logger.error(f"Error fetching parent document metadata: {e_parent}", exc_info=True)
+
     mapped_results: List[UniversalSearchResultItem] = []
     for record in raw_results:
-        # LanceDB returns scores as _distance (lower is better). Invert for relevance (higher is better).
-        # Simple inversion: 1.0 / (1.0 + distance). Needs normalization if combining diverse distances.
-        # Or, just pass raw distance and let consumer decide. For now, pass raw.
-        score = record.get("_distance", float('inf'))
+        score = record.get("_distance", float('inf')) # LanceDB _distance, lower is better
 
         item: UniversalSearchResultItem = {
             "id": "", "user_id": record.get("user_id", user_id), "source_type": source_type_label,
@@ -153,23 +208,33 @@ async def _search_single_table(
         }
 
         if source_type_label == "document_chunk":
-            item["id"] = record.get("chunk_id") or record.get("_rowid") # Assuming chunk_id or use rowid
+            item["id"] = record.get("chunk_id") or record.get("_rowid")
             item["snippet"] = record.get("text_content", "")
             doc_id = record.get("doc_id")
             item["document_id"] = doc_id
-            # To get parent_document_title, document_source_uri, document_doc_type,
-            # we would need to fetch from DOCUMENTS_TABLE_NAME using doc_id, or denormalize.
-            # For this iteration, these might be initially empty or fetched if parent_doc_titles is provided.
-            if parent_doc_titles and doc_id in parent_doc_titles:
-                item["title"] = parent_doc_titles[doc_id] # Parent doc title
-                item["parent_document_title"] = parent_doc_titles[doc_id]
-            else: # Fallback if not pre-fetched
-                item["title"] = f"Chunk {record.get('chunk_sequence', '')} from Doc {doc_id}"
             item["chunk_sequence"] = record.get("chunk_sequence")
-            # item["document_source_uri"] = ... (needs fetch or denormalization)
-            # item["document_doc_type"] = ... (needs fetch or denormalization)
-            # Timestamps would also come from parent document typically
-            item["ingested_at"] = record.get("ingested_at").isoformat() if record.get("ingested_at") else None
+
+            parent_info = parent_docs_metadata.get(doc_id, {})
+            parent_title = parent_info.get("title") # Use actual parent title if available
+            if not parent_title: # Fallback if title is None or empty from parent_info
+                 parent_title = f"Document {doc_id}"
+
+
+            item["title"] = f"Chunk {record.get('chunk_sequence', 'N/A')} of \"{parent_title}\""
+            item["parent_document_title"] = parent_title
+            item["document_source_uri"] = parent_info.get("source_uri")
+            # Use parent_doc_type from the chunk record itself (denormalized during ingestion)
+            # Fallback to parent_info.get("doc_type") if somehow missing on chunk.
+            item["document_doc_type"] = record.get("parent_doc_type") or parent_info.get("doc_type")
+
+            # Timestamps for chunks generally refer to the parent document.
+            # If 'ingested_at' is on the chunk schema, it's chunk ingestion time.
+            # For created_at/last_modified_at, they should come from parent_info if needed here.
+            # item["created_at"] = parent_info.get("created_at_source").isoformat() if parent_info.get("created_at_source") else None
+            # item["last_modified_at"] = parent_info.get("last_modified_source").isoformat() if parent_info.get("last_modified_source") else None
+            # ingested_at on the chunk record itself (if it exists in DocumentChunkModel schema)
+            if "ingested_at" in record and hasattr(record["ingested_at"], 'isoformat'):
+                 item["ingested_at"] = record["ingested_at"].isoformat()
 
 
         elif source_type_label == "email_snippet":
