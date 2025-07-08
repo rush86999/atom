@@ -24,7 +24,7 @@ try:
         save_or_update_gdrive_tokens,
         get_gdrive_oauth_details,
         update_gdrive_access_token,
-        # delete_gdrive_tokens # If disconnect functionality is added later
+        delete_gdrive_tokens # Added for disconnect
     )
     DB_UTILS_AVAILABLE = True
 except ImportError as e_db:
@@ -272,23 +272,24 @@ def refresh_gdrive_access_token_internal(user_id: str) -> Optional[str]:
         logger.error(f"Unexpected error in GDrive token refresh for user {user_id}: {e}", exc_info=True)
         return None
 
-@auth_bp.route('/api/auth/gdrive/get-access-token', methods=['GET'])
-def get_gdrive_access_token_route():
+
+# --- Internal Utility for Access Token Retrieval & Refresh ---
+def _get_valid_gdrive_access_token(user_id: str) -> Optional[str]:
+    """
+    Internal utility to get a valid GDrive access token for a user.
+    Handles fetching, checking expiry, and refreshing if necessary.
+    Returns the plain access token or None if not available/error.
+    """
     if not CRYPTO_AVAILABLE or not DB_UTILS_AVAILABLE:
-        logger.error("Cannot get access token: crypto or DB utils are not available.")
-        return jsonify({"ok": False, "error": {"code": "SERVER_SETUP_ERROR_CRITICAL", "message": "Auth components not available."}}), 503
-
-    user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
-
-    # Placeholder: In a real app, verify that the requester (e.g. other backend service) is authorized.
+        logger.error(f"Cannot get access token for user {user_id}: crypto or DB utils are not available.")
+        return None
 
     db_pool = get_db_connection_pool() # Conceptual
     token_db_details = get_gdrive_oauth_details(db_pool, user_id)
 
     if not token_db_details or not token_db_details.get("access_token_encrypted") or not token_db_details.get("expiry_timestamp_ms"):
-        return jsonify({"ok": False, "error": {"code": "NO_TOKEN_FOUND", "message": "No GDrive token found for user or token details incomplete. Please re-authenticate."}}), 401
+        logger.info(f"No GDrive token found in DB for user {user_id} or token details incomplete.")
+        return None
 
     current_time_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     buffer_seconds = 5 * 60 # 5 minutes buffer
@@ -297,18 +298,88 @@ def get_gdrive_access_token_route():
         logger.info(f"GDrive access token for user {user_id} expired or nearing expiry. Attempting refresh.")
         refreshed_plain_access_token = refresh_gdrive_access_token_internal(user_id)
         if refreshed_plain_access_token:
-            return jsonify({"ok": True, "data": {"access_token": refreshed_plain_access_token}}), 200
+            return refreshed_plain_access_token
         else:
             logger.error(f"GDrive token refresh failed for user {user_id}. User may need to re-authenticate.")
-            return jsonify({"ok": False, "error": {"code": "TOKEN_REFRESH_FAILED", "message": "Failed to refresh GDrive access token. Please re-authenticate."}}), 401
+            return None
     else:
         decrypted_access_token = decrypt_data(token_db_details["access_token_encrypted"])
         if not decrypted_access_token:
             logger.error(f"Failed to decrypt stored access token for user {user_id}. Token data might be corrupted or key changed.")
-            return jsonify({"ok": False, "error": {"code": "TOKEN_DECRYPTION_ERROR", "message": "Failed to decrypt access token."}}), 500
+            return None
+        logger.debug(f"Returning existing valid GDrive access token for user {user_id}.")
+        return decrypted_access_token
 
-        logger.info(f"Returning existing valid GDrive access token for user {user_id}.")
-        return jsonify({"ok": True, "data": {"access_token": decrypted_access_token}}), 200
+
+@auth_bp.route('/api/auth/gdrive/get-access-token', methods=['GET'])
+def get_gdrive_access_token_route():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    # Placeholder: In a real app, verify that the requester (e.g. other backend service) is authorized
+    # if the user_id in the token/session does not match the user_id in the query.
+
+    access_token = _get_valid_gdrive_access_token(user_id)
+
+    if access_token:
+        return jsonify({"ok": True, "data": {"access_token": access_token}}), 200
+    elif not CRYPTO_AVAILABLE or not DB_UTILS_AVAILABLE: # Check if failure was due to setup
+         return jsonify({"ok": False, "error": {"code": "SERVER_SETUP_ERROR_CRITICAL", "message": "Auth components not available."}}), 503
+    else: # General failure to get or refresh token
+        # Check if token_db_details were found at all to differentiate "no token" vs "refresh failed"
+        db_pool = get_db_connection_pool()
+        token_db_details = get_gdrive_oauth_details(db_pool, user_id) # Re-fetch to check existence
+        if not token_db_details:
+            return jsonify({"ok": False, "error": {"code": "NO_TOKEN_FOUND", "message": "No GDrive token found for user. Please authenticate."}}), 401
+        else:
+            return jsonify({"ok": False, "error": {"code": "TOKEN_RETRIEVAL_FAILED", "message": "Failed to retrieve or refresh GDrive access token. Please re-authenticate."}}), 401
+
+
+@auth_bp.route('/api/auth/gdrive/disconnect', methods=['POST'])
+def gdrive_auth_disconnect():
+    if not DB_UTILS_AVAILABLE: # Crypto not strictly needed for delete, but DB is
+        logger.error("Cannot disconnect GDrive: DB utils are not available.")
+        return jsonify({"ok": False, "error": {"code": "SERVER_SETUP_ERROR_CRITICAL", "message": "Database components not available."}}), 503
+
+    data = request.get_json()
+    if not data or 'user_id' not in data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON and include user_id."}}), 400
+
+    user_id = data['user_id']
+
+    # Placeholder: In a real app, verify that the requester is authorized to disconnect this user_id.
+
+    db_pool = get_db_connection_pool()
+
+    # TODO: Future enhancement - Attempt to revoke token with Google before deleting from DB.
+    # This would involve fetching the token (if it exists), decrypting it,
+    # then making a call to https://oauth2.googleapis.com/revoke?token=<token>.
+    # Requires careful handling if only refresh token is stored or if access token is expired.
+    # For now, we prioritize deleting the local record.
+    # Example:
+    # token_details = get_gdrive_oauth_details(db_pool, user_id)
+    # if token_details and token_details.get('refresh_token_encrypted'):
+    #     rt = decrypt_data(token_details['refresh_token_encrypted'])
+    #     if rt: requests.post('https://oauth2.googleapis.com/revoke', params={'token': rt}) # Best effort
+    # elif token_details and token_details.get('access_token_encrypted'):
+    #     at = decrypt_data(token_details['access_token_encrypted'])
+    #     if at: requests.post('https://oauth2.googleapis.com/revoke', params={'token': at}) # Best effort
+
+
+    deleted_ok = delete_gdrive_tokens(db_pool, user_id)
+
+    if deleted_ok:
+        logger.info(f"GDrive tokens deleted from DB for user {user_id}.")
+        return jsonify({"ok": True, "message": "Google Drive account disconnected successfully."}), 200
+    else:
+        # This could be because the user had no tokens, or a DB error occurred.
+        # db_oauth_gdrive.delete_gdrive_tokens logs details.
+        logger.warning(f"GDrive token deletion for user {user_id} reported as not OK (may be no tokens or DB error).")
+        # To provide a more specific error, one might check if tokens existed before attempting delete.
+        # For now, a generic message is okay as the outcome is tokens are gone or were never there.
+        return jsonify({"ok": False, "error": {"code": "DISCONNECT_FAILED", "message": "Could not complete GDrive disconnection. Tokens may not have existed or a database error occurred."}}), 500
+
 
 # For standalone running and registration with a main app
 # This part would typically be in the main app.py or similar of the python_api_service

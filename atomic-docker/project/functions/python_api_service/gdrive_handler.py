@@ -16,6 +16,10 @@ if FUNCTIONS_DIR not in sys.path:
 
 try:
     from . import gdrive_service
+    from .auth_handler import _get_valid_gdrive_access_token # For internal token fetching
+    from .db_oauth_gdrive import get_gdrive_oauth_details # For connection status
+    from .auth_handler import get_db_connection_pool # To pass to get_gdrive_oauth_details
+
     # Changed import from process_pdf_and_store to process_document_and_store
     from ingestion_pipeline import document_processor
     INGESTION_SERVICES_AVAILABLE = True
@@ -23,13 +27,32 @@ try:
         logging.getLogger(__name__).error("CRITICAL: document_processor.process_document_and_store not found!")
         INGESTION_SERVICES_AVAILABLE = False
 except ImportError as e:
-    print(f"Error importing gdrive_service or document_processor: {e}. GDrive ingestion will not be fully functional.", file=sys.stderr)
+    # Log detailed error for better debugging in case of import issues
+    err_msg = f"Error importing dependencies for gdrive_handler: {e}. GDrive functionality might be impaired."
+    if 'gdrive_service' not in locals(): err_msg += " (gdrive_service failed to import)"
+    if '_get_valid_gdrive_access_token' not in locals(): err_msg += " (_get_valid_gdrive_access_token from auth_handler failed)"
+    if 'get_gdrive_oauth_details' not in locals(): err_msg += " (get_gdrive_oauth_details from db_oauth_gdrive failed)"
+    if 'document_processor' not in locals(): err_msg += " (document_processor from ingestion_pipeline failed)"
+    print(err_msg, file=sys.stderr)
+    logging.getLogger(__name__).critical(err_msg, exc_info=True)
+
     INGESTION_SERVICES_AVAILABLE = False
-    gdrive_service = type('obj', (object,), {
-        'download_gdrive_file': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"},
-        'get_gdrive_file_metadata': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"}
-    })()
-    document_processor = type('obj', (object,), {'process_document_and_store': lambda **kwargs: {"status": "error", "message": "document_processor not loaded"}})()
+    # Define fallbacks if imports failed, so the module can still load for basic Flask operations
+    if 'gdrive_service' not in locals():
+        gdrive_service = type('obj', (object,), {
+            'download_gdrive_file': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"},
+            'get_gdrive_file_metadata': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"},
+            'list_gdrive_files': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"}
+        })()
+    if 'document_processor' not in locals():
+        document_processor = type('obj', (object,), {'process_document_and_store': lambda **kwargs: {"status": "error", "message": "document_processor not loaded"}})()
+    if '_get_valid_gdrive_access_token' not in locals():
+        def _get_valid_gdrive_access_token(user_id: str): logger.error("auth_handler._get_valid_gdrive_access_token not loaded"); return None
+    if 'get_gdrive_oauth_details' not in locals():
+        def get_gdrive_oauth_details(pool, user_id: str): logger.error("db_oauth_gdrive.get_gdrive_oauth_details not loaded"); return None
+    if 'get_db_connection_pool' not in locals():
+        def get_db_connection_pool(): logger.error("auth_handler.get_db_connection_pool not loaded"); return None
+
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
@@ -38,12 +61,73 @@ if not logger.hasHandlers():
 gdrive_bp = Blueprint('gdrive_api', __name__)
 
 @gdrive_bp.errorhandler(Exception)
-def handle_gdrive_exception(e):
+def handle_gdrive_exception(e): # pragma: no cover
     logger.error(f"Unhandled exception in gdrive_handler: {e}", exc_info=True)
     return jsonify({
         "ok": False,
         "error": {"code": "PYTHON_UNHANDLED_ERROR", "message": "An unexpected server error occurred in GDrive handler.", "details": str(e)}
     }), 500
+
+@gdrive_bp.route('/api/gdrive/connection-status', methods=['GET'])
+def gdrive_connection_status_route():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id query parameter is required."}}), 400
+
+    # Placeholder: Verify user_id belongs to authenticated user if using session-based auth
+
+    db_pool = get_db_connection_pool()
+    token_details = get_gdrive_oauth_details(db_pool, user_id)
+
+    if token_details and token_details.get("access_token_encrypted"): # Check if token exists
+        # Optionally, could use _get_valid_gdrive_access_token to ensure it's not just present but also usable/refreshable
+        # For a simple status, just checking existence might be enough.
+        # If _get_valid_gdrive_access_token(user_id) returns a token, then it's truly connected.
+        # Let's use the more robust check:
+        access_token = _get_valid_gdrive_access_token(user_id) # This handles refresh check
+        if access_token:
+             # Re-fetch details if refresh happened, or use initial details if no refresh was needed.
+            updated_token_details = get_gdrive_oauth_details(db_pool, user_id) if token_details["expiry_timestamp_ms"] < (datetime.now(timezone.utc).timestamp() * 1000) else token_details
+            gdrive_email = updated_token_details.get("gdrive_user_email", "Email not available") if updated_token_details else "Email not available"
+            return jsonify({"ok": True, "data": {"isConnected": True, "email": gdrive_email}}), 200
+        else:
+            # Token existed but could not be refreshed or was invalid
+            return jsonify({"ok": True, "data": {"isConnected": False, "email": None, "reason": "Token refresh failed or token invalid."}}), 200
+    else:
+        return jsonify({"ok": True, "data": {"isConnected": False, "email": None}}), 200
+
+
+@gdrive_bp.route('/api/gdrive/list-files', methods=['POST'])
+def list_files_route():
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    user_id = data.get('user_id')
+    folder_id = data.get('folder_id')
+    page_token = data.get('page_token')
+    page_size = data.get('page_size', 50) # Default page size
+    query = data.get('query') # For file name search, e.g., "name contains 'report'"
+
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    access_token = _get_valid_gdrive_access_token(user_id)
+    if not access_token:
+        return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Failed to retrieve valid Google Drive access token. Please re-authenticate."}}), 401
+
+    result = gdrive_service.list_gdrive_files(
+        access_token=access_token,
+        folder_id=folder_id,
+        query=query,
+        page_size=page_size,
+        page_token=page_token
+    )
+    if result["status"] == "success":
+        return jsonify({"ok": True, "data": result.get("data")}), 200
+    else:
+        return jsonify({"ok": False, "error": {"code": result.get("code", "GDRIVE_LIST_FAILED"), "message": result.get("message"), "details": result.get("details")}}), 500
+
 
 @gdrive_bp.route('/api/ingest-gdrive-document', methods=['POST'])
 async def ingest_gdrive_document_route():
@@ -56,17 +140,24 @@ async def ingest_gdrive_document_route():
 
     user_id = data.get('user_id')
     gdrive_file_id = data.get('gdrive_file_id')
-    access_token = data.get('access_token')
+    # access_token = data.get('access_token') # Replaced by user_id lookup
     original_file_metadata = data.get('original_file_metadata', {})
-    file_name_from_meta = original_file_metadata.get('name', f"GDrive_{gdrive_file_id}") # Use original name
+    file_name_from_meta = original_file_metadata.get('name', f"GDrive_{gdrive_file_id}")
     original_gdrive_mime_type = original_file_metadata.get('mimeType', '')
     source_uri_from_meta = original_file_metadata.get('webViewLink', f"gdrive_id_{gdrive_file_id}")
     openai_api_key_param = data.get('openai_api_key')
 
-    if not all([user_id, gdrive_file_id, access_token]):
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "Missing required fields: user_id, gdrive_file_id, access_token."}}), 400
-    if not original_gdrive_mime_type:
-         logger.warning(f"Original GDrive MIME type missing for file ID {gdrive_file_id}. This might affect doc_type classification.")
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+    if not gdrive_file_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "gdrive_file_id is required."}}), 400
+    if not original_file_metadata or 'name' not in original_file_metadata or 'mimeType' not in original_file_metadata:
+         logger.warning(f"Original GDrive file metadata (name, mimeType) missing for file ID {gdrive_file_id}. This is crucial for ingestion.")
+         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "original_file_metadata with name and mimeType is required."}}), 400
+
+    access_token = _get_valid_gdrive_access_token(user_id)
+    if not access_token:
+        return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Failed to retrieve valid Google Drive access token. Please re-authenticate."}}), 401
 
     logger.info(f"Request to ingest GDrive file: ID='{gdrive_file_id}', Name='{file_name_from_meta}', User='{user_id}', OriginalMIME='{original_gdrive_mime_type}'")
 
@@ -156,23 +247,30 @@ async def ingest_gdrive_document_route():
 
 @gdrive_bp.route('/api/gdrive/get-file-metadata', methods=['POST'])
 def get_file_metadata_route():
-    if not INGESTION_SERVICES_AVAILABLE:
-        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "GDrive service or its dependencies are not available."}}), 503
+    # if not INGESTION_SERVICES_AVAILABLE: # gdrive_service might be available even if full ingestion isn't
+    #     return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "GDrive service or its dependencies are not available."}}), 503
+    if not hasattr(gdrive_service, 'get_gdrive_file_metadata'): # Check if gdrive_service itself is loaded
+        logger.critical("gdrive_service.get_gdrive_file_metadata is not available. Module may not have loaded correctly.")
+        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "Core GDrive service component is not available."}}), 503
 
     data = request.get_json()
     if not data:
         return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
 
-    access_token = data.get('access_token')
+    user_id = data.get('user_id') # Expect user_id instead of access_token
     file_id = data.get('file_id')
     fields = data.get('fields')
 
-    if not access_token:
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "access_token is required."}}), 400
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
     if not file_id:
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "file_id is required."}}), 400
 
-    logger.info(f"Route /api/gdrive/get-file-metadata called for file_id: {file_id}")
+    access_token = _get_valid_gdrive_access_token(user_id)
+    if not access_token:
+        return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Failed to retrieve valid Google Drive access token. Please re-authenticate."}}), 401
+
+    logger.info(f"Route /api/gdrive/get-file-metadata called for user_id: {user_id}, file_id: {file_id}")
 
     result = gdrive_service.get_gdrive_file_metadata(
         access_token=access_token,
