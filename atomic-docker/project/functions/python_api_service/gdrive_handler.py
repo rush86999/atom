@@ -3,30 +3,33 @@ import sys
 import tempfile
 import uuid
 import logging
+import shutil # For robust temp directory removal
 from flask import Blueprint, request, jsonify
 
-# Adjust path for imports - assumes this file is in python_api_service
-# Path to 'python-api/' (parent of python_api_service)
+# Adjust path for imports
 PYTHON_API_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if PYTHON_API_DIR not in sys.path:
     sys.path.append(PYTHON_API_DIR)
-
-# Path to 'project/functions/' for note_utils (if used for embeddings by document_processor)
 FUNCTIONS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'project', 'functions'))
 if FUNCTIONS_DIR not in sys.path:
     sys.path.append(FUNCTIONS_DIR)
 
 try:
-    from . import gdrive_service # Expects gdrive_service.py in the same directory (python_api_service)
-    from ingestion_pipeline import document_processor # Expects document_processor in ingestion_pipeline subdir
+    from . import gdrive_service
+    # Changed import from process_pdf_and_store to process_document_and_store
+    from ingestion_pipeline import document_processor
     INGESTION_SERVICES_AVAILABLE = True
+    if not hasattr(document_processor, 'process_document_and_store'):
+        logging.getLogger(__name__).error("CRITICAL: document_processor.process_document_and_store not found!")
+        INGESTION_SERVICES_AVAILABLE = False
 except ImportError as e:
     print(f"Error importing gdrive_service or document_processor: {e}. GDrive ingestion will not be fully functional.", file=sys.stderr)
     INGESTION_SERVICES_AVAILABLE = False
-    # Mock them if necessary for app loading, but calls will fail
-    gdrive_service = type('obj', (object,), {'download_gdrive_file': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"}})()
-    document_processor = type('obj', (object,), {'process_pdf_and_store': lambda **kwargs: {"status": "error", "message": "document_processor not loaded"}})()
-
+    gdrive_service = type('obj', (object,), {
+        'download_gdrive_file': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"},
+        'get_gdrive_file_metadata': lambda **kwargs: {"status": "error", "message": "gdrive_service not loaded"}
+    })()
+    document_processor = type('obj', (object,), {'process_document_and_store': lambda **kwargs: {"status": "error", "message": "document_processor not loaded"}})()
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
@@ -43,8 +46,8 @@ def handle_gdrive_exception(e):
     }), 500
 
 @gdrive_bp.route('/api/ingest-gdrive-document', methods=['POST'])
-async def ingest_gdrive_document_route(): # Made async
-    if not INGESTION_SERVICES_AVAILABLE:
+async def ingest_gdrive_document_route():
+    if not INGESTION_SERVICES_AVAILABLE or not document_processor or not gdrive_service:
         return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "GDrive ingestion or document processing service is not available."}}), 503
 
     data = request.get_json()
@@ -53,53 +56,39 @@ async def ingest_gdrive_document_route(): # Made async
 
     user_id = data.get('user_id')
     gdrive_file_id = data.get('gdrive_file_id')
-    access_token = data.get('access_token') # Direct access token for simplicity in this example
-    # In production, this might be an internal token_ref to look up the actual GDrive access_token
-
+    access_token = data.get('access_token')
     original_file_metadata = data.get('original_file_metadata', {})
-    file_name = original_file_metadata.get('name', 'Untitled Google Drive File')
-    original_mime_type = original_file_metadata.get('mimeType', '')
-    source_uri = original_file_metadata.get('webViewLink', f"gdrive_id_{gdrive_file_id}")
-
-    openai_api_key_param = data.get('openai_api_key') # Optional key for embeddings
+    file_name_from_meta = original_file_metadata.get('name', f"GDrive_{gdrive_file_id}") # Use original name
+    original_gdrive_mime_type = original_file_metadata.get('mimeType', '')
+    source_uri_from_meta = original_file_metadata.get('webViewLink', f"gdrive_id_{gdrive_file_id}")
+    openai_api_key_param = data.get('openai_api_key')
 
     if not all([user_id, gdrive_file_id, access_token]):
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "Missing required fields: user_id, gdrive_file_id, access_token."}}), 400
+    if not original_gdrive_mime_type:
+         logger.warning(f"Original GDrive MIME type missing for file ID {gdrive_file_id}. This might affect doc_type classification.")
 
-    logger.info(f"Received request to ingest GDrive file: ID='{gdrive_file_id}', Name='{file_name}', User='{user_id}'")
+    logger.info(f"Request to ingest GDrive file: ID='{gdrive_file_id}', Name='{file_name_from_meta}', User='{user_id}', OriginalMIME='{original_gdrive_mime_type}'")
 
-    # Determine target MIME type for download/export
+    # Determine target MIME type for download/export, preferring text-friendly formats
     target_mime_type_for_download = None
-    doc_processor_input_type = "pdf" # Assume PDF for now, as that's what process_pdf_and_store handles
-
-    if original_mime_type.startswith('application/vnd.google-apps'):
-        if original_mime_type == 'application/vnd.google-apps.document':
+    if original_gdrive_mime_type == 'application/vnd.google-apps.document':
+        target_mime_type_for_download = 'text/plain' # Prefer plain text for GDocs
+        # Alt: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' (DOCX)
+    elif original_gdrive_mime_type == 'application/vnd.google-apps.spreadsheet':
+        target_mime_type_for_download = 'text/csv' # Prefer CSV for GSheets
+        # Alt: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' (XLSX)
+    elif original_gdrive_mime_type == 'application/vnd.google-apps.presentation':
+        target_mime_type_for_download = 'application/pdf' # PDF is often best for text from slides
+    elif original_gdrive_mime_type in ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']:
+        target_mime_type_for_download = None # Download as is
+    else: # For other unknown or binary types, attempt PDF export if GSuite, else direct download
+        if original_gdrive_mime_type.startswith('application/vnd.google-apps.'):
             target_mime_type_for_download = 'application/pdf'
-            # file_name_for_processor = f"{os.path.splitext(file_name)[0]}.pdf"
-        elif original_mime_type == 'application/vnd.google-apps.spreadsheet':
-            # TODO: process_pdf_and_store currently only handles PDFs.
-            # Need text extraction for XLSX or export GSheet as CSV/TSV then process text.
-            # For now, this path will likely fail or needs a different processor.
-            # target_mime_type_for_download = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            # doc_processor_input_type = "xlsx"
-            logger.warning(f"Processing Google Sheets (ID: {gdrive_file_id}) as text via PDF export is a TODO. Attempting PDF export.")
-            target_mime_type_for_download = 'application/pdf' # Fallback to PDF for text
-        elif original_mime_type == 'application/vnd.google-apps.presentation':
-            target_mime_type_for_download = 'application/pdf'
-            # file_name_for_processor = f"{os.path.splitext(file_name)[0]}.pdf"
-        else: # Other GSuite types
-            logger.warning(f"Unsupported Google Workspace MIME type for direct processing: {original_mime_type}. Attempting PDF export.")
-            target_mime_type_for_download = 'application/pdf'
-    elif original_mime_type == 'application/pdf':
-        doc_processor_input_type = "pdf" # Already a PDF
-    # TODO: Add handling for other direct download types like .docx, .txt if document_processor supports them.
-    else:
-        logger.warning(f"GDrive file {gdrive_file_id} has MIME type {original_mime_type}, which may not be directly processable by PDF pipeline. Attempting direct download.")
-        # No target_mime_type means direct download. document_processor must handle it.
-        # For now, we assume it must become a PDF to go through process_pdf_and_store.
-        # This part needs more robust type handling based on what document_processor can take.
-        # If we only support PDF processing, we should error here for non-convertible/non-PDF types.
-        return jsonify({"ok": False, "error": {"code": "UNSUPPORTED_MIME_TYPE", "message": f"MIME type {original_mime_type} for GDrive file {gdrive_file_id} is not yet supported for ingestion via PDF pipeline."}}), 400
+            logger.info(f"Unknown GSuite type {original_gdrive_mime_type}, attempting PDF export for file {gdrive_file_id}")
+        else: # Non-GSuite, non-directly processable type - direct download
+            logger.info(f"Non-GSuite, non-directly processable type {original_gdrive_mime_type} for file {gdrive_file_id}. Will attempt direct download.")
+            target_mime_type_for_download = None
 
 
     download_result = gdrive_service.download_gdrive_file(
@@ -114,42 +103,44 @@ async def ingest_gdrive_document_route(): # Made async
 
     downloaded_data = download_result["data"]
     file_content_bytes = downloaded_data["content_bytes"]
-    # Use the (potentially extension-changed) name from download_result for the temp file
-    temp_file_name_for_processing = downloaded_data["file_name"]
+    downloaded_file_name = downloaded_data["file_name"] # Name after potential export extension change
+    processing_mime_type = downloaded_data["mime_type"] # Actual MIME type of downloaded/exported content
 
     temp_dir = None
     temp_file_path = None
     try:
         temp_dir = tempfile.mkdtemp()
-        temp_file_path = os.path.join(temp_dir, temp_file_name_for_processing) # Use name from download
+        # Use the name determined by download_gdrive_file (which includes new extension if exported)
+        temp_file_path = os.path.join(temp_dir, downloaded_file_name)
         with open(temp_file_path, 'wb') as f:
             f.write(file_content_bytes)
 
-        logger.info(f"GDrive file {gdrive_file_id} downloaded to temp path: {temp_file_path}")
+        logger.info(f"GDrive file {gdrive_file_id} downloaded to temp path: {temp_file_path} as MIME: {processing_mime_type}")
 
-        document_id = str(uuid.uuid4()) # New UUID for this ingested document
+        document_id = str(uuid.uuid4())
 
-        # Current document_processor.process_pdf_and_store is specific to PDFs.
-        # If download_gdrive_file always converts to PDF, this is fine.
-        # Otherwise, process_pdf_and_store needs to become more generic or we need type-specific processors.
-        if doc_processor_input_type != "pdf": # Placeholder for future when it handles more types
-             return jsonify({"ok": False, "error": {"code": "PROCESSOR_TYPE_MISMATCH", "message": f"Document processor currently set for PDF, but got type {doc_processor_input_type} from GDrive download."}}), 500
+        # Construct original_doc_type for storage metadata
+        # Use a cleaned version of the original GDrive MIME type
+        original_doc_type_for_storage = f"gdrive_{original_gdrive_mime_type.split('/')[-1].replace('.', '_').replace('-', '_')}"
 
-
-        processing_result = await document_processor.process_pdf_and_store(
+        processing_result = await document_processor.process_document_and_store(
             user_id=user_id,
-            pdf_file_path=temp_file_path, # Path to the downloaded (and potentially converted) PDF
+            file_path_or_bytes=temp_file_path,
             document_id=document_id,
-            source_uri=source_uri, # Original GDrive webViewLink
-            title=file_name, # Original GDrive file name
-            doc_source_type=f"gdrive_{original_mime_type.split('/')[-1].replace('.', '_')}", # e.g. gdrive_pdf, gdrive_document
+            source_uri=source_uri_from_meta,
+            original_doc_type=original_doc_type_for_storage,
+            processing_mime_type=processing_mime_type,
+            title=file_name_from_meta, # Use original GDrive name for title
+            doc_metadata_json=None, # Can add GDrive specific metadata here if needed
             openai_api_key_param=openai_api_key
         )
 
-        if processing_result["status"] == "success":
-            return jsonify({"ok": True, "data": processing_result.get("data")}), 201
+        if processing_result["status"] == "success" or processing_result["status"] == "warning":
+            return jsonify({"ok": True, "data": processing_result.get("data"), "message": processing_result.get("message")}), 201 if processing_result["status"] == "success" else 200
         else:
-            return jsonify({"ok": False, "error": {"code": processing_result.get("code", "DOCUMENT_PROCESSING_FAILED"), "message": processing_result.get("message")}}), 500
+            status_code = 500
+            if processing_result.get("code") == "UNSUPPORTED_PROCESSING_TYPE": status_code = 415
+            return jsonify({"ok": False, "error": {"code": processing_result.get("code", "DOCUMENT_PROCESSING_FAILED"), "message": processing_result.get("message")}}), status_code
 
     except Exception as e:
         logger.error(f"Error during GDrive document ingestion pipeline for {gdrive_file_id}: {e}", exc_info=True)
@@ -158,28 +149,14 @@ async def ingest_gdrive_document_route(): # Made async
         if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         if temp_dir and os.path.exists(temp_dir):
-            # os.rmdir(temp_dir) # This fails if files were created then deleted, use shutil
-            import shutil
             try:
                 shutil.rmtree(temp_dir)
             except OSError as e_rm:
                 logger.error(f"Error removing temp directory {temp_dir}: {e_rm}", exc_info=True)
 
-# Example of how this blueprint would be registered in the main Flask app
-# (e.g., in python_api_service/note_handler.py or a main app.py)
-# from .gdrive_handler import gdrive_bp
-# app.register_blueprint(gdrive_bp)
-
-if __name__ == '__main__':
-    # This allows running this handler standalone for development/testing,
-    # but it won't have other registered blueprints unless main app is structured differently.
-    # For testing, one would typically run the main Flask app that includes this blueprint.
-    app.run(host='0.0.0.0', port=5060, debug=True) # Use a different port for standalone run
-
-
 @gdrive_bp.route('/api/gdrive/get-file-metadata', methods=['POST'])
 def get_file_metadata_route():
-    if not INGESTION_SERVICES_AVAILABLE: # gdrive_service is part of this check
+    if not INGESTION_SERVICES_AVAILABLE:
         return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "GDrive service or its dependencies are not available."}}), 503
 
     data = request.get_json()
@@ -188,7 +165,7 @@ def get_file_metadata_route():
 
     access_token = data.get('access_token')
     file_id = data.get('file_id')
-    fields = data.get('fields') # Optional
+    fields = data.get('fields')
 
     if not access_token:
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "access_token is required."}}), 400
@@ -211,14 +188,51 @@ def get_file_metadata_route():
             "message": result.get("message"),
             "details": result.get("details")
         }
-        status_code = 500 # Default
+        status_code = 500
         if "GDRIVE_API_OBJECT_NOT_FOUND" in (result.get("code") or "") or \
-           "GDRIVE_API_FILE_NOT_FOUND" in (result.get("code") or ""): # Check for common not found codes
+           "GDRIVE_API_FILE_NOT_FOUND" in (result.get("code") or ""):
             status_code = 404
         elif "GDRIVE_API_UNAUTHORIZED" in (result.get("code") or "") or \
              "GDRIVE_API_FORBIDDEN" in (result.get("code") or ""):
-            status_code = 401 # Or 403
+            status_code = 401
 
         logger.warn(f"Failed to get metadata for GDrive file {file_id}. Status: {status_code}, Code: {result.get('code')}, Message: {result.get('message')}")
         return jsonify({"ok": False, "error": error_payload}), status_code
+
+# Example of how this blueprint would be registered in the main Flask app
+# (e.g., in python_api_service/note_handler.py or a main app.py)
+# from .gdrive_handler import gdrive_bp
+# app.register_blueprint(gdrive_bp)
+
+if __name__ == '__main__':
+    # This allows running this handler standalone for development/testing
+    # A real setup would register gdrive_bp with the main python_api_service Flask app.
+    # To test, ensure python-api/ingestion_pipeline and project/functions are in PYTHONPATH
+    # and necessary environment variables (like OPENAI_API_KEY for embedding) are set.
+
+    # Need to create a temporary app to register blueprint for standalone run
+    # This is NOT how it would run in production.
+    # In production, the main app (e.g. from note_handler.py or a central app.py)
+    # would import and register gdrive_bp.
+
+    # For standalone testing of gdrive_handler.py:
+    # 1. Make sure Flask is installed.
+    # 2. Run this file: python gdrive_handler.py
+    # 3. It will start a Flask dev server on port 5060 (or $GDOC_HANDLER_PORT).
+    # 4. You can then send POST requests to /api/ingest-gdrive-document etc.
+    # Note: Dependencies like note_utils and lancedb_handler must be importable.
+
+    _main_app = Flask(__name__)
+    _main_app.register_blueprint(gdrive_bp)
+
+    # A basic error handler for the temporary app
+    @_main_app.errorhandler(Exception)
+    def _temp_app_handle_exception(e):
+        logger.error(f"Unhandled exception in gdrive_handler standalone app: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "PYTHON_STANDALONE_ERROR", "message": str(e)}}), 500
+
+    logger.info("Starting gdrive_handler.py standalone for testing on port 5060 (or $GDOC_HANDLER_PORT)")
+    flask_port = int(os.environ.get("GDOC_HANDLER_PORT", 5060))
+    _main_app.run(host='0.0.0.0', port=flask_port, debug=True)
+
 ```
