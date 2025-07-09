@@ -15,8 +15,8 @@ import { logger } from '../../_utils/logger';
 import * as calendarSkills from './calendarSkills'; // For fetching meetings
 import { queryNotionTasks as queryNotionTasksBackend } from './notionAndResearchSkills'; // For querying tasks
 import { ATOM_NOTION_TASKS_DATABASE_ID } from '../_libs/constants'; // For Notion Task DB ID
+import * as gmailSkills from './gmailSkills'; // For fetching emails
 // Placeholder for importing other skills that might be needed:
-// import * as emailSkills from './emailSkills'; // For fetching urgent emails
 // import * as slackSkills from './slackSkills'; // For fetching urgent Slack messages
 // import * as teamsSkills from './msTeamsSkills'; // For fetching urgent Teams messages
 // import * as llmUtilities from './llmUtilities'; // For ranking urgency or summarizing
@@ -300,22 +300,50 @@ export async function generateDailyBriefing(
       briefingData.priority_items = briefingData.priority_items.filter(item => item.type !== 'meeting');
     }
 
-    // Fetch Urgent Emails (Example)
+    // Fetch Urgent Emails
     if (focusAreas.includes('urgent_emails')) {
-      logger.info(`[dailyBriefingSkill] Fetching urgent emails for briefing.`);
-      // const urgentEmails: GmailMessageSnippet[] = await emailSkills.getUrgentEmails(userId, dateContext, nluEntities.project_filter);
-      // urgentEmails.forEach(email => {
-      //   briefingData.priority_items.push({
-      //     type: 'email',
-      //     title: email.subject || 'No Subject',
-      //     details: `From: ${email.from || 'N/A'}, Snippet: ${email.snippet?.substring(0,50)}...`,
-      //     link: email.link,
-      //     source_id: email.id,
-      //     raw_item: email
-      //     // TODO: urgency_score calculation
-      //   });
-      // });
-      logger.warn(`[dailyBriefingSkill] Urgent email fetching not implemented; using placeholder if any.`);
+      logger.info(`[dailyBriefingSkill] Fetching urgent emails for briefing for targetDate: ${parsedDateInfo.targetDateISO}.`);
+      try {
+        const emailResponse = await gmailSkills.getRecentUnreadEmailsForBriefing(
+          userId,
+          parsedDateInfo.targetDate, // Pass the Date object
+          3 // Fetch up to 3 emails
+        );
+
+        if (emailResponse.ok && emailResponse.data?.results) {
+          const emails: GmailMessageSnippet[] = emailResponse.data.results;
+          if (emails.length > 0) {
+            emails.forEach(email => {
+              briefingData.priority_items.push({
+                type: 'email',
+                title: email.subject || 'No Subject',
+                details: `From: ${email.from || 'N/A'}${email.snippet ? `, Snippet: ${email.snippet.substring(0,70)}...` : ''}`,
+                link: email.link,
+                source_id: email.id,
+                raw_item: email,
+                // TODO: urgency_score calculation
+              });
+            });
+            logger.info(`[dailyBriefingSkill] Fetched ${emails.length} urgent/recent unread emails.`);
+          } else {
+            logger.info(`[dailyBriefingSkill] No urgent/recent unread emails found for ${parsedDateInfo.targetDateISO}.`);
+          }
+        } else {
+          logger.error(`[dailyBriefingSkill] Error fetching urgent emails: ${emailResponse.error?.message}`);
+          briefingData.errors_encountered?.push({
+            source_area: 'emails',
+            message: emailResponse.error?.message || 'Unknown error fetching urgent emails.',
+            details: JSON.stringify(emailResponse.error?.details),
+          });
+        }
+      } catch (e: any) {
+        logger.error(`[dailyBriefingSkill] Exception during email fetching: ${e.message}`, e);
+        briefingData.errors_encountered?.push({
+          source_area: 'emails',
+          message: `Exception: ${e.message}`,
+          details: e.stack,
+        });
+      }
     }
 
     // TODO: Implement fetching for urgent_slack_messages and urgent_teams_messages similarly
@@ -326,32 +354,45 @@ export async function generateDailyBriefing(
     // Generate overall_summary_message
     const numTasks = briefingData.priority_items.filter(item => item.type === 'task').length;
     const numMeetings = briefingData.priority_items.filter(item => item.type === 'meeting').length;
+    const numEmails = briefingData.priority_items.filter(item => item.type === 'email').length;
 
     let summaryParts: string[] = [];
-    if (numMeetings > 0) {
-      summaryParts.push(`You have ${numMeetings} meeting(s) scheduled for today.`);
-    } else if (focusAreas.includes('meetings')) {
-      summaryParts.push("You have no meetings scheduled for today.");
+    if (focusAreas.includes('meetings')) {
+      if (numMeetings > 0) {
+        summaryParts.push(`You have ${numMeetings} meeting(s) scheduled for ${parsedDateInfo.targetDateISO === getUTCDateYYYYMMDD(new Date()) ? 'today' : `on ${parsedDateInfo.targetDateISO}`}.`);
+      } else {
+        summaryParts.push(`You have no meetings scheduled for ${parsedDateInfo.targetDateISO === getUTCDateYYYYMMDD(new Date()) ? 'today' : `on ${parsedDateInfo.targetDateISO}`}.`);
+      }
     }
 
-    if (numTasks > 0) {
-      const overdueTasks = briefingData.priority_items.filter(item =>
-        item.type === 'task' &&
-        item.raw_item &&
-        (item.raw_item as NotionTask).dueDate &&
-        (item.raw_item as NotionTask).dueDate! < briefingData.briefing_date &&
-        (item.raw_item as NotionTask).status !== "Done" &&
-        (item.raw_item as NotionTask).status !== "Cancelled"
-      ).length;
+    if (focusAreas.includes('tasks')) {
+      if (numTasks > 0) {
+        const overdueTasks = briefingData.priority_items.filter(item =>
+          item.type === 'task' &&
+          item.raw_item &&
+          (item.raw_item as NotionTask).dueDate &&
+          (item.raw_item as NotionTask).dueDate! < parsedDateInfo.targetDateISO && // Compare with targetDateISO
+          (item.raw_item as NotionTask).status !== "Done" &&
+          (item.raw_item as NotionTask).status !== "Cancelled"
+        ).length;
 
-      let taskSummary = `You have ${numTasks} task(s) on your list`;
-      if (overdueTasks > 0) {
-        taskSummary += `, with ${overdueTasks} overdue`;
+        let taskSummary = `${numTasks} task(s) require attention`;
+        if (overdueTasks > 0) {
+          taskSummary += ` (${overdueTasks} overdue)`;
+        }
+        taskSummary += ".";
+        summaryParts.push(taskSummary);
+      } else {
+        summaryParts.push("You have no pressing tasks for this briefing.");
       }
-      taskSummary += ".";
-      summaryParts.push(taskSummary);
-    } else if (focusAreas.includes('tasks')) {
-      summaryParts.push("You have no relevant tasks for today's briefing.");
+    }
+
+    if (focusAreas.includes('urgent_emails')) {
+      if (numEmails > 0) {
+        summaryParts.push(`There are ${numEmails} recent unread email(s) for you to review.`);
+      } else {
+        summaryParts.push("No recent unread emails to highlight.");
+      }
     }
 
     let finalSummary = "";
