@@ -21,6 +21,77 @@ import { ATOM_NOTION_TASKS_DATABASE_ID } from '../_libs/constants'; // For Notio
 // import * as teamsSkills from './msTeamsSkills'; // For fetching urgent Teams messages
 // import * as llmUtilities from './llmUtilities'; // For ranking urgency or summarizing
 
+// --- Date Parsing Utility ---
+interface ParsedDateContext {
+  targetDate: Date;
+  timeMinISO: string;
+  timeMaxISO: string;
+  targetDateISO: string; // YYYY-MM-DD format for the target date
+  isDateRange: boolean; // Typically true for daily briefings
+  status: 'parsed' | 'defaulted' | 'unparseable';
+  originalInput?: string;
+  warningMessage?: string;
+}
+
+function getUTCDateYYYYMMDD(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function getStartOfDayUTC(date: Date): Date {
+  const d = new Date(date.valueOf()); // Clone to avoid modifying original
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function getEndOfDayUTC(date: Date): Date {
+  const d = new Date(date.valueOf()); // Clone to avoid modifying original
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+
+function parseDateContextLogic(
+  dateContextInput?: string,
+  baseDateOverride?: Date // For testing
+): ParsedDateContext {
+  const baseDate = baseDateOverride || new Date();
+  const originalInput = dateContextInput;
+  let status: ParsedDateContext['status'] = 'parsed';
+  let warningMessage: string | undefined = undefined;
+  let targetDate = getStartOfDayUTC(baseDate); // Default to start of baseDate (today)
+
+  const input = (dateContextInput || 'today').toLowerCase().trim();
+
+  if (input === 'today') {
+    // targetDate is already set to today by default initialization
+    if (!dateContextInput) status = 'defaulted'; // It was defaulted to today
+  } else if (input === 'tomorrow') {
+    targetDate.setUTCDate(baseDate.getUTCDate() + 1);
+  } else if (input === 'yesterday') {
+    targetDate.setUTCDate(baseDate.getUTCDate() - 1);
+  } else {
+    // Unparseable, default to today
+    targetDate = getStartOfDayUTC(baseDate); // Reset to today if input was something else
+    status = 'unparseable';
+    warningMessage = `Date context "${originalInput}" is not recognized. Defaulting to today.`;
+    logger.warn(`[dailyBriefingSkill] ${warningMessage}`);
+  }
+
+  // Ensure targetDate itself is at the start of its day for consistent YYYY-MM-DD
+  targetDate = getStartOfDayUTC(targetDate);
+
+  return {
+    targetDate: new Date(targetDate.valueOf()), // Return a clone
+    timeMinISO: getStartOfDayUTC(targetDate).toISOString(),
+    timeMaxISO: getEndOfDayUTC(targetDate).toISOString(),
+    targetDateISO: getUTCDateYYYYMMDD(targetDate),
+    isDateRange: true, // For these keywords, we always mean the full day
+    status,
+    originalInput,
+    warningMessage,
+  };
+}
+
+
 /**
  * Generates a daily priority briefing for the user, consolidating information
  * from tasks, meetings, and potentially urgent messages.
@@ -33,25 +104,34 @@ export async function generateDailyBriefing(
   userId: string,
   nluEntities: GetDailyPriorityBriefingNluEntities,
 ): Promise<GetDailyPriorityBriefingSkillResponse> {
-  const dateContext = nluEntities.date_context || 'today';
-  logger.info(`[dailyBriefingSkill] Generating daily briefing for user ${userId} for date: "${dateContext}"`);
+  // Use the new date parsing logic
+  const parsedDateInfo = parseDateContextLogic(nluEntities.date_context);
+
+  logger.info(`[dailyBriefingSkill] Generating daily briefing for user ${userId} for dateContext: "${nluEntities.date_context || 'today'}", resolved to: ${parsedDateInfo.targetDateISO}`);
   logger.debug(`[dailyBriefingSkill] NLU Entities: ${JSON.stringify(nluEntities)}`);
+  logger.debug(`[dailyBriefingSkill] Parsed Date Info: ${JSON.stringify(parsedDateInfo)}`);
 
   const briefingData: DailyBriefingData = {
-    briefing_date: new Date().toISOString().split('T')[0], // Default to today's date for now
+    briefing_date: parsedDateInfo.targetDateISO, // Use resolved date
     user_id: userId,
     priority_items: [],
     errors_encountered: [],
   };
 
-  // TODO: Refine briefing_date based on parsed date_context from NLU
+  if (parsedDateInfo.warningMessage) {
+    briefingData.errors_encountered?.push({
+      source_area: 'date_parsing',
+      message: parsedDateInfo.warningMessage,
+      details: `Original input: ${parsedDateInfo.originalInput}`,
+    });
+  }
 
   const focusAreas = nluEntities.focus_areas || ['tasks', 'meetings', 'urgent_emails', 'urgent_slack_messages']; // Default focus areas
 
   try {
     // Fetch Tasks
     if (focusAreas.includes('tasks')) {
-      logger.info(`[dailyBriefingSkill] Fetching tasks for briefing for dateContext: ${dateContext}.`);
+      logger.info(`[dailyBriefingSkill] Fetching tasks for briefing for targetDate: ${parsedDateInfo.targetDateISO}.`);
       if (!ATOM_NOTION_TASKS_DATABASE_ID) {
         logger.error("[dailyBriefingSkill] ATOM_NOTION_TASKS_DATABASE_ID is not configured. Cannot fetch tasks.");
         briefingData.errors_encountered?.push({
@@ -60,40 +140,33 @@ export async function generateDailyBriefing(
         });
       } else {
         try {
-          const today = new Date();
-          const todayISO = today.toISOString().split('T')[0];
-
-          // Define params for overdue tasks: due before today, not Done or Cancelled
+          // Define params for overdue tasks: due before targetDateISO, not Done or Cancelled
           const overdueTaskParams: QueryNotionTasksParams = {
             notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
-            dueDateBefore: todayISO, // Due before today (exclusive of today)
-            status_not_equals: ['Done', 'Cancelled'], // Using array for status_not_equals
-            limit: 10, // Max 10 overdue tasks
+            dueDateBefore: parsedDateInfo.targetDateISO,
+            status_not_equals: ['Done', 'Cancelled'],
+            limit: 10,
           };
           if (nluEntities.project_filter) overdueTaskParams.listName = nluEntities.project_filter;
           if (nluEntities.urgency_level && (nluEntities.urgency_level === 'high' || nluEntities.urgency_level === 'critical')) {
              overdueTaskParams.priority = nluEntities.urgency_level;
           }
 
-
-          // Define params for tasks due today: due equals today, not Done or Cancelled
-          const dueTodayTaskParams: QueryNotionTasksParams = {
+          // Define params for tasks due on targetDateISO: due equals targetDateISO, not Done or Cancelled
+          const dueOnTargetDateTaskParams: QueryNotionTasksParams = {
             notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
-            dueDateEquals: todayISO, // Due exactly today
+            dueDateEquals: parsedDateInfo.targetDateISO,
             status_not_equals: ['Done', 'Cancelled'],
-            limit: 10, // Max 10 tasks due today
+            limit: 10,
           };
-          if (nluEntities.project_filter) dueTodayTaskParams.listName = nluEntities.project_filter;
+          if (nluEntities.project_filter) dueOnTargetDateTaskParams.listName = nluEntities.project_filter;
           if (nluEntities.urgency_level && (nluEntities.urgency_level === 'high' || nluEntities.urgency_level === 'critical')) {
-            dueTodayTaskParams.priority = nluEntities.urgency_level;
+            dueOnTargetDateTaskParams.priority = nluEntities.urgency_level;
           }
 
-          // TODO: Consider fetching tasks due "soon" (e.g., next 1-2 days) if 'today' yields few results.
-          // For now, focusing on overdue and due today.
-
-          const [overdueTasksResponse, dueTodayTasksResponse] = await Promise.all([
+          const [overdueTasksResponse, dueOnTargetDateTasksResponse] = await Promise.all([
             queryNotionTasksBackend(userId, overdueTaskParams),
-            queryNotionTasksBackend(userId, dueTodayTaskParams)
+            queryNotionTasksBackend(userId, dueOnTargetDateTaskParams)
           ]);
 
           const fetchedTasks: NotionTask[] = [];
@@ -101,26 +174,24 @@ export async function generateDailyBriefing(
             fetchedTasks.push(...overdueTasksResponse.tasks);
           } else if (!overdueTasksResponse.success) {
             logger.error(`[dailyBriefingSkill] Error fetching overdue tasks: ${overdueTasksResponse.error}`);
-            briefingData.errors_encountered?.push({ source_area: 'tasks', message: `Error fetching overdue tasks: ${overdueTasksResponse.error}` });
+            briefingData.errors_encountered?.push({ source_area: 'tasks', message: `Error fetching overdue tasks (before ${parsedDateInfo.targetDateISO}): ${overdueTasksResponse.error}` });
           }
 
-          if (dueTodayTasksResponse.success && dueTodayTasksResponse.tasks) {
-            // Avoid duplicates if a task is somehow fetched by both queries (though unlikely with current logic)
-            dueTodayTasksResponse.tasks.forEach(task => {
+          if (dueOnTargetDateTasksResponse.success && dueOnTargetDateTasksResponse.tasks) {
+            dueOnTargetDateTasksResponse.tasks.forEach(task => {
               if (!fetchedTasks.find(ft => ft.id === task.id)) {
                 fetchedTasks.push(task);
               }
             });
-          } else if (!dueTodayTasksResponse.success) {
-            logger.error(`[dailyBriefingSkill] Error fetching tasks due today: ${dueTodayTasksResponse.error}`);
-            briefingData.errors_encountered?.push({ source_area: 'tasks', message: `Error fetching tasks due today: ${dueTodayTasksResponse.error}` });
+          } else if (!dueOnTargetDateTasksResponse.success) {
+            logger.error(`[dailyBriefingSkill] Error fetching tasks due on ${parsedDateInfo.targetDateISO}: ${dueOnTargetDateTasksResponse.error}`);
+            briefingData.errors_encountered?.push({ source_area: 'tasks', message: `Error fetching tasks due on ${parsedDateInfo.targetDateISO}: ${dueOnTargetDateTasksResponse.error}` });
           }
 
           if (fetchedTasks.length > 0) {
-            // Sort tasks: overdue first, then by priority (High > Medium > Low), then by due date (earlier first)
             fetchedTasks.sort((a, b) => {
-                const aIsOverdue = a.dueDate && a.dueDate < todayISO;
-                const bIsOverdue = b.dueDate && b.dueDate < todayISO;
+                const aIsOverdue = a.dueDate && a.dueDate < parsedDateInfo.targetDateISO;
+                const bIsOverdue = b.dueDate && b.dueDate < parsedDateInfo.targetDateISO;
                 if (aIsOverdue && !bIsOverdue) return -1;
                 if (!aIsOverdue && bIsOverdue) return 1;
 
@@ -138,8 +209,9 @@ export async function generateDailyBriefing(
               let details = `Status: ${task.status}`;
               if (task.dueDate) {
                 const dueDate = new Date(task.dueDate);
-                const isOverdue = dueDate.toISOString().split('T')[0] < todayISO && task.status !== "Done" && task.status !== "Cancelled";
-                details += `, Due: ${dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+                // Use targetDateISO for overdue comparison
+                const isOverdue = dueDate.toISOString().split('T')[0] < parsedDateInfo.targetDateISO && task.status !== "Done" && task.status !== "Cancelled";
+                details += `, Due: ${dueDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: dueDate.getUTCFullYear() !== new Date().getUTCFullYear() ? 'numeric' : undefined })}`;
                 if (isOverdue) details += " (OVERDUE)";
               } else {
                 details += ", Due: N/A";
@@ -179,47 +251,15 @@ export async function generateDailyBriefing(
 
     // Fetch Meetings
     if (focusAreas.includes('meetings')) {
-      logger.info(`[dailyBriefingSkill] Fetching meetings for briefing for dateContext: ${dateContext}.`);
+      logger.info(`[dailyBriefingSkill] Fetching meetings for briefing for targetDate: ${parsedDateInfo.targetDateISO}.`);
       try {
-        let timeMinISO: string;
-        let timeMaxISO: string;
-
-        // For simplicity, 'today' is the primary supported dateContext for now.
-        // NLU should ideally parse dateContext into specific dates or ranges.
-        // TODO: Robustly parse dateContext from NLU (e.g., "tomorrow", "next Monday")
-        if (dateContext.toLowerCase() === 'today' || !dateContext) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0); // Start of today
-          timeMinISO = today.toISOString();
-
-          const endOfToday = new Date(today);
-          endOfToday.setHours(23, 59, 59, 999); // End of today
-          timeMaxISO = endOfToday.toISOString();
-
-          briefingData.briefing_date = today.toISOString().split('T')[0]; // Set actual date used
-        } else {
-          // For other date contexts, this would need more sophisticated parsing.
-          // As a fallback, if not 'today', we might not fetch meetings or log a warning.
-          logger.warn(`[dailyBriefingSkill] Date context "${dateContext}" not fully supported for meeting fetching beyond 'today'. Defaulting to no specific date range for meetings.`);
-          // Fallback: Fetch next few upcoming meetings without strict date range if not 'today'
-          // This might require a different calendarSkills function or adjusting listUpcomingEvents.
-          // For now, we'll proceed as if 'today' was requested if not explicitly 'today'.
-          // This part definitely needs NLU to be more precise or this skill to parse better.
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          timeMinISO = today.toISOString();
-          const endOfToday = new Date(today);
-          endOfToday.setHours(23, 59, 59, 999);
-          timeMaxISO = endOfToday.toISOString();
-          briefingData.briefing_date = today.toISOString().split('T')[0];
-        }
-
-        // Using listUpcomingEvents from calendarSkills.ts
-        // It's assumed CalendarEvent is compatible with CalendarEventSummary for the fields we use.
-        const eventsResponse = await calendarSkills.listUpcomingEvents(userId, 10, timeMinISO, timeMaxISO);
+        // Use timeMinISO and timeMaxISO from parsedDateInfo
+        const eventsResponse = await calendarSkills.listUpcomingEvents(userId, 10, parsedDateInfo.timeMinISO, parsedDateInfo.timeMaxISO);
 
         if (eventsResponse.ok && eventsResponse.data) {
           const meetings: CalendarEventSummary[] = eventsResponse.data;
+          // Make sure the date formatting for meeting details uses the targetDate, not necessarily 'today'
+          const targetDateForDisplay = parsedDateInfo.targetDate;
           if (meetings.length > 0) {
             meetings.forEach(meeting => {
               const startTime = meeting.start ? new Date(meeting.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A';
@@ -314,10 +354,25 @@ export async function generateDailyBriefing(
       summaryParts.push("You have no relevant tasks for today's briefing.");
     }
 
+    let finalSummary = "";
     if (summaryParts.length > 0) {
-      briefingData.overall_summary_message = summaryParts.join(' ');
+      finalSummary = summaryParts.join(' ');
     } else {
-      briefingData.overall_summary_message = "No specific items for your briefing today based on current focus areas.";
+      // This message is for when no items were found for the *processed* focus areas.
+      // If focusAreas itself was empty or only contained unimplemented items, this might also be hit.
+      finalSummary = `No specific items found for your ${parsedDateInfo.targetDateISO} briefing based on requested focus areas.`;
+    }
+
+    if (parsedDateInfo.status === 'unparseable' && parsedDateInfo.warningMessage) {
+      // Prepend the date parsing warning to the summary.
+      briefingData.overall_summary_message = `${parsedDateInfo.warningMessage} ${finalSummary}`;
+    } else if (parsedDateInfo.status === 'defaulted' && parsedDateInfo.originalInput && parsedDateInfo.originalInput.toLowerCase().trim() !== 'today') {
+      // This case covers if parseDateContextLogic defaulted to 'today' because originalInput was not 'today' but also not an error.
+      // This path might not be hit if all non-"today" inputs that aren't "tomorrow"/"yesterday" become 'unparseable'.
+      // Adding for completeness, in case parseDateContextLogic evolves.
+      briefingData.overall_summary_message = `Showing briefing for today as date context '${parsedDateInfo.originalInput}' was processed as default. ${finalSummary}`;
+    } else {
+      briefingData.overall_summary_message = finalSummary;
     }
     logger.info(`[dailyBriefingSkill] Generated summary: ${briefingData.overall_summary_message}`);
 
