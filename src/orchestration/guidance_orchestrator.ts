@@ -40,11 +40,13 @@ const practicalAgent = new PracticalAgent(realLLMServiceForPractical); // Practi
 // NLULeadAgent can also use the real service if its LLM-based synthesis is to be tested with a real LLM.
 // For now, let's assume its synthesis might also use a more general/mocked service or its rule-based approach.
 // If NLULeadAgent's LLM synthesis were the focus, it too would get an instance of RealLLMService.
+// To test the LLM-based synthesis path with RealLLMService's simulation, NLULeadAgent needs a RealLLMService.
+// We can reuse one of the existing instances, e.g., realLLMServiceForAnalytical, as they are configured similarly.
 const nluLeadAgent = new NLULeadAgent(
-    analyticalAgent, // Now using the instance with RealLLMService
+    analyticalAgent,
     creativeAgent,
     practicalAgent,
-    mockLLM // Lead agent's own synthesis LLM (if any) can still be mock or a different real instance.
+    realLLMServiceForAnalytical // NLULeadAgent now uses RealLLMService for its own LLM calls (i.e., synthesis)
 );
 
 // Instance of the existing skill, can still use MockLLMService for its internal LLM calls
@@ -248,9 +250,13 @@ async function runGuidanceOrchestratorTests() {
             query: "my marketing report for Q3 is hard to do, how can AI make it efficient?",
             userId: "user-test-004",
             applicationContext: "MarketingSuite",
-            useLLMSynthesis: true,
-            expectedResponseType: 'fallback_info', // Because our mock skill doesn't handle "MockSkillViaLLMSynthesis" yet
-            expectedMessageContains: ["Goal: make report generation efficient", "Suggested next step: invoke_skill (MockSkillViaLLMSynthesis)"]
+            useLLMSynthesis: true, // This activates LLM-based synthesis in NLULeadAgent
+            expectedResponseType: 'fallback_info',
+            // This now reflects the output from RealLLMService's simulation for 'custom_lead_agent_synthesis'
+            expectedMessageContains: [
+                "Goal: Simulated: Schedule meeting about Project Alpha",
+                "Suggested next step: invoke_skill (CalendarSkill)"
+            ]
         },
         {
             description: "Test 5: Query that analytical agent deems inconsistent",

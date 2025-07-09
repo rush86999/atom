@@ -189,16 +189,44 @@ The next action can be:
 - 'no_action_needed': If the query doesn't require action (e.g., a greeting).
 - 'unable_to_determine': If the intent is still too unclear.
 
-Return ONLY a valid JSON object for the EnrichedIntent structure, focusing on:
-primaryGoal, primaryGoalConfidence (0.0-1.0), extractedParameters, identifiedTasks, suggestedNextAction.
-Example suggestedNextAction: { "actionType": "invoke_skill", "skillId": "some_skill", "reason": "Reasoning here" }
+Return ONLY a valid JSON object with the exact following structure. Ensure all fields are present.
+{
+  "primaryGoal": "string (A concise statement of the user's most likely primary intention, e.g., 'schedule a meeting with Jane about Project X')",
+  "primaryGoalConfidence": "number (A score from 0.0 to 1.0 indicating your confidence in the primaryGoal. High confidence (0.8-1.0) means the goal is clear and actionable. Medium (0.5-0.7) may need minor clarification or has some ambiguity. Low (<0.5) means the goal is very unclear.)",
+  "identifiedTasks": ["string", ... (List of specific sub-tasks derived primarily from Analytical Agent, if any, that contribute to the primaryGoal. Empty array if none.)],
+  "extractedParameters": { /* key: value pairs, e.g., {"topic": "Project X", "attendee": "Jane"} */ },
+  "suggestedNextAction": {
+    "actionType": "'invoke_skill' | 'clarify_query' | 'perform_direct_action' | 'no_action_needed' | 'unable_to_determine'",
+    "skillId": "string (If actionType is 'invoke_skill', the ID of the skill to call, e.g., 'LearningAndGuidanceSkill', 'EmailTriageSkill'. Can be null if not applicable.)",
+    "clarificationQuestion": "string (If actionType is 'clarify_query', a specific question to ask the user. Can be null if not applicable.)",
+    "directActionDetails": { /* object (If actionType is 'perform_direct_action', details for the action. Can be null if not applicable.) */ },
+    "reason": "string (A brief explanation for why this next action is suggested, considering the sub-agent inputs.)"
+  }
+}
+
+Decision-Making Guidelines:
+- If Analytical Agent identifies clear, consistent tasks and Practical Agent deems them feasible, the \`primaryGoal\` should reflect these tasks, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' or 'perform_direct_action'. Confidence should be high.
+- If Creative Agent raises significant ambiguities or Practical Agent indicates low feasibility or failed common sense validation, \`suggestedNextAction.actionType\` should likely be 'clarify_query'. Confidence in \`primaryGoal\` might be lower. The \`clarificationQuestion\` should try to address the core issue.
+- If the overall intent is very unclear even after sub-agent analysis, use 'unable_to_determine' and provide a reason.
+- \`primaryGoalConfidence\` should reflect the overall clarity and actionability. For example, if a clarification is needed due to ambiguity, confidence might be medium. If feasibility is low, confidence might also be medium/low even if the task is clear.
+
+Do NOT include any other fields from the full EnrichedIntent structure (like originalQuery, userId, rawSubAgentResponses, alternativeInterpretations, etc.) in your JSON output. These will be added by the calling system.
+Do not include any explanations, apologies, or conversational text outside this JSON object. Your entire response must be the JSON object itself.
 `;
         const structuredPrompt: StructuredLLMPrompt = {
-            task: 'custom_lead_agent_synthesis',
+            task: 'custom_lead_agent_synthesis', // This task type will be used by RealLLMService for specific simulation
             data: { system_prompt: systemMessage, user_query: "" } // user_query is part of system_prompt here
         };
 
-        const llmResponse = await this.llmService.generate(structuredPrompt, DEFAULT_MODEL_LEAD_SYNTHESIS, { temperature: DEFAULT_TEMPERATURE_LEAD_SYNTHESIS });
+        // Ensure options for LLM call include isJsonOutput: true
+        const llmResponse = await this.llmService.generate(
+            structuredPrompt,
+            DEFAULT_MODEL_LEAD_SYNTHESIS,
+            {
+                temperature: DEFAULT_TEMPERATURE_LEAD_SYNTHESIS,
+                isJsonOutput: true // Crucial for RealLLMService and actual LLM calls
+            }
+        );
 
         if (!llmResponse.success || !llmResponse.content) {
             synthesisLog.push("LLM synthesis call failed or returned no content.");
@@ -265,25 +293,12 @@ Example suggestedNextAction: { "actionType": "invoke_skill", "skillId": "some_sk
         let synthesisResult: Partial<EnrichedIntent>;
 
         if (useLLMSynthesis) {
-            // This part is using the MOCK service for now for the synthesis LLM call
-            // To make it real, the NLULeadAgent needs a real LLM service passed to its constructor
-            // And the OpenAIGroqService_Stub in llmUtils.ts needs to be un-stubbed.
-            synthesisLog.push("Attempting LLM-based synthesis (currently mocked).");
-            const mockLLMSynthesisResponse: LLMServiceResponse = { // Simulate what the LLM would return for synthesis
-                success: true,
-                content: JSON.stringify({
-                    primaryGoal: analyticalResponse?.explicitTasks?.[0] || "Synthesized goal via mock LLM",
-                    primaryGoalConfidence: 0.75,
-                    extractedParameters: { detail: "Synthesized by mock LLM" },
-                    identifiedTasks: analyticalResponse?.explicitTasks || [],
-                    suggestedNextAction: { actionType: 'invoke_skill', skillId: 'MockSkillViaLLMSynthesis', reason: 'Mock LLM synthesis decided this.'},
-                })
-            };
-            const parsedMockLLMSynthesis = safeParseJSON<Partial<EnrichedIntent>>(mockLLMSynthesisResponse.content, this.agentName, "MockLLMSynthesis");
-            synthesisResult = parsedMockLLMSynthesis || {}; // Ensure it's not null
-            if (!synthesisResult.synthesisLog) synthesisResult.synthesisLog = [];
-            synthesisResult.synthesisLog.unshift("Using (mocked) LLM-based synthesis result.");
-
+            // Now directly calls the synthesizeResponsesWithLLM method,
+            // which internally calls this.llmService.generate().
+            // The llmService instance (Mock or Real) is passed during NLULeadAgent construction.
+            // RealLLMService will provide the task-specific simulated JSON for 'custom_lead_agent_synthesis'.
+            synthesisResult = await this.synthesizeResponsesWithLLM(input, analyticalResponse, creativeResponse, practicalResponse);
+            // The synthesisLog is already handled within synthesizeResponsesWithLLM and its fallbacks.
         } else {
             synthesisResult = this.synthesizeResponses(input, analyticalResponse, creativeResponse, practicalResponse);
         }
