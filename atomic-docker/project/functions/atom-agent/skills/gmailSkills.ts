@@ -79,6 +79,64 @@ export async function handleSearchGmail(
   }
 }
 
+export async function getRecentUnreadEmailsForBriefing(
+  userId: string,
+  targetDate: Date, // The specific date for which to get emails
+  count: number = 3 // Default to 3 emails
+): Promise<SkillResponse<{ results: GmailMessageSnippet[], query_executed?: string }>> {
+  logger.info(`[getRecentUnreadEmailsForBriefing] User: ${userId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`);
+
+  try {
+    const formatDateForGmail = (date: Date): string => {
+      const year = date.getUTCFullYear();
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+      const day = date.getUTCDate().toString().padStart(2, '0');
+      return `${year}/${month}/${day}`;
+    };
+
+    const afterDate = new Date(targetDate);
+    afterDate.setUTCHours(0, 0, 0, 0); // Start of targetDate in UTC
+
+    const beforeDate = new Date(targetDate);
+    beforeDate.setUTCHours(0, 0, 0, 0);
+    beforeDate.setUTCDate(targetDate.getUTCDate() + 1); // Start of the day *after* targetDate for exclusive 'before'
+
+    const queryParts = [
+      'is:unread',
+      'in:inbox', // Standard inbox
+      // Consider 'category:primary' if wanting to filter promotions/social, but 'in:inbox' is broader.
+      `after:${formatDateForGmail(afterDate)}`,
+      `before:${formatDateForGmail(beforeDate)}`
+    ];
+
+    const gmailApiQueryString = queryParts.join(' ');
+    logger.info(`[getRecentUnreadEmailsForBriefing] Constructed Gmail API query string: "${gmailApiQueryString}"`);
+
+    // searchMyEmailsBackend expects a raw query string and returns Email[]
+    const backendResults: Email[] = await searchMyEmailsBackend(userId, gmailApiQueryString, count);
+
+    const results: GmailMessageSnippet[] = backendResults.map(email => ({
+      id: email.id,
+      threadId: email.threadId, // Assuming Email type from emailSkills has threadId
+      subject: email.subject,
+      from: email.sender, // Assuming Email type from emailSkills has sender
+      date: email.timestamp, // Assuming Email type from emailSkills has timestamp (ISO string)
+      snippet: email.body?.substring(0, 200), // Use body as snippet, truncate
+      link: email.id ? `https://mail.google.com/mail/u/0/#inbox/${email.id}` : undefined
+    }));
+
+    logger.info(`[getRecentUnreadEmailsForBriefing] Found ${results.length} unread emails for the target date.`);
+    return { ok: true, data: { results, query_executed: gmailApiQueryString } };
+
+  } catch (error: any) {
+    logger.error(`[getRecentUnreadEmailsForBriefing] Error: ${error.message}`, error);
+    return {
+        ok: false,
+        error: { code: 'GMAIL_BRIEFING_FETCH_FAILED', message: error.message || "Failed to fetch recent unread emails for briefing." }
+    };
+  }
+}
+
 import {
     GmailSearchParameters,
     CalendarEventSummary,
