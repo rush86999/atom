@@ -2,26 +2,42 @@ import { NLULeadAgent } from '../nlu_agents/nlu_lead_agent';
 import { AnalyticalAgent } from '../nlu_agents/analytical_agent';
 import { CreativeAgent } from '../nlu_agents/creative_agent';
 import { PracticalAgent } from '../nlu_agents/practical_agent';
-import { SubAgentInput, EnrichedIntent } from '../nlu_agents/nlu_types';
+import { SubAgentInput, EnrichedIntent, DEFAULT_MODEL_FOR_AGENTS } from '../nlu_agents/nlu_types';
 
 import { LearningAndGuidanceSkill, LearningAndGuidanceInput, LearningAndGuidanceResult } from '../skills/learningAndGuidanceSkill';
-import { MockLLMService } from '../lib/llmUtils'; // Assuming MockLLM for now
+import { MockLLMService, RealLLMService } from '../lib/llmUtils'; // Import RealLLMService
 
 // --- Initialization (typically done once, e.g., on server start) ---
-const mockLLM = new MockLLMService(); // Shared LLM service for all agents for now
 
-const analyticalAgent = new AnalyticalAgent(mockLLM);
+// For services that still use mocks or for fallback
+const mockLLM = new MockLLMService();
+
+// Initialize RealLLMService for the AnalyticalAgent
+// IMPORTANT: In a real app, "YOUR_API_KEY_PLACEHOLDER" would come from a secure source like process.env.LLM_API_KEY
+// Since the key is a placeholder, RealLLMService will internally use its simulated successful response.
+const realLLMServiceForAnalytical = new RealLLMService(
+    process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER", // Prioritize env variable if available
+    DEFAULT_MODEL_FOR_AGENTS, // Defined in nlu_types, e.g., "mixtral-8x7b-32768"
+    // Specify baseURL if not OpenAI default, e.g., for Groq: 'https://api.groq.com/openai/v1'
+);
+
+const analyticalAgent = new AnalyticalAgent(realLLMServiceForAnalytical); // AnalyticalAgent uses RealLLMService
+
+// Creative and Practical agents will continue using MockLLMService for this step
 const creativeAgent = new CreativeAgent(mockLLM);
 const practicalAgent = new PracticalAgent(mockLLM);
 
+// NLULeadAgent can also use the real service if its LLM-based synthesis is to be tested with a real LLM.
+// For now, let's assume its synthesis might also use a more general/mocked service or its rule-based approach.
+// If NLULeadAgent's LLM synthesis were the focus, it too would get an instance of RealLLMService.
 const nluLeadAgent = new NLULeadAgent(
-    analyticalAgent,
+    analyticalAgent, // Now using the instance with RealLLMService
     creativeAgent,
     practicalAgent,
-    mockLLM // Lead agent uses it for its own synthesis if LLM-based synthesis is enabled
+    mockLLM // Lead agent's own synthesis LLM (if any) can still be mock or a different real instance.
 );
 
-// Instance of the existing skill
+// Instance of the existing skill, can still use MockLLMService for its internal LLM calls
 const learningAndGuidanceSkill = new LearningAndGuidanceSkill(mockLLM);
 
 // --- Orchestration Logic ---

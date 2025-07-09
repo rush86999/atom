@@ -224,12 +224,44 @@ Example suggestedNextAction: { "actionType": "invoke_skill", "skillId": "some_sk
 
 
     public async analyzeIntent(input: SubAgentInput, useLLMSynthesis: boolean = false): Promise<EnrichedIntent> {
+        const P_LEAD_SUB_AGENTS_TIMER_LABEL = `[${this.agentName}] All Sub-Agents Processing Duration`;
+        const P_LEAD_SYNTHESIS_TIMER_LABEL = `[${this.agentName}] Synthesis Duration`;
+        let totalInputTokens = 0;
+        let totalCompletionTokens = 0;
+        let totalTokens = 0;
+
+        console.time(P_LEAD_SUB_AGENTS_TIMER_LABEL);
         const [analyticalResponse, creativeResponse, practicalResponse] = await Promise.all([
             this.analyticalAgent.analyze(input).catch(e => { console.error("AnalyticalAgent failed:", e); return null; }),
-            this.creativeAgent.analyze(input).catch(e => { console.error("CreativeAgent failed:", e); return null; }),
+            this.creativeAgent.analyze(input).catch(e => { console.error("CreativeAgent failed:", e); return null; }), // Assuming Creative/Practical also log their own times/tokens
             this.practicalAgent.analyze(input).catch(e => { console.error("PracticalAgent failed:", e); return null; })
         ]);
+        console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
+        // Aggregate token usage from sub-agents
+        [analyticalResponse, creativeResponse, practicalResponse].forEach(response => {
+            if (response?.rawLLMResponse) { // Check if it was a successful call that would have usage
+                // In a real scenario, usage would be on llmResponse object from the service
+                // For now, we are accessing it from the AnalyticalAgent's structure as an example
+                // This part needs to be harmonized if Creative/Practical agents also return usage via RealLLMService
+                // Let's assume for now only analyticalResponse has detailed usage from RealLLMService
+                if (response === analyticalResponse && (response as any).usage) { // Bit of a hack for current structure
+                     const usage = (response as any).usage as { promptTokens: number, completionTokens: number, totalTokens: number};
+                     totalInputTokens += usage.promptTokens || 0;
+                     totalCompletionTokens += usage.completionTokens || 0;
+                     totalTokens += usage.totalTokens || 0;
+                } else if (response?.rawLLMResponse?.includes("simulated successful LLM JSON response")) {
+                    // Crude simulation for other agents if they were also using RealLLMService's simulated path
+                    totalInputTokens += 100; totalCompletionTokens += 100; totalTokens += 200; // Placeholder
+                }
+            }
+        });
+        if (totalTokens > 0) {
+            console.log(`[${this.agentName}] Aggregated Sub-Agent Token Usage: Input=${totalInputTokens}, Completion=${totalCompletionTokens}, Total=${totalTokens}`);
+        }
+
+
+        console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
         let synthesisResult: Partial<EnrichedIntent>;
 
         if (useLLMSynthesis) {
