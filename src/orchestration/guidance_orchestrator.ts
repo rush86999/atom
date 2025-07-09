@@ -23,8 +23,14 @@ const realLLMServiceForAnalytical = new RealLLMService(
 
 const analyticalAgent = new AnalyticalAgent(realLLMServiceForAnalytical); // AnalyticalAgent uses RealLLMService
 
-// Creative and Practical agents will continue using MockLLMService for this step
-const creativeAgent = new CreativeAgent(mockLLM);
+// Initialize RealLLMService for the CreativeAgent
+const realLLMServiceForCreative = new RealLLMService(
+    process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER",
+    DEFAULT_MODEL_FOR_AGENTS
+);
+const creativeAgent = new CreativeAgent(realLLMServiceForCreative); // CreativeAgent now uses RealLLMService
+
+// Practical agent will continue using MockLLMService for this step
 const practicalAgent = new PracticalAgent(mockLLM);
 
 // NLULeadAgent can also use the real service if its LLM-based synthesis is to be tested with a real LLM.
