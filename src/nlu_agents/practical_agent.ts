@@ -51,10 +51,14 @@ Return your analysis ONLY as a valid JSON object with the following structure:
   }
 }
 
-Do not include any explanations or conversational text outside the JSON structure.
+Ensure all specified fields are present in your JSON output. If no items apply for a list-based field (like "contextualFactors" or "toolsNeeded"), return an empty array `[]` for that field.
+Do not include any explanations, apologies, or conversational text outside the JSON structure. Your entire response must be the JSON object itself.
+
+Consider the following context when forming your response:
 User's query: "${input.userInput}"
 User ID: ${input.userId || 'N/A'}
-Hypothetical available tools: ["Standard Office Suite", "Internal Wiki", "AI_Helper_Bot v1.2", "ProjectDB Access"]
+Hypothetical available tools or system capabilities: ["Standard Office Suite", "Internal Wiki", "AI_Helper_Bot v1.2", "ProjectDB Access", "Calendar Integration", "Email Client"]
+(If specific user context like current application, role, or recent documents were provided, you would use that here too.)
 `;
 
         return {
@@ -68,100 +72,58 @@ Hypothetical available tools: ["Standard Office Suite", "Internal Wiki", "AI_Hel
 
     public async analyze(input: SubAgentInput): Promise<PracticalAgentResponse> {
         const structuredPrompt = this.constructPrompt(input);
+        const P_PRACTICAL_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
 
-        // --- MOCK LLM RESPONSE ---
-        let mockLLMContent: string;
-        if (input.userInput.toLowerCase().includes("efficient") && input.userInput.toLowerCase().includes("ai thing")) {
-            mockLLMContent = JSON.stringify({
-                contextualFactors: [
-                    `User '${input.userId || 'unknown'}' is asking about report efficiency.`,
-                    "Org has 'AI_Helper_Bot v1.2' available."
-                ],
-                feasibilityAssessment: {
-                    rating: "Medium",
-                    reason: "Depends on the capabilities of 'AI_Helper_Bot v1.2' and complexity of the report. Data access for the bot is key.",
-                    dependencies: ["Access to Q3 marketing data sources", "AI_Helper_Bot v1.2 configured for reporting tasks"]
-                },
-                efficiencyTips: [
-                    "Ensure data sources are clean and structured before feeding to AI.",
-                    "Break down the report into smaller parts for the AI to process if it struggles with the whole.",
-                    "Verify AI outputs for accuracy, especially initially."
-                ],
-                resourceImplications: {
-                    timeEstimate: "Moderate",
-                    toolsNeeded: ["Q3 marketing data sources", "AI_Helper_Bot v1.2", "Standard Office Suite (for final report)"]
-                },
-                commonSenseValidation: {
-                    isValid: true,
-                    reason: "Seeking efficiency using available AI tools is a reasonable request."
-                }
-            });
-        } else if (input.userInput.toLowerCase().includes("pivot table")) {
-            mockLLMContent = JSON.stringify({
-                contextualFactors: ["User is asking a 'how-to' question about SpreadsheetApp."],
-                feasibilityAssessment: {
-                    rating: "High",
-                    reason: "Creating pivot tables is a standard feature in spreadsheet software.",
-                    dependencies: ["SpreadsheetApp installed", "Data available to pivot"]
-                },
-                efficiencyTips: ["Use named ranges for data sources for easier updates.", "Start with a clear question you want the pivot table to answer."],
-                resourceImplications: {
-                    timeEstimate: "Quick",
-                    toolsNeeded: ["SpreadsheetApp"]
-                },
-                commonSenseValidation: {
-                    isValid: true,
-                    reason: "Common task for data analysis."
-                }
-            });
-        } else {
-            mockLLMContent = JSON.stringify({
-                contextualFactors: ["User submitted a very short, non-specific query."],
-                feasibilityAssessment: {
-                    rating: "Unknown",
-                    reason: "Cannot assess feasibility without a clear task or goal.",
-                    dependencies: ["User to provide more details"]
-                },
-                efficiencyTips: ["Provide more details about what you need help with."],
-                resourceImplications: {
-                    timeEstimate: "Unknown",
-                    toolsNeeded: []
-                },
-                commonSenseValidation": {
-                    isValid: false,
-                    reason: "Query 'Help me.' is too vague to be actionable without further context or clarification."
-                }
-            });
+        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
+        console.time(P_PRACTICAL_AGENT_TIMER_LABEL);
+        const llmResponse = await this.llmService.generate(
+            structuredPrompt,
+            DEFAULT_MODEL_FOR_AGENTS, // Or a model specifically chosen for practical tasks
+            {
+                temperature: DEFAULT_TEMPERATURE_PRACTICAL,
+                isJsonOutput: true
+            }
+        );
+        console.timeEnd(P_PRACTICAL_AGENT_TIMER_LABEL);
+
+        if (llmResponse.usage) {
+            console.log(`[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`);
         }
-        const mockResponse: LLMServiceResponse = {
-            success: true,
-            content: mockLLMContent,
-            usage: { promptTokens: 110, completionTokens: 150, totalTokens: 260 }
-        };
-        // --- END MOCK LLM RESPONSE ---
+
+        if (!llmResponse.success || !llmResponse.content) {
+            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
+            return { // Return a default/error response structure, ensuring all fields are covered
+                contextualFactors: [],
+                feasibilityAssessment: { rating: "Unknown", reason: `LLM analysis failed: ${llmResponse.error || 'No content'}` },
+                efficiencyTips: [],
+                resourceImplications: { timeEstimate: "Unknown", toolsNeeded: [] },
+                commonSenseValidation: { isValid: false, reason: `LLM analysis failed: ${llmResponse.error || 'No content'}` },
+                rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`
+            };
+        }
 
         const parsedResponse = safeParseJSON<Partial<PracticalAgentResponse>>(
-            mockResponse.content,
+            llmResponse.content,
             this.agentName,
             structuredPrompt.task
         );
 
-        if (!mockResponse.success || !parsedResponse) {
-            console.error(`[${this.agentName}] LLM call failed or response parsing failed. Error: ${mockResponse.error}`);
-            return { // Return a default/error response structure
-                feasibilityAssessment: { rating: "Unknown", reason: "LLM analysis failed." },
-                commonSenseValidation: { isValid: false, reason: "LLM analysis failed." },
-                rawLLMResponse: mockResponse.content || "No content from LLM."
+        if (!parsedResponse) {
+            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
+            return { // Return a default/error response structure if parsing fails
+                feasibilityAssessment: { rating: "Unknown", reason: "Failed to parse LLM JSON response." },
+                commonSenseValidation: { isValid: false, reason: "Failed to parse LLM JSON response." },
+                rawLLMResponse: llmResponse.content
             };
         }
 
         return {
             contextualFactors: parsedResponse.contextualFactors || [],
-            feasibilityAssessment: parsedResponse.feasibilityAssessment || { rating: "Unknown", reason: "N/A" },
+            feasibilityAssessment: parsedResponse.feasibilityAssessment || { rating: "Unknown", reason: "Not specified by LLM." },
             efficiencyTips: parsedResponse.efficiencyTips || [],
-            resourceImplications: parsedResponse.resourceImplications || { timeEstimate: "Unknown" },
-            commonSenseValidation: parsedResponse.commonSenseValidation || { isValid: true, reason: "N/A" },
-            rawLLMResponse: mockResponse.content,
+            resourceImplications: parsedResponse.resourceImplications || { timeEstimate: "Unknown", toolsNeeded: [] },
+            commonSenseValidation: parsedResponse.commonSenseValidation || { isValid: true, reason: "Not specified by LLM." },
+            rawLLMResponse: llmResponse.content,
         };
     }
 }
