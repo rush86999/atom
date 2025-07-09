@@ -16,8 +16,8 @@ import * as calendarSkills from './calendarSkills'; // For fetching meetings
 import { queryNotionTasks as queryNotionTasksBackend } from './notionAndResearchSkills'; // For querying tasks
 import { ATOM_NOTION_TASKS_DATABASE_ID } from '../_libs/constants'; // For Notion Task DB ID
 import * as gmailSkills from './gmailSkills'; // For fetching emails
+import * as slackSkills from './slackSkills'; // For fetching Slack messages
 // Placeholder for importing other skills that might be needed:
-// import * as slackSkills from './slackSkills'; // For fetching urgent Slack messages
 // import * as teamsSkills from './msTeamsSkills'; // For fetching urgent Teams messages
 // import * as llmUtilities from './llmUtilities'; // For ranking urgency or summarizing
 
@@ -156,7 +156,25 @@ function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateI
         // The fact it was fetched for that targetDate already implies its relevance for that day.
       }
       break;
-    // Add cases for 'slack_message', 'teams_message' when implemented
+    case 'slack_message':
+      const slackMsg = item.raw_item as SlackMessageSnippet; // Or SlackMessage
+      score += 45; // Base score for being a recent DM/mention on targetDate.
+      if (slackMsg && slackMsg.timestamp) { // Slack 'ts' is usually a string like "1629878400.000100" or already an ISO string via our types
+        // Assuming slackMsg.timestamp is an ISO string as per our SlackMessage type
+        try {
+            const messageDate = new Date(slackMsg.timestamp);
+            if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) { // If briefing is for today
+                const hoursAgoReceived = (nowForContext.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
+                if (hoursAgoReceived >= 0 && hoursAgoReceived < 2) { // Received in last 2 hours
+                    score += 5;
+                }
+            }
+        } catch (e) {
+            logger.warn(`[calculateUrgencyScore] Could not parse Slack message timestamp: ${slackMsg.timestamp}`);
+        }
+      }
+      break;
+    // Add case for 'teams_message' when implemented
     default:
       score = 20; // Default low score for unknown or other types
   }
@@ -418,7 +436,58 @@ export async function generateDailyBriefing(
       }
     }
 
-    // TODO: Implement fetching for urgent_slack_messages and urgent_teams_messages similarly
+    // Fetch Urgent Slack Messages
+    if (focusAreas.includes('urgent_slack_messages')) {
+      logger.info(`[dailyBriefingSkill] Fetching urgent Slack messages for briefing for targetDate: ${parsedDateInfo.targetDateISO}.`);
+      try {
+        const slackResponse = await slackSkills.getRecentDMsAndMentionsForBriefing(
+          userId, // atomUserId
+          parsedDateInfo.targetDate, // targetDate
+          3 // count
+        );
+
+        if (slackResponse.ok && slackResponse.data?.results) {
+          const slackMessages: SlackMessageSnippet[] = slackResponse.data.results; // SlackMessage is compatible with SlackMessageSnippet for these fields
+          if (slackMessages.length > 0) {
+            slackMessages.forEach(msg => {
+              let title = `Slack message`;
+              if (msg.userName) title += ` from ${msg.userName}`;
+              if (msg.channelName) title += ` in #${msg.channelName}`;
+              else if (!msg.channelName && msg.userName) title += ` (DM)`; // Likely a DM if channelName is null but userName (sender) is present
+
+              briefingData.priority_items.push({
+                type: 'slack_message',
+                title: title,
+                details: msg.text ? msg.text.substring(0, 100) + (msg.text.length > 100 ? '...' : '') : '(No text content)',
+                link: msg.permalink,
+                source_id: msg.id, // 'ts' from SlackMessage
+                raw_item: msg,
+                urgency_score: calculateUrgencyScore({ type: 'slack_message', title: title, raw_item: msg } as BriefingItem, parsedDateInfo.targetDate, parsedDateInfo.targetDateISO),
+              });
+            });
+            logger.info(`[dailyBriefingSkill] Fetched ${slackMessages.length} urgent/recent Slack messages.`);
+          } else {
+            logger.info(`[dailyBriefingSkill] No urgent/recent Slack messages found for ${parsedDateInfo.targetDateISO}.`);
+          }
+        } else {
+          logger.error(`[dailyBriefingSkill] Error fetching urgent Slack messages: ${slackResponse.error?.message}`);
+          briefingData.errors_encountered?.push({
+            source_area: 'slack',
+            message: slackResponse.error?.message || 'Unknown error fetching urgent Slack messages.',
+            details: JSON.stringify(slackResponse.error?.details),
+          });
+        }
+      } catch (e: any) {
+        logger.error(`[dailyBriefingSkill] Exception during Slack message fetching: ${e.message}`, e);
+        briefingData.errors_encountered?.push({
+          source_area: 'slack',
+          message: `Exception: ${e.message}`,
+          details: e.stack,
+        });
+      }
+    }
+
+    // TODO: Implement fetching for urgent_teams_messages similarly
 
     // Sort all collected priority_items by urgency_score (descending)
     // Secondary sort criteria:
@@ -466,6 +535,7 @@ export async function generateDailyBriefing(
     const numTasks = briefingData.priority_items.filter(item => item.type === 'task').length;
     const numMeetings = briefingData.priority_items.filter(item => item.type === 'meeting').length;
     const numEmails = briefingData.priority_items.filter(item => item.type === 'email').length;
+    const numSlackMessages = briefingData.priority_items.filter(item => item.type === 'slack_message').length;
 
     let summaryParts: string[] = [];
     if (focusAreas.includes('meetings')) {
@@ -503,6 +573,14 @@ export async function generateDailyBriefing(
         summaryParts.push(`There are ${numEmails} recent unread email(s) for you to review.`);
       } else {
         summaryParts.push("No recent unread emails to highlight.");
+      }
+    }
+
+    if (focusAreas.includes('urgent_slack_messages')) {
+      if (numSlackMessages > 0) {
+        summaryParts.push(`You have ${numSlackMessages} recent Slack message(s) (DMs or mentions) to check.`);
+      } else {
+        summaryParts.push("No recent Slack DMs or mentions to highlight.");
       }
     }
 
