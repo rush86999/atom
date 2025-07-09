@@ -17,8 +17,8 @@ import { queryNotionTasks as queryNotionTasksBackend } from './notionAndResearch
 import { ATOM_NOTION_TASKS_DATABASE_ID } from '../_libs/constants'; // For Notion Task DB ID
 import * as gmailSkills from './gmailSkills'; // For fetching emails
 import * as slackSkills from './slackSkills'; // For fetching Slack messages
+import * as teamsSkills from './msTeamsSkills'; // For fetching MS Teams messages
 // Placeholder for importing other skills that might be needed:
-// import * as teamsSkills from './msTeamsSkills'; // For fetching urgent Teams messages
 // import * as llmUtilities from './llmUtilities'; // For ranking urgency or summarizing
 
 // --- Date Parsing Utility ---
@@ -174,7 +174,23 @@ function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateI
         }
       }
       break;
-    // Add case for 'teams_message' when implemented
+    case 'teams_message':
+      const teamsMsg = item.raw_item as MSTeamsMessage;
+      score += 45; // Base score for being a recent DM/mention on targetDate.
+      if (teamsMsg && teamsMsg.createdDateTime) {
+        try {
+            const messageDate = new Date(teamsMsg.createdDateTime); // MS Graph uses ISO 8601
+            if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) { // If briefing is for today
+                const hoursAgoReceived = (nowForContext.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
+                if (hoursAgoReceived >= 0 && hoursAgoReceived < 2) { // Received in last 2 hours
+                    score += 5;
+                }
+            }
+        } catch (e) {
+            logger.warn(`[calculateUrgencyScore] Could not parse MS Teams message createdDateTime: ${teamsMsg.createdDateTime}`);
+        }
+      }
+      break;
     default:
       score = 20; // Default low score for unknown or other types
   }
@@ -487,7 +503,58 @@ export async function generateDailyBriefing(
       }
     }
 
-    // TODO: Implement fetching for urgent_teams_messages similarly
+    // Fetch Urgent MS Teams Messages
+    if (focusAreas.includes('urgent_teams_messages')) {
+      logger.info(`[dailyBriefingSkill] Fetching urgent MS Teams messages for briefing for targetDate: ${parsedDateInfo.targetDateISO}.`);
+      try {
+        // Assuming getRecentChatsAndMentionsForBriefing exists and works similarly to Slack's
+        const teamsResponse = await teamsSkills.getRecentChatsAndMentionsForBriefing(
+          userId,
+          parsedDateInfo.targetDate,
+          3 // Fetch up to 3 messages
+        );
+
+        if (teamsResponse.ok && teamsResponse.data?.results) {
+          const teamsMessages: MSTeamsMessage[] = teamsResponse.data.results;
+          if (teamsMessages.length > 0) {
+            teamsMessages.forEach(msg => {
+              let title = `Teams message`;
+              if (msg.userName) title += ` from ${msg.userName}`;
+              // msg.chatId could be used to infer if it's a 1:1 or group chat if channel/team info isn't directly on msg
+              // For now, keeping title simple.
+              // if (msg.channelName) title += ` in ${msg.channelName}`; // MSTeamsMessage may not have channelName directly
+
+              briefingData.priority_items.push({
+                type: 'teams_message', // New BriefingItemType
+                title: title,
+                details: msg.content ? msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : '') : '(No text content)',
+                link: msg.webUrl,
+                source_id: msg.id,
+                raw_item: msg,
+                urgency_score: calculateUrgencyScore({ type: 'teams_message', title: title, raw_item: msg } as BriefingItem, parsedDateInfo.targetDate, parsedDateInfo.targetDateISO),
+              });
+            });
+            logger.info(`[dailyBriefingSkill] Fetched ${teamsMessages.length} urgent/recent MS Teams messages.`);
+          } else {
+            logger.info(`[dailyBriefingSkill] No urgent/recent MS Teams messages found for ${parsedDateInfo.targetDateISO}.`);
+          }
+        } else {
+          logger.error(`[dailyBriefingSkill] Error fetching urgent MS Teams messages: ${teamsResponse.error?.message}`);
+          briefingData.errors_encountered?.push({
+            source_area: 'teams', // New source_area
+            message: teamsResponse.error?.message || 'Unknown error fetching urgent MS Teams messages.',
+            details: JSON.stringify(teamsResponse.error?.details),
+          });
+        }
+      } catch (e: any) {
+        logger.error(`[dailyBriefingSkill] Exception during MS Teams message fetching: ${e.message}`, e);
+        briefingData.errors_encountered?.push({
+          source_area: 'teams',
+          message: `Exception: ${e.message}`,
+          details: e.stack,
+        });
+      }
+    }
 
     // Sort all collected priority_items by urgency_score (descending)
     // Secondary sort criteria:
@@ -522,20 +589,22 @@ export async function generateDailyBriefing(
 
       // If types are different and scores are equal, maintain original relative order or define one
       // For now, if scores are equal and types differ, their relative order won't change from this sort pass.
-      // A more explicit cross-type secondary sort could be: Meetings > Tasks > Emails if scores are identical.
-      const typeOrder = { meeting: 1, task: 2, email: 3 };
-      const aTypeOrder = typeOrder[a.type] || 99;
-      const bTypeOrder = typeOrder[b.type] || 99;
+      // A more explicit cross-type secondary sort could be: Meetings > Tasks > Emails > Slack > Teams if scores are identical.
+      const typeOrder = { meeting: 1, task: 2, email: 3, slack_message: 4, teams_message: 5 };
+      const aTypeOrder = typeOrder[a.type] || 99; // Items not in typeOrder go last
+      const bTypeOrder = typeOrder[b.type] || 99; // Items not in typeOrder go last
       return aTypeOrder - bTypeOrder;
 
     });
     logger.info(`[dailyBriefingSkill] Sorted ${briefingData.priority_items.length} priority items.`);
 
     // Generate overall_summary_message
+    // Generate overall_summary_message
     const numTasks = briefingData.priority_items.filter(item => item.type === 'task').length;
     const numMeetings = briefingData.priority_items.filter(item => item.type === 'meeting').length;
     const numEmails = briefingData.priority_items.filter(item => item.type === 'email').length;
     const numSlackMessages = briefingData.priority_items.filter(item => item.type === 'slack_message').length;
+    const numTeamsMessages = briefingData.priority_items.filter(item => item.type === 'teams_message').length;
 
     let summaryParts: string[] = [];
     if (focusAreas.includes('meetings')) {
@@ -581,6 +650,14 @@ export async function generateDailyBriefing(
         summaryParts.push(`You have ${numSlackMessages} recent Slack message(s) (DMs or mentions) to check.`);
       } else {
         summaryParts.push("No recent Slack DMs or mentions to highlight.");
+      }
+    }
+
+    if (focusAreas.includes('urgent_teams_messages')) {
+      if (numTeamsMessages > 0) {
+        summaryParts.push(`You have ${numTeamsMessages} recent MS Teams message(s) (chats or mentions) to check.`);
+      } else {
+        summaryParts.push("No recent MS Teams chats or mentions to highlight.");
       }
     }
 

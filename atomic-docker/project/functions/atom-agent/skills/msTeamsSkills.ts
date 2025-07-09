@@ -116,6 +116,140 @@ export async function searchMyMSTeamsMessages(
   }
 }
 
+// Conceptual helper to get user's MS Graph Object ID (AAD ID)
+// In a real scenario, this would involve getting a token for the user and calling Graph API /me
+// or this ID might be stored/retrieved alongside their MS Teams OAuth tokens.
+async function _getUserGraphObjectId(atomUserId: string, client: any /* MSGraphClient or similar */): Promise<string | null> {
+  logger.debug(`[MSTeamsSkills] _getUserGraphObjectId: Attempting to get Graph Object ID for Atom user ${atomUserId}. (Conceptual)`);
+  // Placeholder: Assume a mechanism exists to map atomUserId to an AAD ObjectId or UPN
+  // For testing, one might return a known test AAD User ID.
+  // Example using a hypothetical Graph call (if client was an authenticated MSGraphClient):
+  // try {
+  //   const userProfile = await client.api('/me').select('id,userPrincipalName').get();
+  //   return userProfile.id; // This is the AAD Object ID
+  // } catch (error) {
+  //   logger.error(`[MSTeamsSkills] Failed to fetch user's Graph Object ID for Atom user ${atomUserId}:`, error);
+  //   return null;
+  // }
+  // For now, as this is complex to implement fully here without actual token flow for /me:
+  logger.warn(`[MSTeamsSkills] _getUserGraphObjectId is a placeholder. Returning null. KQL query for mentions will be less effective.`);
+  // To make search work somewhat for testing without a real user ID, one might search for a common term
+  // or a known display name if the search API supports that well in KQL.
+  // For now, returning null means mention search part of KQL will be skipped or use a placeholder.
+  return null;
+}
+
+
+export async function getRecentChatsAndMentionsForBriefing(
+  atomUserId: string,
+  targetDate: Date,
+  count: number = 3
+): Promise<GraphSkillResponse<{ results: MSTeamsMessage[], query_executed?: string }>> { // Use GraphSkillResponse for consistency
+  logger.debug(`[MSTeamsSkills] getRecentChatsAndMentionsForBriefing for Atom user: ${atomUserId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`);
+
+  // MS Graph client for /me endpoint would be needed if we were to fetch AAD ID here.
+  // This is complex as it requires a user-delegated token.
+  // For now, we'll construct a KQL that might work more broadly or assume AAD ID is somehow available.
+  // Let's assume for this skill, we don't have direct access to make a /me call easily.
+  // The searchMyMSTeamsMessages itself uses a token obtained via getDelegatedMSGraphTokenForUser,
+  // which is associated with the atomUserId. The KQL search will run in that user's context.
+
+  try {
+    const startOfDay = new Date(targetDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(targetDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const startOfDayISO = startOfDay.toISOString();
+    const endOfDayISO = endOfDay.toISOString();
+
+    // Construct KQL Query.
+    // Searching for mentions of the user (requires knowing their display name or AAD ID which is hard here)
+    // OR messages in 1:1 chats (isChatMessage=true AND chatMessage.chatType eq 'oneOnOne' might not be KQL)
+    // OR messages sent by the user (from.user.id eq 'userGraphId')
+    // KQL for Graph Search API is powerful but specific.
+    // A simpler approach for DMs and mentions might be:
+    // 1. Fetch user's chats: /me/chats (filter for 1on1, get last message preview)
+    // 2. Fetch user's activity feed for mentions: /me/teamwork/activityfeed
+    // These are different API calls than /search/query.
+    //
+    // Given we must use searchMyMSTeamsMessages which uses /search/query with KQL:
+    // We'll try a KQL that looks for messages TO or FROM the current user (implicit from token)
+    // in their chats, and separately for @mentions if we had their AAD ID.
+    // Since getting AAD ID here is hard, let's make a best-effort KQL.
+    // The `from` field in KQL usually refers to sender's name/email.
+    // `participants` can be used with user IDs.
+    //
+    // Let's assume the search is in the context of the user provided by the token.
+    // We want messages where this user is a participant (implicitly true for their chats)
+    // AND ( (the message is in a 1:1 chat) OR (the message @mentions them) ).
+    // KQL for chat messages might not directly support "is:dm" or easy "@me" like Slack.
+    // A KQL query focusing on recency and user involvement:
+    // "(participants:\"Me\" OR mentions:\"Me\")" - "Me" might not work, needs actual ID/name.
+    // For this iteration, let's simplify: fetch recent messages from user's chats and hope mentions are caught by text search.
+    // A more robust solution would require the user's AAD ID.
+    //
+    // If we had userAadId:
+    // const kqlQuery = `((mentions:"${userAadId}") OR (participants:"${userAadId}" AND IsGroupChat:"false")) AND createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
+    // Without userAadId, we rely on the search being scoped to the user's accessible messages.
+    // We'll search for messages within the date range.
+    // Filtering for DMs/Mentions will be done client-side on results if KQL is too limited without specific ID.
+
+    // For now, let's just get recent messages for the user on that day and assume the search endpoint is smart.
+    // This is a simplification due to the difficulty of getting user's own AAD ID easily within this skill layer
+    // without another Graph call. The search will be run as the user.
+    const kqlQuery = `createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
+    logger.info(`[MSTeamsSkills] Constructed KQL query for briefing: "${kqlQuery}" (This is broad, needs user context from token)`);
+
+    const searchResults = await searchMyMSTeamsMessages(atomUserId, kqlQuery, count * 5); // Fetch more to filter client-side
+
+    // Client-side filtering for DMs or mentions (since KQL is broad here)
+    // This is NOT ideal but a workaround if user's own AAD ID isn't easily available for KQL.
+    // A better backend search is preferred.
+    const relevantMessages: MSTeamsMessage[] = [];
+    if (searchResults && searchResults.length > 0) {
+        // Attempt to get user's own AAD ID by making a /me call if not already available
+        // This is a conceptual step for now.
+        const userGraphId = await _getUserGraphObjectId(atomUserId, null); // Pass a conceptual client or token
+
+        for (const msg of searchResults) {
+            let isRelevant = false;
+            // Check if it's a DM-like chat (assuming chatId exists for DMs, and it's not a channel message)
+            if (msg.chatId && !msg.teamId && !msg.channelId) {
+                 // Heuristic: if it's a chat message and the sender is not the user, it might be a DM to the user.
+                 // Or if the chat itself is known to be a 1:1 with the user. This requires more context.
+                 // For now, include if it's a chat message and not from self (very rough)
+                 if (userGraphId && msg.userId !== userGraphId) isRelevant = true;
+                 else if (!userGraphId) isRelevant = true; // If we can't get self ID, take all chat messages
+            }
+            // Check for mentions
+            if (msg.mentions && userGraphId) {
+                if (msg.mentions.some(mention => mention.mentioned?.user?.id === userGraphId)) {
+                    isRelevant = true;
+                }
+            }
+            if (isRelevant) {
+                relevantMessages.push(msg);
+            }
+            if (relevantMessages.length >= count) break;
+        }
+    }
+
+    logger.info(`[MSTeamsSkills] Found ${relevantMessages.length} relevant MS Teams messages for briefing.`);
+    return { ok: true, data: { results: relevantMessages, query_executed: kqlQuery } };
+
+  } catch (error: any) {
+    logger.error(`[MSTeamsSkills] Error in getRecentChatsAndMentionsForBriefing for Atom user ${atomUserId}: ${error.message}`, error);
+    const skillError: SkillError = {
+        code: 'MSTEAMS_BRIEFING_FETCH_FAILED',
+        message: error.message || "Failed to fetch recent MS Teams messages for briefing.",
+        details: error
+    };
+    return { ok: false, error: skillError };
+  }
+}
+
+
 const GQL_GET_MS_TEAMS_MESSAGE_WEB_URL = `
   mutation GetMSTeamsMessageWebUrl($input: GetMSTeamsMessageWebUrlInput!) {
     getMSTeamsMessageWebUrl(input: $input) {
