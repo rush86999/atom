@@ -374,15 +374,61 @@ export class RealLLMService implements LLMServiceInterface {
 
         // SIMULATING A SUCCESSFUL RESPONSE FOR THE SAKE OF STRUCTURE
         // IN A REAL SCENARIO, THIS WOULD BE THE ACTUAL LLM RESPONSE
-        const simulatedApiContent = JSON.stringify({
+        let simulatedApiContentObject: any = {
             comment: `This is a simulated successful LLM JSON response for task ${taskType}`,
-            data_from_prompt: structuredPrompt.data,
-            // Add some mock structure similar to what AnalyticalAgent expects for better simulation
-            identifiedEntities: ["sim_entity1_from_real_llm", "sim_entity2_from_real_llm"],
-            explicitTasks: ["sim_task_from_real_llm"],
-            logicalConsistency: { isConsistent: true, reason: "Simulated by RealLLMService" },
-            problemType: "simulated_problem_type"
-        });
+            data_from_prompt: structuredPrompt.data, // Include original data for reference
+        };
+
+        // Task-specific simulated content
+        switch (taskType) {
+            case 'custom_analytical_analysis':
+                simulatedApiContentObject = {
+                    ...simulatedApiContentObject,
+                    identifiedEntities: ["sim_entity_analytical_1", "sim_entity_analytical_2"],
+                    explicitTasks: ["sim_task_analytical"],
+                    logicalConsistency: { isConsistent: true, reason: "Simulated by RealLLMService for AnalyticalAgent" },
+                    problemType: "simulated_analytical_problem"
+                };
+                break;
+            case 'custom_creative_analysis':
+                simulatedApiContentObject = {
+                    ...simulatedApiContentObject,
+                    alternativeGoals: ["sim_alt_goal_creative_1"],
+                    novelSolutionsSuggested: ["sim_novel_solution_creative"],
+                    unstatedAssumptions: ["sim_assumption_creative"],
+                    potentialEnhancements: ["sim_enhancement_creative"],
+                    ambiguityFlags: [{ term: "sim_ambiguous_term_creative", reason: "sim_reason_creative" }]
+                };
+                break;
+            case 'custom_practical_analysis':
+                simulatedApiContentObject = {
+                    ...simulatedApiContentObject,
+                    contextualFactors: ["sim_context_practical_1"],
+                    feasibilityAssessment: {
+                        rating: "Medium",
+                        reason: "Simulated by RealLLMService for PracticalAgent",
+                        dependencies: ["sim_dependency_practical"]
+                    },
+                    efficiencyTips: ["sim_tip_practical"],
+                    resourceImplications: {
+                        timeEstimate: "Moderate",
+                        toolsNeeded: ["sim_tool_practical"]
+                    },
+                    commonSenseValidation: {
+                        isValid: true,
+                        reason: "Simulated by RealLLMService for PracticalAgent"
+                    }
+                };
+                break;
+            default: // Generic fallback for other tasks (e.g. original LLMTaskTypes)
+                 simulatedApiContentObject = {
+                    ...simulatedApiContentObject,
+                    genericField: "Generic simulated content for other tasks"
+                 };
+                break;
+        }
+        const simulatedApiContent = JSON.stringify(simulatedApiContentObject);
+
         // Simulate token usage based on prompt and content length for more realism
         const promptTokens = Math.ceil((JSON.stringify(messages).length / 4)); // Rough estimate
         const completionTokens = Math.ceil((simulatedApiContent.length / 4)); // Rough estimate
