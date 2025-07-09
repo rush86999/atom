@@ -1,27 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-// Placeholder for API skill imports - will be updated in a later step
-// import {
-//   getGDriveConnectionStatus,
-//   disconnectGDrive,
-//   listGoogleDriveFiles,
-//   triggerGoogleDriveFileIngestion
-// } from '../../../../src/skills/gdriveSkills'; // Adjust path as needed
+import {
+  getGDriveConnectionStatus,
+  disconnectGDrive,
+  listGoogleDriveFiles,
+  triggerGoogleDriveFileIngestion,
+  GDriveConnectionStatusInfo, // Import type
+  GoogleDriveFile as GDriveFileType // Import type and alias to avoid conflict if defined locally
+} from '../../../src/skills/gdriveSkills'; // Adjusted path
 
 // --- Type Definitions (placeholders, ideally from a shared types file) ---
-interface GDriveConnectionStatusInfo {
-  isConnected: boolean;
-  email?: string;
-  reason?: string;
-}
+// GDriveConnectionStatusInfo is now imported
+// GDriveFile (renamed to GDriveFileType) is now imported
 
-interface GDriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-}
-
-interface FileListItem extends GDriveFile {
+// Use GDriveFileType for internal FileListItem
+interface FileListItem extends GDriveFileType {
   isIngesting?: boolean;
   ingestionStatus?: 'success' | 'error' | null;
   ingestionMessage?: string;
@@ -47,39 +40,8 @@ const GDriveManager: React.FC = () => {
 
   const [errorMessages, setErrorMessages] = useState<{ general?: string; files?: string; status?: string }>({});
 
-  // --- API Calling Logic ---
-  // Adjust the import path based on your project structure.
-  // This assumes gdriveSkills.ts is correctly updated as per the previous plan.
-  // For now, these will be commented out until gdriveSkills.ts is confirmed/updated.
-  /*
-  import {
-    getGDriveConnectionStatus,
-    disconnectGDrive,
-    listGoogleDriveFiles,
-    triggerGoogleDriveFileIngestion,
-    // Make sure GDriveFile type is also exported from gdriveSkills or a shared types file
-  } from '../../../../src/skills/gdriveSkills'; // Example path
-  */
-
-  // Placeholder for actual skill functions - using console logs for now
-  const getGDriveConnectionStatus = async (userId: string) => { console.log(`mock: getGDriveConnectionStatus for ${userId}`); return { ok: true, data: { isConnected: false, email: undefined } as GDriveConnectionStatusInfo }; };
-  const disconnectGDrive = async (userId: string) => { console.log(`mock: disconnectGDrive for ${userId}`); return { ok: true, data: { message: "Disconnected" } }; };
-  const listGoogleDriveFiles = async (userId: string, folderId?: string, pageToken?: string, query?: string, pageSize?: number) => {
-    console.log(`mock: listGoogleDriveFiles for ${userId}, folder: ${folderId}, pageToken: ${pageToken}`);
-    const mockFilesData: GDriveFile[] = folderId === "folder1" ?
-      [{ id: "file3", name: "SubFile.txt", mimeType: "text/plain" }] :
-      [
-        { id: "file1", name: "Document 1.gdoc", mimeType: "application/vnd.google-apps.document" },
-        { id: "folder1", name: "My Test Folder", mimeType: "application/vnd.google-apps.folder" },
-        { id: "file2", name: "Spreadsheet.gsheet", mimeType: "application/vnd.google-apps.spreadsheet" },
-      ];
-    return { ok: true, data: { files: mockFilesData, nextPageToken: folderId === "folder1" ? undefined : "mockNextPageToken" } };
-  };
-  const triggerGoogleDriveFileIngestion = async (userId: string, fileId: string, metadata: { name: string; mimeType: string; webViewLink?: string }) => {
-    console.log(`mock: triggerGoogleDriveFileIngestion for ${userId}, fileId: ${fileId}`);
-    return { ok: true, data: { doc_id: "new-doc-id", num_chunks_stored: 5 } };
-  };
-
+  // API functions are now imported from gdriveSkills.ts
+  // Mock functions below are removed.
 
   const fetchConnectionStatus = useCallback(async () => {
     if (!userId) return;
@@ -176,7 +138,7 @@ const GDriveManager: React.FC = () => {
       const metadataForIngestion = {
         name: file.name,
         mimeType: file.mimeType,
-        // webViewLink: file.webViewLink, // This field might not be in GDriveFile from list-files
+        webViewLink: file.webViewLink || undefined, // Pass webViewLink if available
       };
 
       const response = await triggerGoogleDriveFileIngestion(userId, file.id, metadataForIngestion);
@@ -247,31 +209,63 @@ const GDriveManager: React.FC = () => {
       <h2 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '20px' }}>Google Drive Management</h2>
 
       {/* General Error Display */}
-      {errorMessages.general && <p style={{ color: 'red', backgroundColor: '#ffebee', padding: '10px', borderRadius: '4px' }}>Error: {errorMessages.general}</p>}
+      {errorMessages.general && (
+        <p style={{ color: 'red', backgroundColor: '#ffebee', padding: '10px', borderRadius: '4px', border: '1px solid #e57373', marginBottom: '15px' }}>
+          <strong>Error:</strong> {errorMessages.general}
+        </p>
+      )}
 
       {/* Connection Status Section */}
       <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
-        <h3 style={{ marginTop: '0' }}>Connection Status</h3>
+        <h3 style={{ marginTop: '0', marginBottom: '10px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>Connection Status</h3>
         {isLoadingStatus ? (
           <p>Loading status...</p>
         ) : connectionStatus?.isConnected ? (
           <div>
-            <p style={{ color: 'green', fontWeight: 'bold' }}>Connected as: {connectionStatus.email || 'N/A'}</p>
+            <p style={{ color: 'green', fontWeight: 'bold', marginBottom: '10px' }}>
+              Connected as: {connectionStatus.email || 'N/A'}
+            </p>
             <button
               onClick={handleDisconnectGDrive}
-              style={{ padding: '8px 12px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              style={{
+                padding: '8px 15px',
+                backgroundColor: '#f44336', // Red
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.9em'
+              }}
             >
               Disconnect Google Drive
             </button>
           </div>
         ) : (
           <div>
-            <p style={{ color: 'orange', fontWeight: 'bold' }}>Not Connected.</p>
-            {connectionStatus?.reason && <p style={{fontSize: '0.9em', color: '#757575'}}>Reason: {connectionStatus.reason}</p>}
-            {errorMessages.status && <p style={{ color: 'red', fontSize: '0.9em' }}>Error fetching status: {errorMessages.status}</p>}
+            <p style={{ color: '#f57c00', fontWeight: 'bold', marginBottom: '5px' }}> {/* Orange for Not Connected */}
+              Not Connected.
+            </p>
+            {connectionStatus?.reason && (
+              <p style={{fontSize: '0.9em', color: '#757575', marginTop: '0', marginBottom: '10px'}}>
+                Reason: {connectionStatus.reason}
+              </p>
+            )}
+            {errorMessages.status && (
+              <p style={{ color: 'red', fontSize: '0.9em', marginTop: '0', marginBottom: '10px' }}>
+                Error fetching status: {errorMessages.status}
+              </p>
+            )}
             <button
               onClick={handleConnectGDrive}
-              style={{ padding: '8px 12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              style={{
+                padding: '8px 15px',
+                backgroundColor: '#4CAF50', // Green
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.9em'
+              }}
             >
               Connect Google Drive
             </button>
@@ -282,12 +276,12 @@ const GDriveManager: React.FC = () => {
       {/* File Explorer Section - Only show if connected */}
       {connectionStatus?.isConnected && (
         <div style={{ marginTop: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
-          <h3 style={{ marginTop: '0' }}>Files and Folders</h3>
+          <h3 style={{ marginTop: '0', marginBottom: '10px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>Files and Folders</h3>
 
           {/* Breadcrumbs */}
-          <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+          <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px', display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
             {pathHistory.map((p, index) => (
-              <span key={p.id || 'root-breadcrumb'}>
+              <React.Fragment key={p.id || 'root-breadcrumb'}>
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
                   disabled={index === pathHistory.length - 1}
@@ -295,23 +289,30 @@ const GDriveManager: React.FC = () => {
                     background: 'none', border: 'none',
                     color: index === pathHistory.length - 1 ? '#333' : '#007bff',
                     cursor: index === pathHistory.length - 1 ? 'default' : 'pointer',
-                    padding: '0', marginRight: '5px', fontWeight: index === pathHistory.length - 1 ? 'bold' : 'normal',
-                    textDecoration: index !== pathHistory.length - 1 ? 'underline' : 'none'
+                    padding: '2px 0', // Adjusted padding
+                    marginRight: '5px',
+                    fontWeight: index === pathHistory.length - 1 ? 'bold' : 'normal',
+                    textDecoration: index !== pathHistory.length - 1 ? 'underline' : 'none',
+                    fontSize: '0.95em'
                   }}
                 >
                   {p.name}
                 </button>
                 {index < pathHistory.length - 1 && <span style={{ margin: '0 5px', color: '#666' }}>/</span>}
-              </span>
+              </React.Fragment>
             ))}
           </div>
 
-          {errorMessages.files && <p style={{ color: 'red', backgroundColor: '#ffebee', padding: '10px', borderRadius: '4px' }}>Error loading files: {errorMessages.files}</p>}
+          {errorMessages.files && (
+            <p style={{ color: 'red', backgroundColor: '#ffebee', padding: '10px', borderRadius: '4px', border: '1px solid #e57373', marginBottom: '10px' }}>
+              <strong>Error loading files:</strong> {errorMessages.files}
+            </p>
+          )}
 
           {isLoadingFiles && files.length === 0 ? (
             <p>Loading files...</p>
           ) : files.length === 0 && !isLoadingFiles ? (
-            <p style={{ fontStyle: 'italic', color: '#757575' }}>No files or folders found in this location.</p>
+            <p style={{ fontStyle: 'italic', color: '#757575', padding: '10px 0' }}>No files or folders found in this location.</p>
           ) : (
             <ul style={{ listStyleType: 'none', paddingLeft: '0', margin: '0' }}>
               {files.map(file => (
@@ -325,18 +326,34 @@ const GDriveManager: React.FC = () => {
                     alignItems: 'center',
                     cursor: file.mimeType === 'application/vnd.google-apps.folder' ? 'pointer' : 'default',
                   }}
-                  onClick={() => file.mimeType === 'application/vnd.google-apps.folder' && handleFileClick(file)}
+                  onClick={() => {
+                    if (file.mimeType === 'application/vnd.google-apps.folder') {
+                      handleFileClick(file);
+                    }
+                  }}
                   title={file.mimeType === 'application/vnd.google-apps.folder' ? `Open folder: ${file.name}` : `File: ${file.name}`}
                 >
-                  <span style={{ flexGrow: 1 }}>
-                    {file.mimeType === 'application/vnd.google-apps.folder' ? '📁' : '📄'} {file.name}
+                  <span style={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '8px', fontSize: '1.1em' }}>
+                      {file.mimeType === 'application/vnd.google-apps.folder' ? '📁' : '📄'}
+                    </span>
+                    {file.name}
                   </span>
                   {file.mimeType !== 'application/vnd.google-apps.folder' && (
                     <div style={{display: 'flex', alignItems: 'center', flexShrink: 0}}>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleIngestFile(file); }}
                         disabled={file.isIngesting || file.ingestionStatus === 'success'}
-                        style={{ padding: '6px 10px', marginLeft: '10px', backgroundColor: file.ingestionStatus === 'success' ? '#a5d6a7' : (file.isIngesting ? '#64b5f6' : '#007bff'), color: 'white', border: 'none', borderRadius: '4px', cursor: (file.isIngesting || file.ingestionStatus === 'success') ? 'default' : 'pointer', fontSize: '0.9em' }}
+                        style={{
+                          padding: '6px 10px',
+                          marginLeft: '10px',
+                          backgroundColor: file.ingestionStatus === 'success' ? '#a5d6a7' : (file.isIngesting ? '#64b5f6' : '#007bff'),
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: (file.isIngesting || file.ingestionStatus === 'success') ? 'default' : 'pointer',
+                          fontSize: '0.9em'
+                        }}
                       >
                         {file.isIngesting ? 'Ingesting...' : (file.ingestionStatus === 'success' ? 'Ingested' : 'Ingest')}
                       </button>
@@ -351,14 +368,24 @@ const GDriveManager: React.FC = () => {
 
           {/* Pagination Button */}
           {nextPageToken && !isLoadingFiles && (
-            <button
-              onClick={() => fetchFiles(currentFolderId, nextPageToken, true)} // true for isLoadMore
-              style={{ marginTop: '15px', padding: '8px 12px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-            >
-              Load More
-            </button>
+            <div style={{marginTop: '15px', textAlign: 'center'}}>
+              <button
+                onClick={() => fetchFiles(currentFolderId, nextPageToken, true)} // true for isLoadMore
+                style={{
+                  padding: '8px 15px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.9em'
+                }}
+              >
+                Load More
+              </button>
+            </div>
           )}
-          {isLoadingFiles && files.length > 0 && <p style={{marginTop: '10px', fontStyle: 'italic', color: '#757575'}}>Loading more files...</p>}
+          {isLoadingFiles && files.length > 0 && <p style={{marginTop: '10px', fontStyle: 'italic', color: '#757575', textAlign: 'center'}}>Loading more files...</p>}
         </div>
       )}
     </div>
