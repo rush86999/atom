@@ -420,10 +420,30 @@ export class RealLLMService implements LLMServiceInterface {
                     }
                 };
                 break;
-            default: // Generic fallback for other tasks (e.g. original LLMTaskTypes)
+            case 'custom_lead_agent_synthesis': // New case for NLULeadAgent's synthesis task
+                simulatedApiContentObject = {
+                    ...simulatedApiContentObject,
+                    primaryGoal: "Simulated: Schedule meeting about Project Alpha",
+                    primaryGoalConfidence: 0.85,
+                    identifiedTasks: ["Check calendar for User A", "Find common availability with User B", "Send meeting invite"],
+                    extractedParameters: {
+                        project: "Project Alpha",
+                        attendees: ["User A", "User B"],
+                        reason_for_meeting: "Discuss Q4 roadmap"
+                    },
+                    suggestedNextAction: {
+                        actionType: "invoke_skill",
+                        skillId: "CalendarSkill",
+                        reason: "High confidence goal to schedule a meeting, analytical tasks are clear, practical assessment is positive (simulated).",
+                        directActionDetails: null, // Or provide if actionType was perform_direct_action
+                        clarificationQuestion: null // Or provide if actionType was clarify_query
+                    }
+                };
+                break;
+            default: // Generic fallback for other tasks (e.g. original LLMTaskTypes not handled above)
                  simulatedApiContentObject = {
                     ...simulatedApiContentObject,
-                    genericField: "Generic simulated content for other tasks"
+                    genericField: "Generic simulated content for other tasks (e.g., email categorization)"
                  };
                 break;
         }
