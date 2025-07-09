@@ -60,31 +60,90 @@ function parseDateContextLogic(
   let targetDate = getStartOfDayUTC(baseDate); // Default to start of baseDate (today)
 
   const input = (dateContextInput || 'today').toLowerCase().trim();
+  let successfullyParsed = false;
 
+  // Helper to set date components from a base and return a new Date object
+  const adjustDate = (base: Date, dayAdjustment: number): Date => {
+    const newDate = getStartOfDayUTC(new Date(base.valueOf())); // Start with a clean slate at UTC midnight
+    newDate.setUTCDate(base.getUTCDate() + dayAdjustment);
+    return newDate;
+  };
+
+  // Order of parsing: specific keywords first, then regex patterns.
   if (input === 'today') {
-    // targetDate is already set to today by default initialization
-    if (!dateContextInput) status = 'defaulted'; // It was defaulted to today
+    targetDate = getStartOfDayUTC(baseDate);
+    if (!dateContextInput) status = 'defaulted';
+    successfullyParsed = true;
   } else if (input === 'tomorrow') {
-    targetDate.setUTCDate(baseDate.getUTCDate() + 1);
+    targetDate = adjustDate(baseDate, 1);
+    successfullyParsed = true;
   } else if (input === 'yesterday') {
-    targetDate.setUTCDate(baseDate.getUTCDate() - 1);
+    targetDate = adjustDate(baseDate, -1);
+    successfullyParsed = true;
   } else {
-    // Unparseable, default to today
-    targetDate = getStartOfDayUTC(baseDate); // Reset to today if input was something else
+    // Try parsing YYYY-MM-DD
+    const yyyyMmDdRegex = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const yyyyMmDdMatch = input.match(yyyyMmDdRegex);
+    if (yyyyMmDdMatch) {
+      const year = parseInt(yyyyMmDdMatch[1], 10);
+      const month = parseInt(yyyyMmDdMatch[2], 10) - 1; // Month is 0-indexed
+      const day = parseInt(yyyyMmDdMatch[3], 10);
+      const parsed = new Date(Date.UTC(year, month, day));
+      // Check if the constructed date is valid and matches the input numbers
+      if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month && parsed.getUTCDate() === day) {
+        targetDate = getStartOfDayUTC(parsed);
+        successfullyParsed = true;
+      } else {
+        logger.warn(`[dailyBriefingSkill] Invalid YYYY-MM-DD date: ${input}`);
+      }
+    }
+
+    if (!successfullyParsed) {
+      const weekdayMap: { [key: string]: number } = {
+        sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+      };
+      const relativeWeekdayRegex = /^(next|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/;
+      const relativeMatch = input.match(relativeWeekdayRegex);
+
+      if (relativeMatch) {
+        const direction = relativeMatch[1]; // "next" or "last"
+        const weekdayName = relativeMatch[2];
+        const targetDayOfWeek = weekdayMap[weekdayName];
+
+        let tempDate = getStartOfDayUTC(new Date(baseDate.valueOf()));
+        const currentDayOfWeek = tempDate.getUTCDay();
+
+        if (direction === 'next') {
+          let daysToAdd = (targetDayOfWeek - currentDayOfWeek + 7) % 7;
+          if (daysToAdd === 0) daysToAdd = 7; // If "next Monday" and today is Monday, go to next week's Monday
+          tempDate.setUTCDate(tempDate.getUTCDate() + daysToAdd);
+        } else { // "last"
+          let daysToSubtract = (currentDayOfWeek - targetDayOfWeek + 7) % 7;
+          if (daysToSubtract === 0) daysToSubtract = 7; // If "last Monday" and today is Monday, go to previous week's Monday
+          tempDate.setUTCDate(tempDate.getUTCDate() - daysToSubtract);
+        }
+        targetDate = tempDate;
+        successfullyParsed = true;
+      }
+    }
+  }
+
+  if (!successfullyParsed) {
+    targetDate = getStartOfDayUTC(baseDate); // Default to today
     status = 'unparseable';
-    warningMessage = `Date context "${originalInput}" is not recognized. Defaulting to today.`;
+    warningMessage = `Date context "${originalInput}" is not recognized or is invalid. Defaulting to today.`;
     logger.warn(`[dailyBriefingSkill] ${warningMessage}`);
   }
 
-  // Ensure targetDate itself is at the start of its day for consistent YYYY-MM-DD
-  targetDate = getStartOfDayUTC(targetDate);
+  // Ensure targetDate itself is at the start of its day for consistent YYYY-MM-DD string
+  targetDate = getStartOfDayUTC(targetDate); // This is crucial after any modifications
 
   return {
     targetDate: new Date(targetDate.valueOf()), // Return a clone
     timeMinISO: getStartOfDayUTC(targetDate).toISOString(),
     timeMaxISO: getEndOfDayUTC(targetDate).toISOString(),
     targetDateISO: getUTCDateYYYYMMDD(targetDate),
-    isDateRange: true, // For these keywords, we always mean the full day
+    isDateRange: true,
     status,
     originalInput,
     warningMessage,
@@ -195,6 +254,23 @@ function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateI
       score = 20; // Default low score for unknown or other types
   }
   return Math.max(0, Math.min(Math.round(score), 100)); // Ensure score is between 0-100 and an integer
+}
+
+// Helper function to get a user-friendly date string
+function getFriendlyDateString(date: Date, baseDateForComparison: Date = new Date()): string {
+  const today = getStartOfDayUTC(new Date(baseDateForComparison.valueOf()));
+  const tomorrow = getStartOfDayUTC(new Date(baseDateForComparison.valueOf()));
+  tomorrow.setUTCDate(today.getUTCDate() + 1);
+  const yesterday = getStartOfDayUTC(new Date(baseDateForComparison.valueOf()));
+  yesterday.setUTCDate(today.getUTCDate() - 1);
+
+  const target = getStartOfDayUTC(new Date(date.valueOf()));
+
+  if (target.getTime() === today.getTime()) return "Today";
+  if (target.getTime() === tomorrow.getTime()) return "Tomorrow";
+  if (target.getTime() === yesterday.getTime()) return "Yesterday";
+
+  return target.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
 
@@ -606,12 +682,15 @@ export async function generateDailyBriefing(
     const numSlackMessages = briefingData.priority_items.filter(item => item.type === 'slack_message').length;
     const numTeamsMessages = briefingData.priority_items.filter(item => item.type === 'teams_message').length;
 
+    const friendlyDateString = getFriendlyDateString(parsedDateInfo.targetDate);
     let summaryParts: string[] = [];
+
+    // Construct message parts for each focus area
     if (focusAreas.includes('meetings')) {
       if (numMeetings > 0) {
-        summaryParts.push(`You have ${numMeetings} meeting(s) scheduled for ${parsedDateInfo.targetDateISO === getUTCDateYYYYMMDD(new Date()) ? 'today' : `on ${parsedDateInfo.targetDateISO}`}.`);
+        summaryParts.push(`${numMeetings} meeting(s) scheduled.`);
       } else {
-        summaryParts.push(`You have no meetings scheduled for ${parsedDateInfo.targetDateISO === getUTCDateYYYYMMDD(new Date()) ? 'today' : `on ${parsedDateInfo.targetDateISO}`}.`);
+        summaryParts.push("no meetings scheduled.");
       }
     }
 
@@ -621,66 +700,65 @@ export async function generateDailyBriefing(
           item.type === 'task' &&
           item.raw_item &&
           (item.raw_item as NotionTask).dueDate &&
-          (item.raw_item as NotionTask).dueDate! < parsedDateInfo.targetDateISO && // Compare with targetDateISO
+          (item.raw_item as NotionTask).dueDate! < parsedDateInfo.targetDateISO &&
           (item.raw_item as NotionTask).status !== "Done" &&
           (item.raw_item as NotionTask).status !== "Cancelled"
         ).length;
-
-        let taskSummary = `${numTasks} task(s) require attention`;
-        if (overdueTasks > 0) {
-          taskSummary += ` (${overdueTasks} overdue)`;
-        }
-        taskSummary += ".";
-        summaryParts.push(taskSummary);
+        let taskPart = `${numTasks} task(s) require attention`;
+        if (overdueTasks > 0) taskPart += ` (${overdueTasks} overdue)`;
+        summaryParts.push(taskPart);
       } else {
-        summaryParts.push("You have no pressing tasks for this briefing.");
+        summaryParts.push("no pressing tasks.");
       }
     }
 
     if (focusAreas.includes('urgent_emails')) {
       if (numEmails > 0) {
-        summaryParts.push(`There are ${numEmails} recent unread email(s) for you to review.`);
+        summaryParts.push(`${numEmails} recent unread email(s).`);
       } else {
-        summaryParts.push("No recent unread emails to highlight.");
+        summaryParts.push("no recent unread emails.");
       }
     }
 
     if (focusAreas.includes('urgent_slack_messages')) {
       if (numSlackMessages > 0) {
-        summaryParts.push(`You have ${numSlackMessages} recent Slack message(s) (DMs or mentions) to check.`);
+        summaryParts.push(`${numSlackMessages} recent Slack message(s) (DMs/mentions).`);
       } else {
-        summaryParts.push("No recent Slack DMs or mentions to highlight.");
+        summaryParts.push("no recent Slack DMs or mentions.");
       }
     }
 
     if (focusAreas.includes('urgent_teams_messages')) {
       if (numTeamsMessages > 0) {
-        summaryParts.push(`You have ${numTeamsMessages} recent MS Teams message(s) (chats or mentions) to check.`);
+        summaryParts.push(`${numTeamsMessages} recent MS Teams message(s) (chats/mentions).`);
       } else {
-        summaryParts.push("No recent MS Teams chats or mentions to highlight.");
+        summaryParts.push("no recent MS Teams chats or mentions.");
       }
     }
 
-    let finalSummary = "";
+    // Assemble the final summary message
+    let summaryContent = "";
     if (summaryParts.length > 0) {
-      finalSummary = summaryParts.join(' ');
+      // Create a sentence from the parts
+      if (summaryParts.length === 1) {
+        summaryContent = `You have ${summaryParts[0]}`;
+      } else {
+        const lastPart = summaryParts.pop();
+        summaryContent = `You have ${summaryParts.join(', ')}, and ${lastPart}`;
+      }
     } else {
-      // This message is for when no items were found for the *processed* focus areas.
-      // If focusAreas itself was empty or only contained unimplemented items, this might also be hit.
-      finalSummary = `No specific items found for your ${parsedDateInfo.targetDateISO} briefing based on requested focus areas.`;
+      summaryContent = `There are no specific items to highlight based on your requested focus areas.`;
     }
 
+    briefingData.overall_summary_message = `Here is your briefing for ${friendlyDateString}: ${summaryContent}`;
+
+    // Prepend date parsing warnings if any
     if (parsedDateInfo.status === 'unparseable' && parsedDateInfo.warningMessage) {
-      // Prepend the date parsing warning to the summary.
-      briefingData.overall_summary_message = `${parsedDateInfo.warningMessage} ${finalSummary}`;
+      briefingData.overall_summary_message = `${parsedDateInfo.warningMessage} ${briefingData.overall_summary_message}`;
     } else if (parsedDateInfo.status === 'defaulted' && parsedDateInfo.originalInput && parsedDateInfo.originalInput.toLowerCase().trim() !== 'today') {
-      // This case covers if parseDateContextLogic defaulted to 'today' because originalInput was not 'today' but also not an error.
-      // This path might not be hit if all non-"today" inputs that aren't "tomorrow"/"yesterday" become 'unparseable'.
-      // Adding for completeness, in case parseDateContextLogic evolves.
-      briefingData.overall_summary_message = `Showing briefing for today as date context '${parsedDateInfo.originalInput}' was processed as default. ${finalSummary}`;
-    } else {
-      briefingData.overall_summary_message = finalSummary;
+      briefingData.overall_summary_message = `Showing briefing for today as date context '${parsedDateInfo.originalInput}' was processed as default. ${briefingData.overall_summary_message}`;
     }
+
     logger.info(`[dailyBriefingSkill] Generated summary: ${briefingData.overall_summary_message}`);
 
     return { ok: true, data: briefingData };
