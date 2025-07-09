@@ -54,75 +54,52 @@ UserId: ${input.userId || 'N/A'}
 
     public async analyze(input: SubAgentInput): Promise<AnalyticalAgentResponse> {
         const structuredPrompt = this.constructPrompt(input);
+        const P_ANALYTICAL_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
 
-        // For actual LLM call, would be something like:
-        // const llmResponse = await this.llmService.generate(structuredPrompt, DEFAULT_MODEL_FOR_AGENTS, { temperature: DEFAULT_TEMPERATURE_ANALYTICAL });
+        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
+        console.time(P_ANALYTICAL_AGENT_TIMER_LABEL);
+        const llmResponse = await this.llmService.generate(
+            structuredPrompt,
+            DEFAULT_MODEL_FOR_AGENTS,
+            {
+                temperature: DEFAULT_TEMPERATURE_ANALYTICAL,
+                isJsonOutput: true // Crucial for ensuring RealLLMService requests JSON mode
+            }
+        );
 
-        // --- MOCK LLM RESPONSE ---
-        // Simulating LLM call using MockLLMService or a direct mock for now
-        let mockLLMContent: string;
-        if (input.userInput.toLowerCase().includes("budget") && input.userInput.toLowerCase().includes("q3")) {
-            mockLLMContent = JSON.stringify({
-                identifiedEntities: ["Q3 budget", "marketing report"],
-                explicitTasks: ["make report generation efficient", "use new AI thing"],
-                informationNeeded: ["details about 'new AI thing'", "current report generation process"],
-                logicalConsistency: {
-                    isConsistent: true,
-                    reason: "Request is clear."
-                },
-                problemType: "process_optimization"
-            });
-        } else if (input.userInput.toLowerCase().includes("how to create pivot table")) {
-            mockLLMContent = JSON.stringify({
-                identifiedEntities: ["pivot table", "SpreadsheetApp"],
-                explicitTasks: ["create pivot table"],
-                informationNeeded: ["steps to create pivot table in SpreadsheetApp"],
-                logicalConsistency: {
-                    isConsistent: true,
-                    reason: "Request is specific and clear."
-                },
-                problemType: "how-to_guidance"
-            });
-        } else {
-            mockLLMContent = JSON.stringify({
-                identifiedEntities: ["user query"],
-                explicitTasks: ["understand query"],
-                informationNeeded: ["clarification of intent"],
-                logicalConsistency: {
-                    isConsistent: false,
-                    reason: "Query is too vague or generic for detailed analysis."
-                },
-                problemType: "general_query"
-            });
+        if (!llmResponse.success || !llmResponse.content) {
+            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
+            return { // Return a default/error response structure
+                logicalConsistency: { isConsistent: false, reason: `LLM analysis failed: ${llmResponse.error || 'No content'}` },
+                rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`
+            };
         }
-        const mockResponse: LLMServiceResponse = {
-            success: true,
-            content: mockLLMContent,
-            usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 }
-        };
-        // --- END MOCK LLM RESPONSE ---
 
-        const parsedResponse = safeParseJSON<Partial<AnalyticalAgentResponse>>(
-            mockResponse.content,
+        // Attempt to parse the JSON response from the LLM
+        const parsedResponse = safeParseJSON<Partial<AnalyticalAgentResponse>>( // Expecting a partial response that matches the structure
+            llmResponse.content,
             this.agentName,
             structuredPrompt.task
         );
 
-        if (!mockResponse.success || !parsedResponse) {
-            console.error(`[${this.agentName}] LLM call failed or response parsing failed. Error: ${mockResponse.error}`);
-            return { // Return a default/error response structure
-                logicalConsistency: { isConsistent: false, reason: "LLM analysis failed." },
-                rawLLMResponse: mockResponse.content || "No content from LLM."
+        if (!parsedResponse) {
+            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
+            return { // Return a default/error response structure if parsing fails
+                logicalConsistency: { isConsistent: false, reason: "Failed to parse LLM JSON response." },
+                rawLLMResponse: llmResponse.content
             };
         }
 
+        // Construct the full response, providing defaults for any missing fields
+        // This also serves as a basic validation that the LLM is returning something usable.
+        // More advanced schema validation could be added here (e.g., using Zod or AJV).
         return {
             identifiedEntities: parsedResponse.identifiedEntities || [],
             explicitTasks: parsedResponse.explicitTasks || [],
             informationNeeded: parsedResponse.informationNeeded || [],
-            logicalConsistency: parsedResponse.logicalConsistency || { isConsistent: true, reason: "N/A" },
+            logicalConsistency: parsedResponse.logicalConsistency || { isConsistent: true, reason: "Consistency not specified by LLM." },
             problemType: parsedResponse.problemType || "unknown",
-            rawLLMResponse: mockResponse.content,
+            rawLLMResponse: llmResponse.content, // Always include the raw response for debugging
         };
     }
 }
