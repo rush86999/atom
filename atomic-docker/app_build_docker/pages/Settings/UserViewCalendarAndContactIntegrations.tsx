@@ -789,6 +789,27 @@ function UserViewCalendarAndContactIntegrations() {
                 {(loading && !isGmailStatusLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
               </Box>
 
+              {/* Google Drive Integration Section - Conceptual Placement */}
+              {/*
+                // 1. Import the GDriveManager component at the top of the file:
+                // import GDriveManager from '../../components/Settings/GDriveManager';
+              */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                {/*
+                  // 2. Render the GDriveManager component here:
+                  // <GDriveManager />
+                  // Ensure GDriveManager receives any necessary props, like userId if not handled by a global context.
+                  // The GDriveManager component itself handles its internal state and API calls for GDrive.
+                */}
+                <Text variant="optionHeader" style={{ color: palette.darkGray, marginBottom: 10 }}>
+                  Google Drive Integration (Placeholder)
+                </Text>
+                <Text variant="body" style={{textAlign: 'center', color: palette.mediumGray}}>
+                  Management UI for Google Drive connection, file listing, and ingestion would be rendered here using the GDriveManager component.
+                </Text>
+              </Box>
+
+
             </Box>
         ) : (
           <Box flex={1} justifyContent="center" alignItems="center">

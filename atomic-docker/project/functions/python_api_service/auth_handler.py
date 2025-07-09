@@ -57,28 +57,79 @@ except ImportError:
 def get_db_connection_pool() -> Optional[PSYCOPG2_POOL_TYPE]:
     """
     Conceptual function to retrieve the database connection pool.
-    In a real Flask application, the pool (e.g., a psycopg2.pool.SimpleConnectionPool)
-    would be initialized in the app factory (e.g., from create_app()) using
-    database connection details (typically from environment variables like DATABASE_URL)
-    and stored in `current_app.extensions['db_pool']`.
+    In a real Flask application, the psycopg2 connection pool
+    (e.g., `psycopg2.pool.SimpleConnectionPool` or `ThreadedConnectionPool`)
+    should be initialized once when the Flask application starts, typically within
+    the application factory function (often named `create_app`).
 
-    Example (in app factory / create_app()):
-    -----------------------------------------
-    # from psycopg2 import pool
-    # app.extensions['db_pool'] = pool.SimpleConnectionPool(
-    #     minconn=1,
-    #     maxconn=10,
-    #     dsn=os.environ.get('DATABASE_URL') # e.g., "postgresql://user:pass@host:port/dbname"
-    # )
+    The initialized pool is then made accessible to blueprints and request handlers,
+    commonly by storing it in `current_app.extensions['db_pool']`. This `get_db_connection_pool`
+    function is a utility to retrieve this pre-initialized pool.
 
-    # To close the pool when the app shuts down:
-    # import atexit
-    # def close_db_pool():
-    #     db_pool = current_app.extensions.get('db_pool')
-    #     if db_pool:
-    #         db_pool.closeall()
-    # atexit.register(close_db_pool)
-    -----------------------------------------
+    Database Connection Configuration:
+    ----------------------------------
+    The database connection string (DSN) or individual parameters (host, port, user,
+    password, dbname) should be configured securely, typically via environment
+    variables (e.g., `DATABASE_URL` for a DSN, or `DB_HOST`, `DB_USER`, etc.).
+    NEVER hardcode credentials in the source code.
+
+    Example Initialization in Flask App Factory (`create_app`):
+    ----------------------------------------------------------
+    ```python
+    # In your main Flask app file (e.g., app.py or factory.py)
+    import os
+    import atexit
+    from flask import Flask
+    from psycopg2 import pool
+
+    def create_app():
+        app = Flask(__name__)
+
+        # Configure database connection pool
+        try:
+            db_url = os.environ.get('DATABASE_URL')
+            if not db_url:
+                app.logger.critical("DATABASE_URL environment variable is not set. DB pool cannot be initialized.")
+                # Decide handling: raise error, or let app run without DB (parts will fail)
+                app.extensions['db_pool'] = None
+            else:
+                # minconn: Minimum number of connections to keep open in the pool.
+                # maxconn: Maximum number of connections the pool can manage.
+                # Adjust these based on expected load and database server capacity.
+                app.extensions['db_pool'] = pool.SimpleConnectionPool(
+                    minconn=1,
+                    maxconn=10,
+                    dsn=db_url  # Example DSN: "postgresql://user:password@host:port/dbname"
+                )
+                app.logger.info("Database connection pool initialized successfully.")
+
+                # Register a function to close the pool when the application exits
+                @app.teardown_appcontext
+                def close_pool_on_teardown(exception=None):
+                    # This is for connections used within a request context.
+                    # For the pool itself, atexit is more robust for app shutdown.
+                    pass
+
+                # More robust pool closing on app exit:
+                def close_db_pool_on_exit():
+                    db_pool_instance = app.extensions.get('db_pool')
+                    if db_pool_instance:
+                        app.logger.info("Closing database connection pool.")
+                        db_pool_instance.closeall()
+                atexit.register(close_db_pool_on_exit)
+
+        except (pool.PoolError, KeyError, ValueError) as e:
+            app.logger.critical(f"Failed to initialize database connection pool: {e}", exc_info=True)
+            app.extensions['db_pool'] = None # Ensure it's None on failure
+
+        # ... other app configurations (blueprints, etc.) ...
+        # from .python_api_service.auth_handler import auth_bp # Example blueprint
+        # app.register_blueprint(auth_bp)
+
+        return app
+    ```
+    ----------------------------------------------------------
+    This function (`get_db_connection_pool`) then simply retrieves this pool.
     """
     if not hasattr(current_app, 'extensions') or 'db_pool' not in current_app.extensions:
         logger.warning(
