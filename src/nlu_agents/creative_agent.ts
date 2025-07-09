@@ -26,16 +26,16 @@ Focus on:
 4.  **Potential Enhancements**: If the user's request is fulfilled, are there related value-adds or next steps that could be proactively suggested?
 5.  **Ambiguity Flags**: Identify terms or phrases that are subjective, ambiguous, or could have multiple interpretations.
 
-Return your analysis ONLY as a valid JSON object with the following structure:
+Return your analysis ONLY as a valid JSON object with the following structure. Ensure all specified fields are present in your JSON output. If no items apply for a list-based field (like "alternativeGoals"), return an empty array `[]` for that field.
 {
-  "alternativeGoals": ["goal1", "goal2", ...],
-  "novelSolutionsSuggested": ["solution1", "solution2", ...],
-  "unstatedAssumptions": ["assumption1", "assumption2", ...],
-  "potentialEnhancements": ["enhancement1", "enhancement2", ...],
-  "ambiguityFlags": [{ "term": "ambiguous_term", "reason": "why_it_is_ambiguous" }, ...]
+  "alternativeGoals": ["string", ...],
+  "novelSolutionsSuggested": ["string", ...],
+  "unstatedAssumptions": ["string", ...],
+  "potentialEnhancements": ["string", ...],
+  "ambiguityFlags": [{ "term": "string", "reason": "string" }, ...]
 }
 
-Do not include any explanations or conversational text outside the JSON structure.
+Do not include any explanations, apologies, or conversational text outside the JSON structure. Your entire response must be the JSON object itself.
 User's query: "${input.userInput}"
 `;
 
@@ -50,67 +50,44 @@ User's query: "${input.userInput}"
 
     public async analyze(input: SubAgentInput): Promise<CreativeAgentResponse> {
         const structuredPrompt = this.constructPrompt(input);
+        const P_CREATIVE_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
 
-        // --- MOCK LLM RESPONSE ---
-        let mockLLMContent: string;
-        if (input.userInput.toLowerCase().includes("efficient") && input.userInput.toLowerCase().includes("ai thing")) {
-            mockLLMContent = JSON.stringify({
-                alternativeGoals: [
-                    "User wants to fully automate the Q3 marketing report generation.",
-                    "User is looking for ways to reduce manual data entry for reports.",
-                    "User wants to understand what the 'new AI thing' can do for their reporting tasks."
-                ],
-                novelSolutionsSuggested: [
-                    "Integrate 'AI thing' to auto-summarize source documents for the report.",
-                    "Develop a template that 'AI thing' can populate directly.",
-                    "Use 'AI thing' to identify key insights or anomalies in the Q3 data to highlight in the report."
-                ],
-                unstatedAssumptions: [
-                    "User assumes 'new AI thing' is the best or only solution for efficiency.",
-                    "User assumes the current report structure is optimal."
-                ],
-                potentialEnhancements: [
-                    "Set up a recurring task for the 'AI thing' to pre-process report data monthly.",
-                    "Offer a brief training on how to best leverage the 'AI thing' for reporting."
-                ],
-                ambiguityFlags: [
-                    { "term": "efficient", "reason": "Efficiency can mean faster, cheaper, or less manual effort. Clarification might be needed on primary goal." },
-                    { "term": "new AI thing", "reason": "This is vague. Which specific AI tool is the user referring to?" }
-                ]
-            });
-        } else if (input.userInput.toLowerCase().includes("pivot table")) {
-             mockLLMContent = JSON.stringify({
-                alternativeGoals: ["User wants to analyze data effectively", "User wants to present summarized data"],
-                novelSolutionsSuggested: ["Suggest using automated chart generation based on pivot table data", "Introduce slicers for interactive filtering"],
-                unstatedAssumptions: ["User knows what data to put in rows/columns/values"],
-                potentialEnhancements: ["Offer to save pivot table configuration as a template"],
-                ambiguityFlags: []
-            });
-        } else {
-            mockLLMContent = JSON.stringify({
-                alternativeGoals: ["User may need help with a completely different, unstated problem."],
-                novelSolutionsSuggested: ["Suggest a general help document or a way to explore available tools."],
-                unstatedAssumptions: [],
-                potentialEnhancements: [],
-                ambiguityFlags: [{ "term": "Help me", "reason": "Extremely vague, could mean anything." }]
-            });
+        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
+        console.time(P_CREATIVE_AGENT_TIMER_LABEL);
+        const llmResponse = await this.llmService.generate(
+            structuredPrompt,
+            DEFAULT_MODEL_FOR_AGENTS, // Or a model specifically chosen for creative tasks
+            {
+                temperature: DEFAULT_TEMPERATURE_CREATIVE, // Higher temperature for creativity
+                isJsonOutput: true
+            }
+        );
+        console.timeEnd(P_CREATIVE_AGENT_TIMER_LABEL);
+
+        if (llmResponse.usage) {
+            console.log(`[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`);
         }
-        const mockResponse: LLMServiceResponse = {
-            success: true,
-            content: mockLLMContent,
-            usage: { promptTokens: 120, completionTokens: 180, totalTokens: 300 }
-        };
-        // --- END MOCK LLM RESPONSE ---
+
+        if (!llmResponse.success || !llmResponse.content) {
+            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
+            return { // Return a default/error response structure
+                alternativeGoals: ["Error: LLM analysis failed or no content."],
+                rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`
+            };
+        }
 
         const parsedResponse = safeParseJSON<Partial<CreativeAgentResponse>>(
-            mockResponse.content,
+            llmResponse.content,
             this.agentName,
             structuredPrompt.task
         );
 
-        if (!mockResponse.success || !parsedResponse) {
-            console.error(`[${this.agentName}] LLM call failed or response parsing failed. Error: ${mockResponse.error}`);
-            return { rawLLMResponse: mockResponse.content || "No content from LLM." };
+        if (!parsedResponse) {
+            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
+            return { // Return a default/error response structure if parsing fails
+                alternativeGoals: ["Error: Failed to parse LLM JSON response."],
+                rawLLMResponse: llmResponse.content
+            };
         }
 
         return {
@@ -119,7 +96,7 @@ User's query: "${input.userInput}"
             unstatedAssumptions: parsedResponse.unstatedAssumptions || [],
             potentialEnhancements: parsedResponse.potentialEnhancements || [],
             ambiguityFlags: parsedResponse.ambiguityFlags || [],
-            rawLLMResponse: mockResponse.content,
+            rawLLMResponse: llmResponse.content,
         };
     }
 }
