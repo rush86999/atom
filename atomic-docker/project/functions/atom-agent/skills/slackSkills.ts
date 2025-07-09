@@ -565,6 +565,107 @@ export async function extractInformationFromSlackMessage(
   }
 }
 
+export async function getRecentDMsAndMentionsForBriefing(
+  atomUserId: string, // Atom's internal user ID
+  targetDate: Date,
+  count: number = 3
+): Promise<SlackSkillResponse<{ results: SlackMessage[], query_executed?: string }>> {
+  logger.debug(`[SlackSkills] getRecentDMsAndMentionsForBriefing for Atom user: ${atomUserId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`);
+
+  const client = getSlackClient();
+  if (!client) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Slack Bot Token not configured.' } };
+  }
+
+  try {
+    // 1. Get the Slack User ID of the authenticated user (bot's perspective or user token perspective)
+    // This assumes the ATOM_SLACK_BOT_TOKEN can resolve its own user ID if it's a user token,
+    // or if it's a bot token, we might need a mapping from atomUserId to Slack User ID if DMs are specific to a user.
+    // For mentions (@<USER_ID>), we definitely need the user's Slack ID.
+    // Let's assume for now that `client.auth.test()` gives the relevant Slack User ID for whom DMs/mentions are sought.
+    // This might need adjustment based on whether ATOM_SLACK_BOT_TOKEN is a bot token or a user token tied to atomUserId.
+    // If it's a bot token that needs to search for a *specific user's* DMs/mentions, this gets more complex.
+    // For this iteration, let's assume the token corresponds to the user in question OR the bot has broad search access.
+
+    let userSlackId: string | undefined;
+    try {
+      const authTestResponse = await client.auth.test();
+      if (authTestResponse.ok && authTestResponse.user_id) {
+        userSlackId = authTestResponse.user_id;
+        logger.info(`[SlackSkills] Resolved Slack user ID for search: ${userSlackId}`);
+      } else {
+        logger.warn(`[SlackSkills] Could not resolve Slack user ID via auth.test. Mentions search might be impacted. Error: ${authTestResponse.error}`);
+        // Proceeding without userSlackId means mention search part might be less effective or fail.
+        // DMs might still be searchable with 'is:dm' if the token has appropriate permissions for the user.
+      }
+    } catch (authError: any) {
+       logger.warn(`[SlackSkills] Exception during client.auth.test: ${authError.message}. Mentions search might be impacted.`);
+       // Continue, as is:dm might still work for DMs.
+    }
+
+    // 2. Format Dates for Slack Search (YYYY-MM-DD)
+    const formatDateForSlack = (date: Date): string => {
+      const year = date.getUTCFullYear();
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+      const day = date.getUTCDate().toString().padStart(2, '0');
+      return `${year}-${month}-${day}`; // Slack search uses YYYY-MM-DD
+    };
+
+    const afterDate = new Date(targetDate);
+    afterDate.setUTCHours(0, 0, 0, 0); // Start of targetDate in UTC
+
+    const beforeDate = new Date(targetDate);
+    beforeDate.setUTCHours(0, 0, 0, 0);
+    beforeDate.setUTCDate(targetDate.getUTCDate() + 1); // Start of the day *after* targetDate
+
+    // 3. Construct Slack Search Query
+    // Query for DMs to the user OR mentions of the user.
+    // Slack search for DMs: `in:me is:dm` (if user token) or `in:@user_id is:dm` (less common for search API, usually for channel filtering)
+    // or simply `is:dm` combined with `from:somebody` or other terms.
+    // A simple way to approximate DMs for the user is to search for messages `to:${userSlackId}` or `in:${userSlackId}` if userSlackId resolves to a DM channel ID.
+    // However, `search.messages` is channel-agnostic if not specified.
+    // `is:dm` should show DMs the token has access to.
+    // If userSlackId is available, `@${userSlackId}` will find mentions.
+
+    let querySegments: string[] = [];
+    if (userSlackId) {
+      querySegments.push(`(@${userSlackId} OR to:${userSlackId} OR in:${userSlackId})`); // Mentions or messages directly to user or in their DMs
+    } else {
+      // If no userSlackId, we can only broadly search DMs the token has access to.
+      // This might not be specific enough if it's a generic bot token.
+      // For now, let's assume 'is:dm' is a general filter.
+      querySegments.push(`(is:dm)`);
+      logger.warn("[SlackSkills] No specific Slack User ID for DMs/Mentions search, results might be less targeted if using a bot token without specific user context for DMs.");
+    }
+
+    querySegments.push(`after:${formatDateForSlack(afterDate)}`);
+    querySegments.push(`before:${formatDateForSlack(beforeDate)}`);
+    // querySegments.push(`is:unread`); // Adding is:unread can be very restrictive and behavior varies. Omit for now for broader recency.
+
+    const searchQuery = querySegments.join(' ');
+    // Slack's search.messages sorts by relevance by default. To get newest first:
+    const fullSearchQueryWithSort = `${searchQuery} sort:timestamp dir:desc`;
+
+    logger.info(`[SlackSkills] Constructed Slack search query for briefing: "${fullSearchQueryWithSort}"`);
+
+    // 4. Call searchMySlackMessages
+    // Note: searchMySlackMessages is an async function returning Promise<SlackMessage[]>
+    // The 'userId' parameter for searchMySlackMessages is the Atom User ID for Hasura context.
+    const searchResults: SlackMessage[] = await searchMySlackMessages(atomUserId, fullSearchQueryWithSort, count);
+
+    logger.info(`[SlackSkills] Found ${searchResults.length} Slack messages for briefing.`);
+    return { ok: true, data: { results: searchResults, query_executed: fullSearchQueryWithSort } };
+
+  } catch (error: any) {
+    logger.error(`[SlackSkills] Error in getRecentDMsAndMentionsForBriefing for Atom user ${atomUserId}: ${error.message}`, error);
+    return {
+      ok: false,
+      error: { code: 'SLACK_BRIEFING_FETCH_FAILED', message: error.message || "Failed to fetch recent DMs/mentions for briefing." }
+    };
+  }
+}
+
+
 const GQL_GET_SLACK_MESSAGE_PERMALINK = `
   mutation GetSlackMessagePermalink($input: SlackMessageIdentifierInput!) {
     getSlackMessagePermalink(input: $input) {
