@@ -91,6 +91,78 @@ function parseDateContextLogic(
   };
 }
 
+// --- Urgency Scoring Utility ---
+function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateISO: string): number {
+  let score = 0;
+  const nowForContext = new Date(); // Used if targetDate is today, for "time until"
+
+  switch (item.type) {
+    case 'meeting':
+      const meeting = item.raw_item as CalendarEventSummary;
+      if (meeting && meeting.start) {
+        const meetingStartDate = new Date(meeting.start);
+        // Check if the meeting is on the targetDate
+        if (getUTCDateYYYYMMDD(meetingStartDate) === targetDateISO) {
+          score += 40; // Base score for being a meeting on the target day
+
+          // Time proximity score: higher for earlier meetings on the targetDate
+          const hoursFromStartOfDayToMeetingStart = meetingStartDate.getUTCHours() + (meetingStartDate.getUTCMinutes() / 60);
+          // Ensure score is not negative if meeting is somehow before start of day (e.g. timezone issue in data)
+          const timeProximityScore = Math.max(0, (24 - hoursFromStartOfDayToMeetingStart) * 2.5);
+          score += Math.min(timeProximityScore, 60); // Cap at 60 for this component
+
+          // Additional small bonus if the meeting is "upcoming" relative to 'now' (if targetDate is today)
+          if (targetDateISO === getUTCDateYYYYMMDD(nowForContext) && meetingStartDate > nowForContext) {
+            const hoursUntilMeeting = (meetingStartDate.getTime() - nowForContext.getTime()) / (1000 * 60 * 60);
+            if (hoursUntilMeeting < 1) score += 5; // Very soon
+            else if (hoursUntilMeeting < 3) score += 3; // Soon
+          }
+        }
+      }
+      break;
+    case 'task':
+      const task = item.raw_item as NotionTask;
+      if (task) {
+        const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 }; // Numerical priority
+        const taskPriorityScore = (priorityOrder[task.priority || 'Low'] || 1) * 5; // Max 15 points for priority
+
+        if (task.dueDate) {
+          const dueDateISO = task.dueDate.split('T')[0]; // Ensure comparison is date-only
+          if (dueDateISO < targetDateISO && task.status !== "Done" && task.status !== "Cancelled") { // Overdue
+            score += 80 + taskPriorityScore;
+          } else if (dueDateISO === targetDateISO && task.status !== "Done" && task.status !== "Cancelled") { // Due on targetDate
+            score += 60 + taskPriorityScore;
+          } else if (task.status !== "Done" && task.status !== "Cancelled") { // Not done, not cancelled, not overdue, not due today (e.g. future or no due date)
+            score += 30 + taskPriorityScore; // Lower base for tasks not immediately due on targetDate
+          }
+        } else if (task.status !== "Done" && task.status !== "Cancelled") { // No due date, but active
+          score += 30 + taskPriorityScore;
+        }
+      }
+      break;
+    case 'email':
+      const email = item.raw_item as GmailMessageSnippet;
+      score += 50; // Base score for being a recent, unread email for the targetDate
+      if (email && email.date) {
+        const emailDate = new Date(email.date);
+        // If targetDate is today, and email is very recent (e.g. last few hours of 'now')
+        if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) {
+            const hoursAgoReceived = (nowForContext.getTime() - emailDate.getTime()) / (1000 * 60 * 60);
+            if (hoursAgoReceived >= 0 && hoursAgoReceived < 4) { // Received in last 4 hours (relative to now)
+                score += 5;
+            }
+        }
+        // If targetDate is not today, this recency bonus based on 'now' is less relevant.
+        // The fact it was fetched for that targetDate already implies its relevance for that day.
+      }
+      break;
+    // Add cases for 'slack_message', 'teams_message' when implemented
+    default:
+      score = 20; // Default low score for unknown or other types
+  }
+  return Math.max(0, Math.min(Math.round(score), 100)); // Ensure score is between 0-100 and an integer
+}
+
 
 /**
  * Generates a daily priority briefing for the user, consolidating information
@@ -226,7 +298,7 @@ export async function generateDailyBriefing(
                 link: task.url,
                 source_id: task.id,
                 raw_item: task,
-                // TODO: urgency_score calculation
+                urgency_score: calculateUrgencyScore({ type: 'task', title: task.description, raw_item: task } as BriefingItem, parsedDateInfo.targetDate, parsedDateInfo.targetDateISO),
               });
             });
             logger.info(`[dailyBriefingSkill] Fetched and processed ${fetchedTasks.length} tasks.`);
@@ -272,7 +344,7 @@ export async function generateDailyBriefing(
                 link: meeting.htmlLink,
                 source_id: meeting.id,
                 raw_item: meeting,
-                // TODO: urgency_score calculation (e.g., based on proximity, attendees)
+                urgency_score: calculateUrgencyScore({ type: 'meeting', title: meeting.summary || 'Untitled Meeting', raw_item: meeting } as BriefingItem, parsedDateInfo.targetDate, parsedDateInfo.targetDateISO),
               });
             });
             logger.info(`[dailyBriefingSkill] Fetched ${meetings.length} meetings.`);
@@ -321,7 +393,7 @@ export async function generateDailyBriefing(
                 link: email.link,
                 source_id: email.id,
                 raw_item: email,
-                // TODO: urgency_score calculation
+                urgency_score: calculateUrgencyScore({ type: 'email', title: email.subject || 'No Subject', raw_item: email } as BriefingItem, parsedDateInfo.targetDate, parsedDateInfo.targetDateISO),
               });
             });
             logger.info(`[dailyBriefingSkill] Fetched ${emails.length} urgent/recent unread emails.`);
@@ -348,8 +420,47 @@ export async function generateDailyBriefing(
 
     // TODO: Implement fetching for urgent_slack_messages and urgent_teams_messages similarly
 
-    // TODO: Sort priority_items by urgency_score (descending) if urgency_score is implemented.
-    // For now, items are added based on focusAreas processing order. Meetings are time-sensitive for today.
+    // Sort all collected priority_items by urgency_score (descending)
+    // Secondary sort criteria:
+    // - Meetings by start time (earlier first)
+    // - Tasks by their inherent sort (overdue > due today > priority > due date) (already somewhat done, but explicit due date if scores equal)
+    // - Emails by date (newer first)
+    briefingData.priority_items.sort((a, b) => {
+      const scoreDiff = (b.urgency_score || 0) - (a.urgency_score || 0);
+      if (scoreDiff !== 0) {
+        return scoreDiff;
+      }
+
+      // Secondary sorting if urgency scores are equal
+      if (a.type === 'meeting' && b.type === 'meeting') {
+        const aStart = a.raw_item?.start ? new Date(a.raw_item.start).getTime() : 0;
+        const bStart = b.raw_item?.start ? new Date(b.raw_item.start).getTime() : 0;
+        return aStart - bStart; // Earlier meeting first
+      }
+      if (a.type === 'task' && b.type === 'task') {
+        // Tasks were already pre-sorted somewhat by due date and priority groups
+        // Here, just ensure consistent ordering if scores are identical, e.g., by explicit due date
+        const aDueDate = (a.raw_item as NotionTask)?.dueDate ? new Date((a.raw_item as NotionTask).dueDate!).getTime() : Infinity;
+        const bDueDate = (b.raw_item as NotionTask)?.dueDate ? new Date((b.raw_item as NotionTask).dueDate!).getTime() : Infinity;
+        if (aDueDate !== bDueDate) return aDueDate - bDueDate; // Earlier due date first
+        // Could add further tie-breaking by priority if needed, though score should mostly cover it
+      }
+      if (a.type === 'email' && b.type === 'email') {
+        const aDate = (a.raw_item as GmailMessageSnippet)?.date ? new Date((a.raw_item as GmailMessageSnippet).date!).getTime() : 0;
+        const bDate = (b.raw_item as GmailMessageSnippet)?.date ? new Date((b.raw_item as GmailMessageSnippet).date!).getTime() : 0;
+        return bDate - aDate; // Newer email first
+      }
+
+      // If types are different and scores are equal, maintain original relative order or define one
+      // For now, if scores are equal and types differ, their relative order won't change from this sort pass.
+      // A more explicit cross-type secondary sort could be: Meetings > Tasks > Emails if scores are identical.
+      const typeOrder = { meeting: 1, task: 2, email: 3 };
+      const aTypeOrder = typeOrder[a.type] || 99;
+      const bTypeOrder = typeOrder[b.type] || 99;
+      return aTypeOrder - bTypeOrder;
+
+    });
+    logger.info(`[dailyBriefingSkill] Sorted ${briefingData.priority_items.length} priority items.`);
 
     // Generate overall_summary_message
     const numTasks = briefingData.priority_items.filter(item => item.type === 'task').length;
