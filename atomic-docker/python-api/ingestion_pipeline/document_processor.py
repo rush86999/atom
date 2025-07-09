@@ -13,7 +13,16 @@ try:
 except ImportError:
     logging.getLogger(__name__).warning("python-docx library not found. DOCX processing will not be available.")
     PYTHON_DOCX_AVAILABLE = False
-    docx = None
+    docx = None # type: ignore
+
+# Attempt to import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+    BS4_AVAILABLE = True
+except ImportError:
+    logging.getLogger(__name__).warning("BeautifulSoup4 library not found. HTML processing will not be available.")
+    BS4_AVAILABLE = False
+    BeautifulSoup = None # type: ignore
 
 # Embedding and LanceDB imports (adjust paths as necessary based on execution context)
 try:
@@ -95,6 +104,57 @@ def extract_text_from_txt(file_path_or_bytes: Any, encoding: str = 'utf-8') -> s
         logger.error(f"Error extracting text from TXT input: {e}", exc_info=True)
         raise
 
+def extract_text_from_html(file_path_or_bytes: Any, encoding: str = 'utf-8') -> str:
+    if not BS4_AVAILABLE or not BeautifulSoup:
+        raise ImportError("BeautifulSoup4 library is required for HTML processing but not found.")
+
+    html_content = ""
+    try:
+        if isinstance(file_path_or_bytes, str):
+            if not os.path.exists(file_path_or_bytes):
+                raise FileNotFoundError(f"HTML file not found at path: {file_path_or_bytes}")
+            with open(file_path_or_bytes, 'r', encoding=encoding) as f:
+                html_content = f.read()
+        elif isinstance(file_path_or_bytes, bytes):
+            html_content = file_path_or_bytes.decode(encoding)
+        else:
+            raise ValueError("Input for HTML extraction must be a file path (str) or bytes.")
+
+        soup = BeautifulSoup(html_content, 'lxml') # Using lxml parser
+
+        # Remove script and style elements
+        for script_or_style in soup(["script", "style"]):
+            script_or_style.decompose()
+
+        # Get text, attempting to preserve some structure with newlines
+        # Different strategies can be used here depending on desired output.
+        # .get_text(separator='\n', strip=True) is a common approach.
+        text = soup.get_text(separator='\n', strip=True)
+
+        # Optional: Further clean-up, e.g., remove excessive blank lines
+        lines = [line for line in text.splitlines() if line.strip()]
+        return '\n'.join(lines)
+
+    except UnicodeDecodeError as ude:
+        logger.error(f"Unicode error for HTML (encoding: {encoding}): {ude}", exc_info=True)
+        raise ValueError(f"Encoding error: Could not decode HTML with {encoding}.") from ude
+    except Exception as e:
+        logger.error(f"Error extracting text from HTML input: {e}", exc_info=True)
+        # If lxml is not installed, BeautifulSoup might raise FeatureNotFound.
+        if "FeatureNotFound" in str(type(e)): # Basic check for missing parser
+             logger.error("lxml parser not found. Please install it (pip install lxml). Falling back to html.parser for this attempt.")
+             try:
+                 soup = BeautifulSoup(html_content, 'html.parser')
+                 for script_or_style in soup(["script", "style"]):
+                     script_or_style.decompose()
+                 text = soup.get_text(separator='\n', strip=True)
+                 lines = [line for line in text.splitlines() if line.strip()]
+                 return '\n'.join(lines)
+             except Exception as e_fallback:
+                 logger.error(f"Error extracting text from HTML with html.parser fallback: {e_fallback}", exc_info=True)
+                 raise e_fallback # Re-raise the error from fallback
+        raise # Re-raise original error if not FeatureNotFound or if fallback also fails
+
 # --- Text Chunking Utility ---
 def chunk_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> List[str]:
     if not text: return []
@@ -139,6 +199,15 @@ async def process_document_and_store(
             extracted_text = extract_text_from_docx(file_path_or_bytes)
         elif processing_mime_type == "text/plain" or original_doc_type.endswith("txt"):
             extracted_text = extract_text_from_txt(file_path_or_bytes)
+        elif processing_mime_type == "text/html" or \
+             original_doc_type.endswith("html") or \
+             original_doc_type.endswith("htm") or \
+             original_doc_type == "webpage": # Common identifiers for HTML
+            extracted_text = extract_text_from_html(file_path_or_bytes)
+            # Ensure original_doc_type for storage is consistent, e.g., 'html'
+            if original_doc_type != "html": # If it was like 'gdrive_html' or 'webpage'
+                logger.info(f"Normalizing original_doc_type from '{original_doc_type}' to 'html' for storage for doc_id {document_id}")
+                original_doc_type = "html"
         else:
             logger.error(f"Unsupported processing_mime_type: {processing_mime_type} for document {document_id}")
             # Update document metadata in LanceDB to 'failed_unsupported_type'
