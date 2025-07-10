@@ -93,45 +93,44 @@ export async function getRecentChatsAndMentionsForBriefing(
     const endOfDayISO = endOfDay.toISOString();
 
     // 2. Construct KQL query using AAD Object ID or UPN
-    // Prefer AAD Object ID for mentions if available. UPN can also be used.
-    // KQL for "mentions" can be tricky. Graph search might interpret mentions property.
-    // A search for `(mentions:"${userDisplayName}" OR mentions:"${userAadObjectId}")`
-    // OR for DMs, it's messages in chats where the user is a participant and it's a 1:1 or group chat.
-    // `from:"${userAadObjectId}"` or `participants:"${userAadObjectId}"` might be relevant.
-    // Let's try a combination:
-    let userFilterParts: string[] = [];
+    const dateFilterKQL = `createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
+    let userSpecificKQL = "";
+
     if (userAadObjectId) {
-        userFilterParts.push(`mentions:"${userAadObjectId}"`); // Search for mentions by AAD ID
-        userFilterParts.push(`from:"${userAadObjectId}"`); // Messages sent by the user (catches their DMs and group chat participation)
-        // To specifically target 1:1 DMs *to* the user, one might need to iterate user's chats and filter,
-        // as KQL for "1:1 chat where I am a participant and the other person sent it" is hard.
-        // For simplicity, `from:"${userAadObjectId}"` covers user's sent items in DMs.
-        // To get messages *to* the user in DMs, it's harder with a single KQL search query.
-        // The current `searchTeamsMessages` in service is broad.
-        // Let's assume the service handles the user context implicitly for now due to token.
+      // Using AAD Object ID is generally more robust for mentions and identifying users.
+      // This query targets messages mentioning the user OR messages sent by the user.
+      // It helps find @mentions in channels/group chats and user's own messages in DMs/group chats.
+      // It doesn't specifically isolate DMs *to* the user if they haven't replied and weren't mentioned.
+      userSpecificKQL = `(mentions:"${userAadObjectId}" OR from:"${userAadObjectId}")`;
     } else if (userPrincipalName) {
-        // Fallback to UPN if AAD ID is not available, though less reliable for mentions
-        userFilterParts.push(`mentions:"${userPrincipalName}"`);
-        userFilterParts.push(`from:"${userPrincipalName}"`);
+      // Fallback to UPN if AAD Object ID is not available.
+      // UPN might work for `from` but can be less reliable for `mentions` if display names are used more often.
+      userSpecificKQL = `(mentions:"${userPrincipalName}" OR from:"${userPrincipalName}")`;
+      logger.warn(`[MSTeamsSkills] Using UPN for KQL construction as AAD Object ID was not available for user ${atomUserId}. This might be less precise for mentions.`);
+    } else {
+      logger.warn(`[MSTeamsSkills] No user AAD ID or UPN available for user ${atomUserId}. KQL will only use date filters and be very broad. Results might not be relevant DMs/mentions.`);
+      // If no user identifier, the query will just be the date filter, relying on the user's token context.
+      // This will fetch all messages accessible to the user in that time range.
     }
 
-    let kqlQuery = "";
-    if (userFilterParts.length > 0) {
-        kqlQuery = `(${userFilterParts.join(" OR ")}) AND createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
-    } else {
-        // If no user identifiers, fall back to just date range (will be broad, relying on token's user context)
-        kqlQuery = `createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
-        logger.warn(`[MSTeamsSkills] No user AAD ID or UPN for KQL, query will be broad: ${kqlQuery}`);
-    }
+    const kqlQuery = userSpecificKQL
+      ? `${userSpecificKQL} AND ${dateFilterKQL}`
+      : dateFilterKQL;
 
     logger.info(`[MSTeamsSkills] Constructed KQL query for briefing: "${kqlQuery}"`);
 
-    // 3. Call the refactored searchMyMSTeamsMessages (which now calls the service directly)
-    const searchResults: MSTeamsMessage[] = await searchMyMSTeamsMessages(atomUserId, kqlQuery, count);
+    // 3. Call the refactored searchMyMSTeamsMessages
+    // The `searchMyMSTeamsMessages` will pass this KQL to the msteams-service,
+    // which executes it against the Graph Search API.
+    const searchResponse = await searchMyMSTeamsMessages(atomUserId, kqlQuery, count);
 
-    // Client-side filtering is removed as the KQL is now more precise.
-    logger.info(`[MSTeamsSkills] Found ${searchResults.length} MS Teams messages for briefing (after KQL).`);
-    return { ok: true, data: { results: searchResults, query_executed: kqlQuery } };
+    // searchMyMSTeamsMessages now returns MSTeamsMessage[] directly, not a GraphSkillResponse.
+    // The error handling and transformation to GraphSkillResponse should happen here.
+    // However, looking at the current searchMyMSTeamsMessages, it already returns MSTeamsMessage[] and logs errors.
+    // For consistency, getRecentChatsAndMentionsForBriefing should also return GraphSkillResponse.
+
+    logger.info(`[MSTeamsSkills] Found ${searchResponse.length} MS Teams messages for briefing using KQL.`);
+    return { ok: true, data: { results: searchResponse, query_executed: kqlQuery } };
 
   } catch (error: any) {
     logger.error(`[MSTeamsSkills] Error in getRecentChatsAndMentionsForBriefing for Atom user ${atomUserId}: ${error.message}`, error);
