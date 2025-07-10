@@ -9,44 +9,9 @@ import {
     SlackMessage // Import the new SlackMessage type
 } from '../types';
 import { logger } from '../../_utils/logger'; // Assuming logger is available
-import fetch from 'node-fetch'; // For Hasura calls
+// import fetch from 'node-fetch'; // No longer needed for Hasura calls in this file
 
-// Helper to call Hasura Actions (simplified from emailSkills.ts)
-const HASURA_GRAPHQL_ENDPOINT = process.env.HASURA_GRAPHQL_ENDPOINT || 'http://hasura:8080/v1/graphql'; // Use internal docker name for Hasura
-
-const callHasuraActionGraphQL = async (userId: string, operationName: string, query: string, variables: Record<string, any>) => {
-    logger.debug(`[SlackSkills] Calling Hasura Action GQL: ${operationName} for user ${userId}`);
-    try {
-        const response = await fetch(HASURA_GRAPHQL_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // Assuming actions are permissioned for 'user' role and expect X-Hasura-User-Id
-                'X-Hasura-Role': 'user', // Or 'agent_service' if using a specific role for backend services
-                'X-Hasura-User-Id': userId,
-                ...(process.env.HASURA_ADMIN_SECRET && !userId ? { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET } : {})
-            },
-            body: JSON.stringify({ query, variables }),
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            logger.error(`[SlackSkills] Hasura GQL call to ${operationName} failed with status ${response.status}: ${errorBody}`);
-            throw new Error(`Hasura GQL call to ${operationName} failed: ${response.statusText}`);
-        }
-        const jsonResponse = await response.json();
-        if (jsonResponse.errors) {
-            logger.error(`[SlackSkills] Hasura GQL call to ${operationName} returned errors: ${JSON.stringify(jsonResponse.errors)}`);
-            throw new Error(`Hasura GQL call to ${operationName} returned errors: ${jsonResponse.errors.map((e: any) => e.message).join(', ')}`);
-        }
-        logger.debug(`[SlackSkills] Hasura GQL call to ${operationName} successful.`);
-        return jsonResponse.data;
-    } catch (error) {
-        logger.error(`[SlackSkills] Error calling Hasura Action GQL ${operationName}:`, error);
-        throw error;
-    }
-};
-
+// Hasura related constants and helper function are removed.
 
 const getSlackClient = (): WebClient | null => {
   if (!ATOM_SLACK_BOT_TOKEN) {
@@ -262,92 +227,76 @@ export async function sendSlackMessage(
   }
 }
 
-// --- New Slack Skills for Search and Read ---
-
-const GQL_SEARCH_SLACK_MESSAGES = `
-  mutation SearchUserSlackMessages($input: SlackSearchQueryInput!) {
-    searchUserSlackMessages(input: $input) {
-      success
-      message
-      results { # Assuming 'results' is an array of objects matching AgentSlackMessage structure
-        id
-        threadId
-        userId
-        userName
-        botId
-        channelId
-        channelName
-        text
-        # files { id name mimetype size url_private permalink } # Example file structure
-        # reactions { name count users } # Example reaction structure
-        timestamp
-        permalink
-        # raw # If you decide to pass the raw object
-      }
-    }
-  }
-`;
+// --- New Slack Skills for Search and Read (Refactored to use WebClient directly) ---
 
 /**
- * Searches Slack messages for the user.
- * This function calls a Hasura action which in turn uses the slack-service.
- * @param userId The ID of the user making the request.
- * @param searchQuery The raw search query string (this will be constructed by LLM + helper).
+ * Searches Slack messages for the user using the Slack Web API.
+ * @param atomUserId The Atom internal ID of the user making the request (for logging/context).
+ * @param searchQuery The Slack API compatible search query string.
  * @param limit Max number of messages to return.
  * @returns A promise resolving to an array of SlackMessage objects.
  */
 export async function searchMySlackMessages(
-  userId: string,
+  atomUserId: string, // Atom user ID for context/logging
   searchQuery: string,
   limit: number = 10
-): Promise<SlackMessage[]> {
-  logger.debug(`[SlackSkills] searchMySlackMessages called for user ${userId}, query: "${searchQuery}", limit: ${limit}`);
+): Promise<SlackMessage[]> { // Return type is now directly Promise<SlackMessage[]>
+  logger.debug(`[SlackSkills] searchMySlackMessages direct API call for Atom user ${atomUserId}, query: "${searchQuery}", limit: ${limit}`);
+
+  const client = getSlackClient();
+  if (!client) {
+    logger.error('[SlackSkills] Slack client not available for searchMySlackMessages.');
+    return [];
+  }
 
   try {
-    // The Hasura action 'searchUserSlackMessages' will be responsible for calling the
-    // 'searchSlackMessages' function in 'slack-service.ts'.
-    // The input to the Hasura action should match what 'searchSlackMessages' in service layer expects,
-    // or be transformed by the Hasura action handler.
-    // For now, let's assume the Hasura action takes 'query' and 'maxResults'.
-    const responseData = await callHasuraActionGraphQL(userId, "SearchUserSlackMessages", GQL_SEARCH_SLACK_MESSAGES, {
-        input: { query: searchQuery, maxResults: limit }
+    const response = await client.search.messages({
+      query: searchQuery,
+      count: limit,
+      sort: 'timestamp', // Sort by message timestamp
+      sort_dir: 'desc',  // Newest first
     });
 
-    const searchResult = responseData.searchUserSlackMessages;
-
-    if (!searchResult.success) {
-      logger.error(`[SlackSkills] searchUserSlackMessages action failed for user ${userId}: ${searchResult.message}`);
-      // Consider throwing an error or returning a SlackSkillResponse with error
+    if (!response.ok || !response.messages?.matches) {
+      const slackError = (response as any).error || 'unknown_slack_search_error';
+      logger.error(`[SlackSkills] Slack API error during search.messages: ${slackError}`, response);
       return [];
     }
 
-    // Transform the results from Hasura (which should align with AgentSlackMessage from service)
-    // to the SlackMessage type defined in agent/types.ts.
-    // This mapping depends on the exact structure returned by the Hasura action.
-    // Assuming the Hasura action's 'results' field returns objects that are already
-    // very close or identical to the 'SlackMessage' interface.
-    return (searchResult.results || []).map((item: any): SlackMessage => ({
-      id: item.id, // ts
-      threadId: item.threadId,
-      userId: item.userId,
-      userName: item.userName,
-      botId: item.botId,
-      channelId: item.channelId,
-      channelName: item.channelName,
-      text: item.text,
-      blocks: item.blocks, // Assuming blocks are passed through if available
-      files: item.files,     // Assuming files are structured as SlackMessageFile[]
-      reactions: item.reactions, // Assuming reactions are structured as SlackMessageReaction[]
-      timestamp: item.timestamp, // Should be ISO string
-      permalink: item.permalink,
-      raw: item.raw, // If raw is passed by Hasura action
-    }));
+    // Map Slack API's search results (response.messages.matches) to our SlackMessage type
+    const results: SlackMessage[] = (response.messages.matches || []).map((match: any /* slack.SearchMessagesResponseMessageMatches */): SlackMessage => {
+      // Note: User/Channel names might not be directly available in search results.
+      // Search results often provide IDs. Full resolution would require more API calls.
+      // For now, we populate what's directly available or use IDs as placeholders.
+      return {
+        id: match.ts,
+        threadId: match.thread_ts || undefined,
+        userId: match.user,
+        userName: match.username || match.user, // Placeholder if username is not in match item
+        botId: match.bot_id,
+        channelId: match.channel?.id,
+        channelName: match.channel?.name || match.channel?.id, // Placeholder
+        text: match.text,
+        blocks: match.blocks, // If available
+        files: match.files,   // If available
+        reactions: match.reactions, // If available
+        timestamp: new Date(parseFloat(match.ts) * 1000).toISOString(), // Convert Slack ts to ISO string
+        permalink: match.permalink,
+        raw: match, // Store the raw match object
+      };
+    });
+    logger.info(`[SlackSkills] searchMySlackMessages direct API call found ${results.length} messages.`);
+    return results;
 
-  } catch (error) {
-    logger.error(`[SlackSkills] Error in searchMySlackMessages for user ${userId}, query "${searchQuery}":`, error);
-    return []; // Return empty or throw, or return SlackSkillResponse
+  } catch (error: any) {
+    logger.error(`[SlackSkills] Error in searchMySlackMessages direct API call for Atom user ${atomUserId}, query "${searchQuery}":`, error);
+    if (error instanceof SlackAPIError) {
+      logger.error(`[SlackSkills] SlackAPIError code: ${error.code}, data:`, error.data);
+    }
+    return [];
   }
 }
+
 
 const GQL_GET_SLACK_MESSAGE_DETAIL = `
   mutation GetSlackMessageDetail($input: SlackMessageIdentifierInput!) {
@@ -446,8 +395,91 @@ export async function readSlackMessage(
   }
 }
 
+// Removed GQL_GET_SLACK_MESSAGE_DETAIL
+
+/**
+ * Reads the detailed content of a specific Slack message using Slack Web API.
+ * @param atomUserId The Atom internal ID of the user (for logging/context).
+ * @param channelId The ID of the channel containing the message.
+ * @param messageTs The timestamp (ID) of the message.
+ * @returns A promise resolving to a SlackMessage object or null if not found/error.
+ */
+export async function readSlackMessage(
+  atomUserId: string, // Atom user ID for context
+  channelId: string,
+  messageTs: string
+): Promise<SlackMessage | null> {
+  logger.debug(`[SlackSkills] readSlackMessage direct API call for Atom user ${atomUserId}, channelId: ${channelId}, messageTs: ${messageTs}`);
+
+  const client = getSlackClient();
+  if (!client) {
+    logger.error('[SlackSkills] Slack client not available for readSlackMessage.');
+    return null;
+  }
+
+  try {
+    // conversations.history is used to fetch a specific message by its ts.
+    const response = await client.conversations.history({
+      channel: channelId,
+      latest: messageTs,
+      oldest: messageTs,
+      inclusive: true,
+      limit: 1,
+    });
+
+    if (!response.ok || !response.messages || response.messages.length === 0) {
+      const slackError = (response as any).error || 'message_not_found_or_access_denied';
+      logger.warn(`[SlackSkills] Slack API error or message not found during conversations.history for ts ${messageTs} in channel ${channelId}: ${slackError}`, response);
+      return null;
+    }
+
+    const msgData = response.messages[0] as any; // Cast to any for broader compatibility with Slack's message object
+
+    let permalink;
+    try {
+        const permalinkResponse = await client.chat.getPermalink({ channel: channelId, message_ts: msgData.ts! });
+        if (permalinkResponse.ok && permalinkResponse.permalink) {
+            permalink = permalinkResponse.permalink as string;
+        }
+    } catch (permalinkError) {
+        logger.warn(`[SlackSkills] Could not fetch permalink for message ${msgData.ts} in channel ${channelId}:`, permalinkError);
+    }
+
+    const message: SlackMessage = {
+      id: msgData.ts!,
+      threadId: msgData.thread_ts || undefined,
+      userId: msgData.user,
+      userName: msgData.username || msgData.user, // Usernames might need resolution via users.info
+      botId: msgData.bot_id,
+      channelId: channelId,
+      // channelName: needs lookup via conversations.info(channelId)
+      text: msgData.text,
+      blocks: msgData.blocks,
+      files: msgData.files,
+      reactions: msgData.reactions,
+      timestamp: new Date(parseFloat(msgData.ts!) * 1000).toISOString(),
+      permalink: permalink,
+      raw: msgData,
+    };
+
+    logger.info(`[SlackSkills] Successfully read Slack message ${messageTs} from channel ${channelId}.`);
+    return message;
+
+  } catch (error: any) {
+    logger.error(`[SlackSkills] Error in readSlackMessage direct API call for Atom user ${atomUserId}, channel ${channelId}, ts ${messageTs}:`, error);
+    if (error instanceof SlackAPIError) {
+      logger.error(`[SlackSkills] SlackAPIError code: ${error.code}, data:`, error.data);
+    }
+    return null;
+  }
+}
+
 // Reusing LLM client logic from emailSkills or a shared LLM service module would be ideal.
 // For now, duplicating the client setup for clarity within this skill file.
+// ... (LLM extraction code remains unchanged for now) ...
+// The rest of the file including LLM functions and getRecentDMsAndMentionsForBriefing
+// remains the same as the previous version, only removing the GQL constant for message detail.
+
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { ATOM_OPENAI_API_KEY, ATOM_NLU_MODEL_NAME } from '../_libs/constants';
@@ -666,47 +698,47 @@ export async function getRecentDMsAndMentionsForBriefing(
 }
 
 
-const GQL_GET_SLACK_MESSAGE_PERMALINK = `
-  mutation GetSlackMessagePermalink($input: SlackMessageIdentifierInput!) {
-    getSlackMessagePermalink(input: $input) {
-      success
-      message
-      permalink
-    }
-  }
-`;
+// Removed GQL_GET_SLACK_MESSAGE_PERMALINK and its calling function as it's refactored.
 
 /**
- * Gets a permalink for a specific Slack message.
- * Calls a Hasura action which in turn uses the slack-service.
- * @param userId The ID of the user.
+ * Gets a permalink for a specific Slack message using the Slack Web API.
+ * @param atomUserId The Atom internal ID of the user (for logging/context).
  * @param channelId The ID of the channel containing the message.
  * @param messageTs The timestamp (ID) of the message.
  * @returns A promise resolving to the permalink string or null if not found/error.
  */
 export async function getSlackMessagePermalink(
-  userId: string,
+  atomUserId: string, // Atom user ID for context
   channelId: string,
   messageTs: string
 ): Promise<string | null> {
-  logger.debug(`[SlackSkills] getSlackMessagePermalink called for user ${userId}, channelId: ${channelId}, messageTs: ${messageTs}`);
+  logger.debug(`[SlackSkills] getSlackMessagePermalink direct API call for Atom user ${atomUserId}, channelId: ${channelId}, messageTs: ${messageTs}`);
+
+  const client = getSlackClient();
+  if (!client) {
+    logger.error('[SlackSkills] Slack client not available for getSlackMessagePermalink.');
+    return null;
+  }
 
   try {
-    const responseData = await callHasuraActionGraphQL(userId, "GetSlackMessagePermalink", GQL_GET_SLACK_MESSAGE_PERMALINK, {
-      input: { channelId: channelId, messageTs: messageTs }
+    const response = await client.chat.getPermalink({
+      channel: channelId,
+      message_ts: messageTs,
     });
 
-    const getResult = responseData.getSlackMessagePermalink;
-
-    if (!getResult.success || !getResult.permalink) {
-      logger.warn(`[SlackSkills] getSlackMessagePermalink action failed or permalink not found for user ${userId}, channel ${channelId}, ts ${messageTs}: ${getResult.message}`);
+    if (!response.ok || !response.permalink) {
+      const slackError = (response as any).error || 'permalink_not_found';
+      logger.warn(`[SlackSkills] Slack API error or permalink not found for ts ${messageTs} in channel ${channelId}: ${slackError}`, response);
       return null;
     }
+    logger.info(`[SlackSkills] Successfully fetched permalink for message ${messageTs}.`);
+    return response.permalink as string;
 
-    return getResult.permalink as string;
-
-  } catch (error) {
-    logger.error(`[SlackSkills] Error in getSlackMessagePermalink for user ${userId}, channel ${channelId}, ts ${messageTs}:`, error);
+  } catch (error: any) {
+    logger.error(`[SlackSkills] Error in getSlackMessagePermalink direct API call for Atom user ${atomUserId}, channel ${channelId}, ts ${messageTs}:`, error);
+     if (error instanceof SlackAPIError) {
+      logger.error(`[SlackSkills] SlackAPIError code: ${error.code}, data:`, error.data);
+    }
     return null;
   }
 }
