@@ -6,12 +6,9 @@ import {
     SlackMessageData,
     ListSlackChannelsData,
     SkillError,
-    SlackMessage // Import the new SlackMessage type
+    SlackMessage
 } from '../types';
-import { logger } from '../../_utils/logger'; // Assuming logger is available
-// import fetch from 'node-fetch'; // No longer needed for Hasura calls in this file
-
-// Hasura related constants and helper function are removed.
+import { logger } from '../../_utils/logger';
 
 const getSlackClient = (): WebClient | null => {
   if (!ATOM_SLACK_BOT_TOKEN) {
@@ -21,11 +18,131 @@ const getSlackClient = (): WebClient | null => {
   return new WebClient(ATOM_SLACK_BOT_TOKEN);
 };
 
-// Helper to determine if a string looks like a Slack ID (User, Channel, Group, IM)
+// Helper to determine if a string looks like a Slack ID
 function isSlackId(id: string): boolean {
     if (!id) return false;
-    // Adjusted regex to be more inclusive of potential ID formats Slack might use or for flexibility
     return /^[UCGDWF][A-Z0-9]{8,10}$/.test(id);
+}
+
+// --- Helper function to enrich Slack messages with user and channel names ---
+async function _enrichSlackMessagesWithNames(
+  client: WebClient,
+  messages: SlackMessage[],
+  userCache: Map<string, string | null>,
+  channelCache: Map<string, string | null>
+): Promise<SlackMessage[]> {
+  const userIdsToFetch = new Set<string>();
+  const channelIdsToFetch = new Set<string>();
+
+  for (const msg of messages) {
+    if (msg.userId && !msg.userName && !userCache.has(msg.userId)) {
+      userIdsToFetch.add(msg.userId);
+    }
+    if (msg.botId && !msg.userName && !userCache.has(msg.botId)) { // Also try to resolve bot names
+        userIdsToFetch.add(msg.botId); // Slack's users.info works for bot IDs too
+    }
+    if (msg.channelId && !msg.channelName && !channelCache.has(msg.channelId)) {
+      channelIdsToFetch.add(msg.channelId);
+    }
+  }
+
+  if (userIdsToFetch.size > 0) {
+    logger.debug(`[SlackSkills_Enrich] Fetching info for ${userIdsToFetch.size} user/bot IDs.`);
+    await Promise.allSettled(
+      Array.from(userIdsToFetch).map(async (uid) => {
+        if (userCache.has(uid)) return;
+        try {
+          const response = await client.users.info({ user: uid });
+          if (response.ok && response.user) {
+            userCache.set(uid, response.user.real_name || response.user.name || uid);
+          } else {
+            // Check for bot_info if users.info fails for a bot_id
+            if (uid.startsWith('B')) { // Heuristic for bot ID
+                try {
+                    const botInfo = await client.bots.info({bot: uid});
+                    if (botInfo.ok && botInfo.bot) {
+                         userCache.set(uid, (botInfo.bot as any).name || uid); // bot.name
+                    } else {
+                        logger.warn(`[SlackSkills_Enrich] bots.info call not ok for bot ${uid}: ${botInfo.error}`);
+                        userCache.set(uid, uid);
+                    }
+                } catch (botError: any) {
+                    logger.warn(`[SlackSkills_Enrich] Failed to fetch info for bot ${uid} via bots.info: ${botError.message}`);
+                    userCache.set(uid, uid);
+                }
+            } else {
+                logger.warn(`[SlackSkills_Enrich] users.info call not ok for ${uid}: ${response.error}`);
+                userCache.set(uid, uid);
+            }
+          }
+        } catch (e: any) {
+          logger.warn(`[SlackSkills_Enrich] Failed to fetch info for user/bot ${uid}: ${e.message}`);
+          userCache.set(uid, uid);
+        }
+      })
+    );
+  }
+
+  if (channelIdsToFetch.size > 0) {
+    logger.debug(`[SlackSkills_Enrich] Fetching info for ${channelIdsToFetch.size} channel IDs.`);
+    await Promise.allSettled(
+      Array.from(channelIdsToFetch).map(async (cid) => {
+        if (channelCache.has(cid)) return;
+        try {
+          const convInfo = await client.conversations.info({ channel: cid });
+          if (convInfo.ok && convInfo.channel) {
+            let cName = (convInfo.channel as any).name;
+            if (!cName && (convInfo.channel as any).is_im && (convInfo.channel as any).user) {
+              const otherUserId = (convInfo.channel as any).user;
+              if (userCache.has(otherUserId)) {
+                cName = userCache.get(otherUserId) || otherUserId;
+              } else {
+                try {
+                  const dmUserInfo = await client.users.info({ user: otherUserId });
+                  if (dmUserInfo.ok && dmUserInfo.user) {
+                    const name = dmUserInfo.user.real_name || dmUserInfo.user.name || otherUserId;
+                    userCache.set(otherUserId, name);
+                    cName = name;
+                  } else { cName = otherUserId; }
+                } catch (userFetchErr) {
+                  logger.warn(`[SlackSkills_Enrich] Failed to fetch user info for DM partner ${otherUserId} in channel ${cid}`);
+                  cName = otherUserId;
+                }
+              }
+            }
+            channelCache.set(cid, cName || cid);
+          } else {
+            logger.warn(`[SlackSkills_Enrich] conversations.info call not ok for ${cid}: ${convInfo.error}`);
+            channelCache.set(cid, cid);
+          }
+        } catch (e: any) {
+          logger.warn(`[SlackSkills_Enrich] Failed to fetch info for channel ${cid}: ${e.message}`);
+          channelCache.set(cid, cid);
+        }
+      })
+    );
+  }
+
+  return messages.map(msg => {
+    const enrichedMsg = { ...msg };
+    if (msg.userId && userCache.has(msg.userId)) {
+      enrichedMsg.userName = userCache.get(msg.userId) || msg.userId;
+    } else if (msg.botId && userCache.has(msg.botId)) { // Check botId against userCache too
+      enrichedMsg.userName = userCache.get(msg.botId) || msg.botId; // Bot name
+    } else if (msg.userId) {
+      enrichedMsg.userName = msg.userId;
+    } else if (msg.botId) {
+      enrichedMsg.userName = `Bot (${msg.botId})`;
+    }
+
+
+    if (msg.channelId && channelCache.has(msg.channelId)) {
+      enrichedMsg.channelName = channelCache.get(msg.channelId) || msg.channelId;
+    } else if (msg.channelId && !enrichedMsg.channelName) {
+      enrichedMsg.channelName = msg.channelId;
+    }
+    return enrichedMsg;
+  });
 }
 
 
@@ -44,7 +161,7 @@ export async function listSlackChannels(
     const result: ConversationsListResponse = await client.conversations.list({
       limit: limit,
       cursor: cursor,
-      types: 'public_channel,private_channel,mpim,im', // Include DMs and group DMs
+      types: 'public_channel,private_channel,mpim,im',
       exclude_archived: true,
     });
 
@@ -84,14 +201,14 @@ export async function listSlackChannels(
   }
 }
 
-async function getChannelIdByNameOrUser( // Renamed for clarity
+async function getChannelIdByNameOrUser(
     client: WebClient,
-    identifier: string, // Can be #channel-name or @user-name (for DMs)
+    identifier: string,
     userIdForContext: string
 ): Promise<SlackSkillResponse<string | null>> {
     logger.debug(`[SlackSkills] getChannelIdByNameOrUser called for identifier: ${identifier}`);
 
-    if (identifier.startsWith('#')) { // Public or private channel name
+    if (identifier.startsWith('#')) {
         const channelName = identifier.substring(1);
         let cursor: string | undefined = undefined;
         let attempts = 0;
@@ -114,33 +231,20 @@ async function getChannelIdByNameOrUser( // Renamed for clarity
             logger.error(`[SlackSkills] Exception in getChannelIdByNameOrUser for "#${channelName}":`, error);
             return { ok: false, error: { code: 'INTERNAL_ERROR', message: `Exception looking up channel ID: ${error.message}`, details: error } };
         }
-    } else if (identifier.startsWith('@')) { // User name for DM
-        const userName = identifier.substring(1);
+    } else if (identifier.startsWith('@')) {
+        const userNameOrId = identifier.substring(1);
         try {
-            // This requires users:read scope.
-            // Note: client.users.lookupByEmail is an option if email is known.
-            // For resolving by name, typically you list users and find a match, which can be heavy.
-            // A more direct way is to use client.conversations.open with user ID.
-            // If 'identifier' is a user ID (Uxxxxxxx), conversations.open is the way.
-            // If it's a display name, it needs resolution first.
-            // For simplicity, this example assumes if it's @name, it might be a user ID or needs prior resolution.
-            // This part might need enhancement if robust name-to-ID resolution for DMs is critical here.
-            // A common pattern is that the NLU provides the user ID directly.
-            // For now, if it's not an ID, we can't resolve it here robustly without listing all users.
-            logger.warn(`[SlackSkills] DM channel resolution for "${identifier}" by name is complex and may require prior user ID resolution. Assuming it might be a user ID for conversations.open if it's an ID.`);
-            // If identifier is actually a User ID (e.g. "U012ABCDEF"), this will work for opening a DM.
-             if (isSlackId(identifier)) { // If it's already a User ID
-                const dmResponse = await client.conversations.open({ users: identifier });
+             if (isSlackId(userNameOrId)) {
+                const dmResponse = await client.conversations.open({ users: userNameOrId });
                 if (dmResponse.ok && dmResponse.channel?.id) {
                     return { ok: true, data: dmResponse.channel.id };
                 } else {
-                     logger.error(`[SlackSkills] Failed to open DM with user ID "${identifier}": ${dmResponse.error}`);
-                     return { ok: false, error: { code: 'DM_OPEN_FAILED', message: `Could not open DM with ${identifier}. Error: ${dmResponse.error}` }};
+                     logger.error(`[SlackSkills] Failed to open DM with user ID "${userNameOrId}": ${dmResponse.error}`);
+                     return { ok: false, error: { code: 'DM_OPEN_FAILED', message: `Could not open DM with ${userNameOrId}. Error: ${dmResponse.error}` }};
                 }
             }
-            // Fallback if it was a name and not an ID - this is a simplification.
-            logger.warn(`[SlackSkills] Identifier "${identifier}" for DM is not a user ID. Robust name resolution for DMs is not implemented in this helper.`);
-            return { ok: true, data: null, error: { code: 'USER_RESOLUTION_NEEDED', message: `Could not resolve DM for user name ${userName} directly. User ID needed.` } };
+            logger.warn(`[SlackSkills] Identifier "${identifier}" for DM is not a user ID. Robust name-to-ID resolution for DMs is not implemented in this helper.`);
+            return { ok: true, data: null, error: { code: 'USER_RESOLUTION_NEEDED', message: `Could not resolve DM for user name ${userNameOrId} directly. User ID needed.` } };
 
         } catch (error: any) {
             logger.error(`[SlackSkills] Exception trying to open DM for "${identifier}":`, error);
@@ -148,7 +252,7 @@ async function getChannelIdByNameOrUser( // Renamed for clarity
         }
     }
     logger.warn(`[SlackSkills] Channel identifier "${identifier}" format not recognized for ID resolution (expected #channel or @user).`);
-    return { ok: true, data: null }; // Identifier format not handled for name resolution
+    return { ok: true, data: null };
 }
 
 
@@ -227,8 +331,6 @@ export async function sendSlackMessage(
   }
 }
 
-// --- New Slack Skills for Search and Read (Refactored to use WebClient directly) ---
-
 /**
  * Searches Slack messages for the user using the Slack Web API.
  * @param atomUserId The Atom internal ID of the user making the request (for logging/context).
@@ -237,10 +339,10 @@ export async function sendSlackMessage(
  * @returns A promise resolving to an array of SlackMessage objects.
  */
 export async function searchMySlackMessages(
-  atomUserId: string, // Atom user ID for context/logging
+  atomUserId: string,
   searchQuery: string,
   limit: number = 10
-): Promise<SlackMessage[]> { // Return type is now directly Promise<SlackMessage[]>
+): Promise<SlackMessage[]> {
   logger.debug(`[SlackSkills] searchMySlackMessages direct API call for Atom user ${atomUserId}, query: "${searchQuery}", limit: ${limit}`);
 
   const client = getSlackClient();
@@ -253,8 +355,8 @@ export async function searchMySlackMessages(
     const response = await client.search.messages({
       query: searchQuery,
       count: limit,
-      sort: 'timestamp', // Sort by message timestamp
-      sort_dir: 'desc',  // Newest first
+      sort: 'timestamp',
+      sort_dir: 'desc',
     });
 
     if (!response.ok || !response.messages?.matches) {
@@ -263,29 +365,32 @@ export async function searchMySlackMessages(
       return [];
     }
 
-    // Map Slack API's search results (response.messages.matches) to our SlackMessage type
-    const results: SlackMessage[] = (response.messages.matches || []).map((match: any /* slack.SearchMessagesResponseMessageMatches */): SlackMessage => {
-      // Note: User/Channel names might not be directly available in search results.
-      // Search results often provide IDs. Full resolution would require more API calls.
-      // For now, we populate what's directly available or use IDs as placeholders.
+    let results: SlackMessage[] = (response.messages.matches || []).map((match: any ): SlackMessage => {
       return {
         id: match.ts,
         threadId: match.thread_ts || undefined,
         userId: match.user,
-        userName: match.username || match.user, // Placeholder if username is not in match item
+        userName: match.username || match.user,
         botId: match.bot_id,
         channelId: match.channel?.id,
-        channelName: match.channel?.name || match.channel?.id, // Placeholder
+        channelName: match.channel?.name || match.channel?.id,
         text: match.text,
-        blocks: match.blocks, // If available
-        files: match.files,   // If available
-        reactions: match.reactions, // If available
-        timestamp: new Date(parseFloat(match.ts) * 1000).toISOString(), // Convert Slack ts to ISO string
+        blocks: match.blocks,
+        files: match.files,
+        reactions: match.reactions,
+        timestamp: new Date(parseFloat(match.ts) * 1000).toISOString(),
         permalink: match.permalink,
-        raw: match, // Store the raw match object
+        raw: match,
       };
     });
-    logger.info(`[SlackSkills] searchMySlackMessages direct API call found ${results.length} messages.`);
+
+    if (results.length > 0) {
+        const userCache = new Map<string, string | null>();
+        const channelCache = new Map<string, string | null>();
+        results = await _enrichSlackMessagesWithNames(client, results, userCache, channelCache);
+    }
+
+    logger.info(`[SlackSkills] searchMySlackMessages direct API call found and enriched ${results.length} messages.`);
     return results;
 
   } catch (error: any) {
@@ -297,106 +402,6 @@ export async function searchMySlackMessages(
   }
 }
 
-
-const GQL_GET_SLACK_MESSAGE_DETAIL = `
-  mutation GetSlackMessageDetail($input: SlackMessageIdentifierInput!) {
-    getSlackMessageDetail(input: $input) {
-      success
-      message
-      slackMessage { # Assuming the output is a single SlackMessage object
-        id
-        threadId
-        userId
-        userName
-        botId
-        channelId
-        channelName
-        text
-        blocks
-        files {
-          id
-          created
-          timestamp
-          name
-          title
-          mimetype
-          filetype
-          pretty_type
-          user
-          editable
-          size
-          mode
-          is_external
-          external_type
-          is_public
-          public_url_shared
-          display_as_bot
-          username
-          url_private
-          url_private_download
-          permalink
-          permalink_public
-        }
-        reactions {
-          name
-          users
-          count
-        }
-        timestamp
-        permalink
-        raw
-      }
-    }
-  }
-`;
-
-/**
- * Reads the detailed content of a specific Slack message.
- * Calls a Hasura action which in turn uses the slack-service.
- * @param userId The ID of the user.
- * @param channelId The ID of the channel containing the message.
- * @param messageTs The timestamp (ID) of the message.
- * @returns A promise resolving to a SlackMessage object or null if not found/error.
- */
-export async function readSlackMessage(
-  userId: string,
-  channelId: string,
-  messageTs: string
-): Promise<SlackMessage | null> {
-  logger.debug(`[SlackSkills] readSlackMessage called for user ${userId}, channelId: ${channelId}, messageTs: ${messageTs}`);
-
-  try {
-    const responseData = await callHasuraActionGraphQL(userId, "GetSlackMessageDetail", GQL_GET_SLACK_MESSAGE_DETAIL, {
-      input: { channelId: channelId, messageTs: messageTs }
-    });
-
-    const getResult = responseData.getSlackMessageDetail;
-
-    if (!getResult.success || !getResult.slackMessage) {
-      logger.warn(`[SlackSkills] getSlackMessageDetail action failed or message not found for user ${userId}, channel ${channelId}, ts ${messageTs}: ${getResult.message}`);
-      return null;
-    }
-
-    // Assuming getResult.slackMessage is already in the desired SlackMessage format
-    // If not, a transformation step similar to searchMySlackMessages would be needed.
-    // For now, direct cast if the GQL output matches the SlackMessage interface.
-    const messageDetail: SlackMessage = getResult.slackMessage;
-
-    // Ensure timestamp is handled correctly (e.g., if it's numeric from Slack, convert to ISO string)
-    // The AgentSlackMessage in service layer should ideally handle this transformation.
-    // If slackMessage.timestamp is already an ISO string from Hasura, this is fine.
-    // If it's a number (Unix epoch), it would need: new Date(item.timestamp * 1000).toISOString()
-
-    return messageDetail;
-
-  } catch (error) {
-    logger.error(`[SlackSkills] Error in readSlackMessage for user ${userId}, channel ${channelId}, ts ${messageTs}:`, error);
-    return null;
-  }
-}
-
-// Removed GQL_GET_SLACK_MESSAGE_DETAIL
-
 /**
  * Reads the detailed content of a specific Slack message using Slack Web API.
  * @param atomUserId The Atom internal ID of the user (for logging/context).
@@ -405,7 +410,7 @@ export async function readSlackMessage(
  * @returns A promise resolving to a SlackMessage object or null if not found/error.
  */
 export async function readSlackMessage(
-  atomUserId: string, // Atom user ID for context
+  atomUserId: string,
   channelId: string,
   messageTs: string
 ): Promise<SlackMessage | null> {
@@ -418,7 +423,6 @@ export async function readSlackMessage(
   }
 
   try {
-    // conversations.history is used to fetch a specific message by its ts.
     const response = await client.conversations.history({
       channel: channelId,
       latest: messageTs,
@@ -433,7 +437,7 @@ export async function readSlackMessage(
       return null;
     }
 
-    const msgData = response.messages[0] as any; // Cast to any for broader compatibility with Slack's message object
+    const msgData = response.messages[0] as any;
 
     let permalink;
     try {
@@ -445,14 +449,14 @@ export async function readSlackMessage(
         logger.warn(`[SlackSkills] Could not fetch permalink for message ${msgData.ts} in channel ${channelId}:`, permalinkError);
     }
 
-    const message: SlackMessage = {
+    let message: SlackMessage = {
       id: msgData.ts!,
       threadId: msgData.thread_ts || undefined,
       userId: msgData.user,
-      userName: msgData.username || msgData.user, // Usernames might need resolution via users.info
+      userName: msgData.username || msgData.user,
       botId: msgData.bot_id,
       channelId: channelId,
-      // channelName: needs lookup via conversations.info(channelId)
+      channelName: channelId, // Placeholder
       text: msgData.text,
       blocks: msgData.blocks,
       files: msgData.files,
@@ -462,8 +466,12 @@ export async function readSlackMessage(
       raw: msgData,
     };
 
-    logger.info(`[SlackSkills] Successfully read Slack message ${messageTs} from channel ${channelId}.`);
-    return message;
+    const userCache = new Map<string, string | null>();
+    const channelCache = new Map<string, string | null>();
+    const enrichedMessages = await _enrichSlackMessagesWithNames(client, [message], userCache, channelCache);
+
+    logger.info(`[SlackSkills] Successfully read and enriched Slack message ${messageTs} from channel ${channelId}.`);
+    return enrichedMessages.length > 0 ? enrichedMessages[0] : null;
 
   } catch (error: any) {
     logger.error(`[SlackSkills] Error in readSlackMessage direct API call for Atom user ${atomUserId}, channel ${channelId}, ts ${messageTs}:`, error);
@@ -474,11 +482,8 @@ export async function readSlackMessage(
   }
 }
 
-// Reusing LLM client logic from emailSkills or a shared LLM service module would be ideal.
-// For now, duplicating the client setup for clarity within this skill file.
-// ... (LLM extraction code remains unchanged for now) ...
-// The rest of the file including LLM functions and getRecentDMsAndMentionsForBriefing
-// remains the same as the previous version, only removing the GQL constant for message detail.
+// ... LLM extraction code and getRecentDMsAndMentionsForBriefing follow ...
+// getRecentDMsAndMentionsForBriefing will also benefit from enriched messages returned by searchMySlackMessages.
 
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
@@ -592,7 +597,7 @@ export async function extractInformationFromSlackMessage(
     }
     // Fallback to return null for all keywords if LLM fails
     const fallbackResult: Record<string, string | null> = {};
-    infoKeywords.forEach(kw => fallbackResult[kw] = null);
+    infoKeywords.forEach(kw => emptyResult[kw] = null);
     return fallbackResult;
   }
 }
@@ -610,15 +615,6 @@ export async function getRecentDMsAndMentionsForBriefing(
   }
 
   try {
-    // 1. Get the Slack User ID of the authenticated user (bot's perspective or user token perspective)
-    // This assumes the ATOM_SLACK_BOT_TOKEN can resolve its own user ID if it's a user token,
-    // or if it's a bot token, we might need a mapping from atomUserId to Slack User ID if DMs are specific to a user.
-    // For mentions (@<USER_ID>), we definitely need the user's Slack ID.
-    // Let's assume for now that `client.auth.test()` gives the relevant Slack User ID for whom DMs/mentions are sought.
-    // This might need adjustment based on whether ATOM_SLACK_BOT_TOKEN is a bot token or a user token tied to atomUserId.
-    // If it's a bot token that needs to search for a *specific user's* DMs/mentions, this gets more complex.
-    // For this iteration, let's assume the token corresponds to the user in question OR the bot has broad search access.
-
     let userSlackId: string | undefined;
     try {
       const authTestResponse = await client.auth.test();
@@ -627,62 +623,40 @@ export async function getRecentDMsAndMentionsForBriefing(
         logger.info(`[SlackSkills] Resolved Slack user ID for search: ${userSlackId}`);
       } else {
         logger.warn(`[SlackSkills] Could not resolve Slack user ID via auth.test. Mentions search might be impacted. Error: ${authTestResponse.error}`);
-        // Proceeding without userSlackId means mention search part might be less effective or fail.
-        // DMs might still be searchable with 'is:dm' if the token has appropriate permissions for the user.
       }
     } catch (authError: any) {
        logger.warn(`[SlackSkills] Exception during client.auth.test: ${authError.message}. Mentions search might be impacted.`);
-       // Continue, as is:dm might still work for DMs.
     }
 
-    // 2. Format Dates for Slack Search (YYYY-MM-DD)
     const formatDateForSlack = (date: Date): string => {
       const year = date.getUTCFullYear();
       const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
       const day = date.getUTCDate().toString().padStart(2, '0');
-      return `${year}-${month}-${day}`; // Slack search uses YYYY-MM-DD
+      return `${year}-${month}-${day}`;
     };
 
     const afterDate = new Date(targetDate);
-    afterDate.setUTCHours(0, 0, 0, 0); // Start of targetDate in UTC
-
+    afterDate.setUTCHours(0, 0, 0, 0);
     const beforeDate = new Date(targetDate);
     beforeDate.setUTCHours(0, 0, 0, 0);
-    beforeDate.setUTCDate(targetDate.getUTCDate() + 1); // Start of the day *after* targetDate
-
-    // 3. Construct Slack Search Query
-    // Query for DMs to the user OR mentions of the user.
-    // Slack search for DMs: `in:me is:dm` (if user token) or `in:@user_id is:dm` (less common for search API, usually for channel filtering)
-    // or simply `is:dm` combined with `from:somebody` or other terms.
-    // A simple way to approximate DMs for the user is to search for messages `to:${userSlackId}` or `in:${userSlackId}` if userSlackId resolves to a DM channel ID.
-    // However, `search.messages` is channel-agnostic if not specified.
-    // `is:dm` should show DMs the token has access to.
-    // If userSlackId is available, `@${userSlackId}` will find mentions.
+    beforeDate.setUTCDate(targetDate.getUTCDate() + 1);
 
     let querySegments: string[] = [];
     if (userSlackId) {
-      querySegments.push(`(@${userSlackId} OR to:${userSlackId} OR in:${userSlackId})`); // Mentions or messages directly to user or in their DMs
+      querySegments.push(`(@${userSlackId} OR to:${userSlackId} OR in:${userSlackId})`);
     } else {
-      // If no userSlackId, we can only broadly search DMs the token has access to.
-      // This might not be specific enough if it's a generic bot token.
-      // For now, let's assume 'is:dm' is a general filter.
       querySegments.push(`(is:dm)`);
       logger.warn("[SlackSkills] No specific Slack User ID for DMs/Mentions search, results might be less targeted if using a bot token without specific user context for DMs.");
     }
 
     querySegments.push(`after:${formatDateForSlack(afterDate)}`);
     querySegments.push(`before:${formatDateForSlack(beforeDate)}`);
-    // querySegments.push(`is:unread`); // Adding is:unread can be very restrictive and behavior varies. Omit for now for broader recency.
 
     const searchQuery = querySegments.join(' ');
-    // Slack's search.messages sorts by relevance by default. To get newest first:
     const fullSearchQueryWithSort = `${searchQuery} sort:timestamp dir:desc`;
 
     logger.info(`[SlackSkills] Constructed Slack search query for briefing: "${fullSearchQueryWithSort}"`);
 
-    // 4. Call searchMySlackMessages
-    // Note: searchMySlackMessages is an async function returning Promise<SlackMessage[]>
-    // The 'userId' parameter for searchMySlackMessages is the Atom User ID for Hasura context.
     const searchResults: SlackMessage[] = await searchMySlackMessages(atomUserId, fullSearchQueryWithSort, count);
 
     logger.info(`[SlackSkills] Found ${searchResults.length} Slack messages for briefing.`);
@@ -696,9 +670,6 @@ export async function getRecentDMsAndMentionsForBriefing(
     };
   }
 }
-
-
-// Removed GQL_GET_SLACK_MESSAGE_PERMALINK and its calling function as it's refactored.
 
 /**
  * Gets a permalink for a specific Slack message using the Slack Web API.
