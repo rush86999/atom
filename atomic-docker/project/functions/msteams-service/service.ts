@@ -126,8 +126,14 @@ function initializeConfidentialClientApp(): ConfidentialClientApplication | null
   return msalConfidentialClientApp;
 }
 
+export interface MSGraphUserTokenDetails {
+  accessToken: string;
+  userAadObjectId: string | null; // AAD Object ID
+  userPrincipalName: string | null; // UPN
+  accountInfo?: AccountInfo; // The raw account info for further use if needed
+}
 
-export async function getDelegatedMSGraphTokenForUser(userId: string): Promise<GraphSkillResponse<string>> {
+export async function getDelegatedMSGraphTokenForUser(userId: string): Promise<GraphSkillResponse<MSGraphUserTokenDetails>> {
   const clientApp = initializeConfidentialClientApp();
   if (!clientApp) {
     const errorMsg = 'MSAL client application could not be initialized.';
@@ -135,22 +141,18 @@ export async function getDelegatedMSGraphTokenForUser(userId: string): Promise<G
     return { ok: false, error: { code: 'MSGRAPH_CONFIG_ERROR', message: errorMsg } };
   }
 
-  // Check for encryption key before attempting token operations
   if (!MSTEAMS_TOKEN_ENCRYPTION_KEY) {
     logger.error('[MSTeamsService] MSTEAMS_TOKEN_ENCRYPTION_KEY is not configured. Cannot get/refresh tokens.');
     return { ok: false, error: { code: 'MSGRAPH_CONFIG_ERROR', message: 'Token encryption key not configured.'}};
   }
 
-  const storedTokenInfo = await getStoredUserMSTeamsTokens(userId); // Uses placeholder
+  const storedTokenInfo = await getStoredUserMSTeamsTokens(userId);
   if (!storedTokenInfo || !storedTokenInfo.account || !storedTokenInfo.refreshToken) {
     logger.warn(`[MSTeamsService] No stored MS Teams refresh token or account info for user ${userId}. User needs to authenticate.`);
-    // This is not an error per se if the user simply hasn't auth'd yet.
-    // The caller (e.g., a Hasura action handler) might use this to redirect to auth.
     return { ok: false, error: { code: 'MSGRAPH_AUTH_REQUIRED', message: 'User authentication required for MS Teams (no refresh token or account info).' } };
   }
 
   try {
-    // Attempt to acquire token silently using the refresh token if available
     // MSAL's acquireTokenSilent will use a cached access token if valid,
     // or use the refresh token to get a new access token if the cached one is expired.
     const silentRequest: SilentFlowRequest = {
@@ -191,13 +193,42 @@ export async function getDelegatedMSGraphTokenForUser(userId: string): Promise<G
 
     if (authResult && authResult.accessToken) {
       // Account object in authResult might be updated (e.g. if tokens were refreshed with a new account state from IdP)
-      // It's important to store the account object returned by MSAL after successful token acquisition.
-      await storeUserMSTeamsTokens(userId, authResult); // Store updated tokens (placeholder)
-      logger.info(`[MSTeamsService] Successfully acquired/refreshed token for user ${userId}`);
-      return { ok: true, data: authResult.accessToken };
+      await storeUserMSTeamsTokens(userId, authResult);
+      logger.info(`[MSTeamsService] Successfully acquired/refreshed token for user ${userId}.`);
+
+      let userAadObjectId: string | null = null;
+      let userPrincipalName: string | null = null;
+
+      if (authResult.account) {
+        // Prefer oid from idTokenClaims if available
+        if (authResult.account.idTokenClaims?.oid) {
+          userAadObjectId = authResult.account.idTokenClaims.oid;
+        } else if (authResult.account.homeAccountId) {
+          // homeAccountId is usually <OID>.<TID>
+          userAadObjectId = authResult.account.homeAccountId.split('.')[0];
+        }
+        userPrincipalName = authResult.account.username; // Usually UPN
+
+        logger.info(`[MSTeamsService] Extracted AAD OID: ${userAadObjectId}, UPN: ${userPrincipalName} from MSAL AccountInfo for user ${userId}.`);
+
+        // Optional: Verify/fetch with /me if needed, or if specific claims are missing
+        // For instance, if only homeAccountId was available and not idTokenClaims.oid,
+        // and you wanted to be certain or get other details like display name.
+        // For now, we rely on the MSAL account object.
+        // if (!userAadObjectId && authResult.accessToken) { /* ... call /me ... */ }
+      }
+
+      return {
+        ok: true,
+        data: {
+          accessToken: authResult.accessToken,
+          userAadObjectId: userAadObjectId,
+          userPrincipalName: userPrincipalName,
+          accountInfo: authResult.account // Pass the full accountInfo if the caller might need it
+        }
+      };
     } else {
-      // This path should ideally not be reached if acquireTokenSilent/acquireTokenByRefreshToken works as expected (they throw on failure)
-      logger.warn(`[MSTeamsService] Token acquisition yielded null/empty accessToken for user ${userId} without throwing an error. This is unexpected.`);
+      logger.warn(`[MSTeamsService] Token acquisition yielded null/empty accessToken for user ${userId} without throwing. This is unexpected.`);
       return { ok: false, error: { code: 'MSGRAPH_AUTH_UNEXPECTED_NO_TOKEN', message: 'Token acquisition returned no access token unexpectedly.' } };
     }
   } catch (error: any) {
@@ -433,10 +464,11 @@ export interface AgentMSTeamsMessage {
  */
 export async function searchTeamsMessages(
   atomUserId: string,
-  searchQuery: string,
-  maxResults: number = 20
+  searchQuery: string, // This will be the KQL query string
+  maxResults: number = 20,
+  userAadObjectId?: string // Optional: AAD Object ID of the user for more specific queries
 ): Promise<GraphSkillResponse<AgentMSTeamsMessage[]>> {
-  logger.debug(`[MSTeamsService] searchTeamsMessages called for Atom user ${atomUserId}, query: "${searchQuery}", maxResults: ${maxResults}`);
+  logger.debug(`[MSTeamsService] searchTeamsMessages called for Atom user ${atomUserId}, query: "${searchQuery}", maxResults: ${maxResults}, userAadObjectId: ${userAadObjectId}`);
 
   const tokenResponse = await getDelegatedMSGraphTokenForUser(atomUserId);
   if (!tokenResponse.ok || !tokenResponse.data) {
@@ -444,19 +476,31 @@ export async function searchTeamsMessages(
   }
   const token = tokenResponse.data;
 
+  // KQL query construction will now happen in the calling layer (e.g., Hasura action, or msTeamsSkills.ts)
+  // if userAadObjectId is to be dynamically inserted.
+  // For this function, searchQuery is assumed to be the final KQL.
+  // If userAadObjectId is provided, the caller should have already incorporated it into searchQuery.
+  // This function's responsibility is to execute the provided KQL.
+
+  // Example of how a caller might construct KQL if it had userAadObjectId:
+  // let finalKql = searchQuery; // searchQuery would be just date range parts
+  // if (userAadObjectId) {
+  //   finalKql = `(from:"${userAadObjectId}" OR mentions:"${userAadObjectId}") AND ${searchQuery}`;
+  // }
+  // logger.info(`[MSTeamsService] Effective KQL for search: ${finalKql}`);
+
   const searchRequest = {
     requests: [
       {
         entityTypes: ['chatMessage'],
         query: {
-          queryString: searchQuery,
+          queryString: searchQuery, // Use the passed searchQuery directly
         },
         from: 0,
         size: maxResults,
-        sortProperties: [ // Optional: Sort by createdDateTime descending
+        sortProperties: [
           { name: "createdDateTime", isDescending: true }
         ]
-        // fields: ["id", "chatId", "from", "body", "createdDateTime", "lastModifiedDateTime", "webUrl", "channelIdentity", "replyToId"] // Specify fields to retrieve
       },
     ],
   };
@@ -464,7 +508,8 @@ export async function searchTeamsMessages(
   const requestUrl = `${MSGRAPH_API_BASE_URL}/search/query`;
 
   try {
-    logger.debug(`[MSTeamsService] Searching Teams messages with query: ${searchQuery}`);
+    // Log the actual KQL query being sent to Graph API
+    logger.info(`[MSTeamsService] Executing Graph Search API with KQL: "${searchQuery}" for user ${atomUserId}`);
     const response = await axios.post(requestUrl, searchRequest, {
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
