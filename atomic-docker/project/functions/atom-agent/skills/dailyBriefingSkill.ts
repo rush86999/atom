@@ -182,20 +182,50 @@ function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateI
     case 'task':
       const task = item.raw_item as NotionTask;
       if (task) {
-        const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 }; // Numerical priority
-        const taskPriorityScore = (priorityOrder[task.priority || 'Low'] || 1) * 5; // Max 15 points for priority
+        if (task.status === "Done" || task.status === "Cancelled") {
+          score = 0;
+          break; // No further scoring for completed/cancelled tasks
+        }
+
+        const priorityBonusMap: { [key in NotionTaskPriority | string]: number } = { 'High': 10, 'Medium': 5, 'Low': 0 };
+        const priorityBonus = priorityBonusMap[task.priority || 'Low'] || 0;
 
         if (task.dueDate) {
-          const dueDateISO = task.dueDate.split('T')[0]; // Ensure comparison is date-only
-          if (dueDateISO < targetDateISO && task.status !== "Done" && task.status !== "Cancelled") { // Overdue
-            score += 80 + taskPriorityScore;
-          } else if (dueDateISO === targetDateISO && task.status !== "Done" && task.status !== "Cancelled") { // Due on targetDate
-            score += 60 + taskPriorityScore;
-          } else if (task.status !== "Done" && task.status !== "Cancelled") { // Not done, not cancelled, not overdue, not due today (e.g. future or no due date)
-            score += 30 + taskPriorityScore; // Lower base for tasks not immediately due on targetDate
+          const dueDateOnlyISO = task.dueDate.split('T')[0];
+          const targetDateOnlyISO = targetDateISO; // Already YYYY-MM-DD
+
+          if (dueDateOnlyISO < targetDateOnlyISO) { // Overdue relative to targetDate
+            score = 80 + priorityBonus;
+          } else if (dueDateOnlyISO === targetDateOnlyISO) { // Due on targetDate
+            score = 70 + priorityBonus;
+          } else {
+            // Due in the future relative to targetDate
+            const dueDateObj = new Date(dueDateOnlyISO + "T00:00:00Z"); // Ensure parsed as UTC
+            const targetDateObj = new Date(targetDateOnlyISO + "T00:00:00Z"); // Ensure parsed as UTC
+            const diffDays = (dueDateObj.getTime() - targetDateObj.getTime()) / (1000 * 60 * 60 * 24);
+
+            if (diffDays <= 3) { // Due Soon (within 1-3 days after targetDate)
+              score = 50 + priorityBonus;
+            } else { // Due Future (beyond 3 days after targetDate)
+              score = 30 + (priorityBonus > 0 ? Math.min(5, priorityBonus) : 0); // Smaller priority bonus for distant tasks
+            }
           }
-        } else if (task.status !== "Done" && task.status !== "Cancelled") { // No due date, but active
-          score += 30 + taskPriorityScore;
+        } else { // No Due Date
+          score = 25 + priorityBonus;
+          // Recency of Activity bonus for tasks with no due date
+          const activityDateStr = task.last_edited_time || task.createdDate;
+          if (activityDateStr) {
+            try {
+              const activityDate = new Date(activityDateStr);
+              // Compare with 'nowForContext' which is the actual current date when skill runs
+              const daysSinceActivity = (nowForContext.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24);
+              if (daysSinceActivity <= 7) {
+                score += 5;
+              }
+            } catch (e) {
+              logger.warn(`[calculateUrgencyScore] Could not parse task activity date: ${activityDateStr}`);
+            }
+          }
         }
       }
       break;
