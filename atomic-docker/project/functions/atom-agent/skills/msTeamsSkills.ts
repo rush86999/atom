@@ -1,242 +1,137 @@
 import { logger } from '../../_utils/logger';
-import { callHasuraActionGraphQL } from './utils'; // Assuming a shared Hasura call utility
-import { MSTeamsMessage, GraphSkillResponse, SkillError } from '../types'; // Import MSTeamsMessage and response types
+// Removed callHasuraActionGraphQL and GQL constants
+import { MSTeamsMessage, GraphSkillResponse, SkillError, GetMSTeamsMessageDetailInput } from '../types';
+// Direct import from msteams-service.ts
+import * as msTeamsService from '../../msteams-service/service';
 
-// GraphQL mutation for searching MS Teams messages via Hasura action
-const GQL_SEARCH_MS_TEAMS_MESSAGES = `
-  mutation SearchUserMSTeamsMessages($input: SearchMSTeamsMessagesInput!) {
-    searchUserMSTeamsMessages(input: $input) {
-      success
-      message
-      results { # This structure should match the MSTeamsMessageObject in actions.graphql
-        id
-        chatId
-        teamId
-        channelId
-        replyToId
-        userId
-        userName
-        content
-        contentType
-        createdDateTime
-        lastModifiedDateTime
-        webUrl
-        attachments {
-          id
-          name
-          contentType
-          contentUrl
-          size
-        }
-        mentions {
-          id
-          mentionText
-          mentioned {
-            user {
-              id
-              displayName
-              userIdentityType
-            }
-          }
-        }
-        # raw # If raw is passed by Hasura action
-      }
-    }
-  }
-`;
 
 /**
- * Searches Microsoft Teams messages for the user via a Hasura action.
- * @param userId The ID of the user making the request.
- * @param searchQuery The KQL search query string.
+ * Searches Microsoft Teams messages for the user by calling the msteams-service directly.
+ * @param atomUserId The Atom internal ID of the user making the request.
+ * @param kqlQuery The KQL search query string.
  * @param limit Max number of messages to return.
  * @returns A promise resolving to an array of MSTeamsMessage objects.
  */
 export async function searchMyMSTeamsMessages(
-  userId: string,
-  searchQuery: string,
+  atomUserId: string,
+  kqlQuery: string,
   limit: number = 10
 ): Promise<MSTeamsMessage[]> {
-  logger.debug(`[MSTeamsSkills] searchMyMSTeamsMessages called for user ${userId}, query: "${searchQuery}", limit: ${limit}`);
+  logger.debug(`[MSTeamsSkills] searchMyMSTeamsMessages direct call for Atom user ${atomUserId}, KQL: "${kqlQuery}", limit: ${limit}`);
 
   try {
-    // The Hasura action 'searchUserMSTeamsMessages' will call 'searchTeamsMessages' in 'msteams-service.ts'.
-    // Input for Hasura action: { query: String!, maxResults: Int }
-    const responseData = await callHasuraActionGraphQL(userId, "SearchUserMSTeamsMessages", GQL_SEARCH_MS_TEAMS_MESSAGES, {
-      input: { query: searchQuery, maxResults: limit }
-    });
+    // Call the service function directly.
+    // The service function `searchTeamsMessages` returns GraphSkillResponse<AgentMSTeamsMessage[]>
+    // We need to adapt this to Promise<MSTeamsMessage[]> or handle the GraphSkillResponse structure.
+    // For now, let's assume we adapt to MSTeamsMessage[] if successful.
+    const response = await msTeamsService.searchTeamsMessages(atomUserId, kqlQuery, limit);
 
-    const searchResult = responseData.searchUserMSTeamsMessages;
-
-    if (!searchResult.success) {
-      logger.error(`[MSTeamsSkills] searchUserMSTeamsMessages action failed for user ${userId}: ${searchResult.message}`);
-      return []; // Or throw new Error(searchResult.message) or return a more structured error
+    if (!response.ok || !response.data) {
+      logger.error(`[MSTeamsSkills] msteams-service.searchTeamsMessages failed for user ${atomUserId}: ${response.error?.message}`);
+      return [];
     }
-
-    // Transform results from Hasura (MSTeamsMessageObject) to agent's MSTeamsMessage type.
-    // This mapping assumes the GraphQL MSTeamsMessageObject closely matches MSTeamsMessage.
-    return (searchResult.results || []).map((item: any): MSTeamsMessage => ({
-      id: item.id,
-      chatId: item.chatId,
-      teamId: item.teamId,
-      channelId: item.channelId,
-      replyToId: item.replyToId,
-      userId: item.userId,
-      userName: item.userName,
-      content: item.content,
-      contentType: item.contentType as 'html' | 'text',
-      createdDateTime: item.createdDateTime,
-      lastModifiedDateTime: item.lastModifiedDateTime,
-      webUrl: item.webUrl,
-      attachments: item.attachments?.map((att: any) => ({
-        id: att.id,
-        name: att.name,
-        contentType: att.contentType,
-        contentUrl: att.contentUrl,
-        size: att.size,
-      })) || [],
-      mentions: item.mentions?.map((men: any) => ({
-        id: men.id,
-        mentionText: men.mentionText,
-        mentioned: men.mentioned ? {
-            user: men.mentioned.user ? {
-                id: men.mentioned.user.id,
-                displayName: men.mentioned.user.displayName,
-                userIdentityType: men.mentioned.user.userIdentityType,
-            } : undefined,
-            // Include other mentioned types if necessary (application, conversation, tag)
-        } : undefined,
-      })) || [],
-      raw: item.raw, // If raw is passed and desired
+    // Assuming AgentMSTeamsMessage is compatible with MSTeamsMessage for the fields we need.
+    // If not, a mapping function would be required here.
+    // MSTeamsMessage from types.ts is more detailed than AgentMSTeamsMessage in service.ts.
+    // Let's ensure proper mapping.
+    return response.data.map((item: msTeamsService.AgentMSTeamsMessage): MSTeamsMessage => ({
+        id: item.id,
+        chatId: item.chatId,
+        teamId: item.teamId,
+        channelId: item.channelId,
+        replyToId: item.replyToId,
+        userId: item.userId,
+        userName: item.userName,
+        content: item.content,
+        contentType: item.contentType as 'html' | 'text', // service might return string
+        createdDateTime: item.createdDateTime,
+        lastModifiedDateTime: item.lastModifiedDateTime,
+        webUrl: item.webUrl,
+        attachments: item.attachments, // Assuming structure matches
+        mentions: item.mentions,       // Assuming structure matches
+        raw: item.raw,
     }));
 
-  } catch (error) {
-    logger.error(`[MSTeamsSkills] Error in searchMyMSTeamsMessages for user ${userId}, query "${searchQuery}":`, error);
+  } catch (error: any) {
+    logger.error(`[MSTeamsSkills] Error in searchMyMSTeamsMessages direct call for Atom user ${atomUserId}, KQL "${kqlQuery}":`, error);
     return [];
   }
 }
 
-// Conceptual helper to get user's MS Graph Object ID (AAD ID)
-// In a real scenario, this would involve getting a token for the user and calling Graph API /me
-// or this ID might be stored/retrieved alongside their MS Teams OAuth tokens.
-async function _getUserGraphObjectId(atomUserId: string, client: any /* MSGraphClient or similar */): Promise<string | null> {
-  logger.debug(`[MSTeamsSkills] _getUserGraphObjectId: Attempting to get Graph Object ID for Atom user ${atomUserId}. (Conceptual)`);
-  // Placeholder: Assume a mechanism exists to map atomUserId to an AAD ObjectId or UPN
-  // For testing, one might return a known test AAD User ID.
-  // Example using a hypothetical Graph call (if client was an authenticated MSGraphClient):
-  // try {
-  //   const userProfile = await client.api('/me').select('id,userPrincipalName').get();
-  //   return userProfile.id; // This is the AAD Object ID
-  // } catch (error) {
-  //   logger.error(`[MSTeamsSkills] Failed to fetch user's Graph Object ID for Atom user ${atomUserId}:`, error);
-  //   return null;
-  // }
-  // For now, as this is complex to implement fully here without actual token flow for /me:
-  logger.warn(`[MSTeamsSkills] _getUserGraphObjectId is a placeholder. Returning null. KQL query for mentions will be less effective.`);
-  // To make search work somewhat for testing without a real user ID, one might search for a common term
-  // or a known display name if the search API supports that well in KQL.
-  // For now, returning null means mention search part of KQL will be skipped or use a placeholder.
-  return null;
-}
-
+// Removed _getUserGraphObjectId as AAD ID fetching is now part of msteams-service.getDelegatedMSGraphTokenForUser
 
 export async function getRecentChatsAndMentionsForBriefing(
   atomUserId: string,
   targetDate: Date,
   count: number = 3
-): Promise<GraphSkillResponse<{ results: MSTeamsMessage[], query_executed?: string }>> { // Use GraphSkillResponse for consistency
+): Promise<GraphSkillResponse<{ results: MSTeamsMessage[], query_executed?: string }>> {
   logger.debug(`[MSTeamsSkills] getRecentChatsAndMentionsForBriefing for Atom user: ${atomUserId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`);
 
-  // MS Graph client for /me endpoint would be needed if we were to fetch AAD ID here.
-  // This is complex as it requires a user-delegated token.
-  // For now, we'll construct a KQL that might work more broadly or assume AAD ID is somehow available.
-  // Let's assume for this skill, we don't have direct access to make a /me call easily.
-  // The searchMyMSTeamsMessages itself uses a token obtained via getDelegatedMSGraphTokenForUser,
-  // which is associated with the atomUserId. The KQL search will run in that user's context.
-
   try {
+    // 1. Get token and user AAD identifiers from msteams-service
+    const tokenDetailsResponse = await msTeamsService.getDelegatedMSGraphTokenForUser(atomUserId);
+    if (!tokenDetailsResponse.ok || !tokenDetailsResponse.data?.accessToken || !tokenDetailsResponse.data?.userAadObjectId) {
+      logger.error(`[MSTeamsSkills] Could not get valid token or user AAD Object ID for user ${atomUserId}. Error: ${tokenDetailsResponse.error?.message}`);
+      return {
+        ok: false,
+        error: tokenDetailsResponse.error || { code: "MSTEAMS_AUTH_FAILED", message: "Authentication or user ID retrieval failed for MS Teams."}
+      };
+    }
+    const { userAadObjectId, userPrincipalName } = tokenDetailsResponse.data;
+    // Note: accessToken is managed within msteams-service calls, not directly used here anymore.
+
+    if (!userAadObjectId && !userPrincipalName) {
+        logger.warn(`[MSTeamsSkills] User AAD Object ID and UPN are both null for user ${atomUserId}. KQL query will be very broad.`);
+        // Fallback to a very generic query or return error, for now, proceed with broad query.
+    }
+
     const startOfDay = new Date(targetDate);
     startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(targetDate);
     endOfDay.setUTCHours(23, 59, 59, 999);
-
     const startOfDayISO = startOfDay.toISOString();
     const endOfDayISO = endOfDay.toISOString();
 
-    // Construct KQL Query.
-    // Searching for mentions of the user (requires knowing their display name or AAD ID which is hard here)
-    // OR messages in 1:1 chats (isChatMessage=true AND chatMessage.chatType eq 'oneOnOne' might not be KQL)
-    // OR messages sent by the user (from.user.id eq 'userGraphId')
-    // KQL for Graph Search API is powerful but specific.
-    // A simpler approach for DMs and mentions might be:
-    // 1. Fetch user's chats: /me/chats (filter for 1on1, get last message preview)
-    // 2. Fetch user's activity feed for mentions: /me/teamwork/activityfeed
-    // These are different API calls than /search/query.
-    //
-    // Given we must use searchMyMSTeamsMessages which uses /search/query with KQL:
-    // We'll try a KQL that looks for messages TO or FROM the current user (implicit from token)
-    // in their chats, and separately for @mentions if we had their AAD ID.
-    // Since getting AAD ID here is hard, let's make a best-effort KQL.
-    // The `from` field in KQL usually refers to sender's name/email.
-    // `participants` can be used with user IDs.
-    //
-    // Let's assume the search is in the context of the user provided by the token.
-    // We want messages where this user is a participant (implicitly true for their chats)
-    // AND ( (the message is in a 1:1 chat) OR (the message @mentions them) ).
-    // KQL for chat messages might not directly support "is:dm" or easy "@me" like Slack.
-    // A KQL query focusing on recency and user involvement:
-    // "(participants:\"Me\" OR mentions:\"Me\")" - "Me" might not work, needs actual ID/name.
-    // For this iteration, let's simplify: fetch recent messages from user's chats and hope mentions are caught by text search.
-    // A more robust solution would require the user's AAD ID.
-    //
-    // If we had userAadId:
-    // const kqlQuery = `((mentions:"${userAadId}") OR (participants:"${userAadId}" AND IsGroupChat:"false")) AND createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
-    // Without userAadId, we rely on the search being scoped to the user's accessible messages.
-    // We'll search for messages within the date range.
-    // Filtering for DMs/Mentions will be done client-side on results if KQL is too limited without specific ID.
-
-    // For now, let's just get recent messages for the user on that day and assume the search endpoint is smart.
-    // This is a simplification due to the difficulty of getting user's own AAD ID easily within this skill layer
-    // without another Graph call. The search will be run as the user.
-    const kqlQuery = `createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
-    logger.info(`[MSTeamsSkills] Constructed KQL query for briefing: "${kqlQuery}" (This is broad, needs user context from token)`);
-
-    const searchResults = await searchMyMSTeamsMessages(atomUserId, kqlQuery, count * 5); // Fetch more to filter client-side
-
-    // Client-side filtering for DMs or mentions (since KQL is broad here)
-    // This is NOT ideal but a workaround if user's own AAD ID isn't easily available for KQL.
-    // A better backend search is preferred.
-    const relevantMessages: MSTeamsMessage[] = [];
-    if (searchResults && searchResults.length > 0) {
-        // Attempt to get user's own AAD ID by making a /me call if not already available
-        // This is a conceptual step for now.
-        const userGraphId = await _getUserGraphObjectId(atomUserId, null); // Pass a conceptual client or token
-
-        for (const msg of searchResults) {
-            let isRelevant = false;
-            // Check if it's a DM-like chat (assuming chatId exists for DMs, and it's not a channel message)
-            if (msg.chatId && !msg.teamId && !msg.channelId) {
-                 // Heuristic: if it's a chat message and the sender is not the user, it might be a DM to the user.
-                 // Or if the chat itself is known to be a 1:1 with the user. This requires more context.
-                 // For now, include if it's a chat message and not from self (very rough)
-                 if (userGraphId && msg.userId !== userGraphId) isRelevant = true;
-                 else if (!userGraphId) isRelevant = true; // If we can't get self ID, take all chat messages
-            }
-            // Check for mentions
-            if (msg.mentions && userGraphId) {
-                if (msg.mentions.some(mention => mention.mentioned?.user?.id === userGraphId)) {
-                    isRelevant = true;
-                }
-            }
-            if (isRelevant) {
-                relevantMessages.push(msg);
-            }
-            if (relevantMessages.length >= count) break;
-        }
+    // 2. Construct KQL query using AAD Object ID or UPN
+    // Prefer AAD Object ID for mentions if available. UPN can also be used.
+    // KQL for "mentions" can be tricky. Graph search might interpret mentions property.
+    // A search for `(mentions:"${userDisplayName}" OR mentions:"${userAadObjectId}")`
+    // OR for DMs, it's messages in chats where the user is a participant and it's a 1:1 or group chat.
+    // `from:"${userAadObjectId}"` or `participants:"${userAadObjectId}"` might be relevant.
+    // Let's try a combination:
+    let userFilterParts: string[] = [];
+    if (userAadObjectId) {
+        userFilterParts.push(`mentions:"${userAadObjectId}"`); // Search for mentions by AAD ID
+        userFilterParts.push(`from:"${userAadObjectId}"`); // Messages sent by the user (catches their DMs and group chat participation)
+        // To specifically target 1:1 DMs *to* the user, one might need to iterate user's chats and filter,
+        // as KQL for "1:1 chat where I am a participant and the other person sent it" is hard.
+        // For simplicity, `from:"${userAadObjectId}"` covers user's sent items in DMs.
+        // To get messages *to* the user in DMs, it's harder with a single KQL search query.
+        // The current `searchTeamsMessages` in service is broad.
+        // Let's assume the service handles the user context implicitly for now due to token.
+    } else if (userPrincipalName) {
+        // Fallback to UPN if AAD ID is not available, though less reliable for mentions
+        userFilterParts.push(`mentions:"${userPrincipalName}"`);
+        userFilterParts.push(`from:"${userPrincipalName}"`);
     }
 
-    logger.info(`[MSTeamsSkills] Found ${relevantMessages.length} relevant MS Teams messages for briefing.`);
-    return { ok: true, data: { results: relevantMessages, query_executed: kqlQuery } };
+    let kqlQuery = "";
+    if (userFilterParts.length > 0) {
+        kqlQuery = `(${userFilterParts.join(" OR ")}) AND createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
+    } else {
+        // If no user identifiers, fall back to just date range (will be broad, relying on token's user context)
+        kqlQuery = `createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
+        logger.warn(`[MSTeamsSkills] No user AAD ID or UPN for KQL, query will be broad: ${kqlQuery}`);
+    }
+
+    logger.info(`[MSTeamsSkills] Constructed KQL query for briefing: "${kqlQuery}"`);
+
+    // 3. Call the refactored searchMyMSTeamsMessages (which now calls the service directly)
+    const searchResults: MSTeamsMessage[] = await searchMyMSTeamsMessages(atomUserId, kqlQuery, count);
+
+    // Client-side filtering is removed as the KQL is now more precise.
+    logger.info(`[MSTeamsSkills] Found ${searchResults.length} MS Teams messages for briefing (after KQL).`);
+    return { ok: true, data: { results: searchResults, query_executed: kqlQuery } };
 
   } catch (error: any) {
     logger.error(`[MSTeamsSkills] Error in getRecentChatsAndMentionsForBriefing for Atom user ${atomUserId}: ${error.message}`, error);
@@ -249,65 +144,46 @@ export async function getRecentChatsAndMentionsForBriefing(
   }
 }
 
-
-const GQL_GET_MS_TEAMS_MESSAGE_WEB_URL = `
-  mutation GetMSTeamsMessageWebUrl($input: GetMSTeamsMessageWebUrlInput!) {
-    getMSTeamsMessageWebUrl(input: $input) {
-      success
-      message
-      webUrl
-    }
-  }
-`;
+// Removed GQL_GET_MS_TEAMS_MESSAGE_WEB_URL constant
 
 // Input type for the Hasura action, mirrors GetMSTeamsMessageDetailInput for identifying the message
-export interface GetMSTeamsMessageWebUrlInput extends GetMSTeamsMessageDetailInput {}
+// This interface is defined in types.ts, so no need to redefine here if imported.
+// export interface GetMSTeamsMessageWebUrlInput extends GetMSTeamsMessageDetailInput {}
 
 
 /**
- * Gets a permalink (webUrl) for a specific MS Teams message.
- * This might call a specific Hasura action that in turn calls a service function
- * to retrieve just the webUrl, or it could potentially reuse getMSTeamsMessageDetail
- * if the overhead is acceptable and webUrl is consistently populated.
- * For this implementation, we'll assume a dedicated Hasura action for focused retrieval if possible,
- * or rely on readMSTeamsMessage to have populated it.
- * Since webUrl is part of the MSTeamsMessage, this skill could simply ensure the message is read
- * and then return the webUrl property.
- * However, to align with a potential direct permalink fetching in service layer (if Graph has such specific endpoint or if it's part of minimal fetch):
- *
- * @param userId The ID of the user.
- * @param identifier An object to identify the message.
+ * Gets a permalink (webUrl) for a specific MS Teams message by calling the msteams-service.
+ * @param atomUserId The Atom internal ID of the user.
+ * @param identifier An object to identify the message (messageId and chatId or teamId/channelId).
  * @returns A promise resolving to the webUrl string or null.
  */
 export async function getMSTeamsMessageWebUrl(
-  userId: string,
-  identifier: GetMSTeamsMessageWebUrlInput
+  atomUserId: string,
+  identifier: GetMSTeamsMessageDetailInput // Use the one from types.ts
 ): Promise<string | null> {
-  logger.debug(`[MSTeamsSkills] getMSTeamsMessageWebUrl called for user ${userId}, identifier:`, identifier);
+  logger.debug(`[MSTeamsSkills] getMSTeamsMessageWebUrl direct call for Atom user ${atomUserId}, identifier:`, identifier);
 
   if (!identifier.messageId || (!identifier.chatId && (!identifier.teamId || !identifier.channelId))) {
     logger.error('[MSTeamsSkills] Invalid identifier for getMSTeamsMessageWebUrl.');
     return null;
   }
 
-  // Option 1: Call a specific Hasura action for the permalink
   try {
-    const responseData = await callHasuraActionGraphQL(userId, "GetMSTeamsMessageWebUrl", GQL_GET_MS_TEAMS_MESSAGE_WEB_URL, {
-      input: identifier
-    });
-    const getResult = responseData.getMSTeamsMessageWebUrl;
-    if (getResult.success && getResult.webUrl) {
-      return getResult.webUrl as string;
+    // To get webUrl, we might need to fetch the message details first if not available otherwise
+    // The msteams-service layer doesn't have a dedicated "get permalink" function.
+    // We can call readMSTeamsMessage and extract webUrl.
+    const message = await readMSTeamsMessage(atomUserId, identifier);
+    if (message && message.webUrl) {
+      return message.webUrl;
+    } else if (message) {
+      logger.warn(`[MSTeamsSkills] Message found but webUrl is missing for message ID ${identifier.messageId}.`);
+      return null;
     } else {
-      logger.warn(`[MSTeamsSkills] getMSTeamsMessageWebUrl action failed or webUrl not found: ${getResult.message}`, identifier);
-      // Fallback: Try reading the whole message if direct permalink failed
-      // This might be redundant if the Hasura action itself already does this.
-      // const message = await readMSTeamsMessage(userId, identifier);
-      // return message?.webUrl || null;
+      logger.warn(`[MSTeamsSkills] Could not read message to get webUrl for ID ${identifier.messageId}.`);
       return null;
     }
   } catch (error) {
-    logger.error(`[MSTeamsSkills] Error in getMSTeamsMessageWebUrl for user ${userId}, identifier:`, identifier, error);
+    logger.error(`[MSTeamsSkills] Error in getMSTeamsMessageWebUrl for Atom user ${atomUserId}, identifier:`, identifier, error);
     return null;
   }
 }

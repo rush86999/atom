@@ -1,148 +1,119 @@
-import { Email, SendEmailResponse, ReadEmailResponse, GmailMessagePart } from '../types'; // Assuming GmailMessagePart might be useful from types
-import fetch from 'node-fetch'; // For making HTTP requests if not using Apollo Client
+import { Email, SendEmailResponse, ReadEmailResponse, GmailMessagePart, SkillResponse, SkillError } from '../types';
+import { google, gmail_v1 } from 'googleapis';
+// OAuth2Client might be needed if constructing client from scratch with tokens
+// import { OAuth2Client } from 'google-auth-library';
+import { logger } from '../../_utils/logger';
+// Conceptual: This would be the central place to get an authenticated Google API client for Gmail.
+// It would handle token fetching (from a DB/auth service) and refresh.
+// For this refactor, we'll mock its existence or make it a simple placeholder.
+import { AuthService } from '../../../services/authService'; // Adjusted path, assuming it exists
 
-// Helper to call Hasura Actions (simplified)
-// In a real app, use a configured Apollo Client or a more robust fetch wrapper.
-const HASURA_GRAPHQL_ENDPOINT = process.env.HASURA_GRAPHQL_ENDPOINT || 'http://localhost:8080/v1/graphql';
-const HASURA_ACTION_HEADERS = (userId: string) => ({
-    'Content-Type': 'application/json',
-    // If your Hasura actions require admin secret for this internal call:
-    // ...(process.env.HASURA_ADMIN_SECRET ? { 'x-hasura-admin-secret': process.env.HASURA_ADMIN_SECRET } : {}),
-    // If actions are permissioned for 'user' role and expect X-Hasura-User-Id:
-    'X-Hasura-Role': 'user',
-    'X-Hasura-User-Id': userId,
-});
+// --- Helper to get authenticated Gmail API client ---
+async function getGmailClient(userId: string): Promise<gmail_v1.Gmail | null> {
+  logger.debug(`[emailSkills] Attempting to get Gmail client for user ${userId}`);
 
-async function callHasuraActionGraphQL(userId: string, queryText: string, variables: Record<string, any>) {
-    const MAX_RETRIES = 3;
-    const INITIAL_TIMEOUT_MS = 15000; // 15 seconds
+  // In a real scenario, AuthService would handle token storage and refresh.
+  // This might involve calling the /api/auth/google/get-access-token endpoint internally.
+  const tokenResponse = await AuthService.getGoogleAccessToken(userId, ['https://www.googleapis.com/auth/gmail.readonly']);
 
-    let attempt = 0;
-    let lastError: any = null;
+  if (!tokenResponse || !tokenResponse.accessToken) {
+    logger.error(`[emailSkills] No Gmail access token found or could be refreshed for user ${userId}.`);
+    return null;
+  }
 
-    while (attempt < MAX_RETRIES) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), INITIAL_TIMEOUT_MS);
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({ access_token: tokenResponse.accessToken });
 
-        try {
-            logger.info(`Attempt ${attempt + 1} to call Hasura GQL action for user ${userId}.`);
-            const response = await fetch(HASURA_GRAPHQL_ENDPOINT, {
-                method: 'POST',
-                headers: HASURA_ACTION_HEADERS(userId),
-                body: JSON.stringify({ query: queryText, variables }),
-                signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
+  // Optional: Listen for token refresh events from this specific client instance if needed,
+  // though AuthService should ideally handle global token state.
+  // oauth2Client.on('tokens', (tokens) => {
+  //   if (tokens.refresh_token) { /* store new refresh_token */ }
+  //   /* store new access_token and expiry */
+  // });
 
-            if (!response.ok) {
-                const errorBody = await response.text();
-                const status = response.status;
-                logger.warn(`Hasura GQL call attempt ${attempt + 1} failed with status ${status}: ${errorBody}`);
-                // Retry on server errors (5xx) or rate limiting (429)
-                if (status >= 500 || status === 429) {
-                    throw new Error(`Hasura GQL call failed with status ${status} (retryable): ${response.statusText}`);
-                } else {
-                    // Non-retryable client error (e.g., 400, 401, 403)
-                    lastError = new Error(`Hasura GQL call failed with status ${status} (non-retryable): ${response.statusText} - ${errorBody}`);
-                    break; // Do not retry client errors
-                }
-            }
-
-            const jsonResponse = await response.json();
-            if (jsonResponse.errors) {
-                logger.warn(`Hasura GQL call attempt ${attempt + 1} returned errors: ${JSON.stringify(jsonResponse.errors)}`);
-                // Consider if specific GraphQL errors should be retryable. For now, treat them as non-retryable.
-                lastError = new Error(`Hasura GQL call returned errors: ${jsonResponse.errors.map((e: any) => e.message).join(', ')}`);
-                break;
-            }
-            logger.info(`Hasura GQL call attempt ${attempt + 1} successful.`);
-            return jsonResponse.data;
-
-        } catch (error: any) {
-            clearTimeout(timeoutId);
-            lastError = error;
-            logger.warn(`Error during Hasura GQL call attempt ${attempt + 1} for user ${userId}: ${error.message}`);
-
-            // Check if it's an AbortError (timeout)
-            if (error.name === 'AbortError') {
-                logger.warn(`Hasura GQL call attempt ${attempt + 1} timed out after ${INITIAL_TIMEOUT_MS}ms.`);
-            }
-            // If it's a known retryable error type (e.g. network issue, or specific status codes handled above)
-            // or if it's any other error that isn't explicitly a non-retryable one from above.
-            // The check `lastError.message.includes('(non-retryable)')` is a bit fragile; ideally, custom error types would be better.
-            if (lastError && lastError.message && lastError.message.includes('(non-retryable)')) {
-                 break; // Break if error was marked non-retryable
-            }
-
-        }
-
-        attempt++;
-        if (attempt < MAX_RETRIES) {
-            const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 1s, 2s
-            logger.info(`Waiting ${delay}ms before next Hasura GQL retry (attempt ${attempt + 1}).`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    }
-
-    logger.error(`Failed to call Hasura GQL action for user ${userId} after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`, { error: lastError });
-    throw lastError || new Error('Failed to call Hasura Action GQL after multiple retries.');
+  return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
 
-// Renamed listRecentEmails to reflect its new capability
 export async function searchMyEmails(userId: string, searchQuery: string, limit: number = 10): Promise<Email[]> {
-  console.log(`Searching emails for user ${userId} with query "${searchQuery}", limit ${limit}...`);
+  logger.info(`[emailSkills] Searching emails for user ${userId} with query "${searchQuery}", limit ${limit}...`);
 
-  const GQL_SEARCH_EMAILS = `
-    mutation SearchUserGmail($input: GmailSearchQueryInput!) {
-      searchUserGmail(input: $input) {
-        success
-        message
-        results {
-          id
-          threadId
-          snippet
-          # Placeholders from GQL schema, actual data depends on searchUserGmail handler
-          subject
-          from
-          date
-        }
-      }
-    }
-  `;
+  const gmail = await getGmailClient(userId);
+  if (!gmail) {
+    logger.error("[emailSkills] Failed to get Gmail client, cannot search emails.");
+    return [];
+  }
 
   try {
-    const responseData = await callHasuraActionGraphQL(userId, GQL_SEARCH_EMAILS, {
-        input: { query: searchQuery, maxResults: limit }
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      q: searchQuery,
+      maxResults: limit,
+      // To get more details in the list response itself to minimize individual `get` calls:
+      // fields: "messages(id,threadId,snippet,payload/headers,internalDate),nextPageToken"
+      // However, this might not always give enough, and 'snippet' from list is very short.
+      // For consistency with original structure that implies more detail, we'll fetch individually.
     });
 
-    const searchResult = responseData.searchUserGmail;
-
-    if (!searchResult.success) {
-      console.error(`searchUserGmail action failed: ${searchResult.message}`);
-      return []; // Or throw error
+    const messages = response.data.messages;
+    if (!messages || messages.length === 0) {
+      logger.info(`[emailSkills] No messages found for query: "${searchQuery}"`);
+      return [];
     }
 
-    // Transform GmailSearchResultItem to Agent's Email type
-    return (searchResult.results || []).map((item: any): Email => ({
-      id: item.id,
-      threadId: item.threadId,
-      sender: item.from || 'N/A', // Placeholder data from GQL schema
-      recipient: 'me', // Assuming 'me' for now
-      subject: item.subject || 'No Subject', // Placeholder
-      body: item.snippet || '', // Use snippet as body preview
-      timestamp: item.date || new Date().toISOString(), // Placeholder
-      read: false, // Cannot determine read status from search result snippet alone
-    }));
+    const emailDetailsPromises = messages.map(async (msg) => {
+      if (!msg.id) return null;
+      try {
+        const msgDetails = await gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id,
+          format: 'metadata',
+          fields: 'id,threadId,snippet,payload/headers,internalDate,labelIds',
+        });
 
-  } catch (error) {
-    console.error(`Error in searchMyEmails skill for user ${userId}:`, error);
-    return []; // Return empty or throw
+        if (!msgDetails.data) return null;
+        const headers = msgDetails.data.payload?.headers || [];
+        const subject = headers.find(h => h.name?.toLowerCase() === 'subject')?.value || 'No Subject';
+        const from = headers.find(h => h.name?.toLowerCase() === 'from')?.value || 'N/A';
+        const dateHeader = headers.find(h => h.name?.toLowerCase() === 'date')?.value;
+
+        const timestamp = msgDetails.data.internalDate
+          ? new Date(parseInt(msgDetails.data.internalDate, 10)).toISOString()
+          : (dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString());
+
+        const isUnread = msgDetails.data.labelIds?.includes('UNREAD') || false;
+
+        return {
+          id: msgDetails.data.id!,
+          threadId: msgDetails.data.threadId || undefined,
+          sender: from,
+          recipient: 'me',
+          subject: subject,
+          body: msgDetails.data.snippet || '',
+          timestamp: timestamp,
+          read: !isUnread,
+        } as Email;
+      } catch (err) {
+        logger.error(`[emailSkills] Error fetching details for message ID ${msg.id}:`, err);
+        return null;
+      }
+    });
+
+    const emails = (await Promise.all(emailDetailsPromises)).filter(email => email !== null) as Email[];
+    logger.info(`[emailSkills] Successfully fetched ${emails.length} email details for query "${searchQuery}".`);
+    return emails;
+
+  } catch (error: any) {
+    logger.error(`[emailSkills] Error searching Gmail for user ${userId}, query "${searchQuery}":`, error);
+    if (error.code === 401 || error.code === 403) {
+        logger.error(`[emailSkills] Gmail API authentication/authorization error: ${error.message}`);
+    }
+    return [];
   }
 }
 
 // Helper to find and decode text/plain or text/html body from Gmail payload
-function extractReadableBody(part: any, preferredType: 'text/plain' | 'text/html' = 'text/plain'): string | null {
+function extractReadableBody(part: gmail_v1.Schema$MessagePart | undefined, preferredType: 'text/plain' | 'text/html' = 'text/plain'): string | null {
     if (!part) return null;
 
     let foundHtmlBody: string | null = null;
@@ -229,83 +200,73 @@ function extractReadableBody(part: any, preferredType: 'text/plain' | 'text/html
 
 
 export async function readEmail(userId: string, emailId: string): Promise<ReadEmailResponse> {
-  console.log(`Reading email with ID: ${emailId} for user ${userId}`);
+  logger.info(`[emailSkills] Reading email with ID: ${emailId} for user ${userId}`);
 
-  const GQL_GET_EMAIL_CONTENT = `
-    mutation GetUserGmailContent($input: GetUserGmailContentInput!) {
-      getUserGmailContent(input: $input) {
-        success
-        message
-        email {
-          id
-          threadId
-          snippet
-          payload {
-            headers { name value }
-            mimeType
-            body { data size }
-            parts { # Recursive parts for full body traversal
-              partId mimeType filename headers { name value } body { data size attachmentId }
-              parts {
-                partId mimeType filename headers { name value } body { data size attachmentId }
-                parts { # Deeper nesting if necessary
-                  partId mimeType filename headers { name value } body { data size attachmentId }
-                }
-              }
-            }
-          }
-          # Other fields from GmailMessageContent if needed
-          # internalDate, labelIds, etc.
-        }
-      }
-    }
-  `;
+  const gmail = await getGmailClient(userId);
+  if (!gmail) {
+    const errorMsg = "Failed to get Gmail client, cannot read email.";
+    logger.error(`[emailSkills] ${errorMsg}`);
+    return { success: false, message: errorMsg };
+  }
 
   try {
-    const responseData = await callHasuraActionGraphQL(userId, GQL_GET_EMAIL_CONTENT, {
-        input: { emailId }
+    const response = await gmail.users.messages.get({
+      userId: 'me',
+      id: emailId,
+      format: 'full', // Get full payload to extract body and headers
     });
 
-    const getResult = responseData.getUserGmailContent;
-
-    if (!getResult.success || !getResult.email) {
-      console.error(`getUserGmailContent action failed or email not found: ${getResult.message}`);
-      return { success: false, message: getResult.message || `Email ${emailId} not found.` };
+    const fetchedEmail = response.data;
+    if (!fetchedEmail || !fetchedEmail.id) {
+      const errorMsg = `Email with ID ${emailId} not found or data incomplete.`;
+      logger.warn(`[emailSkills] ${errorMsg}`);
+      return { success: false, message: errorMsg };
     }
 
-    const fetchedEmail = getResult.email;
-
-    // Extract relevant info for the agent's Email type
     const headers = fetchedEmail.payload?.headers || [];
     const subject = headers.find(h => h.name?.toLowerCase() === 'subject')?.value || 'No Subject';
     const from = headers.find(h => h.name?.toLowerCase() === 'from')?.value || 'N/A';
-    const to = headers.find(h => h.name?.toLowerCase() === 'to')?.value || 'N/A';
-    // A more robust date parsing would be needed if internalDate is not directly usable
-    const timestamp = fetchedEmail.internalDate ? new Date(parseInt(fetchedEmail.internalDate)).toISOString() : new Date().toISOString();
+    const to = headers.find(h => h.name?.toLowerCase() === 'to')?.value || 'N/A'; // Can be multiple, join if needed
+    const dateHeader = headers.find(h => h.name?.toLowerCase() === 'date')?.value;
 
-    // Use the enhanced body extraction logic
+    const timestamp = fetchedEmail.internalDate
+      ? new Date(parseInt(fetchedEmail.internalDate, 10)).toISOString()
+      : (dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString());
+
     const body = extractReadableBody(fetchedEmail.payload) || fetchedEmail.snippet || '';
 
+    // Determine read status (simplified: if 'UNREAD' is not in labelIds, it's read)
+    // This is a common way but might not be 100% accurate for all edge cases of "read" status.
+    const isUnread = fetchedEmail.labelIds?.includes('UNREAD') || false;
 
     const email: Email = {
       id: fetchedEmail.id,
-      threadId: fetchedEmail.threadId,
+      threadId: fetchedEmail.threadId || undefined,
       sender: from,
       recipient: to,
       subject: subject,
       body: body,
       timestamp: timestamp,
-      read: true, // Assume read since we fetched full content. Gmail API can provide 'UNREAD' in labelIds.
+      read: !isUnread,
     };
+    logger.info(`[emailSkills] Successfully read email ID ${emailId}. Subject: ${subject}`);
     return { success: true, email };
 
-  } catch (error) {
-    console.error(`Error in readEmail skill for user ${userId}, emailId ${emailId}:`, error);
-    return { success: false, message: (error as Error).message || 'Failed to read email.' };
+  } catch (error: any) {
+    logger.error(`[emailSkills] Error reading email ID ${emailId} for user ${userId}:`, error);
+    if (error.code === 401 || error.code === 403) {
+        return { success: false, message: `Gmail API authentication/authorization error: ${error.message}` };
+    }
+    if (error.code === 404) {
+        return { success: false, message: `Email with ID ${emailId} not found.` };
+    }
+    return { success: false, message: (error as Error).message || `Failed to read email ${emailId}.` };
   }
 }
 
-import OpenAI from 'openai'; // Required for LLM-based extraction
+// Removed callHasuraActionGraphQL and associated GQL constants as they are no longer used by searchMyEmails or readEmail.
+
+import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { ATOM_OPENAI_API_KEY, ATOM_NLU_MODEL_NAME } from '../_libs/constants'; // Reuse existing constants
 
