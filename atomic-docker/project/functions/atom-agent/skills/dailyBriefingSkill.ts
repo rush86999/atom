@@ -61,24 +61,24 @@ function parseDateContextLogic(
 
   const input = (dateContextInput || 'today').toLowerCase().trim();
   let successfullyParsed = false;
+  let determinedTargetDate = getStartOfDayUTC(new Date(baseDate.valueOf())); // Use a mutable copy for calculations
 
-  // Helper to set date components from a base and return a new Date object
-  const adjustDate = (base: Date, dayAdjustment: number): Date => {
-    const newDate = getStartOfDayUTC(new Date(base.valueOf())); // Start with a clean slate at UTC midnight
-    newDate.setUTCDate(base.getUTCDate() + dayAdjustment);
+  // Helper to adjust date by days, ensuring it's at UTC midnight
+  const adjustDateDays = (base: Date, dayAdjustment: number): Date => {
+    const newDate = getStartOfDayUTC(new Date(base.valueOf()));
+    newDate.setUTCDate(newDate.getUTCDate() + dayAdjustment);
     return newDate;
   };
 
-  // Order of parsing: specific keywords first, then regex patterns.
   if (input === 'today') {
-    targetDate = getStartOfDayUTC(baseDate);
+    targetDate = getStartOfDayUTC(baseDate); // Use original baseDate for 'today'
     if (!dateContextInput) status = 'defaulted';
     successfullyParsed = true;
   } else if (input === 'tomorrow') {
-    targetDate = adjustDate(baseDate, 1);
+    targetDate = adjustDateDays(baseDate, 1);
     successfullyParsed = true;
   } else if (input === 'yesterday') {
-    targetDate = adjustDate(baseDate, -1);
+    targetDate = adjustDateDays(baseDate, -1);
     successfullyParsed = true;
   } else {
     // Try parsing YYYY-MM-DD
@@ -89,47 +89,104 @@ function parseDateContextLogic(
       const month = parseInt(yyyyMmDdMatch[2], 10) - 1; // Month is 0-indexed
       const day = parseInt(yyyyMmDdMatch[3], 10);
       const parsed = new Date(Date.UTC(year, month, day));
-      // Check if the constructed date is valid and matches the input numbers
       if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month && parsed.getUTCDate() === day) {
         targetDate = getStartOfDayUTC(parsed);
         successfullyParsed = true;
       } else {
-        logger.warn(`[dailyBriefingSkill] Invalid YYYY-MM-DD date: ${input}`);
+        logger.warn(`[dailyBriefingSkill] Invalid YYYY-MM-DD date string: ${input}`);
       }
     }
 
+    // Try parsing "next/last [weekday]"
     if (!successfullyParsed) {
       const weekdayMap: { [key: string]: number } = {
         sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
       };
-      const relativeWeekdayRegex = /^(next|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/;
+      const relativeWeekdayRegex = /^(next|last)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/;
       const relativeMatch = input.match(relativeWeekdayRegex);
 
       if (relativeMatch) {
-        const direction = relativeMatch[1]; // "next" or "last"
+        const direction = relativeMatch[1];
         const weekdayName = relativeMatch[2];
         const targetDayOfWeek = weekdayMap[weekdayName];
 
-        let tempDate = getStartOfDayUTC(new Date(baseDate.valueOf()));
-        const currentDayOfWeek = tempDate.getUTCDay();
+        determinedTargetDate = getStartOfDayUTC(new Date(baseDate.valueOf())); // Start from baseDate
+        const currentDayOfWeek = determinedTargetDate.getUTCDay();
 
         if (direction === 'next') {
           let daysToAdd = (targetDayOfWeek - currentDayOfWeek + 7) % 7;
-          if (daysToAdd === 0) daysToAdd = 7; // If "next Monday" and today is Monday, go to next week's Monday
-          tempDate.setUTCDate(tempDate.getUTCDate() + daysToAdd);
+          if (daysToAdd === 0) daysToAdd = 7;
+          determinedTargetDate.setUTCDate(determinedTargetDate.getUTCDate() + daysToAdd);
         } else { // "last"
           let daysToSubtract = (currentDayOfWeek - targetDayOfWeek + 7) % 7;
-          if (daysToSubtract === 0) daysToSubtract = 7; // If "last Monday" and today is Monday, go to previous week's Monday
-          tempDate.setUTCDate(tempDate.getUTCDate() - daysToSubtract);
+          if (daysToSubtract === 0) daysToSubtract = 7;
+          determinedTargetDate.setUTCDate(determinedTargetDate.getUTCDate() - daysToSubtract);
         }
-        targetDate = tempDate;
+        targetDate = determinedTargetDate;
         successfullyParsed = true;
+        // Note: Time part after weekday (e.g., "next monday at 3pm") is ignored for now.
+        if (input.includes(" at ")) {
+            logger.info(`[dailyBriefingSkill] Time part in "${originalInput}" is currently ignored. Using start of day.`);
+        }
       }
+    }
+
+    // Try parsing "Month Day" (e.g., "August 15", "Dec 1st")
+    if (!successfullyParsed) {
+        const monthDayRegex = /^(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?/;
+        // Further regex for time part if we were to parse it: (?: at\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?))?
+        const monthDayMatch = input.match(monthDayRegex);
+
+        if (monthDayMatch) {
+            const monthStr = monthDayMatch[1].substring(0,3);
+            const day = parseInt(monthDayMatch[2], 10);
+            const yearStr = monthDayMatch[3];
+
+            const monthMap: { [key: string]: number } = {
+                jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+                jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+            };
+            const month = monthMap[monthStr];
+
+            if (month !== undefined && day >= 1 && day <= 31) {
+                let year = yearStr ? parseInt(yearStr, 10) : baseDate.getUTCFullYear();
+
+                determinedTargetDate = new Date(Date.UTC(year, month, day));
+
+                // Check if valid date (e.g. Feb 30)
+                if (determinedTargetDate.getUTCFUTCDate() !== day || determinedTargetDate.getUTCMonth() !== month || determinedTargetDate.getUTCFullYear() !== year) {
+                     logger.warn(`[dailyBriefingSkill] Invalid Month-Day-Year combination: ${input}`);
+                } else {
+                    // If no year specified and date has passed for current year, assume next year.
+                    if (!yearStr && getStartOfDayUTC(determinedTargetDate) < getStartOfDayUTC(baseDate)) {
+                        year++;
+                        determinedTargetDate.setUTCFullYear(year);
+                        // Re-validate if year change made it invalid (e.g. Feb 29)
+                         if (determinedTargetDate.getUTCMonth() !== month) { // Day rolled over due to invalid date in new year
+                            logger.warn(`[dailyBriefingSkill] Invalid Month-Day for next year: ${input}`);
+                            successfullyParsed = false; // Keep it false
+                        } else {
+                            targetDate = getStartOfDayUTC(determinedTargetDate);
+                            successfullyParsed = true;
+                        }
+                    } else {
+                        targetDate = getStartOfDayUTC(determinedTargetDate);
+                        successfullyParsed = true;
+                    }
+
+                    if (successfullyParsed && input.includes(" at ")) {
+                        logger.info(`[dailyBriefingSkill] Time part in "${originalInput}" is currently ignored. Using start of day.`);
+                    }
+                }
+            } else {
+                 logger.warn(`[dailyBriefingSkill] Could not parse month/day from: ${input}`);
+            }
+        }
     }
   }
 
   if (!successfullyParsed) {
-    targetDate = getStartOfDayUTC(baseDate); // Default to today
+    targetDate = getStartOfDayUTC(baseDate); // Default to today if all parsing fails
     status = 'unparseable';
     warningMessage = `Date context "${originalInput}" is not recognized or is invalid. Defaulting to today.`;
     logger.warn(`[dailyBriefingSkill] ${warningMessage}`);
