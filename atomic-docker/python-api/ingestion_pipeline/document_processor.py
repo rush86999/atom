@@ -1,6 +1,7 @@
 import io
 import os
 import logging
+import json # Added for metadata serialization
 from typing import List, Dict, Any, Optional
 from pdfminer.high_level import extract_text_to_fp
 from pdfminer.layout import LAParams
@@ -71,6 +72,10 @@ def extract_text_from_pdf(pdf_file_path_or_bytes: Any) -> str:
 def extract_text_from_docx(file_path_or_bytes: Any) -> str:
     if not PYTHON_DOCX_AVAILABLE or not docx:
         raise ImportError("python-docx library is required for DOCX processing but not found.")
+
+    extracted_elements: List[str] = []
+    doc_properties: Dict[str, Any] = {}
+
     try:
         if isinstance(file_path_or_bytes, str):
             if not os.path.exists(file_path_or_bytes):
@@ -80,11 +85,72 @@ def extract_text_from_docx(file_path_or_bytes: Any) -> str:
             document = docx.Document(io.BytesIO(file_path_or_bytes))
         else:
             raise ValueError("Input for DOCX extraction must be a file path (str) or bytes.")
-        full_text = [para.text for para in document.paragraphs if para.text.strip()]
-        return '\n\n'.join(full_text) # Join paragraphs with double newline for some separation
+
+        # Extract core properties
+        props = document.core_properties
+        doc_properties['author'] = props.author
+        doc_properties['category'] = props.category
+        doc_properties['comments'] = props.comments
+        doc_properties['content_status'] = props.content_status
+        doc_properties['created'] = props.created.isoformat() if props.created else None
+        doc_properties['identifier'] = props.identifier
+        doc_properties['keywords'] = props.keywords
+        doc_properties['language'] = props.language
+        doc_properties['last_modified_by'] = props.last_modified_by
+        doc_properties['last_printed'] = props.last_printed.isoformat() if props.last_printed else None
+        doc_properties['modified'] = props.modified.isoformat() if props.modified else None
+        doc_properties['revision'] = props.revision
+        doc_properties['subject'] = props.subject
+        doc_properties['title'] = props.title
+        doc_properties['version'] = props.version
+
+        # Filter out None values from properties
+        doc_properties = {k: v for k, v in doc_properties.items() if v is not None and v != ''}
+
+
+        # Iterate through document body elements (paragraphs and tables)
+        for element in document.element.body:
+            if isinstance(element, docx.oxml.text.paragraph.CT_P): # Paragraph
+                para = docx.text.paragraph.Paragraph(element, document)
+                if para.text.strip():
+                    style_name = para.style.name.lower() if para.style else ''
+                    text = para.text.strip()
+
+                    # Basic heading detection (can be expanded)
+                    if style_name.startswith('heading 1') or style_name.startswith('h1'):
+                        extracted_elements.append(f"[H1] {text}")
+                    elif style_name.startswith('heading 2') or style_name.startswith('h2'):
+                        extracted_elements.append(f"[H2] {text}")
+                    elif style_name.startswith('heading 3') or style_name.startswith('h3'):
+                        extracted_elements.append(f"[H3] {text}")
+                    elif style_name.startswith('heading 4') or style_name.startswith('h4'):
+                        extracted_elements.append(f"[H4] {text}")
+                    # Basic list item detection (very naive)
+                    elif para.style.name.lower().startswith('list paragraph') or \
+                         (len(para.runs) > 0 and para.runs[0].text.strip() in ['•', '*', '-', '1.', 'a.']) : # common list markers
+                        extracted_elements.append(f"[LIST_ITEM] {text}")
+                    else:
+                        extracted_elements.append(text)
+
+            elif isinstance(element, docx.oxml.table.CT_Tbl): # Table
+                table = docx.table.Table(element, document)
+                extracted_elements.append("[TABLE_START]")
+                for row_idx, row in enumerate(table.rows):
+                    row_texts: List[str] = []
+                    for cell_idx, cell in enumerate(row.cells):
+                        cell_text = cell.text.strip().replace("\n", " ").replace("\t", " ") # Normalize cell content
+                        row_texts.append(f"[TABLE_CELL row={row_idx+1} col={cell_idx+1}] {cell_text}")
+                    extracted_elements.append("[TABLE_ROW_START]\n" + "\n".join(row_texts) + "\n[TABLE_ROW_END]")
+                extracted_elements.append("[TABLE_END]")
+
+        return '\n\n'.join(extracted_elements), doc_properties
+
     except Exception as e:
         logger.error(f"Error extracting text from DOCX input: {e}", exc_info=True)
-        raise
+        # Return empty string and empty dict in case of error to allow partial processing if needed downstream
+        # Or re-raise depending on desired strictness
+        raise # For now, re-raise to signal failure clearly
+
 
 def extract_text_from_txt(file_path_or_bytes: Any, encoding: str = 'utf-8') -> str:
     try:
@@ -190,13 +256,14 @@ async def process_document_and_store(
     if not lancedb_handler:
          return {"status": "error", "message": "LanceDB handler not available.", "code": "LANCEDB_HANDLER_UNAVAILABLE"}
 
-    extracted_text = ""
+    extracted_text: str = ""
+    additional_doc_props: Optional[Dict[str, Any]] = None
     try:
         if processing_mime_type == "application/pdf":
             extracted_text = extract_text_from_pdf(file_path_or_bytes)
         elif processing_mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or \
              original_doc_type.endswith("docx"): # Broader check for docx
-            extracted_text = extract_text_from_docx(file_path_or_bytes)
+            extracted_text, additional_doc_props = extract_text_from_docx(file_path_or_bytes)
         elif processing_mime_type == "text/plain" or original_doc_type.endswith("txt"):
             extracted_text = extract_text_from_txt(file_path_or_bytes)
         elif processing_mime_type == "text/html" or \
@@ -219,11 +286,29 @@ async def process_document_and_store(
         # TODO: Update document status in LanceDB to "failed_extraction"
         return {"status": "error", "message": f"Text extraction failed: {str(extraction_error)}", "code": "TEXT_EXTRACTION_FAILED"}
 
+    # Prepare combined metadata
+    final_metadata_dict: Dict[str, Any] = {}
+    if doc_metadata_json: # If input metadata_json string exists
+        try:
+            final_metadata_dict = json.loads(doc_metadata_json)
+        except json.JSONDecodeError:
+            logger.warning(f"Could not parse input doc_metadata_json for doc_id {document_id}. Starting with empty metadata dict.")
+            final_metadata_dict = {}
+
+    if additional_doc_props: # If properties were extracted (e.g., from DOCX)
+        final_metadata_dict.update(additional_doc_props) # Merge/overwrite with new props
+
+    final_metadata_json_str: Optional[str] = None
+    if final_metadata_dict:
+        final_metadata_json_str = json.dumps(final_metadata_dict)
+
+
     if not extracted_text.strip():
         logger.warning(f"No text extracted from document: {source_uri} (ID: {document_id})")
         doc_meta_to_store = {
             "doc_id": document_id, "user_id": user_id, "source_uri": source_uri,
-            "doc_type": original_doc_type, "title": title, "metadata_json": doc_metadata_json,
+            "doc_type": original_doc_type, "title": title,
+            "metadata_json": final_metadata_json_str, # Use combined and serialized metadata
             "ingested_at": datetime.now(timezone.utc).isoformat(), # Store as ISO string
             "processing_status": "failed_empty_content", "error_message": "No text content extracted."
         }
@@ -257,7 +342,8 @@ async def process_document_and_store(
     if not chunks_with_embeddings_data:
         doc_meta_err_embed = {
             "doc_id": document_id, "user_id": user_id, "source_uri": source_uri,
-            "doc_type": original_doc_type, "title": title, "metadata_json": doc_metadata_json,
+            "doc_type": original_doc_type, "title": title,
+            "metadata_json": final_metadata_json_str, # Use combined and serialized metadata
             "ingested_at": datetime.now(timezone.utc).isoformat(),
             "processing_status": "failed_embedding", "error_message": "No chunks could be embedded."
         }
@@ -269,7 +355,8 @@ async def process_document_and_store(
 
     doc_meta_to_store = {
         "doc_id": document_id, "user_id": user_id, "source_uri": source_uri,
-        "doc_type": original_doc_type, "title": title, "metadata_json": doc_metadata_json,
+        "doc_type": original_doc_type, "title": title,
+        "metadata_json": final_metadata_json_str, # Use combined and serialized metadata
         "ingested_at": datetime.now(timezone.utc).isoformat(),
         "processing_status": "completed",
     }
