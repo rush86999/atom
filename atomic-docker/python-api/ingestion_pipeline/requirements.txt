@@ -12,6 +12,9 @@ lancedb>=0.5.0
 pydantic>=2.0.0
 pyarrow
 
+# For Meilisearch
+meilisearch>=0.36.0,<1.0.0
+
 # General utilities
 python-dotenv # For local .env file loading
 # Add other specific dependencies if this becomes a standalone service

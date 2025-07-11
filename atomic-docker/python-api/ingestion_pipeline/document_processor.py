@@ -40,9 +40,11 @@ except ImportError as e:
 
 try:
     from . import lancedb_handler
+    from . import meilisearch_handler # Import Meilisearch handler
 except ImportError:
     import lancedb_handler # Fallback for different execution contexts
-    logging.getLogger(__name__).warning("Imported lancedb_handler using fallback.")
+    import meilisearch_handler # Fallback for different execution contexts
+    logging.getLogger(__name__).warning("Imported lancedb_handler and/or meilisearch_handler using fallback.")
 
 
 logger = logging.getLogger(__name__)
@@ -366,15 +368,82 @@ async def process_document_and_store(
         return {"status": "error", "message": "Failed to connect to LanceDB.", "code": "LANCEDB_CONNECTION_ERROR"}
 
     await lancedb_handler.create_generic_document_tables_if_not_exist(db_conn)
-    storage_result = await lancedb_handler.add_processed_document(
+    lancedb_storage_result = await lancedb_handler.add_processed_document(
         db_conn=db_conn, doc_meta=doc_meta_to_store, chunks_with_embeddings=chunks_with_embeddings_data
     )
 
-    if storage_result["status"] == "success":
-        logger.info(f"Successfully processed and stored document: {source_uri}, doc_id: {document_id}")
+    # --- Meilisearch Integration ---
+    MEILISEARCH_INDEX_NAME = "atom_general_documents"
+    MEILISEARCH_PRIMARY_KEY = "doc_id"
+
+    if lancedb_storage_result["status"] == "success": # Proceed to Meilisearch only if LanceDB was successful
+        logger.info(f"LanceDB storage successful for {document_id}. Proceeding to Meilisearch.")
+
+        # One-time setup for index settings (simplification for now)
+        # This should ideally be an idempotent setup step elsewhere or checked less frequently.
+        meili_client_check = meilisearch_handler.get_meilisearch_client()
+        if meili_client_check: # Ensure client is available before trying to setup index
+            current_settings = await meilisearch_handler.get_or_create_index(MEILISEARCH_INDEX_NAME, primary_key=MEILISEARCH_PRIMARY_KEY)
+            if current_settings: # Index exists or was created
+                # Define desired settings (idempotent update)
+                # Ensure all fields used in filters/sorts are declared here.
+                # Based on typical document metadata:
+                desired_settings = {
+                    'filterableAttributes': [
+                        'doc_id', 'user_id', 'doc_type', 'source_uri', 'title',
+                        'processing_status',
+                        # Add any custom/DOCX properties you expect to filter on from final_metadata_dict keys
+                        # Example: 'author', 'category' (if these are common)
+                    ],
+                    'sortableAttributes': ['ingested_at', 'title'], # Add 'created_at_source', 'last_modified_source' if needed
+                    'searchableAttributes': ['title', 'extracted_text', 'source_uri', 'doc_type'] # Ensure 'extracted_text' is searchable
+                }
+                # Check existing settings to avoid redundant updates could be complex.
+                # For now, just call update. Meilisearch handles task if no change.
+                logger.info(f"Ensuring Meilisearch index '{MEILISEARCH_INDEX_NAME}' settings: {desired_settings}")
+                settings_update_result = await meilisearch_handler.update_index_settings(MEILISEARCH_INDEX_NAME, desired_settings)
+                if settings_update_result.get("status") != "success":
+                    logger.warning(f"Failed to update Meilisearch index settings for {MEILISEARCH_INDEX_NAME}: {settings_update_result.get('message')}")
+                else:
+                    logger.info(f"Meilisearch index settings ensured for {MEILISEARCH_INDEX_NAME}. Task: {settings_update_result.get('task_uid')}")
+
+
+        # Prepare document for Meilisearch
+        # Include all fields from doc_meta_to_store and the full extracted_text
+        meili_document = {
+            **doc_meta_to_store, # Contains doc_id, user_id, source_uri, doc_type, title, metadata_json, ingested_at, processing_status
+            "extracted_text": extracted_text # Add the full text content
+        }
+        # Remove fields not directly useful for Meilisearch or handled differently (like embeddings)
+        # For example, if 'metadata_json' is a string of a dict, Meili might handle it, or you might want to flatten it.
+        # For now, let's assume Meili can handle the stringified JSON in metadata_json if needed, or it's ignored if not in searchableAttributes.
+        # If 'metadata_json' was parsed into final_metadata_dict earlier, we can add its fields directly:
+        if final_metadata_dict: # final_metadata_dict was prepared earlier
+             meili_document.update(final_metadata_dict) # Add flattened properties
+        # Ensure primary key field name matches what Meilisearch expects if different from LanceDB's doc_meta_to_store key.
+        # Here, 'doc_id' is consistent.
+
+        meili_add_result = await meilisearch_handler.add_documents_to_index(
+            MEILISEARCH_INDEX_NAME,
+            [meili_document], # Add as a list containing the single document
+            primary_key_on_add=MEILISEARCH_PRIMARY_KEY
+        )
+
+        if meili_add_result.get("status") == "success":
+            logger.info(f"Successfully added/updated document {document_id} in Meilisearch index '{MEILISEARCH_INDEX_NAME}'.")
+        else:
+            logger.error(f"Failed to add/update document {document_id} in Meilisearch: {meili_add_result.get('message')}")
+            # Optionally, update overall status to warning if Meili fails but LanceDB succeeded
+            return {"status": "warning", "message": f"LanceDB success, but Meilisearch failed: {meili_add_result.get('message')}",
+                    "data": {"doc_id": document_id, "num_chunks_stored": len(chunks_with_embeddings_data)},
+                    "meili_error_code": meili_add_result.get("code")}
+
+    # Final return based on lancedb_storage_result and potential Meili failure
+    if lancedb_storage_result["status"] == "success":
+        logger.info(f"Successfully processed and stored document: {source_uri}, doc_id: {document_id} (LanceDB & Meilisearch)")
         return {"status": "success", "data": {"doc_id": document_id, "num_chunks_stored": len(chunks_with_embeddings_data)}}
-    else:
-        logger.error(f"Failed to store processed document {document_id} in LanceDB: {storage_result.get('message')}")
-        return {"status": "error", "message": f"LanceDB storage failed: {storage_result.get('message')}", "code": storage_result.get("code", "LANCEDB_STORAGE_ERROR")}
+    else: # LanceDB failed
+        logger.error(f"Failed to store processed document {document_id} in LanceDB: {lancedb_storage_result.get('message')}")
+        return {"status": "error", "message": f"LanceDB storage failed: {lancedb_storage_result.get('message')}", "code": lancedb_storage_result.get("code", "LANCEDB_STORAGE_ERROR")}
 
 ```
