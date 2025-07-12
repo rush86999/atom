@@ -262,6 +262,75 @@ except ImportError as e_ls:
     if 'meilisearch_handler' not in locals():
         meilisearch_handler = MockMeiliHandler()
 
+    # For Hybrid Search
+    try:
+        from ingestion_pipeline import hybrid_search_service
+        HYBRID_SEARCH_AVAILABLE = True
+    except ImportError as e_hs:
+        print(f"Warning: Could not import hybrid_search_service: {e_hs}. /api/search/hybrid will not be functional.", file=sys.stderr)
+        HYBRID_SEARCH_AVAILABLE = False
+        class MockHybridSearchService:
+            async def hybrid_search_documents(self, **kwargs):
+                return [] # Return empty list or error structure
+        hybrid_search_service = MockHybridSearchService()
+
+
+@search_routes_bp.route('/api/search/hybrid', methods=['POST'])
+async def hybrid_search_route():
+    if not HYBRID_SEARCH_AVAILABLE or not LANCEDB_SERVICE_AVAILABLE or not MEILI_HANDLER_AVAILABLE: # Check all needed underlying services
+        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "Hybrid search or one of its dependent services is not available."}}), 503
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": {"code": "INVALID_PAYLOAD", "message": "Request must be JSON."}}), 400
+
+    query_text = data.get('query_text')
+    user_id = data.get('user_id')
+
+    if not query_text:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "query_text is required."}}), 400
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    limit_semantic = data.get('limit_semantic', 5)
+    limit_keyword = data.get('limit_keyword', 10)
+    filters = data.get('filters') # Pass as is, service layer will interpret
+    openai_api_key_param = data.get('openai_api_key')
+
+    # Get DB and Meili clients once for the request
+    # lancedb_handler and meilisearch_handler should be available from imports at top of file
+    db_conn = await lancedb_handler.get_lancedb_connection()
+    meili_client = meilisearch_handler.get_meilisearch_client()
+
+    if not db_conn:
+        logger.error("Hybrid Search: Failed to get LanceDB connection.")
+        # Fallback to keyword-only search if LanceDB connection fails? Or return error?
+        # For now, let's assume semantic part is crucial and error out if it can't connect.
+        # Alternatively, the hybrid_search_service could handle this more gracefully.
+        return jsonify({"ok": False, "error": {"code": "LANCEDB_CONNECTION_ERROR", "message": "Failed to connect to LanceDB for hybrid search."}}), 503
+
+    # Meili client check is implicitly handled by hybrid_search_service if not passed,
+    # but good to be aware. If meili_client is None here, service will try to get it.
+
+    try:
+        search_results = await hybrid_search_service.hybrid_search_documents(
+            user_id=user_id,
+            query_text=query_text,
+            openai_api_key_param=openai_api_key_param,
+            db_conn=db_conn,
+            meili_client=meili_client, # Pass the client
+            semantic_limit=limit_semantic,
+            keyword_limit=limit_keyword,
+            filters=filters
+        )
+        # The result should be List[UnifiedSearchResultItem (Pydantic model)]
+        # Pydantic models will be automatically serialized to dicts by jsonify
+        return jsonify({"ok": True, "data": search_results}), 200
+
+    except Exception as e:
+        logger.error(f"Error during hybrid search route execution: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "HYBRID_SEARCH_EXECUTION_ERROR", "message": f"An error occurred during hybrid search: {str(e)}" }}), 500
+
 
 @search_routes_bp.route('/api/search/meili', methods=['GET'])
 async def meilisearch_keyword_search_route():
