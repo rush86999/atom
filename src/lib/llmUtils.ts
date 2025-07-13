@@ -16,10 +16,12 @@ export type LLMTaskType =
   | 'generate_followup_suggestions'
   | 'extract_document_snippets'
   | 'summarize_document_snippets'
-  | 'summarize_overall_answer';
+  | 'summarize_overall_answer'
+  | 'parse_search_query'; // Added for the new NLU filter skill
 
 // --- Data Payloads for specific tasks ---
 export interface EmailCategorizationData { subject: string; bodySnippet: string; }
+export interface SearchQueryParsingData { rawQuery: string; currentDate: string; } // Added for the new NLU filter skill
 export interface EmailSummarizationData { subject: string; bodySnippet: string; }
 export interface EmailReplySuggestionData {
     category: string; // Could be more specific like EmailCategory, but string is fine for mock
@@ -271,6 +273,40 @@ export class OpenAIGroqService_Stub implements LLMServiceInterface {
             const sugData = structuredPrompt.data as FollowupSuggestionData;
             systemMessage = `Given the user query and shown guidance, suggest two distinct, related topics or advanced features. Return JSON: {"suggestions": ["Sugg 1", "Sugg 2"]}. If none, return {"suggestions": []}.`;
             userMessageContent = `User Query: '${sugData.query}'\nGuidance Shown (Title): '${sugData.articleTitle || 'N/A'}'`;
+            break;
+        case 'parse_search_query':
+            const parseData = structuredPrompt.data as SearchQueryParsingData;
+            systemMessage = `You are an expert NLU (Natural Language Understanding) parser for a search engine. Your task is to analyze a user's raw search query and convert it into a structured JSON object.
+
+You must identify the following entities from the user's query:
+
+1.  \`search_term\`: The core subject of the search. Remove filler words like "find me", "show me", "search for", etc. Keep the essential keywords.
+
+2.  \`filters\`: An object containing structured filter criteria. You must extract the following filter types:
+
+    *   \`doc_types\`: An array of document types mentioned. The valid types are: \`gdrive_pdf\`, \`gdrive_docx\`, \`gdrive_folder\`, \`gdrive_sheet\`, \`gdrive_slide\`, \`email_snippet\`, \`notion_summary\`, \`document_chunk\`. If a user says "g-drive doc", map it to \`gdrive_docx\`. If they say "pdf" without "gdrive", map to \`document_chunk\`.
+
+    *   \`date_after\` & \`date_before\`: A date range. Today's date is ${parseData.currentDate}. If the user says "last month", calculate the first and last day of the previous month. If they say "this week", calculate the past Monday and upcoming Sunday. If the user says "yesterday", calculate the start and end of the previous day. Always return the date as a full \`YYYY-MM-DD\` string.
+
+    *   \`date_field_to_filter\`: The date field to filter on. Valid fields are \`ingested_at\`, \`created_at_source\`, \`last_modified_source\`. Default to \`ingested_at\` if ambiguous.
+
+    *   \`metadata_properties\`: Key-value pairs like "by <author>". Extract the key (e.g., "author") and the value.
+
+You MUST respond with ONLY a valid JSON object. The JSON object must conform to this structure:
+\`\`\`json
+{
+  "search_term": "string",
+  "filters": {
+    "doc_types": ["string", ...],
+    "date_after": "YYYY-MM-DD",
+    "date_before": "YYYY-MM-DD",
+    "date_field_to_filter": "string",
+    "metadata_properties": { "key": "value", ... }
+  }
+}
+\`\`\`
+If a filter is not present, omit its key. If no filters are found, \`filters\` should be an empty object.`;
+            userMessageContent = `User Query: "${parseData.rawQuery}"`;
             break;
         default:
             systemMessage = `You are an AI assistant performing task: ${structuredPrompt.task}. Respond appropriately based on the data.`;

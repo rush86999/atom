@@ -100,6 +100,46 @@ export async function initiateResearch(
   }
 }
 
+
+// --- Hybrid Search Orchestration ---
+import { hybridSearch, HybridSearchOptions } from '../../../src/skills/lanceDbStorageSkills'; // Adjust path as needed
+import { parseSearchQueryWithLLM } from '../../../src/nlu_agents/nluSearchFilterSkill'; // Adjust path
+import { HybridSearchResultItem } from '../types';
+
+/**
+ * Orchestrates a search by first parsing the raw query with an NLU LLM,
+ * then executing a hybrid search with the parsed term and filters.
+ * @param userId The ID of the user performing the search.
+ * @param rawQuery The user's natural language search query.
+ * @param options Optional limits for the search.
+ * @returns A promise that resolves to a SkillResponse containing hybrid search results.
+ */
+export async function performHybridSearchWithNLU(
+  userId: string,
+  rawQuery: string,
+  options?: Omit<HybridSearchOptions, 'filters'> // Callers shouldn't provide filters directly
+): Promise<SkillResponse<HybridSearchResultItem[]>> {
+  logger.info(`[performHybridSearchWithNLU] Received raw query: "${rawQuery}"`);
+
+  // 1. Parse the raw query to get search term and filters
+  const parsedQuery = await parseSearchQueryWithLLM(rawQuery);
+  logger.info(`[performHybridSearchWithNLU] NLU parsed result - Term: "${parsedQuery.search_term}", Filters:`, parsedQuery.filters);
+
+  // 2. Execute the hybrid search with the parsed components
+  const searchOptions: HybridSearchOptions = {
+    ...options, // Pass through any limits from the caller
+    filters: parsedQuery.filters, // Use the filters determined by the NLU
+  };
+
+  const searchResult = await hybridSearch(
+    userId,
+    parsedQuery.search_term,
+    searchOptions
+  );
+
+  return searchResult;
+}
+
 // --- Notion Task Management Skills ---
 
 export async function createNotionTask(
