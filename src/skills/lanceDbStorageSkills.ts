@@ -207,12 +207,12 @@ export interface SemanticSearchFilters {
 }
 
 // Ensure UniversalSearchResultItem is imported from types.ts
-import { UniversalSearchResultItem, SearchResultSourceType, HybridSearchResultItem } from '../../atomic-docker/project/functions/atom-agent/types';
+import { UniversalSearchResultItem, SearchResultSourceType, HybridSearchResultItem, HybridSearchFilters } from '../../atomic-docker/project/functions/atom-agent/types';
 
 export interface HybridSearchOptions {
   semanticLimit?: number;
   keywordLimit?: number;
-  filters?: any; // Define a more specific filter type if needed
+  filters?: HybridSearchFilters; // Use the new specific filter type
 }
 
 export async function hybridSearch(
