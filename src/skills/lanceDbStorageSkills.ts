@@ -207,7 +207,66 @@ export interface SemanticSearchFilters {
 }
 
 // Ensure UniversalSearchResultItem is imported from types.ts
-import { UniversalSearchResultItem, SearchResultSourceType } from '../../atomic-docker/project/functions/atom-agent/types';
+import { UniversalSearchResultItem, SearchResultSourceType, HybridSearchResultItem } from '../../atomic-docker/project/functions/atom-agent/types';
+
+export interface HybridSearchOptions {
+  semanticLimit?: number;
+  keywordLimit?: number;
+  filters?: any; // Define a more specific filter type if needed
+}
+
+export async function hybridSearch(
+  userId: string,
+  queryText: string,
+  options: HybridSearchOptions = {},
+): Promise<SkillResponse<HybridSearchResultItem[]>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    const errorMsg = "PYTHON_API_SERVICE_BASE_URL is not configured for hybrid search.";
+    logger.error(`[hybridSearch] ${errorMsg}`);
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: errorMsg } };
+  }
+  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.'}};
+  if (!queryText || queryText.trim() === "") return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'queryText cannot be empty.'}};
+
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/search/hybrid`;
+  const payload = {
+    user_id: userId,
+    query_text: queryText,
+    limit_semantic: options.semanticLimit,
+    limit_keyword: options.keywordLimit,
+    filters: options.filters || {},
+  };
+
+  logger.info(`[hybridSearch] Performing hybrid search for user ${userId} with query "${queryText.substring(0, 50)}..."`);
+
+  try {
+    // Note: The response data should be `HybridSearchResultItem[]`
+    const response = await axios.post<SkillResponse<HybridSearchResultItem[]>>(endpoint, payload, {
+      timeout: LANCE_DB_STORAGE_API_TIMEOUT * 2.5 // Give hybrid search a bit more time
+    });
+
+    if (response.data && response.data.ok && Array.isArray(response.data.data)) {
+      logger.info(`[hybridSearch] Successfully received ${response.data.data.length} hybrid search results.`);
+      return { ok: true, data: response.data.data };
+    } else if (response.data && !response.data.ok && response.data.error) {
+        logger.warn(`[hybridSearch] Hybrid search failed. API ok:false`, response.data.error);
+        return { ok: false, error: response.data.error };
+    } else {
+        logger.warn(`[hybridSearch] Unexpected response structure from hybrid search API.`, response.data);
+        return {
+            ok: false,
+            error: {
+              code: 'PYTHON_API_UNEXPECTED_RESPONSE',
+              message: 'Unexpected response structure from Python hybrid search API.' ,
+              details: response.data
+            }
+        };
+    }
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'hybridSearch');
+  }
+}
+
 
 export async function semanticSearchLanceDb(
   userId: string,

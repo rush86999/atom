@@ -14,7 +14,9 @@ import {
   storeEmailSnippetInLanceDb,
   storeNotionPageSummaryInLanceDb,
   semanticSearchLanceDb,
-  SemanticSearchFilters
+  SemanticSearchFilters,
+  hybridSearch, // Import the new hybrid search function
+  HybridSearchResultItem
 } from './lanceDbStorageSkills';
 import { AuthService } from '../services/authService';
 // Changed: listGoogleDriveFiles removed, getGoogleDriveFileMetadata imported
@@ -46,7 +48,7 @@ export interface SmartMeetingPrepSkillOutput {
   relatedDocuments?: any[];
   relatedEmails?: GmailMessageSnippet[];
   relatedNotionPages?: NotionPageSummary[];
-  semanticallyRelatedItems?: UniversalSearchResultItem[];
+  hybridSearchResults?: HybridSearchResultItem[]; // Changed from semanticallyRelatedItems
   gdriveFilesTriggered?: GoogleDriveFile[];
   dataFetchingErrors?: string[];
 }
@@ -121,8 +123,8 @@ export class SmartMeetingPrepSkill {
     let relatedEmails: GmailMessageSnippet[] = [];
     let relatedNotionPages: NotionPageSummary[] = [];
     const dataFetchingErrors: string[] = [];
-    let semanticallyRelatedItems: UniversalSearchResultItem[] = [];
-    let uniqueSemanticallyRelatedItems: UniversalSearchResultItem[] = [];
+    let hybridSearchResults: HybridSearchResultItem[] = []; // Changed from semanticallyRelatedItems
+    let uniqueHybridSearchResults: HybridSearchResultItem[] = []; // Changed from uniqueSemanticallyRelatedItems
     const gdriveFilesTriggered: GoogleDriveFile[] = [];
 
     if (resolvedEvent) {
@@ -253,21 +255,39 @@ export class SmartMeetingPrepSkill {
       topEmails.forEach((se, idx) => logger.info(`TopEmail[${idx}] (Score: ${se.score.toFixed(1)}): ${se.item.subject?.substring(0,50)}... (From: ${se.item.from})`));
       topNotionPages.forEach((sp, idx) => logger.info(`TopNotion[${idx}] (Score: ${sp.score.toFixed(1)}): ${sp.item.title?.substring(0,50)}... (ExplicitLink: ${explicitNotionLinkPageIds.has(sp.item.id)})`));
 
-      const semanticQueryText = resolvedEvent.title + (eventDescKeywords.length > 0 ? " " + eventDescKeywords.join(" ") : "");
-      if (semanticQueryText.trim() && semanticSearchLanceDb) {
-        const searchFilters: SemanticSearchFilters = { source_types: ["document_chunk", "email_snippet", "notion_summary"] };
+      const searchQueryText = resolvedEvent.title + (eventDescKeywords.length > 0 ? " " + eventDescKeywords.join(" ") : "");
+      if (searchQueryText.trim() && hybridSearch) {
+        // We can define filters here if needed, e.g., to exclude certain doc types
+        // const searchFilters = { meilisearch_filter_string: "doc_type != 'email'" };
         try {
-          const semanticSearchResponse = await semanticSearchLanceDb(input.userId, semanticQueryText, searchFilters, 5);
-          if (semanticSearchResponse.ok && semanticSearchResponse.data) semanticallyRelatedItems = semanticSearchResponse.data;
-          else dataFetchingErrors.push(`Semantic search failed: ${semanticSearchResponse.error?.message || 'Unknown error'}`);
-        } catch (e: any) { dataFetchingErrors.push(`Semantic search execution error: ${e.message}`); }
+          // Using the new hybridSearch function
+          const hybridSearchResponse = await hybridSearch(input.userId, searchQueryText, { semanticLimit: 5, keywordLimit: 10 });
+          if (hybridSearchResponse.ok && hybridSearchResponse.data) {
+            hybridSearchResults = hybridSearchResponse.data;
+          } else {
+            dataFetchingErrors.push(`Hybrid search failed: ${hybridSearchResponse.error?.message || 'Unknown error'}`);
+          }
+        } catch (e: any) {
+          dataFetchingErrors.push(`Hybrid search execution error: ${e.message}`);
+        }
       }
+
+      // De-duplication logic against items fetched via specific skills (e.g. recent emails)
       const existingItemIds = new Set<string>();
       relatedEmails.forEach(email => existingItemIds.add(email.id));
       relatedNotionPages.forEach(page => existingItemIds.add(page.id));
-      uniqueSemanticallyRelatedItems = semanticallyRelatedItems.filter(item => item.source_type === "document_chunk" || !existingItemIds.has(item.id));
-      if (semanticallyRelatedItems.length !== uniqueSemanticallyRelatedItems.length) {
-        logger.info(`SmartMeetingPrepSkill: De-duplicated semantic results. Original: ${semanticallyRelatedItems.length}, Unique: ${uniqueSemanticallyRelatedItems.length}`);
+      // The backend already de-duplicates between semantic/keyword, but we also de-duplicate against items fetched by other means.
+      uniqueHybridSearchResults = hybridSearchResults.filter(item => {
+        // doc_id for a Meili/LanceDB document might correspond to an email 'id' or notion 'id'
+        // For now, we assume the backend search indexes these with consistent IDs.
+        // We also want to ensure we don't show a keyword match for an email if we already have it from the direct `searchEmailsForPrep` call.
+        if (item.doc_type === 'email_snippet' || item.doc_type === 'notion_summary') {
+          return !existingItemIds.has(item.doc_id);
+        }
+        return true; // Keep all other types like document_chunks
+      });
+      if (hybridSearchResults.length !== uniqueHybridSearchResults.length) {
+        logger.info(`SmartMeetingPrepSkill: De-duplicated hybrid results against other sources. Original: ${hybridSearchResults.length}, Unique: ${uniqueHybridSearchResults.length}`);
       }
 
       preparationNotes = await this._generatePreparationNotes(
@@ -281,7 +301,7 @@ export class SmartMeetingPrepSkill {
         eventTitleKeywords,
         eventDescKeywords,
         gdriveFilesTriggered,
-        uniqueSemanticallyRelatedItems
+        uniqueHybridSearchResults // Pass the new hybrid results array
       );
       logger.info(`SmartMeetingPrepSkill: Prep materials generated for "${resolvedEvent.title}".`);
 
@@ -297,7 +317,7 @@ export class SmartMeetingPrepSkill {
 
     const output: SmartMeetingPrepSkillOutput = {
       resolvedEvent, relatedDocuments, relatedEmails, relatedNotionPages,
-      semanticallyRelatedItems: uniqueSemanticallyRelatedItems,
+      hybridSearchResults: uniqueHybridSearchResults, // Changed from semanticallyRelatedItems
       gdriveFilesTriggered: gdriveFilesTriggered,
       preparationNotes,
       dataFetchingErrors
@@ -325,9 +345,9 @@ export class SmartMeetingPrepSkill {
     notionPages: NotionPageSummary[], errors: string[], topEmails: GmailMessageSnippet[],
     topNotionPages: NotionPageSummary[], eventTitleKeywords: string[], eventDescKeywords: string[],
     gdriveFilesTriggered?: GoogleDriveFile[],
-    semanticallyRelatedItems?: UniversalSearchResultItem[]
+    hybridSearchResults?: HybridSearchResultItem[] // Changed from semanticallyRelatedItems
   ): Promise<string> {
-    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), ${gdriveFilesTriggered?.length || 0} GDrive files triggered, ${semanticallyRelatedItems?.length || 0} semantic items, and ${errors.length} errors.`);
+    logger.info(`[SmartMeetingPrepSkill._generatePreparationNotes] Generating notes for event: "${event.title}", with ${emails.length} total emails (${topEmails.length} top), ${notionPages.length} total Notion pages (${topNotionPages.length} top), ${gdriveFilesTriggered?.length || 0} GDrive files triggered, ${hybridSearchResults?.length || 0} hybrid search items, and ${errors.length} errors.`);
     const titleLower = event.title.toLowerCase(); const descriptionLower = event.description?.toLowerCase() || "";
     let notes = `## Meeting Preparation Notes: ${event.title}\n\n`;
     if (topEmails.length > 0 || topNotionPages.length > 0) {
@@ -375,7 +395,7 @@ export class SmartMeetingPrepSkill {
     if (emails.length > 0) { notes += "**Recently Exchanged Emails (with attendees, around meeting date):**\n"; emails.forEach(email => { const emailDate = email.date ? new Date(email.date).toLocaleDateString() : "N/A"; notes += `- **Subject:** "${email.subject || '(No Subject)'}" (From: ${email.from || 'N/A'}, Date: ${emailDate})\n`; if (email.snippet) notes += `  *Snippet:* ${email.snippet}...\n`; if (email.link) notes += `  *Link:* ${email.link}\n`; }); notes += "\n"; } else { notes += "**Recently Exchanged Emails:**\n- No specific recent emails found.\n\n"; }
     if (notionPages.length > 0) { notes += "**Related Notion Pages:**\n"; notionPages.forEach(page => { notes += `- **Title:** "${page.title || 'Untitled Page'}"`; if (page.last_edited_time) notes += ` (Last edited: ${new Date(page.last_edited_time).toLocaleDateString()})`; notes += "\n"; if (page.preview_text) notes += `  *Preview:* ${page.preview_text}...\n`; if (page.url) notes += `  *Link:* ${page.url}\n`; }); notes += "\n"; } else { notes += "**Related Notion Pages:**\n- No Notion pages found related to keywords.\n\n"; }
     if (gdriveFilesTriggered && gdriveFilesTriggered.length > 0) { notes += "ℹ️ **Google Drive Files Identified for Processing:**\n"; gdriveFilesTriggered.forEach(file => { notes += `- "${file.name}" (Type: ${file.mimeType})\n`; }); notes += "These files are being queued for processing and their content may be available for context in future preparations or searches.\n\n"; }
-    if (semanticallyRelatedItems && semanticallyRelatedItems.length > 0) { notes += "📚 **Additional Context from Knowledge Base (Semantic Search)**\n\n"; semanticallyRelatedItems.forEach(item => { let itemTypeDisplay = "Contextual Item"; let titleDisplay = item.title || 'N/A'; if (item.source_type === "document_chunk") { itemTypeDisplay = item.document_doc_type ? `${item.document_doc_type.toUpperCase()} Document Excerpt` : "Document Excerpt"; } else if (item.source_type === "email_snippet") itemTypeDisplay = "Related Email"; else if (item.source_type === "notion_summary") itemTypeDisplay = "Related Notion Page"; notes += `- **Type:** ${itemTypeDisplay}\n`; notes += `  - **Title/Subject:** "${titleDisplay}"\n`; if (item.source_type === "document_chunk" && item.parent_document_title && item.parent_document_title !== item.title) { notes += `    (From Document: "${item.parent_document_title}")\n`; } notes += `  - **Relevant Snippet:** ${item.snippet || 'N/A'}...\n`; const linkToDisplay = item.source_type === "document_chunk" ? item.document_source_uri : item.original_url_or_link; if (linkToDisplay) { notes += `  - **Link:** ${linkToDisplay}\n`; } let itemDate: string | null = null; if (item.last_modified_at) itemDate = new Date(item.last_modified_at).toLocaleDateString(); else if (item.email_date && item.source_type === "email_snippet") itemDate = new Date(item.email_date).toLocaleDateString(); else if (item.created_at) itemDate = new Date(item.created_at).toLocaleDateString(); if (itemDate) notes += `  - **Date:** ${itemDate}\n`; notes += `  - **Relevance Score (raw distance):** ${item.vector_score.toFixed(4)}\n`; notes += "\n"; }); notes += "---\n\n"; }
+    if (hybridSearchResults && hybridSearchResults.length > 0) { notes += "📚 **Additional Context from Knowledge Base (Hybrid Search)**\n\n"; hybridSearchResults.forEach(item => { let itemTypeDisplay = item.doc_type ? item.doc_type.replace(/_/g, ' ').replace(/(?:^|\s)\S/g, a => a.toUpperCase()) : "Contextual Item"; const matchTypeDisplay = item.match_type.charAt(0).toUpperCase() + item.match_type.slice(1); notes += `- **Type:** ${itemTypeDisplay} (${matchTypeDisplay} Match)\n`; notes += `  - **Title/Subject:** "${item.title || 'N/A'}"\n`; notes += `  - **Relevant Snippet:** ${item.snippet || item.extracted_text_preview || 'N/A'}...\n`; const linkToDisplay = item.source_uri; if (linkToDisplay) { notes += `  - **Link:** ${linkToDisplay}\n`; } let itemDate: string | null = null; if (item.last_modified_source) itemDate = new Date(item.last_modified_source).toLocaleDateString(); else if (item.created_at_source) itemDate = new Date(item.created_at_source).toLocaleDateString(); else if (item.ingested_at) itemDate = new Date(item.ingested_at).toLocaleDateString(); if (itemDate) notes += `  - **Date:** ${itemDate}\n`; notes += `  - **Relevance Score:** ${item.score?.toFixed(4)}\n`; notes += "\n"; }); notes += "---\n\n"; }
     if (errors.length > 0) { notes += "**Data Retrieval Issues Encountered:**\n"; errors.forEach(err => { notes += `- ${err}\n`; }); notes += "\n"; }
     notes += "**Potential Action Items to Consider...**\n"; notes += "- [Assign owners and deadlines for new tasks]\n"; notes += "- [Schedule follow-up meetings if necessary]\n\n";
     notes += "**Action Items from Previous Related Meetings...**\n"; const actionItemDoc = documents.find(doc => doc.name.toLowerCase().includes("action items")); const minutesDoc = documents.find(doc => doc.name.toLowerCase().includes("minutes")); if (actionItemDoc) notes += `- Review action items from "${actionItemDoc.name}".\n`; else if (minutesDoc) notes += `- Check for open action items in "${minutesDoc.name}".\n`; else notes += "- Check for any outstanding action items from prior relevant meetings.\n"; notes += "\n";
