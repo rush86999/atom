@@ -1311,3 +1311,27 @@ export interface UniversalSearchResultItem {
 
   metadata_json?: string;
 }
+
+
+// --- Hybrid Search Types ---
+export type HybridMatchSource = 'semantic' | 'keyword';
+
+/**
+ * Represents a unified search result item from the hybrid search backend.
+ * Mirrors the `UnifiedSearchResultItem` Pydantic model in `hybrid_search_service.py`.
+ */
+export interface HybridSearchResultItem {
+  doc_id: string;
+  user_id: string;
+  title?: string | null;
+  snippet?: string | null;
+  source_uri?: string | null;
+  doc_type?: string | null;
+  created_at_source?: string | null; // ISO datetime string
+  last_modified_source?: string | null; // ISO datetime string
+  ingested_at: string; // ISO datetime string
+  score?: number | null; // Original score from the source system
+  match_type: HybridMatchSource; // 'semantic' or 'keyword'
+  extracted_text_preview?: string | null;
+  additional_properties?: Record<string, any> | null;
+}
