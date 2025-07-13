@@ -392,11 +392,21 @@ async def process_document_and_store(
                     'filterableAttributes': [
                         'doc_id', 'user_id', 'doc_type', 'source_uri', 'title',
                         'processing_status',
+                        # Timestamps for date filtering
+                        'ingested_at_timestamp',
+                        'created_at_source_timestamp',
+                        'last_modified_source_timestamp',
                         # Add any custom/DOCX properties you expect to filter on from final_metadata_dict keys
                         # Example: 'author', 'category' (if these are common)
+                        'author', 'category' # Add common metadata properties
                     ],
-                    'sortableAttributes': ['ingested_at', 'title'], # Add 'created_at_source', 'last_modified_source' if needed
-                    'searchableAttributes': ['title', 'extracted_text', 'source_uri', 'doc_type'] # Ensure 'extracted_text' is searchable
+                    'sortableAttributes': [
+                        'ingested_at_timestamp',
+                        'created_at_source_timestamp',
+                        'last_modified_source_timestamp',
+                        'title'
+                    ],
+                    'searchableAttributes': ['title', 'extracted_text', 'source_uri', 'doc_type', 'author', 'subject', 'keywords']
                 }
                 # Check existing settings to avoid redundant updates could be complex.
                 # For now, just call update. Meilisearch handles task if no change.
@@ -409,19 +419,21 @@ async def process_document_and_store(
 
 
         # Prepare document for Meilisearch
-        # Include all fields from doc_meta_to_store and the full extracted_text
         meili_document = {
-            **doc_meta_to_store, # Contains doc_id, user_id, source_uri, doc_type, title, metadata_json, ingested_at, processing_status
-            "extracted_text": extracted_text # Add the full text content
+            **doc_meta_to_store,
+            "extracted_text": extracted_text
         }
-        # Remove fields not directly useful for Meilisearch or handled differently (like embeddings)
-        # For example, if 'metadata_json' is a string of a dict, Meili might handle it, or you might want to flatten it.
-        # For now, let's assume Meili can handle the stringified JSON in metadata_json if needed, or it's ignored if not in searchableAttributes.
-        # If 'metadata_json' was parsed into final_metadata_dict earlier, we can add its fields directly:
-        if final_metadata_dict: # final_metadata_dict was prepared earlier
-             meili_document.update(final_metadata_dict) # Add flattened properties
-        # Ensure primary key field name matches what Meilisearch expects if different from LanceDB's doc_meta_to_store key.
-        # Here, 'doc_id' is consistent.
+        if final_metadata_dict:
+             meili_document.update(final_metadata_dict)
+
+        # Add integer timestamp versions of date fields for Meilisearch filtering/sorting
+        for date_field in ['ingested_at', 'created_at_source', 'last_modified_source']:
+            if meili_document.get(date_field) and isinstance(meili_document[date_field], str):
+                try:
+                    dt_obj = datetime.fromisoformat(meili_document[date_field].replace("Z", "+00:00"))
+                    meili_document[f'{date_field}_timestamp'] = int(dt_obj.timestamp())
+                except (ValueError, TypeError):
+                    logger.warning(f"Could not convert date string '{meili_document[date_field]}' to timestamp for Meilisearch field '{date_field}_timestamp'.")
 
         meili_add_result = await meilisearch_handler.add_documents_to_index(
             MEILISEARCH_INDEX_NAME,
