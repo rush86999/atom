@@ -7,7 +7,7 @@ import {
   UniversalSearchResultItem,
   SearchResultSourceType
 } from '../../atomic-docker/project/functions/atom-agent/types';
-import { searchNotionNotes, getNotionPageSummaryById } from '../../atomic-docker/project/functions/atom-agent/skills/notionAndResearchSkills';
+import { searchNotionNotes, getNotionPageSummaryById, performHybridSearchWithNLU } from '../../atomic-docker/project/functions/atom-agent/skills/notionAndResearchSkills';
 import { logger } from '../../../atomic-docker/project/functions/_utils/logger';
 import { NOTION_NOTES_DATABASE_ID } from '../../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import {
@@ -256,12 +256,10 @@ export class SmartMeetingPrepSkill {
       topNotionPages.forEach((sp, idx) => logger.info(`TopNotion[${idx}] (Score: ${sp.score.toFixed(1)}): ${sp.item.title?.substring(0,50)}... (ExplicitLink: ${explicitNotionLinkPageIds.has(sp.item.id)})`));
 
       const searchQueryText = resolvedEvent.title + (eventDescKeywords.length > 0 ? " " + eventDescKeywords.join(" ") : "");
-      if (searchQueryText.trim() && hybridSearch) {
-        // We can define filters here if needed, e.g., to exclude certain doc types
-        // const searchFilters = { meilisearch_filter_string: "doc_type != 'email'" };
+      if (searchQueryText.trim() && performHybridSearchWithNLU) {
         try {
-          // Using the new hybridSearch function
-          const hybridSearchResponse = await hybridSearch(input.userId, searchQueryText, { semanticLimit: 5, keywordLimit: 10 });
+          // Using the new NLU-powered hybrid search orchestrator
+          const hybridSearchResponse = await performHybridSearchWithNLU(input.userId, searchQueryText, { semanticLimit: 5, keywordLimit: 10 });
           if (hybridSearchResponse.ok && hybridSearchResponse.data) {
             hybridSearchResults = hybridSearchResponse.data;
           } else {
