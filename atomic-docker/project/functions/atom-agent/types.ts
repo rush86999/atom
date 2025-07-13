@@ -1335,3 +1335,15 @@ export interface HybridSearchResultItem {
   extracted_text_preview?: string | null;
   additional_properties?: Record<string, any> | null;
 }
+
+/**
+ * Defines the structure for the filters object used in hybrid search.
+ * This should be constructed by the frontend and passed to the search skill.
+ */
+export interface HybridSearchFilters {
+  doc_types?: string[];
+  date_after?: string; // ISO 8601 string
+  date_before?: string; // ISO 8601 string
+  date_field_to_filter?: 'ingested_at' | 'created_at_source' | 'last_modified_source';
+  metadata_properties?: Record<string, string>;
+}
