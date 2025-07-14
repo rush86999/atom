@@ -7,30 +7,19 @@ import {
 import { generateDailyBriefing } from '../skills/dailyBriefingSkill';
 import { logger } from '../../_utils/logger';
 
-function formatBriefingItem(item: BriefingItem): string {
-  let formatted = `- **${item.title}** (${item.type})`;
-  if (item.details) {
-    formatted += `\n    Details: ${item.details}`;
-  }
-  if (item.link) {
-    formatted += `\n    Link: ${item.link}`;
-  }
-  // Add more formatting based on item.urgency_score or item.raw_item if needed
-  return formatted;
-}
-
 /**
  * Handles the "GetDailyPriorityBriefing" intent.
- * Calls the daily briefing skill and formats the results for the user.
+ * Calls the daily briefing skill and formats the results into a structured
+ * message object for the frontend to render with a custom component.
  *
  * @param userId The ID of the user.
  * @param entities The NLU entities extracted for the GetDailyPriorityBriefing intent.
- * @returns A promise that resolves to a user-facing string response.
+ * @returns A promise that resolves to a message object for the client, or a simple string on error.
  */
 export async function handleGetDailyBriefingRequest(
   userId: string,
   entities: GetDailyPriorityBriefingNluEntities,
-): Promise<string> {
+): Promise<any> { // Return type is now 'any' to accommodate the structured message object
   const dateContext = entities.date_context || 'today';
   logger.info(`[DailyBriefingCommandHandler] Handling request for user ${userId} for briefing: "${dateContext}"`);
   logger.debug(`[DailyBriefingCommandHandler] Received NLU entities: ${JSON.stringify(entities)}`);
@@ -42,33 +31,21 @@ export async function handleGetDailyBriefingRequest(
       const briefing = skillResponse.data;
       logger.info(`[DailyBriefingCommandHandler] Skill executed successfully for "${dateContext}". Found ${briefing.priority_items.length} items.`);
 
-      let responseText = `Okay, here's your priority briefing for ${briefing.briefing_date}:\n`;
+      // Construct the structured response for the frontend
+      const structuredMessage = {
+        content: briefing.overall_summary_message || `Here is your briefing for ${briefing.briefing_date}.`,
+        customComponentType: 'daily_briefing_results',
+        customComponentProps: {
+          briefing: briefing,
+        },
+      };
 
-      if (briefing.overall_summary_message) {
-        responseText += `${briefing.overall_summary_message}\n`;
-      }
-
-      if (briefing.priority_items.length > 0) {
-        responseText += "\n**Key Items:**\n";
-        briefing.priority_items.forEach(item => {
-          responseText += `${formatBriefingItem(item)}\n`;
-        });
-      } else if (!briefing.overall_summary_message) { // If no summary and no items
-        responseText += "It looks like there are no specific priority items for you at the moment based on the current filters.\n";
-      }
-
-      if (briefing.errors_encountered && briefing.errors_encountered.length > 0) {
-        responseText += "\n**Some issues were encountered while gathering your briefing:**\n";
-        briefing.errors_encountered.forEach(err => {
-          responseText += `  - Source: ${err.source_area}, Error: ${err.message}\n`;
-        });
-      }
-
-      logger.debug(`[DailyBriefingCommandHandler] Formatted response: ${responseText}`);
-      return responseText;
+      logger.debug(`[DailyBriefingCommandHandler] Sending structured message to client.`);
+      return structuredMessage;
 
     } else {
       logger.error(`[DailyBriefingCommandHandler] Skill execution failed for "${dateContext}": ${skillResponse.error?.message}`, skillResponse.error);
+      // Return a simple string error message on failure
       return `I encountered an issue while generating your daily briefing for "${dateContext}": ${skillResponse.error?.message || 'Unknown error from skill'}.`;
     }
   } catch (error: any) {
