@@ -377,46 +377,10 @@ async def process_document_and_store(
     MEILISEARCH_PRIMARY_KEY = "doc_id"
 
     if lancedb_storage_result["status"] == "success": # Proceed to Meilisearch only if LanceDB was successful
-        logger.info(f"LanceDB storage successful for {document_id}. Proceeding to Meilisearch.")
+        logger.info(f"LanceDB storage successful for {document_id}. Adding document to Meilisearch.")
 
-        # One-time setup for index settings (simplification for now)
-        # This should ideally be an idempotent setup step elsewhere or checked less frequently.
-        meili_client_check = meilisearch_handler.get_meilisearch_client()
-        if meili_client_check: # Ensure client is available before trying to setup index
-            current_settings = await meilisearch_handler.get_or_create_index(MEILISEARCH_INDEX_NAME, primary_key=MEILISEARCH_PRIMARY_KEY)
-            if current_settings: # Index exists or was created
-                # Define desired settings (idempotent update)
-                # Ensure all fields used in filters/sorts are declared here.
-                # Based on typical document metadata:
-                desired_settings = {
-                    'filterableAttributes': [
-                        'doc_id', 'user_id', 'doc_type', 'source_uri', 'title',
-                        'processing_status',
-                        # Timestamps for date filtering
-                        'ingested_at_timestamp',
-                        'created_at_source_timestamp',
-                        'last_modified_source_timestamp',
-                        # Add any custom/DOCX properties you expect to filter on from final_metadata_dict keys
-                        # Example: 'author', 'category' (if these are common)
-                        'author', 'category' # Add common metadata properties
-                    ],
-                    'sortableAttributes': [
-                        'ingested_at_timestamp',
-                        'created_at_source_timestamp',
-                        'last_modified_source_timestamp',
-                        'title'
-                    ],
-                    'searchableAttributes': ['title', 'extracted_text', 'source_uri', 'doc_type', 'author', 'subject', 'keywords']
-                }
-                # Check existing settings to avoid redundant updates could be complex.
-                # For now, just call update. Meilisearch handles task if no change.
-                logger.info(f"Ensuring Meilisearch index '{MEILISEARCH_INDEX_NAME}' settings: {desired_settings}")
-                settings_update_result = await meilisearch_handler.update_index_settings(MEILISEARCH_INDEX_NAME, desired_settings)
-                if settings_update_result.get("status") != "success":
-                    logger.warning(f"Failed to update Meilisearch index settings for {MEILISEARCH_INDEX_NAME}: {settings_update_result.get('message')}")
-                else:
-                    logger.info(f"Meilisearch index settings ensured for {MEILISEARCH_INDEX_NAME}. Task: {settings_update_result.get('task_uid')}")
-
+        # The index is now expected to be created and configured by the setup_indices.py script.
+        # This processor is only responsible for adding documents.
 
         # Prepare document for Meilisearch
         meili_document = {
