@@ -208,30 +208,47 @@ function parseDateContextLogic(
 }
 
 // --- Urgency Scoring Utility ---
+
+const HIGH_URGENCY_KEYWORDS = ['urgent', 'asap', 'critical', 'action required', 'outage', 'important', 'immediately'];
+const MEDIUM_URGENCY_KEYWORDS = ['please review', 'feedback needed', 'deadline', 'reminder', 'follow-up', 'question'];
+
 function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateISO: string): number {
   let score = 0;
   const nowForContext = new Date(); // Used if targetDate is today, for "time until"
+
+  // --- Keyword and Context Scoring ---
+  let keywordBonus = 0;
+  const textToScan = `${item.title || ''} ${item.details || ''}`.toLowerCase();
+  if (HIGH_URGENCY_KEYWORDS.some(kw => textToScan.includes(kw))) {
+    keywordBonus = 25;
+  } else if (MEDIUM_URGENCY_KEYWORDS.some(kw => textToScan.includes(kw))) {
+    keywordBonus = 15;
+  }
 
   switch (item.type) {
     case 'meeting':
       const meeting = item.raw_item as CalendarEventSummary;
       if (meeting && meeting.start) {
         const meetingStartDate = new Date(meeting.start);
-        // Check if the meeting is on the targetDate
         if (getUTCDateYYYYMMDD(meetingStartDate) === targetDateISO) {
           score += 40; // Base score for being a meeting on the target day
 
-          // Time proximity score: higher for earlier meetings on the targetDate
           const hoursFromStartOfDayToMeetingStart = meetingStartDate.getUTCHours() + (meetingStartDate.getUTCMinutes() / 60);
-          // Ensure score is not negative if meeting is somehow before start of day (e.g. timezone issue in data)
           const timeProximityScore = Math.max(0, (24 - hoursFromStartOfDayToMeetingStart) * 2.5);
-          score += Math.min(timeProximityScore, 60); // Cap at 60 for this component
+          score += Math.min(timeProximityScore, 40); // Cap time proximity bonus
 
-          // Additional small bonus if the meeting is "upcoming" relative to 'now' (if targetDate is today)
           if (targetDateISO === getUTCDateYYYYMMDD(nowForContext) && meetingStartDate > nowForContext) {
             const hoursUntilMeeting = (meetingStartDate.getTime() - nowForContext.getTime()) / (1000 * 60 * 60);
-            if (hoursUntilMeeting < 1) score += 5; // Very soon
-            else if (hoursUntilMeeting < 3) score += 3; // Soon
+            if (hoursUntilMeeting < 1) score += 5; else if (hoursUntilMeeting < 3) score += 3;
+          }
+
+          // Attendee count bonus
+          if (meeting.attendees && Array.isArray(meeting.attendees)) {
+            if (meeting.attendees.length <= 2) {
+              score += 20; // 1:1 or with one other person
+            } else if (meeting.attendees.length <= 5) {
+              score += 10; // Small group
+            }
           }
         }
       }
@@ -289,31 +306,25 @@ function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateI
     case 'email':
       const email = item.raw_item as GmailMessageSnippet;
       score += 50; // Base score for being a recent, unread email for the targetDate
+      score += keywordBonus; // Add keyword bonus
       if (email && email.date) {
         const emailDate = new Date(email.date);
-        // If targetDate is today, and email is very recent (e.g. last few hours of 'now')
         if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) {
             const hoursAgoReceived = (nowForContext.getTime() - emailDate.getTime()) / (1000 * 60 * 60);
-            if (hoursAgoReceived >= 0 && hoursAgoReceived < 4) { // Received in last 4 hours (relative to now)
-                score += 5;
-            }
+            if (hoursAgoReceived >= 0 && hoursAgoReceived < 4) score += 5;
         }
-        // If targetDate is not today, this recency bonus based on 'now' is less relevant.
-        // The fact it was fetched for that targetDate already implies its relevance for that day.
       }
       break;
     case 'slack_message':
-      const slackMsg = item.raw_item as SlackMessageSnippet; // Or SlackMessage
+      const slackMsg = item.raw_item as SlackMessageSnippet;
       score += 45; // Base score for being a recent DM/mention on targetDate.
-      if (slackMsg && slackMsg.timestamp) { // Slack 'ts' is usually a string like "1629878400.000100" or already an ISO string via our types
-        // Assuming slackMsg.timestamp is an ISO string as per our SlackMessage type
+      score += keywordBonus; // Add keyword bonus
+      if (slackMsg && slackMsg.timestamp) {
         try {
             const messageDate = new Date(slackMsg.timestamp);
-            if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) { // If briefing is for today
+            if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) {
                 const hoursAgoReceived = (nowForContext.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
-                if (hoursAgoReceived >= 0 && hoursAgoReceived < 2) { // Received in last 2 hours
-                    score += 5;
-                }
+                if (hoursAgoReceived >= 0 && hoursAgoReceived < 2) score += 5;
             }
         } catch (e) {
             logger.warn(`[calculateUrgencyScore] Could not parse Slack message timestamp: ${slackMsg.timestamp}`);
@@ -323,14 +334,13 @@ function calculateUrgencyScore(item: BriefingItem, targetDate: Date, targetDateI
     case 'teams_message':
       const teamsMsg = item.raw_item as MSTeamsMessage;
       score += 45; // Base score for being a recent DM/mention on targetDate.
+      score += keywordBonus; // Add keyword bonus
       if (teamsMsg && teamsMsg.createdDateTime) {
         try {
-            const messageDate = new Date(teamsMsg.createdDateTime); // MS Graph uses ISO 8601
-            if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) { // If briefing is for today
+            const messageDate = new Date(teamsMsg.createdDateTime);
+            if (targetDateISO === getUTCDateYYYYMMDD(nowForContext)) {
                 const hoursAgoReceived = (nowForContext.getTime() - messageDate.getTime()) / (1000 * 60 * 60);
-                if (hoursAgoReceived >= 0 && hoursAgoReceived < 2) { // Received in last 2 hours
-                    score += 5;
-                }
+                if (hoursAgoReceived >= 0 && hoursAgoReceived < 2) score += 5;
             }
         } catch (e) {
             logger.warn(`[calculateUrgencyScore] Could not parse MS Teams message createdDateTime: ${teamsMsg.createdDateTime}`);
