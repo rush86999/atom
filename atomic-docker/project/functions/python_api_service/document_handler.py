@@ -76,6 +76,9 @@ async def ingest_document_route():
     elif file_ext_lower == ".txt":
         original_doc_type_for_storage = "upload_txt"
         if not processing_mime_type: processing_mime_type = "text/plain"
+    elif file_ext_lower in [".html", ".htm"]:
+        original_doc_type_for_storage = "upload_html"
+        if not processing_mime_type: processing_mime_type = "text/html"
     # Add more types as document_processor supports them
 
     if not processing_mime_type: # If still no MIME type after checks
