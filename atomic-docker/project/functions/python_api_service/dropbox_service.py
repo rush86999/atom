@@ -159,3 +159,22 @@ async def list_folder(client: dropbox.Dropbox, path: str = "") -> Optional[Dict[
     except Exception as e:
         logger.error(f"Unexpected error listing folder '{path}': {e}", exc_info=True)
         return None
+
+async def download_file(client: dropbox.Dropbox, file_path: str) -> Optional[tuple]:
+    """
+    Downloads a file from Dropbox.
+    Returns a tuple of (FileMetadata, FileContentBytes) or None on failure.
+    """
+    try:
+        logger.info(f"Downloading file from path: {file_path}")
+        metadata, res = client.files_download(path=file_path)
+        return metadata, res.content
+    except AuthError as e:
+        logger.error(f"Dropbox API authentication error downloading file '{file_path}': {e}", exc_info=True)
+        return None
+    except dropbox.exceptions.ApiError as e:
+        logger.error(f"Dropbox API error downloading file '{file_path}': {e}", exc_info=True)
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error downloading file '{file_path}': {e}", exc_info=True)
+        return None
