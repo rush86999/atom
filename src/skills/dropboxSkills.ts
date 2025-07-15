@@ -93,3 +93,23 @@ export async function listDropboxFiles(
     return handleAxiosError(error as AxiosError, 'listDropboxFiles');
   }
 }
+
+export async function triggerDropboxFileIngestion(
+  userId: string,
+  filePath: string, // Corresponds to 'path_lower' from a DropboxFile item
+): Promise<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/dropbox/ingest-file`;
+
+  try {
+    const response = await axios.post<PythonApiResponse<{ doc_id: string; num_chunks_stored: number }>>(endpoint, {
+      user_id: userId,
+      file_path: filePath,
+    });
+    return handlePythonApiResponse(response.data, 'triggerDropboxFileIngestion');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'triggerDropboxFileIngestion');
+  }
+}
