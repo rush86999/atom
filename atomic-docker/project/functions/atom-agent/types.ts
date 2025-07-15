@@ -1347,3 +1347,19 @@ export interface HybridSearchFilters {
   date_field_to_filter?: 'ingested_at' | 'created_at_source' | 'last_modified_source';
   metadata_properties?: Record<string, string>;
 }
+
+// --- Dropbox Integration Types ---
+export interface DropboxConnectionStatusInfo {
+  isConnected: boolean;
+  email?: string;
+  reason?: string;
+}
+
+export interface DropboxFile {
+  type: 'file' | 'folder';
+  name: string;
+  id: string;
+  path_lower?: string;
+  size?: number;
+  server_modified?: string; // ISO 8601 string
+}
