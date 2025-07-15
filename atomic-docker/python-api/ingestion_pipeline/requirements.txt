@@ -15,6 +15,9 @@ pyarrow
 # For Meilisearch
 meilisearch>=0.36.0,<1.0.0
 
+# For Cloud Integrations
+dropbox>=11.36.0
+
 # For HTML/DOCX parsing
 python-docx>=0.8.11
 beautifulsoup4>=4.12.0
