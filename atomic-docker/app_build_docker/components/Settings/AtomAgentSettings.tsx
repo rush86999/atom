@@ -6,6 +6,8 @@ import Button from '@components/Button';
 import Switch from '@components/Switch';
 import { useWakeWord } from 'contexts/WakeWordContext';
 import LiveMeetingAttendanceSettings from './LiveMeetingAttendanceSettings'; // Moved import to top
+import GDriveManager from './GDriveManager'; // Import the GDriveManager
+import DropboxManager from './DropboxManager'; // Import the new DropboxManager
 
 const AtomAgentSettings = () => {
   const router = useRouter();
@@ -258,6 +260,17 @@ const AtomAgentSettings = () => {
 
       {/* Live Meeting Attendance Section */}
       <LiveMeetingAttendanceSettings />
+
+      {/* Cloud Storage Section */}
+      <Box marginTop="m" paddingTop="m" borderTopWidth={1} borderColor="hairline">
+         <Text variant="subHeader" marginBottom="s">
+          Cloud Storage (for Document Search)
+        </Text>
+        {/* GDrive Manager */}
+        <GDriveManager />
+        {/* Dropbox Manager */}
+        <DropboxManager />
+      </Box>
 
     </Box>
   );
