@@ -160,6 +160,59 @@ async def list_folder(client: dropbox.Dropbox, path: str = "") -> Optional[Dict[
         logger.error(f"Unexpected error listing folder '{path}': {e}", exc_info=True)
         return None
 
+async def is_user_connected(user_id: str, db_conn_pool: Optional[Any]) -> bool:
+    """
+    Checks if a user has a valid, active Dropbox token.
+    """
+    try:
+        token_info = await db_oauth_dropbox.get_tokens(db_conn_pool, user_id)
+        if not token_info:
+            return False
+
+        # Optionally, you could try a lightweight API call to confirm the token is still valid
+        # For now, just checking existence is sufficient.
+        return True
+    except Exception as e:
+        logger.error(f"Error checking if user {user_id} is connected to Dropbox: {e}", exc_info=True)
+        return False
+
+async def search_files(client: dropbox.Dropbox, query: str) -> Optional[Dict[str, Any]]:
+    """
+    Searches for files and folders matching the query.
+    """
+    try:
+        logger.info(f"Searching for query: '{query}'")
+        result = client.files_search_v2(query)
+
+        matches = []
+        for match in result.matches:
+            entry = match.metadata.get_metadata()
+            item = {
+                "type": "folder" if isinstance(entry, dropbox.files.FolderMetadata) else "file",
+                "name": entry.name,
+                "id": entry.id,
+                "path_lower": entry.path_lower,
+            }
+            if isinstance(entry, dropbox.files.FileMetadata):
+                item["size"] = entry.size
+                item["server_modified"] = entry.server_modified.isoformat()
+            matches.append(item)
+
+        return {
+            "matches": matches,
+            "has_more": result.has_more,
+            "cursor": result.cursor,
+        }
+    except AuthError as e:
+        logger.error(f"Dropbox API authentication error during search: {e}", exc_info=True)
+        return None
+    except dropbox.exceptions.ApiError as e:
+        logger.error(f"Dropbox API error searching for '{query}': {e}", exc_info=True)
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error searching for '{query}': {e}", exc_info=True)
+        return None
+
 async def download_file(client: dropbox.Dropbox, file_path: str) -> Optional[tuple]:
     """
     Downloads a file from Dropbox.
