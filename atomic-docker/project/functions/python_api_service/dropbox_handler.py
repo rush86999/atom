@@ -1,16 +1,7 @@
 import os
 import logging
-from flask import Blueprint, request, jsonify, current_app
-
-# Internal imports
-try:
-    from . import db_oauth_dropbox
-    from . import dropbox_service
-    from ingestion_pipeline import document_processor # Import the document processor
-except ImportError:
-    import db_oauth_dropbox
-    import dropbox_service
-    from ingestion_pipeline import document_processor
+import dropbox
+from flask import Blueprint
 
 logger = logging.getLogger(__name__)
 
@@ -106,17 +97,19 @@ async def list_files():
     if not db_conn_pool:
         return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
 
+
     try:
-        client = await dropbox_service.get_dropbox_client(user_id, db_conn_pool)
-        if not client:
-            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Dropbox client. Please reconnect."}}), 401
+        dbx = dropbox.Dropbox(os.environ.get("DROPBOX_ACCESS_TOKEN"))
+        results = dbx.files_search_v2(query).matches
+        if not results:
+            return "No relevant documents found in Dropbox."
 
-        file_list = await dropbox_service.list_folder(client, path)
-        if file_list is not None:
-            return jsonify({"ok": True, "data": file_list})
-        else:
-            return jsonify({"ok": False, "error": {"code": "API_ERROR", "message": "Failed to list files from Dropbox API."}}), 500
+        docs = ""
+        for match in results:
+            metadata = match.metadata.get_metadata()
+            docs += f"- [{metadata.name}]({metadata.path_display})\n"
 
+        return docs
     except Exception as e:
         logger.error(f"Error listing Dropbox files for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "LIST_FILES_FAILED", "message": str(e)}}), 500
@@ -182,4 +175,3 @@ async def ingest_file():
         logger.error(f"Error ingesting Dropbox file for user {user_id}, path {file_path}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "INGESTION_UNHANDLED_ERROR", "message": str(e)}}), 500
 n
-

@@ -720,6 +720,7 @@ export interface CreateNotionTaskParams {
   listName?: string | null;
   notes?: string | null;
   notionTasksDbId: string; // ID of the Notion database for tasks
+  parentId?: string | null;
 }
 
 export interface NotionTaskResponse { // Kept for potential direct Notion API calls, but Python responses are preferred

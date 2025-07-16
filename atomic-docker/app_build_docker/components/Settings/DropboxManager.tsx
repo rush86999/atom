@@ -3,15 +3,12 @@ import {
   getDropboxConnectionStatus,
   disconnectDropbox,
   listDropboxFiles,
-  triggerDropboxFileIngestion, // Import the new skill
   DropboxConnectionStatusInfo,
   DropboxFile
 } from '../../../../src/skills/dropboxSkills'; // Adjust path as needed
 
 interface FileListItem extends DropboxFile {
-  isIngesting?: boolean;
-  ingestionStatus?: 'success' | 'error' | null;
-  ingestionMessage?: string;
+  // Add any UI-specific state if needed in the future, e.g., for ingestion status
 }
 
 interface PathHistoryItem {
@@ -99,23 +96,6 @@ const DropboxManager: React.FC = () => {
     }
   }, [userId, connectionStatus?.isConnected]);
 
-  const handleIngestFile = useCallback(async (file: FileListItem) => {
-    if (!userId || !file.path_lower) return;
-
-    setFiles(prevFiles => prevFiles.map(f => f.id === file.id ? { ...f, isIngesting: true, ingestionStatus: null } : f));
-
-    try {
-      const response = await triggerDropboxFileIngestion(userId, file.path_lower);
-      if (response.ok) {
-        setFiles(prevFiles => prevFiles.map(f => f.id === file.id ? { ...f, isIngesting: false, ingestionStatus: 'success', ingestionMessage: 'Ingestion started.' } : f));
-      } else {
-        setFiles(prevFiles => prevFiles.map(f => f.id === file.id ? { ...f, isIngesting: false, ingestionStatus: 'error', ingestionMessage: response.error?.message || "Ingestion failed." } : f));
-      }
-    } catch (error: any) {
-      setFiles(prevFiles => prevFiles.map(f => f.id === file.id ? { ...f, isIngesting: false, ingestionStatus: 'error', ingestionMessage: error.message || "Exception during ingestion." } : f));
-    }
-  }, [userId]);
-
   useEffect(() => {
     if (userId) fetchConnectionStatus();
   }, [userId, fetchConnectionStatus]);
@@ -184,43 +164,10 @@ const DropboxManager: React.FC = () => {
           {errorMessages.files && <p style={{ color: 'red' }}>{errorMessages.files}</p>}
 
           {isLoadingFiles ? <p>Loading files...</p> : (
-            <ul style={{ listStyleType: 'none', paddingLeft: '0', margin: '0' }}>
+            <ul>
               {files.map(file => (
-                <li
-                  key={file.id}
-                  style={{
-                    padding: '10px 5px',
-                    borderBottom: '1px solid #eee',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <span
-                    onClick={() => handleFileClick(file)}
-                    style={{ cursor: file.type === 'folder' ? 'pointer' : 'default', flexGrow: 1, display: 'flex', alignItems: 'center' }}
-                  >
-                    <span style={{ marginRight: '8px', fontSize: '1.1em' }}>{file.type === 'folder' ? '📁' : '📄'}</span>
-                    {file.name}
-                  </span>
-
-                  {file.type === 'file' && (
-                    <div style={{display: 'flex', alignItems: 'center', flexShrink: 0}}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleIngestFile(file); }}
-                        disabled={file.isIngesting || file.ingestionStatus === 'success'}
-                        style={{
-                          padding: '6px 10px', marginLeft: '10px', backgroundColor: file.isIngesting ? '#64b5f6' : '#007bff',
-                          color: 'white', border: 'none', borderRadius: '4px',
-                          cursor: (file.isIngesting || file.ingestionStatus === 'success') ? 'default' : 'pointer'
-                        }}
-                      >
-                        {file.isIngesting ? 'Ingesting...' : (file.ingestionStatus === 'success' ? 'Ingested' : 'Ingest')}
-                      </button>
-                      {file.ingestionStatus === 'error' && <small style={{ color: 'red', marginLeft: '8px' }}>Error: {file.ingestionMessage}</small>}
-                      {file.ingestionStatus === 'success' && !file.isIngesting && <small style={{ color: 'green', marginLeft: '8px' }}>{file.ingestionMessage}</small>}
-                    </div>
-                  )}
+                <li key={file.id} onClick={() => handleFileClick(file)} style={{ cursor: file.type === 'folder' ? 'pointer' : 'default' }}>
+                  <span>{file.type === 'folder' ? '📁' : '📄'}</span> {file.name}
                 </li>
               ))}
             </ul>

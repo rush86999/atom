@@ -1,5 +1,6 @@
 import { Agenda, Job } from 'agenda';
 import axios from 'axios'; // Added for making HTTP calls
+import { sendSlackMessage } from './atom-agent/skills/slackSkills';
 import logger from './lib/logger';
 
 // Define the structure for job data
@@ -11,13 +12,14 @@ export interface ScheduledAgentTaskData {
   // additionalContext?: Record<string, any>; // For any other necessary data
 }
 
-// MongoDB connection string loaded from environment variables
-const mongoConnectionString = process.env.MONGODB_URI;
-
-if (!mongoConnectionString) {
-  logger.fatal('MONGODB_URI environment variable is not set. Agenda service cannot start.');
-  process.exit(1);
+export interface SendTaskReminderData {
+    userId: string;
+    taskId: string;
+    taskDescription: string;
 }
+
+// Default MongoDB connection string - replace with your actual URI in production
+const mongoConnectionString = process.env.MONGODB_URI || 'mongodb://mongo:27017/atomicAgentJobs';
 
 // URL for the agent's internal invocation endpoint
 const AGENT_INTERNAL_INVOKE_URL = process.env.AGENT_INTERNAL_INVOKE_URL || 'http://localhost:3000/api/agent-handler';
@@ -109,6 +111,17 @@ export async function startAgenda(): Promise<void> {
         await job.save();
       }
     });
+
+    agenda.define<SendTaskReminderData>('send task reminder', async (job) => {
+        const { userId, taskId, taskDescription } = job.attrs.data;
+        console.log(`Sending reminder for task "${taskDescription}" (ID: ${taskId}) to user ${userId}`);
+        try {
+            await sendSlackMessage(userId, userId, `Reminder: Task "${taskDescription}" is due.`);
+        } catch (error) {
+            console.error(`Failed to send task reminder for task ${taskId} to user ${userId}:`, error);
+        }
+    });
+
 
   } catch (error) {
     logger.error({
