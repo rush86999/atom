@@ -1,3 +1,4 @@
+import os
 import logging
 from flask import Blueprint, request, jsonify, current_app
 
@@ -10,7 +11,6 @@ except ImportError:
     import db_oauth_dropbox
     import dropbox_service
     from ingestion_pipeline import document_processor
-
 
 logger = logging.getLogger(__name__)
 
@@ -107,3 +107,4 @@ async def ingest_file():
         logger.error(f"Error ingesting Dropbox file for user {user_id}, path {file_path}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "INGESTION_UNHANDLED_ERROR", "message": str(e)}}), 500
 n
+
