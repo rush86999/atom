@@ -51,6 +51,11 @@ interface UpdateTaskNluEntities {
   new_description_text?: string;
 }
 
+interface SetTaskReminderNluEntities {
+    task_identifier_text: string;
+    reminder_date_text: string;
+}
+
 
 // --- Date Parsing (Simplified - Placeholder) ---
 // A more robust library like date-fns, dayjs, or chrono-node would be needed for real-world parsing.
@@ -152,6 +157,62 @@ export async function handleCreateNotionTask(
       data: { userMessage: `Sorry, I couldn't create the task. ${result.error?.message || 'There was an issue.'}` }
     };
   }
+}
+
+export async function handleSetTaskReminder(
+    userId: string,
+    entities: SetTaskReminderNluEntities,
+): Promise<SkillResponse<{ userMessage: string }>> {
+    logger.info(`[handleSetTaskReminder] User: ${userId}, Entities: ${JSON.stringify(entities)}`);
+
+    if (!entities.task_identifier_text) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Task identifier is required to set a reminder.' } };
+    }
+
+    if (!entities.reminder_date_text) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Reminder date is required to set a reminder.' } };
+    }
+
+    // 1. Resolve Task
+    let taskIdToUpdate: string | null = null;
+    if (entities.task_identifier_text) {
+        const potentialTasks = await queryNotionTasksBackend(userId, {
+            notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID!,
+            descriptionContains: entities.task_identifier_text,
+            status_not_equals: "Done",
+            limit: 5,
+        });
+
+        if (potentialTasks.success && potentialTasks.tasks.length === 1) {
+            taskIdToUpdate = potentialTasks.tasks[0].id;
+        } else {
+            const errorMessage = potentialTasks.tasks.length > 1
+                ? `I found multiple tasks matching "${entities.task_identifier_text}". Please be more specific.`
+                : `I couldn't find a task matching "${entities.task_identifier_text}".`;
+            return { ok: false, error: { code: 'TASK_NOT_FOUND', message: errorMessage } };
+        }
+    }
+
+    // 2. Parse Reminder Date
+    const reminderDate = parseDueDate(entities.reminder_date_text);
+    if (!reminderDate) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: `I couldn't understand the reminder date "${entities.reminder_date_text}".` } };
+    }
+
+    // 3. Schedule Reminder
+    try {
+        const { agenda } = await import('../../agendaService');
+        await agenda.schedule(reminderDate, 'send task reminder', {
+            userId,
+            taskId: taskIdToUpdate,
+            taskDescription: entities.task_identifier_text,
+        });
+
+        const userMessage = `Okay, I've set a reminder for the task "${entities.task_identifier_text}" on ${new Date(reminderDate).toLocaleString()}.`;
+        return { ok: true, data: { userMessage } };
+    } catch (error) {
+        return { ok: false, error: { code: 'SCHEDULING_ERROR', message: 'Failed to schedule reminder.' } };
+    }
 }
 
 // Placeholder for handleQueryNotionTasks
@@ -342,4 +403,61 @@ export async function handleUpdateNotionTask(
       data: { userMessage: `Sorry, I couldn't update the task. ${result.error?.message || 'There was an issue.'}` }
     };
   }
+}
+
+export async function handleAddSubtask(
+    userId: string,
+    entities: { parent_task_identifier_text: string; sub_task_description: string }
+): Promise<SkillResponse<CreateTaskData & { userMessage: string }>> {
+    logger.info(`[handleAddSubtask] User: ${userId}, Entities: ${JSON.stringify(entities)}`);
+
+    if (!ATOM_NOTION_TASKS_DATABASE_ID) {
+        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion Tasks Database ID (ATOM_NOTION_TASKS_DATABASE_ID) is not configured.' } };
+    }
+
+    // 1. Resolve Parent Task
+    let parentTaskId: string | null = null;
+    if (entities.parent_task_identifier_text) {
+        const potentialTasks = await queryNotionTasksBackend(userId, {
+            notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
+            descriptionContains: entities.parent_task_identifier_text,
+            status_not_equals: "Done",
+            limit: 5,
+        });
+
+        if (potentialTasks.success && potentialTasks.tasks.length === 1) {
+            parentTaskId = potentialTasks.tasks[0].id;
+        } else {
+            // Handle ambiguous or not found parent task
+            const errorMessage = potentialTasks.tasks.length > 1
+                ? `I found multiple tasks matching "${entities.parent_task_identifier_text}". Please be more specific.`
+                : `I couldn't find a parent task matching "${entities.parent_task_identifier_text}".`;
+            return { ok: false, error: { code: 'PARENT_TASK_NOT_FOUND', message: errorMessage } };
+        }
+    } else {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Parent task identifier is required to add a sub-task.' } };
+    }
+
+    // 2. Create Sub-task
+    const params: CreateNotionTaskParams = {
+        notionTasksDbId: ATOM_NOTION_TASKS_DATABASE_ID,
+        description: entities.sub_task_description,
+        status: 'To Do',
+        parentId: parentTaskId,
+    };
+
+    const result = await createNotionTaskBackend(userId, params);
+
+    if (result.ok && result.data) {
+        const userMessage = `Okay, I've added "${entities.sub_task_description}" as a sub-task.`;
+        return {
+            ok: true,
+            data: { ...result.data, userMessage },
+        };
+    } else {
+        return {
+            ok: false,
+            error: result.error || { code: 'BACKEND_ERROR', message: 'Failed to create sub-task in Notion.' },
+        };
+    }
 }

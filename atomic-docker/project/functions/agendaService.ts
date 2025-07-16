@@ -1,5 +1,6 @@
 import { Agenda, Job } from 'agenda';
 import axios from 'axios'; // Added for making HTTP calls
+import { sendSlackMessage } from './atom-agent/skills/slackSkills';
 
 // Define the structure for job data
 export interface ScheduledAgentTaskData {
@@ -8,6 +9,12 @@ export interface ScheduledAgentTaskData {
   userId: string;
   conversationId?: string;         // Optional: if needed to maintain context
   // additionalContext?: Record<string, any>; // For any other necessary data
+}
+
+export interface SendTaskReminderData {
+    userId: string;
+    taskId: string;
+    taskDescription: string;
 }
 
 // Default MongoDB connection string - replace with your actual URI in production
@@ -76,6 +83,17 @@ export async function startAgenda(): Promise<void> {
         await job.save();
       }
     });
+
+    agenda.define<SendTaskReminderData>('send task reminder', async (job) => {
+        const { userId, taskId, taskDescription } = job.attrs.data;
+        console.log(`Sending reminder for task "${taskDescription}" (ID: ${taskId}) to user ${userId}`);
+        try {
+            await sendSlackMessage(userId, userId, `Reminder: Task "${taskDescription}" is due.`);
+        } catch (error) {
+            console.error(`Failed to send task reminder for task ${taskId} to user ${userId}:`, error);
+        }
+    });
+
 
   } catch (error) {
     console.error('Failed to start Agenda:', error);

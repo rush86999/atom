@@ -172,7 +172,14 @@ import {
     ATOM_QB_TOKEN_FILE_PATH,
     ATOM_NOTION_TASKS_DATABASE_ID, // Added for Notion Tasks
     LANCEDB_LTM_AGENT_TABLE_NAME, // Added for LTM table name
-    PYTHON_API_SERVICE_BASE_URL
+    PYTHON_API_SERVICE_BASE_URL,
+    ASANA_ACCESS_TOKEN,
+    JIRA_SERVER,
+    JIRA_USERNAME,
+    JIRA_PASSWORD,
+    TRELLO_API_KEY,
+    TRELLO_API_SECRET,
+    TRELLO_TOKEN
 } from '../_libs/constants';
 import { agenda, ScheduledAgentTaskData } from '../agendaService'; // Added for Agenda
 import { searchWeb } from './skills/webResearchSkills'; // Added missing import
@@ -198,6 +205,9 @@ import { handleListMicrosoftTeamsMeetings, handleGetMicrosoftTeamsMeetingDetails
 import { handleListStripePayments, handleGetStripePaymentDetails } from './skills/stripe';
 import { handleGetQuickBooksAuthUrl, handleListQuickBooksInvoices, handleGetQuickBooksInvoiceDetails } from './skills/quickbooks';
 import { handleMeetingPrep } from './skills/meetingPrep';
+import { handleCreateAsanaTask, handleQueryAsanaTasks, handleUpdateAsanaTask } from './skills/asana';
+import { handleCreateJiraIssue, handleQueryJiraIssues, handleUpdateJiraIssue } from './skills/jira';
+import { handleCreateTrelloCard, handleQueryTrelloCards, handleUpdateTrelloCard } from './skills/trello';
 
 
 // Define the TTS service URL
@@ -857,6 +867,42 @@ async function _internalHandleMessage(
       case "GetQuickBooksInvoiceDetails":
         textResponse = await handleGetQuickBooksInvoiceDetails(userId, nluResponse.entities);
         break;
+
+      case "CreateAsanaTask":
+          textResponse = await handleCreateAsanaTask(userId, nluResponse.entities);
+          break;
+
+      case "QueryAsanaTasks":
+          textResponse = await handleQueryAsanaTasks(userId, nluResponse.entities);
+          break;
+
+      case "UpdateAsanaTask":
+          textResponse = await handleUpdateAsanaTask(userId, nluResponse.entities);
+          break;
+
+      case "CreateJiraIssue":
+          textResponse = await handleCreateJiraIssue(userId, nluResponse.entities);
+          break;
+
+      case "QueryJiraIssues":
+          textResponse = await handleQueryJiraIssues(userId, nluResponse.entities);
+          break;
+
+      case "UpdateJiraIssue":
+          textResponse = await handleUpdateJiraIssue(userId, nluResponse.entities);
+          break;
+
+      case "CreateTrelloCard":
+          textResponse = await handleCreateTrelloCard(userId, nluResponse.entities);
+          break;
+
+      case "QueryTrelloCards":
+          textResponse = await handleQueryTrelloCards(userId, nluResponse.entities);
+          break;
+
+      case "UpdateTrelloCard":
+          textResponse = await handleUpdateTrelloCard(userId, nluResponse.entities);
+          break;
 
       case "CreateTimePreferenceRule":
         try {
