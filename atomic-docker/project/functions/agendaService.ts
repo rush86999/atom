@@ -1,5 +1,6 @@
 import { Agenda, Job } from 'agenda';
 import axios from 'axios'; // Added for making HTTP calls
+import logger from './lib/logger';
 
 // Define the structure for job data
 export interface ScheduledAgentTaskData {
@@ -10,8 +11,13 @@ export interface ScheduledAgentTaskData {
   // additionalContext?: Record<string, any>; // For any other necessary data
 }
 
-// Default MongoDB connection string - replace with your actual URI in production
-const mongoConnectionString = process.env.MONGODB_URI || 'mongodb://mongo:27017/atomicAgentJobs';
+// MongoDB connection string loaded from environment variables
+const mongoConnectionString = process.env.MONGODB_URI;
+
+if (!mongoConnectionString) {
+  logger.fatal('MONGODB_URI environment variable is not set. Agenda service cannot start.');
+  process.exit(1);
+}
 
 // URL for the agent's internal invocation endpoint
 const AGENT_INTERNAL_INVOKE_URL = process.env.AGENT_INTERNAL_INVOKE_URL || 'http://localhost:3000/api/agent-handler';
@@ -25,28 +31,37 @@ export const agenda = new Agenda({
 
 export function defineJob<T>(name: string, handler: (job: Job<T>) => Promise<void>): void {
   agenda.define<T>(name, handler);
-  console.log(`Job defined: ${name}`);
+  logger.info(`Job defined: ${name}`);
 }
 
 export async function startAgenda(): Promise<void> {
   try {
-    console.log('Attempting to start Agenda...');
+    logger.info('Attempting to start Agenda...');
     await agenda.start();
-    console.log('Agenda started successfully.');
+    logger.info('Agenda started successfully.');
 
     agenda.define<ScheduledAgentTaskData>('EXECUTE_AGENT_ACTION', async (job) => {
       const data = job.attrs.data;
       if (!data) {
         const errorMessage = `Job ${job.attrs.name} (ID: ${job.attrs._id}) is missing data.`;
-        console.error(errorMessage);
+        logger.error({
+            job_name: job.attrs.name,
+            job_id: job.attrs._id,
+            error_message: errorMessage,
+        }, errorMessage);
         job.fail(errorMessage);
         await job.save();
         return;
       }
 
       const { originalUserIntent, entities, userId } = data;
-      console.log(`Executing scheduled agent action for user ${userId} (Job ID: ${job.attrs._id}): intent ${originalUserIntent}`);
-      console.log(`Entities: ${JSON.stringify(entities)}`);
+      logger.info({
+        job_name: job.attrs.name,
+        job_id: job.attrs._id,
+        user_id: userId,
+        intent: originalUserIntent,
+        entities: entities,
+      },`Executing scheduled agent action for user ${userId} (Job ID: ${job.attrs._id}): intent ${originalUserIntent}`);
 
       try {
         const agentPayload = {
@@ -57,13 +72,25 @@ export async function startAgenda(): Promise<void> {
             conversationId: data.conversationId,
             requestSource: 'ScheduledJobExecutor',
           };
-        console.log(`Invoking agent at ${AGENT_INTERNAL_INVOKE_URL} with payload:`, JSON.stringify(agentPayload, null, 2));
+        logger.info({
+            job_name: job.attrs.name,
+            job_id: job.attrs._id,
+            user_id: userId,
+            agent_url: AGENT_INTERNAL_INVOKE_URL,
+            payload: agentPayload,
+        },`Invoking agent at ${AGENT_INTERNAL_INVOKE_URL}`);
 
         const response = await axios.post(AGENT_INTERNAL_INVOKE_URL, agentPayload, {
           headers: { 'Content-Type': 'application/json' }
         });
 
-        console.log(`Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}, response data: ${response.data ? JSON.stringify(response.data, null, 2) : ''}`);
+        logger.info({
+            job_name: job.attrs.name,
+            job_id: job.attrs._id,
+            user_id: userId,
+            agent_response_status: response.status,
+            agent_response_data: response.data,
+        },`Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}`);
       } catch (error) {
         let errorMessage = 'Failed to execute agent action via HTTP.';
         if (axios.isAxiosError(error)) {
@@ -71,30 +98,50 @@ export async function startAgenda(): Promise<void> {
         } else if (error instanceof Error) {
           errorMessage = error.message;
         }
-        console.error(`Error executing scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId}: ${errorMessage}`, error.stack);
+        logger.error({
+            job_name: job.attrs.name,
+            job_id: job.attrs._id,
+            user_id: userId,
+            error_message: errorMessage,
+            error_stack: error instanceof Error ? error.stack : undefined,
+        },`Error executing scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId}: ${errorMessage}`);
         job.fail(errorMessage);
         await job.save();
       }
     });
 
   } catch (error) {
-    console.error('Failed to start Agenda:', error);
+    logger.error({
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        error_stack: error instanceof Error ? error.stack : undefined,
+    },'Failed to start Agenda:');
   }
 }
 
 export async function stopAgenda(): Promise<void> {
   try {
-    console.log('Attempting to stop Agenda...');
+    logger.info('Attempting to stop Agenda...');
     await agenda.stop();
-    console.log('Agenda stopped successfully.');
+    logger.info('Agenda stopped successfully.');
   } catch (error) {
-    console.error('Failed to stop Agenda gracefully:', error);
+    logger.error({
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        error_stack: error instanceof Error ? error.stack : undefined,
+    },'Failed to stop Agenda gracefully:');
   }
 }
 
-agenda.on('ready', () => console.log('Agenda ready and connected to MongoDB.'));
-agenda.on('error', (err: Error) => console.error('Agenda connection error:', err));
-agenda.on('start', (job: Job) => console.log(`Job ${job.attrs.name} starting. ID: ${job.attrs._id}`));
-agenda.on('complete', (job: Job) => console.log(`Job ${job.attrs.name} completed. ID: ${job.attrs._id}`));
-agenda.on('success', (job: Job) => console.log(`Job ${job.attrs.name} succeeded. ID: ${job.attrs._id}`));
-agenda.on('fail', (err: Error, job: Job) => console.error(`Job ${job.attrs.name} failed with error: ${err.message}. ID: ${job.attrs._id}`));
+agenda.on('ready', () => logger.info('Agenda ready and connected to MongoDB.'));
+agenda.on('error', (err: Error) => logger.error({
+    error_message: err.message,
+    error_stack: err.stack,
+},'Agenda connection error:'));
+agenda.on('start', (job: Job) => logger.info({ job_name: job.attrs.name, job_id: job.attrs._id }, `Job ${job.attrs.name} starting.`));
+agenda.on('complete', (job: Job) => logger.info({ job_name: job.attrs.name, job_id: job.attrs._id }, `Job ${job.attrs.name} completed.`));
+agenda.on('success', (job: Job) => logger.info({ job_name: job.attrs.name, job_id: job.attrs._id }, `Job ${job.attrs.name} succeeded.`));
+agenda.on('fail', (err: Error, job: Job) => logger.error({
+    job_name: job.attrs.name,
+    job_id: job.attrs._id,
+    error_message: err.message,
+    error_stack: err.stack,
+},`Job ${job.attrs.name} failed with error: ${err.message}.`));
