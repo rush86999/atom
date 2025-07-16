@@ -1,7 +1,8 @@
 import openai
 import json
-from serpapi import GoogleSearch, SerpApiClientException
-from project.functions import note_utils
+import requests
+from bs4 import BeautifulSoup
+import note_utils
 import os
 import lancedb
 from dotenv import load_dotenv
@@ -16,7 +17,6 @@ load_dotenv() # Load environment variables from .env file
 LANCEDB_URI = os.getenv("LANCEDB_RESEARCH_DB_URI", "../../lance_db/ltm_agent_data.lance") # Adjusted path for typical local dev
 DEFAULT_VECTOR_DIMENSION_PY = 1536
 OPENAI_API_KEY_GLOBAL = os.getenv("OPENAI_API_KEY") # Used by other LLM calls
-SERPAPI_API_KEY_GLOBAL = os.getenv("SERPAPI_API_KEY") # Load once
 
 # Module-level OpenAI client for embeddings
 openai_api_key_py = os.getenv("OPENAI_API_KEY")
@@ -250,54 +250,37 @@ def initiate_research_project(user_query: str, user_id: str, project_db_id: str,
 
 def python_search_web(query: str) -> dict:
     """
-    Performs a web search using SerpApi.
+    Performs a web search using DuckDuckGo and scrapes the results.
     """
-    if not SERPAPI_API_KEY_GLOBAL:
-        return {"status": "error", "message": "Search API key is missing.", "code": "CONFIG_ERROR_SEARCH_KEY"}
-
-    params = { "q": query, "api_key": SERPAPI_API_KEY_GLOBAL, "engine": "google" }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+    }
     search_results: list = []
     try:
-        search = GoogleSearch(params) # type: ignore
-        results_data = search.get_dict()
+        response = requests.get(f"https://html.duckduckgo.com/html/?q={query}", headers=headers)
+        response.raise_for_status()
 
-        if results_data.get("error"):
-            error_message = results_data["error"]
-            code = "SEARCH_API_ERROR"
-            if "invalid api key" in error_message.lower() or "authorization" in error_message.lower() or "forbidden" in error_message.lower():
-                code = "SEARCH_API_AUTH_ERROR"
-            return {"status": "error", "message": f"SerpApi error: {error_message}", "code": code, "details": results_data.get("search_parameters", {})}
+        soup = BeautifulSoup(response.text, "lxml")
+        results = soup.find_all("div", class_="result")
 
-        organic_results = results_data.get("organic_results", [])
-        if not organic_results and "knowledge_graph" in results_data:
-            kg = results_data["knowledge_graph"]
-            if kg.get("title") and kg.get("source", {}).get("link"):
-                 search_results.append({
-                    "title": kg.get("title", "Knowledge Graph Result"),
-                    "link": kg.get("source", {}).get("link", "#"),
-                    "snippet": kg.get("description", kg.get("snippet", "No snippet available from Knowledge Graph."))
-                })
+        for result in results:
+            title_element = result.find("a", class_="result__a")
+            link_element = result.find("a", class_="result__a")
+            snippet_element = result.find("a", class_="result__snippet")
 
-        for item in organic_results:
-            search_results.append({
-                "title": item.get("title", "No title"), "link": item.get("link", "#"),
-                "snippet": item.get("snippet", "No snippet available.")
-            })
+            title = title_element.text if title_element else "No title"
+            link = link_element["href"] if link_element else "#"
+            snippet = snippet_element.text if snippet_element else "No snippet available."
 
-        if not search_results and not results_data.get("error"):
-            log(f"No organic results by SerpApi for query: {query}. State: {results_data.get('search_information', {}).get('organic_results_state', 'N/A')}", level="INFO")
+            search_results.append({"title": title, "link": link, "snippet": snippet})
 
         return {"status": "success", "data": search_results}
 
-    except SerpApiClientException as e: # type: ignore
-        message = str(e)
-        code = "SEARCH_API_ERROR"
-        if "API_KEY_INVALID" in message or "forbidden" in message.lower() or "authorization" in message.lower():
-            code = "SEARCH_API_AUTH_ERROR"
-        elif "Request timed out" in message: code = "NETWORK_ERROR"
-        return {"status": "error", "message": f"SerpApi client error: {message}", "code": code, "details": str(e)}
+    except requests.exceptions.RequestException as e:
+        log(f"Error during web search for query '{query}': {e}", level="ERROR")
+        return {"status": "error", "message": f"Network error during web search: {str(e)}", "code": "NETWORK_ERROR", "details": str(e)}
     except Exception as e:
-        log(f"Unexpected error during web search (SerpApi query '{query}'): {e}", level="ERROR")
+        log(f"Unexpected error during web search for query '{query}': {e}", level="ERROR")
         return {"status": "error", "message": f"Unexpected error during web search: {str(e)}", "code": "UNKNOWN_SEARCH_ERROR", "details": str(e)}
 
 
@@ -307,8 +290,6 @@ def execute_research_task(task_page_id: str) -> dict:
     """
     if not note_utils.notion: # type: ignore
         return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
-    if not SERPAPI_API_KEY_GLOBAL:
-        return {"status": "error", "message": "Search API key not provided.", "code": "CONFIG_ERROR_SEARCH_KEY"}
 
     original_notes_db_id = note_utils.NOTION_NOTES_DATABASE_ID # type: ignore
     task_details_response = note_utils.get_notion_note(page_id=task_page_id) # Returns dict # type: ignore
@@ -376,7 +357,6 @@ def monitor_and_execute_tasks(task_db_id: str, project_db_id: str) -> dict:
     Monitors Notion for pending tasks, executes them, and triggers synthesis.
     Assumes Notion client is initialized.
     """
-    if not SERPAPI_API_KEY_GLOBAL: return {"status": "error", "message": "Search API key not configured.", "code": "CONFIG_ERROR_SEARCH_KEY"}
     if not OPENAI_API_KEY_GLOBAL: return {"status": "error", "message": "OpenAI API key not configured.", "code": "CONFIG_ERROR_OPENAI"}
     if not note_utils.notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"} # type: ignore
 
@@ -574,5 +554,3 @@ def check_projects_for_completion_and_synthesize(project_db_id: str, task_db_id:
 
     return {"status": "success", "data": {"message": f"Synthesis check finished. Attempted: {synthesis_attempts}, Succeeded: {successful_synthesis_updates}",
                                           "attempted_synthesis": synthesis_attempts, "successful_synthesis_updates": successful_synthesis_updates}}
-
-[end of atomic-docker/project/functions/atom-agent/research_agent.py]

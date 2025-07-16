@@ -15,7 +15,7 @@ import openai # For OpenAI
 import asyncio # For live streaming
 from typing import Optional, List # Ensure List is imported if not already
 from datetime import datetime # For handling meeting_date
-
+import logging
 from ._utils.lancedb_service import add_transcript_embedding
 
 # --- Global Clients (to be initialized by functions or handlers) ---
@@ -883,5 +883,3 @@ def embed_and_store_transcript_in_lancedb(
     )
 
     return store_result
-
-[end of atomic-docker/project/functions/note_utils.py]
