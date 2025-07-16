@@ -1,7 +1,12 @@
 import os
 import logging
 import dropbox
-from flask import Blueprint
+from flask import Blueprint, request, jsonify, current_app
+
+from . import dropbox_service
+from . import db_oauth_dropbox
+from . import document_processor
+
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +77,9 @@ async def disconnect():
         return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
 
     try:
-        success = await db_oauth_dropbox.delete_token(user_id, db_conn_pool)
-        if success:
-            return jsonify({"ok": True, "data": {"message": "Dropbox account disconnected successfully."}})
-        else:
-            return jsonify({"ok": False, "error": {"code": "DISCONNECT_FAILED", "message": "Failed to disconnect Dropbox account."}}), 500
+        await db_oauth_dropbox.delete_tokens(db_conn_pool, user_id)
+        # Assuming successful deletion if no exception is raised
+        return jsonify({"ok": True, "data": {"message": "Dropbox account disconnected successfully."}})
     except Exception as e:
         logger.error(f"Error disconnecting Dropbox for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "DISCONNECT_UNHANDLED_ERROR", "message": str(e)}}), 500
@@ -99,17 +102,16 @@ async def list_files():
 
 
     try:
-        dbx = dropbox.Dropbox(os.environ.get("DROPBOX_ACCESS_TOKEN"))
-        results = dbx.files_search_v2(query).matches
-        if not results:
-            return "No relevant documents found in Dropbox."
+        client = await dropbox_service.get_dropbox_client(user_id, db_conn_pool)
+        if not client:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Dropbox client. Please reconnect."}}), 401
 
-        docs = ""
-        for match in results:
-            metadata = match.metadata.get_metadata()
-            docs += f"- [{metadata.name}]({metadata.path_display})\n"
+        list_results = await dropbox_service.list_folder(client, path)
+        if list_results is not None:
+            return jsonify({"ok": True, "data": list_results})
+        else:
+            return jsonify({"ok": False, "error": {"code": "API_ERROR", "message": "Failed to list files from Dropbox API."}}), 500
 
-        return docs
     except Exception as e:
         logger.error(f"Error listing Dropbox files for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "LIST_FILES_FAILED", "message": str(e)}}), 500
