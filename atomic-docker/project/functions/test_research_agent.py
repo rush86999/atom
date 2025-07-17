@@ -5,7 +5,13 @@ from bs4 import BeautifulSoup
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-from atom_agent import research_agent
+import sys
+import os
+
+# Add the root directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')))
+
+from project.functions.atom_agent import research_agent
 
 class TestResearchAgent(unittest.TestCase):
 
