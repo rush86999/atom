@@ -38,13 +38,8 @@ except ImportError as e:
     get_text_embedding_openai = None
     EMBEDDING_FUNCTION_AVAILABLE = False
 
-try:
-    from . import lancedb_handler
-    from . import meilisearch_handler # Import Meilisearch handler
-except ImportError:
-    import lancedb_handler # Fallback for different execution contexts
-    import meilisearch_handler # Fallback for different execution contexts
-    logging.getLogger(__name__).warning("Imported lancedb_handler and/or meilisearch_handler using fallback.")
+from . import lancedb_handler
+from . import meilisearch_handler # Import Meilisearch handler
 
 
 logger = logging.getLogger(__name__)
@@ -421,5 +416,3 @@ async def process_document_and_store(
     else: # LanceDB failed
         logger.error(f"Failed to store processed document {document_id} in LanceDB: {lancedb_storage_result.get('message')}")
         return {"status": "error", "message": f"LanceDB storage failed: {lancedb_storage_result.get('message')}", "code": lancedb_storage_result.get("code", "LANCEDB_STORAGE_ERROR")}
-
-```

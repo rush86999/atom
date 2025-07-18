@@ -344,4 +344,3 @@ if __name__ == '__main__':
         logger.info("Original __main__ test for lancedb_handler.py for meeting transcripts is available but not run by default.")
         pass
     # asyncio.run(main_test_lancedb())
-```
