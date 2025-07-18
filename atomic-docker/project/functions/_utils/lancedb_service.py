@@ -125,5 +125,3 @@ def search_meeting_transcripts(
 # If not, it can be removed. For now, I will assume it might be used elsewhere and keep it,
 # but make search_meeting_transcripts the focus for our current feature.
 # The `search_routes.py` should be updated to call `search_meeting_transcripts`.
-
-[end of atomic-docker/project/functions/_utils/lancedb_service.py]

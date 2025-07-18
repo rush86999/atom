@@ -11,7 +11,7 @@ import os # Added for sys.path manipulation, if needed, though test structure as
 # will work if the test runner's environment is set up correctly.
 
 # Attempt to import the blueprint.
-from atomic-docker.project.functions.python_api_service.search_routes import search_routes_bp
+from python_api_service.search_routes import search_routes_bp
 
 
 class TestSearchRoutes(unittest.TestCase):
@@ -32,15 +32,15 @@ class TestSearchRoutes(unittest.TestCase):
     # or its own mock. We assume it resolves to *something* that we can patch in its namespace.
     @patch('python_api_service.search_routes.get_text_embedding_openai')
     # Patching lancedb_service.search_similar_notes where it's imported and used in search_routes.py
-    @patch('python_api_service.search_routes.lancedb_service.search_similar_notes')
-    def test_semantic_search_meetings_success(self, mock_search_similar_notes, mock_get_embedding, mock_env_get):
+    @patch('python_api_service.search_routes.lancedb_service.search_meeting_transcripts')
+    def test_semantic_search_meetings_success(self, mock_search_meeting_transcripts, mock_get_embedding, mock_env_get):
         # Configure mocks
         mock_env_get.return_value = "dummy_lancedb_uri" # For LANCEDB_URI
         mock_get_embedding.return_value = {"status": "success", "data": [0.05] * 1536}
-        mock_search_similar_notes.return_value = {
+        mock_search_meeting_transcripts.return_value = {
             "status": "success",
             "data": [
-                {"id": "page1", "title": "Meeting A", "date": "2023-01-01T10:00:00Z", "score": 0.9, "user_id": "user1"}
+                {"notion_page_id": "page1", "notion_page_title": "Meeting A", "score": 0.9, "user_id": "user1"}
             ]
         }
 
@@ -53,15 +53,15 @@ class TestSearchRoutes(unittest.TestCase):
         self.assertIsInstance(data["data"], list)
         self.assertEqual(len(data["data"]), 1)
         self.assertEqual(data["data"][0]["notion_page_id"], "page1")
-        self.assertEqual(data["data"][0]["meeting_title"], "Meeting A")
+        self.assertEqual(data["data"][0]["notion_page_title"], "Meeting A")
         self.assertEqual(data["data"][0]["score"], 0.9)
 
         mock_get_embedding.assert_called_once_with(text_to_embed="test query", openai_api_key_param="test_key")
-        mock_search_similar_notes.assert_called_once_with(
+        mock_search_meeting_transcripts.assert_called_once_with(
             db_path="dummy_lancedb_uri",
             query_vector=[0.05] * 1536,
             user_id="user1",
-            table_name="meeting_transcripts",
+            table_name="meeting_transcripts_embeddings",
             limit=5
         )
 
@@ -103,12 +103,12 @@ class TestSearchRoutes(unittest.TestCase):
 
     @patch('python_api_service.search_routes.os.environ.get')
     @patch('python_api_service.search_routes.get_text_embedding_openai')
-    @patch('python_api_service.search_routes.lancedb_service.search_similar_notes')
-    def test_semantic_search_lancedb_failure(self, mock_search_similar_notes, mock_get_embedding, mock_env_get):
+    @patch('python_api_service.search_routes.lancedb_service.search_meeting_transcripts')
+    def test_semantic_search_lancedb_failure(self, mock_search_meeting_transcripts, mock_get_embedding, mock_env_get):
         if not search_routes_bp: self.skipTest("Blueprint not loaded")
         mock_env_get.return_value = "dummy_lancedb_uri"
         mock_get_embedding.return_value = {"status": "success", "data": [0.05] * 1536}
-        mock_search_similar_notes.return_value = {"status": "error", "message": "LanceDB search failed"}
+        mock_search_meeting_transcripts.return_value = {"status": "error", "message": "LanceDB search failed"}
 
         payload = {"query": "test query"}
         response = self.client.post('/api/semantic_search_meetings', json=payload)

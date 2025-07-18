@@ -5,7 +5,7 @@ from flask import Flask
 from datetime import datetime, timezone
 import os # For sys.path manipulation if needed, though test assumes correct PYTHONPATH
 
-from atomic-docker.project.functions.python_api_service.task_routes import task_bp
+from python_api_service.task_routes import task_bp
 
 # This mock will be used by the class-level patch
 mock_notion_client_instance = MagicMock()

@@ -1,7 +1,7 @@
 import os
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 
 # Dropbox SDK
 try:

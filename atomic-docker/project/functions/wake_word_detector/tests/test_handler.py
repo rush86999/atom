@@ -1,11 +1,17 @@
 import pytest
-from unittest.mock import MagicMock, patch, mock_open, call
+from unittest.mock import MagicMock, patch, mock_open, call, AsyncMock
 import os
 import sys
-import time # Will be patched
-import asyncio # For async functions run in threads
-import audioop # Will be patched
-import websockets # Will be patched
+import time
+import asyncio
+import audioop
+import websockets
+import requests
+import threading
+import json
+
+COMMAND_AUDIO_TIMEOUT_SECONDS = 10
+SILENCE_DETECTION_DURATION_SECONDS = 3
 
 # Ensure the handler module can be imported
 # This might need adjustment based on how pytest is run and project structure
@@ -521,7 +527,7 @@ def test_hcat_activation_fails(
 @patch.dict(os.environ, {"PV_ACCESS_KEY": "test_key"}, clear=True)
 @patch('wake_word_detector.handler.WakeWordDetector._activate_atom_agent', return_value=True)
 # Patch websockets.connect at the module level where it's imported in the handler
-@patch('wake_word_detector.handler.websockets.connect', side_effect=websockets.exceptions.WebSocketException("WS Connect Error"))
+@patch('wake_word_detector.handler.websockets.connect', side_effect=websockets.WebSocketException("WS Connect Error"))
 @patch('wake_word_detector.handler.WakeWordDetector._send_transcript_to_atom_agent')
 @patch('wake_word_detector.handler.WakeWordDetector._deactivate_atom_agent')
 def test_hcat_websocket_connection_fails(

@@ -347,4 +347,3 @@ if __name__ == "__main__":
     # And that tables exist and have some data.
     # asyncio.run(example_search_flow())
     pass
-```

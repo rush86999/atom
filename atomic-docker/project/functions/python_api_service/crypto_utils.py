@@ -132,5 +132,3 @@ if __name__ == '__main__':
             print("SKIPPED: Encryption/decryption test skipped due to cipher suite initialization failure (check logs above).")
     else:
         print("SKIPPED: Encryption/decryption test skipped as ATOM_OAUTH_ENCRYPTION_KEY is not set in the current environment.")
-
-```

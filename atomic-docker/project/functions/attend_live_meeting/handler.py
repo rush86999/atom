@@ -200,5 +200,3 @@ if __name__ == '__main__':
             kafka_producer.flush()
             kafka_producer.close()
             print("Kafka producer closed.", file=sys.stderr)
-
-[end of atomic-docker/project/functions/attend_live_meeting/handler.py]

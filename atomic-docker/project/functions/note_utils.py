@@ -199,7 +199,6 @@ async def transcribe_audio_deepgram_stream(
     def on_utterance_end(self, utterance_end, **kwargs): pass # print("Deepgram Utterance Ended")
 
     def on_error(self, error, **kwargs):
-        nonlocal stream_error
         err_msg = f"Deepgram stream error: {error}"
         print(err_msg)
         stream_error = {"message": err_msg, "details": kwargs}
