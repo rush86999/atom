@@ -1,0 +1,3 @@
+[submodule "classification_build_docker"]
+	path = classification_build_docker
+	url = github.com:rush86999/text2vecDocker.git
