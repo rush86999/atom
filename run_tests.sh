@@ -1,3 +1,3 @@
 #!/bin/bash
 export PYTHONPATH=$PYTHONPATH:$(pwd)
-python3 -m unittest atomic-docker/project/functions/test_research_agent.py
+python3 -m unittest discover atomic-docker/project/functions/python_api_service/tests

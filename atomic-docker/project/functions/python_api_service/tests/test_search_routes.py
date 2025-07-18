@@ -11,34 +11,7 @@ import os # Added for sys.path manipulation, if needed, though test structure as
 # will work if the test runner's environment is set up correctly.
 
 # Attempt to import the blueprint.
-try:
-    # This assumes 'python_api_service' is on PYTHONPATH or tests are run from 'functions' directory
-    from python_api_service.search_routes import search_routes_bp
-    # Also attempt to import the modules that search_routes.py itself tries to import,
-    # so we can patch them effectively if they were successfully imported by search_routes.py
-    # If search_routes.py had to use its mocks, these patches might target those mocks if not careful,
-    # but the goal is to patch what search_routes.py *uses*.
-    from python_api_service._utils import lancedb_service # For patching lancedb_service.search_similar_notes
-    from python_api_service import note_utils # For patching get_text_embedding_openai if it's from there
-                                      # search_routes.py actually imports from global note_utils
-                                      # So, the patch target for get_text_embedding_openai should be
-                                      # where it's defined or imported in search_routes.py's scope.
-                                      # The original code uses `from note_utils import get_text_embedding_openai`
-                                      # which is ambiguous here. It should be relative to `FUNCTIONS_DIR`
-                                      # or `python_api_service` package.
-                                      # For the purpose of the test, the patch targets in test methods are key.
-except ImportError as e_main:
-    print(f"Warning: Initial import attempt for search_routes_bp or its dependencies failed: {e_main}. This might be due to PYTHONPATH issues.")
-    # Fallback for local execution or specific structures if functions/ is the root for python_api_service
-    FUNCTIONS_DIR_TEST = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    if FUNCTIONS_DIR_TEST not in sys.path:
-        sys.path.insert(0, FUNCTIONS_DIR_TEST)
-
-    try:
-        from python_api_service.search_routes import search_routes_bp
-    except ImportError as e_fallback:
-        print(f"Critical: Could not import search_routes_bp for testing even after path adjustment: {e_fallback}. Ensure PYTHONPATH is correct or that python_api_service is a package.")
-        search_routes_bp = None
+from atomic-docker.project.functions.python_api_service.search_routes import search_routes_bp
 
 
 class TestSearchRoutes(unittest.TestCase):

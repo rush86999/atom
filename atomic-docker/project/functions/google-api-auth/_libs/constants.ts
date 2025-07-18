@@ -16,3 +16,12 @@ export const googleGmailScopes = [ // Array of scopes
     'https://www.googleapis.com/auth/gmail.readonly',
     // Add other Gmail scopes here if needed in the future, e.g., send, modify
 ].join(' '); // Google's library often expects scopes as a space-separated string
+
+// MCP Integration Constants
+export const googleClientIdMcp = process.env.GOOGLE_CLIENT_ID_MCP
+export const googleClientSecretMcp = process.env.GOOGLE_CLIENT_SECRET_MCP
+export const googleMcpRedirectUrl = process.env.GOOGLE_MCP_REDIRECT_URL
+export const googleMcpScopes = [ // Array of scopes
+    'https://www.googleapis.com/auth/drive.readonly',
+    // Add other MCP scopes here if needed in the future
+].join(' '); // Google's library often expects scopes as a space-separated string

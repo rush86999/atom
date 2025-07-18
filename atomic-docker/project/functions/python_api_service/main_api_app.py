@@ -13,6 +13,7 @@ from psycopg2 import pool
 from .auth_handler_dropbox import dropbox_auth_bp
 from .dropbox_handler import dropbox_bp
 from .meeting_prep import meeting_prep_bp
+from .mcp_handler import mcp_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -55,6 +56,8 @@ def create_app():
     logger.info("Registered 'dropbox_bp' blueprint.")
     app.register_blueprint(meeting_prep_bp)
     logger.info("Registered 'meeting_prep_bp' blueprint.")
+    app.register_blueprint(mcp_bp)
+    logger.info("Registered 'mcp_bp' blueprint.")
 
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)

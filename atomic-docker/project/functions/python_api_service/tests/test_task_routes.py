@@ -5,21 +5,7 @@ from flask import Flask
 from datetime import datetime, timezone
 import os # For sys.path manipulation if needed, though test assumes correct PYTHONPATH
 
-# To ensure python_api_service and its submodules like _utils can be found,
-# we might need to adjust sys.path here, similar to how note_handler.py does it.
-# This depends on where the tests are run from.
-# For subtask robustness, we'll assume the provided import structure in the test
-# will work if the test runner's environment is set up correctly.
-FUNCTIONS_DIR_TEST = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if FUNCTIONS_DIR_TEST not in sys.path:
-    sys.path.insert(0, FUNCTIONS_DIR_TEST)
-
-# Attempt to import the blueprint.
-try:
-    from python_api_service.task_routes import task_bp
-except ImportError as e:
-    print(f"Warning: Could not import task_bp from python_api_service.task_routes: {e}. Tests may be skipped or fail if task_bp is None.")
-    task_bp = None
+from atomic-docker.project.functions.python_api_service.task_routes import task_bp
 
 # This mock will be used by the class-level patch
 mock_notion_client_instance = MagicMock()
