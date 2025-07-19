@@ -67,5 +67,21 @@ class McpDropboxHandlerTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"status": "success", "data": {"files": []}})
 
+class McpOneDriveHandlerTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.app = create_app(db_pool=MagicMock())
+        self.client = self.app.test_client()
+
+    @patch('python_api_service.mcp_handler.get_mcp_credentials')
+    @patch('python_api_service.onedrive_service.OneDriveService.list_files')
+    def test_list_files_route_onedrive(self, mock_list_files, mock_get_mcp_credentials):
+        mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='onedrive')
+        mock_list_files.return_value = {"status": "success", "data": {"files": []}}
+
+        response = self.client.get('/mcp/files', headers={'X-Hasura-User-Id': 'test-user'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, {"status": "success", "data": {"files": []}})
+
 if __name__ == '__main__':
     unittest.main()

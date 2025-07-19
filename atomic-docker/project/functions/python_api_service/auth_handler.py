@@ -334,6 +334,13 @@ def get_mcp_credentials(user_id: str, provider: str = 'gdrive') -> Optional[Any]
                     self.token = token
                     self.provider = provider
             return MockCreds(token)
+    elif provider == 'onedrive':
+        # This is a placeholder. In a real application, you would fetch the credentials from a secure storage.
+        class MockCreds:
+            def __init__(self, token, provider='onedrive'):
+                self.token = token
+                self.provider = provider
+        return MockCreds('dummy_token')
     # Add other providers here
     return None
 
