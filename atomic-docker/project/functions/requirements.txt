@@ -20,3 +20,6 @@ newsapi-python
 quickbooks-python
 mailchimp-marketing
 zenpy
+greenhouse-python
+docusign-esign
+jira
