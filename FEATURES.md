@@ -131,14 +131,26 @@ To leverage some of Atom's more advanced capabilities, specific setup and config
 
 ### Integrations
 Atom connects with a wide range of third-party services to create a unified productivity hub:
+*   **File Storage & Management:**
+    *   Dropbox (Connect your Dropbox account to list, search, and ingest files.)
+    *   Google Drive (Connect your Google Drive account to list, search, and ingest files.)
+*   **Project Management:**
+    *   Trello (Connect your Trello account to manage your boards, lists, and cards.)
+*   **CRM:**
+    *   HubSpot (Manage contacts, sync activities)
+    *   Salesforce (Connect your Salesforce account to manage your contacts, accounts, and opportunities.)
+*   **Financial & Payments:**
+    *   Stripe (List payments, potentially link to projects or clients)
+    *   QuickBooks (Manage invoices, link financial data)
+    *   Xero (Connect your Xero account to manage your invoices, bills, and contacts.)
+*   **Social Media:**
+    *   Twitter (Connect your Twitter account to view your timeline, post tweets, and search for tweets.)
 *   **Calendar Providers:**
     *   Google Calendar (Full sync via OAuth 2.0, with token management for agent interactions. Ensure redirect URI `/api/atom/auth/calendar/callback` is configured in Google Cloud Console.)
     *   Microsoft Teams (Integration for calendar events and online meetings)
 *   **Communication & Collaboration:**
     *   Slack (Send messages, list channels, receive notifications)
     *   Email (General email functionalities for sending notifications, meeting invites, and summaries)
-*   **CRM:**
-    *   HubSpot (Manage contacts, sync activities)
 *   **Video Conferencing:**
     *   Zoom (Create, delete, get, and update meetings; OAuth 2.0 for secure integration)
     *   Google Meet (Agent capabilities for managing meeting links and details)
@@ -146,9 +158,6 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Notion (Primary integration for notes, research databases, and knowledge organization)
 *   **Scheduling Services:**
     *   Calendly (Integration to coordinate external scheduling)
-*   **Financial & Payments:**
-    *   Stripe (List payments, potentially link to projects or clients)
-    *   QuickBooks (Manage invoices, link financial data)
 *   **Automation Platforms:**
     *   Zapier (Connect Atom with a vast ecosystem of other apps and services)
 *   **Contact Sync:**
