@@ -22,6 +22,9 @@ from .social_media_handler import social_media_bp
 from .sales_manager_handler import sales_manager_bp
 from .project_manager_handler import project_manager_bp
 from .personal_assistant_handler import personal_assistant_bp
+from .financial_analyst_handler import financial_analyst_bp
+from .marketing_manager_handler import marketing_manager_bp
+from .customer_support_manager_handler import customer_support_manager_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
 
@@ -87,8 +90,10 @@ def create_app(db_pool=None):
     logger.info("Registered 'project_manager_bp' blueprint.")
     app.register_blueprint(personal_assistant_bp)
     logger.info("Registered 'personal_assistant_bp' blueprint.")
-    app.register_blueprint(meeting_prep_bp)
-    logger.info("Registered 'meeting_prep_bp' blueprint.")
+    app.register_blueprint(marketing_manager_bp)
+    logger.info("Registered 'marketing_manager_bp' blueprint.")
+    app.register_blueprint(customer_support_manager_bp)
+    logger.info("Registered 'customer_support_manager_bp' blueprint.")
     app.register_blueprint(mcp_bp)
     logger.info("Registered 'mcp_bp' blueprint.")
 

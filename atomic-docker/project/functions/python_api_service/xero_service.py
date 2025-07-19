@@ -115,3 +115,27 @@ async def get_contact(xero: AccountingApi, contact_id: str) -> Dict[str, Any]:
     except AccountingBadRequestException as e:
         logger.error(f"Error getting Xero contact: {e}", exc_info=True)
         raise
+
+async def get_invoice(xero: AccountingApi, invoice_id: str) -> Dict[str, Any]:
+    try:
+        invoice = xero.get_invoice(invoice_id=invoice_id)
+        return invoice.to_dict()['invoices'][0]
+    except AccountingBadRequestException as e:
+        logger.error(f"Error getting Xero invoice: {e}", exc_info=True)
+        raise
+
+async def get_invoice(xero: AccountingApi, invoice_id: str) -> Dict[str, Any]:
+    try:
+        invoice = xero.get_invoice(invoice_id=invoice_id)
+        return invoice.to_dict()['invoices'][0]
+    except AccountingBadRequestException as e:
+        logger.error(f"Error getting Xero invoice: {e}", exc_info=True)
+        raise
+
+async def get_invoice(xero: AccountingApi, invoice_id: str) -> Dict[str, Any]:
+    try:
+        invoice = xero.get_invoice(invoice_id=invoice_id)
+        return invoice.to_dict()['invoices'][0]
+    except AccountingBadRequestException as e:
+        logger.error(f"Error getting Xero invoice: {e}", exc_info=True)
+        raise
