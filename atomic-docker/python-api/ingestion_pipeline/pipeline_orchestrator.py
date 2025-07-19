@@ -11,6 +11,8 @@ try:
     from .notion_extractor import extract_structured_data_from_db, get_notion_client as get_notion_ext_client
     from .gdrive_extractor import extract_data_from_gdrive
     from .local_storage_extractor import extract_data_from_local_storage
+    from .dropbox_extractor import extract_data_from_dropbox
+    from .onedrive_extractor import extract_data_from_onedrive
     from .text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from .lancedb_handler import (
         upsert_page_embeddings_to_lancedb,
@@ -23,6 +25,8 @@ except ImportError: # Fallback for direct script execution if . is not recognize
     from notion_extractor import extract_structured_data_from_db, get_notion_client as get_notion_ext_client
     from gdrive_extractor import extract_data_from_gdrive
     from local_storage_extractor import extract_data_from_local_storage
+    from dropbox_extractor import extract_data_from_dropbox
+    from onedrive_extractor import extract_data_from_onedrive
     from text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from lancedb_handler import (
         upsert_page_embeddings_to_lancedb,
@@ -147,6 +151,18 @@ async def run_ingestion_pipeline():
         local_data = await extract_data_from_local_storage(ATOM_USER_ID_FOR_INGESTION, local_storage_path)
         all_data.extend(local_data)
 
+    # Dropbox
+    dropbox_token = os.getenv("DROPBOX_ACCESS_TOKEN")
+    if dropbox_token:
+        dropbox_data = await extract_data_from_dropbox(ATOM_USER_ID_FOR_INGESTION, dropbox_token)
+        all_data.extend(dropbox_data)
+
+    # OneDrive
+    onedrive_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
+    if onedrive_token:
+        onedrive_data = await extract_data_from_onedrive(ATOM_USER_ID_FOR_INGESTION, onedrive_token)
+        all_data.extend(onedrive_data)
+
     if not all_data:
         logger.info("No data found from any source. Pipeline finished.")
         return
@@ -258,6 +274,12 @@ async def main():
     required_vars = ["OPENAI_API_KEY", "LANCEDB_URI", "MEILI_MASTER_KEY"]
     if os.getenv("NOTION_API_KEY"):
         required_vars.append("NOTION_TRANSCRIPTS_DATABASE_ID")
+    if os.getenv("GDRIVE_CREDENTIALS"):
+        pass # No additional required vars, credentials are self-contained
+    if os.getenv("DROPBOX_ACCESS_TOKEN"):
+        pass # No additional required vars
+    if os.getenv("ONEDRIVE_ACCESS_TOKEN"):
+        required_vars.append("MS_CLIENT_ID")
 
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     if missing_vars:
