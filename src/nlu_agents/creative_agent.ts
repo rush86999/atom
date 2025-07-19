@@ -26,7 +26,7 @@ Focus on:
 4.  **Potential Enhancements**: If the user's request is fulfilled, are there related value-adds or next steps that could be proactively suggested?
 5.  **Ambiguity Flags**: Identify terms or phrases that are subjective, ambiguous, or could have multiple interpretations.
 
-Return your analysis ONLY as a valid JSON object with the following structure. Ensure all specified fields are present in your JSON output. If no items apply for a list-based field (like "alternativeGoals"), return an empty array `[]` for that field.
+Return your analysis ONLY as a valid JSON object with the following structure. Ensure all specified fields are present in your JSON output. If no items apply for a list-based field (like "alternativeGoals"), return an empty array [].
 {
   "alternativeGoals": ["string", ...],
   "novelSolutionsSuggested": ["string", ...],

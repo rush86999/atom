@@ -51,7 +51,7 @@ Return your analysis ONLY as a valid JSON object with the following structure:
   }
 }
 
-Ensure all specified fields are present in your JSON output. If no items apply for a list-based field (like "contextualFactors" or "toolsNeeded"), return an empty array `[]` for that field.
+Ensure all specified fields are present in your JSON output. If no items apply for a list-based field (like "contextualFactors" or "toolsNeeded"), return an empty array [].
 Do not include any explanations, apologies, or conversational text outside the JSON structure. Your entire response must be the JSON object itself.
 
 Consider the following context when forming your response:

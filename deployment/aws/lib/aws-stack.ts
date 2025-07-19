@@ -354,7 +354,7 @@ export class AwsStack extends cdk.Stack {
         comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
         treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-    rdsHighConnectionsAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
+    this.rdsHighConnectionsAlarm.addAlarmAction(new cw_actions.SnsAction(alarmTopic));
 
 
     // ECS Cluster
@@ -540,7 +540,7 @@ export class AwsStack extends cdk.Stack {
         // For now, I will update the description to be more explicit about where to get the values,
         // acknowledging that the *composition* is manual. True automation of this specific secret's value
         // requires a custom resource.
-      description: `Manually populate with the SuperTokens PostgreSQL connection string. Format: postgresql://<DB_USER>:<DB_PASS>@<DB_HOST>:<DB_PORT>/<DB_NAME>. Obtain DB_HOST and DB_PORT from DbInstanceEndpoint CfnOutput. Obtain DB_USER, DB_PASS from the RDS instance's primary secret (DbSecretArn CfnOutput). DB_NAME is 'atomicdb'.`,
+      description: `Manually populate with the SuperTokens PostgreSQL connection string. Format: postgresql://<DB_USER>:<DB_PASS>@<DB_HOST>:<DB_PORT>/<DB_NAME>. Obtain DB_HOST and DB_PORT from DbInstanceEndpoint CfnOutput. Obtain DB_USER, DB_PASS from the RDS instance's primary secret (DbSecretArn CfnOutput). DB_NAME is 'atomicdb'.`
     });
     new cdk.CfnOutput(this, 'SupertokensDbConnStringSecretArn', { value: this.supertokensDbConnStringSecret.secretArn });
 
@@ -722,7 +722,7 @@ export class AwsStack extends cdk.Stack {
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy, // Cast needed as conditionIf returns IResolvable
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -746,7 +746,7 @@ export class AwsStack extends cdk.Stack {
     const supertokensServiceCpuAlarm = new cloudwatch.Alarm(this, 'SupertokensServiceHighCpuAlarm', {
       alarmName: `${this.stackName}-SupertokensService-HighCPU`,
       alarmDescription: 'Alarm if SupertokensService CPU utilization is too high.',
-      metric: supertokensService.metricCPUUtilization({
+      metric: this.supertokensService.metricCPUUtilization({
         period: cdk.Duration.minutes(5),
         statistic: cloudwatch.Statistic.AVERAGE,
       }),
@@ -762,7 +762,7 @@ export class AwsStack extends cdk.Stack {
       port: 3567,
       protocol: elbv2.ApplicationProtocol.HTTP,
       targetType: elbv2.TargetType.IP,
-      targets: [supertokensService],
+      targets: [this.supertokensService],
       healthCheck: {
         path: '/hello',
         interval: cdk.Duration.seconds(30),
@@ -776,13 +776,13 @@ export class AwsStack extends cdk.Stack {
       listener: httpsListener, // Changed from this.httpListener
       priority: 10,
       conditions: [elbv2.ListenerCondition.pathPatterns(['/v1/auth/*'])],
-      action: elbv2.ListenerAction.forward([supertokensTargetGroup]),
+      action: elbv2.ListenerAction.forward([this.supertokensTargetGroup]),
     });
 
     const supertokensTgUnhealthyHostAlarm = new cloudwatch.Alarm(this, 'SupertokensTgUnhealthyHostAlarm', {
       alarmName: `${this.stackName}-Supertokens-Unhealthy-Hosts`,
       alarmDescription: 'Alarm if Supertokens Target Group has unhealthy hosts.',
-      metric: supertokensTargetGroup.metricUnhealthyHostCount({
+      metric: this.supertokensTargetGroup.metricUnhealthyHostCount({
         period: cdk.Duration.minutes(5),
         statistic: cloudwatch.Statistic.AVERAGE, // Or MAX
       }),
@@ -796,7 +796,7 @@ export class AwsStack extends cdk.Stack {
     const supertokensTg5xxAlarm = new cloudwatch.Alarm(this, 'SupertokensTg5xxAlarm', {
       alarmName: `${this.stackName}-Supertokens-Target-5XX-Errors`,
       alarmDescription: 'Alarm if Supertokens Target Group experiences 5XX errors.',
-      metric: supertokensTargetGroup.metricHttpCodeTarget(
+      metric: this.supertokensTargetGroup.metricHttpCodeTarget(
         elbv2.HttpCodeTarget.TARGET_5XX_COUNT,
         {
           statistic: cloudwatch.Statistic.SUM,
@@ -813,8 +813,8 @@ export class AwsStack extends cdk.Stack {
     const supertokensTgLatencyAlarm = new cloudwatch.Alarm(this, 'SupertokensTgLatencyAlarm', {
       alarmName: `${this.stackName}-Supertokens-Target-HighLatency`,
       alarmDescription: 'Alarm if Supertokens Target Group P90 latency is high.',
-      metric: supertokensTargetGroup.metricTargetResponseTime({
-        statistic: cloudwatch.Statistic.P90,
+      metric: this.supertokensTargetGroup.metricTargetResponseTime({
+        statistic: 'p90',
         period: cdk.Duration.minutes(5),
       }),
       threshold: 1, // 1 second (adjust as needed)
@@ -852,7 +852,7 @@ export class AwsStack extends cdk.Stack {
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -882,9 +882,9 @@ export class AwsStack extends cdk.Stack {
     const postgraphileServiceCpuAlarm = new cloudwatch.Alarm(this, 'PostgraphileServiceHighCpuAlarm', {
       alarmName: `${this.stackName}-PostgraphileService-HighCPU`,
       alarmDescription: 'Alarm if PostgraphileService CPU utilization is too high.',
-      metric: this.postgraphileService.metricCPUUtilization({ // Use renamed service
+      metric: this.postgraphileService.metricCpuUtilization({ // Use renamed service
         period: cdk.Duration.minutes(5),
-        statistic: cloudwatch.Statistic.AVERAGE,
+        statistic: 'Average',
       }),
       threshold: 85,
       evaluationPeriods: 3,
@@ -1043,7 +1043,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       // Command to write the config and run the collector. This is a common workaround.
@@ -1084,7 +1084,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1225,8 +1225,8 @@ service:
     const functionsTgLatencyAlarm = new cloudwatch.Alarm(this, 'FunctionsTgLatencyAlarm', {
       alarmName: `${this.stackName}-Functions-Target-HighLatency`,
       alarmDescription: 'Alarm if Functions Target Group P90 latency is high.',
-      metric: functionsTargetGroup.metricTargetResponseTime({
-        statistic: cloudwatch.Statistic.P90,
+      metric: this.functionsTargetGroup.metricTargetResponseTime({
+        statistic: 'p90',
         period: cdk.Duration.minutes(5),
       }),
       threshold: 1, // 1 second (adjust as needed)
@@ -1300,7 +1300,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       command: [
@@ -1335,7 +1335,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1508,7 +1508,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1625,7 +1625,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {
@@ -1739,7 +1739,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         })
       }),
       environment: {
@@ -1934,7 +1934,7 @@ service:
                             isProdStageCondition.logicalId,
                             cdk.RemovalPolicy.RETAIN,
                             cdk.RemovalPolicy.DESTROY
-                        ) as cdk.RemovalPolicy,
+                        ) as unknown as cdk.RemovalPolicy,
         }),
       }),
       environment: {

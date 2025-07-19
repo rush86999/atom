@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@types/jest": "^30.0.0",
+    "aws-cdk-lib": "^2.206.0",
+    "ts-jest": "^29.4.0"
+  }
+}

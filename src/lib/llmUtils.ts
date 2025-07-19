@@ -17,7 +17,11 @@ export type LLMTaskType =
   | 'extract_document_snippets'
   | 'summarize_document_snippets'
   | 'summarize_overall_answer'
-  | 'parse_search_query'; // Added for the new NLU filter skill
+  | 'parse_search_query'
+  | 'custom_analytical_analysis'
+  | 'custom_creative_analysis'
+  | 'custom_practical_analysis'
+  | 'custom_synthesis';
 
 // --- Data Payloads for specific tasks ---
 export interface EmailCategorizationData { subject: string; bodySnippet: string; }
@@ -55,7 +59,7 @@ export interface LLMServiceResponse {
 }
 
 export interface LLMServiceInterface {
-  generate(prompt: StructuredLLMPrompt, model: string, options?: { temperature?: number; maxTokens?: number }): Promise<LLMServiceResponse>;
+  generate(prompt: StructuredLLMPrompt, model: string, options?: { temperature?: number; maxTokens?: number; isJsonOutput?: boolean }): Promise<LLMServiceResponse>;
 }
 
 export class MockLLMService implements LLMServiceInterface {
@@ -177,6 +181,50 @@ export class MockLLMService implements LLMServiceInterface {
         case 'generate_followup_suggestions': {
             const data = structuredPrompt.data as FollowupSuggestionData;
             content = JSON.stringify({ suggestions: [`Advanced ${data.articleTitle || data.query}`, "Related Topic B"] });
+            break;
+        }
+        case 'custom_analytical_analysis': {
+            content = JSON.stringify({
+                identifiedEntities: ["pivot table", "SpreadsheetApp"],
+                explicitTasks: ["create pivot table"],
+                informationNeeded: [],
+                logicalConsistency: { isConsistent: true, reason: "" },
+                problemType: "how_to"
+            });
+            break;
+        }
+        case 'custom_creative_analysis': {
+            content = JSON.stringify({
+                alternativeGoals: ["understand data better", "create a chart"],
+                novelSolutionsSuggested: ["use a pre-built template"],
+                unstatedAssumptions: ["user has data ready"],
+                potentialEnhancements: ["add conditional formatting"],
+                ambiguityFlags: []
+            });
+            break;
+        }
+        case 'custom_practical_analysis': {
+            content = JSON.stringify({
+                contextualFactors: [],
+                feasibilityAssessment: { rating: "High", reason: "", dependencies: [] },
+                efficiencyTips: ["use the 'Recommended PivotTables' feature"],
+                resourceImplications: { timeEstimate: "Quick", toolsNeeded: ["SpreadsheetApp"] },
+                commonSenseValidation: { isValid: true, reason: "" }
+            });
+            break;
+        }
+        case 'custom_synthesis': {
+            content = JSON.stringify({
+                primaryGoal: "create a pivot table",
+                primaryGoalConfidence: 0.9,
+                identifiedTasks: ["create pivot table"],
+                extractedParameters: { app: "SpreadsheetApp" },
+                suggestedNextAction: {
+                    actionType: "invoke_skill",
+                    skillId: "LearningAndGuidanceSkill",
+                    reason: "User is asking a 'how-to' question."
+                }
+            });
             break;
         }
         default:

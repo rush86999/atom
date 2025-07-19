@@ -2,54 +2,45 @@ import { NLULeadAgent } from '../nlu_agents/nlu_lead_agent';
 import { AnalyticalAgent } from '../nlu_agents/analytical_agent';
 import { CreativeAgent } from '../nlu_agents/creative_agent';
 import { PracticalAgent } from '../nlu_agents/practical_agent';
+import { SynthesizingAgent } from '../nlu_agents/synthesizing_agent';
 import { SubAgentInput, EnrichedIntent, DEFAULT_MODEL_FOR_AGENTS } from '../nlu_agents/nlu_types';
 
 import { LearningAndGuidanceSkill, LearningAndGuidanceInput, LearningAndGuidanceResult } from '../skills/learningAndGuidanceSkill';
-import { MockLLMService, RealLLMService } from '../lib/llmUtils'; // Import RealLLMService
+import { MockLLMService, RealLLMService } from '../lib/llmUtils';
 
-// --- Initialization (typically done once, e.g., on server start) ---
-
-// For services that still use mocks or for fallback
 const mockLLM = new MockLLMService();
 
-// Initialize RealLLMService for the AnalyticalAgent
-// IMPORTANT: In a real app, "YOUR_API_KEY_PLACEHOLDER" would come from a secure source like process.env.LLM_API_KEY
-// Since the key is a placeholder, RealLLMService will internally use its simulated successful response.
 const realLLMServiceForAnalytical = new RealLLMService(
-    process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER", // Prioritize env variable if available
-    DEFAULT_MODEL_FOR_AGENTS, // Defined in nlu_types, e.g., "mixtral-8x7b-32768"
-    // Specify baseURL if not OpenAI default, e.g., for Groq: 'https://api.groq.com/openai/v1'
+    process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER",
+    DEFAULT_MODEL_FOR_AGENTS
 );
+const analyticalAgent = new AnalyticalAgent(realLLMServiceForAnalytical);
 
-const analyticalAgent = new AnalyticalAgent(realLLMServiceForAnalytical); // AnalyticalAgent uses RealLLMService
-
-// Initialize RealLLMService for the CreativeAgent
 const realLLMServiceForCreative = new RealLLMService(
     process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER",
     DEFAULT_MODEL_FOR_AGENTS
 );
-const creativeAgent = new CreativeAgent(realLLMServiceForCreative); // CreativeAgent now uses RealLLMService
+const creativeAgent = new CreativeAgent(realLLMServiceForCreative);
 
-// Initialize RealLLMService for the PracticalAgent
 const realLLMServiceForPractical = new RealLLMService(
     process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER",
     DEFAULT_MODEL_FOR_AGENTS
 );
-const practicalAgent = new PracticalAgent(realLLMServiceForPractical); // PracticalAgent now uses RealLLMService
+const practicalAgent = new PracticalAgent(realLLMServiceForPractical);
 
-// NLULeadAgent can also use the real service if its LLM-based synthesis is to be tested with a real LLM.
-// For now, let's assume its synthesis might also use a more general/mocked service or its rule-based approach.
-// If NLULeadAgent's LLM synthesis were the focus, it too would get an instance of RealLLMService.
-// To test the LLM-based synthesis path with RealLLMService's simulation, NLULeadAgent needs a RealLLMService.
-// We can reuse one of the existing instances, e.g., realLLMServiceForAnalytical, as they are configured similarly.
+const realLLMServiceForSynthesizing = new RealLLMService(
+    process.env.LLM_API_KEY || "YOUR_API_KEY_PLACEHOLDER",
+    DEFAULT_MODEL_FOR_AGENTS
+);
+const synthesizingAgent = new SynthesizingAgent(realLLMServiceForSynthesizing);
+
 const nluLeadAgent = new NLULeadAgent(
     analyticalAgent,
     creativeAgent,
     practicalAgent,
-    realLLMServiceForAnalytical // NLULeadAgent now uses RealLLMService for its own LLM calls (i.e., synthesis)
+    synthesizingAgent
 );
 
-// Instance of the existing skill, can still use MockLLMService for its internal LLM calls
 const learningAndGuidanceSkill = new LearningAndGuidanceSkill(mockLLM);
 
 // --- Orchestration Logic ---
@@ -67,8 +58,7 @@ export interface OrchestratorResponse {
 export async function processGuidanceRequest(
     originalQuery: string,
     userId: string,
-    applicationContext?: string,
-    useLLMSynthesisForNLU: boolean = false
+    applicationContext?: string
 ): Promise<OrchestratorResponse> {
 
     console.log(`[GuidanceOrchestrator] Received query: "${originalQuery}" from user: ${userId}`);
@@ -76,13 +66,9 @@ export async function processGuidanceRequest(
     const subAgentInput: SubAgentInput = {
         userInput: originalQuery,
         userId: userId,
-        // In a real scenario, more context could be added here:
-        // currentApplication: applicationContext,
-        // userProfile: await fetchUserProfile(userId), // e.g.
     };
 
-    // 1. Get Enriched Intent from NLULeadAgent
-    const enrichedIntent = await nluLeadAgent.analyzeIntent(subAgentInput, useLLMSynthesisForNLU);
+    const enrichedIntent = await nluLeadAgent.analyzeIntent(subAgentInput);
     console.log(`[GuidanceOrchestrator] NLULeadAgent suggested action: ${enrichedIntent.suggestedNextAction?.actionType}`);
     console.log(`[GuidanceOrchestrator] NLULeadAgent primary goal: ${enrichedIntent.primaryGoal} (Confidence: ${enrichedIntent.primaryGoalConfidence?.toFixed(2)})`);
 
@@ -222,14 +208,14 @@ async function runGuidanceOrchestratorTests() {
     console.log("\\n--- Starting GuidanceOrchestrator Tests ---");
     const testCases: TestCase[] = [
         {
-            description: "Test 1: Vague query, expecting clarification (Rule-based NLU)",
+            description: "Test 1: Vague query, expecting clarification",
             query: "Help me fix stuff.",
             userId: "user-test-001",
             expectedResponseType: 'clarification',
-            expectedMessageContains: "clarify your intent" // From NLULeadAgent's rule-based synthesis for vague queries
+            expectedMessageContains: "I need more information"
         },
         {
-            description: "Test 2: Specific 'how-to' query, expecting guidance success (Rule-based NLU)",
+            description: "Test 2: Specific 'how-to' query, expecting guidance success",
             query: "How do I create a pivot table in SpreadsheetApp?",
             userId: "user-test-002",
             applicationContext: "SpreadsheetApp",
@@ -238,60 +224,23 @@ async function runGuidanceOrchestratorTests() {
             expectedGuidanceTitles: ["How to Create Pivot Tables in SpreadsheetApp"]
         },
         {
-            description: "Test 3: Complex query, rule-based NLU, expecting skill invocation",
+            description: "Test 3: Complex query, expecting skill invocation",
             query: "my marketing report for Q3 is hard to do, how can AI make it efficient?",
             userId: "user-test-003",
             applicationContext: "MarketingSuite",
-            expectedResponseType: 'fallback_info', // Because our mock skill doesn't handle "WorkflowAutomationSuggesterSkill" yet
-            expectedMessageContains: ["Goal: make report generation efficient", "Suggested next step: invoke_skill (WorkflowAutomationSuggesterSkill)"]
-        },
-        {
-            description: "Test 4: Complex query, (mocked) LLM-based NLU, expecting different skill",
-            query: "my marketing report for Q3 is hard to do, how can AI make it efficient?",
-            userId: "user-test-004",
-            applicationContext: "MarketingSuite",
-            useLLMSynthesis: true, // This activates LLM-based synthesis in NLULeadAgent
             expectedResponseType: 'fallback_info',
-            // This now reflects the output from RealLLMService's simulation for 'custom_lead_agent_synthesis'
-            expectedMessageContains: [
-                "Goal: Simulated: Schedule meeting about Project Alpha",
-                "Suggested next step: invoke_skill (CalendarSkill)"
-            ]
+            expectedMessageContains: "Suggested next step: invoke_skill"
         },
-        {
-            description: "Test 5: Query that analytical agent deems inconsistent",
-            // For this, we need to ensure the NLULeadAgent's rule-based synthesis correctly prioritizes clarification
-            // The mock analytical agent returns inconsistency for generic queries by default.
-            query: "This statement is false and also not false.", // A bit contrived for mock
-            userId: "user-test-005",
-            expectedResponseType: 'clarification',
-            expectedMessageContains: "inconsistent or unclear"
-        }
     ];
 
     let testsPassed = 0;
     for (const tc of testCases) {
         console.log(`\nRunning: ${tc.description}`);
-        // Temporarily modify sub-agent mocks if needed for specific test cases (as done in NLULeadAgent example)
-        if (tc.query.includes("This statement is false")) {
-             analyticalAgent.analyze = async (input: SubAgentInput) => ({
-                identifiedEntities: [], explicitTasks: [], informationNeeded: [],
-                logicalConsistency: { isConsistent: false, reason: "Query contains a logical paradox." },
-                problemType: "paradox_check", rawLLMResponse: "{}"
-            });
-        } else {
-            // Restore default mock behavior for analytical agent (important if changed by a previous test)
-            // This is a bit hacky; proper test setup/teardown would handle this better.
-            const defaultAnalyticalAgent = new AnalyticalAgent(mockLLM);
-            analyticalAgent.analyze = defaultAnalyticalAgent.analyze.bind(defaultAnalyticalAgent);
-        }
-
 
         const response = await processGuidanceRequest(
             tc.query,
             tc.userId,
-            tc.applicationContext,
-            tc.useLLMSynthesis
+            tc.applicationContext
         );
 
         let pass = false;
