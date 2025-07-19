@@ -19,6 +19,8 @@ meilisearch>=0.36.0,<1.0.0
 dropbox>=11.36.0
 google-api-python-client
 google-auth-oauthlib
+msgraph-sdk
+azure-identity
 
 # For HTML/DOCX parsing
 python-docx>=0.8.11
