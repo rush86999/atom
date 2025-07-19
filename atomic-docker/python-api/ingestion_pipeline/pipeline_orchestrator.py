@@ -9,6 +9,8 @@ from typing import Optional, Any, List # Added List for type hint
 # or the directory added to sys.path. For a proper package, this should work.
 try:
     from .notion_extractor import extract_structured_data_from_db, get_notion_client as get_notion_ext_client
+    from .gdrive_extractor import extract_data_from_gdrive
+    from .local_storage_extractor import extract_data_from_local_storage
     from .text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from .lancedb_handler import (
         upsert_page_embeddings_to_lancedb,
@@ -18,6 +20,8 @@ try:
     )
 except ImportError: # Fallback for direct script execution if . is not recognized
     from notion_extractor import extract_structured_data_from_db, get_notion_client as get_notion_ext_client
+    from gdrive_extractor import extract_data_from_gdrive
+    from local_storage_extractor import extract_data_from_local_storage
     from text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from lancedb_handler import (
         upsert_page_embeddings_to_lancedb,
@@ -106,77 +110,88 @@ async def get_latest_page_edit_time_from_lancedb(
 async def run_ingestion_pipeline():
     logger.info(f"Starting ingestion pipeline in '{PROCESSING_MODE}' mode for user '{ATOM_USER_ID_FOR_INGESTION}'.")
 
-    if not NOTION_TRANSCRIPTS_DATABASE_ID:
-        logger.error("NOTION_TRANSCRIPTS_DATABASE_ID environment variable is not set. Aborting pipeline.")
-        return
-
-    notion_client = get_notion_ext_client()
     openai_client = get_tp_openai_client()
     lancedb_conn = await get_lancedb_connection()
 
-    if not notion_client or not openai_client or not lancedb_conn:
-        logger.error("One or more clients (Notion, OpenAI, LanceDB) failed to initialize. Aborting pipeline.")
+    if not openai_client or not lancedb_conn:
+        logger.error("One or more clients (OpenAI, LanceDB) failed to initialize. Aborting pipeline.")
         return
 
-    logger.info(f"Fetching page structures from Notion database: {NOTION_TRANSCRIPTS_DATABASE_ID}")
-    # `extract_structured_data_from_db` fetches metadata and full text for all non-archived pages.
-    notion_pages_data: List[dict] = await extract_structured_data_from_db(
-        database_id=NOTION_TRANSCRIPTS_DATABASE_ID,
-        atom_user_id=ATOM_USER_ID_FOR_INGESTION,
-        notion_client_override=notion_client
-    )
+    all_data = []
 
-    if not notion_pages_data:
-        logger.info("No pages found or extracted from Notion database. Pipeline finished.")
+    # Notion
+    if NOTION_TRANSCRIPTS_DATABASE_ID:
+        notion_client = get_notion_ext_client()
+        if notion_client:
+            logger.info(f"Fetching page structures from Notion database: {NOTION_TRANSCRIPTS_DATABASE_ID}")
+            notion_pages_data: List[dict] = await extract_structured_data_from_db(
+                database_id=NOTION_TRANSCRIPTS_DATABASE_ID,
+                atom_user_id=ATOM_USER_ID_FOR_INGESTION,
+                notion_client_override=notion_client
+            )
+            all_data.extend(notion_pages_data)
+        else:
+            logger.error("Notion client not initialized. Skipping Notion data extraction.")
+
+    # Google Drive
+    gdrive_data = await extract_data_from_gdrive(ATOM_USER_ID_FOR_INGESTION)
+    all_data.extend(gdrive_data)
+
+    # Local Storage
+    local_storage_path = os.getenv("LOCAL_STORAGE_PATH")
+    if local_storage_path:
+        local_data = await extract_data_from_local_storage(ATOM_USER_ID_FOR_INGESTION, local_storage_path)
+        all_data.extend(local_data)
+
+    if not all_data:
+        logger.info("No data found from any source. Pipeline finished.")
         return
 
     processed_pages_count = 0
     skipped_pages_count = 0
     failed_pages_count = 0
 
-    for page_data in notion_pages_data:
-        notion_page_id = page_data["notion_page_id"]
-        page_title = page_data["notion_page_title"]
-        current_page_last_edited_iso = page_data["last_edited_at_notion"] # ISO string from Notion
+    for item_data in all_data:
+        item_id = item_data.get("notion_page_id") or item_data.get("document_id")
+        item_title = item_data.get("notion_page_title") or item_data.get("document_title")
+        current_item_last_edited_iso = item_data.get("last_edited_at_notion") or item_data.get("last_edited_at")
 
-        logger.info(f"Evaluating page: '{page_title}' (ID: {notion_page_id})")
+        logger.info(f"Evaluating item: '{item_title}' (ID: {item_id}) from source: {item_data.get('source')}")
 
         if PROCESSING_MODE == "incremental":
-            if not current_page_last_edited_iso:
-                logger.warning(f"Page '{page_title}' (ID: {notion_page_id}) has no last_edited_time from Notion. Processing it to be safe.")
+            if not current_item_last_edited_iso:
+                logger.warning(f"Item '{item_title}' (ID: {item_id}) has no last_edited_time. Processing it to be safe.")
             else:
                 try:
-                    # Ensure current_page_last_edited_iso is a string before replacing 'Z'
-                    if not isinstance(current_page_last_edited_iso, str):
-                        raise ValueError("last_edited_at_notion from Notion is not a string.")
-                    current_page_last_edited_dt = datetime.fromisoformat(current_page_last_edited_iso.replace("Z", "+00:00"))
+                    if not isinstance(current_item_last_edited_iso, str):
+                        raise ValueError("last_edited_at is not a string.")
+                    current_item_last_edited_dt = datetime.fromisoformat(current_item_last_edited_iso.replace("Z", "+00:00"))
 
-                    # Ensure it's timezone-aware (UTC)
-                    if current_page_last_edited_dt.tzinfo is None:
-                         current_page_last_edited_dt = current_page_last_edited_dt.replace(tzinfo=timezone.utc)
+                    if current_item_last_edited_dt.tzinfo is None:
+                        current_item_last_edited_dt = current_item_last_edited_dt.replace(tzinfo=timezone.utc)
                     else:
-                        current_page_last_edited_dt = current_page_last_edited_dt.astimezone(timezone.utc)
+                        current_item_last_edited_dt = current_item_last_edited_dt.astimezone(timezone.utc)
 
                     last_ingested_lancedb_dt = await get_latest_page_edit_time_from_lancedb(
-                        lancedb_conn, lancedb_default_table_name, notion_page_id
+                        lancedb_conn, lancedb_default_table_name, item_id
                     )
 
-                    if last_ingested_lancedb_dt and current_page_last_edited_dt <= last_ingested_lancedb_dt:
-                        logger.info(f"Page '{page_title}' (ID: {notion_page_id}) has not been updated since last ingestion (Notion: {current_page_last_edited_dt}, LanceDB: {last_ingested_lancedb_dt}). Skipping.")
+                    if last_ingested_lancedb_dt and current_item_last_edited_dt <= last_ingested_lancedb_dt:
+                        logger.info(f"Item '{item_title}' (ID: {item_id}) has not been updated since last ingestion. Skipping.")
                         skipped_pages_count += 1
                         continue
                 except ValueError as ve:
-                    logger.error(f"Invalid date format for page '{page_title}' (ID: {notion_page_id}), last_edited_at_notion: {current_page_last_edited_iso}. Error: {ve}. Will process page to be safe.")
+                    logger.error(f"Invalid date format for item '{item_title}' (ID: {item_id}). Error: {ve}. Will process item to be safe.")
                 except Exception as e_check:
-                    logger.error(f"Error checking last ingested timestamp for page '{page_title}' (ID: {notion_page_id}): {e_check}. Will process page to be safe.", exc_info=True)
+                    logger.error(f"Error checking last ingested timestamp for item '{item_title}' (ID: {item_id}): {e_check}. Will process item to be safe.", exc_info=True)
 
-        full_text = page_data.get("full_text", "")
+        full_text = item_data.get("full_text", "")
         if not full_text.strip():
-            logger.info(f"Page '{page_title}' (ID: {notion_page_id}) has no text content. Skipping embedding.")
+            logger.info(f"Item '{item_title}' (ID: {item_id}) has no text content. Skipping embedding.")
             skipped_pages_count +=1
             continue
 
-        logger.info(f"Generating embeddings for page: '{page_title}' (ID: {notion_page_id})")
+        logger.info(f"Generating embeddings for item: '{item_title}' (ID: {item_id})")
         chunks_with_embeddings = await process_text_for_embeddings(
             full_text=full_text,
             openai_client_override=openai_client
@@ -184,31 +199,30 @@ async def run_ingestion_pipeline():
 
         valid_chunks_for_storage = [(chk, emb) for chk, emb in chunks_with_embeddings if emb is not None]
         if not valid_chunks_for_storage:
-            logger.warning(f"No embeddings successfully generated for page '{page_title}' (ID: {notion_page_id}). Skipping LanceDB storage.")
-            # Consider if this should be a failure or just a skip
-            failed_pages_count +=1 # Counting as failed if embeddings are crucial
+            logger.warning(f"No embeddings successfully generated for item '{item_title}' (ID: {item_id}). Skipping LanceDB storage.")
+            failed_pages_count +=1
             continue
 
-        logger.info(f"Upserting {len(valid_chunks_for_storage)} embedding(s) for page: '{page_title}' (ID: {notion_page_id}) to LanceDB.")
+        logger.info(f"Upserting {len(valid_chunks_for_storage)} embedding(s) for item: '{item_title}' (ID: {item_id}) to LanceDB.")
         upsert_success = await upsert_page_embeddings_to_lancedb(
-            notion_page_id=notion_page_id,
-            notion_page_title=page_title,
-            notion_page_url=page_data["notion_page_url"],
-            user_id=page_data["user_id"],
-            created_at_notion_iso=page_data["created_at_notion"],
-            last_edited_at_notion_iso=current_page_last_edited_iso,
-            chunks_with_embeddings=valid_chunks_for_storage, # Pass only chunks with successful embeddings
+            notion_page_id=item_id,
+            notion_page_title=item_title,
+            notion_page_url=item_data.get("url"),
+            user_id=item_data["user_id"],
+            created_at_notion_iso=item_data.get("created_at"),
+            last_edited_at_notion_iso=current_item_last_edited_iso,
+            chunks_with_embeddings=valid_chunks_for_storage,
             db_conn_override=lancedb_conn
         )
 
         if upsert_success:
-            logger.info(f"Successfully processed and stored page: '{page_title}' (ID: {notion_page_id})")
+            logger.info(f"Successfully processed and stored item: '{item_title}' (ID: {item_id})")
             processed_pages_count += 1
         else:
-            logger.error(f"Failed to store embeddings for page: '{page_title}' (ID: {notion_page_id}) in LanceDB.")
+            logger.error(f"Failed to store embeddings for item: '{item_title}' (ID: {item_id}) in LanceDB.")
             failed_pages_count += 1
 
-    logger.info(f"Ingestion pipeline finished. Successfully processed pages: {processed_pages_count}. Skipped/up-to-date pages: {skipped_pages_count}. Failed pages: {failed_pages_count}.")
+    logger.info(f"Ingestion pipeline finished. Successfully processed items: {processed_pages_count}. Skipped/up-to-date items: {skipped_pages_count}. Failed items: {failed_pages_count}.")
 
 
 async def main():
@@ -229,7 +243,10 @@ async def main():
         logger.info("python-dotenv not installed, .env file will not be loaded. Relying on external environment variables.")
 
     # Check for required environment variables before running
-    required_vars = ["NOTION_API_KEY", "OPENAI_API_KEY", "NOTION_TRANSCRIPTS_DATABASE_ID", "LANCEDB_URI"]
+    required_vars = ["OPENAI_API_KEY", "LANCEDB_URI"]
+    if os.getenv("NOTION_API_KEY"):
+        required_vars.append("NOTION_TRANSCRIPTS_DATABASE_ID")
+
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     if missing_vars:
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}. Aborting pipeline.")
