@@ -12,6 +12,12 @@ from psycopg2 import pool
 # from .search_routes import search_routes_bp # Example
 from .auth_handler_dropbox import dropbox_auth_bp
 from .dropbox_handler import dropbox_bp
+from .auth_handler_gdrive import gdrive_auth_bp
+from .gdrive_handler import gdrive_bp
+from .trello_handler import trello_bp
+from .salesforce_handler import salesforce_bp
+from .xero_handler import xero_bp
+from .twitter_handler import twitter_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
 
@@ -57,6 +63,18 @@ def create_app(db_pool=None):
     logger.info("Registered 'dropbox_auth_bp' blueprint.")
     app.register_blueprint(dropbox_bp)
     logger.info("Registered 'dropbox_bp' blueprint.")
+    app.register_blueprint(gdrive_auth_bp)
+    logger.info("Registered 'gdrive_auth_bp' blueprint.")
+    app.register_blueprint(gdrive_bp)
+    logger.info("Registered 'gdrive_bp' blueprint.")
+    app.register_blueprint(trello_bp)
+    logger.info("Registered 'trello_bp' blueprint.")
+    app.register_blueprint(salesforce_bp)
+    logger.info("Registered 'salesforce_bp' blueprint.")
+    app.register_blueprint(xero_bp)
+    logger.info("Registered 'xero_bp' blueprint.")
+    app.register_blueprint(twitter_bp)
+    logger.info("Registered 'twitter_bp' blueprint.")
     app.register_blueprint(meeting_prep_bp)
     logger.info("Registered 'meeting_prep_bp' blueprint.")
     app.register_blueprint(mcp_bp)

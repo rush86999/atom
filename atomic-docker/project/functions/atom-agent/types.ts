@@ -1364,3 +1364,84 @@ export interface DropboxFile {
   size?: number;
   server_modified?: string; // ISO 8601 string
 }
+
+export interface TrelloBoard {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export interface TrelloList {
+  id: string;
+  name: string;
+}
+
+export interface TrelloCard {
+  id: string;
+  name: string;
+  desc: string;
+  url: string;
+}
+
+export interface SalesforceContact {
+  Id: string;
+  Name: string;
+  Email?: string;
+}
+
+export interface SalesforceAccount {
+  Id: string;
+  Name: string;
+}
+
+export interface SalesforceOpportunity {
+  Id: string;
+  Name: string;
+  StageName: string;
+  Amount?: number;
+  CloseDate: string;
+}
+
+export interface XeroInvoice {
+  InvoiceID: string;
+  InvoiceNumber?: string;
+  Contact: {
+    ContactID: string;
+    Name: string;
+  };
+  DateString: string;
+  DueDateString: string;
+  Total: number;
+  AmountDue: number;
+  Status: string;
+}
+
+export interface XeroBill {
+    InvoiceID: string;
+    InvoiceNumber?: string;
+    Contact: {
+      ContactID: string;
+      Name: string;
+    };
+    DateString: string;
+    DueDateString: string;
+    Total: number;
+    AmountDue: number;
+    Status: string;
+}
+
+export interface XeroContact {
+  ContactID: string;
+  Name: string;
+  EmailAddress?: string;
+}
+
+export interface Tweet {
+  id_str: string;
+  text: string;
+  user: {
+    name: string;
+    screen_name: string;
+  };
+  created_at: string;
+}

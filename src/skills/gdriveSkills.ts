@@ -4,7 +4,6 @@ import {
 } from '../../atomic-docker/project/functions/atom-agent/types';
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
-import { AuthService } from '../services/authService'; // Retain for potential future use or if other skills need it directly
 
 const GDRIVE_API_TIMEOUT = 20000; // Default for most GDrive ops
 const GDRIVE_STATUS_TIMEOUT = 5000; // Shorter for status checks
@@ -246,85 +245,4 @@ export async function disconnectGDrive(userId: string): Promise<SkillResponse<{ 
   }
 }
 
-export async function getGoogleDriveFileMetadata(
-  userId: string,
-  fileId: string,
-  fields?: string // Optional fields string for the API
-): Promise<SkillResponse<GoogleDriveFile>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
-  }
-  if (!userId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'userId is required.' }};
-  if (!fileId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'fileId is required.' }};
-
-  const accessToken = await AuthService.getGoogleDriveAccessToken(userId);
-  if (!accessToken) {
-    return { ok: false, error: { code: 'AUTH_TOKEN_MISSING', message: 'Failed to retrieve Google Drive access token. Please connect your Google Drive account.' }};
-  }
-
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/gdrive/get-file-metadata`;
-  const payload: { access_token: string; file_id: string; fields?: string } = {
-    access_token: accessToken,
-    file_id: fileId
-  };
-  if (fields) payload.fields = fields;
-
-  logger.info(`[getGoogleDriveFileMetadata] Fetching metadata for GDrive file ID ${fileId} for user ${userId}`);
-  try {
-    const response = await axios.post(endpoint, payload, { timeout: GDRIVE_API_TIMEOUT });
-    if (response.data && response.data.ok && response.data.data) {
-      logger.info(`[getGoogleDriveFileMetadata] Successfully fetched metadata for GDrive file ID ${fileId}`);
-      return { ok: true, data: response.data.data as GoogleDriveFile };
-    } else {
-      logger.warn(`[getGoogleDriveFileMetadata] Failed for file ID ${fileId}. API ok: ${response.data?.ok}`, response.data?.error);
-      return { ok: false, error: response.data?.error || { code: 'GDRIVE_METADATA_FETCH_FAILED', message: 'Failed to fetch GDrive file metadata.' }};
-    }
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'getGoogleDriveFileMetadata');
-  }
-}
-
-export async function triggerGoogleDriveFileIngestion(
-  userId: string,
-  gdriveFileId: string,
-  originalFileMetadata: {
-    name: string;
-    mimeType: string;
-    webViewLink?: string;
-  }
-): Promise<SkillResponse<{ doc_id: string; num_chunks_stored: number } | null >> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'PYTHON_API_SERVICE_BASE_URL not configured.' }};
-  }
-  if (!userId) return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'userId is required.'}};
-  if (!gdriveFileId) return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'gdriveFileId is required.'}};
-  if (!originalFileMetadata || !originalFileMetadata.name || !originalFileMetadata.mimeType) {
-    return { ok: false, error: {code: 'VALIDATION_ERROR', message: 'originalFileMetadata (with name and mimeType) is required.'}};
-  }
-
-  const accessToken = await AuthService.getGoogleDriveAccessToken(userId);
-  if (!accessToken) {
-    return { ok: false, error: { code: 'AUTH_TOKEN_MISSING', message: 'Failed to retrieve Google Drive access token for ingestion. Please ensure your Google Drive account is connected and authorized.' }};
-  }
-
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/ingest-gdrive-document`;
-  const payload = {
-    user_id: userId, access_token: accessToken, gdrive_file_id: gdriveFileId,
-    original_file_metadata: originalFileMetadata,
-  };
-
-  logger.info(`[triggerGoogleDriveFileIngestion] Triggering ingestion for GDrive file ID ${gdriveFileId} for user ${userId}`);
-  try {
-    const response = await axios.post(endpoint, payload, { timeout: GDRIVE_API_TIMEOUT * 2 });
-    if (response.data && response.data.ok && response.data.data) {
-      logger.info(`[triggerGoogleDriveFileIngestion] Successfully triggered ingestion for GDrive file ${gdriveFileId}. Doc ID: ${response.data.data.doc_id}`);
-      return { ok: true, data: response.data.data };
-    } else {
-      logger.warn(`[triggerGoogleDriveFileIngestion] Failed. Python API ok: ${response.data?.ok}`, response.data?.error);
-      return { ok: false, error: response.data?.error || { code: 'GDRIVE_INGEST_TRIGGER_FAILED', message: 'Failed to trigger GDrive file ingestion via Python API.' }};
-    }
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'triggerGoogleDriveFileIngestion');
-  }
-}
 ```
