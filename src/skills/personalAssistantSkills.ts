@@ -1,9 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import {
   SkillResponse,
-  XeroInvoice,
-  SalesforceOpportunity,
-  TrelloCard
 } from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
@@ -41,81 +38,58 @@ function handleAxiosError(error: AxiosError, operationName: string): SkillRespon
     return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
 }
 
-export async function createXeroInvoiceFromSalesforceOpportunity(
+export async function getWeather(
   userId: string,
-  opportunityId: string
-): Promise<SkillResponse<XeroInvoice>> {
+  location: string
+): Promise<SkillResponse<any>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
   }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/sales/create-invoice-from-opportunity`;
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/personal/weather?user_id=${userId}&location=${location}`;
 
   try {
-    const response = await axios.post(endpoint, {
-      user_id: userId,
-      opportunity_id: opportunityId,
-    });
-    return handlePythonApiResponse(response, 'createXeroInvoiceFromSalesforceOpportunity');
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getWeather');
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'createXeroInvoiceFromSalesforceOpportunity');
+    return handleAxiosError(error as AxiosError, 'getWeather');
   }
 }
 
-export async function createTrelloCardFromSalesforceOpportunity(
+export async function getNews(
     userId: string,
-    opportunityId: string,
-    trelloListId: string
-): Promise<SkillResponse<TrelloCard>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/sales/create-card-from-opportunity`;
-
-    try {
-        const response = await axios.post(endpoint, {
-            user_id: userId,
-            opportunity_id: opportunityId,
-            trello_list_id: trelloListId,
-        });
-        return handlePythonApiResponse(response, 'createTrelloCardFromSalesforceOpportunity');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'createTrelloCardFromSalesforceOpportunity');
-    }
-}
-
-export async function createSalesforceContactFromXeroContact(
-    userId: string,
-    xeroContactId: string
+    query: string
 ): Promise<SkillResponse<any>> {
     if (!PYTHON_API_SERVICE_BASE_URL) {
         return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
     }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/sales/create-salesforce-contact-from-xero-contact`;
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/personal/news?user_id=${userId}&q=${query}`;
+
+    try {
+        const response = await axios.get(endpoint);
+        return handlePythonApiResponse(response, 'getNews');
+    } catch (error) {
+        return handleAxiosError(error as AxiosError, 'getNews');
+    }
+}
+
+export async function setReminder(
+    userId: string,
+    reminder: string,
+    remindAt: string // ISO 8601 string
+): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/personal/set-reminder`;
 
     try {
         const response = await axios.post(endpoint, {
             user_id: userId,
-            xero_contact_id: xeroContactId,
+            reminder,
+            remind_at: remindAt,
         });
-        return handlePythonApiResponse(response, 'createSalesforceContactFromXeroContact');
+        return handlePythonApiResponse(response, 'setReminder');
     } catch (error) {
-        return handleAxiosError(error as AxiosError, 'createSalesforceContactFromXeroContact');
-    }
-}
-
-export async function getOpenOpportunitiesForAccount(
-    userId: string,
-    accountId: string
-): Promise<SkillResponse<SalesforceOpportunity[]>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/sales/open-opportunities-for-account/${accountId}?user_id=${userId}`;
-
-    try {
-        const response = await axios.get(endpoint);
-        return handlePythonApiResponse(response, 'getOpenOpportunitiesForAccount');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'getOpenOpportunitiesForAccount');
+        return handleAxiosError(error as AxiosError, 'setReminder');
     }
 }

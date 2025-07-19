@@ -64,3 +64,37 @@ async def create_trello_card_from_salesforce_opportunity(user_id: str, opportuni
 
     card = await trello_service.create_card(trello_api_key, trello_token, trello_list_id, card_name, card_desc)
     return card
+
+async def create_salesforce_contact_from_xero_contact(user_id: str, xero_contact_id: str, db_conn_pool):
+    """
+    Creates a Salesforce contact from a Xero contact.
+    """
+    xero_client = await xero_service.get_xero_client(user_id, db_conn_pool)
+    if not xero_client:
+        raise Exception("Could not get authenticated Xero client.")
+
+    xero_contact = await xero_service.get_contact(xero_client, xero_contact_id)
+
+    sf_client = await salesforce_service.get_salesforce_client(user_id, db_conn_pool)
+    if not sf_client:
+        raise Exception("Could not get authenticated Salesforce client.")
+
+    contact_data = {
+        'LastName': xero_contact['Name'],
+        'Email': xero_contact.get('EmailAddress')
+    }
+
+    contact = await salesforce_service.create_contact(sf_client, **contact_data)
+    return contact
+
+async def get_open_opportunities_for_account(user_id: str, account_id: str, db_conn_pool):
+    """
+    Gets a list of all open opportunities for a specific account.
+    """
+    sf_client = await salesforce_service.get_salesforce_client(user_id, db_conn_pool)
+    if not sf_client:
+        raise Exception("Could not get authenticated Salesforce client.")
+
+    query = f"SELECT Id, Name, StageName, Amount, CloseDate FROM Opportunity WHERE AccountId = '{account_id}' AND IsClosed = false"
+    result = sf_client.query_all(query)
+    return result['records']

@@ -23,6 +23,14 @@ async def list_boards(api_key: str, token: str) -> Optional[List[Dict[str, Any]]
         response.raise_for_status()
         return response.json()
 
+async def create_board(api_key: str, token: str, name: str) -> Optional[Dict[str, Any]]:
+    async with httpx.AsyncClient() as client:
+        url = f"{TRELLO_API_BASE_URL}/boards/"
+        params = {"key": api_key, "token": token, "name": name}
+        response = await client.post(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
 async def list_lists(api_key: str, token: str, board_id: str) -> Optional[List[Dict[str, Any]]]:
     async with httpx.AsyncClient() as client:
         url = f"{TRELLO_API_BASE_URL}/boards/{board_id}/lists"
