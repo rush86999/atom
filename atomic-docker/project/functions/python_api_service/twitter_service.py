@@ -33,3 +33,15 @@ async def post_tweet(api: tweepy.API, status: str) -> Dict[str, Any]:
 async def search_tweets(api: tweepy.API, query: str) -> List[Dict[str, Any]]:
     tweets = api.search_tweets(q=query)
     return [t._json for t in tweets]
+
+async def retweet(api: tweepy.API, tweet_id: str) -> Dict[str, Any]:
+    tweet = api.retweet(tweet_id)
+    return tweet._json
+
+async def like_tweet(api: tweepy.API, tweet_id: str) -> Dict[str, Any]:
+    tweet = api.create_favorite(tweet_id)
+    return tweet._json
+
+async def get_tweet(api: tweepy.API, tweet_id: str) -> Dict[str, Any]:
+    tweet = api.get_status(tweet_id, tweet_mode="extended")
+    return tweet._json

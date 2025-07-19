@@ -68,9 +68,9 @@ async def handle_accounts():
         logger.error(f"Error handling Salesforce accounts for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "ACCOUNTS_HANDLING_FAILED", "message": str(e)}}), 500
 
-@salesforce_bp.route('/api/salesforce/opportunities', methods=['GET'])
-async def get_opportunities():
-    user_id = request.args.get('user_id')
+@salesforce_bp.route('/api/salesforce/opportunities', methods=['GET', 'POST'])
+async def handle_opportunities():
+    user_id = request.args.get('user_id') if request.method == 'GET' else request.get_json().get('user_id')
     if not user_id:
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
 
@@ -83,8 +83,47 @@ async def get_opportunities():
         if not sf:
             return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Salesforce client. Please connect your Salesforce account."}}), 401
 
-        opportunities = await salesforce_service.list_opportunities(sf)
-        return jsonify({"ok": True, "data": {"opportunities": opportunities}})
+        if request.method == 'GET':
+            opportunities = await salesforce_service.list_opportunities(sf)
+            return jsonify({"ok": True, "data": {"opportunities": opportunities}})
+        else: # POST
+            data = request.get_json()
+            name = data.get('Name')
+            stage_name = data.get('StageName')
+            close_date = data.get('CloseDate')
+            if not all([name, stage_name, close_date]):
+                return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "Name, StageName, and CloseDate are required to create an opportunity."}}), 400
+
+            amount = data.get('Amount')
+            opportunity = await salesforce_service.create_opportunity(sf, name, stage_name, close_date, amount)
+            return jsonify({"ok": True, "data": opportunity})
     except Exception as e:
-        logger.error(f"Error getting Salesforce opportunities for user {user_id}: {e}", exc_info=True)
-        return jsonify({"ok": False, "error": {"code": "OPPORTUNITIES_FETCH_FAILED", "message": str(e)}}), 500
+        logger.error(f"Error handling Salesforce opportunities for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "OPPORTUNITIES_HANDLING_FAILED", "message": str(e)}}), 500
+
+@salesforce_bp.route('/api/salesforce/opportunities/<opportunity_id>', methods=['GET', 'PUT'])
+async def handle_opportunity(opportunity_id):
+    user_id = request.args.get('user_id') if request.method == 'GET' else request.get_json().get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        sf = await salesforce_service.get_salesforce_client(user_id, db_conn_pool)
+        if not sf:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Salesforce client. Please connect your Salesforce account."}}), 401
+
+        if request.method == 'GET':
+            opportunity = await salesforce_service.get_opportunity(sf, opportunity_id)
+            return jsonify({"ok": True, "data": opportunity})
+        else: # PUT
+            data = request.get_json()
+            fields_to_update = {k: v for k, v in data.items() if k not in ['user_id']}
+            opportunity = await salesforce_service.update_opportunity(sf, opportunity_id, fields_to_update)
+            return jsonify({"ok": True, "data": opportunity})
+    except Exception as e:
+        logger.error(f"Error handling Salesforce opportunity {opportunity_id} for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "OPPORTUNITY_HANDLING_FAILED", "message": str(e)}}), 500

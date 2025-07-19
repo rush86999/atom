@@ -53,3 +53,23 @@ async def create_account(sf: Salesforce, name: str) -> Dict[str, Any]:
     account_data = {'Name': name}
     result = sf.Account.create(account_data)
     return result
+
+async def create_opportunity(sf: Salesforce, name: str, stage_name: str, close_date: str, amount: Optional[float] = None) -> Dict[str, Any]:
+    opportunity_data = {
+        'Name': name,
+        'StageName': stage_name,
+        'CloseDate': close_date
+    }
+    if amount is not None:
+        opportunity_data['Amount'] = amount
+
+    result = sf.Opportunity.create(opportunity_data)
+    return result
+
+async def update_opportunity(sf: Salesforce, opportunity_id: str, fields_to_update: Dict[str, Any]) -> Dict[str, Any]:
+    result = sf.Opportunity.update(opportunity_id, fields_to_update)
+    return result
+
+async def get_opportunity(sf: Salesforce, opportunity_id: str) -> Dict[str, Any]:
+    result = sf.Opportunity.get(opportunity_id)
+    return result

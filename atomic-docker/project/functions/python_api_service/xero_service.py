@@ -91,3 +91,27 @@ async def create_bill(xero: AccountingApi, bill_data: Dict[str, Any]) -> Dict[st
     except AccountingBadRequestException as e:
         logger.error(f"Error creating Xero bill: {e}", exc_info=True)
         raise
+
+async def create_contact(xero: AccountingApi, contact_data: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        contact = xero.create_contacts(_contacts=contact_data)
+        return contact.to_dict()['contacts'][0]
+    except AccountingBadRequestException as e:
+        logger.error(f"Error creating Xero contact: {e}", exc_info=True)
+        raise
+
+async def update_contact(xero: AccountingApi, contact_id: str, contact_data: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        contact = xero.update_contact(contact_id=contact_id, _contacts=contact_data)
+        return contact.to_dict()['contacts'][0]
+    except AccountingBadRequestException as e:
+        logger.error(f"Error updating Xero contact: {e}", exc_info=True)
+        raise
+
+async def get_contact(xero: AccountingApi, contact_id: str) -> Dict[str, Any]:
+    try:
+        contact = xero.get_contact(contact_id=contact_id)
+        return contact.to_dict()['contacts'][0]
+    except AccountingBadRequestException as e:
+        logger.error(f"Error getting Xero contact: {e}", exc_info=True)
+        raise

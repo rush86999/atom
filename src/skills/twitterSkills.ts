@@ -91,3 +91,54 @@ export async function searchTweets(
     return handleAxiosError(error as AxiosError, 'searchTweets');
   }
 }
+
+export async function retweet(
+  userId: string,
+  tweetId: string
+): Promise<SkillResponse<Tweet>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/twitter/retweet/${tweetId}`;
+
+  try {
+    const response = await axios.post(endpoint, { user_id: userId });
+    return handlePythonApiResponse(response, 'retweet');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'retweet');
+  }
+}
+
+export async function likeTweet(
+  userId: string,
+  tweetId: string
+): Promise<SkillResponse<Tweet>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/twitter/like/${tweetId}`;
+
+  try {
+    const response = await axios.post(endpoint, { user_id: userId });
+    return handlePythonApiResponse(response, 'likeTweet');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'likeTweet');
+  }
+}
+
+export async function getTweet(
+  userId: string,
+  tweetId: string
+): Promise<SkillResponse<Tweet>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/twitter/tweet/${tweetId}?user_id=${userId}`;
+
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getTweet');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getTweet');
+  }
+}

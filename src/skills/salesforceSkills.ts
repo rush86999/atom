@@ -132,3 +132,67 @@ export async function createSalesforceAccount(
     return handleAxiosError(error as AxiosError, 'createSalesforceAccount');
   }
 }
+
+export async function createSalesforceOpportunity(
+  userId: string,
+  name: string,
+  stageName: string,
+  closeDate: string,
+  amount?: number
+): Promise<SkillResponse<SalesforceOpportunity>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/salesforce/opportunities`;
+
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      Name: name,
+      StageName: stageName,
+      CloseDate: closeDate,
+      Amount: amount,
+    });
+    return handlePythonApiResponse(response, 'createSalesforceOpportunity');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'createSalesforceOpportunity');
+  }
+}
+
+export async function updateSalesforceOpportunity(
+  userId: string,
+  opportunityId: string,
+  fields: Partial<SalesforceOpportunity>
+): Promise<SkillResponse<SalesforceOpportunity>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/salesforce/opportunities/${opportunityId}`;
+
+  try {
+    const response = await axios.put(endpoint, {
+      user_id: userId,
+      ...fields,
+    });
+    return handlePythonApiResponse(response, 'updateSalesforceOpportunity');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'updateSalesforceOpportunity');
+  }
+}
+
+export async function getSalesforceOpportunity(
+  userId: string,
+  opportunityId: string
+): Promise<SkillResponse<SalesforceOpportunity>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/salesforce/opportunities/${opportunityId}?user_id=${userId}`;
+
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getSalesforceOpportunity');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getSalesforceOpportunity');
+  }
+}

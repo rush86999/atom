@@ -56,3 +56,27 @@ async def move_card(api_key: str, token: str, card_id: str, new_list_id: str) ->
         response = await client.put(url, params=params)
         response.raise_for_status()
         return response.json()
+
+async def get_card(api_key: str, token: str, card_id: str) -> Optional[Dict[str, Any]]:
+    async with httpx.AsyncClient() as client:
+        url = f"{TRELLO_API_BASE_URL}/cards/{card_id}"
+        params = {"key": api_key, "token": token, "fields": "id,name,desc,url,closed,idAttachmentCover,idBoard,idList,idMembers,idChecklists,labels,shortLink,shortUrl,subscribed,pos"}
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
+async def add_comment(api_key: str, token: str, card_id: str, text: str) -> Optional[Dict[str, Any]]:
+    async with httpx.AsyncClient() as client:
+        url = f"{TRELLO_API_BASE_URL}/cards/{card_id}/actions/comments"
+        params = {"key": api_key, "token": token, "text": text}
+        response = await client.post(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
+async def create_webhook(api_key: str, token: str, callback_url: str, id_model: str) -> Optional[Dict[str, Any]]:
+    async with httpx.AsyncClient() as client:
+        url = f"{TRELLO_API_BASE_URL}/webhooks"
+        params = {"key": api_key, "token": token, "callbackURL": callback_url, "idModel": id_model}
+        response = await client.post(url, params=params)
+        response.raise_for_status()
+        return response.json()

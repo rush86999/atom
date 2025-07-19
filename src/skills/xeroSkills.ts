@@ -138,3 +138,63 @@ export async function createXeroBill(
       return handleAxiosError(error as AxiosError, 'createXeroBill');
     }
   }
+
+export async function createXeroContact(
+  userId: string,
+  name: string,
+  email?: string
+): Promise<SkillResponse<XeroContact>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts`;
+
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      Name: name,
+      EmailAddress: email,
+    });
+    return handlePythonApiResponse(response, 'createXeroContact');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'createXeroContact');
+  }
+}
+
+export async function updateXeroContact(
+  userId: string,
+  contactId: string,
+  fields: Partial<XeroContact>
+): Promise<SkillResponse<XeroContact>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts/${contactId}`;
+
+  try {
+    const response = await axios.put(endpoint, {
+      user_id: userId,
+      ...fields,
+    });
+    return handlePythonApiResponse(response, 'updateXeroContact');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'updateXeroContact');
+  }
+}
+
+export async function getXeroContact(
+  userId: string,
+  contactId: string
+): Promise<SkillResponse<XeroContact>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts/${contactId}?user_id=${userId}`;
+
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getXeroContact');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getXeroContact');
+  }
+}
