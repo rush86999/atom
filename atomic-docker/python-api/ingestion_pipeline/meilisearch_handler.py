@@ -64,13 +64,13 @@ async def get_or_create_index(index_name: str, primary_key: Optional[str] = None
         logger.error(f"Error getting or creating index '{index_name}': {e}", exc_info=True)
         return None
 
-async def add_documents_to_index(index_name: str, documents: List[Dict[str, Any]], primary_key_on_add: Optional[str] = None) -> Dict[str, Any]:
+async def add_documents_to_index(index_name: str, documents: List[Dict[str, Any]], primary_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Adds a list of documents to the specified index.
-    'primary_key_on_add' can be specified if adding docs to a new index where Meili should infer it,
+    'primary_key' can be specified if adding docs to a new index where Meili should infer it,
     or if you want to ensure it during the add operation (though usually set at index creation).
     """
-    index = await get_or_create_index(index_name, primary_key=primary_key_on_add if not primary_key_on_add else None) # Only pass pk if index might be new
+    index = await get_or_create_index(index_name, primary_key=primary_key)
     if not index:
         return {"status": "error", "message": f"Failed to get or create index '{index_name}'."}
 
@@ -80,7 +80,7 @@ async def add_documents_to_index(index_name: str, documents: List[Dict[str, Any]
 
     try:
         logger.info(f"Adding {len(documents)} documents to index '{index_name}'. First doc keys: {documents[0].keys() if documents else 'N/A'}")
-        task_info = index.add_documents(documents, primary_key=primary_key_on_add)
+        task_info = index.add_documents(documents, primary_key=primary_key)
         # Asynchronous operation, client can wait for task completion
         # For critical ops, waiting is good. For bulk, maybe not always.
         client = get_meilisearch_client()
