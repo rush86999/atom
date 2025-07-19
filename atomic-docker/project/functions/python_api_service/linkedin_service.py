@@ -28,3 +28,12 @@ async def get_linkedin_api(user_id: str, db_conn_pool) -> Optional[linkedin.Link
     )
     application = linkedin.LinkedInApplication(authentication)
     return application
+
+async def search_linkedin_profiles(api: linkedin.LinkedInApplication, query: str):
+    """
+    Searches for LinkedIn profiles.
+    """
+    # The python-linkedin library does not support people search.
+    # You would need to use a different library or a web scraper to implement this feature.
+    # For now, we'll just return an empty list.
+    return []
