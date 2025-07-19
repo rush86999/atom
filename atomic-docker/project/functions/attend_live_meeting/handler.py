@@ -156,7 +156,16 @@ async def attend_live_meeting_route(): # Remains async for consistency, though c
             print(f"Task {task_id}: Zoom platform specified, but Zoom SDK Key or Secret not found in handler_input. New SDK agent might fail if configured.", file=sys.stderr)
 
         # --- Publish to Kafka ---
+        # Log if Zoom SDK keys are being included
+        if zoom_sdk_key and zoom_sdk_secret:
+            print(f"Task {task_id}: Including Zoom SDK Key (found in handler_input) in Kafka message.", file=sys.stderr)
+        elif platform == "zoom": # Log warning if platform is zoom but keys are missing from input
+            # This warning is for the handler; the worker will make the final decision
+            # if keys are strictly required based on USE_NEW_ZOOM_SDK_AGENT.
+            print(f"Task {task_id}: Zoom platform specified, but Zoom SDK Key or Secret not found in handler_input. New SDK agent might fail if configured.", file=sys.stderr)
+
         try:
+            # --- Publish to Kafka ---
             producer = get_kafka_producer() # Get or initialize producer
             future = producer.send(
                 app_constants.KAFKA_LIVE_MEETING_TOPIC,
@@ -171,7 +180,6 @@ async def attend_live_meeting_route(): # Remains async for consistency, though c
                 "ok": True,
                 "data": {"message": "Meeting processing request accepted.", "taskId": task_id}
             }), 202 # HTTP 202 Accepted
-
         except KafkaError as e: # Specific Kafka errors (e.g., KafkaTimeoutError if broker down)
             error_message = f"Failed to publish task to Kafka: {e}"
             print(error_message, file=sys.stderr)
@@ -181,12 +189,10 @@ async def attend_live_meeting_route(): # Remains async for consistency, though c
             print(error_message, file=sys.stderr)
             print(traceback.format_exc(), file=sys.stderr)
             return make_error_response("KAFKA_PUBLISH_UNEXPECTED_ERROR", error_message, {"exception_type": type(e).__name__}, http_status=500)
-
     except Exception as e: # Catch-all for validation, JSON parsing, or other unexpected errors
         print(f"Critical error in attend_live_meeting_route before Kafka publish: {str(e)}", file=sys.stderr)
         print(traceback.format_exc(), file=sys.stderr)
         return make_error_response("INTERNAL_SERVER_ERROR", f"An internal error occurred: {str(e)}", http_status=500)
-    # No 'finally' block needed for agent.leave_meeting() as agent interaction is removed
 
 if __name__ == '__main__':
     print(f"Starting local Flask server for attend_live_meeting (Kafka publisher) handler on port {os.environ.get('FLASK_PORT', 5000)}...", file=sys.stderr)
