@@ -73,3 +73,7 @@ async def update_opportunity(sf: Salesforce, opportunity_id: str, fields_to_upda
 async def get_opportunity(sf: Salesforce, opportunity_id: str) -> Dict[str, Any]:
     result = sf.Opportunity.get(opportunity_id)
     return result
+
+async def create_lead(sf: Salesforce, lead_data: Dict[str, Any]) -> Dict[str, Any]:
+    result = sf.Lead.create(lead_data)
+    return result

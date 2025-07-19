@@ -49,6 +49,22 @@ async def create_card(api_key: str, token: str, list_id: str, name: str, desc: O
         response.raise_for_status()
         return response.json()
 
+async def get_board(api_key: str, token: str, board_id: str) -> Optional[Dict[str, Any]]:
+    async with httpx.AsyncClient() as client:
+        url = f"{TRELLO_API_BASE_URL}/boards/{board_id}"
+        params = {"key": api_key, "token": token, "fields": "id,name,url"}
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
+async def get_attachments(api_key: str, token: str, card_id: str) -> Optional[List[Dict[str, Any]]]:
+    async with httpx.AsyncClient() as client:
+        url = f"{TRELLO_API_BASE_URL}/cards/{card_id}/attachments"
+        params = {"key": api_key, "token": token, "fields": "id,name,url,bytes,date,idMember"}
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
 async def move_card(api_key: str, token: str, card_id: str, new_list_id: str) -> Optional[Dict[str, Any]]:
     async with httpx.AsyncClient() as client:
         url = f"{TRELLO_API_BASE_URL}/cards/{card_id}"

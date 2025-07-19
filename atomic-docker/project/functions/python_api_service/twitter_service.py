@@ -45,3 +45,7 @@ async def like_tweet(api: tweepy.API, tweet_id: str) -> Dict[str, Any]:
 async def get_tweet(api: tweepy.API, tweet_id: str) -> Dict[str, Any]:
     tweet = api.get_status(tweet_id, tweet_mode="extended")
     return tweet._json
+
+async def get_mentions(api: tweepy.API) -> List[tweepy.Status]:
+    mentions = api.mentions_timeline()
+    return mentions

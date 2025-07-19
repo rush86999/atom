@@ -18,6 +18,9 @@ from .trello_handler import trello_bp
 from .salesforce_handler import salesforce_bp
 from .xero_handler import xero_bp
 from .twitter_handler import twitter_bp
+from .social_media_handler import social_media_bp
+from .sales_manager_handler import sales_manager_bp
+from .project_manager_handler import project_manager_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
 
@@ -75,6 +78,12 @@ def create_app(db_pool=None):
     logger.info("Registered 'xero_bp' blueprint.")
     app.register_blueprint(twitter_bp)
     logger.info("Registered 'twitter_bp' blueprint.")
+    app.register_blueprint(social_media_bp)
+    logger.info("Registered 'social_media_bp' blueprint.")
+    app.register_blueprint(sales_manager_bp)
+    logger.info("Registered 'sales_manager_bp' blueprint.")
+    app.register_blueprint(project_manager_bp)
+    logger.info("Registered 'project_manager_bp' blueprint.")
     app.register_blueprint(meeting_prep_bp)
     logger.info("Registered 'meeting_prep_bp' blueprint.")
     app.register_blueprint(mcp_bp)
