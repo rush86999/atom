@@ -28,6 +28,9 @@ from .customer_support_manager_handler import customer_support_manager_bp
 from .recruiting_manager_handler import recruiting_manager_bp
 from .legal_handler import legal_bp
 from .it_manager_handler import it_manager_bp
+from .devops_manager_handler import devops_manager_bp
+from .hr_manager_handler import hr_manager_bp
+from .content_marketer_handler import content_marketer_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
 
@@ -103,6 +106,12 @@ def create_app(db_pool=None):
     logger.info("Registered 'legal_bp' blueprint.")
     app.register_blueprint(it_manager_bp)
     logger.info("Registered 'it_manager_bp' blueprint.")
+    app.register_blueprint(devops_manager_bp)
+    logger.info("Registered 'devops_manager_bp' blueprint.")
+    app.register_blueprint(hr_manager_bp)
+    logger.info("Registered 'hr_manager_bp' blueprint.")
+    app.register_blueprint(content_marketer_bp)
+    logger.info("Registered 'content_marketer_bp' blueprint.")
     app.register_blueprint(mcp_bp)
     logger.info("Registered 'mcp_bp' blueprint.")
 
