@@ -138,3 +138,25 @@ async def download_file(creds: Credentials, file_id: str) -> Optional[Tuple[byte
     except HttpError as e:
         logger.error(f"Google Drive API error downloading file {file_id}: {e}", exc_info=True)
         return None
+
+async def create_file(creds: Credentials, file_metadata: Dict[str, Any], file_content: Optional[bytes] = None) -> Optional[Dict[str, Any]]:
+    """
+    Creates a file or folder in Google Drive.
+    """
+    try:
+        service = build('drive', 'v3', credentials=creds)
+
+        if file_content:
+            from googleapiclient.http import MediaIoUploader
+            import io
+
+            fh = io.BytesIO(file_content)
+            media = MediaIoUploader(fh, chunksize=1024*1024, resumable=True)
+            file = service.files().create(body=file_metadata, media_body=media, fields='id, name, webViewLink, parents').execute()
+        else:
+            file = service.files().create(body=file_metadata, fields='id, name, webViewLink, parents').execute()
+
+        return file
+    except HttpError as e:
+        logger.error(f"Google Drive API error creating file: {e}", exc_info=True)
+        return None
