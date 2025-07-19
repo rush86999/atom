@@ -77,3 +77,11 @@ async def get_opportunity(sf: Salesforce, opportunity_id: str) -> Dict[str, Any]
 async def create_lead(sf: Salesforce, lead_data: Dict[str, Any]) -> Dict[str, Any]:
     result = sf.Lead.create(lead_data)
     return result
+
+async def get_campaign(sf: Salesforce, campaign_id: str) -> Dict[str, Any]:
+    result = sf.Campaign.get(campaign_id)
+    return result
+
+async def get_case(sf: Salesforce, case_id: str) -> Dict[str, Any]:
+    result = sf.Case.get(case_id)
+    return result

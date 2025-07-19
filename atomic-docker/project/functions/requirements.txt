@@ -17,3 +17,6 @@ tweepy
 python-linkedin
 pyowm
 newsapi-python
+quickbooks-python
+mailchimp-marketing
+zenpy
