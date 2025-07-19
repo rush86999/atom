@@ -1,11 +1,8 @@
 {
   "name": "ses-notification-lambda",
   "version": "1.0.0",
-  "description": "AWS Lambda function to send scheduling result notifications via SES, triggered by Hasura.",
-  "name": "ses-notification-lambda",
-  "version": "1.0.0",
   "description": "AWS Lambda function to send scheduling result notifications via SES, triggered by Hasura and managed by Serverless Framework.",
-  "main": ".esbuild/.build/src/index.js", // Default output for serverless-esbuild, or adjust
+  "main": ".esbuild/.build/src/index.js",
   "scripts": {
     "clean": "rm -rf .esbuild .serverless dist deployment-package.zip",
     "build:local": "esbuild src/index.ts --bundle --minify --sourcemap --platform=node --target=node18 --outfile=dist/local-build/index.js",
