@@ -176,7 +176,10 @@ async def transcribe_audio_deepgram_stream(
     dg_connection = deepgram.listen.live.v("1")
 
     full_transcript_parts = []
-    stream_error = None
+    class StreamState:
+        def __init__(self):
+            self.stream_error = None
+    stream_state = StreamState()
     connection_opened = asyncio.Event()
     connection_closed = asyncio.Event()
     # transcript_received_event = asyncio.Event() # Could be used for more granular control or timeouts
@@ -201,7 +204,7 @@ async def transcribe_audio_deepgram_stream(
     def on_error(self, error, **kwargs):
         err_msg = f"Deepgram stream error: {error}"
         print(err_msg)
-        stream_error = {"message": err_msg, "details": kwargs}
+        stream_state.stream_error = {"message": err_msg, "details": kwargs}
         connection_opened.set() # Unblock start if stuck
         connection_closed.set() # Unblock finish
 
@@ -222,8 +225,8 @@ async def transcribe_audio_deepgram_stream(
             return {"status": "error", "message": "Failed to start Deepgram connection.", "code": "DEEPGRAM_CONNECTION_START_FAILED"}
 
         await connection_opened.wait() # Wait for on_open
-        if stream_error: # Check if error occurred during open
-             return {"status": "error", "message": stream_error["message"], "code": "DEEPGRAM_STREAM_ERROR_ON_OPEN", "details": stream_error["details"]}
+        if stream_state.stream_error: # Check if error occurred during open
+             return {"status": "error", "message": stream_state.stream_error["message"], "code": "DEEPGRAM_STREAM_ERROR_ON_OPEN", "details": stream_state.stream_error["details"]}
 
 
         # Sender coroutine
@@ -232,10 +235,9 @@ async def transcribe_audio_deepgram_stream(
                 async for chunk in audio_iterator:
                     if chunk: dg_conn.send(chunk)
             except Exception as e:
-                nonlocal stream_error
                 err_msg = f"Error reading/sending audio chunk: {str(e)}"
                 print(err_msg)
-                stream_error = {"message": err_msg, "details": str(e)}
+                stream_state.stream_error = {"message": err_msg, "details": str(e)}
             finally:
                 print("Audio iterator exhausted, finishing Deepgram connection.")
                 await dg_conn.finish() # Signal end of audio stream
@@ -246,15 +248,14 @@ async def transcribe_audio_deepgram_stream(
         try:
             await asyncio.wait_for(connection_closed.wait(), timeout=3600.0) # e.g., 1 hour timeout
         except asyncio.TimeoutError:
-            nonlocal stream_error
-            stream_error = {"message": "Deepgram stream processing timed out.", "details": "Timeout after 1 hour"}
-            print(stream_error["message"])
+            stream_state.stream_error = {"message": "Deepgram stream processing timed out.", "details": "Timeout after 1 hour"}
+            print(stream_state.stream_error["message"])
             await dg_connection.finish() # Attempt to close if timed out
 
         await sender_task # Ensure sender task is complete / exceptions propagated
 
-        if stream_error:
-            return {"status": "error", "message": stream_error["message"], "code": "DEEPGRAM_STREAM_ERROR", "details": stream_error.get("details")}
+        if stream_state.stream_error:
+            return {"status": "error", "message": stream_state.stream_error["message"], "code": "DEEPGRAM_STREAM_ERROR", "details": stream_state.stream_error.get("details")}
 
         final_transcript = " ".join(full_transcript_parts).strip()
         return {"status": "success", "data": {"full_transcript": final_transcript}}

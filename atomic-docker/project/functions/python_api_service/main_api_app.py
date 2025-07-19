@@ -19,7 +19,7 @@ from .mcp_handler import mcp_bp
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def create_app():
+def create_app(db_pool=None):
     """
     Application factory for the main Python API service.
     """
@@ -32,18 +32,21 @@ def create_app():
         logger.warning("Using default Flask secret key. This is not secure for production.")
 
     # --- Database Connection Pool ---
-    try:
-        logger.info("Initializing PostgreSQL connection pool...")
-        app.config['DB_CONNECTION_POOL'] = pool.SimpleConnectionPool(
-            minconn=1,
-            maxconn=10,
-            dsn=os.getenv("DATABASE_URL") # Assumes DATABASE_URL is in the format: postgresql://user:password@host:port/dbname
-        )
-        logger.info("PostgreSQL connection pool initialized successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize database connection pool: {e}", exc_info=True)
-        # Depending on strictness, we could exit or continue with the pool as None.
-        app.config['DB_CONNECTION_POOL'] = None
+    if db_pool:
+        app.config['DB_CONNECTION_POOL'] = db_pool
+    else:
+        try:
+            logger.info("Initializing PostgreSQL connection pool...")
+            app.config['DB_CONNECTION_POOL'] = pool.SimpleConnectionPool(
+                minconn=1,
+                maxconn=10,
+                dsn=os.getenv("DATABASE_URL") # Assumes DATABASE_URL is in the format: postgresql://user:password@host:port/dbname
+            )
+            logger.info("PostgreSQL connection pool initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize database connection pool: {e}", exc_info=True)
+            # Depending on strictness, we could exit or continue with the pool as None.
+            app.config['DB_CONNECTION_POOL'] = None
 
 
     # --- Register Blueprints ---

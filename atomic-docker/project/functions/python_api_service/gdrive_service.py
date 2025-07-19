@@ -95,6 +95,7 @@ def download_gdrive_file(access_token: str, file_id: str, target_mime_type: Opti
     service = _get_drive_service(access_token)
     if not service: return {"status": "error", "message": "Failed to initialize Google Drive service.", "code": "GDRIVE_SERVICE_INIT_FAILED"}
     try:
+        logger.info(f"Downloading file with id: {file_id}")
         file_metadata = service.files().get(fileId=file_id, fields="id, name, mimeType, capabilities(canExport), exportLinks").execute()
         original_mime_type = file_metadata.get('mimeType', '')
         file_name = file_metadata.get('name', file_id)
@@ -147,15 +148,17 @@ def download_gdrive_file(access_token: str, file_id: str, target_mime_type: Opti
 
         file_content_bytes = fh.getvalue()
         logger.info(f"Successfully downloaded/exported file '{file_name}' (ID: {file_id}). Size: {len(file_content_bytes)} bytes. Effective MIME: {effective_mime_type}")
-        return {"status": "success", "data": {"file_name": file_name, "content_bytes": file_content_bytes, "mime_type": effective_mime_type}}
+        return {"status": "success", "data": {"file_name": file_name, "content_bytes": file_content_bytes.decode('utf-8'), "mime_type": effective_mime_type}}
     except HttpError as e:
         error_content = e.resp.reason if hasattr(e.resp, 'reason') else str(e); error_message = error_content; error_code_detail = "GDRIVE_API_ERROR"
-        try: error_details_json = json.loads(e.content.decode()); error_message = error_details_json.get("error", {}).get("message", error_content); error_code_detail = error_details_json.get("error", {}).get("errors", [{}])[0].get("reason", "GDRIVE_API_ERROR_UNPARSED")
-        except: pass
+        try:
+            error_details_json = json.loads(e.content.decode())
+            error_message = error_details_json.get("error", {}).get("message", error_content)
+            error_code_detail = error_details_json.get("error", {}).get("errors", [{}])[0].get("reason", "GDRIVE_API_ERROR_UNPARSED")
+        except:
+            pass
         logger.error(f"Google Drive API error during download/export of file {file_id}: {error_message} (Status: {e.resp.status}, Code: {error_code_detail})", exc_info=True)
-        return {"status": "error", "message": error_message, "code": f"GDRIVE_API_{error_code_detail.upper()}", "details": str(e.content.decode() if e.content else str(e))}
+        return {"status": "error", "message": str(error_message), "code": f"GDRIVE_API_{error_code_detail.upper()}", "details": str(e.content.decode() if e.content else str(e))}
     except Exception as e:
         logger.error(f"Unexpected error downloading/exporting GDrive file {file_id}: {e}", exc_info=True)
         return {"status": "error", "message": f"Unexpected error downloading file: {str(e)}", "code": "GDRIVE_DOWNLOAD_UNEXPECTED_ERROR"}
-
-```
