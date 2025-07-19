@@ -23,3 +23,6 @@ zenpy
 greenhouse-python
 docusign-esign
 jira
+PyGithub
+pybamboohr
+python-wordpress-xmlrpc
