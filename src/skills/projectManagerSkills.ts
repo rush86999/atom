@@ -81,3 +81,45 @@ export async function uploadTrelloAttachmentsToGoogleDrive(
         return handleAxiosError(error as AxiosError, 'uploadTrelloAttachmentsToGoogleDrive');
     }
 }
+
+export async function createTrelloBoardFromGoogleDriveFolder(
+    userId: string,
+    folderId: string
+): Promise<SkillResponse<TrelloBoard>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/project/create-trello-board-from-gdrive-folder`;
+
+    try {
+        const response = await axios.post(endpoint, {
+            user_id: userId,
+            folder_id: folderId,
+        });
+        return handlePythonApiResponse(response, 'createTrelloBoardFromGoogleDriveFolder');
+    } catch (error) {
+        return handleAxiosError(error as AxiosError, 'createTrelloBoardFromGoogleDriveFolder');
+    }
+}
+
+export async function createTrelloCardForNewFileInGoogleDrive(
+    userId: string,
+    folderId: string,
+    trelloListId: string
+): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/project/create-trello-card-for-new-gdrive-file`;
+
+    try {
+        const response = await axios.post(endpoint, {
+            user_id: userId,
+            folder_id: folderId,
+            trello_list_id: trelloListId,
+        });
+        return handlePythonApiResponse(response, 'createTrelloCardForNewFileInGoogleDrive');
+    } catch (error) {
+        return handleAxiosError(error as AxiosError, 'createTrelloCardForNewFileInGoogleDrive');
+    }
+}

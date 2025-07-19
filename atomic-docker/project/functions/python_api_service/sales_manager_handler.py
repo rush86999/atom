@@ -44,3 +44,39 @@ async def create_card_from_opportunity():
     except Exception as e:
         logger.error(f"Error creating Trello card from Salesforce opportunity for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "CARD_CREATE_FAILED", "message": str(e)}}), 500
+
+@sales_manager_bp.route('/api/sales/create-salesforce-contact-from-xero-contact', methods=['POST'])
+async def create_salesforce_contact_from_xero_contact():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    xero_contact_id = data.get('xero_contact_id')
+    if not all([user_id, xero_contact_id]):
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id and xero_contact_id are required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await sales_manager_service.create_salesforce_contact_from_xero_contact(user_id, xero_contact_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error creating Salesforce contact from Xero contact for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "CONTACT_CREATE_FAILED", "message": str(e)}}), 500
+
+@sales_manager_bp.route('/api/sales/open-opportunities-for-account/<account_id>', methods=['GET'])
+async def get_open_opportunities_for_account(account_id):
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await sales_manager_service.get_open_opportunities_for_account(user_id, account_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error getting open opportunities for account {account_id} for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "OPPORTUNITIES_FETCH_FAILED", "message": str(e)}}), 500

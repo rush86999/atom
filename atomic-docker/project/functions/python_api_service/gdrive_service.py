@@ -160,3 +160,15 @@ async def create_file(creds: Credentials, file_metadata: Dict[str, Any], file_co
     except HttpError as e:
         logger.error(f"Google Drive API error creating file: {e}", exc_info=True)
         return None
+
+async def get_file(creds: Credentials, file_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Gets a file's metadata.
+    """
+    try:
+        service = build('drive', 'v3', credentials=creds)
+        file = service.files().get(fileId=file_id, fields='id, name, webViewLink, parents').execute()
+        return file
+    except HttpError as e:
+        logger.error(f"Google Drive API error getting file: {e}", exc_info=True)
+        return None
