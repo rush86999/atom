@@ -325,6 +325,21 @@ def refresh_gdrive_access_token_internal(user_id: str) -> Optional[str]:
 
 
 # --- Internal Utility for Access Token Retrieval & Refresh ---
+def get_mcp_credentials(user_id: str, provider: str = 'gdrive') -> Optional[Any]:
+    if provider == 'gdrive':
+        token = _get_valid_gdrive_access_token(user_id)
+        if token:
+            class MockCreds:
+                def __init__(self, token, provider='gdrive'):
+                    self.token = token
+                    self.provider = provider
+            return MockCreds(token)
+    # Add other providers here
+    return None
+
+def get_mcp_provider(creds: Any) -> str:
+    return getattr(creds, 'provider', 'gdrive')
+
 def _get_valid_gdrive_access_token(user_id: str) -> Optional[str]:
     """
     Internal utility to get a valid GDrive access token for a user.
@@ -451,5 +466,3 @@ if __name__ == '__main__':
     dev_app = create_dev_app()
     flask_port = int(os.environ.get("AUTH_HANDLER_PORT", 5058))
     dev_app.run(host='0.0.0.0', port=flask_port, debug=True)
-
-```

@@ -247,5 +247,3 @@ def delete_gdrive_tokens(db_conn_pool: Optional[psycopg2_pool.AbstractConnection
         return False
     finally:
         if conn and db_conn_pool: db_conn_pool.putconn(conn)
-
-```

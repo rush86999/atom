@@ -22,7 +22,7 @@ def list_files_route():
     page_size = request.args.get('page_size', type=int)
     page_token = request.args.get('page_token')
 
-    result = list_mcp_files(creds.token, folder_id, query, page_size, page_token)
+    result = list_mcp_files(creds, folder_id, query, page_size, page_token)
     return jsonify(result)
 
 @mcp_bp.route('/mcp/files/<file_id>', methods=['GET'])
@@ -35,7 +35,7 @@ def get_file_metadata_route(file_id):
     if not creds:
         return jsonify({"status": "error", "message": "MCP credentials not found or expired"}), 401
 
-    result = get_mcp_file_metadata(creds.token, file_id)
+    result = get_mcp_file_metadata(creds, file_id)
     return jsonify(result)
 
 @mcp_bp.route('/mcp/files/<file_id>/download', methods=['GET'])
@@ -49,5 +49,5 @@ def download_file_route(file_id):
         return jsonify({"status": "error", "message": "MCP credentials not found or expired"}), 401
 
     target_mime_type = request.args.get('target_mime_type')
-    result = download_mcp_file(creds.token, file_id, target_mime_type)
+    result = download_mcp_file(creds, file_id, target_mime_type)
     return jsonify(result)

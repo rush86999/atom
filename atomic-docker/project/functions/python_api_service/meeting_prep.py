@@ -3,7 +3,7 @@ import logging
 from flask import Blueprint, request, jsonify
 from .note_handler import search_notes
 from .gdrive_handler import search_gdrive
-from .dropbox_handler import search_dropbox
+from .dropbox_handler import search_dropbox_route as search_dropbox
 from .web_search import search_web
 
 logger = logging.getLogger(__name__)
