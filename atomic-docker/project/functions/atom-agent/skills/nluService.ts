@@ -445,6 +445,39 @@ New Intent for Scheduling from Email Content:
               "target_task_list_or_project": "Support Tickets"
             }
           }
+
+39. Intent: "ScheduleSkillActivation"
+    - Purpose: To schedule a skill to be activated at a later time.
+    - Entities:
+        - "skill_to_schedule": {
+            "description": "The name of the skill to schedule.",
+            "type": "string",
+            "required": true
+        },
+        - "activation_time": {
+            "description": "The time at which to activate the skill.",
+            "type": "string",
+            "required": true
+        },
+        - "skill_entities": {
+            "description": "The entities to pass to the skill when it is activated.",
+            "type": "object",
+            "optional": true
+        }
+    - Examples:
+        - User: "Schedule the SendEmail skill to run tomorrow at 9am with entities {'to': 'test@example.com', 'subject': 'Test', 'body': 'This is a test'}."
+          Response: {
+            "intent": "ScheduleSkillActivation",
+            "entities": {
+              "skill_to_schedule": "SendEmail",
+              "activation_time": "tomorrow at 9am",
+              "skill_entities": {
+                "to": "test@example.com",
+                "subject": "Test",
+                "body": "This is a test"
+              }
+            }
+          }
         - User: "Make a task from Bob's Teams message: https://teams.microsoft.com/l/message/channel_id/message_id. Call it 'Review proposal' and assign it to me for tomorrow."
           Response: {
             "intent": "CreateTaskFromChatMessage",

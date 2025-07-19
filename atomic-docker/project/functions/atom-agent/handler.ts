@@ -163,7 +163,8 @@ import {
     NLUScheduleTeamMeetingEntities,
     SchedulingResponse,
     ScheduleTaskParams, // Added for scheduleTask
-    scheduleTask // Added for scheduleTask
+    scheduleTask, // Added for scheduleTask
+    handleScheduleSkillActivation
 } from './skills/schedulingSkills';
 import { understandMessage } from './skills/nluService';
 import {
@@ -1297,6 +1298,20 @@ async function _internalHandleMessage(
         break;
 
     // START_IN_PERSON_AUDIO_NOTE and related intents will be handled here
+      case "ScheduleSkillActivation":
+        try {
+            const scheduleEntities = nluResponse.entities as import('../types').ScheduleSkillActivationEntities;
+            if (!scheduleEntities.skill_to_schedule || !scheduleEntities.activation_time) {
+                textResponse = "To schedule a skill, please provide the skill name and the activation time.";
+            } else {
+                textResponse = await handleScheduleSkillActivation(userId, scheduleEntities);
+            }
+        } catch (error: any) {
+            console.error(`[Handler][${interfaceType}] Error in NLU Intent "ScheduleSkillActivation":`, error.message, error.stack);
+            textResponse = "Sorry, an unexpected error occurred while scheduling the skill.";
+        }
+        break;
+
       case "START_IN_PERSON_AUDIO_NOTE":
       case "STOP_IN_PERSON_AUDIO_NOTE":
       case "CANCEL_IN_PERSON_AUDIO_NOTE":

@@ -1,4 +1,4 @@
-import { agenda, ScheduledAgentTaskData } from '../../../agendaService'; // Adjusted path
+import { agenda, ScheduledAgentTaskData } from '@/agendaService'; // Adjusted path
 
 // New ScheduleTaskParams interface for Agenda-based scheduling
 export interface ScheduleTaskParams {
@@ -247,6 +247,23 @@ export async function getUsersAvailability(
 
 // TODO: Implement these functions based on NLU intents if they are still needed
 // For now, they are placeholders as the primary focus is on the new email scheduling flow.
+export async function handleScheduleSkillActivation(userId: string, entities: any): Promise<string> {
+    const { skill_to_schedule, activation_time, skill_entities } = entities;
+
+    if (!skill_to_schedule || !activation_time) {
+        return "I need to know which skill to schedule and when to schedule it.";
+    }
+
+    const params: ScheduleTaskParams = {
+        when: activation_time,
+        originalUserIntent: skill_to_schedule,
+        entities: skill_entities,
+        userId: userId,
+    };
+
+    return scheduleTask(params);
+}
+
 export async function createSchedulingRule(userId: string, ruleDetails: NLUCreateTimePreferenceRuleEntities): Promise<SchedulingResponse> {
     console.log("createSchedulingRule called with:", userId, ruleDetails);
     // Placeholder

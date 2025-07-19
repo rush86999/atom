@@ -1445,3 +1445,10 @@ export interface Tweet {
   };
   created_at: string;
 }
+
+// --- Schedule Skill Activation Types ---
+export interface ScheduleSkillActivationEntities {
+    skill_to_schedule: string;
+    activation_time: string;
+    skill_entities: Record<string, any>;
+}
