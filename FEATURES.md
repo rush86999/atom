@@ -145,6 +145,11 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Xero (Connect your Xero account to manage your invoices, bills, and contacts.)
 *   **Social Media:**
     *   Twitter (Connect your Twitter account to view your timeline, post tweets, and search for tweets.)
+    *   LinkedIn (Schedule posts to your LinkedIn profile.)
+*   **Personal Assistant:**
+    *   Weather (Get the current weather for any location.)
+    *   News (Get the top headlines from a variety of news sources.)
+    *   Reminders (Set reminders for yourself.)
 *   **Calendar Providers:**
     *   Google Calendar (Full sync via OAuth 2.0, with token management for agent interactions. Ensure redirect URI `/api/atom/auth/calendar/callback` is configured in Google Cloud Console.)
     *   Microsoft Teams (Integration for calendar events and online meetings)
@@ -165,6 +170,25 @@ Atom connects with a wide range of third-party services to create a unified prod
 *   **Transcription Services:**
     *   Deepgram (High-quality transcription for audio notes and other audio inputs)
 *   **Push Notifications:** Generic support for sending push notifications to keep users updated on calendar changes or important tasks.
+
+### Use Cases
+By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life.
+
+*   **Social Media Manager:**
+    *   Schedule posts to be published on Twitter and LinkedIn at a later time.
+    *   Monitor your Twitter mentions and automatically add them to a Trello board for review.
+    *   Create a new Salesforce lead from a Twitter user who has expressed interest in your product or service.
+    *   Get analytics for a specific tweet, such as likes, retweets, and replies.
+*   **Sales Manager:**
+    *   Create a new Xero invoice from a Salesforce opportunity that has been marked as "Closed Won".
+    *   Create a new Trello card for each new Salesforce opportunity, so you can track its progress through your sales pipeline.
+    *   Create a new Salesforce contact from a Xero contact.
+    *   Get a list of all open opportunities for a specific account.
+*   **Project Manager:**
+    *   Create a new Google Drive folder for each new Trello board, so you can keep all your project files organized.
+    *   Automatically upload Trello card attachments to the corresponding Google Drive folder.
+    *   Create a new Trello board from a Google Drive folder.
+    *   Automatically create a Trello card for each new file added to a Google Drive folder.
 *   **Gmail Account Integration (Read-Only & AI-Powered Querying):**
     *   **Secure Connection:** Connect your personal Gmail account via OAuth 2.0 for secure, read-only access. Tokens are encrypted at rest.
     *   **Natural Language Email Search:** Ask the agent natural language questions to find emails (e.g., "find emails from Jane about the Q3 report sent last week"). The `atom-agent` uses an LLM (via `llm_email_query_understander.ts`) to parse your query into structured parameters, which are then used to construct a Gmail API compatible search string. This search is executed via a Hasura Action that calls the Gmail API.
