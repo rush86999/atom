@@ -136,8 +136,10 @@ async def run_ingestion_pipeline():
             logger.error("Notion client not initialized. Skipping Notion data extraction.")
 
     # Google Drive
-    gdrive_data = await extract_data_from_gdrive(ATOM_USER_ID_FOR_INGESTION)
-    all_data.extend(gdrive_data)
+    gdrive_credentials = os.getenv("GDRIVE_CREDENTIALS")
+    if gdrive_credentials:
+        gdrive_data = await extract_data_from_gdrive(ATOM_USER_ID_FOR_INGESTION, gdrive_credentials)
+        all_data.extend(gdrive_data)
 
     # Local Storage
     local_storage_path = os.getenv("LOCAL_STORAGE_PATH")
