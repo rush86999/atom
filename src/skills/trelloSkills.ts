@@ -135,3 +135,41 @@ export async function moveTrelloCard(
     return handleAxiosError(error as AxiosError, 'moveTrelloCard');
   }
 }
+
+export async function getTrelloCard(
+  userId: string,
+  cardId: string
+): Promise<SkillResponse<TrelloCard>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards/${cardId}?user_id=${userId}`;
+
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getTrelloCard');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getTrelloCard');
+  }
+}
+
+export async function addTrelloComment(
+  userId: string,
+  cardId: string,
+  text: string
+): Promise<SkillResponse<any>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards/${cardId}/comments`;
+
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      text,
+    });
+    return handlePythonApiResponse(response, 'addTrelloComment');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'addTrelloComment');
+  }
+}

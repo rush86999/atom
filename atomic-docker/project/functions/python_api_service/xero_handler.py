@@ -70,9 +70,9 @@ async def handle_bills():
         logger.error(f"Error handling Xero bills for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "BILLS_HANDLING_FAILED", "message": str(e)}}), 500
 
-@xero_bp.route('/api/xero/contacts', methods=['GET'])
-async def get_contacts():
-    user_id = request.args.get('user_id')
+@xero_bp.route('/api/xero/contacts', methods=['GET', 'POST'])
+async def handle_contacts():
+    user_id = request.args.get('user_id') if request.method == 'GET' else request.get_json().get('user_id')
     if not user_id:
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
 
@@ -85,8 +85,44 @@ async def get_contacts():
         if not xero:
             return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Xero client. Please connect your Xero account."}}), 401
 
-        contacts = await xero_service.list_contacts(xero)
-        return jsonify({"ok": True, "data": {"contacts": contacts}})
+        if request.method == 'GET':
+            contacts = await xero_service.list_contacts(xero)
+            return jsonify({"ok": True, "data": {"contacts": contacts}})
+        else: # POST
+            data = request.get_json()
+            contact_data = {
+                "Name": data.get('Name'),
+                "EmailAddress": data.get('EmailAddress')
+            }
+            contact = await xero_service.create_contact(xero, contact_data)
+            return jsonify({"ok": True, "data": contact})
     except Exception as e:
-        logger.error(f"Error getting Xero contacts for user {user_id}: {e}", exc_info=True)
-        return jsonify({"ok": False, "error": {"code": "CONTACTS_FETCH_FAILED", "message": str(e)}}), 500
+        logger.error(f"Error handling Xero contacts for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "CONTACTS_HANDLING_FAILED", "message": str(e)}}), 500
+
+@xero_bp.route('/api/xero/contacts/<contact_id>', methods=['GET', 'PUT'])
+async def handle_contact(contact_id):
+    user_id = request.args.get('user_id') if request.method == 'GET' else request.get_json().get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        xero = await xero_service.get_xero_client(user_id, db_conn_pool)
+        if not xero:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Xero client. Please connect your Xero account."}}), 401
+
+        if request.method == 'GET':
+            contact = await xero_service.get_contact(xero, contact_id)
+            return jsonify({"ok": True, "data": contact})
+        else: # PUT
+            data = request.get_json()
+            fields_to_update = {k: v for k, v in data.items() if k not in ['user_id']}
+            contact = await xero_service.update_contact(xero, contact_id, fields_to_update)
+            return jsonify({"ok": True, "data": contact})
+    except Exception as e:
+        logger.error(f"Error handling Xero contact {contact_id} for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "CONTACT_HANDLING_FAILED", "message": str(e)}}), 500
