@@ -388,7 +388,22 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
     const onSubmitForm = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (text.trim()) {
-            sendMessage(text);
+            if (text.trim().toLowerCase() === 'show me an image') {
+                const message = {
+                    role: 'assistant',
+                    content: 'Here is an image:',
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    customComponentType: 'image_display',
+                    customComponentProps: {
+                        imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+                    }
+                };
+                // @ts-ignore
+                sendMessage(message);
+            } else {
+                sendMessage(text);
+            }
             setText('');
             if (inputRef.current) {
                 inputRef.current.style.height = 'auto'; // Reset height after send
