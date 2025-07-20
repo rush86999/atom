@@ -24,6 +24,7 @@ Atom is a powerful and flexible open-source AI assistant designed to streamline 
   - [AWS Cloud Deployment (Self-Hosted)](#aws-cloud-deployment-self-hosted)
 - [Support the Project](#support-the-project)
 - [Contributing](#contributing)
+- [New Use Cases](./NEW_USE_CASES.md)
 
 
 ## Example Use Cases
