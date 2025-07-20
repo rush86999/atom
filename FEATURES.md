@@ -230,3 +230,11 @@ Tailor Atom to your specific needs with a range of customizable settings:
 *   **Integration Management:** View the status of all connected third-party services, manage credentials, and enable/disable specific integrations.
 
 This list is intended to be comprehensive. If you discover a feature not listed here, please consider contributing to our documentation!
+
+### New Complex Use Cases
+
+By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life. For more detailed information, please see our [New Use Cases Document](./NEW_USE_CASES.md).
+
+*   **Proactive Project and Team Health Monitoring:** Monitor a project's health by combining data from project management, version control, communication, and calendar tools.
+*   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
+*   **Personalized Learning Assistant:** Create a personalized learning plan for the user based on their interests and learning history.
