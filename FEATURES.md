@@ -242,3 +242,7 @@ By combining multiple integrations, Atom can automate complex workflows and prov
 ### Project Health Monitoring
 
 *   **Proactive Project and Team Health Monitoring:** Monitor a project's health by combining data from project management, version control, communication, and calendar tools.
+
+### Competitor Analysis
+
+*   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.

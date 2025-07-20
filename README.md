@@ -67,6 +67,10 @@ Atom comes packed with a variety of features designed to enhance your productivi
 
 For a detailed list and explanation of all features, please see our [Features Document](./FEATURES.md).
 
+### Competitor Analysis
+
+*   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
+
 ## Core Agent Capabilities & Commands
 
 The Atom Agent understands a variety of commands to interact with your integrated services. Commands are typically issued in a chat interface with the agent.
