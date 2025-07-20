@@ -70,6 +70,7 @@ For a detailed list and explanation of all features, please see our [Features Do
 ### Competitor Analysis
 
 *   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
+*   **Personalized Learning Assistant:** Create a personalized learning plan for the user based on their interests and learning history.
 
 ## Core Agent Capabilities & Commands
 
