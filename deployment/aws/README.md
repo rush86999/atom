@@ -6,7 +6,7 @@ This guide details how to deploy the Atomic Calendar application on AWS using th
 
 The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure to run the Atomic Calendar application. Key features of this optimized strategy include:
 
-*   **ECS on Fargate:** Application services (frontend, backend functions, Hasura, SuperTokens, etc.) are deployed as containers orchestrated by Amazon ECS using AWS Fargate for serverless compute.
+*   **ECS on Fargate:** Application services (frontend, backend functions, PostGraphile, SuperTokens, etc.) are deployed as containers orchestrated by Amazon ECS using AWS Fargate for serverless compute.
 *   **Cost Optimization:**
     *   **Right-sized Services:** Default CPU and memory for Fargate services are set to reasonable starting points (e.g., 256 CPU units / 512 MiB RAM) and can be adjusted.
     *   **Fargate Spot:** Key stateless services (e.g., App, Functions) are configured to use Fargate Spot instances, potentially offering significant cost savings (up to 70%) compared to On-Demand Fargate. On-Demand Fargate is used as a fallback.
@@ -53,7 +53,7 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
     *   **RDS Instance Type:** The default is `db.t3.small`. If you anticipate higher database load, you can change this. Note the comment regarding Aurora Serverless v2 for spiky workloads.
     *   **Secrets Management:**
         *   The CDK stack automates the creation and, where possible, the population of secrets in AWS Secrets Manager.
-        *   **Automated Secrets:** Secrets such as the Hasura JWT key and database connection strings (for SuperTokens, Hasura, OptaPlanner) are now automatically generated or constructed by the stack.
+        *   **Automated Secrets:** Secrets such as the PostGraphile JWT key and database connection strings (for SuperTokens, PostGraphile, OptaPlanner) are now automatically generated or constructed by the stack.
         *   **Secrets Requiring Manual Value Population:** For external services (like OpenAI, Notion, Deepgram) and other environment-specific values (like MSK brokers if used), the CDK stack creates placeholder secrets. You **MUST** update the *values* of these specific secrets in the AWS Secrets Manager console after the initial deployment. The descriptions of these secrets in `aws-stack.ts` and the "Post-Deployment Steps" section below provide details.
         *   The CDK script outputs the ARNs of all created secrets.
 
@@ -114,8 +114,10 @@ The CDK script in `lib/aws-stack.ts` provisions the necessary AWS infrastructure
     *   **Configure DNS:**
         *   The CDK deployment will output the DNS name of the Application LoadBalancer (`AlbDnsName`).
         *   Create a CNAME record in your DNS provider to point your desired domain (e.g., `app.yourbusiness.com`) to this ALB DNS name.
-    *   **Hasura Metadata:**
-        *   Once Hasura is running and connected to the database, you may need to apply Hasura metadata (tables, permissions, relationships, etc.). The `deployment/aws/apply_hasura_metadata.sh` script might be relevant, but you'll need to configure it with your Hasura endpoint and admin secret. Access the Hasura console via the ALB (e.g., `http://<ALB_DNS_NAME>/v1/graphql` - though direct console access might need specific path routing or temporary direct exposure).
+    *   **PostGraphile Schema:**
+        *   PostGraphile automatically detects the schema of your database. You can manage your database schema using a tool like `sqitch` or by running SQL scripts. The `deployment/aws/db_init_scripts` directory contains some example scripts.
+    *   **OptaPlanner:**
+        *   The OptaPlanner service is used for scheduling. The source code for the OptaPlanner service can be found at https://github.com/rush86999/atomic-scheduler.
 
 ## Cost Considerations and Monitoring
 
@@ -195,7 +197,7 @@ After the CloudFormation stack has been successfully deployed or updated with th
 3.  **Test HTTP to HTTPS Redirection:** Navigate to `http://<YourDomainName>`. You should be automatically redirected to `https://<YourDomainName>`.
 4.  **Test All Services:** Thoroughly test all functionalities of your application to ensure all services are reachable and operating correctly under the new HTTPS URLs. This includes:
     *   Authentication flows (Supertokens)
-    *   GraphQL queries and mutations (Hasura)
+    *   GraphQL queries and mutations (PostGraphile)
     *   Backend functions
     *   Frontend application interactions
 
@@ -224,7 +226,7 @@ The following CloudWatch Alarms are configured by default:
     *   Target Groups Monitored:
         *   App Service Target Group
         *   Supertokens Service Target Group
-        *   Hasura Service Target Group
+        *   PostGraphile Service Target Group
         *   Functions Service Target Group
         *   Handshake Service Target Group
         *   OAuth Service Target Group
@@ -234,7 +236,7 @@ The following CloudWatch Alarms are configured by default:
     *   **High CPU Utilization (per Service):** Triggers if the average CPU utilization for any of the following ECS services exceeds 85% for a continuous 15-minute period:
         *   App Service
         *   Functions Service
-        *   Hasura Service
+        *   PostGraphile Service
         *   Supertokens Service
 
 **3. Amazon RDS Instance Alarms:**
@@ -251,7 +253,7 @@ A CloudWatch Dashboard named `<StackName>-SystemHealthOverview` is automatically
 
 *   **Key Alarm Status:** Displays the current status of critical alarms.
 *   **ALB Metrics:** Overall 5XX errors, P90 latency for the App target group, and unhealthy host counts for each key service target group.
-*   **ECS Service Metrics:** CPU and Memory utilization for key services (App, Functions, Hasura, Supertokens, Optaplanner).
+*   **ECS Service Metrics:** CPU and Memory utilization for key services (App, Functions, PostGraphile, Supertokens, Optaplanner).
 *   **RDS Metrics:** CPU utilization, free storage space, freeable memory, and database connections.
 
 The URL to access this dashboard is provided as a CloudFormation stack output named `SystemHealthDashboardUrl`.
