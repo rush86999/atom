@@ -3,29 +3,30 @@ import tweepy
 
 def get_twitter_data(username):
     """
-    Fetches data from a Twitter user's profile.
+    Gets a user's recent tweets.
 
     Args:
-        username: The username of the Twitter user.
+        username: The Twitter username of the user.
 
     Returns:
-        A dictionary containing the Twitter data.
+        A dictionary containing the user's recent tweets.
     """
     consumer_key = os.environ.get("TWITTER_CONSUMER_KEY")
     consumer_secret = os.environ.get("TWITTER_CONSUMER_SECRET")
     access_token = os.environ.get("TWITTER_ACCESS_TOKEN")
     access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
 
-    if not consumer_key or not consumer_secret or not access_token or not access_token_secret:
-        raise Exception("Twitter API keys are not set.")
+    if not all([consumer_key, consumer_secret, access_token, access_token_secret]):
+        print("Twitter API keys are not set.")
+        return {"tweets": []}
 
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-
+    auth = tweepy.OAuth1UserHandler(consumer_key, consumer_secret, access_token, access_token_secret)
     api = tweepy.API(auth)
 
-    tweets = api.user_timeline(screen_name=username, count=10, tweet_mode="extended")
+    try:
+        tweets = api.user_timeline(screen_name=username, count=10, tweet_mode="extended")
+    except tweepy.errors.TweepyException as e:
+        print(f"Error getting tweets: {e}")
+        return {"tweets": []}
 
-    return {
-        "tweets": [tweet.full_text for tweet in tweets]
-    }
+    return {"tweets": [tweet.full_text for tweet in tweets]}

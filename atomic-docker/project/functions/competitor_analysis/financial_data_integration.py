@@ -2,7 +2,7 @@ import yfinance as yf
 
 def get_financial_data(ticker):
     """
-    Fetches financial data for a public company.
+    Gets financial data for a ticker.
 
     Args:
         ticker: The ticker symbol of the company.
@@ -10,11 +10,37 @@ def get_financial_data(ticker):
     Returns:
         A dictionary containing the financial data.
     """
-    stock = yf.Ticker(ticker)
+    if not ticker:
+        return {
+            "info": {
+                "marketCap": "N/A",
+                "enterpriseValue": "N/A",
+                "trailingPE": "N/A",
+                "forwardPE": "N/A",
+                "pegRatio": "N/A",
+            }
+        }
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+    except Exception as e:
+        print(f"Error getting financial data: {e}")
+        return {
+            "info": {
+                "marketCap": "N/A",
+                "enterpriseValue": "N/A",
+                "trailingPE": "N/A",
+                "forwardPE": "N/A",
+                "pegRatio": "N/A",
+            }
+        }
 
     return {
-        "info": stock.info,
-        "quarterly_financials": stock.quarterly_financials,
-        "quarterly_balance_sheet": stock.quarterly_balance_sheet,
-        "quarterly_cashflow": stock.quarterly_cashflow,
+        "info": {
+            "marketCap": info.get("marketCap", "N/A"),
+            "enterpriseValue": info.get("enterpriseValue", "N/A"),
+            "trailingPE": info.get("trailingPE", "N/A"),
+            "forwardPE": info.get("forwardPE", "N/A"),
+            "pegRatio": info.get("pegRatio", "N/A"),
+        }
     }

@@ -1,0 +1,119 @@
+{
+    "TestCorp": [
+        {
+            "timestamp": "2025-07-20T14:45:46.503729",
+            "scraped_data": {
+                "blog_posts": [],
+                "press_releases": [],
+                "product_updates": []
+            },
+            "twitter_data": {
+                "tweets": []
+            },
+            "news_data": {
+                "articles": []
+            },
+            "financial_data": {
+                "info": {
+                    "marketCap": "N/A",
+                    "enterpriseValue": "N/A",
+                    "trailingPE": "N/A",
+                    "forwardPE": "N/A",
+                    "pegRatio": "N/A"
+                }
+            }
+        },
+        {
+            "timestamp": "2025-07-20T14:48:44.184449",
+            "scraped_data": {
+                "blog_posts": [],
+                "press_releases": [],
+                "product_updates": []
+            },
+            "twitter_data": {
+                "tweets": []
+            },
+            "news_data": {
+                "articles": []
+            },
+            "financial_data": {
+                "info": {
+                    "marketCap": "N/A",
+                    "enterpriseValue": "N/A",
+                    "trailingPE": "N/A",
+                    "forwardPE": "N/A",
+                    "pegRatio": "N/A"
+                }
+            }
+        },
+        {
+            "timestamp": "2025-07-20T14:49:43.069576",
+            "scraped_data": {
+                "blog_posts": [],
+                "press_releases": [],
+                "product_updates": []
+            },
+            "twitter_data": {
+                "tweets": []
+            },
+            "news_data": {
+                "articles": []
+            },
+            "financial_data": {
+                "info": {
+                    "marketCap": "N/A",
+                    "enterpriseValue": "N/A",
+                    "trailingPE": "N/A",
+                    "forwardPE": "N/A",
+                    "pegRatio": "N/A"
+                }
+            }
+        },
+        {
+            "timestamp": "2025-07-20T14:58:15.105231",
+            "scraped_data": {
+                "blog_posts": [],
+                "press_releases": [],
+                "product_updates": []
+            },
+            "twitter_data": {
+                "tweets": []
+            },
+            "news_data": {
+                "articles": []
+            },
+            "financial_data": {
+                "info": {
+                    "marketCap": "N/A",
+                    "enterpriseValue": "N/A",
+                    "trailingPE": "N/A",
+                    "forwardPE": "N/A",
+                    "pegRatio": "N/A"
+                }
+            }
+        },
+        {
+            "timestamp": "2025-07-20T15:01:27.417083",
+            "scraped_data": {
+                "blog_posts": [],
+                "press_releases": [],
+                "product_updates": []
+            },
+            "twitter_data": {
+                "tweets": []
+            },
+            "news_data": {
+                "articles": []
+            },
+            "financial_data": {
+                "info": {
+                    "marketCap": "N/A",
+                    "enterpriseValue": "N/A",
+                    "trailingPE": "N/A",
+                    "forwardPE": "N/A",
+                    "pegRatio": "N/A"
+                }
+            }
+        }
+    ]
+}

@@ -51,7 +51,19 @@ def create_notion_page(title, briefing):
                     "rich_text": [{"type": "text", "text": {"content": line[2:]}}]
                 }
             })
-        else:
+        elif line.startswith("**"):
+            children.append({
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [{
+                        "type": "text",
+                        "text": {"content": line.replace("*", "")},
+                        "annotations": {"bold": True}
+                    }]
+                }
+            })
+        elif line.strip():
             children.append({
                 "object": "block",
                 "type": "paragraph",
