@@ -18,7 +18,7 @@ def get_news_data(query):
 
     newsapi = NewsApiClient(api_key=api_key)
 
-    all_articles = newsapi.get_everything(q=query, language="en", sort_by="relevancy")
+    all_articles = newsapi.get_everything(q=query, language="en", sort_by="publishedAt", page_size=10)
 
     return {
         "articles": all_articles["articles"]
