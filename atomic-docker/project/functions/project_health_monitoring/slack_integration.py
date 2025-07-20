@@ -25,8 +25,8 @@ def get_slack_data(channel_id):
 
     sentiment_scores = []
     for message in messages:
-        sentiment_scores.append(analyzer.polarity_scores(message["text"]))
+        sentiment_scores.append(analyzer.polarity_scores(message["text"])["compound"])
 
     return {
-        "sentiment_scores": sentiment_scores
+        "average_sentiment": sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
     }

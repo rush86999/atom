@@ -1,6 +1,7 @@
 import os
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
+import datetime
 
 def get_google_calendar_data(calendar_id):
     """
@@ -15,9 +16,21 @@ def get_google_calendar_data(calendar_id):
     creds = Credentials.from_authorized_user_file("token.json", ["https://www.googleapis.com/auth/calendar.readonly"])
     service = build("calendar", "v3", credentials=creds)
 
-    events_result = service.events().list(calendarId=calendar_id, timeMin="2023-01-01T00:00:00Z").execute()
-    events = events_result.get("items", [])
+    now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+    events_result = service.events().list(
+        calendarId=calendar_id, timeMin=now,
+        maxResults=10, singleEvents=True,
+        orderBy='startTime').execute()
+    events = events_result.get('items', [])
+
+    meeting_count = len(events)
+    total_meeting_duration = 0
+    for event in events:
+        start = datetime.fromisoformat(event["start"]["dateTime"])
+        end = datetime.fromisoformat(event["end"]["dateTime"])
+        total_meeting_duration += (end - start).total_seconds()
 
     return {
-        "events": events
+        "meeting_count": meeting_count,
+        "total_meeting_duration": total_meeting_duration
     }
