@@ -1744,12 +1744,12 @@ service:
       }),
       environment: {
         QUARKUS_DATASOURCE_DB_KIND: 'postgresql',
-        USERNAME: 'admin', // Hardcoded as per subtask note
       },
       secrets: {
         QUARKUS_DATASOURCE_JDBC_URL: ecs.Secret.fromSecretsManager(this.optaplannerDbConnStringSecret),
         QUARKUS_DATASOURCE_USERNAME: ecs.Secret.fromSecretsManager(this.dbSecret, 'username'),
         QUARKUS_DATASOURCE_PASSWORD: ecs.Secret.fromSecretsManager(this.dbSecret, 'password'),
+        USERNAME: ecs.Secret.fromSecretsManager(this.apiTokenSecret),
         PASSWORD: ecs.Secret.fromSecretsManager(this.apiTokenSecret),
       },
       portMappings: [{ containerPort: 8081, hostPort: 8081, protocol: ecs.Protocol.TCP }],
