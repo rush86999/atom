@@ -11,6 +11,7 @@ const SearchResultsDisplay = React.lazy(() => import('./custom/SearchResultsDisp
 const MeetingPrepDisplay = React.lazy(() => import('./custom/MeetingPrepDisplay'));
 const DailyBriefingDisplay = React.lazy(() => import('./custom/DailyBriefingDisplay'));
 const ImageDisplay = React.lazy(() => import('./custom/ImageDisplay'));
+const ChartDisplay = React.lazy(() => import('./custom/ChartDisplay'));
 
 
 type Props = {
@@ -112,6 +113,11 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
                         {message.customComponentType === 'image_display' && message.customComponentProps?.imageUrl && (
                             <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading image...</div>}>
                                 <ImageDisplay imageUrl={message.customComponentProps.imageUrl} />
+                            </Suspense>
+                        )}
+                        {message.customComponentType === 'chart_display' && message.customComponentProps?.data && (
+                            <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading chart...</div>}>
+                                <ChartDisplay data={message.customComponentProps.data} chartType={message.customComponentProps.chartType} />
                             </Suspense>
                         )}
                         {htmlEmail && !message.customComponentType && (

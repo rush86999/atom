@@ -42,7 +42,7 @@ export type UserChatType = {
     id: number,
     date: string,
     audioUrl?: string; // Added for TTS audio playback
-    customComponentType?: 'semantic_search_results' | 'meeting_prep_results' | 'daily_briefing_results' | 'image_display' | 'other_custom_component'; // To identify component type
+    customComponentType?: 'semantic_search_results' | 'meeting_prep_results' | 'daily_briefing_results' | 'image_display' | 'chart_display' | 'other_custom_component'; // To identify component type
     customComponentProps?: { results: FrontendMeetingSearchResult[] } | any; // Props for the component
 }
 

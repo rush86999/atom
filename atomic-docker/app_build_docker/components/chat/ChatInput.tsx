@@ -401,6 +401,28 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
                 };
                 // @ts-ignore
                 sendMessage(message);
+            } else if (text.trim().toLowerCase() === 'show me a chart') {
+                const message = {
+                    role: 'assistant',
+                    content: 'Here is a chart:',
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    customComponentType: 'chart_display',
+                    customComponentProps: {
+                        chartType: 'bar',
+                        data: [
+                            { name: 'Page A', value: 4000 },
+                            { name: 'Page B', value: 3000 },
+                            { name: 'Page C', value: 2000 },
+                            { name: 'Page D', value: 2780 },
+                            { name: 'Page E', value: 1890 },
+                            { name: 'Page F', value: 2390 },
+                            { name: 'Page G', value: 3490 },
+                        ]
+                    }
+                };
+                // @ts-ignore
+                sendMessage(message);
             } else {
                 sendMessage(text);
             }
