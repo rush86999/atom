@@ -1,15 +1,42 @@
+import sys
 import openai
 import json
 import requests
 from bs4 import BeautifulSoup
 import note_utils
 import os
+import asyncio
 import lancedb
 from dotenv import load_dotenv
 import uuid
 from datetime import datetime, timezone
 
 from openai import OpenAI # Ensure OpenAI class is imported
+
+# Dynamically add the path to the ingestion_pipeline to sys.path
+# This allows importing hybrid_search_service from a different directory
+INGESTION_PIPELINE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'python-api', 'ingestion_pipeline'))
+if INGESTION_PIPELINE_PATH not in sys.path:
+    sys.path.append(INGESTION_PIPELINE_PATH)
+
+try:
+    from hybrid_search_service import hybrid_search_documents
+    from lancedb_handler import get_lancedb_connection as get_ingestion_lancedb_connection
+    from meilisearch_handler import get_meilisearch_client
+    import multi_agent_research_service
+except ImportError as e:
+    print(f"Error: Failed to import search services. Make sure the ingestion_pipeline directory is structured correctly. Details: {e}")
+    # Define dummy functions if imports fail to allow the rest of the agent to load without crashing.
+    async def hybrid_search_documents(*args, **kwargs):
+        print("Error: hybrid_search_documents is not available due to import failure.")
+        return []
+    def get_ingestion_lancedb_connection():
+        print("Error: get_ingestion_lancedb_connection is not available.")
+        return None
+    def get_meilisearch_client():
+        print("Error: get_meilisearch_client is not available.")
+        return None
+
 
 # --- LanceDB Setup ---
 load_dotenv() # Load environment variables from .env file
@@ -112,37 +139,28 @@ def ensure_research_findings_table_exists(db_conn):
 # --- End LanceDB Setup ---
 
 
-def search_past_research(original_query: str, top_k: int = 3) -> list[dict]:
-    """Searches past research findings in LanceDB based on the original query."""
-    db_conn = get_lance_db_connection()
-    if not db_conn:
-        log("Cannot search past research, LanceDB connection not available.", level="ERROR")
-        return []
-
+async def search_past_research(original_query: str, user_id: str, top_k: int = 5) -> list[dict]:
+    """
+    Searches past research findings using the multi-agent research service.
+    """
     if not original_query.strip():
         log("Original query is empty, skipping past research search.", level="WARNING")
         return []
 
+    log(f"Initiating multi-agent research for query: '{original_query}' for user_id: {user_id}")
+
     try:
-        ensure_research_findings_table_exists(db_conn) # Ensure check has run
+        results = await multi_agent_research_service.search_meeting_archives(
+            user_id=user_id,
+            query=original_query,
+            top_k=top_k
+        )
 
-        query_embedding = generate_embedding_py(original_query)
-        if query_embedding is None:
-            log(f"Could not generate embedding for query: {original_query[:100]}. Skipping past research search.", level="WARNING")
-            return []
-
-        log(f"Searching 'research_findings' for query: {original_query[:100]}...")
-        research_table = db_conn.open_table('research_findings')
-
-        # Assuming 'query_embedding' is the vector column for the original queries in 'research_findings'
-        results = research_table.search(query_embedding, vector_column_name='query_embedding') \
-                                .limit(top_k) \
-                                .to_list()
-
-        log(f"Found {len(results)} past research items.")
+        log(f"Found {len(results)} past research items via multi-agent research service.")
         return results
+
     except Exception as e:
-        log(f"Error searching past research: {e}", level="ERROR")
+        log(f"Error during multi-agent research for past research: {e}", level="ERROR")
         return []
 
 
@@ -174,7 +192,7 @@ def decompose_query_into_tasks_llm(user_query: str) -> list[str]:
         return []
 
 
-def initiate_research_project(user_query: str, user_id: str, project_db_id: str, task_db_id: str) -> dict:
+async def initiate_research_project(user_query: str, user_id: str, project_db_id: str, task_db_id: str) -> dict:
     """
     Initiates a research project by decomposing the query into tasks and creating corresponding Notion pages.
     Assumes Notion client (note_utils.notion) is already initialized by the caller.
@@ -195,7 +213,7 @@ def initiate_research_project(user_query: str, user_id: str, project_db_id: str,
     project_page_id = None
     try:
         # Search for past research
-        past_findings = search_past_research(user_query)
+        past_findings = await search_past_research(user_query, user_id)
         if past_findings:
             log(f"Found {len(past_findings)} potentially relevant past research items for query: {user_query}")
 

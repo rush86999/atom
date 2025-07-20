@@ -7,9 +7,9 @@ from datetime import datetime
 
 # Assuming these modules are in the same directory or accessible via PYTHONPATH
 try:
-    from . import lancedb_search_service
-    from . import meilisearch_handler
-    from . import lancedb_handler # For DB connection if needed by lancedb_search_service directly
+    import lancedb_search_service
+    import meilisearch_handler
+    import lancedb_handler
     # For embedding the query for LanceDB search
     # Adjust path if note_utils is located differently relative to this new service.
     # It's in 'project/functions/' so this might need sys.path adjustment if not already handled by runtime env.
@@ -282,5 +282,3 @@ def _build_lancedb_filter_clause(filters: Dict[str, Any]) -> str:
         logger.warning("Filtering by 'metadata_properties' is not supported for LanceDB search and will be ignored.")
 
     return ' AND '.join(filter_parts)
-
-```
