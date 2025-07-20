@@ -1,5 +1,6 @@
 import os
 from notion_client import Client
+from rake_nltk import Rake
 
 def analyze_notes(database_id):
     """
@@ -17,11 +18,22 @@ def analyze_notes(database_id):
         raise Exception("NOTION_TOKEN environment variable is not set.")
 
     notion = Client(auth=notion_token)
+    rake = Rake()
 
-    # This is a placeholder for the actual note analysis logic.
-    analysis_results = {
-        "areas_of_interest": [],
+    results = notion.databases.query(database_id=database_id)
+    pages = results["results"]
+
+    text = ""
+    for page in pages:
+        for block in notion.blocks.children.list(block_id=page["id"])["results"]:
+            if block["type"] == "paragraph":
+                for rich_text in block["paragraph"]["rich_text"]:
+                    text += rich_text["plain_text"]
+
+    rake.extract_keywords_from_text(text)
+    keywords = rake.get_ranked_phrases()
+
+    return {
+        "areas_of_interest": keywords,
         "knowledge_gaps": [],
     }
-
-    return analysis_results

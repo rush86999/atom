@@ -17,7 +17,12 @@ def get_coursera_data(user_id):
         raise Exception("COURSERA_API_KEY environment variable is not set.")
 
     # This is a placeholder for the actual Coursera API integration.
-    return {}
+    return {
+        "enrolled_courses": [
+            {"name": "Machine Learning", "progress": 0.5},
+            {"name": "Data Science", "progress": 0.2},
+        ]
+    }
 
 def get_udemy_data(user_id):
     """
@@ -35,7 +40,12 @@ def get_udemy_data(user_id):
         raise Exception("UDEMY_API_KEY environment variable is not set.")
 
     # This is a placeholder for the actual Udemy API integration.
-    return {}
+    return {
+        "enrolled_courses": [
+            {"name": "Python for Everybody", "progress": 0.8},
+            {"name": "Web Developer Bootcamp", "progress": 0.1},
+        ]
+    }
 
 def get_edx_data(user_id):
     """
@@ -53,4 +63,9 @@ def get_edx_data(user_id):
         raise Exception("EDX_API_KEY environment variable is not set.")
 
     # This is a placeholder for the actual edX API integration.
-    return {}
+    return {
+        "enrolled_courses": [
+            {"name": "Introduction to Computer Science", "progress": 0.9},
+            {"name": "Artificial Intelligence", "progress": 0.3},
+        ]
+    }
