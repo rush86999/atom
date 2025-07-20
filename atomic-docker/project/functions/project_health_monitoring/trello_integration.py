@@ -27,10 +27,12 @@ def get_trello_data(board_id):
         "fields": "name,desc"
     }
 
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-
-    board_data = response.json()
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        board_data = response.json()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Error fetching data from Trello: {e}")
 
     overdue_cards = 0
     for card in board_data["cards"]:
