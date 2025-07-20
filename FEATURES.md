@@ -246,3 +246,7 @@ By combining multiple integrations, Atom can automate complex workflows and prov
 ### Competitor Analysis
 
 *   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
+
+### Personalized Learning Assistant
+
+*   **Personalized Learning Assistant:** Create a personalized learning plan for the user based on their interests and learning history.
