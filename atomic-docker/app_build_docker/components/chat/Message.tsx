@@ -10,6 +10,7 @@ import { cn } from "@lib/Chat/utils"; // Import cn for class utility
 const SearchResultsDisplay = React.lazy(() => import('./custom/SearchResultsDisplay'));
 const MeetingPrepDisplay = React.lazy(() => import('./custom/MeetingPrepDisplay'));
 const DailyBriefingDisplay = React.lazy(() => import('./custom/DailyBriefingDisplay'));
+const ImageDisplay = React.lazy(() => import('./custom/ImageDisplay'));
 
 
 type Props = {
@@ -106,6 +107,11 @@ function Message({ message, isLoading, formData, htmlEmail }: Props) {
                         {message.customComponentType === 'daily_briefing_results' && message.customComponentProps?.briefing && (
                             <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading daily briefing...</div>}>
                                 <DailyBriefingDisplay briefing={message.customComponentProps.briefing} />
+                            </Suspense>
+                        )}
+                        {message.customComponentType === 'image_display' && message.customComponentProps?.imageUrl && (
+                            <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading image...</div>}>
+                                <ImageDisplay imageUrl={message.customComponentProps.imageUrl} />
                             </Suspense>
                         )}
                         {htmlEmail && !message.customComponentType && (
