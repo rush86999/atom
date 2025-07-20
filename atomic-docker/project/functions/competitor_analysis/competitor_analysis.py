@@ -21,21 +21,35 @@ def generate_competitor_briefing(competitor_website, competitor_twitter_username
     news_data = get_news_data(competitor_name)
     financial_data = get_financial_data(competitor_ticker)
 
-    # This is a placeholder for the actual competitor briefing generation.
-    competitor_briefing = f"""
-# Competitor Briefing for {competitor_name}
+    briefing = f"# Competitor Briefing for {competitor_name}\n\n"
 
-## Website
-{scraped_data}
+    briefing += "## Website\n\n"
+    if scraped_data["blog_posts"]:
+        briefing += "### Blog Posts\n\n"
+        for post in scraped_data["blog_posts"]:
+            briefing += f"- [{post['title']}]({post['link']})\n"
+    if scraped_data["press_releases"]:
+        briefing += "\n### Press Releases\n\n"
+        for release in scraped_data["press_releases"]:
+            briefing += f"- [{release['title']}]({release['link']})\n"
+    if scraped_data["product_updates"]:
+        briefing += "\n### Product Updates\n\n"
+        for update in scraped_data["product_updates"]:
+            briefing += f"- [{update['title']}]({update['link']})\n"
 
-## Twitter
-{twitter_data}
+    briefing += "\n## Twitter\n\n"
+    for tweet in twitter_data["tweets"]:
+        briefing += f"- {tweet}\n"
 
-## News
-{news_data}
+    briefing += "\n## News\n\n"
+    for article in news_data["articles"]:
+        briefing += f"- [{article['title']}]({article['url']})\n"
 
-## Financials
-{financial_data}
-"""
+    briefing += "\n## Financials\n\n"
+    briefing += f"**Market Cap:** {financial_data['info']['marketCap']}\n"
+    briefing += f"**Enterprise Value:** {financial_data['info']['enterpriseValue']}\n"
+    briefing += f"**Trailing P/E:** {financial_data['info']['trailingPE']}\n"
+    briefing += f"**Forward P/E:** {financial_data['info']['forwardPE']}\n"
+    briefing += f"**PEG Ratio:** {financial_data['info']['pegRatio']}\n"
 
-    return competitor_briefing
+    return briefing

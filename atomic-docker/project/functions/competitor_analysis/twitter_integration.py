@@ -24,8 +24,8 @@ def get_twitter_data(username):
 
     api = tweepy.API(auth)
 
-    tweets = api.user_timeline(screen_name=username, count=10)
+    tweets = api.user_timeline(screen_name=username, count=10, tweet_mode="extended")
 
     return {
-        "tweets": [tweet.text for tweet in tweets]
+        "tweets": [tweet.full_text for tweet in tweets]
     }

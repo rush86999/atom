@@ -14,7 +14,7 @@ def get_financial_data(ticker):
 
     return {
         "info": stock.info,
-        "financials": stock.financials,
-        "balance_sheet": stock.balance_sheet,
-        "cashflow": stock.cashflow,
+        "quarterly_financials": stock.quarterly_financials,
+        "quarterly_balance_sheet": stock.quarterly_balance_sheet,
+        "quarterly_cashflow": stock.quarterly_cashflow,
     }
