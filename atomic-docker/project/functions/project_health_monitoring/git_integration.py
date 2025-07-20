@@ -1,5 +1,6 @@
 import os
 from git import Repo
+from datetime import datetime, timedelta
 
 def get_git_data(repo_path):
     """
@@ -16,8 +17,16 @@ def get_git_data(repo_path):
 
     repo = Repo(repo_path)
 
-    commit_count = repo.head.commit.count()
+    commits_today = 0
+    today = datetime.now().date()
+    for commit in repo.iter_commits('master', since='30.days.ago'):
+        if commit.authored_datetime.date() == today:
+            commits_today += 1
+
+    # Placeholder for lines of code changes
+    lines_of_code_changed = 0
 
     return {
-        "commit_count": commit_count
+        "commits_today": commits_today,
+        "lines_of_code_changed": lines_of_code_changed
     }
