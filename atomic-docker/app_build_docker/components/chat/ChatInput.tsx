@@ -388,44 +388,7 @@ const ChatInput = ({ sendMessage, isNewSession, callNewSession }: Props) => {
     const onSubmitForm = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (text.trim()) {
-            if (text.trim().toLowerCase() === 'show me an image') {
-                const message = {
-                    role: 'assistant',
-                    content: 'Here is an image:',
-                    id: Date.now(),
-                    date: new Date().toISOString(),
-                    customComponentType: 'image_display',
-                    customComponentProps: {
-                        imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-                    }
-                };
-                // @ts-ignore
-                sendMessage(message);
-            } else if (text.trim().toLowerCase() === 'show me a chart') {
-                const message = {
-                    role: 'assistant',
-                    content: 'Here is a chart:',
-                    id: Date.now(),
-                    date: new Date().toISOString(),
-                    customComponentType: 'chart_display',
-                    customComponentProps: {
-                        chartType: 'bar',
-                        data: [
-                            { name: 'Page A', value: 4000 },
-                            { name: 'Page B', value: 3000 },
-                            { name: 'Page C', value: 2000 },
-                            { name: 'Page D', value: 2780 },
-                            { name: 'Page E', value: 1890 },
-                            { name: 'Page F', value: 2390 },
-                            { name: 'Page G', value: 3490 },
-                        ]
-                    }
-                };
-                // @ts-ignore
-                sendMessage(message);
-            } else {
-                sendMessage(text);
-            }
+            sendMessage(text);
             setText('');
             if (inputRef.current) {
                 inputRef.current.style.height = 'auto'; // Reset height after send
