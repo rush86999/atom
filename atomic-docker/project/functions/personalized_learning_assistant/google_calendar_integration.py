@@ -14,7 +14,15 @@ def find_free_time(calendar_id, duration_minutes):
     Returns:
         A list of free time slots.
     """
-    creds = Credentials.from_authorized_user_file("token.json", ["https://www.googleapis.com/auth/calendar.readonly"])
+    credentials = {
+        "token": os.environ.get("GOOGLE_TOKEN"),
+        "refresh_token": os.environ.get("GOOGLE_REFRESH_TOKEN"),
+        "token_uri": os.environ.get("GOOGLE_TOKEN_URI"),
+        "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
+        "scopes": ["https://www.googleapis.com/auth/calendar.readonly"],
+    }
+    creds = Credentials.from_authorized_user_info(credentials)
     service = build("calendar", "v3", credentials=creds)
 
     now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time

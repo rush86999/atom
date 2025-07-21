@@ -17,8 +17,8 @@ def get_pocket_data():
     # This is a placeholder for the actual Pocket API integration.
     return {
         "unread_articles": [
-            {"title": "The Ultimate Guide to Python", "tags": ["python", "programming"]},
-            {"title": "10 Habits of Highly Effective People", "tags": ["productivity", "self-help"]},
+            {"title": "The Ultimate Guide to Python", "tags": ["python", "programming"], "excerpt": "Python is a versatile language that you can use on the backend, frontend, or to build applications. In this guide, we'll walk you through the basics of Python and how to get started with it."},
+            {"title": "10 Habits of Highly Effective People", "tags": ["productivity", "self-help"], "excerpt": "In this article, we'll explore the 10 habits of highly effective people and how you can apply them to your own life."},
         ]
     }
 
@@ -40,7 +40,7 @@ def get_instapaper_data():
     # This is a placeholder for the actual Instapaper API integration.
     return {
         "unread_articles": [
-            {"title": "The History of the Roman Empire", "tags": ["history", "rome"]},
-            {"title": "The Science of Cooking", "tags": ["science", "cooking"]},
+            {"title": "The History of the Roman Empire", "tags": ["history", "rome"], "excerpt": "The Roman Empire was one of the most powerful empires in history. In this article, we'll explore its rise and fall."},
+            {"title": "The Science of Cooking", "tags": ["science", "cooking"], "excerpt": "Cooking is a science. In this article, we'll explore the chemical reactions that happen when you cook food."},
         ]
     }
