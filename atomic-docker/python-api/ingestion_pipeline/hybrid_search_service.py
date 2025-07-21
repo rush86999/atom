@@ -8,7 +8,6 @@ from datetime import datetime
 # Assuming these modules are in the same directory or accessible via PYTHONPATH
 try:
     from . import lancedb_search_service
-    from . import meilisearch_handler
     from . import lancedb_handler # For DB connection if needed by lancedb_search_service directly
     # For embedding the query for LanceDB search
     # Adjust path if note_utils is located differently relative to this new service.
@@ -55,9 +54,7 @@ async def hybrid_search_documents(
     query_text: str,
     openai_api_key_param: Optional[str] = None, # For generating query embedding
     db_conn: Optional[Any] = None, # LanceDB connection, passed in
-    meili_client: Optional[Any] = None, # Meilisearch client, passed in
     semantic_limit: int = 5,
-    keyword_limit: int = 10,
     filters: Optional[Dict[str, Any]] = None # Common filters, needs mapping
 ) -> List[UnifiedSearchResultItem]:
     """
@@ -84,41 +81,20 @@ async def hybrid_search_documents(
                 # The service is responsible for interpreting the keys it understands (e.g., date_after, doc_type_filter).
                 try:
                     semantic_hits_raw = await lancedb_search_service.search_lancedb_all(
-                        db_conn=db_conn, query_vector=query_vector, user_id=user_id,
+                        db_conn=db_conn, query_vector=query_vector, query_text=query_text, user_id=user_id,
                         filters=filters if filters else {}, limit_total=semantic_limit
                     )
+                    print(f"semantic_hits_raw: {semantic_hits_raw}")
                 except Exception as e_lance:
                     logger.error(f"Error during LanceDB search: {e_lance}", exc_info=True)
         else:
             logger.error(f"Failed to generate query embedding for semantic search: {embedding_response.get('message')}")
 
-    # 2. Keyword Search (Meilisearch)
-    if keyword_limit > 0:
-        logger.info(f"Performing keyword search for query: '{query_text}' with limit: {keyword_limit}")
-        if not meili_client: meili_client = meilisearch_handler.get_meilisearch_client()
-        if meili_client:
-            # Build Meilisearch filter string from the unified filter object
-            meili_filter_string = _build_meilisearch_filter_string(filters) if filters else ""
-
-            meili_search_params = {'limit': keyword_limit}
-            if meili_filter_string:
-                meili_search_params['filter'] = meili_filter_string
-
-            try:
-                keyword_hits_response = await meilisearch_handler.search_in_index(
-                    index_name="atom_general_documents", query=query_text, search_params=meili_search_params
-                )
-                if keyword_hits_response.get("status") == "success":
-                    keyword_hits_raw = keyword_hits_response.get("data", {}).get("hits", [])
-                else:
-                    logger.error(f"Meilisearch search failed: {keyword_hits_response.get('message')}")
-            except Exception as e_meili:
-                logger.error(f"Error during Meilisearch search: {e_meili}", exc_info=True)
 
     # 3. Process and Fuse Results
     # Process semantic results first to prioritize their metadata if a doc is in both lists
     for i, hit in enumerate(semantic_hits_raw):
-        doc_id = hit.get('doc_id')
+        doc_id = hit.get('id')
         if not doc_id: continue
 
         # Add to RRF score
@@ -144,38 +120,6 @@ async def hybrid_search_documents(
                 additional_properties=additional_props_dict
             )
 
-    # Process keyword results
-    for i, hit in enumerate(keyword_hits_raw):
-        doc_id = hit.get('doc_id')
-        if not doc_id: continue
-
-        # Add to RRF score
-        rank = i + 1
-        rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + (1 / (RRF_K + rank))
-
-        # If seen for the first time, store it. If already present from semantic, update match_type
-        if doc_id in all_results_map:
-            all_results_map[doc_id].match_type = 'hybrid'
-        else:
-            consolidated_additional_props = {}
-            if hit.get('metadata_json') and isinstance(hit.get('metadata_json'), str):
-                try: consolidated_additional_props = json.loads(hit['metadata_json'])
-                except json.JSONDecodeError: pass
-            for k, v in hit.items():
-                if k not in UnifiedSearchResultItem.model_fields and k not in consolidated_additional_props:
-                    consolidated_additional_props[k] = v
-
-            all_results_map[doc_id] = UnifiedSearchResultItem(
-                doc_id=doc_id, user_id=hit.get('user_id', user_id), title=hit.get('title'),
-                snippet=hit.get('_formatted', {}).get('extracted_text') or hit.get('_formatted', {}).get('title'),
-                source_uri=hit.get('source_uri'), doc_type=hit.get('doc_type'),
-                created_at_source=ensure_datetime(hit.get('created_at_source')),
-                last_modified_source=ensure_datetime(hit.get('last_modified_source')),
-                ingested_at=ensure_datetime(hit.get('ingested_at')) or datetime.now(),
-                score=hit.get('_rankingScore'), match_type='keyword',
-                extracted_text_preview=(hit.get('extracted_text')[:500] + '...') if hit.get('extracted_text') and len(hit.get('extracted_text')) > 500 else hit.get('extracted_text'),
-                additional_properties=consolidated_additional_props
-            )
 
     # 4. Combine, Sort, and Finalize
     final_results = list(all_results_map.values())
@@ -202,85 +146,3 @@ def ensure_datetime(dt_val: Any) -> Optional[datetime]:
 # Need to import json for parsing metadata_json strings from search results
 import json
 
-def _build_meilisearch_filter_string(filters: Dict[str, Any]) -> str:
-    """
-    Constructs a filter string for Meilisearch from a filter dictionary.
-    """
-    filter_parts = []
-
-    # Handle doc_types
-    if 'doc_types' in filters and filters['doc_types']:
-        types_str = ', '.join([f'"{t}"' for t in filters['doc_types']])
-        filter_parts.append(f'doc_type IN [{types_str}]')
-
-    # Handle date filters
-    date_field = filters.get('date_field_to_filter', 'ingested_at')
-    meili_date_field = f"{date_field}_timestamp" # Meilisearch will use the timestamp version
-
-    if 'date_after' in filters and filters['date_after']:
-        try:
-            dt = datetime.fromisoformat(filters['date_after'].replace("Z", "+00:00"))
-            timestamp = int(dt.timestamp())
-            filter_parts.append(f'{meili_date_field} >= {timestamp}')
-        except (ValueError, TypeError):
-            logger.warning(f"Could not parse date_after filter: {filters['date_after']}")
-
-    if 'date_before' in filters and filters['date_before']:
-        try:
-            dt = datetime.fromisoformat(filters['date_before'].replace("Z", "+00:00"))
-            timestamp = int(dt.timestamp())
-            filter_parts.append(f'{meili_date_field} <= {timestamp}')
-        except (ValueError, TypeError):
-            logger.warning(f"Could not parse date_before filter: {filters['date_before']}")
-
-    # Handle metadata_properties
-    if 'metadata_properties' in filters and isinstance(filters['metadata_properties'], dict):
-        for key, value in filters['metadata_properties'].items():
-            # Basic sanitization for key and value
-            # This assumes keys are valid attribute names in Meilisearch
-            if isinstance(value, str):
-                # Escape double quotes in the value string
-                sanitized_value = value.replace('"', '\\"')
-                filter_parts.append(f'{key} = "{sanitized_value}"')
-            elif isinstance(value, (int, float)):
-                filter_parts.append(f'{key} = {value}')
-            elif isinstance(value, bool):
-                filter_parts.append(f'{key} = {"true" if value else "false"}')
-
-    return ' AND '.join(filter_parts)
-
-def _build_lancedb_filter_clause(filters: Dict[str, Any]) -> str:
-    """
-    Constructs a SQL WHERE clause for LanceDB from a filter dictionary.
-    NOTE: This implementation only supports top-level fields like doc_type and dates.
-    It does NOT support filtering on the nested metadata_json field.
-    """
-    filter_parts = []
-
-    # Handle doc_types
-    if 'doc_types' in filters and filters['doc_types']:
-        # Ensure values are sanitized to prevent SQL injection, although these are internal values.
-        # Using f-strings is generally safe here as the inputs are from our defined structure, not raw user input.
-        types_str = ', '.join([f"'{t}'" for t in filters['doc_types']])
-        filter_parts.append(f'doc_type IN ({types_str})')
-
-    # Handle date filters
-    date_field = filters.get('date_field_to_filter', 'ingested_at')
-
-    if 'date_after' in filters and filters['date_after']:
-        # LanceDB can compare ISO 8601 strings directly in SQL
-        date_str = filters['date_after']
-        filter_parts.append(f"{date_field} >= '{date_str}'")
-
-    if 'date_before' in filters and filters['date_before']:
-        date_str = filters['date_before']
-        filter_parts.append(f"{date_field} <= '{date_str}'")
-
-    # metadata_properties is intentionally ignored for LanceDB as filtering
-    # on a JSON string field is not efficient or standard in LanceDB's SQL.
-    if 'metadata_properties' in filters and filters['metadata_properties']:
-        logger.warning("Filtering by 'metadata_properties' is not supported for LanceDB search and will be ignored.")
-
-    return ' AND '.join(filter_parts)
-
-```
