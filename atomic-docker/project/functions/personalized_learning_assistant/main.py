@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from personalized_learning_assistant import generate_personalized_learning_plan
+from dependencies import install_dependencies
+
+install_dependencies()
 
 app = FastAPI()
 
