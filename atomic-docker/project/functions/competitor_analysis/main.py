@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
-from .competitor_analysis import generate_competitor_briefing
-from .dependencies import (
+from competitor_analysis import generate_competitor_briefing
+from dependencies import (
+    install_dependencies,
     get_scrape_website,
     get_get_twitter_data,
     get_get_news_data,
@@ -9,6 +10,8 @@ from .dependencies import (
     get_store_data,
     get_generate_weekly_briefing,
 )
+
+install_dependencies()
 
 app = FastAPI()
 
