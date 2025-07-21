@@ -23,8 +23,9 @@ def get_git_data(repo_path):
         if commit.authored_datetime.date() == today:
             commits_today += 1
 
-    # Placeholder for lines of code changes
     lines_of_code_changed = 0
+    for commit in repo.iter_commits('master', since='30.days.ago'):
+        lines_of_code_changed += commit.stats.total['lines']
 
     return {
         "commits_today": commits_today,

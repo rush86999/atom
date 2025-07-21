@@ -236,13 +236,11 @@ def process_audio_note_data_route():
 
 # Attempt to import the new search service and lancedb_handler for connection
 try:
-    from ingestion_pipeline import lancedb_search_service, lancedb_handler, meilisearch_handler # Assuming they are in ingestion_pipeline package/directory
+    from ingestion_pipeline import lancedb_search_service, lancedb_handler # Assuming they are in ingestion_pipeline package/directory
     LANCEDB_SERVICE_AVAILABLE = True
-    MEILI_HANDLER_AVAILABLE = True
 except ImportError as e_ls:
-    print(f"Warning: Could not import lancedb_search_service, lancedb_handler, or meilisearch_handler: {e_ls}. Some search routes may not be fully functional.", file=sys.stderr)
+    print(f"Warning: Could not import lancedb_search_service, lancedb_handler: {e_ls}. Some search routes may not be fully functional.", file=sys.stderr)
     LANCEDB_SERVICE_AVAILABLE = False
-    MEILI_HANDLER_AVAILABLE = False
     # Define mock/placeholder if needed for app to load, actual calls will fail
     class MockLanceDBSearchService:
         async def search_lancedb_all(self, **kwargs): # Make it async
@@ -255,12 +253,6 @@ except ImportError as e_ls:
             return None
     if 'lancedb_handler' not in locals(): # If previous import failed
         lancedb_handler = MockLanceDBHandler()
-
-    class MockMeiliHandler:
-        async def search_in_index(self, **kwargs):
-            return {"status": "error", "message": "Meilisearch handler not available."}
-    if 'meilisearch_handler' not in locals():
-        meilisearch_handler = MockMeiliHandler()
 
     # For Hybrid Search
     try:
@@ -277,7 +269,7 @@ except ImportError as e_ls:
 
 @search_routes_bp.route('/api/search/hybrid', methods=['POST'])
 async def hybrid_search_route():
-    if not HYBRID_SEARCH_AVAILABLE or not LANCEDB_SERVICE_AVAILABLE or not MEILI_HANDLER_AVAILABLE: # Check all needed underlying services
+    if not HYBRID_SEARCH_AVAILABLE or not LANCEDB_SERVICE_AVAILABLE: # Check all needed underlying services
         return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "Hybrid search or one of its dependent services is not available."}}), 503
 
     data = request.get_json()
@@ -300,7 +292,6 @@ async def hybrid_search_route():
     # Get DB and Meili clients once for the request
     # lancedb_handler and meilisearch_handler should be available from imports at top of file
     db_conn = await lancedb_handler.get_lancedb_connection()
-    meili_client = meilisearch_handler.get_meilisearch_client()
 
     if not db_conn:
         logger.error("Hybrid Search: Failed to get LanceDB connection.")
@@ -309,16 +300,12 @@ async def hybrid_search_route():
         # Alternatively, the hybrid_search_service could handle this more gracefully.
         return jsonify({"ok": False, "error": {"code": "LANCEDB_CONNECTION_ERROR", "message": "Failed to connect to LanceDB for hybrid search."}}), 503
 
-    # Meili client check is implicitly handled by hybrid_search_service if not passed,
-    # but good to be aware. If meili_client is None here, service will try to get it.
-
     try:
         search_results = await hybrid_search_service.hybrid_search_documents(
             user_id=user_id,
             query_text=query_text,
             openai_api_key_param=openai_api_key_param,
             db_conn=db_conn,
-            meili_client=meili_client, # Pass the client
             semantic_limit=limit_semantic,
             keyword_limit=limit_keyword,
             filters=filters
@@ -330,39 +317,6 @@ async def hybrid_search_route():
     except Exception as e:
         logger.error(f"Error during hybrid search route execution: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "HYBRID_SEARCH_EXECUTION_ERROR", "message": f"An error occurred during hybrid search: {str(e)}" }}), 500
-
-
-@search_routes_bp.route('/api/search/meili', methods=['GET'])
-async def meilisearch_keyword_search_route():
-    if not MEILI_HANDLER_AVAILABLE:
-        return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "Meilisearch handler service is not available."}}), 503
-
-    query = request.args.get('q')
-    if not query:
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "Query parameter 'q' is required."}}), 400
-
-    try:
-        limit = int(request.args.get('limit', 20))
-    except ValueError:
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "Invalid 'limit' parameter, must be an integer."}}), 400
-
-    # Default index name, could be made configurable or passed as param if needed
-    MEILISEARCH_INDEX_NAME = "atom_general_documents"
-
-    search_params = {"limit": limit}
-    # Potentially add more params like offset, filter, etc. from request.args if needed
-
-    results = await meilisearch_handler.search_in_index(
-        index_name=MEILISEARCH_INDEX_NAME,
-        query=query,
-        search_params=search_params
-    )
-
-    if results.get("status") == "success":
-        # Meilisearch results are typically in results['data']['hits']
-        return jsonify({"ok": True, "data": results.get("data", {}).get("hits", []), "meta": results.get("data", {})}), 200
-    else:
-        return jsonify({"ok": False, "error": {"code": results.get("code", "MEILISEARCH_SEARCH_FAILED"), "message": results.get("message", "Meilisearch search failed.")}}), 500
 
 
 @search_routes_bp.route('/api/lancedb/semantic-search', methods=['POST'])

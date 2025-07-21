@@ -76,20 +76,22 @@ async def _search_single_table(
     table_name: str,
     schema: Any, # Pydantic LanceModel
     query_vector: List[float],
+    query_text: str, # Added for hybrid search
     user_id: str,
     filters: Optional[Dict[str, Any]], # Table-specific filters
     limit: int,
     source_type_label: SearchResultSourceType
 ) -> List[UniversalSearchResultItem]:
     """Helper to search a single LanceDB table and map results."""
-    if not query_vector: return []
+    if not query_vector and not query_text: return []
 
     table = await create_or_open_table(db_conn, table_name, schema=schema)
     if not table:
         logger.warning(f"Could not open or create table {table_name} for searching.")
         return []
 
-    search_req = table.search(query_vector).limit(limit)
+    # Hybrid search query
+    search_req = table.search(query_text, query_type="hybrid").vector(query_vector).limit(limit)
 
     # Basic user_id filter (always apply)
     filter_str = f"user_id = '{user_id}'"
@@ -265,6 +267,7 @@ async def _search_single_table(
 async def search_lancedb_all(
     db_conn: lancedb.DBConnection,
     query_vector: List[float],
+    query_text: str,
     user_id: str,
     filters: Optional[Dict[str, Any]] = None,
     limit_total: int = 10
@@ -293,18 +296,18 @@ async def search_lancedb_all(
         # Or, the `title` for document_chunk results can be "Chunk X from Doc Y" and parent_document_title can be fetched later by consumer.
         # Let's keep it simple: parent_doc_titles is not pre-fetched here.
         search_tasks.append(
-            _search_single_table(db_conn, DOCUMENT_CHUNKS_TABLE_NAME, DocumentChunkModel,
-                                 query_vector, user_id, filters, limit_per_source, "document_chunk")
+            _search_single_table(db_conn, lancedb_handler.DOCUMENT_CHUNKS_TABLE_NAME, lancedb_handler.DocumentChunkModel,
+                                 query_vector, query_text, user_id, filters, limit_per_source, "document_chunk")
         )
     if "email_snippet" in source_types_to_search:
         search_tasks.append(
-            _search_single_table(db_conn, EMAIL_SNIPPETS_TABLE_NAME, EmailSnippetModel,
-                                 query_vector, user_id, filters, limit_per_source, "email_snippet")
+            _search_single_table(db_conn, lancedb_handler.EMAIL_SNIPPETS_TABLE_NAME, lancedb_handler.EmailSnippetModel,
+                                 query_vector, query_text, user_id, filters, limit_per_source, "email_snippet")
         )
     if "notion_summary" in source_types_to_search:
         search_tasks.append(
-            _search_single_table(db_conn, NOTION_SUMMARIES_TABLE_NAME, NotionPageSummaryModel,
-                                 query_vector, user_id, filters, limit_per_source, "notion_summary")
+            _search_single_table(db_conn, lancedb_handler.NOTION_SUMMARIES_TABLE_NAME, lancedb_handler.NotionPageSummaryModel,
+                                 query_vector, query_text, user_id, filters, limit_per_source, "notion_summary")
         )
 
     gathered_results = await asyncio.gather(*search_tasks)

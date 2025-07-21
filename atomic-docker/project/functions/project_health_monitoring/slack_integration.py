@@ -20,12 +20,15 @@ def get_slack_data(channel_id):
     client = WebClient(token=api_key)
     analyzer = SentimentIntensityAnalyzer()
 
-    response = client.conversations_history(channel=channel_id)
-    messages = response["messages"]
+    try:
+        response = client.conversations_history(channel=channel_id)
+        messages = response["messages"]
 
-    sentiment_scores = []
-    for message in messages:
-        sentiment_scores.append(analyzer.polarity_scores(message["text"])["compound"])
+        sentiment_scores = []
+        for message in messages:
+            sentiment_scores.append(analyzer.polarity_scores(message["text"])["compound"])
+    except Exception as e:
+        raise Exception(f"Error fetching data from Slack: {e}")
 
     return {
         "average_sentiment": sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0

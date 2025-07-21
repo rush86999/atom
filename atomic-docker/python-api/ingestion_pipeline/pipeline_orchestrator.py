@@ -20,7 +20,6 @@ try:
         TABLE_NAME as lancedb_default_table_name, # Use the default table name from handler
         TranscriptChunk # Schema for type checking if needed, though not directly used here
     )
-    from .meilisearch_handler import add_documents_to_index
 except ImportError: # Fallback for direct script execution if . is not recognized
     from notion_extractor import extract_structured_data_from_db, get_notion_client as get_notion_ext_client
     from gdrive_extractor import extract_data_from_gdrive
@@ -34,7 +33,6 @@ except ImportError: # Fallback for direct script execution if . is not recognize
         TABLE_NAME as lancedb_default_table_name,
         TranscriptChunk
     )
-    from meilisearch_handler import add_documents_to_index
 
 
 # Configure logging
@@ -242,14 +240,6 @@ async def run_ingestion_pipeline():
             logger.error(f"Failed to store embeddings for item: '{item_title}' (ID: {item_id}) in LanceDB.")
             failed_pages_count += 1
 
-    # Add all documents to MeiliSearch
-    if all_data:
-        logger.info("Adding all documents to MeiliSearch.")
-        # Determine primary key, assuming 'document_id' or 'notion_page_id'
-        primary_key = "document_id" if "document_id" in all_data[0] else "notion_page_id"
-        await add_documents_to_index("documents", all_data, primary_key=primary_key)
-
-
     logger.info(f"Ingestion pipeline finished. Successfully processed items: {processed_pages_count}. Skipped/up-to-date items: {skipped_pages_count}. Failed items: {failed_pages_count}.")
 
 
@@ -271,7 +261,7 @@ async def main():
         logger.info("python-dotenv not installed, .env file will not be loaded. Relying on external environment variables.")
 
     # Check for required environment variables before running
-    required_vars = ["OPENAI_API_KEY", "LANCEDB_URI", "MEILI_MASTER_KEY"]
+    required_vars = ["OPENAI_API_KEY", "LANCEDB_URI"]
     if os.getenv("NOTION_API_KEY"):
         required_vars.append("NOTION_TRANSCRIPTS_DATABASE_ID")
     if os.getenv("GDRIVE_CREDENTIALS"):

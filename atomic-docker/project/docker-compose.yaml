@@ -252,26 +252,6 @@ services:
     volumes:
       - ./data/mailhog:/maildir
 
-  meilisearch:
-    image: "getmeili/meilisearch:v1.7" # Pinned to a specific version
-    container_name: meilisearch
-    restart: unless-stopped
-    environment:
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-YourSecureMasterKeyPleaseChange_Meilisearch} # Use from .env or default
-      - MEILI_NO_ANALYTICS=true
-      - MEILI_ENV=${MEILI_ENVIRONMENT:-development} # Default to development
-      # MEILI_DB_PATH: /data.ms # Default, but explicitly stating for clarity with volume mount
-    ports:
-      - "7700:7700" # Default Meilisearch port
-    volumes:
-      - meilisearch_data:/data.ms # Persist Meilisearch data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s # Give Meilisearch some time to initialize
-
   zookeeper:
     image: confluentinc/cp-zookeeper:5.4.2
     hostname: zookeeper
@@ -588,7 +568,6 @@ services:
     restart: unless-stopped
     depends_on:
       - functions # Example dependency, adjust as needed
-      - meilisearch # Add dependency on Meilisearch
     environment:
       - NOTION_API_KEY=${NOTION_API_KEY}
       - NOTION_TRANSCRIPTS_DATABASE_ID=${NOTION_TRANSCRIPTS_DATABASE_ID}
@@ -614,4 +593,3 @@ volumes:
   project_node_modules:
   functions_node_modules:
   mongo-data: {}
-  meilisearch_data: {} # Named volume for Meilisearch persistence

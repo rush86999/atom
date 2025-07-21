@@ -39,7 +39,6 @@ except ImportError as e:
     EMBEDDING_FUNCTION_AVAILABLE = False
 
 from . import lancedb_handler
-from . import meilisearch_handler # Import Meilisearch handler
 
 
 logger = logging.getLogger(__name__)
@@ -366,48 +365,6 @@ async def process_document_and_store(
     lancedb_storage_result = await lancedb_handler.add_processed_document(
         db_conn=db_conn, doc_meta=doc_meta_to_store, chunks_with_embeddings=chunks_with_embeddings_data
     )
-
-    # --- Meilisearch Integration ---
-    MEILISEARCH_INDEX_NAME = "atom_general_documents"
-    MEILISEARCH_PRIMARY_KEY = "doc_id"
-
-    if lancedb_storage_result["status"] == "success": # Proceed to Meilisearch only if LanceDB was successful
-        logger.info(f"LanceDB storage successful for {document_id}. Adding document to Meilisearch.")
-
-        # The index is now expected to be created and configured by the setup_indices.py script.
-        # This processor is only responsible for adding documents.
-
-        # Prepare document for Meilisearch
-        meili_document = {
-            **doc_meta_to_store,
-            "extracted_text": extracted_text
-        }
-        if final_metadata_dict:
-             meili_document.update(final_metadata_dict)
-
-        # Add integer timestamp versions of date fields for Meilisearch filtering/sorting
-        for date_field in ['ingested_at', 'created_at_source', 'last_modified_source']:
-            if meili_document.get(date_field) and isinstance(meili_document[date_field], str):
-                try:
-                    dt_obj = datetime.fromisoformat(meili_document[date_field].replace("Z", "+00:00"))
-                    meili_document[f'{date_field}_timestamp'] = int(dt_obj.timestamp())
-                except (ValueError, TypeError):
-                    logger.warning(f"Could not convert date string '{meili_document[date_field]}' to timestamp for Meilisearch field '{date_field}_timestamp'.")
-
-        meili_add_result = await meilisearch_handler.add_documents_to_index(
-            MEILISEARCH_INDEX_NAME,
-            [meili_document], # Add as a list containing the single document
-            primary_key_on_add=MEILISEARCH_PRIMARY_KEY
-        )
-
-        if meili_add_result.get("status") == "success":
-            logger.info(f"Successfully added/updated document {document_id} in Meilisearch index '{MEILISEARCH_INDEX_NAME}'.")
-        else:
-            logger.error(f"Failed to add/update document {document_id} in Meilisearch: {meili_add_result.get('message')}")
-            # Optionally, update overall status to warning if Meili fails but LanceDB succeeded
-            return {"status": "warning", "message": f"LanceDB success, but Meilisearch failed: {meili_add_result.get('message')}",
-                    "data": {"doc_id": document_id, "num_chunks_stored": len(chunks_with_embeddings_data)},
-                    "meili_error_code": meili_add_result.get("code")}
 
     # Final return based on lancedb_storage_result and potential Meili failure
     if lancedb_storage_result["status"] == "success":

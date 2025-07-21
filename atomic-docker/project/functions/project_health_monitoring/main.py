@@ -5,6 +5,9 @@ from trello_integration import get_trello_data
 from git_integration import get_git_data
 from slack_integration import get_slack_data
 from google_calendar_integration import get_google_calendar_data
+from dependencies import install_dependencies
+
+install_dependencies()
 
 app = FastAPI()
 

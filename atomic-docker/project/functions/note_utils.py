@@ -16,7 +16,6 @@ import asyncio # For live streaming
 from typing import Optional, List # Ensure List is imported if not already
 from datetime import datetime # For handling meeting_date
 import logging
-# from _utils.lancedb_service import add_transcript_embedding
 
 # --- Global Clients (to be initialized by functions or handlers) ---
 notion: Client | None = None

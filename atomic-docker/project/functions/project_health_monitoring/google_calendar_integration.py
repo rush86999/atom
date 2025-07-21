@@ -1,7 +1,10 @@
 import os
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-import datetime
+from datetime import datetime
+import os
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
 
 def get_google_calendar_data(calendar_id):
     """
@@ -13,10 +16,18 @@ def get_google_calendar_data(calendar_id):
     Returns:
         A dictionary containing the Google Calendar data.
     """
-    creds = Credentials.from_authorized_user_file("token.json", ["https://www.googleapis.com/auth/calendar.readonly"])
+    credentials = {
+        "token": os.environ.get("GOOGLE_TOKEN"),
+        "refresh_token": os.environ.get("GOOGLE_REFRESH_TOKEN"),
+        "token_uri": os.environ.get("GOOGLE_TOKEN_URI"),
+        "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
+        "scopes": ["https.www.googleapis.com/auth/calendar.readonly"],
+    }
+    creds = Credentials.from_authorized_user_info(credentials)
     service = build("calendar", "v3", credentials=creds)
 
-    now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+    now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
     events_result = service.events().list(
         calendarId=calendar_id, timeMin=now,
         maxResults=10, singleEvents=True,
