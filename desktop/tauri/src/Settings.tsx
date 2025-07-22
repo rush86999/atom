@@ -25,6 +25,7 @@ function Settings() {
     jira: '',
     trello: '',
   });
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     readTextFile('settings.json', { dir: 16 }).then((contents) => {
@@ -55,7 +56,10 @@ function Settings() {
       },
       integrations,
     };
-    writeTextFile('settings.json', JSON.stringify(settings), { dir: 16 });
+    writeTextFile('settings.json', JSON.stringify(settings), { dir: 16 }).then(() => {
+      setSaveMessage('Settings saved successfully!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    });
   };
 
   const handleIntegrationChange = (e) => {
@@ -68,6 +72,7 @@ function Settings() {
   return (
     <div className="settings-container">
       <h2>Settings</h2>
+      {saveMessage && <div className="save-message">{saveMessage}</div>}
       <div className="setting">
         <label>STT Service</label>
         <select value={sttService} onChange={(e) => setSttService(e.target.value)}>

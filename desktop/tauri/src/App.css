@@ -1,0 +1,76 @@
+:root {
+  --background-color: #282c34;
+  --text-color: #ffffff;
+  --primary-color: #61dafb;
+  --input-background: #3c4049;
+  --message-user-background: #005c4b;
+  --message-agent-background: #3c4049;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  padding: 20px;
+}
+
+.messages {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.message {
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  max-width: 80%;
+}
+
+.message.user {
+  background-color: var(--message-user-background);
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.message.agent {
+  background-color: var(--message-agent-background);
+  align-self: flex-start;
+}
+
+.input-container {
+  display: flex;
+}
+
+.input-container input {
+  flex-grow: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: var(--input-background);
+  color: var(--text-color);
+}
+
+.input-container button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  background-color: var(--primary-color);
+  color: var(--background-color);
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.transcription {
+  padding: 10px;
+  background-color: var(--input-background);
+  border-top: 1px solid var(--primary-color);
+}

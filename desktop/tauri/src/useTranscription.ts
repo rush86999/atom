@@ -53,5 +53,5 @@ export function useTranscription() {
     }
   }, [isTranscribing]);
 
-  return { isTranscribing, transcript };
+  return { isTranscribing, transcript, setIsTranscribing };
 }

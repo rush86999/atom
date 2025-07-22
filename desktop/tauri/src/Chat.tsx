@@ -6,7 +6,9 @@ import { WebviewWindow } from '@tauri-apps/api/window';
 function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const { isTranscribing, transcript } = useTranscription();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { isTranscribing, transcript, setIsTranscribing } = useTranscription();
 
   const handleSend = async () => {
     if (input.trim() === '') return;
@@ -14,9 +16,17 @@ function Chat() {
     const newMessages = [...messages, { text: input, sender: 'user' }];
     setMessages(newMessages);
     setInput('');
+    setIsLoading(true);
+    setError('');
 
-    const response = await invoke('send_message_to_agent', { message: input });
-    setMessages([...newMessages, { text: response, sender: 'agent' }]);
+    try {
+      const response = await invoke('send_message_to_agent', { message: input });
+      setMessages([...newMessages, { text: response, sender: 'agent' }]);
+    } catch (err) {
+      setError(err.toString());
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -27,6 +37,8 @@ function Chat() {
             {message.text}
           </div>
         ))}
+        {isLoading && <div className="message agent">...</div>}
+        {error && <div className="message agent error">{error}</div>}
       </div>
       <div className="input-container">
         <input
@@ -48,6 +60,7 @@ function Chat() {
       {isTranscribing && (
         <div className="transcription">
           <p>{transcript}</p>
+          <button onClick={() => setIsTranscribing(false)}>Stop Transcription</button>
         </div>
       )}
     </div>
