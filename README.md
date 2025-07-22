@@ -124,6 +124,10 @@ Deploy the entire application stack to your own AWS account for a robust, scalab
 
 *   **Setup and Instructions:** See the **[AWS Cloud Deployment Guide](./deployment/aws/README.md)**.
 
+### Web Version
+
+The web version of Atom is available at [https://github.com/rush86999/atom/tree/main/atomic-docker/app_build_docker](https://github.com/rush86999/atom/tree/main/atomic-docker/app_build_docker).
+
 ## Support the Project
 - I'm spending 100% of my work time on this project
 - Star this repository, so I can start an Open Collective to support this project
