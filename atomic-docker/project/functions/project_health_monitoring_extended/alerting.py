@@ -1,44 +1,60 @@
 import os
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from typing import Dict, Any
 
-def send_alert(project_manager_slack_id, project_health_score, trello_data, git_data, slack_data, google_calendar_data):
+def send_alert(
+    project_manager_slack_id: str,
+    project_health_score: int,
+    trello_data: Dict[str, Any],
+    git_data: Dict[str, Any],
+    slack_data: Dict[str, Any],
+    google_calendar_data: Dict[str, Any],
+    threshold: int = 70
+):
     """
-    Sends an alert to the project manager if the project health score is below a certain threshold.
-
-    Args:
-        project_manager_slack_id: The Slack ID of the project manager.
-        project_health_score: The project health score.
-        trello_data: A dictionary containing the Trello data.
-        git_data: A dictionary containing the Git data.
-        slack_data: A dictionary containing the Slack data.
-        google_calendar_data: A dictionary containing the Google Calendar data.
+    Sends a detailed alert to the project manager via Slack if the project health score is below a threshold.
     """
-    api_key = os.environ.get("SLACK_API_KEY")
+    token = os.environ.get("SLACK_API_KEY")
+    if not token:
+        print("SLACK_API_KEY environment variable is not set. Cannot send alert.")
+        return
 
-    if not api_key:
-        raise Exception("SLACK_API_KEY environment variable is not set.")
+    if project_health_score < threshold:
+        client = WebClient(token=token)
 
-    client = WebClient(token=api_key)
+        # Format the message with recent data
+        trello_summary = (
+            f"- *Overdue Cards:* {trello_data.get('overdue_cards', 'N/A')}\n"
+            f"- *Avg. Card Movement (sec):* {trello_data.get('average_list_movement_time', 'N/A'):.2f}\n"
+            f"- *Avg. Comments per Card:* {trello_data.get('average_comment_count', 'N/A'):.2f}"
+        )
 
-    if project_health_score < 70:
-        message = f"""
-        :warning: Project Health Alert :warning:
+        git_summary = (
+            f"- *Avg. Commits per Day:* {sum(git_data.get('commits_per_day', {}).values()) / len(git_data.get('commits_per_day', {})) if git_data.get('commits_per_day') else 'N/A'}\n"
+            f"- *Pull Request Comments:* {git_data.get('pull_request_comments', 'N/A')}\n"
+            f"- *Lines of Code Changed (30d):* {git_data.get('lines_of_code_changed', 'N/A')}"
+        )
 
-        The health score for your project has dropped to {project_health_score}.
+        slack_summary = f"- *Average Sentiment:* {slack_data.get('average_sentiment', 'N/A'):.3f}"
 
-        Here are some of the contributing factors:
-        - Trello:
-            - Overdue cards: {trello_data['overdue_cards']}
-            - Average list movement time: {trello_data['average_list_movement_time']}
-            - Average comment count: {trello_data['average_comment_count']}
-        - Git:
-            - Commits per day: {git_data['commits_per_day']}
-            - Pull request comments: {git_data['pull_request_comments']}
-            - Lines of code changed: {git_data['lines_of_code_changed']}
-        - Slack:
-            - Average sentiment: {slack_data['average_sentiment']}
-        - Google Calendar:
-            - Meeting count: {google_calendar_data['meeting_count']}
-            - Average meeting duration: {google_calendar_data['average_meeting_duration']}
-        """
-        client.chat_postMessage(channel=project_manager_slack_id, text=message)
+        gcal_summary = (
+            f"- *Number of Meetings (upcoming):* {google_calendar_data.get('number_of_meetings', 'N/A')}\n"
+            f"- *Total Meeting Length (hours):* {google_calendar_data.get('total_meeting_length', 0) / 3600:.2f}"
+        )
+
+        message = (
+            f":warning: *Project Health Alert* :warning:\n\n"
+            f"The health score for your project has dropped to *{project_health_score}* (threshold: {threshold}).\n\n"
+            f"*Key Metrics Overview:*\n"
+            f"*Trello Insights:*\n{trello_summary}\n\n"
+            f"*Git Activity:*\n{git_summary}\n\n"
+            f"*Slack Morale:*\n{slack_summary}\n\n"
+            f"*Google Calendar Load:*\n{gcal_summary}"
+        )
+
+        try:
+            client.chat_postMessage(channel=project_manager_slack_id, text=message)
+            print(f"Alert sent to Slack channel {project_manager_slack_id}.")
+        except SlackApiError as e:
+            print(f"Error sending Slack alert to {project_manager_slack_id}: {e.response['error']}")
