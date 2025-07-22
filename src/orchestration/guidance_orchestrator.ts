@@ -82,7 +82,25 @@ export async function processGuidanceRequest(
     }
 
     if (enrichedIntent.suggestedNextAction?.actionType === 'invoke_skill' &&
-        (enrichedIntent.suggestedNextAction.skillId === 'LearningAndGuidanceSkill' || !enrichedIntent.suggestedNextAction.skillId)) { // Fallback if no specific skillId but goal seems guidance related
+        enrichedIntent.suggestedNextAction.skillId === 'BrowserAutomationSkill') {
+
+        if (typeof window !== 'undefined' && window.__TAURI__) {
+            console.log("[GuidanceOrchestrator] Invoking BrowserAutomationSkill.");
+            // Placeholder for actually invoking the skill
+            return {
+                messageToUser: "Browser automation skill invoked.",
+                enrichedIntent: enrichedIntent
+            };
+        } else {
+            return {
+                messageToUser: "This feature is only available in the desktop app.",
+                enrichedIntent: enrichedIntent
+            };
+        }
+    }
+
+    if (enrichedIntent.suggestedNextAction?.actionType === 'invoke_skill' &&
+        (enrichedIntent.suggestedNextAction.skillId === 'LearningAndGuidanceSkill' || !enrichedIntent.suggestedNextAction.skillId)) {
 
         console.log("[GuidanceOrchestrator] Invoking LearningAndGuidanceSkill.");
 
