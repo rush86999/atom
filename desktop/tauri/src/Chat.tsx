@@ -22,6 +22,8 @@ function Chat() {
     try {
       const response = await invoke('send_message_to_agent', { message: input, appHandle: window.__TAURI__.shell });
       setMessages([...newMessages, { text: response, sender: 'agent' }]);
+      const utterance = new SpeechSynthesisUtterance(response as string);
+      speechSynthesis.speak(utterance);
     } catch (err) {
       setError(err.toString());
     } finally {
@@ -49,6 +51,13 @@ function Chat() {
         />
         <button onClick={handleSend}>Send</button>
         <button onClick={() => {
+          const task = window.prompt("Enter a browser task:");
+          if (task) {
+            setInput(`browser: ${task}`);
+            handleSend();
+          }
+        }}>Browser</button>
+        <button onClick={() => {
           const webview = new WebviewWindow('settings', {
             url: 'settings.html',
             title: 'Settings',
@@ -56,11 +65,13 @@ function Chat() {
             height: 400,
           });
         }}>Settings</button>
+        <button onClick={() => setIsTranscribing(!isTranscribing)}>
+          {isTranscribing ? 'Stop Transcription' : 'Start Transcription'}
+        </button>
       </div>
       {isTranscribing && (
         <div className="transcription">
           <p>{transcript}</p>
-          <button onClick={() => setIsTranscribing(false)}>Stop Transcription</button>
         </div>
       )}
     </div>
