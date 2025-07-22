@@ -258,6 +258,7 @@ async function _internalHandleMessage(
   interfaceType: InterfaceType,
   message: string,
   userId: string,
+  llm: { service: string; apiKey: string },
   // Options now uses the extended interface
   options?: InternalHandleMessageOptions
 ): Promise<{text: string, nluResponse?: ProcessedNLUResponse, structuredData?: any}> {
@@ -329,7 +330,7 @@ async function _internalHandleMessage(
       conversationLtmContext = null;
     }
 
-    nluResponse = await understandMessage(message, undefined, conversationLtmContext);
+    nluResponse = await understandMessage(message, undefined, conversationLtmContext, llm);
     console.log(`[InternalHandleMessage][${interfaceType}] NLU Response (with LTM context consideration):`, JSON.stringify(nluResponse, null, 2));
   }
 

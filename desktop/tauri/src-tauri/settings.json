@@ -7,6 +7,10 @@
     "service": "deepgram",
     "apiKey": ""
   },
+  "llm": {
+    "service": "openai",
+    "apiKey": ""
+  },
   "integrations": {
     "openai": "",
     "google": "",

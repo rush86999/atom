@@ -7,6 +7,8 @@ function Settings() {
   const [sttApiKey, setSttApiKey] = useState('');
   const [ttsService, setTtsService] = useState('deepgram');
   const [ttsApiKey, setTtsApiKey] = useState('');
+  const [llmService, setLlmService] = useState('openai');
+  const [llmApiKey, setLlmApiKey] = useState('');
   const [integrations, setIntegrations] = useState({
     openai: '',
     google: '',
@@ -31,6 +33,8 @@ function Settings() {
       setSttApiKey(settings.stt.apiKey);
       setTtsService(settings.tts.service);
       setTtsApiKey(settings.tts.apiKey);
+      setLlmService(settings.llm.service);
+      setLlmApiKey(settings.llm.apiKey);
       setIntegrations(settings.integrations);
     });
   }, []);
@@ -44,6 +48,10 @@ function Settings() {
       tts: {
         service: ttsService,
         apiKey: ttsApiKey,
+      },
+      llm: {
+        service: llmService,
+        apiKey: llmApiKey,
       },
       integrations,
     };
@@ -88,6 +96,21 @@ function Settings() {
           type="text"
           value={ttsApiKey}
           onChange={(e) => setTtsApiKey(e.target.value)}
+        />
+      </div>
+      <div className="setting">
+        <label>LLM Service</label>
+        <select value={llmService} onChange={(e) => setLlmService(e.target.value)}>
+          <option value="openai">OpenAI</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div className="setting">
+        <label>LLM API Key</label>
+        <input
+          type="text"
+          value={llmApiKey}
+          onChange={(e) => setLlmApiKey(e.target.value)}
         />
       </div>
       <h2>Integrations</h2>
