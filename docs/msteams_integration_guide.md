@@ -54,8 +54,8 @@ The following environment variables must be set in your backend function's envir
 *   `MSTEAMS_TOKEN_ENCRYPTION_KEY`: A **32-byte (64 hexadecimal characters)** secret key for AES-256-GCM encryption of stored user-specific OAuth tokens (similar to the Gmail key). **Generate a new, unique key for this.**
 *   `ATOM_OPENAI_API_KEY`: Your OpenAI API key, required for LLM-powered query understanding and information extraction.
 *   `ATOM_NLU_MODEL_NAME`: The OpenAI model to be used (e.g., `gpt-3.5-turbo`).
-*   `HASURA_GRAPHQL_ENDPOINT`: The endpoint for your Hasura GraphQL API.
-*   `FUNCTIONS_BASE_URL`: The base URL for your deployed backend functions that Hasura will call.
+*   `POSTGRAPHILE_ENDPOINT`: The endpoint for your PostGraphile GraphQL API.
+*   `FUNCTIONS_BASE_URL`: The base URL for your deployed backend functions.
 
 ### 1.3. Database Setup
 
@@ -69,20 +69,14 @@ A new table (e.g., `user_msteams_tokens`) will be required to store the encrypte
 
 Migrations for this table need to be created and applied.
 
-### 1.4. Hasura Metadata
-
-1.  **Track Table:** Track the new `user_msteams_tokens` table in Hasura.
-2.  **Define Actions:** The new MS Teams actions and their types are defined in `atomic-docker/project/metadata/actions.graphql` and `atomic-docker/project/metadata/actions.yaml`.
-3.  **Apply Metadata:** Apply all metadata changes using the Hasura CLI: `hasura metadata apply`.
-
-### 1.5. Backend Function Deployment
+### 1.4. Backend Function Deployment
 
 The new and modified backend TypeScript functions need to be deployed:
 *   The refactored service `atomic-docker/project/functions/msteams-service/service.ts`.
 *   New agent skills in `atom-agent/skills/llm_msteams_query_understander.ts` and `atom-agent/skills/nlu_msteams_helper.ts`.
 *   The new agent skills file `atom-agent/skills/msTeamsSkills.ts`.
 *   The new command handler `atom-agent/command_handlers/msteams_command_handler.ts`.
-*   New HTTP handlers (e.g., Express routes or serverless function endpoints) that expose functions from `msteams-service.ts` (like OAuth URL generation, callback handling, message search, detail retrieval) to be callable by Hasura actions. URLs must match `actions.yaml`.
+*   New HTTP handlers (e.g., Express routes or serverless function endpoints) that expose functions from `msteams-service.ts`.
 
 ---
 
@@ -121,12 +115,12 @@ Located in `atomic-docker/project/functions/msteams-service/service.ts`. This se
 These components enable the agent to understand and process MS Teams related commands.
 
 ### 3.1. MS Teams Skills (`skills/msTeamsSkills.ts` - New File)
-This file contains agent-facing functions that usually call Hasura actions (which then trigger the `msteams-service.ts` functions).
+This file contains agent-facing functions that usually call backend actions (which then trigger the `msteams-service.ts` functions).
 
-*   **`searchMyMSTeamsMessages(userId: string, searchQuery: string, limit: number)`**: Calls the `searchUserMSTeamsMessages` Hasura action.
-*   **`readMSTeamsMessage(userId: string, identifier: GetMSTeamsMessageDetailInput)`**: Calls the `getMSTeamsMessageDetail` Hasura action.
+*   **`searchMyMSTeamsMessages(userId: string, searchQuery: string, limit: number)`**: Calls the `searchUserMSTeamsMessages` backend action.
+*   **`readMSTeamsMessage(userId: string, identifier: GetMSTeamsMessageDetailInput)`**: Calls the `getMSTeamsMessageDetail` backend action.
 *   **`extractInformationFromMSTeamsMessage(messageContent: string, infoKeywords: string[])`**: Uses an LLM (OpenAI) with a specific prompt (`MSTEAMS_EXTRACTION_SYSTEM_PROMPT_TEMPLATE`) to extract information from message text.
-*   **`getMSTeamsMessageWebUrl(userId: string, identifier: GetMSTeamsMessageWebUrlInput)`**: Calls the `getMSTeamsMessageWebUrl` Hasura action (which likely just extracts the `webUrl` from the full message detail fetched by the service).
+*   **`getMSTeamsMessageWebUrl(userId: string, identifier: GetMSTeamsMessageWebUrlInput)`**: Calls the `getMSTeamsMessageWebUrl` backend action (which likely just extracts the `webUrl` from the full message detail fetched by the service).
 
 ### 3.2. NLU for Teams Search (`skills/llm_msteams_query_understander.ts` & `skills/nlu_msteams_helper.ts`)
 1.  **`llm_msteams_query_understander.ts`**:
@@ -142,9 +136,9 @@ This file contains agent-facing functions that usually call Hasura actions (whic
 
 ---
 
-## 4. Hasura Actions
+## 4. Backend Actions
 
-Defined in `actions.graphql` and `actions.yaml`. These actions expose the backend service functions to the agent skills layer.
+These actions expose the backend service functions to the agent skills layer.
 
 *   **OAuth Placeholders (to be implemented for user interaction):**
     *   `generateMSTeamsAuthUrl`
@@ -153,8 +147,6 @@ Defined in `actions.graphql` and `actions.yaml`. These actions expose the backen
     *   `searchUserMSTeamsMessages`
     *   `getMSTeamsMessageDetail`
     *   `getMSTeamsMessageWebUrl`
-
-Handler URLs in `actions.yaml` for these actions must point to the deployed backend HTTP endpoints that trigger the corresponding functions in `msteams-service.ts`.
 
 ---
 

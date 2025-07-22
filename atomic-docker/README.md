@@ -1,201 +1,143 @@
 # Self hosted docker solution
 
 ## Tech Stack
-- Traefik
-- [Optaplanner](https://github.com/rush86999/atomic-scheduler/tree/main/kotlin-quarkus)
-- LLM
-- Node.js
-- Typescript
-- LanceDb
-- PostGraphile
-- Postgres
-- Supertokens
-- Kafka
-- Express
-- Agenda
-- Mongodb
+
+The self-hosted Docker solution for Atom is composed of several key services:
+
+*   **Traefik:** A modern reverse proxy and load balancer that handles incoming traffic and automatically manages SSL certificates using Let's Encrypt.
+*   **PostgreSQL:** The primary relational database for storing application data.
+*   **PostGraphile:** A tool that automatically creates a GraphQL API from your PostgreSQL schema, serving as the core of the backend.
+*   **Supertokens:** An open-source authentication service that handles user login, session management, and JWT generation.
+*   **Optaplanner:** A solver that tackles complex scheduling and optimization problems, used for calendar event planning.
+*   **LanceDB:** A vector database for high-performance similarity search, used for semantic search on notes and transcripts.
+*   **Kafka & MongoDB:** Used by `agenda` for scheduling and managing asynchronous background jobs.
+*   **Application Services:**
+    *   **App (Next.js):** The main frontend application.
+    *   **Functions (Node.js/Express):** Backend service for handling business logic and integrating with other services.
+    *   **Python Agent:** A Python service for AI-powered features, including note-taking, research, and interaction with LanceDB.
+    *   **Handshake & OAuth (Next.js):** Services dedicated to handling meeting handshakes and OAuth flows for integrations.
   
-## Build Steps
+## Setup and Configuration
 
-The build steps are to start a docker compose file on a local machine with Cloudflare tunnel. The tunnel will allow you to sync with Google calendar.
+Follow these steps to get your self-hosted Atom instance up and running.
 
-### 1. Get Cloudflared setup on your local machine
-- Refer to docs to install and run [Cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/install-and-setup/tunnel-guide/) locally
-- You will need a custom domain that resolves to your server's public IP address.
-- Ensure ports 80 and 443 are open on your server's firewall to allow Traefik to perform the Let's Encrypt HTTP challenge and serve HTTPS traffic.
+### 1. Prerequisites
 
-### 2. Get Google Client Ids for Google Calendar
+*   **A server or local machine:** With Docker and Docker Compose installed.
+*   **A custom domain name:** (Recommended for production) Pointing to your server's public IP address.
+*   **Open firewall ports:** Ensure ports 80 and 443 are open on your server's firewall to allow Traefik to perform the Let's Encrypt HTTP challenge and serve HTTPS traffic.
 
-To get the client ID and client secret for testing Google Calendar API, you need to follow these steps:
+### 2. Configure Environment Variables
 
-- Go to the [Google APIs Console](^1^) and sign in with your Google account.
-- Create a new project or select an existing one.
-- Enable the Google Calendar API for your project.
-- Click on Credentials in the left sidebar and then click on Create credentials > OAuth client ID.
-- Select Web application as the application type and enter a name for your client ID.
-- Specify the authorized JavaScript origins and redirect URIs for your web application. For testing purposes, you can use http://localhost or http://localhost:<port_number> as the origin and redirect URI. For this guide, it will be the domain you use for Cloudflared.
-- Click on Create and you will see a pop-up window with your client ID and client secret. Copy and save them somewhere safe.
-- You will be generating 2 sets of client Ids. 1 for handshake and 1 for the web. 
-  - Handshake redirect env variable: GOOGLE_REDIRECT_URL: https://${HOST_NAME}/v1/oauth/api/google-calendar-handshake/oauth2callback
-  - Web redirect env variable: NEXT_PUBLIC_GOOGLE_OAUTH_ATOMIC_WEB_REDIRECT_URL: https://${HOST_NAME}/api/google/oauth-callback
+1.  Navigate to the `project` directory:
+    ```bash
+    cd atomic-docker/project
+    ```
+2.  Create your `.env` file from the example:
+    ```bash
+    cp .env.example .env
+    ```
+3.  **Edit the `.env` file** and fill in all the required values. This is the most critical step. Pay close attention to:
+    *   `HOST_NAME`: Your custom domain name (e.g., `atom.yourcompany.com`).
+    *   `LETSENCRYPT_EMAIL`: Your email address for SSL certificate notifications.
+    *   `POSTGRES_PASSWORD`: A strong, unique password for the database.
+    *   `API_TOKEN`: A secret token for securing internal API communication.
+    *   **External Service APIs:** `OPENAI_API_KEY`, `NOTION_API_KEY`, `DEEPGRAM_API_KEY`, etc.
+    *   **Google OAuth Credentials:** See the section below for instructions on how to obtain these.
 
-You can also refer to this [guide](^3^) for more details and screenshots.
+### 3. Obtain Google OAuth Credentials
 
-(1) Get your Google API client ID. https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid.
-(2) Google Client ID and Client Secret - Simply Schedule Appointments. https://simplyscheduleappointments.com/guides/google-api-credentials/.
-(3) Get Google Calendar Client ID And Client Secret Key. https://weblizar.com/blog/get-google-calendar-client-id-and-client-secret-key/.
-(4) how we get client ID and client secret of google calendar in Salesforce .... https://www.forcetalks.com/salesforce-topic/how-we-get-client-id-and-client-secret-of-google-calendar-in-salesforce/.
-(5) undefined. https://console.developers.google.com/apis.
+To enable Google Calendar and other Google integrations, you need to create OAuth 2.0 credentials in the Google Cloud Console.
 
+1.  Go to the [Google Cloud Console](https://console.cloud.google.com/apis) and create a new project.
+2.  Enable the **Google Calendar API**.
+3.  Go to **Credentials**, click **Create credentials**, and select **OAuth client ID**.
+4.  Choose **Web application** as the application type.
+5.  Add the following **Authorized redirect URIs**:
+    *   `https://${HOST_NAME}/v1/oauth/api/google-calendar-handshake/oauth2callback`
+    *   `https://${HOST_NAME}/api/google/oauth-callback`
+6.  Click **Create**. Copy the **Client ID** and **Client Secret**.
+7.  Add the copied credentials to your `.env` file for the corresponding `GOOGLE_*` variables.
 
-### 3. For Supertokens
-- Configure with PostGraphile. SuperTokens provides JWTs that PostGraphile can consume.
-- You will need to ensure that the JWT generated by SuperTokens contains a `role` claim (or another claim you configure PostGraphile to use) that corresponds to a PostgreSQL role.
-- The `PGRAPHILE_JWT_SECRET` in PostGraphile's environment should match the secret SuperTokens uses to sign the JWTs.
-- For JWT verification, PostGraphile typically expects a raw secret or a JWKS URL. If SuperTokens exposes a JWKS URL, you can use `PGRAPHILE_JWT_VERIFY="jwks-url"` and `PGRAPHILE_JWT_JWKS_URL="your_supertokens_jwks_url"`. If using a shared secret, ensure `PGRAPHILE_JWT_SECRET` is set.
-- Refer to PostGraphile documentation on JWT authentication and SuperTokens documentation for JWT customization.
+### 4. (Optional) Supertokens and PostGraphile JWT Integration
 
-### 4. Generate Certs for OpenSearch
+By default, the system is configured for Supertokens to provide JWTs that PostGraphile can consume. The `PGRAPHILE_JWT_SECRET` should match the secret Supertokens uses to sign JWTs, which is handled via environment variables in the `docker-compose.yaml` file. No manual changes are typically needed unless you are customizing the authentication flow.
 
-- See OpenSearch documentation. https://opensearch.org/docs/latest/security/configuration/generate-certificates/.
-- Mount volume with certs accordingly to generated files
+### 5. (Deprecated) OpenSearch Configuration
 
-### 5. Opensearch setup
+The system has been migrated from OpenSearch to **LanceDB** for vector search. All steps related to generating OpenSearch certificates and configuring users are no longer necessary. You can safely ignore or remove any `opensearch` related configurations.
 
-1. Change OPENSEARCH_USERNAME and OPENSEARCH_PASSWORD
-2. Generate hash using [gen_hash.py](./project/opensearch/gen_hash.py)
-3. Store values in [internal_users.yml](./project/opensearch/config/internal_users.yml)
-4. Check [role_mapping.yml](./project/opensearch/config/roles_mapping.yml) for username provided
-5. Check [roles.yml](./project/opensearch/config/roles.yml) for consistency
+### 6. OptaPlanner Credentials
 
-### 6. Optaplanner sync
-- OPTAPLANNER_USERNAME & OPTAPLANNER_PASSWORD -> sync with add data to table sql command for admin_user table:
-  - ```INSERT INTO admin_user (id, username, password, role) VALUES (1, 'admin', 'password', 'admin');```
-    - Change values 2nd and 3rd position part of the ```VALUES``` 
-    - located in ```atomic-docker/project/initdb.d/optaplanner-create-schema.sql```
+The username and password for OptaPlanner are set via the `OPTAPLANNER_USERNAME` and `OPTAPLANNER_PASSWORD` environment variables. These are automatically synchronized with the `admin_user` table in the database via the `initdb.d/optaplanner-create-schema.sql` script. Ensure the credentials in your `.env` file are secure.
+### 7. Running the Application
 
-### 7. Classification sync
-- CLASSIFICATION_PASSWORD is SAME AS API_TOKEN and MUST BE SAME
-- CLASSIFICATION_USERNAME is hard coded
-### 8. Start docker compose
-- Make sure to fill in empty env variables in your `.env` file based on `.env.example`. Key variables to add/update for new features include:
-  - `NOTION_API_TOKEN`
-  - `NOTION_NOTES_DATABASE_ID`
-  - `DEEPGRAM_API_KEY`
-  - `NOTION_RESEARCH_PROJECTS_DB_ID`
-  - `NOTION_RESEARCH_TASKS_DB_ID`
-  - `LANCEDB_URI` (e.g., `file:///app/project/data/lancedb` if you want to store LanceDB data within the `project/data` directory, which is volume-mounted by the `python-agent` service. Adjust path as needed.)
-  - `LETSENCRYPT_EMAIL`: **Important for HTTPS**. Your valid email address for Let's Encrypt registration and renewal notifications.
-  - Remove any OpenSearch-related variables (e.g., `OPENSEARCH_USERNAME`, `OPENSEARCH_PASSWORD`).
-- Make sure the necessary data folders are created for storage such as
-  - ```./project/postgres/data``` (Note: path updated to be relative to `atomic-docker` directory, assuming docker-compose is run from `atomic-docker/project`)
-  - ```./project/data/lancedb``` (If using the example `LANCEDB_URI` above)
-  - ```./project/letsencrypt```
+Once your `.env` file is fully configured, you can start the application.
 
-```
-# Navigate to the directory containing docker-compose.yaml
-cd project
-cp .env.example .env # Then edit .env with your actual secrets and IDs
-docker-compose up -d
+1.  **Navigate to the `project` directory** (if you're not already there):
+    ```bash
+    cd atomic-docker/project
+    ```
+2.  **Start the services using Docker Compose:**
+    ```bash
+    docker-compose up -d
+    ```
+
+This command will download the necessary Docker images, build the application services, and start everything in detached mode (`-d`).
+
+It may take a few minutes for all services to start up and become healthy. You can monitor the status of the containers by running:
+```bash
+docker-compose ps
 ```
 
-### Important Security Considerations for `.env` File
+Once all services are running, you can access your Atom instance by navigating to `https://${HOST_NAME}` in your web browser.
 
-The `.env` file contains highly sensitive information, including database credentials, API keys, and secret keys. Protecting this file is crucial for the security of your deployment.
+### Security Best Practices
 
-- **Strong, Unique Values:** Replace **ALL** placeholder values in your `.env` file (copied from `.env.example`) with strong, unique, and randomly generated secrets where applicable (e.g., `POSTGRES_PASSWORD`, `PGRAPHILE_JWT_SECRET`, `API_TOKEN`). Do not use default or easily guessable passwords. PostGraphile doesn't use a direct admin secret like Hasura for API access; control is via PostgreSQL roles and JWTs.
-- **Secure File Permissions:** Once your `.env` file is on the server, set strict file permissions to ensure it's only readable by the user that will run the `docker-compose` command (this is often the `root` user or a dedicated `docker` user).
-  ```bash
-  chmod 600 .env
-  ```
-- **Do Not Commit `.env`:** The `.env` file itself should **NEVER** be committed to version control (e.g., Git). The `.gitignore` file in the project should already list `.env` to prevent accidental commits. Only `.env.example` should be version controlled.
-- **Secure Transfer to Server:** When transferring the populated `.env` file to your server, use secure methods like `scp`, `sftp`, or by copy-pasting the content into a file via a secure SSH session. Avoid insecure methods like email.
-- **Periodic Review:** Periodically review and consider rotating critical secrets stored in the `.env` file, especially if you suspect a potential compromise or as part of good security hygiene.
+*   **Secure your `.env` file:** This file contains sensitive credentials. Set strict file permissions (`chmod 600 .env`) and never commit it to version control.
+*   **Use strong, unique passwords:** Replace all placeholder values in your `.env` file with strong, unique secrets.
+*   **Regularly rotate secrets:** Periodically review and rotate the credentials stored in your `.env` file.
 
-For more advanced deployments, especially when scaling beyond a single host or using container orchestration platforms like Docker Swarm or Kubernetes, consider using their built-in secret management features (e.g., Docker Secrets, Kubernetes Secrets) or dedicated secret management tools like HashiCorp Vault.
+### Updating Your Instance
 
-### Updating the Application (Docker Compose)
+To update your self-hosted Atom instance to the latest version:
 
-To update your self-hosted Docker Compose deployment to the latest version or apply configuration changes:
-
-1.  **Backup Your Data:** **Strongly recommended before any update.** At a minimum, backup your PostgreSQL database (see "Database Backup and Restore" section) and any other critical data stored in Docker volumes (e.g., Minio data, LanceDB data if its path is within a persistent volume defined in `docker-compose.yaml`).
-2.  **Navigate to Project Directory:** Ensure you are in the `atomic-docker/project` directory where your `docker-compose.yaml` and `.env` files are located.
+1.  **Backup your data:** Before any update, it is crucial to back up your PostgreSQL database. See the "Database Backup and Restore" section for detailed instructions.
+2.  **Pull the latest changes:** If you are running the application from a Git repository, pull the latest changes from your main branch.
     ```bash
-    cd /path/to/your/atomic-docker/project
+    git pull origin main
     ```
-3.  **Pull Latest Changes (if tracking a Git repository):** If you're running the application from a clone of the official repository or your own fork, pull the latest changes:
-    ```bash
-    git pull origin main # Or your relevant branch
-    ```
-    This will update `docker-compose.yaml`, application code (if using local builds and volume mounts for development - less common for production), and potentially other configuration files.
-4.  **Pull Latest Docker Images (for services not built locally):** For images pulled from Docker Hub or other registries (e.g., `postgres`, `traefik`, `mongo`, `supertokens`, `hasura/graphql-engine`, `minio/minio`, `confluentinc/*`, `mailhog/mailhog`):
+3.  **Pull the latest Docker images:**
     ```bash
     docker-compose pull
     ```
-5.  **Rebuild Local Images (if applicable):** If your `docker-compose.yaml` uses `build:` directives for services like `app`, `functions`, `python-agent`, `handshake`, `oauth`, or `optaplanner` (if `atomic-scheduler:latest` is built locally), you need to rebuild them:
+4.  **Rebuild local images:**
     ```bash
     docker-compose build
     ```
-6.  **Restart Services:** Apply the changes by restarting your Docker Compose stack. Using `--remove-orphans` is good practice to remove any containers for services that might have been removed from `docker-compose.yaml`.
+5.  **Restart the services:**
     ```bash
     docker-compose up -d --remove-orphans
     ```
-7.  **Apply Database Migrations:**
-    *   PostGraphile automatically picks up schema changes from the PostgreSQL database. Ensure your database migration scripts (SQL files) are applied to the database directly using a tool like `psql` or your chosen migration tool.
-    *   The concept of "applying metadata" like with Hasura is not directly applicable. PostGraphile reflects the live database schema.
-    *   If you have SQL migration files (e.g., in `project/migrations/`), ensure they are run against the PostgreSQL container.
-8.  **Verify Application:** Check that all services are running correctly (`docker-compose ps`) and test the application's functionality. Review logs for any errors (`docker-compose logs <service_name>`). Pay special attention to `postgraphile` logs and any services that consume the GraphQL API.
+6.  **Verify the update:** Check that all services are running correctly (`docker-compose ps`) and test the application's functionality.
 
-### Basic Monitoring and Health Checks (Docker Compose)
+### Monitoring and Health Checks
 
-When running the application using Docker Compose on your own server, basic monitoring is essential to ensure services are operational.
+To ensure your Atom instance is running smoothly, use these basic monitoring commands:
 
-**1. Checking Container Status:**
-
-*   Use `docker-compose ps` (from within the `atomic-docker/project` directory) or `docker ps -a` to view the status of all containers.
-    *   Look at the `STATUS` column. Healthy containers with healthchecks defined (like `postgres`, `app`, `functions`, `supertokens`, `postgraphile`, `optaplanner`, `handshake`, `oauth`) will show `Up X seconds (healthy)`.
-    *   If a container is `Up X seconds (unhealthy)`, it means its healthcheck is failing.
-    *   If a container is constantly restarting, there's likely an issue with its configuration or an internal error.
-*   Check logs for specific containers if they are unhealthy or restarting:
+*   **Check container status:**
+    ```bash
+    docker-compose ps
+    ```
+    Look for a `(healthy)` status for all services. If a service is `(unhealthy)` or constantly restarting, check its logs.
+*   **View service logs:**
     ```bash
     docker-compose logs <service_name>
-    # Example: docker-compose logs app
-    # Example: docker-compose logs postgraphile
-    # To follow logs: docker-compose logs -f <service_name>
     ```
-*   Most services are configured with `restart: always` or `restart: unless-stopped`, so Docker will attempt to restart them if they crash.
+    For example, to check the logs of the `app` service, run `docker-compose logs app`. To follow the logs in real-time, use the `-f` flag.
+*   **Monitor host resources:** Keep an eye on your server's CPU, memory, and disk space using tools like `htop` and `df -h`.
 
-**2. Host Server Resource Monitoring:**
-
-The overall health of your server impacts the application. Monitor basic resources:
-*   **CPU and Memory Usage:** Use tools like `top`, `htop`, or `vmstat`. Sustained high CPU or memory usage might indicate a need to upgrade your server resources or optimize application performance.
-*   **Disk Space:** Use `df -h`. Ensure your server has enough free disk space, especially for Docker images, container logs, and persistent data volumes (like Postgres data, Minio storage). Running out of disk space is a common cause of service failure.
-    *   Regularly prune unused Docker images, volumes, and build caches if disk space is a concern: `docker system prune -a --volumes` (use with caution as it removes unused data).
-*   **Network Connectivity:** Ensure your server has stable network connectivity.
-
-**3. Basic Alerting (Self-Managed):**
-
-For a self-hosted Docker Compose setup, you might consider:
-*   **External Uptime Monitoring:** Use a free or paid service (e.g., UptimeRobot, Freshping, StatusCake) to ping your application's main URL (`https://${HOST_NAME}`). This will alert you if the application becomes unreachable from the internet.
-*   **Disk Space Alerts:** Set up a simple cron job on your server to check available disk space and send an email if it falls below a critical threshold (e.g., less than 10-20% free).
-    Example script snippet for disk check:
-    ```bash
-    #!/bin/bash
-    THRESHOLD=20 # Alert if less than 20% free
-    CURRENT_USAGE=$(df / | grep / | awk '{ print $5 }' | sed 's/%//g')
-    if [ "$CURRENT_USAGE" -gt $((100-THRESHOLD)) ] ; then
-        # Send email alert
-        echo "CRITICAL: Disk space usage on $(hostname) is at ${CURRENT_USAGE}%" | mail -s "Disk Space Alert: $(hostname)" your-email@example.com
-    fi
-    ```
-*   **Regular Log Review:** Periodically check the logs of critical services for errors or unusual activity, especially if you notice performance issues.
-
-More advanced monitoring and alerting (like Prometheus, Grafana, ELK stack for logs) can be set up but require more configuration and resources. For a single-user or small business VPS setup, the basics above provide a good starting point.
-
-### 9. Apply Hasura Metadata
-- ```hasura metadata apply --endpoint "http://localhost:8080" --admin-secret "YOUR_HASURA_ADMIN_SECRET"```
-- Make sure to have [hasura cli installed](https://hasura.io/docs/latest/hasura-cli/install-hasura-cli/)
-- Make sure to `cd` into the `project/metadata` directory or use `--project project/metadata --skip-update-check` flags if running from `project` directory.
+For more advanced monitoring, consider setting up an external uptime monitor and alerts for resource usage.
 
 ### Database Backup and Restore (PostgreSQL)
 
