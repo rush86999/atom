@@ -8,6 +8,8 @@ import { useWakeWord } from 'contexts/WakeWordContext';
 import LiveMeetingAttendanceSettings from './LiveMeetingAttendanceSettings'; // Moved import to top
 import GDriveManager from './GDriveManager'; // Import the GDriveManager
 import DropboxManager from './DropboxManager'; // Import the new DropboxManager
+import VoiceSettings from './VoiceSettings'; // Import the new VoiceSettings
+import ThirdPartyIntegrations from './ThirdPartyIntegrations'; // Import the new ThirdPartyIntegrations
 
 const AtomAgentSettings = () => {
   const router = useRouter();
@@ -272,6 +274,11 @@ const AtomAgentSettings = () => {
         <DropboxManager />
       </Box>
 
+      {/* Voice Settings Section */}
+      <VoiceSettings />
+
+      {/* Third-Party Integrations Section */}
+      <ThirdPartyIntegrations />
     </Box>
   );
 };

@@ -24,6 +24,7 @@ function Settings() {
     asana: '',
     jira: '',
     trello: '',
+    elevenlabs: '',
   });
   const [saveMessage, setSaveMessage] = useState('');
 
@@ -116,6 +117,16 @@ function Settings() {
           type="text"
           value={llmApiKey}
           onChange={(e) => setLlmApiKey(e.target.value)}
+        />
+      </div>
+      <h2>Voice Settings (ElevenLabs)</h2>
+      <div className="setting">
+        <label>ElevenLabs API Key</label>
+        <input
+          type="text"
+          value={integrations.elevenlabs}
+          onChange={handleIntegrationChange}
+          name="elevenlabs"
         />
       </div>
       <h2>Integrations</h2>
