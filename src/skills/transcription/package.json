@@ -1,0 +1,12 @@
+{
+  "name": "transcription-skill",
+  "version": "1.0.0",
+  "description": "A skill for real-time transcription.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^1.15.0"
+  }
+}

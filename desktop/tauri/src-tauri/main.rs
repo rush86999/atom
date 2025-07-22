@@ -10,7 +10,8 @@ use tract_onnx::prelude::*;
 fn main() {
     let show = CustomMenuItem::new("show".to_string(), "Show App");
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-    let tray_menu = SystemTrayMenu::new().add_item(show).add_item(quit);
+    let start_transcription = CustomMenuItem::new("start_transcription".to_string(), "Start Transcription");
+    let tray_menu = SystemTrayMenu::new().add_item(show).add_item(start_transcription).add_item(quit);
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
     tauri::Builder::default()
@@ -75,6 +76,9 @@ fn main() {
                     }
                     "quit" => {
                         std::process::exit(0);
+                    }
+                    "start_transcription" => {
+                        app.emit_all("start-transcription", {}).unwrap();
                     }
                     _ => {}
                 }
