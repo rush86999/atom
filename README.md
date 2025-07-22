@@ -200,3 +200,12 @@ Note: The Python backend service (often named `python_api_service` or `python-ag
 4. Commit your changes (`git commit -am 'Added a new feature'`)
 5. Push the branch to your fork on GitHub (`git push origin my-new-feature`)
 6. Create new Pull Request from your fork
+
+
+## New Use Cases
+
+By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life. For more detailed information, please see our [New Use Cases Document](./NEW_USE_CASES.md).
+
+*   **Proactive Project and Team Health Monitoring:** Monitor a project's health by combining data from project management, version control, communication, and calendar tools.
+*   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
+*   **Personalized Learning Assistant:** Create a personalized learning plan for the user based on their interests and learning history.
