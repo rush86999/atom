@@ -1,12 +1,13 @@
 import os
-# import sys # sys.path modification removed for Docker ENV PYTHONPATH
+
+
 import time
 import tempfile # For creating a dummy audio file
 
 # Imports assume PYTHONPATH="/app" is set in Docker environment,
 # and the 'project' directory is directly under /app.
-from project.functions import note_utils
-from project.functions.atom_agent import command_handlers
+from .. import note_utils
+from . import command_handlers
 
 # --- Configuration for Testing ---
 # To run these tests, you would need to:
@@ -29,6 +30,7 @@ def simulate_tests():
     sample_note_content = "This is a test note created by the agent for general testing."
     created_page_id = None
     created_audio_page_id = None
+    updated_title = ""
 
     # --- Helper: Create a dummy WAV file for audio tests ---
     dummy_audio_file_path = None
@@ -44,7 +46,7 @@ def simulate_tests():
 
 
     # --- Test 1: Create Text Note (Handler) ---
-    print(f"\n--- Test 1: Create Text Note ---")
+    print("\n--- Test 1: Create Text Note ---")
     create_params = {
         'title': sample_note_title,
         'content': sample_note_content,
@@ -63,7 +65,7 @@ def simulate_tests():
 
     # --- Test 2: Get Note (Handler) ---
     if created_page_id:
-        print(f"\n--- Test 2: Get Note ---")
+        print("\n--- Test 2: Get Note ---")
         get_params = {'page_id': created_page_id}
         response = command_handlers.handle_get_note(get_params)
         print(f"Response: {response}")
@@ -80,7 +82,7 @@ def simulate_tests():
 
     # --- Test 3: Update Note (Handler) ---
     if created_page_id:
-        print(f"\n--- Test 3: Update Note ---")
+        print("\n--- Test 3: Update Note ---")
         updated_title = f"{sample_note_title} (Updated {timestamp_suffix})"
         updated_content = "The content of this note has been updated during testing."
         update_params = {
@@ -109,7 +111,7 @@ def simulate_tests():
         print("\n--- Test 3: Update Note --- SKIPPED (no page_id from creation)\n")
 
     # --- Test 4: Search Notes (Handler) ---
-    print(f"\n--- Test 4: Search Notes ---")
+    print("\n--- Test 4: Search Notes ---")
     search_query = updated_title if created_page_id else sample_note_title
     search_params = {'query': search_query, 'source': 'simulated-text-test'}
 
@@ -130,24 +132,31 @@ def simulate_tests():
         print(f"FAILURE: Note search. Reason: {response_search.get('message')}\n")
 
     # --- Test 5: Transcribe Audio (Direct call to note_utils for Deepgram) ---
-    print(f"\n--- Test 5: Transcribe Audio (Deepgram) ---")
+    print("\n--- Test 5: Transcribe Audio (Deepgram) ---")
     if dummy_audio_file_path and os.path.exists(dummy_audio_file_path):
         transcription = note_utils.transcribe_audio_deepgram(dummy_audio_file_path)
         print(f"Transcription result: '{transcription}'")
-        if "Error: DEEPGRAM_API_KEY not configured" in transcription:
+
+        transcription_text = transcription if isinstance(transcription, str) else ""
+
+        if isinstance(transcription, dict):
+            # If the result is a dict, it's likely an error object.
+            transcription_text = transcription.get("message", "") or transcription.get("error", "")
+
+        if "Error: DEEPGRAM_API_KEY not configured" in transcription_text:
             print("INFO: Deepgram API key not configured. Transcription itself not tested.")
-        elif transcription.startswith("Error:"):
-            print(f"INFO: Transcription failed (e.g., API error, file issue): {transcription}")
+        elif transcription_text.startswith("Error:"):
+            print(f"INFO: Transcription failed (e.g., API error, file issue): {transcription_text}")
         else:
             print("SUCCESS: Deepgram audio transcription function called.")
-            if not transcription:
+            if not transcription_text:
                 print("INFO: Transcription is empty, which may be expected for a dummy/silent audio file.")
             print("MANUAL VERIFICATION: If a REAL audio file and API key were used, verify transcription text.\n")
     else:
         print("SKIPPED: Dummy audio file not available for transcription test.\n")
 
     # --- Test 6: Create Audio Note (Handler with Deepgram) ---
-    print(f"\n--- Test 6: Create Audio Note (Deepgram) ---")
+    print("\n--- Test 6: Create Audio Note (Deepgram) ---")
     if dummy_audio_file_path and os.path.exists(dummy_audio_file_path):
         audio_note_title = f"Audio Note Deepgram {timestamp_suffix}"
         audio_params = {
@@ -164,9 +173,9 @@ def simulate_tests():
             print(f"Transcription from handler: '{audio_response.get('transcription')}'")
             print(f"MANUAL VERIFICATION: Check Notion for note '{audio_note_title}'. Transcription should be present.\n")
         elif "DEEPGRAM_API_KEY not configured" in audio_response.get("message", ""):
-            print(f"INFO: Deepgram API key not configured. Full audio note creation cannot be verified.")
+            print("INFO: Deepgram API key not configured. Full audio note creation cannot be verified.")
         elif "Notion client not initialized" in audio_response.get("message", ""):
-            print(f"INFO: Notion not configured. Full audio note creation cannot be verified.")
+            print("INFO: Notion not configured. Full audio note creation cannot be verified.")
         else:
             print(f"FAILURE: Audio note creation. Reason: {audio_response.get('message')}\n")
     else:
@@ -174,7 +183,7 @@ def simulate_tests():
 
     # --- Test 7: Link Note (Handler) ---
     if created_page_id:
-        print(f"\n--- Test 7: Link Note ---")
+        print("\n--- Test 7: Link Note ---")
         new_task_id = f"task_linked_{timestamp_suffix}"
         new_event_id = f"event_linked_{timestamp_suffix}"
         link_params = {
@@ -203,7 +212,7 @@ def simulate_tests():
 
     # --- Test 8: Delete Note (Handler) ---
     if created_page_id:
-        print(f"\n--- Test 8: Delete Text Note ---")
+        print("\n--- Test 8: Delete Text Note ---")
         delete_params = {'page_id': created_page_id}
         response = command_handlers.handle_delete_note(delete_params)
         print(f"Response: {response}")
@@ -223,7 +232,7 @@ def simulate_tests():
         print("\n--- Test 8: Delete Text Note --- SKIPPED (no page_id from creation)\n")
 
     if created_audio_page_id:
-        print(f"\n--- Test 9: Delete Audio Note ---")
+        print("\n--- Test 9: Delete Audio Note ---")
         delete_params = {'page_id': created_audio_page_id}
         response = command_handlers.handle_delete_note(delete_params)
         if response.get("status") == "success":

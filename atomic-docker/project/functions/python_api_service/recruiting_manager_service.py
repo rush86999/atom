@@ -6,7 +6,7 @@ from . import trello_service
 
 logger = logging.getLogger(__name__)
 
-async def create_greenhouse_candidate_from_linkedin_profile(user_id: str, linkedin_profile_url: Optional[str] = None, search_query: Optional[str] = None, db_conn_pool):
+async def create_greenhouse_candidate_from_linkedin_profile(user_id: str, db_conn_pool, linkedin_profile_url: Optional[str] = None, search_query: Optional[str] = None):
     """
     Creates a Greenhouse candidate from a LinkedIn profile.
     """
@@ -23,6 +23,8 @@ async def create_greenhouse_candidate_from_linkedin_profile(user_id: str, linked
     # This is a simplified implementation. In a real application, you would use a web scraper
     # to get the candidate's information from their LinkedIn profile.
     # For now, we'll just use the profile URL as the candidate's name.
+    if not linkedin_profile_url:
+        raise Exception("No LinkedIn profile URL available.")
     candidate_name = linkedin_profile_url.split('/')[-1]
 
     greenhouse_client = await greenhouse_service.get_greenhouse_client(user_id, db_conn_pool)

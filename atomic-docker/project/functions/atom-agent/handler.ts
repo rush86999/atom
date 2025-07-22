@@ -361,7 +361,7 @@ async function _internalHandleMessage(
 
     switch (nluResponse.intent) {
       case "GetCalendarEvents":
-        textResponse = await handleGetCalendarEvents(userId, entities);
+        textResponse = await handleGetCalendarEvents(userId, entities, agentSkillContext.settings.integrations);
         break;
 
       case "CreateTaskFromChatMessage": // New Case for Task from Chat Message
@@ -611,7 +611,7 @@ async function _internalHandleMessage(
         break;
 
       case "CreateCalendarEvent":
-        textResponse = await handleCreateCalendarEvent(userId, entities);
+        textResponse = await handleCreateCalendarEvent(userId, entities, agentSkillContext.settings.integrations);
         break;
 
       // --- Notion Task Management Intents ---
@@ -622,7 +622,7 @@ async function _internalHandleMessage(
             if (!taskEntities.task_description) { // Basic validation
                  textResponse = "Please provide a description for the task.";
             } else {
-                textResponse = await handleCreateTaskRequest(userId, taskEntities);
+                textResponse = await handleCreateTaskRequest(userId, taskEntities, agentSkillContext.settings.integrations);
             }
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "CreateTask":`, error.message, error.stack);
@@ -634,7 +634,7 @@ async function _internalHandleMessage(
         try {
             // The NLU entities should align with QueryTasksHandlerNluEntities
             const queryEntities = entities as import('./command_handlers/queryNotionTasksCommandHandler').QueryTasksHandlerNluEntities;
-            textResponse = await handleQueryTasksRequest(userId, queryEntities);
+            textResponse = await handleQueryTasksRequest(userId, queryEntities, agentSkillContext.settings.integrations);
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "QueryTasks":`, error.message, error.stack);
             textResponse = "Sorry, an error occurred while querying your tasks.";
@@ -648,7 +648,7 @@ async function _internalHandleMessage(
              if (!updateEntities.task_identifier_text) { // Basic validation
                  textResponse = "Please specify which task you want to update by its name or part of its description.";
             } else {
-                textResponse = await handleUpdateTaskRequest(userId, updateEntities);
+                textResponse = await handleUpdateTaskRequest(userId, updateEntities, agentSkillContext.settings.integrations);
             }
         } catch (error: any) {
             console.error(`[Handler][${interfaceType}] Error in NLU Intent "UpdateTask":`, error.message, error.stack);

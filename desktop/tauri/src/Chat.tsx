@@ -20,7 +20,7 @@ function Chat() {
     setError('');
 
     try {
-      const response = await invoke('send_message_to_agent', { message: input });
+      const response = await invoke('send_message_to_agent', { message: input, appHandle: window.__TAURI__.shell });
       setMessages([...newMessages, { text: response, sender: 'agent' }]);
     } catch (err) {
       setError(err.toString());

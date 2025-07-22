@@ -143,8 +143,9 @@ export async function performHybridSearchWithNLU(
 // --- Notion Task Management Skills ---
 
 export async function createNotionTask(
-  userId: string, // For logging and consistency
-  params: CreateNotionTaskParams
+  userId: string,
+  params: CreateNotionTaskParams,
+  integrations: any
 ): Promise<SkillResponse<CreateTaskData>> {
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
   if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };

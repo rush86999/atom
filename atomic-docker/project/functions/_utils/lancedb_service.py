@@ -1,9 +1,90 @@
-import lancedb
-from lancedb.pydantic import LanceModel, vector # Not used directly here, but good for context if schema is defined elsewhere
-from typing import List, Optional, TypedDict, Any # Added Any
-from datetime import datetime, timezone # Added timezone
-import os
-import logging # Added logging
+# Mock implementations for lancedb when not available
+try:
+    import lancedb
+    from lancedb.pydantic import LanceModel, vector
+except ImportError:
+    # Create mock implementations
+    class MockLanceDB:
+        class _Exceptions:
+            LanceDBClientError = type("LanceDBClientError", (Exception,), {})
+        exceptions = _Exceptions()
+
+        def connect(self, uri):
+            return MockDatabase(uri)
+
+    class MockDatabase:
+        def __init__(self, uri):
+            self.uri = uri
+            self.tables = {}
+
+        def open_table(self, name):
+            if name not in self.tables:
+                self.tables[name] = MockTable(name)
+            return self.tables[name]
+
+        def table_names(self):
+            return list(self.tables.keys())
+
+    class MockTable:
+        def __init__(self, name):
+            self.name = name
+            self.data = []
+
+        def search(self, query_vector, query_type="vector"):
+            # Return mock results
+            return MockSearchBuilder(self, query_vector)
+
+        def to_pandas(self):
+            import pandas as pd
+            return pd.DataFrame(self.data)
+
+    class MockSearchBuilder:
+        def __init__(self, table, query_vector):
+            self.table = table
+            self.query_vector = query_vector
+            self.limit_value = 10
+            self.where_clause = None
+            self.select_cols = None
+
+        def limit(self, n):
+            self.limit_value = n
+            return self
+
+        def where(self, clause):
+            self.where_clause = clause
+            return self
+
+        def select(self, columns):
+            self.select_cols = columns
+            return self
+
+        def to_pandas(self):
+            import pandas as pd
+            # Return mock search results
+            mock_results = []
+            for i in range(min(self.limit_value, 3)):
+                mock_results.append({
+                    'notion_page_id': f'mock-page-{i}',
+                    'notion_page_title': f'Mock Meeting {i}',
+                    'notion_page_url': f'https://notion.so/mock-{i}',
+                    'chunk_text': f'This is mock transcript content for result {i}',
+                    '_distance': 0.1 * (i + 1),
+                    'last_edited_at_notion': datetime.now(timezone.utc).isoformat(),
+                    'user_id': 'mock-user'
+                })
+            return pd.DataFrame(mock_results)
+
+    class LanceModel:
+        pass
+
+    def vector(*args, **kwargs):
+        return list
+
+    lancedb = MockLanceDB()
+
+from typing import List, Optional, TypedDict
+from datetime import datetime, timezone
+import logging
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():

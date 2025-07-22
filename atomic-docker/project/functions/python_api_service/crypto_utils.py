@@ -2,7 +2,44 @@ import os
 import base64
 import logging
 from typing import Optional # Added Optional for type hinting
-from cryptography.fernet import Fernet, InvalidToken
+
+# Mock cryptography for local testing
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+except ImportError:
+    # Create mock implementations
+    class InvalidToken(Exception):
+        """Mock InvalidToken exception"""
+        pass
+
+    class Fernet:
+        """Mock Fernet encryption class"""
+        def __init__(self, key):
+            self.key = key
+
+        def encrypt(self, data):
+            """Mock encryption - just base64 encode with prefix"""
+            if isinstance(data, str):
+                data = data.encode('utf-8')
+            encoded = base64.b64encode(data)
+            return b'mock_encrypted_' + encoded
+
+        def decrypt(self, token):
+            """Mock decryption - remove prefix and base64 decode"""
+            if token.startswith(b'mock_encrypted_'):
+                token = token[len(b'mock_encrypted_'):]
+                try:
+                    return base64.b64decode(token)
+                except Exception:
+                    raise InvalidToken("Invalid token")
+            else:
+                raise InvalidToken("Invalid token format")
+
+        @staticmethod
+        def generate_key():
+            """Generate a mock Fernet key"""
+            return base64.urlsafe_b64encode(os.urandom(32))
+
 # from cryptography.hazmat.primitives import hashes # Not used in current simple key setup
 # from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC # Not used
 

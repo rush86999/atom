@@ -1,8 +1,6 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import json
+from unittest.mock import patch
 from flask import Flask
-import os # Added for sys.path manipulation, if needed, though test structure assumes correct PYTHONPATH
 
 # To ensure python_api_service and its submodules like _utils can be found,
 # we might need to adjust sys.path here, similar to how note_handler.py does it.

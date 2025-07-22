@@ -105,10 +105,7 @@ function mapStatus(statusText?: string): NotionTaskStatus | null {
 
 // --- Skill Implementations ---
 
-export async function handleCreateNotionTask(
-  userId: string,
-  entities: CreateTaskNluEntities,
-): Promise<SkillResponse<CreateTaskData & { userMessage: string }>> {
+export async function handleCreateNotionTask(userId: string, entities: CreateTaskNluEntities, integrations: any): Promise<SkillResponse<CreateTaskData & { userMessage: string }>> {
   logger.info(`[handleCreateNotionTask] User: ${userId}, Entities: ${JSON.stringify(entities)}`);
 
   if (!ATOM_NOTION_TASKS_DATABASE_ID) {
@@ -137,7 +134,7 @@ export async function handleCreateNotionTask(
     // notes: entities.notes_text || null, // If NLU provides notes
   };
 
-  const result = await createNotionTaskBackend(userId, params);
+  const result = await createNotionTaskBackend(userId, params, integrations);
 
   if (result.ok && result.data) {
     let userMessage = `Okay, I've created the task: "${params.description}".`;
@@ -446,7 +443,7 @@ export async function handleAddSubtask(
         parentId: parentTaskId,
     };
 
-    const result = await createNotionTaskBackend(userId, params);
+    const result = await createNotionTaskBackend(userId, params, integrations);
 
     if (result.ok && result.data) {
         const userMessage = `Okay, I've added "${entities.sub_task_description}" as a sub-task.`;

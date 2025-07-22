@@ -26,10 +26,7 @@ interface CreateTaskHandlerNluEntities {
  * @param entities The NLU entities extracted for the CreateTask intent.
  * @returns A promise that resolves to a user-facing string response.
  */
-export async function handleCreateTaskRequest(
-  userId: string,
-  entities: CreateTaskHandlerNluEntities, // Use the specific NLU entity type
-): Promise<string> {
+export async function handleCreateTaskRequest(userId: string, nluEntities: CreateTaskHandlerNluEntities, integrations: any): Promise<string> {
   logger.info(`[CreateNotionTaskCmdHandler] Handling request for user ${userId} to create task.`);
   logger.debug(`[CreateNotionTaskCmdHandler] Received NLU entities: ${JSON.stringify(entities)}`);
 
@@ -46,7 +43,7 @@ export async function handleCreateTaskRequest(
         due_date_text: entities.due_date_text,
         priority_text: entities.priority_text,
         list_name_text: entities.list_name_text,
-    });
+    }, integrations);
 
     if (skillResponse.ok && skillResponse.data?.userMessage) {
       logger.info(`[CreateNotionTaskCmdHandler] Task creation successful: ${skillResponse.data.userMessage}`);

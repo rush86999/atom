@@ -103,7 +103,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { Client } from "@opensearch-project/opensearch";
 import AWS from "aws-sdk";
 import { getISODay, setISODay } from "date-fns";
-import OpenAI from "openai";
+import { Configuration, OpenAIApi } from "openai";
 import { Readable } from "stream";
 import { google } from "googleapis";
 import axios from "axios";
@@ -125,9 +125,11 @@ const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
-const openai = new OpenAI({
-  apiKey: defaultOpenAIAPIKey,
+const configuration = new Configuration({
+  apiKey,
 });
+openai = new OpenAIApi(configuration);
+defaultOpenAIAPIKey = apiKey;
 
 export async function streamToString(stream: Readable): Promise<string> {
   return await new Promise((resolve, reject) => {

@@ -170,8 +170,8 @@ async function saveUserTokens(userId: string, tokens: OAuth2Token): Promise<Cale
 }
 
 // Helper to get an authenticated Google Calendar client
-async function getGoogleCalendarClient(userId: string): Promise<CalendarSkillResponse<calendar_v3.Calendar>> {
-  if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET) {
+async function getGoogleCalendarClient(userId: string, integrations: any): Promise<CalendarSkillResponse<calendar_v3.Calendar>> {
+  if (!integrations.google.clientId || !integrations.google.clientSecret) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Google Calendar client ID or secret not configured.' } };
   }
 
@@ -189,8 +189,8 @@ async function getGoogleCalendarClient(userId: string): Promise<CalendarSkillRes
   }
 
   const oauth2Client = new google.auth.OAuth2(
-    ATOM_GOOGLE_CALENDAR_CLIENT_ID,
-    ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
+    integrations.google.clientId,
+    integrations.google.clientSecret
   );
   oauth2Client.setCredentials(currentTokens);
 
@@ -222,78 +222,26 @@ async function getGoogleCalendarClient(userId: string): Promise<CalendarSkillRes
  * @param timeMax Optional ISO string for the maximum end time of events. Used for querying specific ranges.
  * @returns A promise that resolves to a CalendarSkillResponse containing an array of CalendarEvent objects.
  */
-export async function listUpcomingEvents(
-  userId: string,
-  limit: number = 10,
-  timeMin?: string,
-  timeMax?: string
-): Promise<CalendarSkillResponse<CalendarEvent[]>> {
-  console.log(`Fetching up to ${limit} events for userId: ${userId}. TimeMin: ${timeMin}, TimeMax: ${timeMax}`);
-
-  const clientResponse = await getGoogleCalendarClient(userId);
-  if (!clientResponse.ok || !clientResponse.data) {
-    return clientResponse; // Propagate error
-  }
-  const calendar = clientResponse.data;
-
-  try {
-    const listOptions: calendar_v3.Params$Resource$Events$List = {
-      calendarId: 'primary',
-      maxResults: limit,
-      singleEvents: true,
-      orderBy: 'startTime',
-    };
-
-    if (timeMin) {
-      listOptions.timeMin = timeMin;
-    } else if (!timeMax) { // Only default to now if neither timeMin nor timeMax is set
-      listOptions.timeMin = (new Date()).toISOString();
-    }
-
-    if (timeMax) {
-      listOptions.timeMax = timeMax;
-      // If timeMax is provided, orderBy should typically be 'startTime' (default).
-      // If querying past events (timeMax is in the past), and you want the most recent first,
-      // you might consider changing orderBy, but Google Calendar API orderBy is 'startTime' or 'updated'.
-      // For simply listing events in a range, 'startTime' is usually appropriate.
-    }
-
-    // If timeMin is in the past and timeMax is not set, this will fetch events from timeMin until now/future.
-    // If timeMin and timeMax define a past range, it fetches past events.
-
-    const response = await calendar.events.list(listOptions);
-
-    const events = response.data.items;
-    if (!events || events.length === 0) {
-      console.log(`No upcoming events found on Google Calendar for user ${userId}.`);
-      return { ok: true, data: [] };
-    }
-
-    const mappedEvents = events.map(event => ({
-      id: event.id || `generated_${Math.random().toString(36).substring(2, 15)}`,
-      summary: event.summary || 'No Title',
-      description: event.description || undefined,
-      startTime: event.start?.dateTime || event.start?.date || new Date().toISOString(),
-      endTime: event.end?.dateTime || event.end?.date || new Date().toISOString(),
-      location: event.location || undefined,
-      htmlLink: event.htmlLink || undefined,
-      conferenceData: event.conferenceData ? mapConferenceData(event.conferenceData) : undefined,
-    }));
-    return { ok: true, data: mappedEvents };
-
-  } catch (error: any) {
-    console.error(`Error fetching Google Calendar events for user ${userId}:`, error.message, error.response?.data);
-    if (error.response?.data?.error === 'invalid_grant' || error.code === 401) {
-      return { ok: false, error: { code: 'AUTH_TOKEN_INVALID', message: 'Google Calendar token is invalid or expired. Re-authentication required.', details: error.response?.data?.error_description } };
-    }
-    if (error.code && ['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT'].includes(error.code)) {
-        return { ok: false, error: { code: 'NETWORK_ERROR', message: `Network error communicating with Google Calendar: ${error.code}`, details: error.message } };
-    }
-    return { ok: false, error: { code: 'GOOGLE_API_ERROR', message: 'Failed to fetch Google Calendar events due to an API error.', details: error.response?.data || error.message } };
-  }
+export async function listUpcomingEvents(userId: string, maxResults: number, integrations: any): Promise<CalendarEvent[]> {
+  const oAuth2Client = new google.auth.OAuth2(
+    integrations.google.clientId,
+    integrations.google.clientSecret,
+    integrations.google.redirectUri
+  );
+  const tokens = await getTokens(userId);
+  oAuth2Client.setCredentials(tokens);
+  const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+  const res = await calendar.events.list({
+    calendarId: 'primary',
+    timeMin: new Date().toISOString(),
+    maxResults: maxResults,
+    singleEvents: true,
+    orderBy: 'startTime',
+  });
+  return res.data.items;
 }
 
-export async function createCalendarEvent(userId: string, eventDetails: Partial<CalendarEvent>): Promise<CalendarSkillResponse<CreateEventResponse>> {
+export async function createCalendarEvent(userId: string, eventDetails: Partial<CalendarEvent>, integrations: any): Promise<CalendarSkillResponse<CreateEventResponse>> {
   console.log(`Attempting to create calendar event for userId: ${userId} with details:`, eventDetails);
 
   if (!eventDetails.summary || !eventDetails.startTime || !eventDetails.endTime) {

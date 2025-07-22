@@ -12,11 +12,87 @@ try:
     PSYCOPG2_AVAILABLE = True
 except ImportError:
     PSYCOPG2_AVAILABLE = False
-    # Define dummy error and pool for type hinting if psycopg2 is not available
-    class psycopg2_errors: # type: ignore
+    # Define mock implementations for psycopg2
+    class MockCursor:
+        def __init__(self, as_dict=False):
+            self.as_dict = as_dict
+            self.rowcount = 0
+            self._result = []
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.close()
+
+        def execute(self, query, params=None):
+            # Mock execute - just log the query
+            logging.debug(f"Mock execute: {query} with params: {params}")
+
+        def fetchone(self):
+            if self.as_dict:
+                return {'encrypted_access_token': 'mock_encrypted_token',
+                        'encrypted_refresh_token': 'mock_refresh_token',
+                        'expiry_timestamp_ms': 1234567890,
+                        'scopes': 'drive.readonly'}
+            return None
+
+        def fetchall(self):
+            return self._result
+
+        def close(self):
+            pass
+
+    class MockConnection:
+        def __init__(self):
+            self.closed = 0
+
+        def cursor(self, cursor_factory=None):
+            return MockCursor(as_dict=(cursor_factory is not None))
+
+        def commit(self):
+            pass
+
+        def rollback(self):
+            pass
+
+        def close(self):
+            self.closed = 1
+
+    class MockConnectionPool:
+        def __init__(self, *args, **kwargs):
+            self.connections = []
+
+        def getconn(self):
+            return MockConnection()
+
+        def putconn(self, conn):
+            pass
+
+        def closeall(self):
+            pass
+
+    # Mock psycopg2 module
+    class psycopg2:
+        @staticmethod
+        def connect(*args, **kwargs):
+            return MockConnection()
+
+    # Mock psycopg2.pool
+    class psycopg2_pool:
+        SimpleConnectionPool = MockConnectionPool
+        ThreadedConnectionPool = MockConnectionPool
+        AbstractConnectionPool = MockConnectionPool
+
+    # Mock psycopg2.errors
+    class psycopg2_errors:
         class Error(Exception): pass
-    class psycopg2_pool: # type: ignore
-        class AbstractConnectionPool: pass
+        class UniqueViolation(Error): pass
+        class IntegrityError(Error): pass
+
+    # Mock RealDictCursor
+    class RealDictCursor:
+        pass
 
 
 logger = logging.getLogger(__name__)
@@ -27,11 +103,11 @@ TABLE_NAME = "user_gdrive_oauth_tokens"
 
 # --- Concrete DB Operation Examples (using psycopg2-like syntax for PostgreSQL) ---
 
-def save_or_update_gdrive_tokens(
+def save_token(
     db_conn_pool: Optional[psycopg2_pool.AbstractConnectionPool],
     user_id: str,
     gdrive_user_email: str,
-    encrypted_access_token: str,
+    encrypted_access_token: Optional[str],
     encrypted_refresh_token: Optional[str],
     expiry_timestamp_ms: int,
     scopes: Optional[str]
@@ -67,10 +143,10 @@ def save_or_update_gdrive_tokens(
     conn = None
     try:
         if not PSYCOPG2_AVAILABLE:
-            logger.error("DB: psycopg2 not available. Cannot execute save_or_update_gdrive_tokens.")
+            logger.error("DB: psycopg2 not available. Cannot execute save_token.")
             return False
         if db_conn_pool is None:
-            logger.error("DB: Connection pool is None. Cannot execute save_or_update_gdrive_tokens.")
+            logger.error("DB: Connection pool is None. Cannot execute save_token.")
             # In a real scenario, this might raise an error or be handled by application setup.
             # For now, returning False to indicate failure to proceed.
             return False
@@ -92,7 +168,7 @@ def save_or_update_gdrive_tokens(
     finally:
         if conn and db_conn_pool: db_conn_pool.putconn(conn)
 
-def get_gdrive_oauth_details(
+def get_token(
     db_conn_pool: Optional[psycopg2_pool.AbstractConnectionPool],
     user_id: str
 ) -> Optional[Dict[str, Any]]:
@@ -116,7 +192,7 @@ def get_gdrive_oauth_details(
     conn = None
     try:
         if not PSYCOPG2_AVAILABLE:
-            logger.error("DB: psycopg2 not available. Cannot execute get_gdrive_oauth_details.")
+            logger.error("DB: psycopg2 not available. Cannot execute get_token.")
             # Fallback to placeholder if psycopg2 isn't available but code needs to run conceptually
             if user_id.startswith("user_with_token_") or user_id.startswith("user_with_expired_token_"):
                 is_expired = user_id.startswith("user_with_expired_token_")
@@ -132,7 +208,7 @@ def get_gdrive_oauth_details(
                 }
             return None
         if db_conn_pool is None:
-            logger.error("DB: Connection pool is None. Cannot execute get_gdrive_oauth_details.")
+            logger.error("DB: Connection pool is None. Cannot execute get_token.")
             return None
 
         conn = db_conn_pool.getconn()

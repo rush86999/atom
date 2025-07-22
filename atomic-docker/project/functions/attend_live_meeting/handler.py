@@ -4,6 +4,9 @@ import sys
 import json # For Kafka message serialization
 import uuid # For generating taskId
 import traceback
+from typing import Any, Optional
+
+
 from kafka.errors import KafkaError # Specific Kafka errors
 # Assuming kafka-python is the library. If another, imports would change.
 try:
@@ -34,9 +37,9 @@ except ImportError:
 
 # Kafka Producer - Initialize lazily or per request for Flask simplicity
 # For high-throughput, a shared global instance with proper connection management is better.
-kafka_producer: KafkaProducer | None = None
+kafka_producer = None
 
-def get_kafka_producer() -> KafkaProducer:
+def get_kafka_producer():
     global kafka_producer
     if kafka_producer is None and KafkaProducer is not None: # Check if library was imported
         try:
@@ -65,7 +68,7 @@ def get_kafka_producer() -> KafkaProducer:
 
 app = flask.Flask(__name__)
 
-def make_error_response(code: str, message: str, details: any = None, http_status: int = 500):
+def make_error_response(code: str, message: str, details: Any = None, http_status: int = 500):
     return flask.jsonify({
         "ok": False,
         "error": {"code": code, "message": message, "details": details}

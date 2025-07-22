@@ -2,7 +2,7 @@ import { CalendarEvent, CreateEventResponse } from '../../types';
 import { listUpcomingEvents as listEvents, createCalendarEvent as createEvent } from './calendarSkills';
 import { handleError } from '../../_utils/errorHandler';
 
-export async function handleGetCalendarEvents(userId: string, entities: any): Promise<string> {
+export async function handleGetCalendarEvents(userId: string, entities: any, integrations: any): Promise<string> {
     try {
         let limit = 7;
         if (entities.limit) {
@@ -23,7 +23,7 @@ export async function handleGetCalendarEvents(userId: string, entities: any): Pr
         if (date_range) console.log(`[handleGetCalendarEvents] date_range found - ${date_range}.`);
         if (event_type_filter) console.log(`[handleGetCalendarEvents] event_type_filter found - ${event_type_filter}.`);
 
-        const events: CalendarEvent[] = await listEvents(userId, limit);
+        const events = await listUpcomingEvents(userId, 10, integrations);
         if (!events || events.length === 0) {
             return "No upcoming calendar events found matching your criteria, or I couldn't access them.";
         } else {
@@ -37,7 +37,7 @@ export async function handleGetCalendarEvents(userId: string, entities: any): Pr
     }
 }
 
-export async function handleCreateCalendarEvent(userId: string, entities: any): Promise<string> {
+export async function handleCreateCalendarEvent(userId: string, entities: any, integrations: any): Promise<string> {
     try {
         const { summary, start_time, end_time, description, location, attendees } = entities;
         const duration = entities.duration as string | undefined;
@@ -61,7 +61,7 @@ export async function handleCreateCalendarEvent(userId: string, entities: any): 
                 eventDetails.duration = duration;
                 console.log(`[handleCreateCalendarEvent] duration found - ${duration}`);
             }
-            const response: CreateEventResponse = await createEvent(userId, eventDetails);
+            const response: CreateEventResponse = await createEvent(userId, eventDetails, integrations);
             if (response.success) {
                 return `Event created: ${response.message || 'Successfully created event.'} (ID: ${response.eventId || 'N/A'})${response.htmlLink ? ` Link: ${response.htmlLink}` : ''}`;
             } else {

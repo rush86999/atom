@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: atom-project
+Version: 0.1.0
+Summary: A collection of packages for the Atom project.
+Author: Atom Team
+Author-email: dev@atom.com
+Dynamic: author
+Dynamic: author-email
+Dynamic: summary

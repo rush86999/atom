@@ -67,7 +67,7 @@ import _ from "lodash";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import AWS from "aws-sdk";
 // Removed: import { OpenSearchResponseBodyType } from "./types/OpenSearchResponseType"
-import OpenAI from "openai";
+import { Configuration, OpenAIApi } from "openai";
 import {
   getEventById,
   searchTrainingEvents,
@@ -92,9 +92,10 @@ const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
-const openai = new OpenAI({
+const configuration = new Configuration({
   apiKey: defaultOpenAIAPIKey,
 });
+const openai = new OpenAIApi(configuration);
 
 export const getEventVectorById = async (
   id: string,
@@ -5953,7 +5954,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
         continue;
       }
       for (const externalAttendee of externalAttendees) {
-        const timeslotsForDay = await generateTimeSlotsLiteForExternalAttendee(
+        const timeSlots = generateTimeSlotsLiteForInternalAttendee(
           startDatesForEachDay?.[i],
           mainHostId,
           modifiedAllExternalEvents,
