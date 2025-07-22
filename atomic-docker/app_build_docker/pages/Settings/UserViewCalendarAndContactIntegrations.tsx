@@ -619,27 +619,23 @@ function UserViewCalendarAndContactIntegrations() {
 
   const renderItem = ({ item, index }: RenderItemType) => {
     if ((item?.resource === zoomResourceName) && !item?.enabled) {
-            return (
-                <Box flex={1} mt={{ phone: 's', tablet: 'm' }} justifyContent="center" alignItems="center">
-                    <a target="_blank" href={zoomOAuthStartUrl} rel="noopener noreferrer">
-                      <Box flex={1} flexDirection="row" justifyContent="space-between" alignItems="center">
-                          <Box mr={{ phone: 's', tablet: 'm' }}>
-                            <Text variant="optionHeader" style={{ color: palette.darkGray }}>
-                                {item?.name}
-                            </Text>
-                          </Box>
-                          <Box ml={{ phone: 's', tablet: 'm' }}>
-                              {item?.enabled
-                                  ? <Text variant="optionHeader">On</Text>
-                                  : <Text variant="optionHeader">Off</Text>
-                              }
-                          </Box>
-                    
-                        </Box>
-                        <span className="btn btn-link no-underline hover:no-underline">Enable Zoom</span>
-                    </a>
-                </Box>
-            )
+      return (
+        <Box flex={1} mt={{ phone: 's', tablet: 'm' }} justifyContent="center" alignItems="center">
+          <Pressable onPress={() => window.location.href = zoomOAuthStartUrl}>
+            <Box flex={1} flexDirection="row" justifyContent="space-between" alignItems="center">
+              <Box mr={{ phone: 's', tablet: 'm' }}>
+                <Text variant="optionHeader" style={{ color: palette.darkGray }}>
+                  {item?.name}
+                </Text>
+              </Box>
+              <Box ml={{ phone: 's', tablet: 'm' }}>
+                <Text variant="optionHeader">Off</Text>
+              </Box>
+            </Box>
+            <span className="btn btn-link no-underline hover:no-underline">Enable Zoom</span>
+          </Pressable>
+        </Box>
+      )
     }
 
     if ((item?.resource === zoomResourceName) && item?.enabled) {
