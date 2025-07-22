@@ -1,0 +1,356 @@
+version: '3.6'
+services:
+  traefik:
+    image: "traefik:v2.10.4"
+    container_name: "traefik"
+    command:
+      - "--log.level=ERROR"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedByDefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "9090:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  postgres:
+    restart: always
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./initdb.d:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secretpgpassword}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', '${POSTGRES_USERNAME}', '-d', 'postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - '5432:5432'
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:6.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - 3567
+    environment:
+      POSTGRESQL_CONNECTION_URI: ${SUPERTOKENS_POSTGRESQL_CONNECTION_URI}
+      POSTGRESQL_TABLE_NAMES_PREFIX: Supertokens
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=3567"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  postgraphile:
+    image: graphile/postgraphile:4
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+    ports:
+      - '5000:5000'
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres
+      PGRAPHILE_WATCH_PG: 'true'
+      PGRAPHILE_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      PGRAPHILE_JWT_PG_ROLE: public
+      PGRAPHILE_PG_DEFAULT_ROLE: public
+      PGRAPHILE_ENABLE_GRAPHIQL: 'true'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/graphql?query={__typename} || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  mongo:
+    image: mongo:5.0
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+  functions:
+    build: ../functions_build_docker
+    container_name: 'functions'
+    depends_on:
+      - minio
+      - optaplanner
+      - postgres
+      - postgraphile
+      - mongo
+    environment:
+      BASIC_AUTH: ${BASIC_AUTH}
+      FUNCTION_SERVER_URL: ${FUNCTION_SERVER_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_CLIENT_ID_ATOMIC_WEB: ${GOOGLE_CLIENT_ID_ATOMIC_WEB}
+      GOOGLE_CLIENT_SECRET_ATOMIC_WEB: ${GOOGLE_CLIENT_SECRET_ATOMIC_WEB}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql
+      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+      DOMAIN: ${DOMAIN}
+      S3_ENDPOINT: http://minio:8484
+      S3_BUCKET: nhost
+      S3_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      S3_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      HOST_IP: ${HOST_IP}
+      HANDSHAKE_URL: http://${HOST_NAME}/v1/handshake
+      ZOOM_PASS_KEY: ${ZOOM_PASS_KEY}
+      ZOOM_CLIENT_ID: ${ZOOM_CLIENT_ID}
+      ZOOM_SALT_FOR_PASS: ${ZOOM_SALT_FOR_PASS}
+      ZOOM_IV_FOR_PASS: ${ZOOM_IV_FOR_PASS}
+      OPTAPLANNER_URL: http://optaplanner:8081
+      OPTAPLANNER_USERNAME: ${OPTAPLANNER_USERNAME}
+      OPTAPLANNER_PASSWORD: ${OPTAPLANNER_PASSWORD}
+      GOOGLE_AUTH_REDIRECT_URL: http://${HOST_NAME}/v1/oauth/google-calendar-handshake/oauth2callback
+      APP_CLIENT_URL: ${APP_CLIENT_URL}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.functions.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/functions/`)"
+      - "traefik.http.routers.functions.entrypoints=web"
+      - "traefik.http.services.functions-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    expose: 
+      - 3000
+    ports:
+      - 3030:3030
+    volumes:
+      - .:/opt/project
+      - project_node_modules:/opt/project/node_modules
+      - functions_node_modules:/opt/project/functions/node_modules
+      - ./data:/opt/project/data/
+      - ./initdb.d:/opt/project/initdb.d/
+      - ../functions_build_docker:/opt/server
+  minio:
+    image: minio/minio:RELEASE.2021-09-24T00-24-24Z
+    entrypoint: sh
+    command: -c 'mkdir -p /data/nhost && /opt/bin/minio server --console-address :9001 --address :8484 /data'
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY}
+    ports:
+      - ${MINIO_PORT:-8484}:8484
+      - 9001:9001
+    volumes:
+      - ./data/minio:/data
+  live-meeting-worker:
+    build:
+      context: ../python-api/live_meeting_worker
+      dockerfile: Dockerfile
+    container_name: live-meeting-worker
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - DATABASE_URL=/app/data/live_meeting_tasks.db
+    volumes:
+      - ./worker_data:/app/data
+    ports:
+      - "8001:8001"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/list_audio_devices"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.live-meeting-worker.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/live-meeting-worker`)"
+      - "traefik.http.routers.live-meeting-worker.entrypoints=web"
+      - "traefik.http.services.live-meeting-worker-service.loadbalancer.server.port=8001"
+  optaplanner:
+    image: atomic-scheduler:latest
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/postgres
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USERNAME}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      QUARKUS_DATASOURCE_DB-KIND: postgresql
+      USERNAME: admin
+      PASSWORD: ${API_TOKEN}
+    ports:
+      - 8081:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/q/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+  handshake:
+    build: 
+      context: ../handshake_build_docker
+      args:
+        API_TOKEN: ${API_TOKEN}
+        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+        NEXT_PUBLIC_ATOMIC_HANDSHAKE_API: http://${HOST_NAME}/v1/functions/handshake-api/createRecurMeetAssists/create-recur-meet-assists-public
+        POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql
+        MEETING_ASSIST_ADMIN_URL: http://functions:3000/schedule-assist/publisherScheduleMeeting/schedule-meeting-to-queue-admin
+    container_name: handshake
+    depends_on: 
+      - postgraphile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.handshake.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/handshake`)"
+      - "traefik.http.routers.handshake.entrypoints=web"
+      - "traefik.http.services.handshake-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    expose:
+      - 3000
+  oauth:
+    build:
+      context: ../oauth_build_docker
+      args:
+        POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql
+        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+        NEXT_PUBLIC_APP_URL: http://${HOST_NAME}
+        GOOGLE_CLIENT_ID_WEB: ${GOOGLE_CLIENT_ID_WEB}
+        GOOGLE_CLIENT_SECRET_WEB: ${GOOGLE_CLIENT_SECRET_WEB}
+        GOOGLE_REDIRECT_URL: http://${HOST_NAME}/v1/oauth/api/google-calendar-handshake/oauth2callback
+        HANDSHAKE_URL: http://handshake:3000
+        ZOOM_IV_FOR_PASS: ${ZOOM_IV_FOR_PASS}
+        ZOOM_SALT_FOR_PASS: ${ZOOM_SALT_FOR_PASS}
+        ZOOM_PASS_KEY: ${ZOOM_PASS_KEY}
+        ZOOM_CLIENT_SECRET: ${ZOOM_CLIENT_SECRET}
+        ZOOM_WEBHOOK_SECRET_TOKEN: ${ZOOM_WEBHOOK_SECRET_TOKEN}
+        NEXT_PUBLIC_ZOOM_REDIRECT_URL: http://${HOST_NAME}/v1/oauth/zoom/mobile-callback
+        NEXT_PUBLIC_ZOOM_CLIENT_ID: ${NEXT_PUBLIC_ZOOM_CLIENT_ID}
+        ZOOM_CLIENT_ID: ${ZOOM_CLIENT_ID}
+    container_name: oauth
+    depends_on:
+      - functions
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.oauth.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/oauth`)"
+      - "traefik.http.routers.oauth.entrypoints=web"
+      - "traefik.http.services.oauth-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    expose:
+      - 3000
+  app:
+    build:
+      context: ../app_build_docker
+      args:
+        HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+        NEXT_PUBLIC_ATOMIC_HANDSHAKE_API: http://${HOST_NAME}/v1/functions/handshake-api/createRecurMeetAssists/create-recur-meet-assists-public
+        POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql
+        NEXT_PUBLIC_POSTGRAPHILE_GRAPHQL_URL: http://localhost:5000/graphql
+        NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL: http://${HOST_NAME}/v1/functions/schedule-event/publisherScheduleEvent/schedule-event-auth
+        NEXT_PUBLIC_EVENT_TO_QUEUE_SHORT_AUTH_URL: http://${HOST_NAME}/v1/functions/schedule-event/publisherScheduleShortEvent/schedule-short-event-auth
+        NEXT_PUBLIC_CALENDAR_TO_QUEUE_AUTH_URL: http://${HOST_NAME}/v1/functions/schedule-assist/publisherScheduleMeeting/schedule-meeting-to-queue-auth
+        NEXT_PUBLIC_FEATURES_APPLY_TO_EVENTS_AUTH_URL: http://${HOST_NAME}/v1/functions/features-apply/publish-to-features-worker/features-worker-to-queue-auth
+        NEXT_PUBLIC_METHOD_TO_SEARCH_INDEX_AUTH_URL: http://${HOST_NAME}/v1/functions/events-search/eventsSearch/events-search-auth
+        NEXT_PUBLIC_GOOGLE_OAUTH_ATOMIC_WEB_API_START_URL: http://${HOST_NAME}/api/google/start-oauth
+        NEXT_PUBLIC_GOOGLE_OAUTH_ATOMIC_WEB_REDIRECT_URL: http://${HOST_NAME}/api/google/oauth-callback
+        GOOGLE_CLIENT_ID_ATOMIC_WEB: ${GOOGLE_CLIENT_ID_ATOMIC_WEB}
+        GOOGLE_CLIENT_SECRET_ATOMIC_WEB: ${GOOGLE_CLIENT_SECRET_ATOMIC_WEB}
+        NEXT_PUBLIC_HANDSHAKE_URL: http://${HOST_NAME}/v1/handshake/
+        NEXT_PUBLIC_DELETE_ZOOM_CONFERENCE_URL: http://${HOST_NAME}/v1/functions/zoom-meeting/delZoomMeet/delete-zoom-meet-auth
+        NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_URL: http://${HOST_NAME}/v1/functions/google-calendar-sync/googleCalendarSync/google-calendar-sync-auth
+        NEXT_PUBLIC_SELF_GOOGLE_CALENDAR_WATCH_URL: http://${HOST_NAME}/v1/functions/google-calendar-sync/googleCalendarWatch/google-calendar-watch-auth
+        NEXT_PUBLIC_GOOGLE_OAUTH_START_URL: http://${HOST_NAME}/Auth/google/oauth-start
+        NEXT_PUBLIC_CHAT_WS_API_URL: ws://localhost:3030
+        NEXT_PUBLIC_GOOGLE_PEOPLE_SYNC_URL: http://${HOST_NAME}/v1/functions/google-calendar-sync/googlePeopleSync/google-contact-sync-auth
+        NEXT_PUBLIC_ADD_DAILY_FEATURES_AUTOPILOT_URL: http://${HOST_NAME}/v1/functions/autopilot/addDailyFeatures/add-daily-features-to-event-auth
+        NEXT_PUBLIC_DELETE_SCHEDULED_EVENT_URL: http://${HOST_NAME}/v1/functions/autopilot/deleteScheduledEvent/delete-scheduled-event-auth
+        NEXT_PUBLIC_ZOOM_CREATE_MEETING_URL: http://${HOST_NAME}/v1/functions/zoom-meeting/createZoomMeet/create-zoom-meet-auth
+        NEXT_PUBLIC_ZOOM_UPDATE_MEETING_URL: http://${HOST_NAME}/v1/functions/zoom-meeting/updateZoomMeet/update-zoom-meet-auth
+        NEXT_PUBLIC_ZOOM_DELETE_MEETING_URL: http://${HOST_NAME}/v1/functions/zoom-meeting/delZoomMeet/delete-zoom-meet-auth
+        NEXT_PUBLIC_ZOOM_OAUTH_START_URL: http://${HOST_NAME}/zoom/oauth-start
+        NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
+    container_name: app
+    depends_on:
+      - supertokens
+      - live-meeting-worker
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`${HOST_NAME}`)"
+      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.services.app-service.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
+      PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+  python-agent:
+    build:
+      context: ../python_agent_build_docker
+      dockerfile: Dockerfile
+    container_name: python-agent
+    environment:
+      - NOTION_API_TOKEN=${NOTION_API_TOKEN}
+      - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID}
+      - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db
+      - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app/project
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+    tty: true
+    stdin_open: true
+  ingestion-pipeline-service:
+    build:
+      context: ../python-api/ingestion_pipeline
+      dockerfile: Dockerfile
+    container_name: ingestion-pipeline-service
+    restart: unless-stopped
+    environment:
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - NOTION_TRANSCRIPTS_DATABASE_ID=${NOTION_TRANSCRIPTS_DATABASE_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db
+      - ATOM_USER_ID_FOR_INGESTION=${ATOM_USER_ID_FOR_INGESTION:-default_atom_user_pipeline}
+      - PROCESSING_MODE=${PROCESSING_MODE:-incremental}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/ingestion-status || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+volumes:
+  project_node_modules:
+  functions_node_modules:
+  mongo-data: {}

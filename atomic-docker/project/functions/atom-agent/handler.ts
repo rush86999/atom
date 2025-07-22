@@ -1,4 +1,5 @@
 import * as conversationManager from './conversationState'; // Added for conversation management
+import { BrowserSkill } from './skills/browser';
 import type { InterfaceType } from './conversationState';
 // import { listUpcomingEvents, createCalendarEvent } from './skills/calendarSkills'; // Will be re-imported with others
 // import { listRecentEmails, readEmail, sendEmail, EmailDetails } from './skills/emailSkills'; // Will be re-imported
@@ -904,6 +905,42 @@ async function _internalHandleMessage(
       case "UpdateTrelloCard":
           textResponse = await handleUpdateTrelloCard(userId, nluResponse.entities);
           break;
+
+      case "Browser":
+        try {
+          const browserSkill = new BrowserSkill();
+          await browserSkill.start();
+          const { action, url, selector, text, path } = entities;
+          switch (action) {
+            case "goto":
+              await browserSkill.goto(url);
+              textResponse = `Navigated to ${url}`;
+              break;
+            case "click":
+              await browserSkill.click(selector);
+              textResponse = `Clicked on ${selector}`;
+              break;
+            case "type":
+              await browserSkill.type(selector, text);
+              textResponse = `Typed "${text}" into ${selector}`;
+              break;
+            case "extract":
+              const extractedText = await browserSkill.extract(selector);
+              textResponse = `Extracted text: ${extractedText}`;
+              break;
+            case "screenshot":
+              await browserSkill.screenshot(path);
+              textResponse = `Took a screenshot and saved it to ${path}`;
+              break;
+            default:
+              textResponse = "Sorry, I don't know how to do that with the browser.";
+          }
+          await browserSkill.stop();
+        } catch (error) {
+          console.error(`[Handler][${interfaceType}] Error in NLU Intent "Browser":`, error.message, error.stack);
+          textResponse = "Sorry, an error occurred while controlling the browser.";
+        }
+        break;
 
       case "CreateTimePreferenceRule":
         try {
