@@ -54,11 +54,10 @@ The goal is to ensure all application and service logs are centrally collected, 
         ```
     *   Counting errors by type or analyzing request durations would require specific fields like `exceptionType` or `durationMs` to be present in the structured logs.
 
-**1.3. OpenSearch Service Integration (Future Consideration)**
+**1.3. Log Analysis Tools**
 
-*   **Evaluation:** Integration with Amazon OpenSearch Service (for more advanced log analytics, dashboarding via OpenSearch Dashboards, and complex log-based alerting) was considered.
-*   **Recommendation:** Defer implementation for the current phase. CloudWatch Logs + Log Insights, combined with structured application logging, should provide sufficient capabilities initially. Re-evaluate if more advanced needs arise.
-*   **Future Outline (if pursued):** Involves provisioning an OpenSearch domain, streaming logs from CloudWatch via Kinesis Data Firehose, and setting up appropriate security.
+*   **CloudWatch Log Insights:** The primary tool for ad-hoc log analysis and querying.
+*   **OpenSearch Service:** Integration with Amazon OpenSearch Service was considered but has been deferred. The current logging strategy provides sufficient capabilities for the project's needs.
 
 ## 2. Advanced Monitoring & Dashboarding Strategy
 
@@ -85,7 +84,7 @@ Two primary dashboards are planned. The first one has been implemented:
         *   Status of critical alarms.
         *   ALB: Overall 5XX errors, P90 latency for the App target group.
         *   ALB: Unhealthy host counts for each key service target group.
-        *   ECS Services (App, Functions, Hasura, Supertokens, Optaplanner): CPU and Memory utilization graphs.
+        *   ECS Services (App, Functions, PostGraphile, Supertokens, Optaplanner): CPU and Memory utilization graphs.
         *   RDS: CPU utilization, free storage space, freeable memory, and database connections graphs.
 *   **Dashboard 2: Application Performance Deep Dive (e.g., for AppService) (Future Implementation)**
     *   **Purpose:** Detailed troubleshooting for a critical service.

@@ -46,24 +46,17 @@ The following environment variable must be set in your backend function's enviro
 *   `ATOM_SLACK_BOT_TOKEN`: The Bot User OAuth Token obtained from your Slack App's "OAuth & Permissions" page. This token is used by the agent to interact with the Slack API.
 *   `ATOM_OPENAI_API_KEY`: Your OpenAI API key, required for the LLM-powered query understanding and information extraction modules for Slack.
 *   `ATOM_NLU_MODEL_NAME`: The OpenAI model to be used (e.g., `gpt-3.5-turbo`, `gpt-4`). This is used by `llm_slack_query_understander.ts` and `extractInformationFromSlackMessage`.
-*   `HASURA_GRAPHQL_ENDPOINT`: The endpoint for your Hasura GraphQL API (e.g., `http://localhost:8080/v1/graphql` or `http://hasura:8080/v1/graphql` if running in Docker).
-*   `FUNCTIONS_BASE_URL`: The base URL for your deployed backend functions that Hasura will call.
+*   `POSTGRAPHILE_ENDPOINT`: The endpoint for your PostGraphile GraphQL API (e.g., `http://localhost:5000/graphql`).
+*   `FUNCTIONS_BASE_URL`: The base URL for your deployed backend functions.
 
-### 1.3. Hasura Setup
-
-1.  **Apply Metadata:**
-    *   The new Slack actions and their types are defined in `atomic-docker/project/metadata/actions.graphql` and `atomic-docker/project/metadata/actions.yaml`.
-    *   Apply metadata using the Hasura CLI: `hasura metadata apply`. This will register the new actions with Hasura.
-    *   Ensure your Hasura instance can reach the `FUNCTIONS_BASE_URL` where the action handlers will be deployed.
-
-### 1.4. Backend Function Deployment
+### 1.3. Backend Function Deployment
 
 The new and modified backend TypeScript functions need to be deployed. These include:
 *   The new service `atomic-docker/project/functions/slack-service/service.ts`.
 *   New agent skills in `atom-agent/skills/llm_slack_query_understander.ts` and `atom-agent/skills/nlu_slack_helper.ts`.
 *   Updated agent skills in `atom-agent/skills/slackSkills.ts`.
 *   The new command handler `atom-agent/command_handlers/slack_command_handler.ts`.
-*   New HTTP handlers (e.g., Express routes or serverless function endpoints) that expose the relevant functions from `slack-service.ts` (like `searchSlackMessages`, `getSlackMessageContent`, `getSlackPermalink`) to be callable by Hasura actions. The URLs for these handlers must match those defined in `actions.yaml`.
+*   New HTTP handlers (e.g., Express routes or serverless function endpoints) that expose the relevant functions from `slack-service.ts`.
 
 ---
 
@@ -71,33 +64,13 @@ The new and modified backend TypeScript functions need to be deployed. These inc
 
 This section details the backend components responsible for the Slack integration.
 
-### 2.1. Hasura Actions
+### 2.1. Backend Actions
 
 Handlers for these actions are new HTTP endpoints that wrap functions from `slack-service/service.ts`.
 
-1.  **`searchUserSlackMessages`**:
-    *   GraphQL Action defined in `actions.graphql` and `actions.yaml`.
-    *   Input: `SlackSearchQueryInput` (query, maxResults)
-    *   Output: `SlackSearchOutput` (success, message, results: [SlackMessageObject])
-    *   Handler URL (example): `{{FUNCTIONS_BASE_URL}}/search-user-slack-messages`
-    *   Permissions: `user` role.
-    *   Comment: "Searches messages in the user's connected Slack workspace."
-2.  **`getSlackMessageDetail`**:
-    *   GraphQL Action defined in `actions.graphql` and `actions.yaml`.
-    *   Input: `SlackMessageIdentifierInput` (channelId, messageTs)
-    *   Output: `SlackMessageOutput` (success, message, slackMessage: SlackMessageObject)
-    *   Handler URL (example): `{{FUNCTIONS_BASE_URL}}/get-slack-message-detail`
-    *   Permissions: `user` role.
-    *   Comment: "Fetches the detailed content of a specific Slack message."
-3.  **`getSlackMessagePermalink`**:
-    *   GraphQL Action defined in `actions.graphql` and `actions.yaml`.
-    *   Input: `SlackMessageIdentifierInput` (channelId, messageTs)
-    *   Output: `SlackPermalinkOutput` (success, message, permalink)
-    *   Handler URL (example): `{{FUNCTIONS_BASE_URL}}/get-slack-message-permalink`
-    *   Permissions: `user` role.
-    *   Comment: "Gets a permalink for a specific Slack message."
-
-(Refer to `actions.graphql` for detailed input/output GraphQL type definitions like `SlackMessageObject`, `SlackMessageFileObject`, etc.)
+1.  **`searchUserSlackMessages`**: Searches messages in the user's connected Slack workspace.
+2.  **`getSlackMessageDetail`**: Fetches the detailed content of a specific Slack message.
+3.  **`getSlackMessagePermalink`**: Gets a permalink for a specific Slack message.
 
 ### 2.2. Core Slack Service (`atomic-docker/project/functions/slack-service/service.ts`)
 
@@ -116,16 +89,16 @@ Located under `atomic-docker/project/functions/atom-agent/`. These components en
 
 ### 3.1. Slack Skills (`skills/slackSkills.ts`)
 
-This file contains functions that the agent's command handler can call. These skills typically wrap calls to Hasura actions, which then trigger the `slack-service`.
+This file contains functions that the agent's command handler can call. These skills typically wrap calls to backend actions, which then trigger the `slack-service`.
 
 *   **Existing Skills (Updated):**
     *   `listSlackChannels`: Lists public/private channels, DMs, and MPIMs. Uses the Slack WebClient directly.
     *   `sendSlackMessage`: Sends a message to a channel or user. Uses the Slack WebClient directly. Includes improved channel/user ID resolution.
 *   **New Skills (for AI-powered features):**
-    *   `searchMySlackMessages(userId: string, searchQuery: string, limit: number)`: Calls the `searchUserSlackMessages` Hasura action. Transforms results from the action (which should be `SlackMessageObject[]`) into the agent's internal `SlackMessage[]` type (defined in `atom-agent/types.ts`).
-    *   `readSlackMessage(userId: string, channelId: string, messageTs: string)`: Calls the `getSlackMessageDetail` Hasura action. Transforms the result into a `SlackMessage` object.
+    *   `searchMySlackMessages(userId: string, searchQuery: string, limit: number)`: Calls the `searchUserSlackMessages` backend action. Transforms results from the action (which should be `SlackMessageObject[]`) into the agent's internal `SlackMessage[]` type (defined in `atom-agent/types.ts`).
+    *   `readSlackMessage(userId: string, channelId: string, messageTs: string)`: Calls the `getSlackMessageDetail` backend action. Transforms the result into a `SlackMessage` object.
     *   `extractInformationFromSlackMessage(messageText: string, infoKeywords: string[])`: Uses an LLM (via OpenAI API) with a specific prompt (`SLACK_EXTRACTION_SYSTEM_PROMPT_TEMPLATE`) to extract desired pieces of information from a given Slack message's text content.
-    *   `getSlackMessagePermalink(userId: string, channelId: string, messageTs: string)`: Calls the `getSlackMessagePermalink` Hasura action.
+    *   `getSlackMessagePermalink(userId: string, channelId: string, messageTs: string)`: Calls the `getSlackMessagePermalink` backend action.
 
 ### 3.2. NLU Slack Query Construction and Understanding
 

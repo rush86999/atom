@@ -45,103 +45,45 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 
 ## Documentation
 
-Atom provides several resources to help you get started and make the most of its features:
+For comprehensive information about Atom, including setup, deployment, and features, please refer to the following guides:
 
-*   **Local Deployment (Docker Compose):** For detailed instructions on setting up and running Atom locally using Docker Compose, please see the [Local Docker Deployment Guide](./atomic-docker/README.md).
-*   **AWS Cloud Deployment:** To deploy Atom to your own AWS account for a scalable solution, refer to the [AWS Cloud Deployment Guide](./deployment/aws/README.md).
-*   **Technical Documentation:** Additional technical details, API guides, and development logs can be found in the [atomic-docker/docs/](./atomic-docker/docs/) directory.
-*   **Configuration Details:** For a comprehensive list of environment variables, consult the `.env.example` file in the `atomic-docker/project/` directory and the setup sections within the deployment guides mentioned above.
+*   **[Features Overview](./FEATURES.md):** A detailed list and explanation of all of Atom's capabilities.
+*   **[Docker Compose Deployment](./atomic-docker/README.md):** Instructions for setting up and running Atom locally using Docker Compose.
+*   **[AWS Cloud Deployment](./deployment/aws/README.md):** A guide for deploying Atom to your own AWS account for a scalable, self-hosted solution.
+*   **[Technical Documentation](./atomic-docker/docs/):** Additional technical details, API guides, and development information.
 
 ## Features
-Atom comes packed with a variety of features designed to enhance your productivity. These include:
 
-*   **Smart Scheduling & Time Management:** AI-powered tools to manage your calendar effectively.
-*   **Integrated Note-Taking & Research:** Seamlessly create notes and conduct research with AI assistance.
-*   **Live Meeting Attendance and Transcription:** Atom can join Zoom, Google Meet, and Microsoft Teams meetings, transcribe them in real-time, and save the notes to Notion. Includes status tracking and audio device selection (in development).
-*   Comprehensive voice-driven task management using a Notion database backend.
-*   Semantic search capabilities across your meeting transcript archive.
-*   Automated extraction of action items and decisions from meeting transcripts.
-*   **Smart Meeting Preparation:** Gathers relevant documents, emails, and tasks before your meetings.
-*   **Automated Weekly Digest:** Summarizes your past week's accomplishments and previews upcoming critical items.
-*   **Intelligent Follow-up Suggester:** Analyzes meeting notes or project documents to suggest action items, decisions, and questions.
+Atom is equipped with a powerful suite of features to streamline your productivity:
 
-For a detailed list and explanation of all features, please see our [Features Document](./FEATURES.md).
+*   **AI-Powered Scheduling:** Smartly manages your calendar with AI-driven event matching, automated tagging, and customizable templates.
+*   **Voice-Powered Task Management:** Use natural language to create, query, and update tasks in Notion.
+*   **Integrated Notes & Research:** Take notes via text or audio, and leverage a multi-agent system for automated research.
+*   **Semantic Search:** Instantly find information across your meeting transcripts and notes.
+*   **Live Meeting Assistance:** Atom can join meetings, provide real-time transcription, and extract action items.
+*   **Proactive Assistance:** Get automated weekly digests, smart meeting preparation, and intelligent follow-up suggestions.
 
-### Competitor Analysis
+For a comprehensive list of all features and capabilities, please see our **[Features Overview Document](./FEATURES.md)**.
 
-*   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
-*   **Personalized Learning Assistant:** Create a personalized learning plan for the user based on their interests and learning history.
+## Core Agent Capabilities
 
-## Core Agent Capabilities & Commands
+Interact with Atom's AI agent via a chat interface to manage your productivity across various services. The agent's enhanced Natural Language Understanding (NLU) allows you to:
 
-The Atom Agent understands a variety of commands to interact with your integrated services. Commands are typically issued in a chat interface with the agent.
-The agent's natural language understanding (NLU) has been significantly enhanced, particularly for creating and querying calendar events and for managing tasks using voice commands.
+*   **Manage Calendars:** Create, list, and modify events in Google Calendar and Microsoft Teams.
+*   **Handle Tasks in Notion:** Use natural language to create, query, and update tasks in your Notion database.
+*   **Search Your Knowledge Base:** Perform semantic searches across meeting transcripts and notes.
+*   **Control Integrations:** Send Slack messages, manage Zoom meetings, handle HubSpot contacts, and much more.
+*   **Automate Workflows:** Initiate research projects, get weekly digests, and receive suggestions for meeting follow-ups.
 
-Atom provides a rich set of commands to manage your productivity. You can interact with Atom to:
-*   **Manage your calendar:** List, create, and modify events across Google Calendar and Microsoft Teams.
-*   **Handle CRM tasks:** Create and retrieve contacts in HubSpot.
-*   **Manage tasks in Notion:** Create, query, and update tasks in your designated Notion task database using natural language (e.g., "Atom, add 'buy milk' to my shopping list due tomorrow," "Atom, what are my work tasks for this week?").
-*   **Search meeting transcripts:** Perform semantic searches across your meeting notes (e.g., "Atom, find meetings where we discussed the Q3 budget").
-*   **Communicate via Slack:** Send messages and list channels.
-*   **Manage video meetings:** List and get details for Zoom and Google Meet events.
-*   **Process payments:** Interact with Stripe to list payments.
-*   **Handle accounting:** Work with QuickBooks Online to manage invoices.
-*   **Take notes and conduct research:** Create notes in Notion, initiate multi-agent research projects, and process research queues.
-*   **Prepare for meetings:** "Atom, prep me for my meeting on [topic/date]."
-*   **Get weekly summaries:** "Atom, what's my weekly digest?"
-*   **Suggest follow-ups:** "Atom, what are the follow-ups for [meeting/project context]?"
-*   And much more, including general commands like `help`.
+For a complete list of integrations and agent capabilities, see the **[Features Overview Document](./FEATURES.md)**.
 
-For a more detailed list of commands and their specific syntax, please refer to the agent's `help` command or explore the agent's capabilities through interaction.
+## Configuration
 
-## Configuration (Environment Variables)
+Atom is configured using environment variables. For a complete and detailed list of all required and optional variables, please consult the `.env.example` file located in the `atomic-docker/project/` directory.
 
-The Atom Agent uses environment variables for its configuration and to connect to various third-party services.
-
-Atom requires various environment variables to be set for full functionality. These include API keys for services like OpenAI, Notion, Deepgram, and credentials for various integrations. Below are some key variables, including those for newer features. Always consult the `.env.example` file in `atomic-docker/project/` for a comprehensive list and the deployment guides for detailed setup.
-
-**Core Service & API Keys:**
-*   `OPENAI_API_KEY`: For AI capabilities.
-*   `NOTION_API_KEY`: For Notion integration (used by various skills, including task management).
-*   `DEEPGRAM_API_KEY`: For transcription services.
-*   `ATOM_NOTION_TASKS_DATABASE_ID`: The ID of your Notion database dedicated to task management. Refer to the "Notion Task Management" section in `FEATURES.md` for required database properties.
-*   `LANCEDB_URI`: URI for your LanceDB instance (e.g., `./lance_db` for local, or a remote URI). Required for semantic search of meeting transcripts.
-*   `PYTHON_API_SERVICE_BASE_URL`: (Optional) URL for the Python backend service if not `http://localhost:8080`.
-
-**Slack Integration (Agent):**
-*   `ATOM_SLACK_BOT_TOKEN`: Slack Bot User OAuth Token for Slack integration (sending messages, searching, etc.). Requires appropriate scopes.
-    *   Note: `OPENAI_API_KEY` is also used by the agent for AI-powered Slack query understanding and information extraction.
-
-**Microsoft Teams Integration (Agent & UI - User OAuth):**
-*   `MSTEAMS_CLIENT_ID`: Azure AD App Registration Client ID (for frontend/Next.js backend's OAuth flow).
-*   `MSTEAMS_CLIENT_SECRET`: Azure AD App Registration Client Secret (for Next.js backend's OAuth flow).
-*   `MSTEAMS_REDIRECT_URI`: Your app's redirect URI, e.g., `http://localhost:3000/api/atom/auth/msteams/callback`. Must be registered in Azure AD.
-*   `MSTEAMS_AUTHORITY`: (Optional) Microsoft Identity Platform authority, e.g., `https://login.microsoftonline.com/common` or specific tenant.
-    *   Note: This OAuth flow uses delegated permissions (e.g., `Chat.Read`, `ChannelMessage.Read.All`) to access user's Teams data. `OPENAI_API_KEY` is used by the agent for AI-powered Teams message query understanding and information extraction.
-
-**Google Account Integration (Calendar & Gmail - Agent & UI):**
-*   `ATOM_GOOGLE_CALENDAR_CLIENT_ID`: Google Cloud OAuth Client ID (used by `atom-agent` for services like Calendar).
-*   `ATOM_GOOGLE_CALENDAR_CLIENT_SECRET`: Google Cloud OAuth Client Secret (used by `atom-agent`).
-*   `NEXT_PUBLIC_GOOGLE_CLIENT_ID_ATOMIC_WEB`: Google Cloud OAuth Client ID used by the frontend/Next.js backend for the OAuth flow.
-*   `GOOGLE_CLIENT_SECRET_ATOMIC_WEB`: Google Cloud OAuth Client Secret used by the Next.js backend for the OAuth flow.
-*   `GOOGLE_OAUTH_ATOMIC_WEB_REDIRECT_URL`: Your app's redirect URI, e.g., `http://localhost:3000/api/atom/auth/calendar/callback`. This **must** be registered in your Google Cloud Console.
-    *   Note: This OAuth flow now requests scopes for both Google Calendar and Gmail (read-only). `OPENAI_API_KEY` is also used by the agent for AI-powered Gmail query understanding and information extraction.
-
-**Wake Word Detection (Frontend - Experimental):**
-*   `NEXT_PUBLIC_AUDIO_PROCESSOR_URL`: (Optional) URL of your external WebSocket-based STT service for wake word detection.
-*   `NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION`: (Optional) Set to `true` to simulate wake word detection for UI testing without a live STT service.
-
-**Live Meeting Attendance (Frontend & Worker - Experimental):**
-*   `NEXT_PUBLIC_LIVE_MEETING_WORKER_URL`: URL for the `live_meeting_worker` service (e.g., `http://localhost:8081`), used by the frontend to list audio devices.
-*   For the `live_meeting_worker` and `attend_live_meeting` handler:
-    *   `ZOOM_SDK_KEY` & `ZOOM_SDK_SECRET`: Required if using the `NewZoomSdkAgent`. These are passed from the client during the API call but might also be relevant for the handler or worker environment depending on exact flow. The setup guide indicates these are passed in `handler_input`.
-
-**Database & Hasura:**
-*   `HASURA_GRAPHQL_URL`: URL for your Hasura GraphQL endpoint.
-*   `HASURA_ADMIN_SECRET`: Admin secret for Hasura.
-*   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: Credentials for the PostgreSQL database.
-
-For a comprehensive list of all environment variables and their setup, please refer to the `.env.example` file in the `atomic-docker/project/` directory and the detailed setup instructions in the deployment guides for [Local Docker Compose](./atomic-docker/README.md) and [AWS Cloud Deployment](./deployment/aws/README.md).
+Specific setup instructions and variable explanations for each deployment method can be found in their respective guides:
+*   **[Docker Compose Deployment Guide](./atomic-docker/README.md)**
+*   **[AWS Cloud Deployment Guide](./deployment/aws/README.md)**
 
 ## Diagram
 
@@ -168,22 +110,19 @@ For a comprehensive list of all environment variables and their setup, please re
 
 ## Deployment Options
 
-This project offers multiple ways to deploy and run the Atom application stack.
+Atom offers two primary methods for deployment, giving you the flexibility to choose between a simple local setup or a scalable cloud solution.
 
 ### Local Docker Compose
 
-For local development, testing, and self-hosting on a single machine, the project can be run using Docker Compose. This method utilizes the services defined in the `atomic-docker/` directory.
+Run Atom on a single machine for local development, testing, or small-scale self-hosting. This method uses Docker Compose to orchestrate all the necessary services.
 
--   **Setup and Instructions:** See the detailed guide in [atomic-docker/README.md](./atomic-docker/README.md).
+*   **Setup and Instructions:** See the **[Docker Compose Deployment Guide](./atomic-docker/README.md)**.
 
 ### AWS Cloud Deployment (Self-Hosted)
 
-For a scalable and robust cloud environment, you can deploy the entire application stack to your own AWS account. This deployment is managed by the AWS Cloud Development Kit (CDK) and provisions all necessary infrastructure, including managed services for databases, messaging, and search where appropriate.
+Deploy the entire application stack to your own AWS account for a robust, scalable, and private cloud environment. This deployment is managed by the AWS Cloud Development Kit (CDK) and leverages AWS managed services for optimal performance and reliability.
 
--   **Features:** Deploys core application services, Optaplanner, a new `python-agent` service (for notes and research), and utilizes AWS S3, Amazon EFS (for LanceDB vector stores), and Amazon MSK Serverless. Amazon OpenSearch Service is no longer used.
-Note: The Python backend service (often named `python_api_service` or `python-agent` in deployment configurations) has been updated with new responsibilities. It now handles task management operations with Notion and semantic search queries using LanceDB, in addition to its previous roles. Ensure it is deployed with access to necessary configurations (Notion tokens, LanceDB URI) and that the `notion-client>=2.0.0` dependency is included in its environment.
-
--   **Detailed Guide:** For prerequisites, setup instructions, deployment steps, and management, please refer to the comprehensive [AWS Deployment Guide](./deployment/aws/README.md).
+*   **Setup and Instructions:** See the **[AWS Cloud Deployment Guide](./deployment/aws/README.md)**.
 
 ## Support the Project
 - I'm spending 100% of my work time on this project
