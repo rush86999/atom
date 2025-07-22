@@ -102,3 +102,10 @@ Key aspects of Autopilot configuration may include:
 *   **Integration with Event Defaults:** Autopilot's effectiveness is significantly enhanced by well-defined event templates and "copy" settings, as these provide the ruleset for how it should automate your event creation and modification.
 
 By combining Autopilot with carefully trained event templates, you can create a highly personalized and automated scheduling system that works to keep your calendar aligned with your work style and priorities.
+
+## Wake Word Detection
+
+Atom supports hands-free operation through wake word detection. When you say the wake word (e.g., "Atom"), the application will start listening for your commands. This feature is implemented differently in the web and desktop versions:
+
+*   **Web Version:** When enabled in the settings, the web version continuously listens for the wake word using your browser's microphone and a WebSocket-based Speech-to-Text (STT) service.
+*   **Desktop Version:** The desktop version uses a more resource-friendly approach. Wake word detection is not always on. Instead, it's activated by a specific event within the application.
