@@ -499,6 +499,22 @@ New Intent for Scheduling from Email Content:
             }
           }
 
+40. Intent: "Browser"
+    - Purpose: To perform a task in a web browser.
+    - Entities:
+        - "task": {
+            "description": "The task to perform in the browser.",
+            "type": "string",
+            "required": true
+        }
+    - Examples:
+        - User: "Go to github.com and search for 'tauri'."
+          Response: {
+            "intent": "Browser",
+            "entities": {
+              "task": "Go to github.com and search for 'tauri'."
+            }
+          }
 
 If the user's intent is unclear or does not match any of the above single intents, set "intent" to null and "entities" to an empty object.
 
