@@ -45,19 +45,15 @@ The following environment variables must be set in your backend function's envir
 *   `GOOGLE_CLIENT_SECRET_GMAIL`: The Client Secret obtained from Google Cloud Console.
 *   `GOOGLE_GMAIL_REDIRECT_URL`: The full URL that Google will redirect to after user authentication. This **must match exactly** one of the URIs configured in your Google Cloud Console credentials. Example: `https://yourapp.com/auth/gmail/callback` or `http://localhost:3000/auth/gmail/callback` for local development.
 *   `GMAIL_TOKEN_ENCRYPTION_KEY`: A **32-byte (64 hexadecimal characters)** secret key used for AES-256-GCM encryption of the stored Gmail OAuth tokens. Generate a cryptographically strong random key for this (e.g., using `openssl rand -hex 32`). **Keep this key secure; its compromise would expose user tokens.**
-*   `HASURA_GRAPHQL_ENDPOINT`: The endpoint for your Hasura GraphQL API (e.g., `http://localhost:8080/v1/graphql`).
-*   `HASURA_ADMIN_SECRET`: (Optional) If agent skills call Hasura actions with admin rights. The `callHasuraActionGraphQL` helper in `emailSkills.ts` is set up to pass user role and ID, assuming user-permissioned actions.
+*   `POSTGRAPHILE_ENDPOINT`: The endpoint for your PostGraphile GraphQL API (e.g., `http://localhost:5000/graphql`).
 *   `ATOM_OPENAI_API_KEY`: Your OpenAI API key, required for the LLM-powered query understanding and information extraction modules.
 *   `ATOM_NLU_MODEL_NAME`: The OpenAI model to be used (e.g., `gpt-3.5-turbo`, `gpt-4`). This is used by `nluService.ts`, `llm_email_query_understander.ts`, and the LLM-based `extractInformationFromEmailBody`.
 
-### 1.3. Hasura Setup
+### 1.3. Database Setup
 
 1.  **Apply Migrations:**
-    *   The new database table `public.user_gmail_tokens` is defined in a migration file (e.g., `atomic-docker/project/metadata/databases/default/migrations/TIMESTAMP_add_user_gmail_tokens_table/up.sql`).
-    *   Apply migrations using the Hasura CLI: `hasura migrate apply --database-name default` (or your database name).
-2.  **Apply Metadata:**
-    *   Changes to `actions.graphql`, `actions.yaml`, and table tracking YAML files (`public_user_gmail_tokens.yaml`, `tables.yaml`, `public_User.yaml`) are made.
-    *   Apply metadata using the Hasura CLI: `hasura metadata apply`.
+    *   The new database table `public.user_gmail_tokens` is defined in a migration file (e.g., `atomic-docker/project/initdb.d/0004-create-gdrive-oauth-table.sql`).
+    *   These migrations are applied automatically when the database is initialized.
 
 ### 1.4. Backend Function Deployment
 
@@ -70,27 +66,23 @@ The new and modified backend TypeScript functions need to be deployed. These inc
 *   Command handler `atom-agent/command_handlers/email_command_handler.ts`.
 *   Updated `atom-agent/skills/nluService.ts`.
 
-Ensure deployed function URLs match `actions.yaml` handlers.
-
 ---
 
 ## 2. Backend API and Services
 
-This section details the backend components responsible for the Gmail integration, including Hasura Actions, core service logic, and how OAuth tokens are managed.
+This section details the backend components responsible for the Gmail integration, including backend actions, core service logic, and how OAuth tokens are managed.
 
-### 2.1. Hasura Actions
+### 2.1. Backend Actions
 
 Handlers for these actions are located in `atomic-docker/project/functions/gmail-integration/`.
 
-1.  **`generate_gmail_auth_url`**: Generates Google OAuth URL. (Returns `GenerateGmailAuthUrlOutput`)
-2.  **`handle_gmail_auth_callback`**: Handles Google callback, exchanges code for tokens, encrypts and stores them. (Takes `HandleGmailAuthCallbackInput`, returns `HandleGmailAuthCallbackOutput`)
-3.  **`refresh_user_gmail_token`**: Refreshes expired access token. (Returns `RefreshUserGmailTokenOutput`)
-4.  **`search_user_gmail`**: Searches user's Gmail. (Takes `GmailSearchQueryInput`, returns `GmailSearchOutput`)
-5.  **`get_user_gmail_content`**: Fetches specific email content. (Takes `GetUserGmailContentInput`, returns `GetUserGmailContentOutput`)
-6.  **`get_gmail_connection_status`**: Checks if Gmail is connected. (Query action, returns `GmailConnectionStatusOutput`)
-7.  **`disconnect_gmail_account`**: Deletes user's Gmail tokens. (Returns `DisconnectGmailAccountOutput`)
-
-(Refer to `actions.graphql` for detailed input/output types of these actions.)
+1.  **`generate_gmail_auth_url`**: Generates Google OAuth URL.
+2.  **`handle_gmail_auth_callback`**: Handles Google callback, exchanges code for tokens, encrypts and stores them.
+3.  **`refresh_user_gmail_token`**: Refreshes expired access token.
+4.  **`search_user_gmail`**: Searches user's Gmail.
+5.  **`get_user_gmail_content`**: Fetches specific email content.
+6.  **`get_gmail_connection_status`**: Checks if Gmail is connected.
+7.  **`disconnect_gmail_account`**: Deletes user's Gmail tokens.
 
 ### 2.2. Core Gmail Service (`atomic-docker/project/functions/gmail-service/service.ts`)
 
@@ -167,7 +159,7 @@ Located in `atomic-docker/app_build_docker/pages/`.
 ### 4.3. Proof-of-Concept Search UI (`Gmail/UserGmailSearch.tsx`)
 *   **Functionality:**
     *   Provides an input field for raw Gmail search queries.
-    *   Calls the `search_user_gmail` Hasura Action to fetch a list of matching email snippets/IDs.
+    *   Calls the `search_user_gmail` backend action to fetch a list of matching email snippets/IDs.
     *   Displays search results in a list.
     *   **Click-to-View Details:** Each search result item is pressable. Clicking an item calls the `get_user_gmail_content` action to fetch the full email details.
     *   **Modal Display:** The fetched full email content (ID, Subject, From, Date, Snippet, Body) is displayed in a modal view.

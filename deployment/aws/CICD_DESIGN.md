@@ -71,7 +71,7 @@ It's recommended to use separate workflow files for clarity:
         *   Checkout code, setup Node.js, install CDK dependencies.
         *   Configure AWS credentials using OIDC and a role specific to staging deployment.
             *   Run `cdk deploy AwsStackStaging --require-approval never --parameters ...` (passing staging-specific parameters like domain name, email). Image tags generated in the `build_and_push_images` job need to be passed to the CDK application, for example, via `cdk.context.json` or as explicit CDK parameters.
-        *   Run post-deployment scripts (e.g., Hasura metadata apply for staging).
+        *   Run post-deployment scripts (e.g., database schema migrations).
 *   **Job: `deploy_production`**
     *   **Condition:** Runs on push to `main` branch.
     *   **Depends on:** `build_and_push_images`.
@@ -99,7 +99,7 @@ Securely managing secrets and configuration is paramount.
     *   **Method:** GitHub Environments with associated Environment Secrets (for sensitive values) and Environment Variables (for non-sensitive config).
     *   **Usage:** Define environments like `staging` and `production` in GitHub. Store parameters there and access them in workflow jobs via `secrets.MY_SECRET` or `vars.MY_VARIABLE`.
 
-*   **Runtime Secrets for Post-Deployment Scripts (e.g., Hasura Admin Secret):**
+*   **Runtime Secrets for Post-Deployment Scripts:**
     *   **Ideal:** Scripts should use the IAM role assumed by the CI/CD job (which should have `secretsmanager:GetSecretValue` permission for the specific secret) to fetch the secret directly from AWS Secrets Manager using AWS CLI or SDK.
     *   **Alternative:** Store the ARN of the secret in GitHub Environment Secrets, and the script fetches it using that ARN.
     *   **Avoid:** Passing raw secret values directly as script arguments or environment variables in the CI/CD job logs.
