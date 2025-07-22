@@ -15,8 +15,11 @@ import aiosqlite # For async SQLite operations
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type # For retry mechanisms
 
 import sounddevice as sd
-from fastapi import FastAPI, HTTPException, Path, Body, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Path, Body, BackgroundTasks, WebSocket
 from pydantic import BaseModel, Field
+
+# --- Add TranscriptionSkill import ---
+from src.skills.transcription import TranscriptionSkill
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -959,6 +962,23 @@ async def audio_capture_loop(task: MeetingTask):
 
 
 # --- FastAPI Application ---
+
+@app.websocket("/ws/transcribe")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    transcription_skill = TranscriptionSkill(os.getenv("DEEPGRAM_API_KEY"))
+    transcription_skill.start(lambda transcript: websocket.send_text(transcript))
+
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            transcription_skill.send(data)
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        transcription_skill.stop()
+        await websocket.close()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
