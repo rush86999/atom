@@ -13,6 +13,7 @@ import { EventPlusType, EventType, MeetingAssistEventType, EventMeetingPlusType,
 import { ReturnValueForEachMeetingAssistType } from '@schedule_assist/_libs/types';
 import ip from 'ip'
 import { kafkaScheduleAssistGroupId, kafkaScheduleAssistTopic } from '../_libs/constants'
+import { parseUserRequest } from '../_libs/llm-helper';
 
 dayjs.extend(isoWeek)
 dayjs.extend(duration)
@@ -485,6 +486,14 @@ const processScheduleAssistWithMeetingAssist = async (body: ScheduleAssistWithMe
 
 const processQueueMessage = async (body: ScheduleAssistWithMeetingQueueBodyType) => {
   try {
+    if (body.naturalLanguageRequest) {
+      const parsedRequest = await parseUserRequest(body.naturalLanguageRequest);
+      body = {
+        ...body,
+        ...parsedRequest,
+      };
+    }
+
     const userId = body?.userId
     const windowStartDate = body?.windowStartDate
     const windowEndDate = body?.windowEndDate
