@@ -65,6 +65,14 @@ function Chat() {
             height: 400,
           });
         }}>Settings</button>
+        <button onClick={() => {
+          const webview = new WebviewWindow('project-health', {
+            url: '/project-health',
+            title: 'Project Health',
+            width: 400,
+            height: 400,
+          });
+        }}>Project Health</button>
         <button onClick={() => setIsTranscribing(!isTranscribing)}>
           {isTranscribing ? 'Stop Transcription' : 'Start Transcription'}
         </button>
