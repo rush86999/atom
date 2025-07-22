@@ -1,54 +1,49 @@
-from fastapi import FastAPI, Depends, HTTPException
-from .dependencies import (
-    get_get_trello_data,
-    get_get_git_data,
-    get_get_slack_data,
-    get_get_google_calendar_data,
-    get_calculate_project_health_score,
-    get_send_alert,
-)
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from trello_integration import get_trello_data
+from git_integration import get_git_data
+from slack_integration import get_slack_data
+from google_calendar_integration import get_google_calendar_data
+from project_health_score import calculate_project_health_score
+from alerting import send_alert
 
 app = FastAPI()
 
-@app.post("/project-health")
-def project_health(
-    trello_board_id: str,
-    git_repo_path: str,
-    slack_channel_id: str,
-    google_calendar_id: str,
-    project_manager_slack_id: str,
-    get_trello_data: callable = Depends(get_get_trello_data),
-    get_git_data: callable = Depends(get_get_git_data),
-    get_slack_data: callable = Depends(get_get_slack_data),
-    get_google_calendar_data: callable = Depends(get_get_google_calendar_data),
-    calculate_project_health_score: callable = Depends(get_calculate_project_health_score),
-    send_alert: callable = Depends(get_send_alert),
-):
+class ProjectIdentifiers(BaseModel):
+    trello_board_id: str
+    git_repo_path: str
+    github_repo_name: str # e.g., "owner/repo"
+    slack_channel_id: str
+    google_calendar_id: str
+    project_manager_slack_id: str
+
+@app.post("/project-health/")
+async def project_health(ids: ProjectIdentifiers):
     """
-    Calculates the project health score and sends an alert if necessary.
+    Endpoint to calculate and return the project health score.
+    It fetches data from all integrated sources, calculates a score,
+    and sends an alert if the score is below a certain threshold.
     """
     try:
-        trello_data = get_trello_data(trello_board_id)
-        git_data = get_git_data(git_repo_path)
-        slack_data = get_slack_data(slack_channel_id)
-        google_calendar_data = get_google_calendar_data(google_calendar_id)
+        trello_data = get_trello_data(ids.trello_board_id)
+        git_data = get_git_data(ids.git_repo_path, ids.github_repo_name)
+        slack_data = get_slack_data(ids.slack_channel_id)
+        google_calendar_data = get_google_calendar_data(ids.google_calendar_id)
 
-        project_health_score = calculate_project_health_score(
-            trello_data,
-            git_data,
-            slack_data,
-            google_calendar_data,
-        )
+        if any(data.get("error") for data in [trello_data, git_data, slack_data, google_calendar_data]):
+            raise HTTPException(status_code=500, detail="Error fetching data from one or more integrations.")
+
+        score = calculate_project_health_score(trello_data, git_data, slack_data, google_calendar_data)
 
         send_alert(
-            project_manager_slack_id,
-            project_health_score,
-            trello_data,
-            git_data,
-            slack_data,
-            google_calendar_data,
+            project_manager_slack_id=ids.project_manager_slack_id,
+            project_health_score=score,
+            trello_data=trello_data,
+            git_data=git_data,
+            slack_data=slack_data,
+            google_calendar_data=google_calendar_data
         )
 
-        return {"project_health_score": project_health_score}
+        return {"project_health_score": score}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")

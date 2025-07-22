@@ -1,43 +1,62 @@
-def calculate_project_health_score(trello_data, git_data, slack_data, google_calendar_data):
+from typing import Dict, Any
+
+def calculate_project_health_score(
+    trello_data: Dict[str, Any],
+    git_data: Dict[str, Any],
+    slack_data: Dict[str, Any],
+    google_calendar_data: Dict[str, Any]
+) -> int:
     """
-    Calculates the project health score based on data from different sources.
+    Calculates a project health score based on data from various sources.
 
-    Args:
-        trello_data: A dictionary containing the Trello data.
-        git_data: A dictionary containing the Git data.
-        slack_data: A dictionary containing the Slack data.
-        google_calendar_data: A dictionary containing the Google Calendar data.
-
-    Returns:
-        The project health score.
+    The scoring is based on a weighted system where a perfect score is 100.
+    Points are deducted for metrics that indicate poor project health.
     """
     score = 100
+    weights = {
+        "trello_overdue": 2,
+        "trello_movement": 1,
+        "trello_comments": 1,
+        "git_commits": 2.5,
+        "git_pr_comments": 1.5,
+        "git_code_churn": 0.5,
+        "slack_sentiment": 3,
+        "gcal_meeting_count": 1,
+        "gcal_meeting_length": 1,
+    }
 
-    # Trello metrics
-    if trello_data["overdue_cards"] > 5:
-        score -= 10
-    if trello_data["average_list_movement_time"] > 86400:  # 1 day
-        score -= 10
-    if trello_data["average_comment_count"] < 1:
-        score -= 5
+    # Trello scoring
+    if trello_data.get("overdue_cards", 0) > 5:
+        score -= 10 * weights["trello_overdue"]
+    if trello_data.get("average_list_movement_time", 0) > 86400:  # 1 day
+        score -= 5 * weights["trello_movement"]
+    if trello_data.get("average_comment_count", 0) < 1:
+        score -= 5 * weights["trello_comments"]
 
-    # Git metrics
-    if sum(git_data["commits_per_day"].values()) / len(git_data["commits_per_day"]) < 1:
-        score -= 20
-    # Placeholder for pull request comments and lines of code changes
-    if git_data["pull_request_comments"] < 1:
-        score -= 10
-    if git_data["lines_of_code_changed"] < 100:
-        score -= 5
+    # Git scoring
+    commits_per_day = git_data.get("commits_per_day", {})
+    avg_commits = sum(commits_per_day.values()) / len(commits_per_day) if commits_per_day else 0
+    if avg_commits < 1:
+        score -= 10 * weights["git_commits"]
 
-    # Slack metrics
-    if slack_data["average_sentiment"] < 0:
-        score -= 20
+    if git_data.get("pull_request_comments", 0) < 5: # Assuming a threshold for healthy discussion
+        score -= 5 * weights["git_pr_comments"]
 
-    # Google Calendar metrics
-    if google_calendar_data["meeting_count"] > 10:
-        score -= 10
-    if google_calendar_data["average_meeting_duration"] > 3600:  # 1 hour
-        score -= 10
+    if git_data.get("lines_of_code_changed", 0) < 100: # Low churn might indicate stagnation
+        score -= 2 * weights["git_code_churn"]
 
-    return max(0, score)
+    # Slack scoring
+    if slack_data.get("average_sentiment", 0) < -0.05: # Threshold for negative sentiment
+        score -= 15 * weights["slack_sentiment"]
+    elif slack_data.get("average_sentiment", 0) < 0.2: # Threshold for neutral/low sentiment
+        score -= 5 * weights["slack_sentiment"]
+
+    # Google Calendar scoring
+    if google_calendar_data.get("number_of_meetings", 0) > 15: # High number of meetings
+        score -= 5 * weights["gcal_meeting_count"]
+
+    total_meeting_hours = google_calendar_data.get("total_meeting_length", 0) / 3600
+    if total_meeting_hours > 20: # More than 20 hours of meetings in the upcoming period
+        score -= 10 * weights["gcal_meeting_length"]
+
+    return max(0, int(score))
