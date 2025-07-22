@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useTranscription } from './useTranscription';
+import { invoke } from '@tauri-apps/api/tauri';
+import { WebviewWindow } from '@tauri-apps/api/window';
 
 function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const { isTranscribing, transcript } = useTranscription();
 
-  const handleSend = () => {
-    // TODO: Send message to agent
+  const handleSend = async () => {
+    if (input.trim() === '') return;
+
+    const newMessages = [...messages, { text: input, sender: 'user' }];
+    setMessages(newMessages);
+    setInput('');
+
+    const response = await invoke('send_message_to_agent', { message: input });
+    setMessages([...newMessages, { text: response, sender: 'agent' }]);
   };
 
   return (
@@ -24,12 +33,9 @@ function Chat() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
         />
         <button onClick={handleSend}>Send</button>
-        import { WebviewWindow } from '@tauri-apps/api/window';
-
-// ...
-
         <button onClick={() => {
           const webview = new WebviewWindow('settings', {
             url: 'settings.html',

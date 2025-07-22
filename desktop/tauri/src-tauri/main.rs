@@ -3,11 +3,24 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::{SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, Manager};
+use tauri::{SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, Manager, command};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use tract_onnx::prelude::*;
 use std::fs;
 use serde_json::Value;
+
+#[command]
+async fn send_message_to_agent(message: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let res = client.post("http://localhost:3000/api/agent-handler")
+        .json(&serde_json::json!({ "message": message }))
+        .send()
+        .await
+        .map_err(|err| err.to_string())?;
+
+    let body = res.text().await.map_err(|err| err.to_string())?;
+    Ok(body)
+}
 
 fn main() {
     let show = CustomMenuItem::new("show".to_string(), "Show App");
@@ -17,6 +30,7 @@ fn main() {
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![send_message_to_agent])
         .setup(|app| {
             let app_handle = app.handle();
             std::thread::spawn(move || {
