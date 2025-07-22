@@ -1,6 +1,3 @@
 [submodule "atomic-docker/optaplanner_build_docker"]
 	path = atomic-docker/optaplanner_build_docker
 	url = https://github.com/rush86999/atomic-scheduler.git
-[submodule "openWakeWord"]
-	path = openWakeWord
-	url = https://github.com/dscripka/openWakeWord.git

@@ -1,3 +1,5 @@
+# This script is based on the training scripts from the openWakeWord project.
+# For more information, see: https://github.com/dscripka/openWakeWord
 import os
 import collections
 import numpy as np
