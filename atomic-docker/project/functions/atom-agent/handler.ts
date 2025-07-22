@@ -209,6 +209,7 @@ import { handleMeetingPrep } from './skills/meetingPrep';
 import { handleCreateAsanaTask, handleQueryAsanaTasks, handleUpdateAsanaTask } from './skills/asana';
 import { handleCreateJiraIssue, handleQueryJiraIssues, handleUpdateJiraIssue } from './skills/jira';
 import { handleCreateTrelloCard, handleQueryTrelloCards, handleUpdateTrelloCard } from './skills/trello';
+import { handleBrowser } from './skills/browserSkills';
 
 
 // Define the TTS service URL
@@ -907,27 +908,7 @@ async function _internalHandleMessage(
           break;
 
       case "Browser":
-        const python = spawn('python3', ['atomic-docker/project/functions/atom-agent/skills/browser_skill.py', nluResponse.entities.task]);
-
-        let output = '';
-        python.stdout.on('data', (data) => {
-            output += data.toString();
-        });
-
-        python.stderr.on('data', (data) => {
-            console.error(`stderr: ${data}`);
-        });
-
-        await new Promise((resolve) => {
-            python.on('close', (code) => {
-                if (code !== 0) {
-                    textResponse = `python script exited with code ${code}`;
-                } else {
-                    textResponse = output;
-                }
-                resolve(true);
-            });
-        });
+        textResponse = await handleBrowser(nluResponse.entities);
         break;
 
       case "CreateTimePreferenceRule":
