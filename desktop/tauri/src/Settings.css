@@ -1,0 +1,19 @@
+.settings-container {
+  padding: 20px;
+}
+
+.setting {
+  margin-bottom: 15px;
+}
+
+.setting label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.setting input,
+.setting select {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}

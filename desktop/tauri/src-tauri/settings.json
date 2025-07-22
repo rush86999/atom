@@ -1,0 +1,10 @@
+{
+  "stt": {
+    "service": "deepgram",
+    "apiKey": ""
+  },
+  "tts": {
+    "service": "deepgram",
+    "apiKey": ""
+  }
+}

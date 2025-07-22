@@ -6,6 +6,8 @@
 use tauri::{SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, Manager};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use tract_onnx::prelude::*;
+use std::fs;
+use serde_json::Value;
 
 fn main() {
     let show = CustomMenuItem::new("show".to_string(), "Show App");
@@ -18,6 +20,12 @@ fn main() {
         .setup(|app| {
             let app_handle = app.handle();
             std::thread::spawn(move || {
+                let settings_path = app_handle.path_resolver()
+                    .resolve_resource("settings.json")
+                    .expect("failed to resolve resource");
+                let settings_file = fs::read_to_string(settings_path).unwrap();
+                let settings: Value = serde_json::from_str(&settings_file).unwrap();
+
                 let host = cpal::default_host();
                 let device = host.default_input_device().expect("no input device available");
                 let config = device.default_input_config().unwrap();
