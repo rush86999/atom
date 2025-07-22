@@ -13,13 +13,11 @@ from openai import OpenAI, APIError, RateLimitError, AuthenticationError, APICon
 from notion_client import AsyncClient as NotionAsyncClient, APIResponseError, APIErrorCode # Import Notion Async Client and error types
 import aiosqlite # For async SQLite operations
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type # For retry mechanisms
+from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
 
 import sounddevice as sd
 from fastapi import FastAPI, HTTPException, Path, Body, BackgroundTasks, WebSocket
 from pydantic import BaseModel, Field
-
-# --- Add TranscriptionSkill import ---
-from src.skills.transcription import TranscriptionSkill
 
 # --- Logging Configuration ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -963,23 +961,6 @@ async def audio_capture_loop(task: MeetingTask):
 
 # --- FastAPI Application ---
 
-@app.websocket("/ws/transcribe")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    transcription_skill = TranscriptionSkill(os.getenv("DEEPGRAM_API_KEY"))
-    transcription_skill.start(lambda transcript: websocket.send_text(transcript))
-
-    try:
-        while True:
-            data = await websocket.receive_bytes()
-            transcription_skill.send(data)
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        transcription_skill.stop()
-        await websocket.close()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
@@ -1015,6 +996,40 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan
 )
+
+@app.websocket("/ws/transcribe")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    
+    deepgram_client = DeepgramClient(os.getenv("DEEPGRAM_API_KEY"))
+    
+    try:
+        dg_connection = await deepgram_client.listen.asynclive.v("1")
+        
+        async def on_message(self, result, **kwargs):
+            transcript = result.channel.alternatives[0].transcript
+            if transcript:
+                await websocket.send_text(transcript)
+
+        dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
+        
+        options = LiveOptions(
+            model="nova-2",
+            language="en-US",
+            smart_format=True,
+        )
+        await dg_connection.start(options)
+        
+        while True:
+            data = await websocket.receive_bytes()
+            await dg_connection.send(data)
+            
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        if 'dg_connection' in locals() and dg_connection:
+            await dg_connection.finish()
+        await websocket.close()
 
 # --- API Endpoints ---
 
@@ -1082,10 +1097,6 @@ async def start_meeting_attendance(
     # or fetches a fresh one from DB.
     # For simplicity, audio_capture_loop can receive this `task` instance and be responsible for all DB updates.
     # Crucially, `task._stop_event` needs to be set on this instance if `audio_capture_loop` uses it directly.
-
-    # Re-fetch task from DB to ensure we pass the persisted version if add_task_to_db modified it (e.g. defaults)
-    # However, our current add_task_to_db doesn't modify the passed task object in place in a way that's critical here.
-    # The main thing is that `audio_capture_loop` must use `update_task_in_db`.
 
     # Assign the stop event to the task object (will not be persisted)
     task._stop_event = stop_event
@@ -1174,7 +1185,7 @@ async def stop_meeting_attendance(
                 task.message = "Error: Timeout during stop. Audio capture forcibly cancelled."
                 if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
             except Exception as e:
-                logger.error(f"Task {task_id}: Error waiting for audio capture loop completion: {e}", exc_info=True)
+                logger.error(f"Task {task.task_id}: Error waiting for audio capture loop completion: {e}", exc_info=True)
                 task.status = TaskStatus.ERROR
                 task.message = f"Error during task stop: {str(e)}"
                 if not task.end_time: task.end_time = datetime.datetime.now(datetime.timezone.utc)
@@ -1234,5 +1245,3 @@ if __name__ == "__main__":
     import uvicorn
     # This is for direct execution. `uvicorn main:app --reload` is preferred for dev.
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")
-
-```
