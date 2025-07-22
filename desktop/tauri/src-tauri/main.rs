@@ -25,6 +25,7 @@ fn main() {
                     .expect("failed to resolve resource");
                 let settings_file = fs::read_to_string(settings_path).unwrap();
                 let settings: Value = serde_json::from_str(&settings_file).unwrap();
+                let integrations = &settings["integrations"];
 
                 let host = cpal::default_host();
                 let device = host.default_input_device().expect("no input device available");

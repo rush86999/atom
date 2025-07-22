@@ -6,5 +6,21 @@
   "tts": {
     "service": "deepgram",
     "apiKey": ""
+  },
+  "integrations": {
+    "openai": "",
+    "google": "",
+    "notion": "",
+    "deepgram": "",
+    "zapier": "",
+    "hubspot": "",
+    "calendly": "",
+    "zoom": "",
+    "msteams": "",
+    "stripe": "",
+    "quickbooks": "",
+    "asana": "",
+    "jira": "",
+    "trello": ""
   }
 }
