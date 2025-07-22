@@ -33,4 +33,3 @@ flask
 cryptography
 kafka-python
 pandas
-browser-use
