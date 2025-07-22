@@ -123,6 +123,17 @@ function UserViewSettings() {
           <AtomAgentSettings />
         </Box>
         
+        {/* Cloud Settings Section */}
+        {typeof window !== 'undefined' && !window.__TAURI__ && (
+          <Box width="100%" alignItems="center" mt="l">
+            <Text variant="sectionHeader">Cloud Settings</Text>
+            <Box mt="s">
+              <Text variant="buttonLink">
+                Cloud Version Available
+              </Text>
+            </Box>
+          </Box>
+        )}
       </Box>
     </ScrollView>
   )
