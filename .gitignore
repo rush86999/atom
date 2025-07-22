@@ -152,3 +152,9 @@ classification_build_docker/app/models/text2vec/all-MiniLM-L6-v2/
 
 
 
+
+# Wake Word Generation Files
+audio_samples/
+negative_samples/
+*.npy
+atom_wake_word_env/
