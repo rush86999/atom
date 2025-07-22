@@ -1596,7 +1596,7 @@ interface TempOptionsForCaller {
  * It remains largely stateless and does not interact with isAgentResponding by default.
  * If Hasura actions need to be part of conversational flow, this would require more thought.
  */
-export async function handleMessage(message: string): Promise<HandleMessageResponse> {
+export async function handleMessage(message: string, settings: any): Promise<HandleMessageResponse> {
   const interfaceType: InterfaceType = 'text'; // This handler is for text-based interactions (e.g., Hasura)
   console.log(`[Handler][${interfaceType}] Received message: "${message}"`);
   const userId = getCurrentUserId();
@@ -1617,6 +1617,7 @@ export async function handleMessage(message: string): Promise<HandleMessageRespo
     interfaceType,
     message,
     userId,
+    settings.llm,
     // For Hasura/text, sendCommandToClient is typically not available or needed unless specifically designed.
     // So, we might not pass sendCommandToClientFunction here, or pass a stub.
     // For now, assuming the default stub in _internalHandleMessage is sufficient if not provided.

@@ -3,17 +3,26 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::{SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, Manager, command};
+use tauri::{SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, Manager, command, AppHandle};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use tract_onnx::prelude::*;
 use std::fs;
 use serde_json::Value;
 
 #[command]
-async fn send_message_to_agent(message: String) -> Result<String, String> {
+async fn send_message_to_agent(app_handle: AppHandle, message: String) -> Result<String, String> {
+    let settings_path = app_handle.path_resolver()
+        .resolve_resource("settings.json")
+        .expect("failed to resolve resource");
+    let settings_file = fs::read_to_string(settings_path).map_err(|err| err.to_string())?;
+    let settings: Value = serde_json::from_str(&settings_file).map_err(|err| err.to_string())?;
+
     let client = reqwest::Client::new();
     let res = client.post("http://localhost:3000/api/agent-handler")
-        .json(&serde_json::json!({ "message": message }))
+        .json(&serde_json::json!({
+            "message": message,
+            "settings": settings
+        }))
         .send()
         .await
         .map_err(|err| err.to_string())?;
