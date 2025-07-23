@@ -1,95 +1,116 @@
 import os
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 
-# Mock LinkedIn API for local testing
+# The 'if TYPE_CHECKING:' block is only evaluated by static type checkers.
+# This allows us to import the real types for type hinting without causing a
+# runtime ImportError if the library is not installed.
+if TYPE_CHECKING:
+    from linkedin.linkedin import (
+        LinkedInApplication,
+        LinkedInAuthentication,
+        LinkedInError,
+    )
+
+# --- Runtime Imports and Mock Fallbacks ---
+# We attempt to import the actual library. If it fails, we define mock classes
+# with the same names to ensure the application can run in environments where
+
+# the library isn't installed (e.g., local testing).
 try:
-    from linkedin import linkedin
-except ImportError:
-    # Create mock LinkedIn module
-    class MockLinkedInApplication:
-        def __init__(self, authentication):
-            self.authentication = authentication
+    from linkedin.linkedin import (
+        LinkedInApplication,
+        LinkedInAuthentication,
+        LinkedInError,
+    )
+    logging.info("Successfully imported 'python-linkedin' library.")
 
-        def get_profile(self, member_id=None, member_url=None, selectors=None):
+except ImportError:
+    logging.warning("'python-linkedin' library not found. Using mock implementation.")
+
+    # --- MOCK IMPLEMENTATIONS ---
+    # These classes simulate the behavior of the LinkedIn library.
+    class LinkedInError(Exception):
+        """Mocks the LinkedInError exception class."""
+        pass
+
+    class LinkedInAuthentication:
+        """Mocks the LinkedInAuthentication class."""
+        def __init__(self, consumer_key: str, consumer_secret: str, user_token: str, user_secret: str, return_url: str):
+            # The mock implementation doesn't need to store or use credentials.
+            pass
+
+    class LinkedInApplication:
+        """Mocks the LinkedInApplication class."""
+        def __init__(self, authentication: "LinkedInAuthentication"):
+            # The mock implementation doesn't need the authentication object.
+            pass
+
+        def get_profile(self, member_id: Optional[str] = None, selectors: Optional[List[str]] = None) -> Dict[str, Any]:
+            """Returns a static, mock LinkedIn profile."""
+            logging.info(f"Mock get_profile called for member_id: {member_id}")
             return {
-                'id': 'mock_id',
+                'id': member_id or 'mock-user-id',
                 'firstName': 'Mock',
                 'lastName': 'User',
-                'headline': 'Mock LinkedIn User',
-                'emailAddress': 'mock@linkedin.com',
-                'publicProfileUrl': 'https://www.linkedin.com/in/mockuser'
+                'headline': 'Software Engineer at Mock Company',
+                'publicProfileUrl': 'https://www.linkedin.com/in/mockuser',
             }
 
-        def search_profile(self, params):
+        def submit_share(self, comment: str, title: str, description: str, submitted_url: str) -> Dict[str, str]:
+            """Returns a mock confirmation of a shared post."""
+            logging.info(f"Mock submit_share called with title: {title}")
             return {
-                'people': {
-                    'values': [{
-                        'id': 'mock_search_1',
-                        'firstName': 'Search',
-                        'lastName': 'Result',
-                        'headline': 'Mock Search Result',
-                        'publicProfileUrl': 'https://www.linkedin.com/in/searchresult'
-                    }]
-                }
+                'updateKey': 'mock-update-key-12345',
+                'updateUrl': 'https://www.linkedin.com/updates/mock-update-12345',
             }
 
-        def submit_share(self, comment, title=None, description=None, submitted_url=None, submitted_image_url=None):
-            return {
-                'updateKey': 'mock_update_key',
-                'updateUrl': 'https://www.linkedin.com/updates/mock'
-            }
-
-    class MockLinkedInAuthentication:
-        def __init__(self, consumer_key, consumer_secret, user_token, user_secret, return_url):
-            self.consumer_key = consumer_key
-            self.consumer_secret = consumer_secret
-            self.user_token = user_token
-            self.user_secret = user_secret
-            self.return_url = return_url
-
-    # Create mock linkedin module
-    class linkedin:
-        LinkedInApplication = MockLinkedInApplication
-        LinkedInAuthentication = MockLinkedInAuthentication
-
-        PERMISSIONS = {
-            'BASIC_PROFILE': 'r_basicprofile',
-            'EMAIL_ADDRESS': 'r_emailaddress',
-            'SHARE': 'w_share',
-            'WRITE_SHARE': 'w_share'
-        }
+# --- Application Service Code ---
 
 logger = logging.getLogger(__name__)
 
-async def get_linkedin_api(user_id: str, db_conn_pool) -> Optional['linkedin.LinkedInApplication']:
-    # This is a placeholder. In a real application, you would fetch the user's LinkedIn credentials
-    # from a secure database. For now, we'll use environment variables.
-    # You'll need to create a table to store these credentials, similar to the Dropbox and Google Drive implementations.
+async def get_linkedin_api(user_id: str, db_conn_pool: Any) -> "Optional[LinkedInApplication]":
+    """
+    Constructs and returns a LinkedIn API client for the given user.
+
+    In a real application, this function would securely fetch the user's OAuth
+    credentials from a database. This example retrieves them from environment
+    variables, which is NOT secure for production.
+    """
     consumer_key = os.environ.get("LINKEDIN_CONSUMER_KEY")
     consumer_secret = os.environ.get("LINKEDIN_CONSUMER_SECRET")
     user_token = os.environ.get("LINKEDIN_USER_TOKEN")
     user_secret = os.environ.get("LINKEDIN_USER_SECRET")
 
     if not all([consumer_key, consumer_secret, user_token, user_secret]):
-        logger.error("LinkedIn credentials are not configured in environment variables.")
+        logger.error("LinkedIn API credentials are not fully configured in environment variables.")
         return None
 
-    authentication = linkedin.LinkedInAuthentication(
-        consumer_key,
-        consumer_secret,
-        user_token,
-        user_secret,
-        'https://www.linkedin.com/oauth/v2/accessToken' # This is a placeholder, you'll need to implement the full OAuth 2.0 flow
-    )
-    application = linkedin.LinkedInApplication(authentication)
-    return application
+    try:
+        authentication = LinkedInAuthentication(
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
+            user_token=user_token,
+            user_secret=user_secret,
+            return_url='urn:ietf:wg:oauth:2.0:oob'  # Placeholder for non-web OAuth flow
+        )
+        application = LinkedInApplication(authentication)
+        return application
+    except LinkedInError as e:
+        logger.error(f"Failed to initialize LinkedIn API client for user {user_id}: {e}", exc_info=True)
+        return None
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while initializing LinkedIn client for user {user_id}: {e}", exc_info=True)
+        return None
 
-async def search_linkedin_profiles(api: linkedin.LinkedInApplication, query: str):
+async def search_linkedin_profiles(api: "LinkedInApplication", query: str) -> List[Dict[str, Any]]:
     """
     Searches for LinkedIn profiles.
+
+    NOTE: The 'python-linkedin' library is outdated and does not support the
+    current version of the LinkedIn API for people search. This function is a
+    placeholder and will return an empty list. A modern library or direct
+    HTTP requests to the LinkedIn API would be required for this functionality.
     """
-    # The python-linkedin library does not support people search.
-    # You would need to use a different library or a web scraper to implement this feature.
-    # For now, we'll just return an empty list.
+    logger.warning("LinkedIn profile search is not implemented because the 'python-linkedin' library is outdated.")
     return []

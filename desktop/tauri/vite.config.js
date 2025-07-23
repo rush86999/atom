@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,7 +9,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@tauri-apps/api': './src-tauri/bindings/tauri-apps-api.js',
+      "@tauri-apps/api/tauri": "./src-tauri/bindings/tauri-apps-api.js",
+      "@tauri-apps/api/window": "./src-tauri/bindings/tauri-apps-api.js",
+      "@tauri-apps/api/fs": "./src-tauri/bindings/tauri-apps-api.js",
+      "@tauri-apps/api": "./src-tauri/bindings/tauri-apps-api.js",
     },
   },
-})
+});

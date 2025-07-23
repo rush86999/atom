@@ -175,7 +175,7 @@ def handle_link_note(params: dict) -> dict:
 
 # Make sure previous content of the file is preserved. These lines are appended.
 
-from project.functions.atom_agent import research_agent
+from .. import research_agent
 import os
 
 # ... (potentially other handlers here) ...

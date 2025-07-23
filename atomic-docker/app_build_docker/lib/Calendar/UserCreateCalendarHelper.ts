@@ -1289,8 +1289,8 @@ export const atomicUpsertEventInDb = async (
                       meetingId
                       eventId
                     }
-                  `
-              });
+                  `,
+                });
               const filteredEvents = existingEvents?.filter((e: EventType) => (e?.id !== data?.insert_Event?.returning?.[0]?.id)) || []
               console.log(filteredEvents, ' filteredEvents inside atomicUpsertEventInDb')
               if (filteredEvents?.length > 0) {

@@ -1,0 +1,11 @@
+/Users/rushiparikh/projects/atom/atom/desktop/tauri/target/debug/deps/kstring-c5f22aacc0bb8c5d.d: /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/lib.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/cow.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/inline.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/ref.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/string.rs
+
+/Users/rushiparikh/projects/atom/atom/desktop/tauri/target/debug/deps/libkstring-c5f22aacc0bb8c5d.rlib: /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/lib.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/cow.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/inline.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/ref.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/string.rs
+
+/Users/rushiparikh/projects/atom/atom/desktop/tauri/target/debug/deps/libkstring-c5f22aacc0bb8c5d.rmeta: /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/lib.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/cow.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/inline.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/ref.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/string.rs
+
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/lib.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/cow.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/inline.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/ref.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/kstring-1.0.6/src/string.rs:

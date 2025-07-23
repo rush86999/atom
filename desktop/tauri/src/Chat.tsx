@@ -1,31 +1,46 @@
-import { useState, useEffect } from 'react';
-import { useTranscription } from './useTranscription';
-import { invoke } from '@tauri-apps/api/tauri';
-import { WebviewWindow } from '@tauri-apps/api/window';
+import { useState, useEffect } from "react";
+import { useTranscription } from "./useTranscription";
+import { invoke } from "@tauri-apps/api/tauri";
+import { WebviewWindow } from "@tauri-apps/api/window";
+
+interface Message {
+  text: string;
+  sender: "user" | "agent";
+}
 
 function Chat() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const { isTranscribing, transcript, setIsTranscribing } = useTranscription();
 
   const handleSend = async () => {
-    if (input.trim() === '') return;
+    if (input.trim() === "") return;
 
-    const newMessages = [...messages, { text: input, sender: 'user' }];
+    const newMessages = [...messages, { text: input, sender: "user" }];
     setMessages(newMessages);
-    setInput('');
+    setInput("");
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const response = await invoke('send_message_to_agent', { message: input, appHandle: window.__TAURI__.shell });
-      setMessages([...newMessages, { text: response, sender: 'agent' }]);
-      const utterance = new SpeechSynthesisUtterance(response as string);
-      speechSynthesis.speak(utterance);
+      const response = await invoke("send_message_to_agent", {
+        message: input,
+      });
+      if (typeof response === "string") {
+        setMessages([...newMessages, { text: response, sender: "agent" }]);
+        const utterance = new SpeechSynthesisUtterance(response as string);
+        speechSynthesis.speak(utterance);
+      } else {
+        setError("Received invalid response from agent");
+      }
     } catch (err) {
-      setError(err.toString());
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError(String(err));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +62,7 @@ function Chat() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          onKeyPress={(e) => e.key === "Enter" && handleSend()}
         />
         <button onClick={handleSend}>Send</button>
         <button onClick={() => {
@@ -57,22 +72,6 @@ function Chat() {
             handleSend();
           }
         }}>Browser</button>
-        <button onClick={() => {
-          const webview = new WebviewWindow('settings', {
-            url: 'settings.html',
-            title: 'Settings',
-            width: 400,
-            height: 400,
-          });
-        }}>Settings</button>
-        <button onClick={() => {
-          const webview = new WebviewWindow('project-health', {
-            url: '/project-health',
-            title: 'Project Health',
-            width: 400,
-            height: 400,
-          });
-        }}>Project Health</button>
         <button onClick={() => setIsTranscribing(!isTranscribing)}>
           {isTranscribing ? 'Stop Transcription' : 'Start Transcription'}
         </button>
@@ -80,6 +79,9 @@ function Chat() {
       {isTranscribing && (
         <div className="transcription">
           <p>{transcript}</p>
+          <button onClick={() => setIsTranscribing(false)}>
+            Stop Transcription
+          </button>
         </div>
       )}
     </div>

@@ -1461,12 +1461,12 @@ export const getCalendarIntegrationByResource = async (
                     'X-Hasura-Role': 'admin'
                 },
             },
-        // }).json()
+        ).json()
 
-        // console.log(res, ' res inside getCalendarIntegration')
-        // if (res?.data?.Calendar_Integration?.length > 0) {
-        //     return res?.data?.Calendar_Integration?.[0]
-        // }
+        console.log(res, ' res inside getCalendarIntegration')
+        if (res?.data?.Calendar_Integration?.length > 0) {
+            return res?.data?.Calendar_Integration?.[0]
+        }
         const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
         chatApiHelperLogger.info(`getCalendarIntegrationByResource response for user ${userId}, resource ${resource}`, { dataLength: responseData?.Calendar_Integration?.length });
         return responseData?.Calendar_Integration?.[0];
@@ -1514,12 +1514,12 @@ export const getCalendarIntegrationByName = async (
                     'X-Hasura-Role': 'admin'
                 },
             },
-        // }).json()
+        ).json()
 
-        // console.log(res, ' res inside getCalendarIntegration')
-        // if (res?.data?.Calendar_Integration?.length > 0) {
-        //     return res?.data?.Calendar_Integration?.[0]
-        // }
+        console.log(res, ' res inside getCalendarIntegration')
+        if (res?.data?.Calendar_Integration?.length > 0) {
+            return res?.data?.Calendar_Integration?.[0]
+        }
         const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
         chatApiHelperLogger.info(`getCalendarIntegrationByName response for user ${userId}, name ${name}`, { dataLength: responseData?.Calendar_Integration?.length });
         return responseData?.Calendar_Integration?.[0];
@@ -1652,8 +1652,8 @@ export const updateCalendarIntegration = async (
                     'X-Hasura-Role': 'admin'
                 },
             },
-        // ).json()
-        // console.log(res, ' res inside updateCalendarIntegration')
+        ).json()
+        console.log(res, ' res inside updateCalendarIntegration')
         await resilientGotPostHasura(operationName, query, variables); // Assuming admin role for updates
         chatApiHelperLogger.info(`Successfully updated calendar integration ${id}.`);
     } catch (e) {

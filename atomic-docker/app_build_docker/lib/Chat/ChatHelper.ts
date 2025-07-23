@@ -114,27 +114,6 @@ export const addMessageToBrain = async (
 }
 
 export const receiveMessageFromBrain = async (
-    skillMessageHistory: SkillMessageHistoryType,
-    chatHistory: ChatHistoryType,
-import { SemanticSearchResultsPayload } from "../dataTypes/SearchResultsTypes"; // Import the new payload type
-
-// Import for structuredData, assuming it's part of SkillMessageHistoryType or a related type
-// For now, we'll assume skillMessageHistory might contain an optional 'structuredData' field.
-// Actual type definition for what agent sends over WebSocket for structured data would be:
-// interface AgentWebSocketMessage {
-//   text: string;
-//   audioUrl?: string;
-//   structuredData?: { displayType: string; data: any; summaryText?: string; };
-//   // Other fields like skill, query, messages for the skill log part
-//   skill?: string;
-//   query?: string;
-//   messages?: {role: string; content: string}[];
-//   // etc.
-// }
-// For receiveMessageFromBrain, skillMessageHistory is used for the skill log part.
-// The part that constructs UserChatType for display is now in UserViewChat.tsx.
-
-export const receiveMessageFromBrain = async (
     skillDataForLog: SkillMessageHistoryType, // Renamed to reflect its purpose for logging
     messageHistory: SkillChatHistoryType,
     setMessageHistory: React.Dispatch<React.SetStateAction<[] | SkillChatHistoryType>>,

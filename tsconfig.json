@@ -3,9 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": [
-      "es2022"
-    ],
+    "lib": ["es2022", "dom"],
     "declaration": true,
     "strict": true,
     "noImplicitAny": true,
@@ -21,15 +19,9 @@
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "isolatedModules": true,
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "types": [
-      "jest"
-    ]
+    "jsx": "react-jsx",
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["jest", "vite/client"]
   },
-  "exclude": [
-    "node_modules",
-    "cdk.out"
-  ]
+  "exclude": ["node_modules", "cdk.out"]
 }
