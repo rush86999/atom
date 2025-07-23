@@ -11,47 +11,93 @@ from dependencies import (
     get_generate_weekly_briefing,
 )
 
+from scheduler import start_scheduler
+
 install_dependencies()
 
 app = FastAPI()
 
-@app.post("/competitor-analysis")
-def competitor_analysis(
-    competitor_website: str,
-    competitor_twitter_username: str,
-    competitor_name: str,
-    competitor_ticker: str,
-    scrape_website: callable = Depends(get_scrape_website),
-    get_twitter_data: callable = Depends(get_get_twitter_data),
-    get_news_data: callable = Depends(get_get_news_data),
-    get_financial_data: callable = Depends(get_get_financial_data),
-    create_notion_page: callable = Depends(get_create_notion_page),
-    store_data: callable = Depends(get_store_data),
-):
+start_scheduler()
+
+from database import get_db_connection
+
+@app.post("/competitors")
+def create_competitor(name: str, website: str, twitter_username: str = None, ticker: str = None):
     """
-    Generates a competitor briefing and creates a new page in Notion with the briefing.
+    Creates a new competitor configuration.
     """
-    try:
-        scraped_data = scrape_website(competitor_website)
-        twitter_data = get_twitter_data(competitor_twitter_username)
-        news_data = get_news_data(competitor_name)
-        financial_data = get_financial_data(competitor_ticker)
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO competitors (name, website, twitter_username, ticker) VALUES (?, ?, ?, ?)",
+        (name, website, twitter_username, ticker),
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Competitor created successfully."}
 
-        store_data(competitor_name, scraped_data, twitter_data, news_data, financial_data)
+@app.get("/competitors")
+def get_competitors():
+    """
+    Returns all competitor configurations.
+    """
+    conn = get_db_connection()
+    competitors = conn.execute("SELECT * FROM competitors").fetchall()
+    conn.close()
+    return competitors
 
-        competitor_briefing = generate_competitor_briefing(
-            competitor_name,
-            scraped_data,
-            twitter_data,
-            news_data,
-            financial_data
-        )
+@app.put("/competitors/{competitor_id}")
+def update_competitor(competitor_id: int, name: str, website: str, twitter_username: str = None, ticker: str = None):
+    """
+    Updates a competitor configuration.
+    """
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE competitors SET name = ?, website = ?, twitter_username = ?, ticker = ? WHERE id = ?",
+        (name, website, twitter_username, ticker, competitor_id),
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Competitor updated successfully."}
 
-        create_notion_page(f"Competitor Briefing for {competitor_name}", competitor_briefing)
+@app.delete("/competitors/{competitor_id}")
+def delete_competitor(competitor_id: int):
+    """
+    Deletes a competitor configuration.
+    """
+    conn = get_db_connection()
+    conn.execute("DELETE FROM competitors WHERE id = ?", (competitor_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Competitor deleted successfully."}
 
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+def competitor_analysis():
+    """
+    Generates a competitor briefing for each competitor in the database.
+    """
+    conn = get_db_connection()
+    competitors = conn.execute("SELECT * FROM competitors").fetchall()
+    conn.close()
+
+    for competitor in competitors:
+        try:
+            scraped_data = scrape_website(competitor["website"])
+            twitter_data = get_twitter_data(competitor["twitter_username"])
+            news_data = get_news_data(competitor["name"])
+            financial_data = get_financial_data(competitor["ticker"])
+
+            store_data(competitor["name"], scraped_data, twitter_data, news_data, financial_data)
+
+            competitor_briefing = generate_competitor_briefing(
+                competitor["name"],
+                scraped_data,
+                twitter_data,
+                news_data,
+                financial_data
+            )
+
+            create_notion_page(f"Competitor Briefing for {competitor['name']}", competitor_briefing)
+        except Exception as e:
+            print(f"Error generating competitor briefing for {competitor['name']}: {e}")
 
 @app.post("/weekly-briefing")
 def weekly_briefing(
