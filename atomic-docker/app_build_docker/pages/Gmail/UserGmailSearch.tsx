@@ -56,6 +56,14 @@ const SEARCH_USER_GMAIL_MUTATION = gql`
   }
 `;
 
+const CREATE_EMAIL_REMINDER_MUTATION = gql`
+  mutation CreateEmailReminder($input: CreateEmailReminderInput!) {
+    createEmailReminder(input: $input) {
+      id
+    }
+  }
+`;
+
 const GET_USER_GMAIL_CONTENT_MUTATION = gql`
   mutation GetUserGmailContent($input: GetUserGmailContentInput!) {
     getUserGmailContent(input: $input) {
@@ -101,6 +109,8 @@ const UserGmailSearchPage = () => {
   const [selectedEmail, setSelectedEmail] = useState<DetailedEmailContent | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState<boolean>(false);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
+  const [showReminderModal, setShowReminderModal] = useState<boolean>(false);
+  const [reminderDate, setReminderDate] = useState(new Date());
 
   const [searchGmailMutation, { loading: searchLoading, error: searchError }] = useMutation(SEARCH_USER_GMAIL_MUTATION, {
     onCompleted: (data) => {
@@ -181,6 +191,52 @@ const UserGmailSearchPage = () => {
       setShowDetailModal(false);
     },
   });
+
+  const [createEmailReminderMutation, { loading: reminderLoading, error: reminderError }] = useMutation(CREATE_EMAIL_REMINDER_MUTATION, {
+    onCompleted: (data) => {
+      if (data.createEmailReminder.id) {
+        toast({
+          title: 'Reminder Set',
+          description: 'Your reminder has been set successfully.',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+        setShowReminderModal(false);
+      } else {
+        toast({
+          title: 'Failed to Set Reminder',
+          description: 'An error occurred while setting the reminder.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    },
+    onError: (err) => {
+      toast({
+        title: 'Reminder Error',
+        description: err.message || 'An unexpected error occurred.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
+
+  const handleSetReminder = () => {
+    if (selectedEmail) {
+      createEmailReminderMutation({
+        variables: {
+          input: {
+            emailId: selectedEmail.id,
+            service: 'gmail',
+            remindAt: reminderDate.toISOString(),
+          },
+        },
+      });
+    }
+  };
 
   const handleSearch = () => {
     if (searchQuery.trim() === '') {
@@ -290,6 +346,7 @@ const UserGmailSearchPage = () => {
                   </>
                 )}
               </ScrollView>
+              <Button label="Remind me" onClick={() => setShowReminderModal(true)} />
               <Pressable
                 style={styles.closeButton}
                 onPress={() => {
@@ -298,6 +355,35 @@ const UserGmailSearchPage = () => {
                 }}
               >
                 <Text style={styles.closeButtonText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {showReminderModal && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showReminderModal}
+          onRequestClose={() => setShowReminderModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Set Reminder</Text>
+              <Text>Select a date and time for your reminder:</Text>
+              {/* I will use a simple text input for now, a proper date picker would be better */}
+              <TextField
+                placeholder="YYYY-MM-DDTHH:mm:ss.sssZ"
+                value={reminderDate.toISOString()}
+                onChangeText={(text) => setReminderDate(new Date(text))}
+              />
+              <Button label="Set Reminder" onClick={handleSetReminder} disabled={reminderLoading} />
+              <Pressable
+                style={styles.closeButton}
+                onPress={() => setShowReminderModal(false)}
+              >
+                <Text style={styles.closeButtonText}>Cancel</Text>
               </Pressable>
             </View>
           </View>

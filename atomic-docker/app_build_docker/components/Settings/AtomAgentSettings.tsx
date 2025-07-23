@@ -279,6 +279,25 @@ const AtomAgentSettings = () => {
 
       {/* Third-Party Integrations Section */}
       <ThirdPartyIntegrations />
+
+      {/* LLM Model Selection Section */}
+      <Box marginTop="m" paddingTop="m" borderTopWidth={1} borderColor="hairline">
+        <Text variant="subHeader" marginBottom="s">
+          LLM Model
+        </Text>
+        <select
+          style={{
+            width: '100%',
+            padding: '8px',
+            marginBottom: '8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        >
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          <option value="gpt-4">GPT-4</option>
+        </select>
+      </Box>
     </Box>
   );
 };
