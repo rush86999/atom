@@ -58,6 +58,39 @@ async fn send_message_to_agent(app_handle: AppHandle, message: String) -> Result
     Ok(body)
 }
 
+use std::io::Write;
+
+fn create_silent_audio_recording_stream(app_handle: &AppHandle, stream_mutex: &Arc<Mutex<Option<cpal::Stream>>>) {
+    let settings_path = app_handle.path_resolver()
+        .resolve_resource("settings.json")
+        .expect("failed to resolve resource");
+    let settings_file = fs::read_to_string(settings_path).unwrap();
+    let settings: Value = serde_json::from_str(&settings_file).unwrap();
+    let silent_audio_recording = settings["silentAudioRecording"].as_bool().unwrap_or(false);
+
+    if !silent_audio_recording {
+        return;
+    }
+
+    let host = cpal::default_host();
+    let device = host.default_input_device().expect("no input device available");
+    let config = device.default_input_config().unwrap();
+
+    let app_handle_clone = app_handle.clone();
+    let stream = device.build_input_stream(
+        &config.into(),
+        move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            let client = reqwest::blocking::Client::new();
+            let res = client.post("http://localhost:3000/api/silent-audio-recording")
+                .body(data.to_vec())
+                .send();
+        },
+        |err| eprintln!("an error occurred on stream: {}", err),
+    ).unwrap();
+    stream.play().unwrap();
+    *stream_mutex.lock().unwrap() = Some(stream);
+}
+
 fn create_stream(app_handle: &AppHandle, stream_mutex: &Arc<Mutex<Option<cpal::Stream>>>) {
     let settings_path = app_handle.path_resolver()
         .resolve_resource("settings.json")
@@ -119,6 +152,12 @@ fn main() {
             let handle_clone = app_handle.clone();
             let stream_clone = audio_stream.clone();
             create_stream(&handle_clone, &stream_clone);
+
+            // Silent audio recording thread
+            let handle_clone = app_handle.clone();
+            let silent_audio_stream: Arc<Mutex<Option<cpal::Stream>>> = Arc::new(Mutex::new(None));
+            let stream_clone_silent = silent_audio_stream.clone();
+            create_silent_audio_recording_stream(&handle_clone, &stream_clone_silent);
 
             // Power monitor thread
             let handle_clone = app_handle.clone();

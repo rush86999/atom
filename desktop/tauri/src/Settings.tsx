@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
+import Switch from '../components/Switch';
 import './Settings.css';
 
 function Settings() {
@@ -26,6 +27,7 @@ function Settings() {
     trello: '',
     elevenlabs: '',
   });
+  const [silentAudioRecording, setSilentAudioRecording] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
@@ -38,6 +40,7 @@ function Settings() {
       setLlmService(settings.llm.service);
       setLlmApiKey(settings.llm.apiKey);
       setIntegrations(settings.integrations);
+      setSilentAudioRecording(settings.silentAudioRecording);
     });
   }, []);
 
@@ -56,6 +59,7 @@ function Settings() {
         apiKey: llmApiKey,
       },
       integrations,
+      silentAudioRecording,
     };
     writeTextFile('settings.json', JSON.stringify(settings), { dir: 16 }).then(() => {
       setSaveMessage('Settings saved successfully!');
@@ -127,6 +131,14 @@ function Settings() {
           value={integrations.elevenlabs}
           onChange={handleIntegrationChange}
           name="elevenlabs"
+        />
+      </div>
+      <h2>Skills</h2>
+      <div className="setting">
+        <label>Silent Audio Recording</label>
+        <Switch
+          checked={silentAudioRecording}
+          onChange={() => setSilentAudioRecording(!silentAudioRecording)}
         />
       </div>
       <h2>Integrations</h2>
