@@ -1,12 +1,14 @@
 import { OpenAI } from 'openai';
+import { getUserLlmModel } from '../_utils/userService';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function summarizeEmail(emailContent: string): Promise<string> {
+export async function summarizeEmail(userId: string, emailContent: string): Promise<string> {
+  const model = await getUserLlmModel(userId) || 'gpt-3.5-turbo';
   const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
+    model,
     messages: [
       {
         role: 'system',
