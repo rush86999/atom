@@ -45,8 +45,16 @@ def scrape_website(url):
             "link": update["href"],
         })
 
+    news = []
+    for item in soup.find_all("a", href=lambda href: href and "/news/" in href):
+        news.append({
+            "title": item.text.strip(),
+            "link": item["href"],
+        })
+
     return {
         "blog_posts": blog_posts,
         "press_releases": press_releases,
         "product_updates": product_updates,
+        "news": news,
     }
