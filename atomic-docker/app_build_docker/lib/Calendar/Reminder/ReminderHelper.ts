@@ -170,37 +170,41 @@ export const createRemindersForEvent = async (
               // This field name 'Reminder' is likely incorrect for PostGraphile.
               // It would typically be 'allReminders' or a specific query name.
               Reminder: (existingReminders = []) => { // Placeholder for existing cache update logic
-                const newReminderRefs = upsertedReminders.map(c => (cache.writeFragment({
-                  data: c,
-                  fragment: gql`
-                    fragment NewReminder on Reminder { # Type name 'Reminder' should be checked
-                      id
-                      reminderDate
-                      eventId
-                      timezone
-                      method
-                      minutes
-                      useDefault
-                      deleted
-                      createdDate
-                      updatedAt
-                      userId
-                    }
-                  `
-              })))
-              return [...existingReminders, ...newReminderRefs];
-            }
-          }
-        })
-      }
-    })).data?.insert_Reminder?.returning
+                const newReminderRefs = upsertedReminders.map((c) =>
+                  cache.writeFragment({
+                    data: c,
+                    fragment: gql`
+                      fragment NewReminder on Reminder {
+                        # Type name 'Reminder' should be checked
+                        id
+                        reminderDate
+                        eventId
+                        timezone
+                        method
+                        minutes
+                        useDefault
+                        deleted
+                        createdDate
+                        updatedAt
+                        userId
+                      }
+                    `,
+                  }),
+                );
+                return [...existingReminders, ...newReminderRefs];
+              },
+            },
+          });
+        }
+      },
+    });
 
-    console.log(results, ' results inside createRemindersForEvent')
-    return results
+    console.log(resultsData, ' results inside createRemindersForEvent');
+    return resultsData;
   } catch (e) {
-    console.log(e, ' error creating reminders')
+    console.log(e, ' error creating reminders');
   }
-}
+};
 
 export const createReminderForEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
@@ -218,8 +222,8 @@ export const createReminderForEvent = async (
       eventId,
       deleted: false,
       updatedAt: dayjs().toISOString(),
-      createdDate: dayjs().toISOString()
-    }
+      createdDate: dayjs().toISOString(),
+    };
 
     /**
      *  reminderDate,
@@ -228,44 +232,48 @@ export const createReminderForEvent = async (
       useDefault,
      */
     if (reminderDate) {
-      reminderValueToUpsert.reminderDate = reminderDate
+      reminderValueToUpsert.reminderDate = reminderDate;
     }
 
     if (timezone) {
-      reminderValueToUpsert.timezone = timezone
+      reminderValueToUpsert.timezone = timezone;
     }
 
     if (minutes) {
-      reminderValueToUpsert.minutes = minutes
+      reminderValueToUpsert.minutes = minutes;
     }
 
     if (useDefault !== undefined) {
-      reminderValueToUpsert.useDefault = useDefault
+      reminderValueToUpsert.useDefault = useDefault;
     }
 
     // ASSUMPTION: A custom mutation 'upsertReminder' is defined in PostGraphile for single upsert
     // The dynamic update_columns logic is now handled by the PG function.
     const upsertReminderMutation = gql`
-    mutation UpsertReminder($reminder: ReminderInput!) {
-      upsertReminder(input: { reminder: $reminder }) { # Or input: $reminder directly, depends on PG func
-        reminder { # Standard PostGraphile payload
-          id
-          reminderDate
-          eventId
-          timezone
-          method
-          minutes
-          useDefault
-          deleted
-          createdDate
-          updatedAt
-          userId
+      mutation UpsertReminder($reminder: ReminderInput!) {
+        upsertReminder(input: { reminder: $reminder }) {
+          # Or input: $reminder directly, depends on PG func
+          reminder {
+            # Standard PostGraphile payload
+            id
+            reminderDate
+            eventId
+            timezone
+            method
+            minutes
+            useDefault
+            deleted
+            createdDate
+            updatedAt
+            userId
+          }
         }
       }
-    }
-  `
+    `;
     // Adjust generic type for client.mutate based on actual PostGraphile mutation payload
-    const resultsData = (await client.mutate<{ upsertReminder: { reminder: ReminderType } }>({
+    const resultsData = await client.mutate<{
+      upsertReminder: { reminder: ReminderType };
+    }>({
       mutation: upsertReminderMutation,
       variables: {
         reminder: reminderValueToUpsert, // Pass the single object
@@ -279,12 +287,14 @@ export const createReminderForEvent = async (
           cache.modify({
             fields: {
               // Field name 'Reminder' is likely incorrect for PostGraphile list queries.
-              Reminder: (existingReminders = []) => { // Placeholder
+              Reminder: (existingReminders = []) => {
+                // Placeholder
                 // Logic to update or add the single reminder to the cache
                 const newReminderRef = cache.writeFragment({
                   data: upsertedReminder,
                   fragment: gql`
-                    fragment NewSingleReminder on Reminder { # Type name 'Reminder' should be checked
+                    fragment NewSingleReminder on Reminder {
+                      # Type name 'Reminder' should be checked
                       id
                       reminderDate
                       eventId
@@ -297,17 +307,18 @@ export const createReminderForEvent = async (
                       updatedAt
                       userId
                     }
-                  `
-              })))
-              return [...existingReminders, ...newReminderRefs];
-            }
-          }
-        })
-      }
-    })).data?.insert_Reminder?.returning
+                  `,
+                });
+                return [...existingReminders, newReminderRef];
+              },
+            },
+          });
+        }
+      },
+    });
 
-    console.log(results, ' results inside createReminderForEvent')
-    return results
+    console.log(resultsData, ' results inside createReminderForEvent');
+    return resultsData;
   } catch (e) {
     console.log(e, ' unable to create reminder for event')
   }

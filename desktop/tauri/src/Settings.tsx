@@ -1,47 +1,49 @@
-import { useState, useEffect } from 'react';
-import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
-import Switch from '../components/Switch';
-import './Settings.css';
+import { useState, useEffect, ChangeEvent } from "react";
+import { readTextFile, writeTextFile, BaseDirectory } from "@tauri-apps/api/fs";
+import Switch from "./components/Switch";
+import "./Settings.css";
 
 function Settings() {
-  const [sttService, setSttService] = useState('deepgram');
-  const [sttApiKey, setSttApiKey] = useState('');
-  const [ttsService, setTtsService] = useState('deepgram');
-  const [ttsApiKey, setTtsApiKey] = useState('');
-  const [llmService, setLlmService] = useState('openai');
-  const [llmApiKey, setLlmApiKey] = useState('');
+  const [sttService, setSttService] = useState("deepgram");
+  const [sttApiKey, setSttApiKey] = useState("");
+  const [ttsService, setTtsService] = useState("deepgram");
+  const [ttsApiKey, setTtsApiKey] = useState("");
+  const [llmService, setLlmService] = useState("openai");
+  const [llmApiKey, setLlmApiKey] = useState("");
   const [integrations, setIntegrations] = useState({
-    openai: '',
-    google: '',
-    notion: '',
-    deepgram: '',
-    zapier: '',
-    hubspot: '',
-    calendly: '',
-    zoom: '',
-    msteams: '',
-    stripe: '',
-    quickbooks: '',
-    asana: '',
-    jira: '',
-    trello: '',
-    elevenlabs: '',
+    openai: "",
+    google: "",
+    notion: "",
+    deepgram: "",
+    zapier: "",
+    hubspot: "",
+    calendly: "",
+    zoom: "",
+    msteams: "",
+    stripe: "",
+    quickbooks: "",
+    asana: "",
+    jira: "",
+    trello: "",
+    elevenlabs: "",
   });
   const [silentAudioRecording, setSilentAudioRecording] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
+  const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
-    readTextFile('settings.json', { dir: 16 }).then((contents) => {
-      const settings = JSON.parse(contents);
-      setSttService(settings.stt.service);
-      setSttApiKey(settings.stt.apiKey);
-      setTtsService(settings.tts.service);
-      setTtsApiKey(settings.tts.apiKey);
-      setLlmService(settings.llm.service);
-      setLlmApiKey(settings.llm.apiKey);
-      setIntegrations(settings.integrations);
-      setSilentAudioRecording(settings.silentAudioRecording);
-    });
+    readTextFile("settings.json", { dir: BaseDirectory.App }).then(
+      (contents: string) => {
+        const settings = JSON.parse(contents);
+        setSttService(settings.stt.service);
+        setSttApiKey(settings.stt.apiKey);
+        setTtsService(settings.tts.service);
+        setTtsApiKey(settings.tts.apiKey);
+        setLlmService(settings.llm.service);
+        setLlmApiKey(settings.llm.apiKey);
+        setIntegrations(settings.integrations);
+        setSilentAudioRecording(settings.silentAudioRecording);
+      },
+    );
   }, []);
 
   const handleSave = () => {
@@ -61,13 +63,15 @@ function Settings() {
       integrations,
       silentAudioRecording,
     };
-    writeTextFile('settings.json', JSON.stringify(settings), { dir: 16 }).then(() => {
-      setSaveMessage('Settings saved successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
+    writeTextFile("settings.json", JSON.stringify(settings), {
+      dir: BaseDirectory.App,
+    }).then(() => {
+      setSaveMessage("Settings saved successfully!");
+      setTimeout(() => setSaveMessage(""), 3000);
     });
   };
 
-  const handleIntegrationChange = (e) => {
+  const handleIntegrationChange = (e: ChangeEvent<HTMLInputElement>) => {
     setIntegrations({
       ...integrations,
       [e.target.name]: e.target.value,
@@ -80,7 +84,10 @@ function Settings() {
       {saveMessage && <div className="save-message">{saveMessage}</div>}
       <div className="setting">
         <label>STT Service</label>
-        <select value={sttService} onChange={(e) => setSttService(e.target.value)}>
+        <select
+          value={sttService}
+          onChange={(e) => setSttService(e.target.value)}
+        >
           <option value="deepgram">Deepgram</option>
           <option value="other">Other</option>
         </select>
@@ -95,7 +102,10 @@ function Settings() {
       </div>
       <div className="setting">
         <label>TTS Service</label>
-        <select value={ttsService} onChange={(e) => setTtsService(e.target.value)}>
+        <select
+          value={ttsService}
+          onChange={(e) => setTtsService(e.target.value)}
+        >
           <option value="deepgram">Deepgram</option>
           <option value="other">Other</option>
         </select>
@@ -110,7 +120,10 @@ function Settings() {
       </div>
       <div className="setting">
         <label>LLM Service</label>
-        <select value={llmService} onChange={(e) => setLlmService(e.target.value)}>
+        <select
+          value={llmService}
+          onChange={(e) => setLlmService(e.target.value)}
+        >
           <option value="openai">OpenAI</option>
           <option value="other">Other</option>
         </select>
@@ -142,17 +155,19 @@ function Settings() {
         />
       </div>
       <h2>Integrations</h2>
-      {Object.keys(integrations).map((key) => (
-        <div className="setting" key={key}>
-          <label>{key}</label>
-          <input
-            type="text"
-            name={key}
-            value={integrations[key]}
-            onChange={handleIntegrationChange}
-          />
-        </div>
-      ))}
+      {(Object.keys(integrations) as (keyof typeof integrations)[]).map(
+        (key) => (
+          <div className="setting" key={key}>
+            <label>{key}</label>
+            <input
+              type="text"
+              name={key}
+              value={integrations[key]}
+              onChange={handleIntegrationChange}
+            />
+          </div>
+        ),
+      )}
       <button onClick={handleSave}>Save</button>
     </div>
   );

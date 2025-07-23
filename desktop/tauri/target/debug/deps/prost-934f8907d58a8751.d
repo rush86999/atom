@@ -1,0 +1,11 @@
+/Users/rushiparikh/projects/atom/atom/desktop/tauri/target/debug/deps/prost-934f8907d58a8751.d: /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/lib.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/error.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/message.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/types.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/encoding.rs
+
+/Users/rushiparikh/projects/atom/atom/desktop/tauri/target/debug/deps/libprost-934f8907d58a8751.rlib: /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/lib.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/error.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/message.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/types.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/encoding.rs
+
+/Users/rushiparikh/projects/atom/atom/desktop/tauri/target/debug/deps/libprost-934f8907d58a8751.rmeta: /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/lib.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/error.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/message.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/types.rs /Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/encoding.rs
+
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/lib.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/error.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/message.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/types.rs:
+/Users/rushiparikh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-0.9.0/src/encoding.rs:

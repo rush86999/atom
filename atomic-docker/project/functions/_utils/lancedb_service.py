@@ -2,11 +2,15 @@
 try:
     import lancedb
     from lancedb.pydantic import LanceModel, vector
+    from datetime import datetime, timezone
 except ImportError:
-    # Create mock implementations
+    # Create a mock exception class that inherits from Exception
+    class LanceDBClientError(Exception):
+        pass
+
     class MockLanceDB:
         class _Exceptions:
-            LanceDBClientError = type("LanceDBClientError", (Exception,), {})
+            LanceDBClientError = LanceDBClientError
         exceptions = _Exceptions()
 
         def connect(self, uri):
@@ -60,6 +64,7 @@ except ImportError:
 
         def to_pandas(self):
             import pandas as pd
+            from datetime import datetime, timezone
             # Return mock search results
             mock_results = []
             for i in range(min(self.limit_value, 3)):
@@ -129,7 +134,7 @@ def search_meeting_transcripts(
         try:
             table = db.open_table(table_name)
             logger.info(f"Successfully opened LanceDB table: {table_name} at {db_path}")
-        except (FileNotFoundError, lancedb.exceptions.LanceDBClientError) as e: # More specific LanceDB table not found
+        except FileNotFoundError as e: # More specific LanceDB table not found
             logger.warning(f"LanceDB table '{table_name}' not found at {db_path}: {e}. No search performed.")
             return {"status": "success", "data": [], "message": f"Table '{table_name}' not found. No search performed."}
         except Exception as e: # Catch other potential errors during table open

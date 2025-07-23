@@ -1130,8 +1130,7 @@ function UserEnableIntegrations(props: Props) {
             </Overlay>
           </Box>
         </Box>
-      )
-
+      );
 }
 
 export default UserEnableIntegrations

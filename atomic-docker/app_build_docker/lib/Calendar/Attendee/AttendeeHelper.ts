@@ -166,14 +166,15 @@ export const upsertAttendeesInDb = async (
                       updatedAt
                       userId
                     }
-                  `
-              });
-              return [...existingAttendees, newAttendeeRef];
-            }
-          }
-        })
-      }
-    })
+                  `,
+                });
+                return [...existingAttendees, newAttendeeRef];
+              },
+            },
+          });
+        },
+      },
+    );
 
     console.log(data, ' successfully inserted attendees for event')
 

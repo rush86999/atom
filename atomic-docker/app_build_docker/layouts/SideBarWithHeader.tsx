@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode } from "react";
 import {
   IconButton,
   Avatar,
@@ -21,7 +21,7 @@ import {
   MenuDivider,
   MenuItem,
   MenuList,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 import {
   FiHome,
   FiTrendingUp,
@@ -31,25 +31,35 @@ import {
   FiMenu,
   FiBell,
   FiChevronDown,
+  FiBriefcase,
+  FiHelpCircle,
   // FiUnlock, // Not used
-} from 'react-icons/fi';
-import { GiArtificialIntelligence } from 'react-icons/gi';
-import { ThemeToggleButton } from '@components/chat/ui/ThemeToggleButton'; // Import the new button
-import { IconType } from 'react-icons';
-import { ReactText } from 'react';
-import Logo from '@layouts/Logo'
-import { signOut } from "supertokens-auth-react/recipe/thirdpartyemailpassword"
+} from "react-icons/fi";
+import { GiArtificialIntelligence } from "react-icons/gi";
+import { ThemeToggleButton } from "@components/chat/ui/ThemeToggleButton"; // Import the new button
+import { IconType } from "react-icons";
+import { useUserRole } from "../contexts/userRole/userRoleContext";
+import { ReactText } from "react";
+import Logo from "@layouts/Logo";
+import { signOut } from "supertokens-auth-react/recipe/thirdpartyemailpassword";
 import Session from "supertokens-web-js/recipe/session";
 
 interface LinkItemProps {
   name: string;
-    icon: IconType;
-    href: string,
+  icon: IconType;
+  href: string;
 }
 const LinkItems: Array<LinkItemProps> = [
-  { name: 'Home', icon: FiHome, href: '/' },
-  { name: 'Meeting Assists', icon: GiArtificialIntelligence, href: '/Assist/UserListMeetingAssists' },
-  { name: 'Settings', icon: FiSettings, href: '/Settings/UserViewSettings' },
+  { name: "Home", icon: FiHome, href: "/" },
+  {
+    name: "Meeting Assists",
+    icon: GiArtificialIntelligence,
+    href: "/Assist/UserListMeetingAssists",
+  },
+  { name: "Sales", icon: FiTrendingUp, href: "/Sales" },
+  { name: "Projects", icon: FiBriefcase, href: "/Projects" },
+  { name: "Support", icon: FiHelpCircle, href: "/Support" },
+  { name: "Settings", icon: FiSettings, href: "/Settings" },
 ];
 
 export default function SidebarWithHeader({
@@ -59,10 +69,10 @@ export default function SidebarWithHeader({
 }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   return (
-    <Box minH="100vh" bg={useColorModeValue('gray.100', 'gray.900')}>
+    <Box minH="100vh" bg={useColorModeValue("gray.100", "gray.900")}>
       <SidebarContent
         onClose={() => onClose}
-        display={{ base: 'none', md: 'block' }}
+        display={{ base: "none", md: "block" }}
       />
       <Drawer
         autoFocus={false}
@@ -71,7 +81,8 @@ export default function SidebarWithHeader({
         onClose={onClose}
         returnFocusOnClose={false}
         onOverlayClick={onClose}
-        size="full">
+        size="full"
+      >
         <DrawerContent>
           <SidebarContent onClose={onClose} />
         </DrawerContent>
@@ -90,21 +101,35 @@ interface SidebarProps extends BoxProps {
 }
 
 const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
+  const { hasRole } = useUserRole();
+
   return (
     <Box
       transition="3s ease"
-      bg={useColorModeValue('white', 'gray.900')}
+      bg={useColorModeValue("white", "gray.900")}
       borderRight="1px"
-      borderRightColor={useColorModeValue('gray.200', 'gray.700')}
-      w={{ base: 'full', md: 60 }}
+      borderRightColor={useColorModeValue("gray.200", "gray.700")}
+      w={{ base: "full", md: 60 }}
       pos="fixed"
       h="full"
-      {...rest}>
+      {...rest}
+    >
       <Flex h="20" alignItems="center" mx="8" justifyContent="space-between">
         <Logo src={undefined} />
-        <CloseButton display={{ base: 'flex', md: 'none' }} onClick={onClose} />
+        <CloseButton display={{ base: "flex", md: "none" }} onClick={onClose} />
       </Flex>
-      {LinkItems.map((link) => (
+      {LinkItems.filter((link) => {
+        if (link.name === "Sales") {
+          return hasRole("sales");
+        }
+        if (link.name === "Projects") {
+          return hasRole("project_manager");
+        }
+        if (link.name === "Support") {
+          return hasRole("support");
+        }
+        return true;
+      }).map((link) => (
         <NavItem href={link.href} key={link.name} icon={link.icon}>
           {link.name}
         </NavItem>
@@ -114,13 +139,17 @@ const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
 };
 
 interface NavItemProps extends FlexProps {
-    icon: IconType;
-    children: ReactText;
-    href: string,
+  icon: IconType;
+  children: ReactText;
+  href: string;
 }
 const NavItem = ({ icon, children, href, ...rest }: NavItemProps) => {
   return (
-    <Link href={href} style={{ textDecoration: 'none' }} _focus={{ boxShadow: 'none' }}>
+    <Link
+      href={href}
+      style={{ textDecoration: "none" }}
+      _focus={{ boxShadow: "none" }}
+    >
       <Flex
         align="center"
         p="4"
@@ -129,16 +158,17 @@ const NavItem = ({ icon, children, href, ...rest }: NavItemProps) => {
         role="group"
         cursor="pointer"
         _hover={{
-          bg: 'purple.400',
-          color: 'white',
+          bg: "purple.400",
+          color: "white",
         }}
-        {...rest}>
+        {...rest}
+      >
         {icon && (
           <Icon
             mr="4"
             fontSize="16"
             _groupHover={{
-              color: 'white',
+              color: "white",
             }}
             as={icon}
           />
@@ -159,13 +189,14 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
       px={{ base: 4, md: 4 }}
       height="20"
       alignItems="center"
-      bg={useColorModeValue('white', 'gray.900')}
+      bg={useColorModeValue("white", "gray.900")}
       borderBottomWidth="1px"
-      borderBottomColor={useColorModeValue('gray.200', 'gray.700')}
-      justifyContent={{ base: 'space-between', md: 'flex-end' }}
-      {...rest}>
+      borderBottomColor={useColorModeValue("gray.200", "gray.700")}
+      justifyContent={{ base: "space-between", md: "flex-end" }}
+      {...rest}
+    >
       <IconButton
-        display={{ base: 'flex', md: 'none' }}
+        display={{ base: "flex", md: "none" }}
         onClick={onOpen}
         variant="outline"
         aria-label="open menu"
@@ -173,14 +204,15 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
       />
 
       <Text
-        display={{ base: 'flex', md: 'none' }}
+        display={{ base: "flex", md: "none" }}
         fontSize="2xl"
         fontFamily="monospace"
-        fontWeight="bold">
+        fontWeight="bold"
+      >
         Atomic
       </Text>
 
-      <HStack spacing={{ base: '0', md: '6' }}>
+      <HStack spacing={{ base: "0", md: "6" }}>
         <ThemeToggleButton /> {/* Added ThemeToggleButton here */}
         <IconButton
           size="lg"
@@ -188,35 +220,34 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
           aria-label="open menu"
           icon={<FiBell />}
         />
-        <Flex alignItems={'center'}>
+        <Flex alignItems={"center"}>
           <Menu>
             <MenuButton
               py={2}
               transition="all 0.3s"
-              _focus={{ boxShadow: 'none' }}>
+              _focus={{ boxShadow: "none" }}
+            >
               <HStack>
-                <Avatar
-                  size={'sm'}
-                  
-                />
+                <Avatar size={"sm"} />
                 <VStack
-                  display={{ base: 'none', md: 'flex' }}
+                  display={{ base: "none", md: "flex" }}
                   alignItems="flex-start"
                   spacing="1px"
-                  ml="2">
+                  ml="2"
+                >
                   <Text fontSize="xs" color="gray.600">
                     User
                   </Text>
                 </VStack>
-                <Box display={{ base: 'none', md: 'flex' }}>
+                <Box display={{ base: "none", md: "flex" }}>
                   <FiChevronDown />
                 </Box>
               </HStack>
             </MenuButton>
             <MenuList
-              bg={useColorModeValue('white', 'gray.900')}
-              borderColor={useColorModeValue('gray.200', 'gray.700')}>
-              
+              bg={useColorModeValue("white", "gray.900")}
+              borderColor={useColorModeValue("gray.200", "gray.700")}
+            >
               <MenuItem onClick={async () => signOut()}>Sign out</MenuItem>
             </MenuList>
           </Menu>
@@ -225,4 +256,3 @@ const MobileNav = ({ onOpen, ...rest }: MobileProps) => {
     </Flex>
   );
 };
-
