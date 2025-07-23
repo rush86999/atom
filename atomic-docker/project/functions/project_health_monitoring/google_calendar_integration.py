@@ -1,7 +1,7 @@
 import os
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -27,7 +27,7 @@ def get_google_calendar_data(calendar_id):
     creds = Credentials.from_authorized_user_info(credentials)
     service = build("calendar", "v3", credentials=creds)
 
-    now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+    now = datetime.now(timezone.utc).isoformat()
     events_result = service.events().list(
         calendarId=calendar_id, timeMin=now,
         maxResults=10, singleEvents=True,
