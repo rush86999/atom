@@ -99,6 +99,32 @@ const GENERATE_GMAIL_AUTH_URL_MUTATION = gql`
   }
 `;
 
+const GENERATE_OUTLOOK_AUTH_URL_MUTATION = gql`
+  mutation GenerateOutlookAuthUrl {
+    generateOutlookAuthUrl {
+      authUrl
+    }
+  }
+`;
+
+const GET_OUTLOOK_CONNECTION_STATUS_QUERY = gql`
+  query GetOutlookConnectionStatus {
+    getOutlookConnectionStatus {
+      isConnected
+      userEmail
+    }
+  }
+`;
+
+const DISCONNECT_OUTLOOK_ACCOUNT_MUTATION = gql`
+  mutation DisconnectOutlookAccount {
+    disconnectOutlookAccount {
+      success
+      message
+    }
+  }
+`;
+
 // GraphQL for Gmail Connection Status and Disconnect
 const GET_GMAIL_CONNECTION_STATUS_QUERY = gql`
   query GetGmailConnectionStatus {
@@ -268,6 +294,11 @@ function UserViewCalendarAndContactIntegrations() {
     const [gmailUserEmail, setGmailUserEmail] = useState<string | null>(null);
     const [isGmailStatusLoading, setIsGmailStatusLoading] = useState<boolean>(true);
 
+    // State for Outlook Integration
+    const [isOutlookConnected, setIsOutlookConnected] = useState<boolean>(false);
+    const [outlookUserEmail, setOutlookUserEmail] = useState<string | null>(null);
+    const [isOutlookStatusLoading, setIsOutlookStatusLoading] = useState<boolean>(true);
+
 
     const googleCalendarElement = useRef<any>()
     const toast = useToast()
@@ -380,6 +411,87 @@ function UserViewCalendarAndContactIntegrations() {
       toast({
         title: 'Error Disconnecting Gmail',
         description: (error as Error).message || 'Could not disconnect Gmail. Please try again.',
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Outlook Connection Handler
+  const handleConnectOutlook = async () => {
+    setLoading(true);
+    try {
+      const response = await client.mutate({
+        mutation: GENERATE_OUTLOOK_AUTH_URL_MUTATION,
+      });
+
+      if (response.data?.generateOutlookAuthUrl?.authUrl) {
+        window.location.href = response.data.generateOutlookAuthUrl.authUrl;
+      } else {
+        throw new Error('Failed to get Outlook authorization URL.');
+      }
+    } catch (error) {
+      console.error('Error initiating Outlook connection:', error);
+      toast({
+        title: 'Error Connecting Outlook',
+        description: (error as Error).message || 'Could not initiate Outlook connection. Please try again.',
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch Outlook connection status on mount
+    setIsOutlookStatusLoading(true);
+    client.query({ query: GET_OUTLOOK_CONNECTION_STATUS_QUERY, fetchPolicy: 'network-only' })
+      .then(response => {
+        const status = response.data?.getOutlookConnectionStatus;
+        if (status) {
+          setIsOutlookConnected(status.isConnected);
+          setOutlookUserEmail(status.userEmail || null);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching Outlook connection status:", err);
+        // Assume not connected on error
+        setIsOutlookConnected(false);
+        setOutlookUserEmail(null);
+      })
+      .finally(() => {
+        setIsOutlookStatusLoading(false);
+      });
+  }, [client, toast]);
+
+  const handleDisconnectOutlook = async () => {
+    setLoading(true);
+    try {
+      const response = await client.mutate({
+        mutation: DISCONNECT_OUTLOOK_ACCOUNT_MUTATION,
+      });
+      if (response.data?.disconnectOutlookAccount?.success) {
+        toast({
+          title: 'Outlook Disconnected',
+          description: response.data.disconnectOutlookAccount.message || 'Successfully disconnected your Outlook account.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        setIsOutlookConnected(false);
+        setOutlookUserEmail(null);
+      } else {
+        throw new Error(response.data?.disconnectOutlookAccount?.message || 'Failed to disconnect Outlook account.');
+      }
+    } catch (error) {
+      console.error('Error disconnecting Outlook:', error);
+      toast({
+        title: 'Error Disconnecting Outlook',
+        description: (error as Error).message || 'Could not disconnect Outlook. Please try again.',
         status: 'error',
         duration: 9000,
         isClosable: true,
@@ -783,6 +895,33 @@ function UserViewCalendarAndContactIntegrations() {
                 )}
                 {/* Show general loading indicator if connect/disconnect is in progress and not covered by isGmailStatusLoading */}
                 {(loading && !isGmailStatusLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
+              </Box>
+
+              {/* Outlook Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l">
+                <Text variant="optionHeader" style={{ color: palette.darkGray, marginBottom: 10 }}>
+                  Outlook Integration
+                </Text>
+                {isOutlookStatusLoading ? (
+                  <ActivityIndicator size="small" color={palette.primary} style={{ marginTop: 10 }} />
+                ) : isOutlookConnected ? (
+                  <Box alignItems="center">
+                    <Text variant="body" mb="s">
+                      {outlookUserEmail ? `Connected as: ${outlookUserEmail}` : "Outlook is connected."}
+                    </Text>
+                    <Button
+                      label="Disconnect Outlook"
+                      onClick={handleDisconnectOutlook}
+                      variant="warning"
+                      disabled={loading}
+                    />
+                  </Box>
+                ) : (
+                  <Pressable onPress={handleConnectOutlook} disabled={loading}>
+                    <Text>Connect Outlook</Text>
+                  </Pressable>
+                )}
+                {(loading && !isOutlookStatusLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
               </Box>
 
               {/* Google Drive Integration Section - Conceptual Placement */}
