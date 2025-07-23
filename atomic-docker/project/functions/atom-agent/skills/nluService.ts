@@ -499,7 +499,34 @@ New Intent for Scheduling from Email Content:
             }
           }
 
-40. Intent: "Browser"
+40. Intent: "CreateEmailReminder"
+    - Purpose: To create a reminder for an email.
+    - Entities:
+        - "email_id": {
+            "description": "The ID of the email to set a reminder for.",
+            "type": "string",
+            "required": true
+        },
+        - "service": {
+            "description": "The email service (e.g., 'gmail', 'outlook').",
+            "type": "string",
+            "required": true
+        },
+        - "remind_at": {
+            "description": "The date and time to be reminded (e.g., 'tomorrow at 9am', 'in 2 hours').",
+            "type": "string",
+            "required": true
+        }
+    - Examples:
+        - User: "Remind me about this email tomorrow at 9am."
+          Response: {
+            "intent": "CreateEmailReminder",
+            "entities": {
+              "remind_at": "tomorrow at 9am"
+            }
+          }
+
+41. Intent: "Browser"
     - Purpose: To perform a task in a web browser.
     - Entities:
         - "task": {

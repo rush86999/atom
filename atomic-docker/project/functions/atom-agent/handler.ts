@@ -210,6 +210,7 @@ import { handleCreateAsanaTask, handleQueryAsanaTasks, handleUpdateAsanaTask } f
 import { handleCreateJiraIssue, handleQueryJiraIssues, handleUpdateJiraIssue } from './skills/jira';
 import { handleCreateTrelloCard, handleQueryTrelloCards, handleUpdateTrelloCard } from './skills/trello';
 import { handleBrowser } from './skills/browserSkills';
+import { ReminderSkills } from './skills/reminderSkills';
 
 
 // Define the TTS service URL
@@ -262,6 +263,9 @@ async function _internalHandleMessage(
   // Options now uses the extended interface
   options?: InternalHandleMessageOptions
 ): Promise<{text: string, nluResponse?: ProcessedNLUResponse, structuredData?: any}> {
+  const reminderSkills = new ReminderSkills();
+  await reminderSkills.processDueReminders();
+
   let textResponse: string;
   let structuredDataResponse: any = undefined; // Variable to hold structured data
   let conversationLtmContext: LtmQueryResult[] | null = null;
@@ -909,6 +913,16 @@ async function _internalHandleMessage(
 
       case "Browser":
         textResponse = await handleBrowser(nluResponse.entities);
+        break;
+
+      case "CreateEmailReminder":
+        try {
+          const { emailId, service, remindAt } = nluResponse.entities;
+          await reminderSkills.createEmailReminder(userId, emailId, service, new Date(remindAt));
+          textResponse = "I have set a reminder for this email.";
+        } catch (error) {
+          textResponse = "I was unable to set a reminder for this email.";
+        }
         break;
 
       case "CreateTimePreferenceRule":
