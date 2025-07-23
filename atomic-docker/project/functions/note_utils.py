@@ -882,3 +882,35 @@ def embed_and_store_transcript_in_lancedb(
     )
 
     return store_result
+
+def process_silent_audio_recording_for_notion(audio_file_path: str, title: str, notion_db_id: str = None, notion_source_text: str = "Silent Audio Recording Note", linked_task_id: str = None, linked_event_id: str = None, deepgram_api_key: str = None, openai_api_key: str = None) -> dict:
+    if not notion: return {"status": "error", "message": "Notion client not initialized.", "code": "NOTION_CLIENT_ERROR"}
+    transcript_resp = transcribe_audio_deepgram(audio_file_path, deepgram_api_key_param=deepgram_api_key)
+    if transcript_resp["status"] == "error": return {"status": "error", "message": "Transcription failed for silent audio recording.", "code": "TRANSCRIPTION_ERROR", "details": transcript_resp.get("message")}
+    transcript = transcript_resp.get("data", {}).get("transcript", ""); summary, key_points = None, None
+    if transcript.strip():
+        summarize_resp = summarize_transcript_gpt(transcript, openai_api_key_param=openai_api_key)
+        if summarize_resp["status"] == "success":
+            summary = summarize_resp["data"]["summary"]
+            key_points = summarize_resp["data"]["key_points"]
+            decisions = summarize_resp["data"]["decisions"]
+            action_items = summarize_resp["data"]["action_items"]
+        else:
+            print(f"Warning: Summarization failed for {audio_file_path}: {summarize_resp['message']}")
+    else:
+        summary = "No speech detected or transcript was empty."
+        key_points = ""
+        decisions = []
+        action_items = []
+    create_note_resp = create_processed_audio_note_in_notion(
+        title=title,
+        transcript=transcript,
+        summary_data={"summary": summary, "decisions": decisions, "action_items": action_items},
+        notion_db_id=notion_db_id,
+        source=notion_source_text,
+        linked_event_id=linked_event_id,
+    )
+    if create_note_resp["status"] == "success":
+        return {"status": "success", "data": {"notion_page_id": create_note_resp["data"]["page_id"], "url": create_note_resp["data"]["url"], "summary": summary, "key_points": key_points, "transcript_preview": transcript[:200]}}
+    else:
+        return {"status": "error", "message": "Failed to create Notion note from silent audio recording.", "code": "NOTION_CREATE_ERROR", "details": create_note_resp.get("message")}
