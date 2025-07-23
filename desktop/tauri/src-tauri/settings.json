@@ -26,5 +26,6 @@
     "asana": "",
     "jira": "",
     "trello": ""
-  }
+  },
+  "silentAudioRecording": true
 }
