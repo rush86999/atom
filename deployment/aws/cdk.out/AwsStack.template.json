@@ -1,5 +1,1059 @@
 {
+ "Metadata": {
+  "cdk_nag": {
+   "rules_to_suppress": [
+    {
+     "reason": "Suppressing SSL check for this workshop",
+     "id": "AwsSolutions-SNS3"
+    },
+    {
+     "reason": "Suppressing VPC flow logs for this workshop",
+     "id": "AwsSolutions-VPC7"
+    },
+    {
+     "reason": "Suppressing Container Insights for this workshop",
+     "id": "AwsSolutions-ECS4"
+    },
+    {
+     "reason": "Suppressing IAM wildcard permissions for this workshop",
+     "id": "AwsSolutions-IAM5"
+    },
+    {
+     "reason": "Suppressing RDS storage encryption for this workshop",
+     "id": "AwsSolutions-RDS2"
+    },
+    {
+     "reason": "Suppressing RDS multi-AZ for this workshop",
+     "id": "AwsSolutions-RDS3"
+    },
+    {
+     "reason": "Suppressing RDS deletion protection for this workshop",
+     "id": "AwsSolutions-RDS10"
+    },
+    {
+     "reason": "S3 server access logging is not implemented for the data bucket in this phase.",
+     "id": "AwsSolutions-S1"
+    },
+    {
+     "reason": "ALB access logging is not implemented in this phase.",
+     "id": "AwsSolutions-ELB2"
+    },
+    {
+     "reason": "IAM DB Authentication is not currently a requirement; using native DB auth with Secrets Manager.",
+     "id": "AwsSolutions-RDS6"
+    },
+    {
+     "reason": "Using standard DB port is acceptable for this internal RDS instance.",
+     "id": "AwsSolutions-RDS11"
+    },
+    {
+     "reason": "Restricting all security group egress is a larger hardening task deferred for now.",
+     "id": "AwsSolutions-EC23"
+    },
+    {
+     "reason": "Read-only root filesystem for ECS tasks requires per-service analysis and is deferred.",
+     "id": "AwsSolutions-ECS2"
+    },
+    {
+     "reason": "EFS default encryption (AWS-managed KMS key) is considered sufficient for this phase.",
+     "id": "AwsSolutions-EFS3"
+    },
+    {
+     "reason": "CloudWatch Log groups are not encrypted with KMS by default in this stack; using default AWS-managed encryption.",
+     "id": "AwsSolutions-LOG1"
+    }
+   ]
+  }
+ },
+ "Parameters": {
+  "CertificateArn": {
+   "Type": "String",
+   "Default": "",
+   "Description": "Optional: ARN of an existing ACM certificate for the domain name."
+  },
+  "OperatorEmail": {
+   "Type": "String",
+   "AllowedPattern": ".+@.+\\..+",
+   "Description": "Email address for operational alerts and notifications."
+  },
+  "DeploymentStage": {
+   "Type": "String",
+   "Default": "dev",
+   "AllowedValues": [
+    "dev",
+    "staging",
+    "prod"
+   ],
+   "Description": "The deployment stage (dev, staging, prod)."
+  },
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Conditions": {
+  "IsProdStageCondition": {
+   "Fn::Equals": [
+    {
+     "Ref": "DeploymentStage"
+    },
+    "prod"
+   ]
+  }
+ },
  "Resources": {
+  "AlarmTopicD01E77F9": {
+   "Type": "AWS::SNS::Topic",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AlarmTopic/Resource"
+   }
+  },
+  "AlarmTopicTokenSubscription17F7316A1": {
+   "Type": "AWS::SNS::Subscription",
+   "Properties": {
+    "Endpoint": {
+     "Ref": "OperatorEmail"
+    },
+    "Protocol": "email",
+    "TopicArn": {
+     "Ref": "AlarmTopicD01E77F9"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AlarmTopic/TokenSubscription:1/Resource"
+   }
+  },
+  "AtomicVpcD404E496": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      },
+      {
+       "reason": "VPC Flow Logs are not enabled for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet1SubnetA737E17C": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.0.0/18",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PublicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet1/Subnet",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet1RouteTableC8413083": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PublicSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet1/RouteTable",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet1RouteTableAssociation3FFCB815": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "AtomicVpcPublicSubnet1RouteTableC8413083"
+    },
+    "SubnetId": {
+     "Ref": "AtomicVpcPublicSubnet1SubnetA737E17C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet1/RouteTableAssociation",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet1DefaultRoute77B5AF36": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "AtomicVpcIGW53D98970"
+    },
+    "RouteTableId": {
+     "Ref": "AtomicVpcPublicSubnet1RouteTableC8413083"
+    }
+   },
+   "DependsOn": [
+    "AtomicVpcVPCGWDDE21E70"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet1/DefaultRoute",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet1EIP9FD64675": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PublicSubnet1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet1/EIP",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet1NATGatewayCE22C011": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "AtomicVpcPublicSubnet1EIP9FD64675",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "AtomicVpcPublicSubnet1SubnetA737E17C"
+    },
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PublicSubnet1"
+     }
+    ]
+   },
+   "DependsOn": [
+    "AtomicVpcPublicSubnet1DefaultRoute77B5AF36",
+    "AtomicVpcPublicSubnet1RouteTableAssociation3FFCB815"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet1/NATGateway",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet2Subnet2EAC937E": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.64.0/18",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PublicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet2/Subnet",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet2RouteTableD3009F6C": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PublicSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet2/RouteTable",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet2RouteTableAssociationC2CC6134": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "AtomicVpcPublicSubnet2RouteTableD3009F6C"
+    },
+    "SubnetId": {
+     "Ref": "AtomicVpcPublicSubnet2Subnet2EAC937E"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet2/RouteTableAssociation",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPublicSubnet2DefaultRoute3E137768": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "AtomicVpcIGW53D98970"
+    },
+    "RouteTableId": {
+     "Ref": "AtomicVpcPublicSubnet2RouteTableD3009F6C"
+    }
+   },
+   "DependsOn": [
+    "AtomicVpcVPCGWDDE21E70"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnet2/DefaultRoute",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet1Subnet9483CF54": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.128.0/18",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PrivateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet1/Subnet",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet1RouteTable26C3C2B8": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PrivateSubnet1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet1/RouteTable",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet1RouteTableAssociationDC304322": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "AtomicVpcPrivateSubnet1RouteTable26C3C2B8"
+    },
+    "SubnetId": {
+     "Ref": "AtomicVpcPrivateSubnet1Subnet9483CF54"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet1/RouteTableAssociation",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet1DefaultRoute786CBE3F": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "AtomicVpcPublicSubnet1NATGatewayCE22C011"
+    },
+    "RouteTableId": {
+     "Ref": "AtomicVpcPrivateSubnet1RouteTable26C3C2B8"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet1/DefaultRoute",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet2SubnetD22D1428": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.192.0/18",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PrivateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet2/Subnet",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet2RouteTable254CA10F": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc/PrivateSubnet2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet2/RouteTable",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet2RouteTableAssociationCAA49C69": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "AtomicVpcPrivateSubnet2RouteTable254CA10F"
+    },
+    "SubnetId": {
+     "Ref": "AtomicVpcPrivateSubnet2SubnetD22D1428"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet2/RouteTableAssociation",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcPrivateSubnet2DefaultRoute0BA66386": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "AtomicVpcPublicSubnet1NATGatewayCE22C011"
+    },
+    "RouteTableId": {
+     "Ref": "AtomicVpcPrivateSubnet2RouteTable254CA10F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnet2/DefaultRoute",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcIGW53D98970": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "AwsStack/AtomicVpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/IGW",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcVPCGWDDE21E70": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "AtomicVpcIGW53D98970"
+    },
+    "VpcId": {
+     "Ref": "AtomicVpcD404E496"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/VPCGW",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicVpcRestrictDefaultSecurityGroupCustomResource0C2758BC": {
+   "Type": "Custom::VpcRestrictDefaultSG",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E",
+      "Arn"
+     ]
+    },
+    "DefaultSecurityGroupId": {
+     "Fn::GetAtt": [
+      "AtomicVpcD404E496",
+      "DefaultSecurityGroup"
+     ]
+    },
+    "Account": "987411942459"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicVpc/RestrictDefaultSecurityGroupCustomResource/Default",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing VPC flow logs for this workshop",
+       "id": "AwsSolutions-VPC7"
+      }
+     ]
+    }
+   }
+  },
+  "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+     }
+    ],
+    "Policies": [
+     {
+      "PolicyName": "Inline",
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Action": [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress"
+         ],
+         "Resource": [
+          {
+           "Fn::Join": [
+            "",
+            [
+             "arn:aws:ec2:us-east-1:987411942459:security-group/",
+             {
+              "Fn::GetAtt": [
+               "AtomicVpcD404E496",
+               "DefaultSecurityGroup"
+              ]
+             }
+            ]
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role"
+   }
+  },
+  "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-987411942459-us-east-1",
+     "S3Key": "7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200.zip"
+    },
+    "Timeout": 900,
+    "MemorySize": 128,
+    "Handler": "__entrypoint__.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Description": "Lambda function for removing all inbound/outbound rules from the VPC default security group"
+   },
+   "DependsOn": [
+    "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler",
+    "aws:asset:path": "asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200",
+    "aws:asset:property": "Code"
+   }
+  },
+  "AtomicCluster0DDF655C": {
+   "Type": "AWS::ECS::Cluster",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicCluster/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing Container Insights for this workshop",
+       "id": "AwsSolutions-ECS4"
+      },
+      {
+       "reason": "Container Insights are not enabled for this workshop",
+       "id": "AwsSolutions-ECS4"
+      }
+     ]
+    }
+   }
+  },
+  "AtomicClusterFE52F359": {
+   "Type": "AWS::ECS::ClusterCapacityProviderAssociations",
+   "Properties": {
+    "CapacityProviders": [
+     "FARGATE",
+     "FARGATE_SPOT"
+    ],
+    "Cluster": {
+     "Ref": "AtomicCluster0DDF655C"
+    },
+    "DefaultCapacityProviderStrategy": []
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicCluster/AtomicCluster"
+   }
+  },
+  "ECSTaskRoleF2ADB362": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/ECSTaskRole/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Suppressing IAM wildcard permissions for this workshop",
+       "id": "AwsSolutions-IAM5"
+      },
+      {
+       "reason": "Allowing wildcard permissions for this workshop as per service requirements for S3 and ECR.",
+       "id": "AwsSolutions-IAM5"
+      }
+     ]
+    }
+   }
+  },
+  "ECSTaskRoleDefaultPolicy82FC9293": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AtomicDataBucketE642B1DA",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AtomicDataBucketE642B1DA",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "ecr:GetAuthorizationToken",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "atomicappRepoBED6513B",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "atomicfunctionsRepoA602F8DD",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "atomichandshakeRepo8D7DD10F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "atomicoauthRepoD4F710CC",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "atomicoptaplannerRepoC039AD7C",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "atomicpythonagentRepoD31A96D9",
+          "Arn"
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Ref": "ApiTokenSecret3A926DEB"
+        },
+        {
+         "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
+        },
+        {
+         "Ref": "DeepgramApiKeyBBD97097"
+        },
+        {
+         "Ref": "MskBootstrapBrokers1579C88C"
+        },
+        {
+         "Ref": "NotionApiTokenC39ED238"
+        },
+        {
+         "Ref": "NotionNotesDbId35185EF9"
+        },
+        {
+         "Ref": "NotionResearchProjectsDbId3DE8B9E6"
+        },
+        {
+         "Ref": "NotionResearchTasksDbIdAEA8F7F3"
+        },
+        {
+         "Ref": "OpenAiApiKeyAB1C389B"
+        },
+        {
+         "Ref": "OptaplannerDbConnString28A909E6"
+        },
+        {
+         "Ref": "PostGraphileDbConnString646E2AA0"
+        },
+        {
+         "Ref": "PostGraphileJwtSecret61960B62"
+        },
+        {
+         "Ref": "SupertokensDbConnStringE1799986"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AppLogGroup7D8CD952",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "SupertokensLogGroup841B0C09",
+          "Arn"
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "SupertokensDbConnStringE1799986"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ECSTaskRoleDefaultPolicy82FC9293",
+    "Roles": [
+     {
+      "Ref": "ECSTaskRoleF2ADB362"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/ECSTaskRole/DefaultPolicy/Resource"
+   }
+  },
   "AtomicDataBucketE642B1DA": {
    "Type": "AWS::S3::Bucket",
    "Properties": {
@@ -10,21 +1064,6 @@
         "SSEAlgorithm": "AES256"
        }
       }
-     ]
-    },
-    "BucketName": {
-     "Fn::Join": [
-      "",
-      [
-       "awsstack-atomic-data-bucket-",
-       {
-        "Ref": "AWS::AccountId"
-       },
-       "-",
-       {
-        "Ref": "AWS::Region"
-       }
-      ]
      ]
     },
     "PublicAccessBlockConfiguration": {
@@ -54,6 +1093,40 @@
     },
     "PolicyDocument": {
      "Statement": [
+      {
+       "Action": "s3:*",
+       "Condition": {
+        "Bool": {
+         "aws:SecureTransport": "false"
+        }
+       },
+       "Effect": "Deny",
+       "Principal": {
+        "AWS": "*"
+       },
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AtomicDataBucketE642B1DA",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AtomicDataBucketE642B1DA",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
       {
        "Action": [
         "s3:DeleteObject*",
@@ -152,9 +1225,7 @@
    "Type": "AWS::Lambda::Function",
    "Properties": {
     "Code": {
-     "S3Bucket": {
-      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
-     },
+     "S3Bucket": "cdk-hnb659fds-assets-987411942459-us-east-1",
      "S3Key": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip"
     },
     "Timeout": 900,
@@ -189,7 +1260,7 @@
     "aws:asset:property": "Code"
    }
   },
-  "AtomicFunctionsRepoCA9ADB29": {
+  "atomicfunctionsRepoA602F8DD": {
    "Type": "AWS::ECR::Repository",
    "Properties": {
     "RepositoryName": "atomic-functions",
@@ -203,10 +1274,10 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicFunctionsRepo/Resource"
+    "aws:cdk:path": "AwsStack/atomic-functionsRepo/Resource"
    }
   },
-  "AtomicFunctionsRepoAutoDeleteImagesCustomResource54DE9CE8": {
+  "atomicfunctionsRepoAutoDeleteImagesCustomResource25E8E3AA": {
    "Type": "Custom::ECRAutoDeleteImages",
    "Properties": {
     "ServiceToken": {
@@ -216,16 +1287,16 @@
      ]
     },
     "RepositoryName": {
-     "Ref": "AtomicFunctionsRepoCA9ADB29"
+     "Ref": "atomicfunctionsRepoA602F8DD"
     }
    },
    "DependsOn": [
-    "AtomicFunctionsRepoCA9ADB29"
+    "atomicfunctionsRepoA602F8DD"
    ],
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicFunctionsRepo/AutoDeleteImagesCustomResource/Default"
+    "aws:cdk:path": "AwsStack/atomic-functionsRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
   "CustomECRAutoDeleteImagesCustomResourceProviderRole665F2773": {
@@ -271,15 +1342,7 @@
              {
               "Ref": "AWS::Partition"
              },
-             ":ecr:",
-             {
-              "Ref": "AWS::Region"
-             },
-             ":",
-             {
-              "Ref": "AWS::AccountId"
-             },
-             ":repository/*"
+             ":ecr:us-east-1:987411942459:repository/*"
             ]
            ]
           }
@@ -303,9 +1366,7 @@
    "Type": "AWS::Lambda::Function",
    "Properties": {
     "Code": {
-     "S3Bucket": {
-      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
-     },
+     "S3Bucket": "cdk-hnb659fds-assets-987411942459-us-east-1",
      "S3Key": "35a53bc183aaf4d7fe84d5e5ed06d48f33ef294fa1325c16cf5db800fa6ee72d.zip"
     },
     "Timeout": 900,
@@ -324,7 +1385,7 @@
       [
        "Lambda function for auto-deleting images in ",
        {
-        "Ref": "AtomicFunctionsRepoCA9ADB29"
+        "Ref": "atomicfunctionsRepoA602F8DD"
        },
        " repository."
       ]
@@ -340,7 +1401,7 @@
     "aws:asset:property": "Code"
    }
   },
-  "AtomicHandshakeRepo7FD56D21": {
+  "atomichandshakeRepo8D7DD10F": {
    "Type": "AWS::ECR::Repository",
    "Properties": {
     "RepositoryName": "atomic-handshake",
@@ -354,10 +1415,10 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicHandshakeRepo/Resource"
+    "aws:cdk:path": "AwsStack/atomic-handshakeRepo/Resource"
    }
   },
-  "AtomicHandshakeRepoAutoDeleteImagesCustomResource233CA07B": {
+  "atomichandshakeRepoAutoDeleteImagesCustomResource746E5F18": {
    "Type": "Custom::ECRAutoDeleteImages",
    "Properties": {
     "ServiceToken": {
@@ -367,19 +1428,19 @@
      ]
     },
     "RepositoryName": {
-     "Ref": "AtomicHandshakeRepo7FD56D21"
+     "Ref": "atomichandshakeRepo8D7DD10F"
     }
    },
    "DependsOn": [
-    "AtomicHandshakeRepo7FD56D21"
+    "atomichandshakeRepo8D7DD10F"
    ],
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicHandshakeRepo/AutoDeleteImagesCustomResource/Default"
+    "aws:cdk:path": "AwsStack/atomic-handshakeRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
-  "AtomicOauthRepoCAF08457": {
+  "atomicoauthRepoD4F710CC": {
    "Type": "AWS::ECR::Repository",
    "Properties": {
     "RepositoryName": "atomic-oauth",
@@ -393,10 +1454,10 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicOauthRepo/Resource"
+    "aws:cdk:path": "AwsStack/atomic-oauthRepo/Resource"
    }
   },
-  "AtomicOauthRepoAutoDeleteImagesCustomResource5BB9BDBF": {
+  "atomicoauthRepoAutoDeleteImagesCustomResource756CCADA": {
    "Type": "Custom::ECRAutoDeleteImages",
    "Properties": {
     "ServiceToken": {
@@ -406,19 +1467,19 @@
      ]
     },
     "RepositoryName": {
-     "Ref": "AtomicOauthRepoCAF08457"
+     "Ref": "atomicoauthRepoD4F710CC"
     }
    },
    "DependsOn": [
-    "AtomicOauthRepoCAF08457"
+    "atomicoauthRepoD4F710CC"
    ],
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicOauthRepo/AutoDeleteImagesCustomResource/Default"
+    "aws:cdk:path": "AwsStack/atomic-oauthRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
-  "AtomicAppRepo2D8E1244": {
+  "atomicappRepoBED6513B": {
    "Type": "AWS::ECR::Repository",
    "Properties": {
     "RepositoryName": "atomic-app",
@@ -432,10 +1493,10 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicAppRepo/Resource"
+    "aws:cdk:path": "AwsStack/atomic-appRepo/Resource"
    }
   },
-  "AtomicAppRepoAutoDeleteImagesCustomResource3E2101A6": {
+  "atomicappRepoAutoDeleteImagesCustomResource00C9A267": {
    "Type": "Custom::ECRAutoDeleteImages",
    "Properties": {
     "ServiceToken": {
@@ -445,19 +1506,19 @@
      ]
     },
     "RepositoryName": {
-     "Ref": "AtomicAppRepo2D8E1244"
+     "Ref": "atomicappRepoBED6513B"
     }
    },
    "DependsOn": [
-    "AtomicAppRepo2D8E1244"
+    "atomicappRepoBED6513B"
    ],
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicAppRepo/AutoDeleteImagesCustomResource/Default"
+    "aws:cdk:path": "AwsStack/atomic-appRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
-  "AtomicOptaplannerRepo893F41D8": {
+  "atomicoptaplannerRepoC039AD7C": {
    "Type": "AWS::ECR::Repository",
    "Properties": {
     "RepositoryName": "atomic-optaplanner",
@@ -471,10 +1532,10 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicOptaplannerRepo/Resource"
+    "aws:cdk:path": "AwsStack/atomic-optaplannerRepo/Resource"
    }
   },
-  "AtomicOptaplannerRepoAutoDeleteImagesCustomResource9A90340F": {
+  "atomicoptaplannerRepoAutoDeleteImagesCustomResourceE7AA0615": {
    "Type": "Custom::ECRAutoDeleteImages",
    "Properties": {
     "ServiceToken": {
@@ -484,567 +1545,61 @@
      ]
     },
     "RepositoryName": {
-     "Ref": "AtomicOptaplannerRepo893F41D8"
+     "Ref": "atomicoptaplannerRepoC039AD7C"
     }
    },
    "DependsOn": [
-    "AtomicOptaplannerRepo893F41D8"
+    "atomicoptaplannerRepoC039AD7C"
    ],
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicOptaplannerRepo/AutoDeleteImagesCustomResource/Default"
+    "aws:cdk:path": "AwsStack/atomic-optaplannerRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
-  "AtomicVpcD404E496": {
-   "Type": "AWS::EC2::VPC",
+  "atomicpythonagentRepoD31A96D9": {
+   "Type": "AWS::ECR::Repository",
    "Properties": {
-    "CidrBlock": "10.0.0.0/16",
-    "EnableDnsHostnames": true,
-    "EnableDnsSupport": true,
-    "InstanceTenancy": "default",
+    "RepositoryName": "atomic-python-agent",
     "Tags": [
      {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc"
+      "Key": "aws-cdk:auto-delete-images",
+      "Value": "true"
      }
     ]
    },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/Resource"
+    "aws:cdk:path": "AwsStack/atomic-python-agentRepo/Resource"
    }
   },
-  "AtomicVpcPublicSubnetSubnet1SubnetA3F000BA": {
-   "Type": "AWS::EC2::Subnet",
-   "Properties": {
-    "AvailabilityZone": {
-     "Fn::Select": [
-      0,
-      {
-       "Fn::GetAZs": ""
-      }
-     ]
-    },
-    "CidrBlock": "10.0.0.0/24",
-    "MapPublicIpOnLaunch": true,
-    "Tags": [
-     {
-      "Key": "aws-cdk:subnet-name",
-      "Value": "PublicSubnet"
-     },
-     {
-      "Key": "aws-cdk:subnet-type",
-      "Value": "Public"
-     },
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PublicSubnetSubnet1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet1/Subnet"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet1RouteTable2ADC4781": {
-   "Type": "AWS::EC2::RouteTable",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PublicSubnetSubnet1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet1/RouteTable"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet1RouteTableAssociation8DCF7832": {
-   "Type": "AWS::EC2::SubnetRouteTableAssociation",
-   "Properties": {
-    "RouteTableId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet1RouteTable2ADC4781"
-    },
-    "SubnetId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet1SubnetA3F000BA"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet1/RouteTableAssociation"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet1DefaultRoute80618E44": {
-   "Type": "AWS::EC2::Route",
-   "Properties": {
-    "DestinationCidrBlock": "0.0.0.0/0",
-    "GatewayId": {
-     "Ref": "AtomicVpcIGW53D98970"
-    },
-    "RouteTableId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet1RouteTable2ADC4781"
-    }
-   },
-   "DependsOn": [
-    "AtomicVpcVPCGWDDE21E70"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet1/DefaultRoute"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet1EIP7AEE3E7A": {
-   "Type": "AWS::EC2::EIP",
-   "Properties": {
-    "Domain": "vpc",
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PublicSubnetSubnet1"
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet1/EIP"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet1NATGateway76048EA8": {
-   "Type": "AWS::EC2::NatGateway",
-   "Properties": {
-    "AllocationId": {
-     "Fn::GetAtt": [
-      "AtomicVpcPublicSubnetSubnet1EIP7AEE3E7A",
-      "AllocationId"
-     ]
-    },
-    "SubnetId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet1SubnetA3F000BA"
-    },
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PublicSubnetSubnet1"
-     }
-    ]
-   },
-   "DependsOn": [
-    "AtomicVpcPublicSubnetSubnet1DefaultRoute80618E44",
-    "AtomicVpcPublicSubnetSubnet1RouteTableAssociation8DCF7832"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet1/NATGateway"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet2Subnet4556046B": {
-   "Type": "AWS::EC2::Subnet",
-   "Properties": {
-    "AvailabilityZone": {
-     "Fn::Select": [
-      1,
-      {
-       "Fn::GetAZs": ""
-      }
-     ]
-    },
-    "CidrBlock": "10.0.1.0/24",
-    "MapPublicIpOnLaunch": true,
-    "Tags": [
-     {
-      "Key": "aws-cdk:subnet-name",
-      "Value": "PublicSubnet"
-     },
-     {
-      "Key": "aws-cdk:subnet-type",
-      "Value": "Public"
-     },
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PublicSubnetSubnet2"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet2/Subnet"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet2RouteTable0A3C697C": {
-   "Type": "AWS::EC2::RouteTable",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PublicSubnetSubnet2"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet2/RouteTable"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet2RouteTableAssociation8D95DA6A": {
-   "Type": "AWS::EC2::SubnetRouteTableAssociation",
-   "Properties": {
-    "RouteTableId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet2RouteTable0A3C697C"
-    },
-    "SubnetId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet2Subnet4556046B"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet2/RouteTableAssociation"
-   }
-  },
-  "AtomicVpcPublicSubnetSubnet2DefaultRouteFC7E878A": {
-   "Type": "AWS::EC2::Route",
-   "Properties": {
-    "DestinationCidrBlock": "0.0.0.0/0",
-    "GatewayId": {
-     "Ref": "AtomicVpcIGW53D98970"
-    },
-    "RouteTableId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet2RouteTable0A3C697C"
-    }
-   },
-   "DependsOn": [
-    "AtomicVpcVPCGWDDE21E70"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PublicSubnetSubnet2/DefaultRoute"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184": {
-   "Type": "AWS::EC2::Subnet",
-   "Properties": {
-    "AvailabilityZone": {
-     "Fn::Select": [
-      0,
-      {
-       "Fn::GetAZs": ""
-      }
-     ]
-    },
-    "CidrBlock": "10.0.2.0/24",
-    "MapPublicIpOnLaunch": false,
-    "Tags": [
-     {
-      "Key": "aws-cdk:subnet-name",
-      "Value": "PrivateSubnet"
-     },
-     {
-      "Key": "aws-cdk:subnet-type",
-      "Value": "Private"
-     },
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PrivateSubnetSubnet1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet1/Subnet"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet1RouteTable6D554B41": {
-   "Type": "AWS::EC2::RouteTable",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PrivateSubnetSubnet1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet1/RouteTable"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet1RouteTableAssociation41866D9F": {
-   "Type": "AWS::EC2::SubnetRouteTableAssociation",
-   "Properties": {
-    "RouteTableId": {
-     "Ref": "AtomicVpcPrivateSubnetSubnet1RouteTable6D554B41"
-    },
-    "SubnetId": {
-     "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet1/RouteTableAssociation"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet1DefaultRouteFDDC8008": {
-   "Type": "AWS::EC2::Route",
-   "Properties": {
-    "DestinationCidrBlock": "0.0.0.0/0",
-    "NatGatewayId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet1NATGateway76048EA8"
-    },
-    "RouteTableId": {
-     "Ref": "AtomicVpcPrivateSubnetSubnet1RouteTable6D554B41"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet1/DefaultRoute"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90": {
-   "Type": "AWS::EC2::Subnet",
-   "Properties": {
-    "AvailabilityZone": {
-     "Fn::Select": [
-      1,
-      {
-       "Fn::GetAZs": ""
-      }
-     ]
-    },
-    "CidrBlock": "10.0.3.0/24",
-    "MapPublicIpOnLaunch": false,
-    "Tags": [
-     {
-      "Key": "aws-cdk:subnet-name",
-      "Value": "PrivateSubnet"
-     },
-     {
-      "Key": "aws-cdk:subnet-type",
-      "Value": "Private"
-     },
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PrivateSubnetSubnet2"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet2/Subnet"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet2RouteTable8E7D1813": {
-   "Type": "AWS::EC2::RouteTable",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc/PrivateSubnetSubnet2"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet2/RouteTable"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet2RouteTableAssociation0317AC40": {
-   "Type": "AWS::EC2::SubnetRouteTableAssociation",
-   "Properties": {
-    "RouteTableId": {
-     "Ref": "AtomicVpcPrivateSubnetSubnet2RouteTable8E7D1813"
-    },
-    "SubnetId": {
-     "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet2/RouteTableAssociation"
-   }
-  },
-  "AtomicVpcPrivateSubnetSubnet2DefaultRoute17CBCC33": {
-   "Type": "AWS::EC2::Route",
-   "Properties": {
-    "DestinationCidrBlock": "0.0.0.0/0",
-    "NatGatewayId": {
-     "Ref": "AtomicVpcPublicSubnetSubnet1NATGateway76048EA8"
-    },
-    "RouteTableId": {
-     "Ref": "AtomicVpcPrivateSubnetSubnet2RouteTable8E7D1813"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/PrivateSubnetSubnet2/DefaultRoute"
-   }
-  },
-  "AtomicVpcIGW53D98970": {
-   "Type": "AWS::EC2::InternetGateway",
-   "Properties": {
-    "Tags": [
-     {
-      "Key": "Name",
-      "Value": "AwsStack/AtomicVpc"
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/IGW"
-   }
-  },
-  "AtomicVpcVPCGWDDE21E70": {
-   "Type": "AWS::EC2::VPCGatewayAttachment",
-   "Properties": {
-    "InternetGatewayId": {
-     "Ref": "AtomicVpcIGW53D98970"
-    },
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/VPCGW"
-   }
-  },
-  "AtomicVpcRestrictDefaultSecurityGroupCustomResource0C2758BC": {
-   "Type": "Custom::VpcRestrictDefaultSG",
+  "atomicpythonagentRepoAutoDeleteImagesCustomResourceE5F1DF60": {
+   "Type": "Custom::ECRAutoDeleteImages",
    "Properties": {
     "ServiceToken": {
      "Fn::GetAtt": [
-      "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E",
+      "CustomECRAutoDeleteImagesCustomResourceProviderHandler8D89C030",
       "Arn"
      ]
     },
-    "DefaultSecurityGroupId": {
-     "Fn::GetAtt": [
-      "AtomicVpcD404E496",
-      "DefaultSecurityGroup"
-     ]
-    },
-    "Account": {
-     "Ref": "AWS::AccountId"
+    "RepositoryName": {
+     "Ref": "atomicpythonagentRepoD31A96D9"
     }
    },
+   "DependsOn": [
+    "atomicpythonagentRepoD31A96D9"
+   ],
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicVpc/RestrictDefaultSecurityGroupCustomResource/Default"
-   }
-  },
-  "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0": {
-   "Type": "AWS::IAM::Role",
-   "Properties": {
-    "AssumeRolePolicyDocument": {
-     "Version": "2012-10-17",
-     "Statement": [
-      {
-       "Action": "sts:AssumeRole",
-       "Effect": "Allow",
-       "Principal": {
-        "Service": "lambda.amazonaws.com"
-       }
-      }
-     ]
-    },
-    "ManagedPolicyArns": [
-     {
-      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-     }
-    ],
-    "Policies": [
-     {
-      "PolicyName": "Inline",
-      "PolicyDocument": {
-       "Version": "2012-10-17",
-       "Statement": [
-        {
-         "Effect": "Allow",
-         "Action": [
-          "ec2:AuthorizeSecurityGroupIngress",
-          "ec2:AuthorizeSecurityGroupEgress",
-          "ec2:RevokeSecurityGroupIngress",
-          "ec2:RevokeSecurityGroupEgress"
-         ],
-         "Resource": [
-          {
-           "Fn::Join": [
-            "",
-            [
-             "arn:",
-             {
-              "Ref": "AWS::Partition"
-             },
-             ":ec2:",
-             {
-              "Ref": "AWS::Region"
-             },
-             ":",
-             {
-              "Ref": "AWS::AccountId"
-             },
-             ":security-group/",
-             {
-              "Fn::GetAtt": [
-               "AtomicVpcD404E496",
-               "DefaultSecurityGroup"
-              ]
-             }
-            ]
-           ]
-          }
-         ]
-        }
-       ]
-      }
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role"
-   }
-  },
-  "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E": {
-   "Type": "AWS::Lambda::Function",
-   "Properties": {
-    "Code": {
-     "S3Bucket": {
-      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}"
-     },
-     "S3Key": "7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200.zip"
-    },
-    "Timeout": 900,
-    "MemorySize": 128,
-    "Handler": "__entrypoint__.handler",
-    "Role": {
-     "Fn::GetAtt": [
-      "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0",
-      "Arn"
-     ]
-    },
-    "Runtime": "nodejs22.x",
-    "Description": "Lambda function for removing all inbound/outbound rules from the VPC default security group"
-   },
-   "DependsOn": [
-    "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler",
-    "aws:asset:path": "asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200",
-    "aws:asset:property": "Code"
+    "aws:cdk:path": "AwsStack/atomic-python-agentRepo/AutoDeleteImagesCustomResource/Default"
    }
   },
   "RdsSecurityGroup632A77E4": {
    "Type": "AWS::EC2::SecurityGroup",
    "Properties": {
-    "GroupDescription": "Allow inbound traffic to RDS from within VPC",
+    "GroupDescription": "AwsStack/RdsSecurityGroup",
     "SecurityGroupEgress": [
      {
       "CidrIp": "0.0.0.0/0",
@@ -1063,7 +1618,7 @@
   "RdsSecurityGroupfromAwsStackSupertokensSGC2B15E925432F0961C4B": {
    "Type": "AWS::EC2::SecurityGroupIngress",
    "Properties": {
-    "Description": "Allow Supertokens to connect to RDS",
+    "Description": "from AwsStackSupertokensSGC2B15E92:5432",
     "FromPort": 5432,
     "GroupId": {
      "Fn::GetAtt": [
@@ -1084,69 +1639,29 @@
     "aws:cdk:path": "AwsStack/RdsSecurityGroup/from AwsStackSupertokensSGC2B15E92:5432"
    }
   },
-  "RdsSecurityGroupfromAwsStackHasuraSGB75C40175432DEDDB2F0": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow Hasura to connect to RDS",
-    "FromPort": 5432,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "RdsSecurityGroup632A77E4",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "HasuraSGF7432EF8",
-      "GroupId"
-     ]
-    },
-    "ToPort": 5432
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/RdsSecurityGroup/from AwsStackHasuraSGB75C4017:5432"
-   }
-  },
-  "RdsSecurityGroupfromAwsStackOptaplannerSGB8DCFB76543235E54F24": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow traffic from Optaplanner to RDS",
-    "FromPort": 5432,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "RdsSecurityGroup632A77E4",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "OptaplannerSG10E13F9F",
-      "GroupId"
-     ]
-    },
-    "ToPort": 5432
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/RdsSecurityGroup/from AwsStackOptaplannerSGB8DCFB76:5432"
-   }
-  },
   "AtomicPostgresDBSubnetGroup067D56E3": {
    "Type": "AWS::RDS::DBSubnetGroup",
    "Properties": {
     "DBSubnetGroupDescription": "Subnet group for AtomicPostgresDB database",
     "SubnetIds": [
      {
-      "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
+      "Ref": "AtomicVpcPrivateSubnet1Subnet9483CF54"
      },
      {
-      "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
+      "Ref": "AtomicVpcPrivateSubnet2SubnetD22D1428"
      }
     ]
    },
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicPostgresDB/SubnetGroup/Default"
+    "aws:cdk:path": "AwsStack/AtomicPostgresDB/SubnetGroup/Default",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "RDS managed secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
    }
   },
   "AwsStackAtomicPostgresDBSecret13CD6E0E3fdaad7efa858a3daf9490cf0a702aeb": {
@@ -1173,7 +1688,15 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicPostgresDB/Secret/Resource"
+    "aws:cdk:path": "AwsStack/AtomicPostgresDB/Secret/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "RDS managed secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
    }
   },
   "AtomicPostgresDBSecretAttachmentDB0B9A31": {
@@ -1188,19 +1711,29 @@
     "TargetType": "AWS::RDS::DBInstance"
    },
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicPostgresDB/Secret/Attachment/Resource"
+    "aws:cdk:path": "AwsStack/AtomicPostgresDB/Secret/Attachment/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "RDS managed secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
    }
   },
   "AtomicPostgresDB2E9D697F": {
    "Type": "AWS::RDS::DBInstance",
    "Properties": {
     "AllocatedStorage": "100",
+    "BackupRetentionPeriod": 1,
     "CopyTagsToSnapshot": true,
     "DBInstanceClass": "db.t3.small",
     "DBName": "atomicdb",
     "DBSubnetGroupName": {
      "Ref": "AtomicPostgresDBSubnetGroup067D56E3"
     },
+    "DeletionProtection": true,
     "Engine": "postgres",
     "EngineVersion": "15",
     "MasterUserPassword": {
@@ -1216,7 +1749,9 @@
      ]
     },
     "MasterUsername": "PostgresAdminCredentials",
+    "MultiAZ": true,
     "PubliclyAccessible": false,
+    "StorageEncrypted": true,
     "StorageType": "gp2",
     "VPCSecurityGroups": [
      {
@@ -1230,19 +1765,261 @@
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicPostgresDB/Resource"
+    "aws:cdk:path": "AwsStack/AtomicPostgresDB/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "RDS managed secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
    }
   },
-  "AtomicCluster0DDF655C": {
-   "Type": "AWS::ECS::Cluster",
+  "SupertokensDbConnStringE1799986": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/SupertokensDbConnString"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/AtomicCluster/Resource"
+    "aws:cdk:path": "AwsStack/SupertokensDbConnString/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "PostGraphileDbConnString646E2AA0": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/PostGraphileDbConnString"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/PostGraphileDbConnString/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "PostGraphileJwtSecret61960B62": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/PostGraphileJwtSecret"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/PostGraphileJwtSecret/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "ApiTokenSecret3A926DEB": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/ApiTokenSecret"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/ApiTokenSecret/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "OpenAiApiKeyAB1C389B": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/OpenAiApiKey"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OpenAiApiKey/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "OptaplannerDbConnString28A909E6": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/OptaplannerDbConnString"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/OptaplannerDbConnString/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "NotionApiTokenC39ED238": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/NotionApiToken"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/NotionApiToken/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "DeepgramApiKeyBBD97097": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/DeepgramApiKey"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/DeepgramApiKey/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "NotionNotesDbId35185EF9": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/NotionNotesDbId"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/NotionNotesDbId/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "NotionResearchProjectsDbId3DE8B9E6": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/NotionResearchProjectsDbId"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/NotionResearchProjectsDbId/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "NotionResearchTasksDbIdAEA8F7F3": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/NotionResearchTasksDbId"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/NotionResearchTasksDbId/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
+   }
+  },
+  "MskBootstrapBrokers1579C88C": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "GenerateSecretString": {},
+    "Name": "AwsStack/MskBootstrapBrokers"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/MskBootstrapBrokers/Resource",
+    "cdk_nag": {
+     "rules_to_suppress": [
+      {
+       "reason": "Secret rotation is not required for this workshop.",
+       "id": "AwsSolutions-SMG4"
+      }
+     ]
+    }
    }
   },
   "AlbSecurityGroup86A59E99": {
    "Type": "AWS::EC2::SecurityGroup",
    "Properties": {
-    "GroupDescription": "Allow HTTP/HTTPS traffic to ALB",
+    "GroupDescription": "AwsStack/AlbSecurityGroup",
     "SecurityGroupEgress": [
      {
       "CidrIp": "0.0.0.0/0",
@@ -1253,10 +2030,17 @@
     "SecurityGroupIngress": [
      {
       "CidrIp": "0.0.0.0/0",
-      "Description": "Allow HTTP from anywhere",
+      "Description": "from 0.0.0.0/0:80",
       "FromPort": 80,
       "IpProtocol": "tcp",
       "ToPort": 80
+     },
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "from 0.0.0.0/0:443",
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
      }
     ],
     "VpcId": {
@@ -1287,19 +2071,19 @@
     ],
     "Subnets": [
      {
-      "Ref": "AtomicVpcPublicSubnetSubnet1SubnetA3F000BA"
+      "Ref": "AtomicVpcPublicSubnet1SubnetA737E17C"
      },
      {
-      "Ref": "AtomicVpcPublicSubnetSubnet2Subnet4556046B"
+      "Ref": "AtomicVpcPublicSubnet2Subnet2EAC937E"
      }
     ],
     "Type": "application"
    },
    "DependsOn": [
-    "AtomicVpcPublicSubnetSubnet1DefaultRoute80618E44",
-    "AtomicVpcPublicSubnetSubnet1RouteTableAssociation8DCF7832",
-    "AtomicVpcPublicSubnetSubnet2DefaultRouteFC7E878A",
-    "AtomicVpcPublicSubnetSubnet2RouteTableAssociation8D95DA6A"
+    "AtomicVpcPublicSubnet1DefaultRoute77B5AF36",
+    "AtomicVpcPublicSubnet1RouteTableAssociation3FFCB815",
+    "AtomicVpcPublicSubnet2DefaultRoute3E137768",
+    "AtomicVpcPublicSubnet2RouteTableAssociationC2CC6134"
    ],
    "Metadata": {
     "aws:cdk:path": "AwsStack/AtomicAlb/Resource"
@@ -1310,12 +2094,12 @@
    "Properties": {
     "DefaultActions": [
      {
-      "FixedResponseConfig": {
-       "ContentType": "text/plain",
-       "MessageBody": "Resource not found",
-       "StatusCode": "404"
+      "RedirectConfig": {
+       "Port": "443",
+       "Protocol": "HTTPS",
+       "StatusCode": "HTTP_301"
       },
-      "Type": "fixed-response"
+      "Type": "redirect"
      }
     ],
     "LoadBalancerArn": {
@@ -1328,359 +2112,92 @@
     "aws:cdk:path": "AwsStack/AtomicAlb/HttpListener/Resource"
    }
   },
-  "ECSTaskRoleF2ADB362": {
-   "Type": "AWS::IAM::Role",
+  "AtomicAlbHttpsListener9D23ED41": {
+   "Type": "AWS::ElasticLoadBalancingV2::Listener",
    "Properties": {
-    "AssumeRolePolicyDocument": {
-     "Statement": [
-      {
-       "Action": "sts:AssumeRole",
-       "Effect": "Allow",
-       "Principal": {
-        "Service": "ecs-tasks.amazonaws.com"
-       }
-      }
-     ],
-     "Version": "2012-10-17"
-    },
-    "Description": "Role for ECS tasks to access other AWS services"
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/ECSTaskRole/Resource"
-   }
-  },
-  "ECSTaskRoleDefaultPolicy82FC9293": {
-   "Type": "AWS::IAM::Policy",
-   "Properties": {
-    "PolicyDocument": {
-     "Statement": [
-      {
-       "Action": "secretsmanager:GetSecretValue",
-       "Effect": "Allow",
-       "Resource": [
-        {
-         "Fn::Join": [
-          "",
-          [
-           "arn:aws:secretsmanager:",
-           {
-            "Ref": "AWS::Region"
-           },
-           ":",
-           {
-            "Ref": "AWS::AccountId"
-           },
-           ":secret:AwsStack/*"
-          ]
-         ]
-        },
-        {
-         "Ref": "ApiTokenSecret3A926DEB"
-        },
-        {
-         "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
-        },
-        {
-         "Ref": "HasuraAdminSecret359C72F3"
-        },
-        {
-         "Ref": "HasuraDbConnStringSecret6DFFC41D"
-        },
-        {
-         "Ref": "OpenAiApiKeySecret05681F66"
-        },
-        {
-         "Ref": "OptaplannerDbConnString28A909E6"
-        },
-        {
-         "Ref": "PlaceholderHasuraJwtSecret5A36E06E"
-        },
-        {
-         "Ref": "SupertokensDbConnStringSecretC2E71EE2"
-        }
-       ]
-      },
-      {
-       "Action": [
-        "s3:Abort*",
-        "s3:DeleteObject*",
-        "s3:GetBucket*",
-        "s3:GetObject*",
-        "s3:List*",
-        "s3:PutObject",
-        "s3:PutObjectLegalHold",
-        "s3:PutObjectRetention",
-        "s3:PutObjectTagging",
-        "s3:PutObjectVersionTagging"
-       ],
-       "Effect": "Allow",
-       "Resource": [
-        {
-         "Fn::GetAtt": [
-          "AtomicDataBucketE642B1DA",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::Join": [
-          "",
-          [
-           {
-            "Fn::GetAtt": [
-             "AtomicDataBucketE642B1DA",
-             "Arn"
-            ]
-           },
-           "/*"
-          ]
-         ]
-        }
-       ]
-      },
-      {
-       "Action": [
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:BatchGetImage",
-        "ecr:GetAuthorizationToken",
-        "ecr:GetDownloadUrlForLayer"
-       ],
-       "Effect": "Allow",
-       "Resource": "*"
-      },
-      {
-       "Action": [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-       ],
-       "Effect": "Allow",
-       "Resource": [
-        {
-         "Fn::GetAtt": [
-          "AppLogGroup7D8CD952",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "FunctionsLogGroup0226F429",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "HandshakeLogGroup90831F6C",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "OAuthLogGroupF9A7E869",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "OptaplannerLogGroup6EFDA77B",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::Join": [
-          "",
-          [
-           "arn:aws:logs:",
-           {
-            "Ref": "AWS::Region"
-           },
-           ":",
-           {
-            "Ref": "AWS::AccountId"
-           },
-           ":log-group:/aws/ecs/",
-           {
-            "Ref": "AtomicCluster0DDF655C"
-           },
-           "/*"
-          ]
-         ]
-        }
-       ]
-      },
-      {
-       "Action": [
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:BatchGetImage",
-        "ecr:GetDownloadUrlForLayer"
-       ],
-       "Effect": "Allow",
-       "Resource": [
-        {
-         "Fn::GetAtt": [
-          "AtomicAppRepo2D8E1244",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "AtomicFunctionsRepoCA9ADB29",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "AtomicHandshakeRepo7FD56D21",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "AtomicOauthRepoCAF08457",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "AtomicOptaplannerRepo893F41D8",
-          "Arn"
-         ]
-        }
-       ]
-      },
-      {
-       "Action": [
-        "secretsmanager:DescribeSecret",
-        "secretsmanager:GetSecretValue"
-       ],
-       "Effect": "Allow",
-       "Resource": [
-        {
-         "Ref": "ApiTokenSecret3A926DEB"
-        },
-        {
-         "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
-        },
-        {
-         "Ref": "HasuraAdminSecret359C72F3"
-        },
-        {
-         "Ref": "OpenAiApiKeySecret05681F66"
-        },
-        {
-         "Ref": "OptaplannerDbConnString28A909E6"
-        }
-       ]
-      }
-     ],
-     "Version": "2012-10-17"
-    },
-    "PolicyName": "ECSTaskRoleDefaultPolicy82FC9293",
-    "Roles": [
+    "Certificates": [
      {
-      "Ref": "ECSTaskRoleF2ADB362"
+      "CertificateArn": {
+       "Ref": "CertificateArn"
+      }
      }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/ECSTaskRole/DefaultPolicy/Resource"
-   }
-  },
-  "SupertokensDbConnStringSecretC2E71EE2": {
-   "Type": "AWS::SecretsManager::Secret",
-   "Properties": {
-    "Description": "Manually populate with: postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}",
-    "GenerateSecretString": {},
-    "Name": "AwsStack/SupertokensDbConnString"
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/SupertokensDbConnStringSecret/Resource"
-   }
-  },
-  "HasuraDbConnStringSecret6DFFC41D": {
-   "Type": "AWS::SecretsManager::Secret",
-   "Properties": {
-    "Description": "Manually populate with: postgres://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}",
-    "GenerateSecretString": {},
-    "Name": "AwsStack/HasuraDbConnString"
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraDbConnStringSecret/Resource"
-   }
-  },
-  "PlaceholderHasuraJwtSecret5A36E06E": {
-   "Type": "AWS::SecretsManager::Secret",
-   "Properties": {
-    "Description": "Placeholder for HASURA_GRAPHQL_JWT_SECRET. MUST be replaced in AWS Secrets Manager console with a valid JSON containing a strong 256-bit key. Example structure: {\"type\":\"HS256\",\"key\":\"YOUR_STRONG_SECRET_KEY\",\"issuer\":\"supertokens\"}",
-    "Name": "AwsStack/HasuraJwtSecret",
-    "SecretString": "{\"type\":\"HS256\",\"key\":\"REPLACE_WITH_A_STRONG_64_CHAR_HEX_SECRET_OR_MIN_32_CHAR_ASCII\",\"issuer\":\"supertokens\"}"
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/PlaceholderHasuraJwtSecret/Resource"
-   }
-  },
-  "ApiTokenSecret3A926DEB": {
-   "Type": "AWS::SecretsManager::Secret",
-   "Properties": {
-    "Description": "Generic API token for inter-service communication.",
-    "GenerateSecretString": {
-     "ExcludePunctuation": true,
-     "PasswordLength": 32
+    ],
+    "DefaultActions": [
+     {
+      "FixedResponseConfig": {
+       "StatusCode": "404"
+      },
+      "Type": "fixed-response"
+     }
+    ],
+    "LoadBalancerArn": {
+     "Ref": "AtomicAlbF873927A"
     },
-    "Name": "AwsStack/InternalApiToken"
+    "Port": 443,
+    "Protocol": "HTTPS"
    },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/ApiTokenSecret/Resource"
+    "aws:cdk:path": "AwsStack/AtomicAlb/HttpsListener/Resource"
    }
   },
-  "OpenAiApiKeySecret05681F66": {
-   "Type": "AWS::SecretsManager::Secret",
+  "AtomicAlbHttpsListenerSupertokensRule79B95D02": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
    "Properties": {
-    "Description": "Manually populate with actual OpenAI API Key",
-    "GenerateSecretString": {},
-    "Name": "AwsStack/OpenAiApiKey"
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OpenAiApiKeySecret/Resource"
-   }
-  },
-  "OptaplannerDbConnString28A909E6": {
-   "Type": "AWS::SecretsManager::Secret",
-   "Properties": {
-    "Description": "Manually populate with Optaplanner JDBC URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}",
-    "GenerateSecretString": {},
-    "Name": "AwsStack/OptaplannerDbConnString"
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerDbConnString/Resource"
-   }
-  },
-  "HasuraAdminSecret359C72F3": {
-   "Type": "AWS::SecretsManager::Secret",
-   "Properties": {
-    "Description": "Admin secret for Hasura GraphQL engine",
-    "GenerateSecretString": {
-     "ExcludePunctuation": true,
-     "GenerateStringKey": "HASURA_GRAPHQL_ADMIN_SECRET_VALUE",
-     "PasswordLength": 32,
-     "SecretStringTemplate": "{\"HASURA_GRAPHQL_ADMIN_SECRET\":\"dummyPasswordPlaceholder\"}"
+    "Actions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "SupertokensTargetGroupEC539A5A"
+      },
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/v1/auth/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": {
+     "Ref": "AtomicAlbHttpsListener9D23ED41"
     },
-    "Name": "AwsStack/HasuraAdminSecret"
+    "Priority": 10
    },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
    "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraAdminSecret/Resource"
+    "aws:cdk:path": "AwsStack/AtomicAlb/HttpsListener/SupertokensRule/Resource"
+   }
+  },
+  "AtomicAlbHttpsListenerAppRuleBBC18247": {
+   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+   "Properties": {
+    "Actions": [
+     {
+      "TargetGroupArn": {
+       "Ref": "AppTargetGroup3D716DB6"
+      },
+      "Type": "forward"
+     }
+    ],
+    "Conditions": [
+     {
+      "Field": "path-pattern",
+      "PathPatternConfig": {
+       "Values": [
+        "/*"
+       ]
+      }
+     }
+    ],
+    "ListenerArn": {
+     "Ref": "AtomicAlbHttpsListener9D23ED41"
+    },
+    "Priority": 100
+   },
+   "Metadata": {
+    "aws:cdk:path": "AwsStack/AtomicAlb/HttpsListener/AppRule/Resource"
    }
   },
   "SupertokensSG8D961012": {
@@ -1705,7 +2222,7 @@
   "SupertokensSGfromAwsStackAlbSecurityGroupFEFFD71B35672816E8EC": {
    "Type": "AWS::EC2::SecurityGroupIngress",
    "Properties": {
-    "Description": "Allow SuperTokens from ALB",
+    "Description": "from AwsStackAlbSecurityGroupFEFFD71B:3567",
     "FromPort": 3567,
     "GroupId": {
      "Fn::GetAtt": [
@@ -1745,13 +2262,11 @@
         "awslogs-group": {
          "Ref": "SupertokensLogGroup841B0C09"
         },
-        "awslogs-stream-prefix": "supertokens-ecs",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
+        "awslogs-stream-prefix": "supertokens",
+        "awslogs-region": "us-east-1"
        }
       },
-      "Name": "SupertokensContainer",
+      "Name": "Supertokens",
       "PortMappings": [
        {
         "ContainerPort": 3567,
@@ -1762,7 +2277,7 @@
        {
         "Name": "POSTGRESQL_CONNECTION_URI",
         "ValueFrom": {
-         "Ref": "SupertokensDbConnStringSecretC2E71EE2"
+         "Ref": "SupertokensDbConnStringE1799986"
         }
        }
       ]
@@ -1771,20 +2286,16 @@
     "Cpu": "256",
     "ExecutionRoleArn": {
      "Fn::GetAtt": [
-      "SupertokensTaskDefExecutionRole30464032",
+      "ECSTaskRoleF2ADB362",
       "Arn"
      ]
     },
-    "Family": "supertokens-fargate",
+    "Family": "supertokens",
     "Memory": "512",
     "NetworkMode": "awsvpc",
     "RequiresCompatibilities": [
      "FARGATE"
     ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
     "TaskRoleArn": {
      "Fn::GetAtt": [
       "ECSTaskRoleF2ADB362",
@@ -1796,84 +2307,11 @@
     "aws:cdk:path": "AwsStack/SupertokensTaskDef/Resource"
    }
   },
-  "SupertokensTaskDefExecutionRole30464032": {
-   "Type": "AWS::IAM::Role",
-   "Properties": {
-    "AssumeRolePolicyDocument": {
-     "Statement": [
-      {
-       "Action": "sts:AssumeRole",
-       "Effect": "Allow",
-       "Principal": {
-        "Service": "ecs-tasks.amazonaws.com"
-       }
-      }
-     ],
-     "Version": "2012-10-17"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/SupertokensTaskDef/ExecutionRole/Resource"
-   }
-  },
-  "SupertokensTaskDefExecutionRoleDefaultPolicy9F77350D": {
-   "Type": "AWS::IAM::Policy",
-   "Properties": {
-    "PolicyDocument": {
-     "Statement": [
-      {
-       "Action": [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-       ],
-       "Effect": "Allow",
-       "Resource": {
-        "Fn::GetAtt": [
-         "SupertokensLogGroup841B0C09",
-         "Arn"
-        ]
-       }
-      },
-      {
-       "Action": [
-        "secretsmanager:DescribeSecret",
-        "secretsmanager:GetSecretValue"
-       ],
-       "Effect": "Allow",
-       "Resource": {
-        "Ref": "SupertokensDbConnStringSecretC2E71EE2"
-       }
-      }
-     ],
-     "Version": "2012-10-17"
-    },
-    "PolicyName": "SupertokensTaskDefExecutionRoleDefaultPolicy9F77350D",
-    "Roles": [
-     {
-      "Ref": "SupertokensTaskDefExecutionRole30464032"
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/SupertokensTaskDef/ExecutionRole/DefaultPolicy/Resource"
-   }
-  },
   "SupertokensLogGroup841B0C09": {
    "Type": "AWS::Logs::LogGroup",
    "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/supertokens"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
+    "LogGroupName": "/aws/ecs/Supertokens",
+    "RetentionInDays": 30
    },
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
@@ -1891,13 +2329,12 @@
      "MaximumPercent": 200,
      "MinimumHealthyPercent": 50
     },
-    "DesiredCount": 1,
     "EnableECSManagedTags": false,
     "HealthCheckGracePeriodSeconds": 60,
     "LaunchType": "FARGATE",
     "LoadBalancers": [
      {
-      "ContainerName": "SupertokensContainer",
+      "ContainerName": "Supertokens",
       "ContainerPort": 3567,
       "TargetGroupArn": {
        "Ref": "SupertokensTargetGroupEC539A5A"
@@ -1917,10 +2354,10 @@
       ],
       "Subnets": [
        {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
+        "Ref": "AtomicVpcPrivateSubnet1Subnet9483CF54"
        },
        {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
+        "Ref": "AtomicVpcPrivateSubnet2SubnetD22D1428"
        }
       ]
      }
@@ -1930,9 +2367,9 @@
     }
    },
    "DependsOn": [
+    "AtomicAlbHttpsListenerSupertokensRule79B95D02",
     "ECSTaskRoleDefaultPolicy82FC9293",
-    "ECSTaskRoleF2ADB362",
-    "SupertokensListenerRule0FF7B3A0"
+    "ECSTaskRoleF2ADB362"
    ],
    "Metadata": {
     "aws:cdk:path": "AwsStack/SupertokensService/Service"
@@ -1941,10 +2378,7 @@
   "SupertokensTargetGroupEC539A5A": {
    "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
    "Properties": {
-    "HealthCheckIntervalSeconds": 30,
     "HealthCheckPath": "/hello",
-    "HealthCheckTimeoutSeconds": 5,
-    "HealthyThresholdCount": 2,
     "Port": 3567,
     "Protocol": "HTTP",
     "TargetGroupAttributes": [
@@ -1954,815 +2388,12 @@
      }
     ],
     "TargetType": "ip",
-    "UnhealthyThresholdCount": 2,
     "VpcId": {
      "Ref": "AtomicVpcD404E496"
     }
    },
    "Metadata": {
     "aws:cdk:path": "AwsStack/SupertokensTargetGroup/Resource"
-   }
-  },
-  "SupertokensListenerRule0FF7B3A0": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "SupertokensTargetGroupEC539A5A"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/v1/auth/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 10
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/SupertokensListenerRule/Resource"
-   }
-  },
-  "HasuraSGF7432EF8": {
-   "Type": "AWS::EC2::SecurityGroup",
-   "Properties": {
-    "GroupDescription": "AwsStack/HasuraSG",
-    "SecurityGroupEgress": [
-     {
-      "CidrIp": "0.0.0.0/0",
-      "Description": "Allow all outbound traffic by default",
-      "IpProtocol": "-1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraSG/Resource"
-   }
-  },
-  "HasuraSGfromAwsStackAlbSecurityGroupFEFFD71B808037841BB8": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow Hasura from ALB",
-    "FromPort": 8080,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "HasuraSGF7432EF8",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "AlbSecurityGroup86A59E99",
-      "GroupId"
-     ]
-    },
-    "ToPort": 8080
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraSG/from AwsStackAlbSecurityGroupFEFFD71B:8080"
-   }
-  },
-  "HasuraSGfromAwsStackFunctionsSG4487B3938080F8F86324": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow Functions to connect to Hasura",
-    "FromPort": 8080,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "HasuraSGF7432EF8",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "FunctionsSGE05723DC",
-      "GroupId"
-     ]
-    },
-    "ToPort": 8080
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraSG/from AwsStackFunctionsSG4487B393:8080"
-   }
-  },
-  "HasuraSGfromAwsStackHandshakeSG021993A2808054773D92": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow Handshake to connect to Hasura",
-    "FromPort": 8080,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "HasuraSGF7432EF8",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "HandshakeSGAE954E91",
-      "GroupId"
-     ]
-    },
-    "ToPort": 8080
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraSG/from AwsStackHandshakeSG021993A2:8080"
-   }
-  },
-  "HasuraSGfromAwsStackOAuthSG55F90F0980800835E7B3": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow OAuth to connect to Hasura",
-    "FromPort": 8080,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "HasuraSGF7432EF8",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "OAuthSGCA2E2DFC",
-      "GroupId"
-     ]
-    },
-    "ToPort": 8080
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraSG/from AwsStackOAuthSG55F90F09:8080"
-   }
-  },
-  "HasuraTaskDef31ABDC68": {
-   "Type": "AWS::ECS::TaskDefinition",
-   "Properties": {
-    "ContainerDefinitions": [
-     {
-      "Environment": [
-       {
-        "Name": "HASURA_GRAPHQL_UNAUTHORIZED_ROLE",
-        "Value": "public"
-       },
-       {
-        "Name": "HASURA_GRAPHQL_LOG_LEVEL",
-        "Value": "debug"
-       },
-       {
-        "Name": "HASURA_GRAPHQL_ENABLE_CONSOLE",
-        "Value": "true"
-       },
-       {
-        "Name": "HASURA_GRAPHQL_DEV_MODE",
-        "Value": "true"
-       }
-      ],
-      "Essential": true,
-      "Image": "hasura/graphql-engine:v2.38.0",
-      "LogConfiguration": {
-       "LogDriver": "awslogs",
-       "Options": {
-        "awslogs-group": {
-         "Ref": "HasuraLogGroupB47AF772"
-        },
-        "awslogs-stream-prefix": "hasura-ecs",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
-       }
-      },
-      "Name": "HasuraContainer",
-      "PortMappings": [
-       {
-        "ContainerPort": 8080,
-        "Protocol": "tcp"
-       }
-      ],
-      "Secrets": [
-       {
-        "Name": "HASURA_GRAPHQL_ADMIN_SECRET",
-        "ValueFrom": {
-         "Ref": "HasuraAdminSecret359C72F3"
-        }
-       },
-       {
-        "Name": "HASURA_GRAPHQL_JWT_SECRET",
-        "ValueFrom": {
-         "Ref": "PlaceholderHasuraJwtSecret5A36E06E"
-        }
-       },
-       {
-        "Name": "HASURA_GRAPHQL_DATABASE_URL",
-        "ValueFrom": {
-         "Ref": "HasuraDbConnStringSecret6DFFC41D"
-        }
-       }
-      ]
-     }
-    ],
-    "Cpu": "512",
-    "ExecutionRoleArn": {
-     "Fn::GetAtt": [
-      "HasuraTaskDefExecutionRoleD3078284",
-      "Arn"
-     ]
-    },
-    "Family": "hasura-fargate",
-    "Memory": "1024",
-    "NetworkMode": "awsvpc",
-    "RequiresCompatibilities": [
-     "FARGATE"
-    ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
-    "TaskRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraTaskDef/Resource"
-   }
-  },
-  "HasuraTaskDefExecutionRoleD3078284": {
-   "Type": "AWS::IAM::Role",
-   "Properties": {
-    "AssumeRolePolicyDocument": {
-     "Statement": [
-      {
-       "Action": "sts:AssumeRole",
-       "Effect": "Allow",
-       "Principal": {
-        "Service": "ecs-tasks.amazonaws.com"
-       }
-      }
-     ],
-     "Version": "2012-10-17"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraTaskDef/ExecutionRole/Resource"
-   }
-  },
-  "HasuraTaskDefExecutionRoleDefaultPolicy7A47E19B": {
-   "Type": "AWS::IAM::Policy",
-   "Properties": {
-    "PolicyDocument": {
-     "Statement": [
-      {
-       "Action": [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-       ],
-       "Effect": "Allow",
-       "Resource": {
-        "Fn::GetAtt": [
-         "HasuraLogGroupB47AF772",
-         "Arn"
-        ]
-       }
-      },
-      {
-       "Action": [
-        "secretsmanager:DescribeSecret",
-        "secretsmanager:GetSecretValue"
-       ],
-       "Effect": "Allow",
-       "Resource": [
-        {
-         "Ref": "HasuraAdminSecret359C72F3"
-        },
-        {
-         "Ref": "HasuraDbConnStringSecret6DFFC41D"
-        },
-        {
-         "Ref": "PlaceholderHasuraJwtSecret5A36E06E"
-        }
-       ]
-      }
-     ],
-     "Version": "2012-10-17"
-    },
-    "PolicyName": "HasuraTaskDefExecutionRoleDefaultPolicy7A47E19B",
-    "Roles": [
-     {
-      "Ref": "HasuraTaskDefExecutionRoleD3078284"
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraTaskDef/ExecutionRole/DefaultPolicy/Resource"
-   }
-  },
-  "HasuraLogGroupB47AF772": {
-   "Type": "AWS::Logs::LogGroup",
-   "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/hasura"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraLogGroup/Resource"
-   }
-  },
-  "HasuraService0424AA98": {
-   "Type": "AWS::ECS::Service",
-   "Properties": {
-    "Cluster": {
-     "Ref": "AtomicCluster0DDF655C"
-    },
-    "DeploymentConfiguration": {
-     "MaximumPercent": 200,
-     "MinimumHealthyPercent": 50
-    },
-    "DesiredCount": 1,
-    "EnableECSManagedTags": false,
-    "HealthCheckGracePeriodSeconds": 60,
-    "LaunchType": "FARGATE",
-    "LoadBalancers": [
-     {
-      "ContainerName": "HasuraContainer",
-      "ContainerPort": 8080,
-      "TargetGroupArn": {
-       "Ref": "HasuraTargetGroup0636F42A"
-      }
-     }
-    ],
-    "NetworkConfiguration": {
-     "AwsvpcConfiguration": {
-      "AssignPublicIp": "DISABLED",
-      "SecurityGroups": [
-       {
-        "Fn::GetAtt": [
-         "HasuraSGF7432EF8",
-         "GroupId"
-        ]
-       }
-      ],
-      "Subnets": [
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
-       },
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
-       }
-      ]
-     }
-    },
-    "TaskDefinition": {
-     "Ref": "HasuraTaskDef31ABDC68"
-    }
-   },
-   "DependsOn": [
-    "ECSTaskRoleDefaultPolicy82FC9293",
-    "ECSTaskRoleF2ADB362",
-    "HasuraListenerRuleCEF25397"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraService/Service"
-   }
-  },
-  "HasuraTargetGroup0636F42A": {
-   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-   "Properties": {
-    "HealthCheckIntervalSeconds": 30,
-    "HealthCheckPath": "/healthz",
-    "Port": 8080,
-    "Protocol": "HTTP",
-    "TargetGroupAttributes": [
-     {
-      "Key": "stickiness.enabled",
-      "Value": "false"
-     }
-    ],
-    "TargetType": "ip",
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraTargetGroup/Resource"
-   }
-  },
-  "HasuraListenerRuleCEF25397": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "HasuraTargetGroup0636F42A"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/v1/graphql/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 20
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HasuraListenerRule/Resource"
-   }
-  },
-  "FunctionsSGE05723DC": {
-   "Type": "AWS::EC2::SecurityGroup",
-   "Properties": {
-    "GroupDescription": "AwsStack/FunctionsSG",
-    "SecurityGroupEgress": [
-     {
-      "CidrIp": "0.0.0.0/0",
-      "Description": "Allow all outbound traffic by default",
-      "IpProtocol": "-1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsSG/Resource"
-   }
-  },
-  "FunctionsSGfromAwsStackAlbSecurityGroupFEFFD71B8006705D43": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow Functions from ALB on its container port",
-    "FromPort": 80,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "FunctionsSGE05723DC",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "AlbSecurityGroup86A59E99",
-      "GroupId"
-     ]
-    },
-    "ToPort": 80
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsSG/from AwsStackAlbSecurityGroupFEFFD71B:80"
-   }
-  },
-  "FunctionsTaskDef51ECFDE2": {
-   "Type": "AWS::ECS::TaskDefinition",
-   "Properties": {
-    "ContainerDefinitions": [
-     {
-      "Environment": [
-       {
-        "Name": "HASURA_GRAPHQL_GRAPHQL_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/graphql"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "FUNCTION_SERVER_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/functions"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "APP_CLIENT_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           }
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "S3_BUCKET",
-        "Value": {
-         "Ref": "AtomicDataBucketE642B1DA"
-        }
-       },
-       {
-        "Name": "AWS_REGION",
-        "Value": {
-         "Ref": "AWS::Region"
-        }
-       }
-      ],
-      "Essential": true,
-      "Image": {
-       "Fn::Join": [
-        "",
-        [
-         {
-          "Fn::Select": [
-           4,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicFunctionsRepoCA9ADB29",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".dkr.ecr.",
-         {
-          "Fn::Select": [
-           3,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicFunctionsRepoCA9ADB29",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".",
-         {
-          "Ref": "AWS::URLSuffix"
-         },
-         "/",
-         {
-          "Ref": "AtomicFunctionsRepoCA9ADB29"
-         },
-         ":latest"
-        ]
-       ]
-      },
-      "LogConfiguration": {
-       "LogDriver": "awslogs",
-       "Options": {
-        "awslogs-group": {
-         "Ref": "FunctionsLogGroup0226F429"
-        },
-        "awslogs-stream-prefix": "functions-ecs",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
-       }
-      },
-      "Name": "FunctionsContainer",
-      "PortMappings": [
-       {
-        "ContainerPort": 80,
-        "Protocol": "tcp"
-       }
-      ],
-      "Secrets": [
-       {
-        "Name": "HASURA_GRAPHQL_ADMIN_SECRET",
-        "ValueFrom": {
-         "Ref": "HasuraAdminSecret359C72F3"
-        }
-       },
-       {
-        "Name": "OPENAI_API_KEY",
-        "ValueFrom": {
-         "Ref": "OpenAiApiKeySecret05681F66"
-        }
-       }
-      ]
-     }
-    ],
-    "Cpu": "512",
-    "ExecutionRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    },
-    "Family": "functions-fargate",
-    "Memory": "1024",
-    "NetworkMode": "awsvpc",
-    "RequiresCompatibilities": [
-     "FARGATE"
-    ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
-    "TaskRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsTaskDef/Resource"
-   }
-  },
-  "FunctionsLogGroup0226F429": {
-   "Type": "AWS::Logs::LogGroup",
-   "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/functions"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsLogGroup/Resource"
-   }
-  },
-  "FunctionsService070CDCF4": {
-   "Type": "AWS::ECS::Service",
-   "Properties": {
-    "Cluster": {
-     "Ref": "AtomicCluster0DDF655C"
-    },
-    "DeploymentConfiguration": {
-     "MaximumPercent": 200,
-     "MinimumHealthyPercent": 50
-    },
-    "DesiredCount": 1,
-    "EnableECSManagedTags": false,
-    "HealthCheckGracePeriodSeconds": 60,
-    "LaunchType": "FARGATE",
-    "LoadBalancers": [
-     {
-      "ContainerName": "FunctionsContainer",
-      "ContainerPort": 80,
-      "TargetGroupArn": {
-       "Ref": "FunctionsTargetGroup7D789BB7"
-      }
-     }
-    ],
-    "NetworkConfiguration": {
-     "AwsvpcConfiguration": {
-      "AssignPublicIp": "DISABLED",
-      "SecurityGroups": [
-       {
-        "Fn::GetAtt": [
-         "FunctionsSGE05723DC",
-         "GroupId"
-        ]
-       }
-      ],
-      "Subnets": [
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
-       },
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
-       }
-      ]
-     }
-    },
-    "TaskDefinition": {
-     "Ref": "FunctionsTaskDef51ECFDE2"
-    }
-   },
-   "DependsOn": [
-    "ECSTaskRoleDefaultPolicy82FC9293",
-    "ECSTaskRoleF2ADB362",
-    "FunctionsListenerRule333BE9DD"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsService/Service"
-   }
-  },
-  "FunctionsTargetGroup7D789BB7": {
-   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-   "Properties": {
-    "HealthCheckIntervalSeconds": 30,
-    "HealthCheckPath": "/v1/functions/healthz",
-    "HealthCheckTimeoutSeconds": 5,
-    "Port": 80,
-    "Protocol": "HTTP",
-    "TargetGroupAttributes": [
-     {
-      "Key": "stickiness.enabled",
-      "Value": "false"
-     }
-    ],
-    "TargetType": "ip",
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsTargetGroup/Resource"
-   }
-  },
-  "FunctionsListenerRule333BE9DD": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "FunctionsTargetGroup7D789BB7"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/v1/functions/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 30
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/FunctionsListenerRule/Resource"
    }
   },
   "AppSG652848D9": {
@@ -2787,7 +2418,7 @@
   "AppSGfromAwsStackAlbSecurityGroupFEFFD71B300050A217E7": {
    "Type": "AWS::EC2::SecurityGroupIngress",
    "Properties": {
-    "Description": "Allow App from ALB on its container port",
+    "Description": "from AwsStackAlbSecurityGroupFEFFD71B:3000",
     "FromPort": 3000,
     "GroupId": {
      "Fn::GetAtt": [
@@ -2815,94 +2446,8 @@
      {
       "Environment": [
        {
-        "Name": "NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/graphql"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "NEXT_PUBLIC_HASURA_GRAPHQL_GRAPHQL_WS_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "ws://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/graphql"
-          ]
-         ]
-        }
-       },
-       {
         "Name": "NEXT_PUBLIC_SUPERTOKENS_API_DOMAIN",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/auth"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "NEXT_PUBLIC_HANDSHAKE_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/handshake/"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "NEXT_PUBLIC_EVENT_TO_QUEUE_AUTH_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/functions/eventToQueueAuth"
-          ]
-         ]
-        }
+        "Value": "https://app.example.com/v1/auth"
        }
       ],
       "Essential": true,
@@ -2918,7 +2463,7 @@
              ":",
              {
               "Fn::GetAtt": [
-               "AtomicAppRepo2D8E1244",
+               "atomicappRepoBED6513B",
                "Arn"
               ]
              }
@@ -2935,7 +2480,7 @@
              ":",
              {
               "Fn::GetAtt": [
-               "AtomicAppRepo2D8E1244",
+               "atomicappRepoBED6513B",
                "Arn"
               ]
              }
@@ -2949,7 +2494,7 @@
          },
          "/",
          {
-          "Ref": "AtomicAppRepo2D8E1244"
+          "Ref": "atomicappRepoBED6513B"
          },
          ":latest"
         ]
@@ -2961,13 +2506,11 @@
         "awslogs-group": {
          "Ref": "AppLogGroup7D8CD952"
         },
-        "awslogs-stream-prefix": "app-ecs",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
+        "awslogs-stream-prefix": "app",
+        "awslogs-region": "us-east-1"
        }
       },
-      "Name": "AppContainer",
+      "Name": "App",
       "PortMappings": [
        {
         "ContainerPort": 3000,
@@ -2976,23 +2519,19 @@
       ]
      }
     ],
-    "Cpu": "256",
+    "Cpu": "512",
     "ExecutionRoleArn": {
      "Fn::GetAtt": [
       "ECSTaskRoleF2ADB362",
       "Arn"
      ]
     },
-    "Family": "app-fargate",
-    "Memory": "512",
+    "Family": "app",
+    "Memory": "1024",
     "NetworkMode": "awsvpc",
     "RequiresCompatibilities": [
      "FARGATE"
     ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
     "TaskRoleArn": {
      "Fn::GetAtt": [
       "ECSTaskRoleF2ADB362",
@@ -3007,19 +2546,8 @@
   "AppLogGroup7D8CD952": {
    "Type": "AWS::Logs::LogGroup",
    "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/app"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
+    "LogGroupName": "/aws/ecs/App",
+    "RetentionInDays": 30
    },
    "UpdateReplacePolicy": "Delete",
    "DeletionPolicy": "Delete",
@@ -3037,13 +2565,12 @@
      "MaximumPercent": 200,
      "MinimumHealthyPercent": 50
     },
-    "DesiredCount": 1,
     "EnableECSManagedTags": false,
     "HealthCheckGracePeriodSeconds": 60,
     "LaunchType": "FARGATE",
     "LoadBalancers": [
      {
-      "ContainerName": "AppContainer",
+      "ContainerName": "App",
       "ContainerPort": 3000,
       "TargetGroupArn": {
        "Ref": "AppTargetGroup3D716DB6"
@@ -3063,10 +2590,10 @@
       ],
       "Subnets": [
        {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
+        "Ref": "AtomicVpcPrivateSubnet1Subnet9483CF54"
        },
        {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
+        "Ref": "AtomicVpcPrivateSubnet2SubnetD22D1428"
        }
       ]
      }
@@ -3076,7 +2603,7 @@
     }
    },
    "DependsOn": [
-    "AppListenerRuleD269CB8A",
+    "AtomicAlbHttpsListenerAppRuleBBC18247",
     "ECSTaskRoleDefaultPolicy82FC9293",
     "ECSTaskRoleF2ADB362"
    ],
@@ -3087,9 +2614,7 @@
   "AppTargetGroup3D716DB6": {
    "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
    "Properties": {
-    "HealthCheckIntervalSeconds": 30,
     "HealthCheckPath": "/",
-    "HealthCheckTimeoutSeconds": 5,
     "Port": 3000,
     "Protocol": "HTTP",
     "TargetGroupAttributes": [
@@ -3107,1066 +2632,18 @@
     "aws:cdk:path": "AwsStack/AppTargetGroup/Resource"
    }
   },
-  "AppListenerRuleD269CB8A": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "AppTargetGroup3D716DB6"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 100
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/AppListenerRule/Resource"
-   }
-  },
-  "HandshakeSGAE954E91": {
-   "Type": "AWS::EC2::SecurityGroup",
-   "Properties": {
-    "GroupDescription": "AwsStack/HandshakeSG",
-    "SecurityGroupEgress": [
-     {
-      "CidrIp": "0.0.0.0/0",
-      "Description": "Allow all outbound traffic by default",
-      "IpProtocol": "-1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeSG/Resource"
-   }
-  },
-  "HandshakeSGfromAwsStackAlbSecurityGroupFEFFD71B805DA16F73": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow Handshake from ALB on its container port",
-    "FromPort": 80,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "HandshakeSGAE954E91",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "AlbSecurityGroup86A59E99",
-      "GroupId"
-     ]
-    },
-    "ToPort": 80
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeSG/from AwsStackAlbSecurityGroupFEFFD71B:80"
-   }
-  },
-  "HandshakeSGfromAwsStackOAuthSG55F90F09803C8F8F6F": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow OAuth to connect to Handshake",
-    "FromPort": 80,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "HandshakeSGAE954E91",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "OAuthSGCA2E2DFC",
-      "GroupId"
-     ]
-    },
-    "ToPort": 80
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeSG/from AwsStackOAuthSG55F90F09:80"
-   }
-  },
-  "HandshakeTaskDef12148854": {
-   "Type": "AWS::ECS::TaskDefinition",
-   "Properties": {
-    "ContainerDefinitions": [
-     {
-      "Environment": [
-       {
-        "Name": "HASURA_GRAPHQL_GRAPHQL_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/graphql"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "MEETING_ASSIST_ADMIN_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/functions/schedule-assist/placeholder"
-          ]
-         ]
-        }
-       }
-      ],
-      "Essential": true,
-      "Image": {
-       "Fn::Join": [
-        "",
-        [
-         {
-          "Fn::Select": [
-           4,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicHandshakeRepo7FD56D21",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".dkr.ecr.",
-         {
-          "Fn::Select": [
-           3,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicHandshakeRepo7FD56D21",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".",
-         {
-          "Ref": "AWS::URLSuffix"
-         },
-         "/",
-         {
-          "Ref": "AtomicHandshakeRepo7FD56D21"
-         },
-         ":latest"
-        ]
-       ]
-      },
-      "LogConfiguration": {
-       "LogDriver": "awslogs",
-       "Options": {
-        "awslogs-group": {
-         "Ref": "HandshakeLogGroup90831F6C"
-        },
-        "awslogs-stream-prefix": "handshake-ecs",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
-       }
-      },
-      "Name": "HandshakeContainer",
-      "PortMappings": [
-       {
-        "ContainerPort": 80,
-        "Protocol": "tcp"
-       }
-      ],
-      "Secrets": [
-       {
-        "Name": "API_TOKEN",
-        "ValueFrom": {
-         "Ref": "ApiTokenSecret3A926DEB"
-        }
-       },
-       {
-        "Name": "HASURA_GRAPHQL_ADMIN_SECRET",
-        "ValueFrom": {
-         "Ref": "HasuraAdminSecret359C72F3"
-        }
-       }
-      ]
-     }
-    ],
-    "Cpu": "256",
-    "ExecutionRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    },
-    "Family": "handshake-fargate",
-    "Memory": "512",
-    "NetworkMode": "awsvpc",
-    "RequiresCompatibilities": [
-     "FARGATE"
-    ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
-    "TaskRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeTaskDef/Resource"
-   }
-  },
-  "HandshakeLogGroup90831F6C": {
-   "Type": "AWS::Logs::LogGroup",
-   "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/handshake"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeLogGroup/Resource"
-   }
-  },
-  "HandshakeService90A46F3C": {
-   "Type": "AWS::ECS::Service",
-   "Properties": {
-    "Cluster": {
-     "Ref": "AtomicCluster0DDF655C"
-    },
-    "DeploymentConfiguration": {
-     "MaximumPercent": 200,
-     "MinimumHealthyPercent": 50
-    },
-    "DesiredCount": 1,
-    "EnableECSManagedTags": false,
-    "HealthCheckGracePeriodSeconds": 60,
-    "LaunchType": "FARGATE",
-    "LoadBalancers": [
-     {
-      "ContainerName": "HandshakeContainer",
-      "ContainerPort": 80,
-      "TargetGroupArn": {
-       "Ref": "HandshakeTargetGroupB0E5C2E0"
-      }
-     }
-    ],
-    "NetworkConfiguration": {
-     "AwsvpcConfiguration": {
-      "AssignPublicIp": "DISABLED",
-      "SecurityGroups": [
-       {
-        "Fn::GetAtt": [
-         "HandshakeSGAE954E91",
-         "GroupId"
-        ]
-       }
-      ],
-      "Subnets": [
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
-       },
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
-       }
-      ]
-     }
-    },
-    "TaskDefinition": {
-     "Ref": "HandshakeTaskDef12148854"
-    }
-   },
-   "DependsOn": [
-    "ECSTaskRoleDefaultPolicy82FC9293",
-    "ECSTaskRoleF2ADB362",
-    "HandshakeListenerRule3CECC926"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeService/Service"
-   }
-  },
-  "HandshakeTargetGroupB0E5C2E0": {
-   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-   "Properties": {
-    "HealthCheckIntervalSeconds": 30,
-    "HealthCheckPath": "/health",
-    "Port": 80,
-    "Protocol": "HTTP",
-    "TargetGroupAttributes": [
-     {
-      "Key": "stickiness.enabled",
-      "Value": "false"
-     }
-    ],
-    "TargetType": "ip",
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeTargetGroup/Resource"
-   }
-  },
-  "HandshakeListenerRule3CECC926": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "HandshakeTargetGroupB0E5C2E0"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/v1/handshake/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 40
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/HandshakeListenerRule/Resource"
-   }
-  },
-  "OAuthSGCA2E2DFC": {
-   "Type": "AWS::EC2::SecurityGroup",
-   "Properties": {
-    "GroupDescription": "AwsStack/OAuthSG",
-    "SecurityGroupEgress": [
-     {
-      "CidrIp": "0.0.0.0/0",
-      "Description": "Allow all outbound traffic by default",
-      "IpProtocol": "-1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthSG/Resource"
-   }
-  },
-  "OAuthSGfromAwsStackAlbSecurityGroupFEFFD71B8094475810": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Allow OAuth from ALB on its container port",
-    "FromPort": 80,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "OAuthSGCA2E2DFC",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "AlbSecurityGroup86A59E99",
-      "GroupId"
-     ]
-    },
-    "ToPort": 80
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthSG/from AwsStackAlbSecurityGroupFEFFD71B:80"
-   }
-  },
-  "OAuthTaskDef19B6669A": {
-   "Type": "AWS::ECS::TaskDefinition",
-   "Properties": {
-    "ContainerDefinitions": [
-     {
-      "Environment": [
-       {
-        "Name": "HASURA_GRAPHQL_GRAPHQL_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/graphql"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "HANDSHAKE_URL",
-        "Value": {
-         "Fn::Join": [
-          "",
-          [
-           "http://",
-           {
-            "Fn::GetAtt": [
-             "AtomicAlbF873927A",
-             "DNSName"
-            ]
-           },
-           "/v1/handshake"
-          ]
-         ]
-        }
-       }
-      ],
-      "Essential": true,
-      "Image": {
-       "Fn::Join": [
-        "",
-        [
-         {
-          "Fn::Select": [
-           4,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicOauthRepoCAF08457",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".dkr.ecr.",
-         {
-          "Fn::Select": [
-           3,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicOauthRepoCAF08457",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".",
-         {
-          "Ref": "AWS::URLSuffix"
-         },
-         "/",
-         {
-          "Ref": "AtomicOauthRepoCAF08457"
-         },
-         ":latest"
-        ]
-       ]
-      },
-      "LogConfiguration": {
-       "LogDriver": "awslogs",
-       "Options": {
-        "awslogs-group": {
-         "Ref": "OAuthLogGroupF9A7E869"
-        },
-        "awslogs-stream-prefix": "oauth-ecs",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
-       }
-      },
-      "Name": "OAuthContainer",
-      "PortMappings": [
-       {
-        "ContainerPort": 80,
-        "Protocol": "tcp"
-       }
-      ],
-      "Secrets": [
-       {
-        "Name": "HASURA_GRAPHQL_ADMIN_SECRET",
-        "ValueFrom": {
-         "Ref": "HasuraAdminSecret359C72F3"
-        }
-       }
-      ]
-     }
-    ],
-    "Cpu": "256",
-    "ExecutionRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    },
-    "Family": "oauth-fargate",
-    "Memory": "512",
-    "NetworkMode": "awsvpc",
-    "RequiresCompatibilities": [
-     "FARGATE"
-    ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
-    "TaskRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthTaskDef/Resource"
-   }
-  },
-  "OAuthLogGroupF9A7E869": {
-   "Type": "AWS::Logs::LogGroup",
-   "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/oauth"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthLogGroup/Resource"
-   }
-  },
-  "OAuthService4E623EC0": {
-   "Type": "AWS::ECS::Service",
-   "Properties": {
-    "Cluster": {
-     "Ref": "AtomicCluster0DDF655C"
-    },
-    "DeploymentConfiguration": {
-     "MaximumPercent": 200,
-     "MinimumHealthyPercent": 50
-    },
-    "DesiredCount": 1,
-    "EnableECSManagedTags": false,
-    "HealthCheckGracePeriodSeconds": 60,
-    "LaunchType": "FARGATE",
-    "LoadBalancers": [
-     {
-      "ContainerName": "OAuthContainer",
-      "ContainerPort": 80,
-      "TargetGroupArn": {
-       "Ref": "OAuthTargetGroup82179AC8"
-      }
-     }
-    ],
-    "NetworkConfiguration": {
-     "AwsvpcConfiguration": {
-      "AssignPublicIp": "DISABLED",
-      "SecurityGroups": [
-       {
-        "Fn::GetAtt": [
-         "OAuthSGCA2E2DFC",
-         "GroupId"
-        ]
-       }
-      ],
-      "Subnets": [
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
-       },
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
-       }
-      ]
-     }
-    },
-    "TaskDefinition": {
-     "Ref": "OAuthTaskDef19B6669A"
-    }
-   },
-   "DependsOn": [
-    "ECSTaskRoleDefaultPolicy82FC9293",
-    "ECSTaskRoleF2ADB362",
-    "OAuthListenerRuleBC6350B9"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthService/Service"
-   }
-  },
-  "OAuthTargetGroup82179AC8": {
-   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-   "Properties": {
-    "HealthCheckIntervalSeconds": 30,
-    "HealthCheckPath": "/health",
-    "Port": 80,
-    "Protocol": "HTTP",
-    "TargetGroupAttributes": [
-     {
-      "Key": "stickiness.enabled",
-      "Value": "false"
-     }
-    ],
-    "TargetType": "ip",
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthTargetGroup/Resource"
-   }
-  },
-  "OAuthListenerRuleBC6350B9": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "OAuthTargetGroup82179AC8"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/v1/oauth/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 50
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OAuthListenerRule/Resource"
-   }
-  },
-  "OptaplannerSG10E13F9F": {
-   "Type": "AWS::EC2::SecurityGroup",
-   "Properties": {
-    "GroupDescription": "AwsStack/OptaplannerSG",
-    "SecurityGroupEgress": [
-     {
-      "CidrIp": "0.0.0.0/0",
-      "Description": "Allow all outbound traffic by default",
-      "IpProtocol": "-1"
-     }
-    ],
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerSG/Resource"
-   }
-  },
-  "OptaplannerSGfromAwsStackAlbSecurityGroupFEFFD71B808191604EED": {
-   "Type": "AWS::EC2::SecurityGroupIngress",
-   "Properties": {
-    "Description": "Load balancer to target",
-    "FromPort": 8081,
-    "GroupId": {
-     "Fn::GetAtt": [
-      "OptaplannerSG10E13F9F",
-      "GroupId"
-     ]
-    },
-    "IpProtocol": "tcp",
-    "SourceSecurityGroupId": {
-     "Fn::GetAtt": [
-      "AlbSecurityGroup86A59E99",
-      "GroupId"
-     ]
-    },
-    "ToPort": 8081
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerSG/from AwsStackAlbSecurityGroupFEFFD71B:8081"
-   }
-  },
-  "OptaplannerTaskDef99156FA2": {
-   "Type": "AWS::ECS::TaskDefinition",
-   "Properties": {
-    "ContainerDefinitions": [
-     {
-      "Environment": [
-       {
-        "Name": "QUARKUS_DATASOURCE_DB_KIND",
-        "Value": "postgresql"
-       },
-       {
-        "Name": "USERNAME",
-        "Value": "admin"
-       }
-      ],
-      "Essential": true,
-      "Image": {
-       "Fn::Join": [
-        "",
-        [
-         {
-          "Fn::Select": [
-           4,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicOptaplannerRepo893F41D8",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".dkr.ecr.",
-         {
-          "Fn::Select": [
-           3,
-           {
-            "Fn::Split": [
-             ":",
-             {
-              "Fn::GetAtt": [
-               "AtomicOptaplannerRepo893F41D8",
-               "Arn"
-              ]
-             }
-            ]
-           }
-          ]
-         },
-         ".",
-         {
-          "Ref": "AWS::URLSuffix"
-         },
-         "/",
-         {
-          "Ref": "AtomicOptaplannerRepo893F41D8"
-         },
-         ":latest"
-        ]
-       ]
-      },
-      "LogConfiguration": {
-       "LogDriver": "awslogs",
-       "Options": {
-        "awslogs-group": {
-         "Ref": "OptaplannerLogGroup6EFDA77B"
-        },
-        "awslogs-stream-prefix": "AwsStack/optaplanner",
-        "awslogs-region": {
-         "Ref": "AWS::Region"
-        }
-       }
-      },
-      "Name": "OptaplannerContainer",
-      "PortMappings": [
-       {
-        "ContainerPort": 8081,
-        "HostPort": 8081,
-        "Protocol": "tcp"
-       }
-      ],
-      "Secrets": [
-       {
-        "Name": "QUARKUS_DATASOURCE_JDBC_URL",
-        "ValueFrom": {
-         "Ref": "OptaplannerDbConnString28A909E6"
-        }
-       },
-       {
-        "Name": "QUARKUS_DATASOURCE_USERNAME",
-        "ValueFrom": {
-         "Fn::Join": [
-          "",
-          [
-           {
-            "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
-           },
-           ":username::"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "QUARKUS_DATASOURCE_PASSWORD",
-        "ValueFrom": {
-         "Fn::Join": [
-          "",
-          [
-           {
-            "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
-           },
-           ":password::"
-          ]
-         ]
-        }
-       },
-       {
-        "Name": "PASSWORD",
-        "ValueFrom": {
-         "Ref": "ApiTokenSecret3A926DEB"
-        }
-       }
-      ]
-     }
-    ],
-    "Cpu": "1024",
-    "ExecutionRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    },
-    "Family": "AwsStack-optaplanner",
-    "Memory": "2048",
-    "NetworkMode": "awsvpc",
-    "RequiresCompatibilities": [
-     "FARGATE"
-    ],
-    "RuntimePlatform": {
-     "CpuArchitecture": "X86_64",
-     "OperatingSystemFamily": "LINUX"
-    },
-    "TaskRoleArn": {
-     "Fn::GetAtt": [
-      "ECSTaskRoleF2ADB362",
-      "Arn"
-     ]
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerTaskDef/Resource"
-   }
-  },
-  "OptaplannerLogGroup6EFDA77B": {
-   "Type": "AWS::Logs::LogGroup",
-   "Properties": {
-    "LogGroupName": {
-     "Fn::Join": [
-      "",
-      [
-       "/aws/ecs/",
-       {
-        "Ref": "AtomicCluster0DDF655C"
-       },
-       "/optaplanner"
-      ]
-     ]
-    },
-    "RetentionInDays": 731
-   },
-   "UpdateReplacePolicy": "Delete",
-   "DeletionPolicy": "Delete",
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerLogGroup/Resource"
-   }
-  },
-  "OptaplannerServiceB1009854": {
-   "Type": "AWS::ECS::Service",
-   "Properties": {
-    "Cluster": {
-     "Ref": "AtomicCluster0DDF655C"
-    },
-    "DeploymentConfiguration": {
-     "MaximumPercent": 200,
-     "MinimumHealthyPercent": 50
-    },
-    "DesiredCount": 1,
-    "EnableECSManagedTags": false,
-    "HealthCheckGracePeriodSeconds": 60,
-    "LaunchType": "FARGATE",
-    "LoadBalancers": [
-     {
-      "ContainerName": "OptaplannerContainer",
-      "ContainerPort": 8081,
-      "TargetGroupArn": {
-       "Ref": "OptaplannerTargetGroupDF19B4DA"
-      }
-     }
-    ],
-    "NetworkConfiguration": {
-     "AwsvpcConfiguration": {
-      "AssignPublicIp": "DISABLED",
-      "SecurityGroups": [
-       {
-        "Fn::GetAtt": [
-         "OptaplannerSG10E13F9F",
-         "GroupId"
-        ]
-       }
-      ],
-      "Subnets": [
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet1SubnetCEF3D184"
-       },
-       {
-        "Ref": "AtomicVpcPrivateSubnetSubnet2Subnet21C2DC90"
-       }
-      ]
-     }
-    },
-    "TaskDefinition": {
-     "Ref": "OptaplannerTaskDef99156FA2"
-    }
-   },
-   "DependsOn": [
-    "ECSTaskRoleDefaultPolicy82FC9293",
-    "ECSTaskRoleF2ADB362",
-    "OptaplannerListenerRuleF51E8FB5"
-   ],
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerService/Service"
-   }
-  },
-  "OptaplannerTargetGroupDF19B4DA": {
-   "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
-   "Properties": {
-    "HealthCheckIntervalSeconds": 30,
-    "HealthCheckPath": "/q/health",
-    "Port": 8081,
-    "Protocol": "HTTP",
-    "TargetGroupAttributes": [
-     {
-      "Key": "stickiness.enabled",
-      "Value": "false"
-     }
-    ],
-    "TargetType": "ip",
-    "VpcId": {
-     "Ref": "AtomicVpcD404E496"
-    }
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerTargetGroup/Resource"
-   }
-  },
-  "OptaplannerListenerRuleF51E8FB5": {
-   "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
-   "Properties": {
-    "Actions": [
-     {
-      "TargetGroupArn": {
-       "Ref": "OptaplannerTargetGroupDF19B4DA"
-      },
-      "Type": "forward"
-     }
-    ],
-    "Conditions": [
-     {
-      "Field": "path-pattern",
-      "PathPatternConfig": {
-       "Values": [
-        "/v1/optaplanner/*"
-       ]
-      }
-     }
-    ],
-    "ListenerArn": {
-     "Ref": "AtomicAlbHttpListener370F09B3"
-    },
-    "Priority": 60
-   },
-   "Metadata": {
-    "aws:cdk:path": "AwsStack/OptaplannerListenerRule/Resource"
-   }
-  },
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/+1ZS2/bOBD+LeWxYLVtCvSQm+O0hbFpY9jeHNYwijE5UZhQpJYPp15B/31BUpKVxNsmaTb1Fj4EkebFb14kRz7IDl6/yV6/gGv7ivGrV1Iss2rqgF1RuLZfKvs2q448u0I3r8gyPnyGAskheUkoMVjoFcixloKtySHhaJ3Ra0IJeKePUaLD0+UlMmfJoTMeKVmhsUIr5OTwHKRFSkq/lIJNEPiAMbS2YyylZlfjyG05cVVUzKxLJ7Qih2T69sunwefBx/fHpF7Q4blKaGn6l5B10KOBvlji1xSZyaoJltoKp01QMN3LA/0dFZBj425N94a+ayimYxP7kIyDrDor2bwiBXwd/N3mXYH7CA6vYd1SrF8qdEOtzkXuDaSSmFeECW4+gb3qFDt0SWO2LgMh1RYJrtxXw4gVOCT1IsE+Gw9psjKNYvOKwAqEhKWQwq3/1Ko1syrZiDfPYbGjUNzNewFlMjIqT9UJeMUu2nYR5erd8JY4WCtyNSpX7wacG7T2VA0NNt6HAqc7giIC4fxzlzdyOCcvyWJnAO4GilRKqYBiL2jvcAZLiRv6hjawVjMRDXTC4eH9aBz+bYJNm2J98spstuefHfMfg7E7SHYERqrCkXJoFHY1lPa45m3gHLCLApWjU2TeCLf+aLQv51UA2yzF0TIjys40JSClvh5IeerdUnvFNwcIcD5SecAz8RLT7hBS020Sj+fTGI0o9UTYKsJAjZQUChMlNT3TSiELJttTySvxl8cmd/UtvO//BW4wtpf5RWU2FfioXujV8kMr/nnWe36pJ/XwPjnewajvYgx2FPnzZvj5Yplujv2z+A6hMVFTw21WHYODJVgcKetAMZxXBFUuwqWjfWpGnTj7CJVL/MOimWgXbwuDspSCQe8ETUpnaawPVs69lN1rc1u51KZPqikpwUCBDk0E+QEKIdc3LN4gcTwHL11A0o1mNSWi8aIHeZOiVdkMZTag2j7GUWL7sbLNgEIJM8hROQGyPdV5E7l7jbrpm4Zcp+8WYhnSF1NWL2gC1V6c7l5JHurBbRTtF47jo95KtE38FJmJ08DmK8rv2IbZRuYND2O6J5h395tQmb6fhy1q22zjVyY9x+EFGGAOje0tAQxP1RisvdaGD41waAQML0B1Xwm2Q2n8bIu5pgmJLUBBjiarUjMYjBdWg24GJke3ucfOqwZ8A8ZFfs/4djXaRfGO67fzGcL1NEJtnKfOCJWfgfT4EOUcFZowDvaMhLIqm7CfoMrdxc1kjb1izjfdHje4p3PnB2H3YzHDopShG26pROamAh/o6SJ8ibJZNZTeOjS9ISeVRkOnM7BXx3gulAjacZP+H/5Fl266QodaORAKTY/2AUwe02FWguG3vG36J8rVFCVYJ5jUwJcgQTGh8tVBVvUOlBMN/Cjy0Mz7RvoM2lcQ1oVcfy/myUgj3DeQ+ro7N/uvW5YJp3DfUnivqYAiqyZahqMUrPUF8qN1bCwjFBMlyAFj2qt2i0kyQWHAes2wtT+A85luN/Z5VS82xNb4HW7cpNKY2vG6+fObzG/bfQSUx6rsuXvuL8L9gQ3BaLm5bP7Exv8FXHgsN/00pSXS5ofEOIE1UGY6cO4gvEvmfOrAYbg42hvL7sl78nOQ/+uq3amuiD3b/q4vdW6z6kTn7bgtm8d7TPFhgb34VvHmVp4U6poOvXW6mKDV3txjKGgFb+mNjV4JjuYILNKBtWG8g1yoPOiceld6R7etsaip0hyzS/vb6uAge/Mue/3i0grxynjlRIHZJP3/B7w5XgzsIgAA"
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/+1YbW/bNhD+LdPHgtW6FOiHfHOctDCWNp6ddsCMoDiTZ4UJRWrk0akr+L8PfJEsp+kL2i3whn0QRB7vjg+PvOMjHZVHz16Uz36CO/eUi9unSi7Ldk7Ab9l4padgoUZCGzpjo4UkaTSDO/e+ddqV7aVpJF8UT4qroBF7bO6XjlvZBNVFW1AQFsfFk4IVqEVjpKbcbawhw40qjgusQaqCFSupCO3UKMk3WWso+l3S9Wt0Dio8MaLTEAjiHInQ/ubRY5RuI6Ihli1DflS27xq+aIsaPow+umyvgV4B4R1s3MD23XTMpn6pJJ/7pUZatAWsQSpYSiVp84fRmO3XDZ+I3OZS2BNl+G3u19AkJ5PmQp+D1/y6OCbrkRWyWb8Y31MH52SlJ836xUgIi85d6LFFCPgTNHYgKCIQId70oSuO4zk4GICHgaI/hhoptGbGE17CUuFOvpONnDNcRge9cmicTabhtQs2m1q5BsK//WSuQLkDiPmPwTgcJAcCI53CiSa0GvszlGpc7o2IgF/XqInNkXsrafPKGt8s2gC2m0opczdS6sLT0ngtUnLkUjDRVZh95hWmWhA2IryCTqwL3+WoLTjoiVZSY5KkfORGa+RhkV0V91r+6TGHNS76wP3F4MSN/ec9n31tbx5T50cP1Bdi9jmtz2HaKT0qqHQrDPPsE0F2EViLK9ux8o7Q7mUj6nBnvARbAeEYGuCSNlNr1lKgdTvUX9NbZDx5jkHzvvLgfnLsEtztKa6kjqQwLvIbnkQU90zZ2GgCqdEOZBnuHO1aclwMrbNsyyTUZTszCsMF6JyvUZxsiuO2aKzUXDagRpwb3/PNpBMMRnxXHvOWXZppZ9XRz0WX87E2pkzsx3qy88XB6Pe+uy9P9ogmBzV6lSiPQpbEKW1yfC9NGPkk7J+KhZgTEIaLzO1N++8Tx4CkWGyZe162J57fRrZnsTbrXfgKgY6s2YQj7smcokLCi+UNcnLdrbEMjCHxihHn6FxfRLjdNDkb5s/fvx69Gb06O40jK2M5zufnuZREPAkDS6+8UW2xjN3Bx9NwPJQwW7YzbIyTZOwmrqDrvIG6Y0XfsqxJDRUOitv/jh7LUcrP3tWWWeHK9hQIluBwoh2B5qEUo65kYLpd63LTdJM6qSuFbx3amaF4j4yaRkm+Y6ssG71D66KsLVZeqb6bKfKNsUPRlhVN968i3p4voZZqs+dxTyRwBV5RQKK7mGxZIfMqBpB39+26yX8CXEDlYjMr5s+x4MINL3GXSxMruEWBmiSoLvNEjtw37YkjY6HCs5StKLq0rr0iOfrYZznwW9/MkMJUfbhE2Exp9NQawnzz5S1NC+qYvsD+b8l3rv7+Crp6cHoymIl1h2aO3MaCtqtCv2K3RS4O7kUnHpUZVj33DafbD/fwAbOHfOMHrrzA8TVY4BRZUD8FcLzQU3DuzlgxtpLQShhfg+5T4WEoeZ1dImxZQuJq0FChLdvE8CzGLyyLdAm2Qtp9eC3aDD6DoTg+/Jv1oBnro3hv6SE4/y3R1ZahAkeSKwNiCQo0l7paH5XtoI6cGxAncQzt4j71HA6yoZF0hHrf4EHu2ik+ZBz4/lAn9gd6aet6vj/obpkylSvbc1N1yahycy8D+sR+/uzz5SKE7gesc5yS/XbLZuiMt4mEX7Gxd2TqoeyrdL9TvmfbfVWcgEM2cg5pTlBJXQWbC0+Npy3TRmB5435eHx2Vv4Q/1TdOyqfWa5I1lrP0/guyP6ALxhYAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "AwsStack/CDKMetadata/Default"
-   },
-   "Condition": "CDKMetadataAvailable"
+   }
   }
  },
  "Outputs": {
-  "DataBucketName": {
-   "Value": {
-    "Ref": "AtomicDataBucketE642B1DA"
-   }
-  },
-  "FunctionsRepoUri": {
+  "atomicfunctionsRepoUri": {
    "Value": {
     "Fn::Join": [
      "",
@@ -4179,7 +2656,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicFunctionsRepoCA9ADB29",
+            "atomicfunctionsRepoA602F8DD",
             "Arn"
            ]
           }
@@ -4196,7 +2673,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicFunctionsRepoCA9ADB29",
+            "atomicfunctionsRepoA602F8DD",
             "Arn"
            ]
           }
@@ -4210,13 +2687,13 @@
       },
       "/",
       {
-       "Ref": "AtomicFunctionsRepoCA9ADB29"
+       "Ref": "atomicfunctionsRepoA602F8DD"
       }
      ]
     ]
    }
   },
-  "HandshakeRepoUri": {
+  "atomichandshakeRepoUri": {
    "Value": {
     "Fn::Join": [
      "",
@@ -4229,7 +2706,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicHandshakeRepo7FD56D21",
+            "atomichandshakeRepo8D7DD10F",
             "Arn"
            ]
           }
@@ -4246,7 +2723,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicHandshakeRepo7FD56D21",
+            "atomichandshakeRepo8D7DD10F",
             "Arn"
            ]
           }
@@ -4260,13 +2737,13 @@
       },
       "/",
       {
-       "Ref": "AtomicHandshakeRepo7FD56D21"
+       "Ref": "atomichandshakeRepo8D7DD10F"
       }
      ]
     ]
    }
   },
-  "OauthRepoUri": {
+  "atomicoauthRepoUri": {
    "Value": {
     "Fn::Join": [
      "",
@@ -4279,7 +2756,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicOauthRepoCAF08457",
+            "atomicoauthRepoD4F710CC",
             "Arn"
            ]
           }
@@ -4296,7 +2773,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicOauthRepoCAF08457",
+            "atomicoauthRepoD4F710CC",
             "Arn"
            ]
           }
@@ -4310,13 +2787,13 @@
       },
       "/",
       {
-       "Ref": "AtomicOauthRepoCAF08457"
+       "Ref": "atomicoauthRepoD4F710CC"
       }
      ]
     ]
    }
   },
-  "AppRepoUri": {
+  "atomicappRepoUri": {
    "Value": {
     "Fn::Join": [
      "",
@@ -4329,7 +2806,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicAppRepo2D8E1244",
+            "atomicappRepoBED6513B",
             "Arn"
            ]
           }
@@ -4346,7 +2823,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicAppRepo2D8E1244",
+            "atomicappRepoBED6513B",
             "Arn"
            ]
           }
@@ -4360,13 +2837,13 @@
       },
       "/",
       {
-       "Ref": "AtomicAppRepo2D8E1244"
+       "Ref": "atomicappRepoBED6513B"
       }
      ]
     ]
    }
   },
-  "OptaplannerRepoUri": {
+  "atomicoptaplannerRepoUri": {
    "Value": {
     "Fn::Join": [
      "",
@@ -4379,7 +2856,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicOptaplannerRepo893F41D8",
+            "atomicoptaplannerRepoC039AD7C",
             "Arn"
            ]
           }
@@ -4396,7 +2873,7 @@
           ":",
           {
            "Fn::GetAtt": [
-            "AtomicOptaplannerRepo893F41D8",
+            "atomicoptaplannerRepoC039AD7C",
             "Arn"
            ]
           }
@@ -4410,355 +2887,64 @@
       },
       "/",
       {
-       "Ref": "AtomicOptaplannerRepo893F41D8"
+       "Ref": "atomicoptaplannerRepoC039AD7C"
       }
      ]
     ]
    }
   },
-  "VpcId": {
+  "atomicpythonagentRepoUri": {
    "Value": {
-    "Ref": "AtomicVpcD404E496"
-   }
-  },
-  "DbInstanceEndpoint": {
-   "Value": {
-    "Fn::GetAtt": [
-     "AtomicPostgresDB2E9D697F",
-     "Endpoint.Address"
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::Select": [
+        4,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "atomicpythonagentRepoD31A96D9",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".dkr.ecr.",
+      {
+       "Fn::Select": [
+        3,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "atomicpythonagentRepoD31A96D9",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "atomicpythonagentRepoD31A96D9"
+      }
+     ]
     ]
    }
   },
-  "DbSecretArn": {
-   "Value": {
-    "Ref": "AtomicPostgresDBSecretAttachmentDB0B9A31"
-   }
-  },
-  "ClusterName": {
-   "Value": {
-    "Ref": "AtomicCluster0DDF655C"
-   }
-  },
-  "AlbDnsName": {
-   "Value": {
-    "Fn::GetAtt": [
-     "AtomicAlbF873927A",
-     "DNSName"
-    ]
-   }
-  },
-  "AlbHttpListenerArn": {
-   "Value": {
-    "Ref": "AtomicAlbHttpListener370F09B3"
-   }
-  },
-  "SupertokensDbConnStringSecretArn": {
-   "Value": {
-    "Ref": "SupertokensDbConnStringSecretC2E71EE2"
-   }
-  },
-  "HasuraDbConnStringSecretArn": {
-   "Value": {
-    "Ref": "HasuraDbConnStringSecret6DFFC41D"
-   }
-  },
-  "PlaceholderHasuraJwtSecretArn": {
-   "Value": {
-    "Ref": "PlaceholderHasuraJwtSecret5A36E06E"
-   }
-  },
-  "ApiTokenSecretArn": {
-   "Value": {
-    "Ref": "ApiTokenSecret3A926DEB"
-   }
-  },
-  "OpenAiApiKeySecretArn": {
-   "Value": {
-    "Ref": "OpenAiApiKeySecret05681F66"
-   }
-  },
-  "OptaplannerDbConnStringArn": {
-   "Value": {
-    "Ref": "OptaplannerDbConnString28A909E6"
-   }
-  },
-  "HasuraAdminSecretOutput": {
-   "Value": {
-    "Ref": "HasuraAdminSecret359C72F3"
-   }
-  }
- },
- "Conditions": {
-  "CDKMetadataAvailable": {
-   "Fn::Or": [
-    {
-     "Fn::Or": [
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "af-south-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-east-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-northeast-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-northeast-2"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-northeast-3"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-south-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-south-2"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-southeast-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-southeast-2"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-southeast-3"
-       ]
-      }
-     ]
-    },
-    {
-     "Fn::Or": [
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ap-southeast-4"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ca-central-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "ca-west-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "cn-north-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "cn-northwest-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-central-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-central-2"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-north-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-south-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-south-2"
-       ]
-      }
-     ]
-    },
-    {
-     "Fn::Or": [
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-west-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-west-2"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "eu-west-3"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "il-central-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "me-central-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "me-south-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "sa-east-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "us-east-1"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "us-east-2"
-       ]
-      },
-      {
-       "Fn::Equals": [
-        {
-         "Ref": "AWS::Region"
-        },
-        "us-west-1"
-       ]
-      }
-     ]
-    },
-    {
-     "Fn::Equals": [
-      {
-       "Ref": "AWS::Region"
-      },
-      "us-west-2"
-     ]
-    }
-   ]
-  }
- },
- "Parameters": {
-  "BootstrapVersion": {
-   "Type": "AWS::SSM::Parameter::Value<String>",
-   "Default": "/cdk-bootstrap/hnb659fds/version",
-   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  "ApplicationEndpoint": {
+   "Value": "https://app.example.com"
   }
  },
  "Rules": {

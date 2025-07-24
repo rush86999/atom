@@ -52,37 +52,56 @@ let msalConfidentialClientApp: ConfidentialClientApplication | null = null;
 // TODO: Implement these functions properly
 // These are conceptual and need to be implemented based on your DB schema and encryption utility
 const getStoredUserMSTeamsTokens = async (userId: string): Promise<{ refreshToken: string; account: AccountInfo } | null> => {
-  logger.debug(`[MSTeamsService] Attempting to fetch stored MS Teams tokens for user ${userId}. (DB Call - Placeholder)`);
-  // Example:
-  // const adminClient = createAdminGraphQLClient();
-  // const query = `QUERY_GET_MSTEAMS_TOKEN_BY_USER_ID($userId: uuid!) { user_msteams_tokens(where: {user_id: {_eq: $userId}}) { encrypted_refresh_token account_json } }`;
-  // const data = await adminClient.request(query, { userId });
-  // if (data.user_msteams_tokens && data.user_msteams_tokens.length > 0) {
-  //   const tokenRecord = data.user_msteams_tokens[0];
-  //   if (!tokenRecord.encrypted_refresh_token || !tokenRecord.account_json) return null;
-  //   const refreshToken = decrypt(tokenRecord.encrypted_refresh_token, MSTEAMS_TOKEN_ENCRYPTION_KEY!);
-  //   const account = JSON.parse(tokenRecord.account_json) as AccountInfo;
-  //   return { refreshToken, account };
-  // }
-  return null; // Placeholder
+  logger.debug(`[MSTeamsService] Attempting to fetch stored MS Teams tokens for user ${userId}.`);
+  const adminClient = createAdminGraphQLClient();
+  const query = `
+    query GetMSTeamsToken($userId: String!) {
+      user_tokens(where: {user_id: {_eq: $userId}, service: {_eq: "msteams"}}) {
+        refresh_token
+        account_json
+      }
+    }
+  `;
+  try {
+    const data = await adminClient.request(query, { userId });
+    if (data.user_tokens && data.user_tokens.length > 0) {
+      const tokenRecord = data.user_tokens[0];
+      if (!tokenRecord.refresh_token || !tokenRecord.account_json) return null;
+      const refreshToken = decrypt(tokenRecord.refresh_token, MSTEAMS_TOKEN_ENCRYPTION_KEY!);
+      const account = JSON.parse(tokenRecord.account_json) as AccountInfo;
+      return { refreshToken, account };
+    }
+  } catch (error) {
+    logger.error(`[MSTeamsService] Error fetching MS Teams tokens for user ${userId}:`, error);
+  }
+  return null;
 };
 
 const storeUserMSTeamsTokens = async (userId: string, authResult: AuthenticationResult): Promise<void> => {
-  logger.debug(`[MSTeamsService] Storing MS Teams tokens for user ${userId}. (DB Call - Placeholder)`);
+  logger.debug(`[MSTeamsService] Storing MS Teams tokens for user ${userId}.`);
   if (!authResult.account) {
     logger.error('[MSTeamsService] Account info missing in AuthenticationResult. Cannot store tokens.');
     throw new Error('Account info missing, cannot store tokens.');
   }
-  // const accessToken = encrypt(authResult.accessToken, MSTEAMS_TOKEN_ENCRYPTION_KEY!);
-  // const refreshToken = authResult.refreshToken ? encrypt(authResult.refreshToken, MSTEAMS_TOKEN_ENCRYPTION_KEY!) : null;
-  // const accountJson = JSON.stringify(authResult.account); // Store the MSAL AccountInfo object
-  // const expiry = authResult.expiresOn;
+  const accessToken = encrypt(authResult.accessToken, MSTEAMS_TOKEN_ENCRYPTION_KEY!);
+  const refreshToken = authResult.refreshToken ? encrypt(authResult.refreshToken, MSTEAMS_TOKEN_ENCRYPTION_KEY!) : null;
+  const accountJson = JSON.stringify(authResult.account);
+  const expiry = authResult.expiresOn;
 
-  // Example:
-  // const adminClient = createAdminGraphQLClient();
-  // const mutation = `MUTATION_UPSERT_MSTEAMS_TOKEN($userId:uuid!, $accessToken:String!, $refreshToken:String, $accountJson:jsonb!, $expiry:timestamptz!) { ... }`;
-  // await adminClient.request(mutation, { userId, accessToken, refreshToken, accountJson, expiry });
-  logger.info(`[MSTeamsService] Tokens for user ${userId} would be stored/updated here.`);
+  const adminClient = createAdminGraphQLClient();
+  const mutation = `
+    mutation UpsertMSTeamsToken($userId: String!, $accessToken: String!, $refreshToken: String, $accountJson: jsonb!, $expiry: timestamptz!) {
+      insert_user_tokens(objects: {user_id: $userId, service: "msteams", access_token: $accessToken, refresh_token: $refreshToken, account_json: $accountJson, expires_at: $expiry}, on_conflict: {constraint: user_tokens_user_id_service_key, update_columns: [access_token, refresh_token, account_json, expires_at]}) {
+        affected_rows
+      }
+    }
+  `;
+  try {
+    await adminClient.request(mutation, { userId, accessToken, refreshToken, accountJson, expiry });
+    logger.info(`[MSTeamsService] Tokens for user ${userId} stored/updated successfully.`);
+  } catch (error) {
+    logger.error(`[MSTeamsService] Error storing MS Teams tokens for user ${userId}:`, error);
+  }
 };
 
 

@@ -1,22 +1,222 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@components/common/Box';
 import Text from '@components/common/Text';
 import Button from '@components/Button';
 
 const ThirdPartyIntegrations = () => {
   const [zapierUrl, setZapierUrl] = useState('');
+  const [notionApiKey, setNotionApiKey] = useState('');
+  const [hubspotApiKey, setHubspotApiKey] = useState('');
+  const [calendlyApiKey, setCalendlyApiKey] = useState('');
+  const [stripeApiKey, setStripeApiKey] = useState('');
+  const [asanaApiKey, setAsanaApiKey] = useState('');
+  const [jiraUsername, setJiraUsername] = useState('');
+  const [jiraApiKey, setJiraApiKey] = useState('');
+  const [jiraServerUrl, setJiraServerUrl] = useState('');
+  const [trelloApiKey, setTrelloApiKey] = useState('');
+  const [trelloApiToken, setTrelloApiToken] = useState('');
+  const [githubApiKey, setGithubApiKey] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const handleSaveZapierUrl = async () => {
+  useEffect(() => {
+    const fetchSettings = async () => {
+        // ... (existing fetch logic)
+        // Calendly
+        if (await getSettingStatus('calendly_api_key')) {
+            setCalendlyApiKey('********');
+        }
+        // Stripe
+        if (await getSettingStatus('stripe_api_key')) {
+            setStripeApiKey('********');
+        }
+        // Asana
+        if (await getSettingStatus('asana_api_key')) {
+            setAsanaApiKey('********');
+        }
+        // Jira
+        if (await getSettingStatus('jira_api_key')) {
+            setJiraUsername(await getSetting('jira_username') || '');
+            setJiraApiKey('********');
+            setJiraServerUrl(await getSetting('jira_server_url') || '');
+        }
+        // Trello
+        if (await getSettingStatus('trello_api_key')) {
+            setTrelloApiKey('********');
+            setTrelloApiToken('********');
+        }
+        // GitHub
+        if (await getSettingStatus('github_api_key')) {
+            setGithubApiKey('********');
+        }
+    };
+    fetchSettings();
+  }, []);
+
+  // ... (existing save handlers)
+
+  const handleSaveStripeApiKey = async () => {
     try {
-      // This is a placeholder for the actual API call.
-      // In a real application, you would make a request to your backend to save the URL.
-      console.log('Saving Zapier URL:', zapierUrl);
-      setMessage('Zapier URL saved successfully.');
-      setError('');
+      const response = await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'stripe_api_key', secret: stripeApiKey }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage('Stripe API key saved successfully.');
+        setError('');
+        setStripeApiKey('********');
+      } else {
+        setError(data.message || 'Failed to save Stripe API key.');
+        setMessage('');
+      }
     } catch (err) {
-      setError('Failed to save Zapier URL.');
+      setError('Failed to connect to the server.');
+      setMessage('');
+    }
+  };
+
+  const handleSaveAsanaApiKey = async () => {
+    try {
+      const response = await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'asana_api_key', secret: asanaApiKey }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage('Asana API key saved successfully.');
+        setError('');
+        setAsanaApiKey('********');
+      } else {
+        setError(data.message || 'Failed to save Asana API key.');
+        setMessage('');
+      }
+    } catch (err) {
+      setError('Failed to connect to the server.');
+      setMessage('');
+    }
+  };
+
+  const handleSaveJiraCredentials = async () => {
+    try {
+      await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'jira_username', secret: jiraUsername }),
+      });
+      await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'jira_api_key', secret: jiraApiKey }),
+      });
+      await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'jira_server_url', secret: jiraServerUrl }),
+      });
+      setMessage('Jira credentials saved successfully.');
+      setError('');
+      setJiraApiKey('********');
+    } catch (err) {
+      setError('Failed to connect to the server.');
+      setMessage('');
+    }
+  };
+
+  const handleSaveTrelloCredentials = async () => {
+    try {
+      await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'trello_api_key', secret: trelloApiKey }),
+      });
+      await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'trello_api_token', secret: trelloApiToken }),
+      });
+      setMessage('Trello credentials saved successfully.');
+      setError('');
+      setTrelloApiKey('********');
+      setTrelloApiToken('********');
+    } catch (err) {
+      setError('Failed to connect to the server.');
+      setMessage('');
+    }
+  };
+
+  const handleSaveGithubApiKey = async () => {
+    try {
+      const response = await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'github_api_key', secret: githubApiKey }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage('GitHub API key saved successfully.');
+        setError('');
+        setGithubApiKey('********');
+      } else {
+        setError(data.message || 'Failed to save GitHub API key.');
+        setMessage('');
+      }
+    } catch (err) {
+      setError('Failed to connect to the server.');
+      setMessage('');
+    }
+  };
+
+  const handleSaveZapierUrl = async () => {
+    // ... (existing Zapier save logic)
+  };
+
+  const handleSaveNotionApiKey = async () => {
+    // ... (existing Notion save logic)
+  };
+
+  const handleSaveHubspotApiKey = async () => {
+    try {
+      const response = await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'hubspot_api_key', secret: hubspotApiKey }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage('HubSpot API key saved successfully.');
+        setError('');
+        setHubspotApiKey('********');
+      } else {
+        setError(data.message || 'Failed to save HubSpot API key.');
+        setMessage('');
+      }
+    } catch (err) {
+      setError('Failed to connect to the server.');
+      setMessage('');
+    }
+  };
+
+  const handleSaveCalendlyApiKey = async () => {
+    try {
+      const response = await fetch('/api/integrations/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service: 'calendly_api_key', secret: calendlyApiKey }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage('Calendly API key saved successfully.');
+        setError('');
+        setCalendlyApiKey('********');
+      } else {
+        setError(data.message || 'Failed to save Calendly API key.');
+        setMessage('');
+      }
+    } catch (err) {
+      setError('Failed to connect to the server.');
       setMessage('');
     }
   };
@@ -40,11 +240,59 @@ const ThirdPartyIntegrations = () => {
         <Text variant="subHeader" marginBottom="s">
           Zapier Integration
         </Text>
+        {/* ... (existing Zapier input and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          HubSpot Integration
+        </Text>
+        {/* ... (existing HubSpot input and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Slack Integration
+        </Text>
+        {/* ... (existing Slack button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Calendly Integration
+        </Text>
+        {/* ... (existing Calendly input and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Zoom Integration
+        </Text>
+        {/* ... (existing Zoom button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Microsoft Teams Integration
+        </Text>
+        {/* ... (existing Microsoft Teams button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Stripe Integration
+        </Text>
+        {/* ... (existing Stripe input and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          QuickBooks Integration
+        </Text>
+        {/* ... (existing QuickBooks button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Asana Integration
+        </Text>
         <input
-          type="text"
-          value={zapierUrl}
-          onChange={(e) => setZapierUrl(e.target.value)}
-          placeholder="Enter Zapier Webhook URL"
+          type="password"
+          value={asanaApiKey}
+          onChange={(e) => setAsanaApiKey(e.target.value)}
+          placeholder="Enter Asana Personal Access Token"
           style={{
             width: '100%',
             padding: '8px',
@@ -53,7 +301,89 @@ const ThirdPartyIntegrations = () => {
             borderRadius: '4px',
           }}
         />
-        <Button onPress={handleSaveZapierUrl} variant="primary" title="Save Zapier URL" />
+        <Button onPress={handleSaveAsanaApiKey} variant="primary" title="Save Asana Token" />
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Jira Integration
+        </Text>
+        <input
+          type="text"
+          value={jiraUsername}
+          onChange={(e) => setJiraUsername(e.target.value)}
+          placeholder="Enter Jira Username"
+          style={{
+            width: '100%',
+            padding: '8px',
+            marginBottom: '8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+        <input
+          type="password"
+          value={jiraApiKey}
+          onChange={(e) => setJiraApiKey(e.target.value)}
+          placeholder="Enter Jira API Key"
+          style={{
+            width: '100%',
+            padding: '8px',
+            marginBottom: '8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+        <input
+          type="text"
+          value={jiraServerUrl}
+          onChange={(e) => setJiraServerUrl(e.target.value)}
+          placeholder="Enter Jira Server URL (e.g., your-domain.atlassian.net)"
+          style={{
+            width: '100%',
+            padding: '8px',
+            marginBottom: '8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+        <Button onPress={handleSaveJiraCredentials} variant="primary" title="Save Jira Credentials" />
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Trello Integration
+        </Text>
+        {/* ... (existing Trello inputs and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          GitHub Integration
+        </Text>
+        {/* ... (existing GitHub inputs and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Pocket Integration
+        </Text>
+        <Button onPress={() => window.location.href = '/api/pocket/oauth/start'} variant="primary" title="Connect Pocket" />
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Notion Integration
+        </Text>
+        <input
+          type="password"
+          value={notionApiKey}
+          onChange={(e) => setNotionApiKey(e.target.value)}
+          placeholder="Enter Notion API Key"
+          style={{
+            width: '100%',
+            padding: '8px',
+            marginBottom: '8px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+        <Button onPress={handleSaveNotionApiKey} variant="primary" title="Save Notion API Key" />
       </Box>
     </Box>
   );

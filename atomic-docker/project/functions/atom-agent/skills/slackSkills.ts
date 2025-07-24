@@ -1,5 +1,5 @@
 import { WebClient, ErrorCode as SlackErrorCode, SlackAPIError, ConversationsListResponse, ChatPostMessageResponse } from '@slack/web-api';
-import { ATOM_SLACK_BOT_TOKEN } from '../_libs/constants';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
 import {
     SlackSkillResponse,
     SlackChannel,
@@ -10,12 +10,32 @@ import {
 } from '../types';
 import { logger } from '../../_utils/logger';
 
-const getSlackClient = (): WebClient | null => {
-  if (!ATOM_SLACK_BOT_TOKEN) {
-    logger.error('[SlackSkills] Slack Bot Token (ATOM_SLACK_BOT_TOKEN) not configured.');
+async function getSlackToken(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserToken($userId: String!, $service: String!) {
+            user_tokens(where: {user_id: {_eq: $userId}, service: {_eq: $service}}) {
+                access_token
+            }
+        }
+    `;
+    const variables = {
+        userId,
+        service: 'slack',
+    };
+    const response = await executeGraphQLQuery<{ user_tokens: { access_token: string }[] }>(query, variables, 'GetUserToken', userId);
+    if (response.user_tokens && response.user_tokens.length > 0) {
+        return response.user_tokens[0].access_token;
+    }
+    return null;
+}
+
+const getSlackClient = async (userId: string): Promise<WebClient | null> => {
+  const token = await getSlackToken(userId);
+  if (!token) {
+    logger.error('[SlackSkills] Slack token not found for user.');
     return null;
   }
-  return new WebClient(ATOM_SLACK_BOT_TOKEN);
+  return new WebClient(token);
 };
 
 // Helper to determine if a string looks like a Slack ID
@@ -152,7 +172,7 @@ export async function listSlackChannels(
   cursor?: string
 ): Promise<SlackSkillResponse<ListSlackChannelsData>> {
   logger.debug(`[SlackSkills] listSlackChannels called by userId: ${userId}, limit: ${limit}, cursor: ${cursor}`);
-  const client = getSlackClient();
+  const client = await getSlackClient(userId);
   if (!client) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Slack Bot Token not configured.' } };
   }
@@ -262,7 +282,7 @@ export async function sendSlackMessage(
   text: string
 ): Promise<SlackSkillResponse<SlackMessageData>> {
   logger.debug(`[SlackSkills] sendSlackMessage called by userId: ${userId} to channelIdentifier: ${channelIdentifier}, text: "${text.substring(0,50)}..."`);
-  const client = getSlackClient();
+  const client = await getSlackClient(userId);
   if (!client) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Slack Bot Token not configured.' } };
   }
@@ -345,7 +365,7 @@ export async function searchMySlackMessages(
 ): Promise<SlackMessage[]> {
   logger.debug(`[SlackSkills] searchMySlackMessages direct API call for Atom user ${atomUserId}, query: "${searchQuery}", limit: ${limit}`);
 
-  const client = getSlackClient();
+  const client = await getSlackClient(atomUserId);
   if (!client) {
     logger.error('[SlackSkills] Slack client not available for searchMySlackMessages.');
     return [];
@@ -416,7 +436,7 @@ export async function readSlackMessage(
 ): Promise<SlackMessage | null> {
   logger.debug(`[SlackSkills] readSlackMessage direct API call for Atom user ${atomUserId}, channelId: ${channelId}, messageTs: ${messageTs}`);
 
-  const client = getSlackClient();
+  const client = await getSlackClient(atomUserId);
   if (!client) {
     logger.error('[SlackSkills] Slack client not available for readSlackMessage.');
     return null;
@@ -609,7 +629,7 @@ export async function getRecentDMsAndMentionsForBriefing(
 ): Promise<SlackSkillResponse<{ results: SlackMessage[], query_executed?: string }>> {
   logger.debug(`[SlackSkills] getRecentDMsAndMentionsForBriefing for Atom user: ${atomUserId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`);
 
-  const client = getSlackClient();
+  const client = await getSlackClient(atomUserId);
   if (!client) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Slack Bot Token not configured.' } };
   }

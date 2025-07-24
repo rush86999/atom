@@ -11,7 +11,10 @@ import { CalendarIntegrationType, ZoomWebhookRequestType, ZoomWebhookValidationR
 import { google } from 'googleapis'
 import type { NextApiResponse } from 'next'
 import crypto, { BinaryLike } from 'crypto'
+import { executeGraphQLMutation } from './graphqlClient'
+import { Credentials as OAuth2Token } from 'google-auth-library';
 
+const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
 
 dayjs.extend(isoWeek)
 dayjs.extend(duration)
@@ -25,6 +28,54 @@ const oauth2Client = new google.auth.OAuth2(
     googleRedirectUrl,
 )
 
+
+// Re-implementing saveUserTokens here
+async function saveUserTokens(userId: string, tokens: OAuth2Token): Promise<{ ok: boolean, error?: any }> {
+  console.log(`Saving tokens for userId: ${userId}, service: ${GOOGLE_CALENDAR_SERVICE_NAME}`);
+
+  const mutation = `
+    mutation UpsertUserToken($objects: [user_tokens_insert_input!]!) {
+      insert_user_tokens(
+        objects: $objects,
+        on_conflict: {
+          constraint: user_tokens_user_id_service_name_key,
+          update_columns: [access_token, refresh_token, expiry_date, scope, token_type, updated_at]
+        }
+      ) {
+        affected_rows
+      }
+    }
+  `;
+
+  const tokenDataForDb = {
+    user_id: userId,
+    service_name: GOOGLE_CALENDAR_SERVICE_NAME,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+    scope: tokens.scope,
+    token_type: tokens.token_type,
+    updated_at: new Date().toISOString(),
+  };
+
+  const variables = { objects: [tokenDataForDb] };
+  const operationName = 'UpsertUserToken';
+
+  try {
+    const response = await executeGraphQLMutation<{ insert_user_tokens: { affected_rows: number } }>(mutation, variables, operationName, userId);
+
+    if (!response || !response.insert_user_tokens || response.insert_user_tokens.affected_rows === 0) {
+      console.warn(`Token save operation for user ${userId} reported 0 affected_rows.`, response);
+    } else {
+      console.log(`Tokens saved successfully to database for user ${userId}. Affected rows: ${response.insert_user_tokens.affected_rows}`);
+    }
+    return { ok: true };
+
+  } catch (error: any) {
+    console.error(`Exception during saveUserTokens for userId ${userId}:`, error);
+    return { ok: false, error: { message: 'Failed to save Google Calendar tokens.', details: error.message } };
+  }
+}
 
 
 
@@ -55,10 +106,13 @@ export const verifyZoomWebhook = (request: ZoomWebhookRequestType) => {
 
 
 
-export const exchangeCodeForTokens = async (code: string) => {
+export const exchangeCodeForTokens = async (code: string, userId: string) => {
     try {
         let { tokens } = await oauth2Client.getToken(code);
         oauth2Client.setCredentials(tokens)
+        if (tokens) {
+            await saveUserTokens(userId, tokens);
+        }
         return tokens
     } catch (e) {
         console.log(e, ' unable to exchange code for tokens')

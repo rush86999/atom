@@ -1,107 +1,113 @@
 import axios, { AxiosError } from 'axios';
-import {
-  ATOM_ZOOM_ACCOUNT_ID,
-  ATOM_ZOOM_CLIENT_ID,
-  ATOM_ZOOM_CLIENT_SECRET,
-} from '../_libs/constants';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
 import {
   ZoomMeeting,
-  // ListZoomMeetingsResponse, // Superseded by ZoomSkillResponse<ListZoomMeetingsData>
-  // GetZoomMeetingDetailsResponse, // Superseded by ZoomSkillResponse<ZoomMeeting>
-  ZoomSkillResponse, // New generic response type
-  ListZoomMeetingsData, // New data payload type
+  ZoomSkillResponse,
+  ListZoomMeetingsData,
   ZoomTokenResponse,
-  SkillError, // Standardized error type
 } from '../types';
 
 const ZOOM_API_BASE_URL = 'https://api.zoom.us/v2';
 const ZOOM_TOKEN_URL = 'https://zoom.us/oauth/token';
 
-// Export for testing token cache reset
-export let zoomAccessToken: string | null = null;
-export let tokenExpiryTime: number | null = null;
-
-export const resetTokenCache = () => {
-  zoomAccessToken = null;
-  tokenExpiryTime = null;
-};
-
-async function getZoomAccessToken(): Promise<ZoomSkillResponse<string>> {
-  if (zoomAccessToken && tokenExpiryTime && Date.now() < tokenExpiryTime) {
-    console.log('Using cached Zoom access token.');
-    return { ok: true, data: zoomAccessToken };
-  }
-
-  if (!ATOM_ZOOM_ACCOUNT_ID || !ATOM_ZOOM_CLIENT_ID || !ATOM_ZOOM_CLIENT_SECRET) {
-    const errorMsg = 'Zoom API credentials (Account ID, Client ID, Client Secret) not configured.';
-    console.error(errorMsg);
-    return { ok: false, error: { code: 'ZOOM_CONFIG_ERROR', message: errorMsg } };
-  }
-
-  try {
-    console.log('Requesting new Zoom access token...');
-    const basicAuth = Buffer.from(`${ATOM_ZOOM_CLIENT_ID}:${ATOM_ZOOM_CLIENT_SECRET}`).toString('base64');
-    const response = await axios.post<ZoomTokenResponse>(
-      ZOOM_TOKEN_URL,
-      new URLSearchParams({
-        grant_type: 'account_credentials',
-        account_id: ATOM_ZOOM_ACCOUNT_ID,
-      }).toString(),
-      {
-        headers: {
-          'Authorization': `Basic ${basicAuth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    );
-
-    if (response.status === 200 && response.data && response.data.access_token) {
-      const tokenData = response.data;
-      zoomAccessToken = tokenData.access_token;
-      tokenExpiryTime = Date.now() + (tokenData.expires_in - 300) * 1000; // 5-min buffer
-      console.log('Successfully obtained new Zoom access token.');
-      return { ok: true, data: zoomAccessToken };
-    } else {
-      console.error('Failed to obtain Zoom access token. Response Status:', response.status, 'Data:', response.data);
-      resetTokenCache();
-      return { ok: false, error: { code: 'ZOOM_AUTH_ERROR', message: 'Failed to obtain Zoom access token from API.', details: response.data } };
-    }
-  } catch (error) {
-    const axiosError = error as AxiosError;
-    console.error('Error obtaining Zoom access token:', axiosError.message);
-    if (axiosError.response) {
-      console.error('Zoom token API Error Response Data:', axiosError.response.data);
-      console.error('Zoom token API Error Response Status:', axiosError.response.status);
-    }
-    resetTokenCache();
-    return {
-        ok: false,
-        error: {
-            code: 'ZOOM_AUTH_REQUEST_FAILED',
-            message: `Error requesting Zoom access token: ${axiosError.message}`,
-            details: axiosError.response?.data
+async function getZoomToken(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserToken($userId: String!, $service: String!) {
+            user_tokens(where: {user_id: {_eq: $userId}, service: {_eq: $service}}) {
+                access_token
+                refresh_token
+                expires_at
+            }
         }
+    `;
+    const variables = {
+        userId,
+        service: 'zoom',
     };
-  }
+    const response = await executeGraphQLQuery<{ user_tokens: { access_token: string, refresh_token: string, expires_at: string }[] }>(query, variables, 'GetUserToken', userId);
+
+    if (response.user_tokens && response.user_tokens.length > 0) {
+        const token = response.user_tokens[0];
+        const expiresAt = new Date(token.expires_at).getTime();
+
+        if (Date.now() > expiresAt) {
+            // Refresh the token
+            const zoomClientId = process.env.ZOOM_CLIENT_ID;
+            const zoomClientSecret = process.env.ZOOM_CLIENT_SECRET;
+
+            if (!zoomClientId || !zoomClientSecret) {
+                console.error('Zoom environment variables not configured for token refresh.');
+                return null;
+            }
+
+            try {
+                const refreshResponse = await axios.post<ZoomTokenResponse>(
+                    ZOOM_TOKEN_URL,
+                    new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: token.refresh_token,
+                    }).toString(),
+                    {
+                        headers: {
+                            'Authorization': `Basic ${Buffer.from(`${zoomClientId}:${zoomClientSecret}`).toString('base64')}`,
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                    }
+                );
+
+                if (refreshResponse.status === 200 && refreshResponse.data && refreshResponse.data.access_token) {
+                    const newAccessToken = refreshResponse.data.access_token;
+                    const newRefreshToken = refreshResponse.data.refresh_token;
+                    const newExpiresIn = refreshResponse.data.expires_in;
+                    const newExpiresAt = new Date(Date.now() + newExpiresIn * 1000).toISOString();
+
+                    // Update the token in the database
+                    const mutation = `
+                        mutation UpdateUserToken($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String, $expiresAt: timestamptz!) {
+                            update_user_tokens(where: {user_id: {_eq: $userId}, service: {_eq: $service}}, _set: {access_token: $accessToken, refresh_token: $refreshToken, expires_at: $expiresAt}) {
+                                returning {
+                                    id
+                                }
+                            }
+                        }
+                    `;
+                    const updateVariables = {
+                        userId,
+                        service: 'zoom',
+                        accessToken: newAccessToken,
+                        refreshToken: newRefreshToken,
+                        expiresAt: newExpiresAt,
+                    };
+                    await executeGraphQLQuery(mutation, updateVariables, 'UpdateUserToken', userId);
+
+                    return newAccessToken;
+                }
+            } catch (error) {
+                console.error('Error refreshing Zoom token:', error);
+                return null;
+            }
+        }
+        return token.access_token;
+    }
+    return null;
 }
 
 export async function listZoomMeetings(
-  zoomUserId: string, // Typically "me" for Server-to-Server OAuth
+  userId: string,
   options?: {
     type?: 'live' | 'upcoming' | 'scheduled' | 'upcoming_meetings' | 'previous_meetings';
     page_size?: number;
     next_page_token?: string;
   }
 ): Promise<ZoomSkillResponse<ListZoomMeetingsData>> {
-  console.log(`listZoomMeetings called for zoomUserId: ${zoomUserId} with options:`, options);
+  console.log(`listZoomMeetings called for userId: ${userId} with options:`, options);
 
-  const tokenResponse = await getZoomAccessToken();
-  if (!tokenResponse.ok || !tokenResponse.data) {
-    return { ok: false, error: tokenResponse.error || { code: 'ZOOM_AUTH_ERROR', message: 'Failed to obtain Zoom access token for listing meetings.'} };
+  const token = await getZoomToken(userId);
+  if (!token) {
+    return { ok: false, error: { code: 'ZOOM_AUTH_ERROR', message: 'Failed to obtain Zoom access token for listing meetings.'} };
   }
-  const token = tokenResponse.data;
 
-  const params: Record<string, any> = { // Use Record for better type safety on params
+  const params: Record<string, any> = {
     type: options?.type || 'upcoming',
     page_size: options?.page_size || 30,
   };
@@ -110,8 +116,8 @@ export async function listZoomMeetings(
   }
 
   try {
-    const response = await axios.get<{ meetings: ZoomMeeting[] } & ListZoomMeetingsData>( // Type the expected axios response
-        `${ZOOM_API_BASE_URL}/users/${zoomUserId}/meetings`,
+    const response = await axios.get<{ meetings: ZoomMeeting[] } & ListZoomMeetingsData>(
+        `${ZOOM_API_BASE_URL}/users/me/meetings`,
         {
             headers: { 'Authorization': `Bearer ${token}` },
             params: params,
@@ -131,7 +137,7 @@ export async function listZoomMeetings(
     };
   } catch (error: any) {
     const axiosError = error as AxiosError;
-    console.error(`Error listing Zoom meetings for userId ${zoomUserId}:`, axiosError.message);
+    console.error(`Error listing Zoom meetings for userId ${userId}:`, axiosError.message);
     const errorData = axiosError.response?.data as any;
     return {
         ok: false,
@@ -144,18 +150,17 @@ export async function listZoomMeetings(
   }
 }
 
-export async function getZoomMeetingDetails(meetingId: string): Promise<ZoomSkillResponse<ZoomMeeting>> {
+export async function getZoomMeetingDetails(userId: string, meetingId: string): Promise<ZoomSkillResponse<ZoomMeeting>> {
   console.log(`getZoomMeetingDetails called for meetingId: ${meetingId}`);
 
   if (!meetingId || meetingId.trim() === '') {
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Meeting ID is required.'}};
   }
 
-  const tokenResponse = await getZoomAccessToken();
-  if (!tokenResponse.ok || !tokenResponse.data) {
-     return { ok: false, error: tokenResponse.error || { code: 'ZOOM_AUTH_ERROR', message: 'Failed to obtain Zoom access token for getting meeting details.'} };
+  const token = await getZoomToken(userId);
+  if (!token) {
+     return { ok: false, error: { code: 'ZOOM_AUTH_ERROR', message: 'Failed to obtain Zoom access token for getting meeting details.'} };
   }
-  const token = tokenResponse.data;
 
   try {
     const response = await axios.get<ZoomMeeting>(`${ZOOM_API_BASE_URL}/meetings/${meetingId}`, {

@@ -1,35 +1,116 @@
 import { Email, SendEmailResponse, ReadEmailResponse, GmailMessagePart, SkillResponse, SkillError } from '../types';
 import { google, gmail_v1 } from 'googleapis';
-// OAuth2Client might be needed if constructing client from scratch with tokens
-// import { OAuth2Client } from 'google-auth-library';
+import { Credentials as OAuth2Token } from 'google-auth-library';
 import { logger } from '../../_utils/logger';
-// Conceptual: This would be the central place to get an authenticated Google API client for Gmail.
-// It would handle token fetching (from a DB/auth service) and refresh.
-// For this refactor, we'll mock its existence or make it a simple placeholder.
-import { AuthService } from '../../../services/authService'; // Adjusted path, assuming it exists
+import { executeGraphQLQuery, executeGraphQLMutation } from '../_libs/graphqlClient';
+import { ATOM_GOOGLE_CALENDAR_CLIENT_ID, ATOM_GOOGLE_CALENDAR_CLIENT_SECRET } from '../_libs/constants';
 
-// --- Helper to get authenticated Gmail API client ---
+const GMAIL_SERVICE_NAME = 'google_calendar'; // Using the same service name as calendar for now
+
+interface UserTokenRecord {
+  access_token: string;
+  refresh_token?: string | null;
+  expiry_date?: string | null;
+  scope?: string | null;
+  token_type?: string | null;
+}
+
+async function getStoredUserTokens(userId: string): Promise<SkillResponse<OAuth2Token>> {
+  const query = `
+    query GetUserToken($userId: String!, $serviceName: String!) {
+      user_tokens(
+        where: { user_id: { _eq: $userId }, service_name: { _eq: $serviceName } },
+        order_by: { created_at: desc },
+        limit: 1
+      ) {
+        access_token
+        refresh_token
+        expiry_date
+        scope
+        token_type
+      }
+    }
+  `;
+  const variables = { userId, serviceName: GMAIL_SERVICE_NAME };
+  const operationName = 'GetUserToken';
+
+  try {
+    const response = await executeGraphQLQuery<{ user_tokens: UserTokenRecord[] }>(query, variables, operationName, userId);
+    if (!response || !response.user_tokens || response.user_tokens.length === 0) {
+      return { ok: false, error: { code: 'AUTH_NO_TOKENS_FOUND', message: 'No Gmail tokens found for the user.' } };
+    }
+    const tokenRecord = response.user_tokens[0];
+    const oauth2Token: OAuth2Token = {
+      access_token: tokenRecord.access_token,
+      refresh_token: tokenRecord.refresh_token || null,
+      expiry_date: tokenRecord.expiry_date ? new Date(tokenRecord.expiry_date).getTime() : null,
+      scope: tokenRecord.scope || undefined,
+      token_type: tokenRecord.token_type || null,
+    };
+    return { ok: true, data: oauth2Token };
+  } catch (error: any) {
+    return { ok: false, error: { code: 'TOKEN_FETCH_FAILED', message: 'Failed to retrieve Gmail tokens.', details: error.message } };
+  }
+}
+
+async function saveUserTokens(userId: string, tokens: OAuth2Token): Promise<SkillResponse<void>> {
+  const mutation = `
+    mutation UpsertUserToken($objects: [user_tokens_insert_input!]!) {
+      insert_user_tokens(
+        objects: $objects,
+        on_conflict: {
+          constraint: user_tokens_user_id_service_name_key,
+          update_columns: [access_token, refresh_token, expiry_date, scope, token_type, updated_at]
+        }
+      ) {
+        affected_rows
+      }
+    }
+  `;
+  const tokenDataForDb = {
+    user_id: userId,
+    service_name: GMAIL_SERVICE_NAME,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expiry_date: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+    scope: tokens.scope,
+    token_type: tokens.token_type,
+    updated_at: new Date().toISOString(),
+  };
+  const variables = { objects: [tokenDataForDb] };
+  const operationName = 'UpsertUserToken';
+
+  try {
+    await executeGraphQLMutation(mutation, variables, operationName, userId);
+    return { ok: true, data: undefined };
+  } catch (error: any) {
+    return { ok: false, error: { code: 'TOKEN_SAVE_FAILED', message: 'Failed to save Gmail tokens.', details: error.message } };
+  }
+}
+
 async function getGmailClient(userId: string): Promise<gmail_v1.Gmail | null> {
   logger.debug(`[emailSkills] Attempting to get Gmail client for user ${userId}`);
+  const tokenResponse = await getStoredUserTokens(userId);
 
-  // In a real scenario, AuthService would handle token storage and refresh.
-  // This might involve calling the /api/auth/google/get-access-token endpoint internally.
-  const tokenResponse = await AuthService.getGoogleAccessToken(userId, ['https://www.googleapis.com/auth/gmail.readonly']);
-
-  if (!tokenResponse || !tokenResponse.accessToken) {
-    logger.error(`[emailSkills] No Gmail access token found or could be refreshed for user ${userId}.`);
+  if (!tokenResponse.ok || !tokenResponse.data) {
+    logger.error(`[emailSkills] No Gmail access token found for user ${userId}.`);
     return null;
   }
+  const currentTokens = tokenResponse.data;
 
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: tokenResponse.accessToken });
+  const oauth2Client = new google.auth.OAuth2(
+    ATOM_GOOGLE_CALENDAR_CLIENT_ID,
+    ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
+  );
+  oauth2Client.setCredentials(currentTokens);
 
-  // Optional: Listen for token refresh events from this specific client instance if needed,
-  // though AuthService should ideally handle global token state.
-  // oauth2Client.on('tokens', (tokens) => {
-  //   if (tokens.refresh_token) { /* store new refresh_token */ }
-  //   /* store new access_token and expiry */
-  // });
+  oauth2Client.on('tokens', async (newTokens) => {
+    let tokensToSave: OAuth2Token = { ...currentTokens, ...newTokens };
+    if (!newTokens.refresh_token && currentTokens.refresh_token) {
+      tokensToSave.refresh_token = currentTokens.refresh_token;
+    }
+    await saveUserTokens(userId, tokensToSave);
+  });
 
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }

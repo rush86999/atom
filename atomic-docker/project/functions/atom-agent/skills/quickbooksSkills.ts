@@ -92,28 +92,28 @@ async function getStoredQBTokens(userId: string): Promise<QBSkillResponse<QuickB
   const query = `
     query GetUserQBOToken($userId: String!, $serviceName: String!) {
       user_tokens(
-        where: { user_id: { _eq: $userId }, service_name: { _eq: $serviceName } },
+        where: { user_id: { _eq: $userId }, service: { _eq: $serviceName } },
         order_by: { created_at: desc },
         limit: 1
-      ) { access_token refresh_token expiry_date other_data }
+      ) { access_token, refresh_token, expires_at, meta }
     }
   `;
   const variables = { userId, serviceName: QBO_SERVICE_NAME };
   const operationName = 'GetUserQBOToken';
   try {
-    const response = await executeGraphQLQuery<{ user_tokens: UserQBTokenRecord[] }>(query, variables, operationName, userId);
+    const response = await executeGraphQLQuery<{ user_tokens: { access_token: string, refresh_token: string, expires_at: string, meta: any }[] }>(query, variables, operationName, userId);
     if (!response || !response.user_tokens || response.user_tokens.length === 0) {
       return { ok: true, data: null };
     }
     const dbToken = response.user_tokens[0];
-    if (!dbToken.other_data || !dbToken.other_data.realmId) {
+    if (!dbToken.meta || !dbToken.meta.realmId) {
         return { ok: false, error: { code: 'QBO_TOKEN_INVALID_STRUCTURE', message: 'Stored QBO token is invalid (missing realmId).'}};
     }
     const tokens: QuickBooksAuthTokens = {
-        accessToken: dbToken.access_token, refreshToken: dbToken.refresh_token, realmId: dbToken.other_data.realmId,
-        accessTokenExpiresAt: new Date(dbToken.expiry_date).getTime(),
-        refreshTokenExpiresAt: dbToken.other_data.refreshTokenExpiresAt,
-        tokenCreatedAt: dbToken.other_data.tokenCreatedAt,
+        accessToken: dbToken.access_token, refreshToken: dbToken.refresh_token, realmId: dbToken.meta.realmId,
+        accessTokenExpiresAt: new Date(dbToken.expires_at).getTime(),
+        refreshTokenExpiresAt: dbToken.meta.refreshTokenExpiresAt,
+        tokenCreatedAt: dbToken.meta.tokenCreatedAt,
     };
     return { ok: true, data: tokens };
   } catch (error: any) {
@@ -137,21 +137,21 @@ async function saveQBTokens(userId: string, tokenDataFromOAuth: OAuthClient.Toke
   if (!tokenDataFromOAuth.realmId) {
     return { ok: false, error: { code: 'QBO_TOKEN_INVALID_STRUCTURE', message: 'realmId missing from QBO OAuth response, cannot save tokens.'}};
   }
-  const otherData = {
+  const meta = {
     realmId: tokenDataFromOAuth.realmId, refreshTokenExpiresAt: refreshTokenExpiresAt, tokenCreatedAt: tokenObtainedAt,
   };
   const mutation = `
     mutation UpsertUserQBOToken($objects: [user_tokens_insert_input!]!) {
       insert_user_tokens(objects: $objects, on_conflict: {
-          constraint: user_tokens_user_id_service_name_key,
-          update_columns: [access_token, refresh_token, expiry_date, other_data, updated_at]
+          constraint: user_tokens_user_id_service_key,
+          update_columns: [access_token, refresh_token, expires_at, meta, updated_at]
         }) { affected_rows }
     }
   `;
   const tokenInputForDb = {
-    user_id: userId, service_name: QBO_SERVICE_NAME, access_token: tokenDataFromOAuth.access_token!,
-    refresh_token: tokenDataFromOAuth.refresh_token!, expiry_date: new Date(accessTokenExpiresAt).toISOString(),
-    other_data: otherData, updated_at: new Date().toISOString(),
+    user_id: userId, service: QBO_SERVICE_NAME, access_token: tokenDataFromOAuth.access_token!,
+    refresh_token: tokenDataFromOAuth.refresh_token!, expires_at: new Date(accessTokenExpiresAt).toISOString(),
+    meta: meta, updated_at: new Date().toISOString(),
   };
   const variables = { objects: [tokenInputForDb] };
   const operationName = 'UpsertUserQBOToken';

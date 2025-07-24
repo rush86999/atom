@@ -1,28 +1,42 @@
 import { Calendly } from '@calendly/api-client';
-import { ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN } from '../_libs/constants';
+import { decrypt } from '../_libs/crypto';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
 import {
   CalendlyEventType,
   CalendlyScheduledEvent,
   CalendlyPagination,
   ListCalendlyEventTypesResponse,
   ListCalendlyScheduledEventsResponse,
-  // Assuming CalendlyUser and other sub-types will be implicitly handled by the SDK's response types
-  // or we can use the SDK's own types like UserResource, EventTypeResource, ScheduledEventResource.
-} from '../types'; // Using our defined types for response structure consistency.
+} from '../types';
 
-// SDK specific types can be used for casting if needed, e.g.
-// import { UserResource, EventTypeResource, ScheduledEventResource, Pagination as CalendlySDKPagination } from '@calendly/api-client/lib/models';
+async function getCalendlyApiKey(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserCredential($userId: String!, $serviceName: String!) {
+            user_credentials(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}) {
+                encrypted_secret
+            }
+        }
+    `;
+    const variables = {
+        userId,
+        serviceName: 'calendly_api_key',
+    };
+    const response = await executeGraphQLQuery<{ user_credentials: { encrypted_secret: string }[] }>(query, variables, 'GetUserCredential', userId);
+    if (response.user_credentials && response.user_credentials.length > 0) {
+        return decrypt(response.user_credentials[0].encrypted_secret);
+    }
+    return null;
+}
 
-const getCalendlyClient = () => {
-  if (!ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN) {
-    console.error('Calendly Personal Access Token not configured.');
+const getCalendlyClient = async (userId: string) => {
+  const personalAccessToken = await getCalendlyApiKey(userId);
+  if (!personalAccessToken) {
+    console.error('Calendly Personal Access Token not configured for this user.');
     return null;
   }
-  // The Calendly SDK constructor takes an object with an `auth` property
-  // which in turn is an object with `personalAccessToken`.
   return new Calendly({
     auth: {
-      personalAccessToken: ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN,
+      personalAccessToken,
     },
   });
 };
@@ -31,7 +45,7 @@ export async function listCalendlyEventTypes(
   callingUserId: string
 ): Promise<ListCalendlyEventTypesResponse> {
   console.log(`listCalendlyEventTypes called by userId: ${callingUserId}`);
-  const client = getCalendlyClient();
+  const client = await getCalendlyClient(callingUserId);
   if (!client) {
     return { ok: false, error: 'Calendly Personal Access Token not configured.' };
   }
@@ -86,7 +100,7 @@ export async function listCalendlyScheduledEvents(
   }
 ): Promise<ListCalendlyScheduledEventsResponse> {
   console.log(`listCalendlyScheduledEvents called by userId: ${callingUserId} with options:`, options);
-  const client = getCalendlyClient();
+  const client = await getCalendlyClient(callingUserId);
   if (!client) {
     return { ok: false, error: 'Calendly Personal Access Token not configured.' };
   }

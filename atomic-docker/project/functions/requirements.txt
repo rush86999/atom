@@ -33,3 +33,4 @@ flask
 cryptography
 kafka-python
 pandas
+elevenlabs

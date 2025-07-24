@@ -1,44 +1,53 @@
 import { Client } from '@hubspot/api-client';
-import { ATOM_HUBSPOT_API_KEY } from '../_libs/constants';
+import { decrypt } from '../_libs/crypto';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
 import {
   HubSpotContactProperties,
   HubSpotContact,
-  // GetHubSpotContactResponse, // Will be replaced by HubSpotSkillResponse<HubSpotContact>
-  HubSpotSkillResponse, // Import the new response type
+  HubSpotSkillResponse,
   CreateHubSpotContactResponse,
   HubSpotEmailEngagementProperties,
   HubSpotEngagement,
   LogEngagementResponse,
   GetContactActivitiesResponse,
-  HubSpotEngagementAssociation,
-  SlackMessageResponse, // For Slack notifications
 } from '../types';
 import {
-    ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, // For Slack channel ID
-    ATOM_HUBSPOT_PORTAL_ID,                   // For HubSpot portal ID (links)
+    ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID,
+    ATOM_HUBSPOT_PORTAL_ID,
 } from '../_libs/constants';
-import { sendSlackMessage } from './slackSkills'; // For sending Slack messages
+import { sendSlackMessage } from './slackSkills';
 import { PublicObjectSearchRequest, CollectionResponseSimplePublicObjectForwardPaging, SimplePublicObjectInput } from '@hubspot/api-client/lib/codegen/crm/engagements/index.js';
-// Note: For AssociationTypes, HubSpot client might not export a direct enum.
-// Standard association type IDs are documented. Contact to Engagement is 203.
-// https://developers.hubspot.com/docs/api/crm/associations/v2#get-all-association-types
-// For v4, it's usually [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: <ID_AS_NUMBER> }]
-// Contact to Engagement: Use type ID 19 for v4 (CONTACT_TO_ENGAGEMENT) basicApi.createAssociation
-// For Engagements API create payload, association type ID 203 (contact_to_engagement) is used.
-// Let's stick to the documented numeric IDs if no enum is readily available from the client.
-// Engagement to Contact association type ID for engagement creation's association block:
-const CONTACT_TO_ENGAGEMENT_ASSOCIATION_TYPE_ID = 203; // As per Engagements API documentation for associating to contacts.
-// For searching engagements associated with a contact, the association definition ID is different.
-// This is used with the associations API (crm.associations.v4.basicApi.getPage)
-const CONTACT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = "0-1"; // Represents Contacts
-const ENGAGEMENT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = "0-31"; // Represents Engagements
 
-const getHubspotClient = () => {
-  if (!ATOM_HUBSPOT_API_KEY) {
-    console.error('HubSpot API key not configured.');
+const CONTACT_TO_ENGAGEMENT_ASSOCIATION_TYPE_ID = 203;
+const CONTACT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = "0-1";
+const ENGAGEMENT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = "0-31";
+
+async function getHubspotApiKey(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserCredential($userId: String!, $serviceName: String!) {
+            user_credentials(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}) {
+                encrypted_secret
+            }
+        }
+    `;
+    const variables = {
+        userId,
+        serviceName: 'hubspot_api_key',
+    };
+    const response = await executeGraphQLQuery<{ user_credentials: { encrypted_secret: string }[] }>(query, variables, 'GetUserCredential', userId);
+    if (response.user_credentials && response.user_credentials.length > 0) {
+        return decrypt(response.user_credentials[0].encrypted_secret);
+    }
+    return null;
+}
+
+const getHubspotClient = async (userId: string) => {
+  const apiKey = await getHubspotApiKey(userId);
+  if (!apiKey) {
+    console.error('HubSpot API key not configured for this user.');
     return null;
   }
-  return new Client({ apiKey: ATOM_HUBSPOT_API_KEY });
+  return new Client({ apiKey });
 };
 
 export async function getHubSpotContactByEmail(
@@ -46,7 +55,7 @@ export async function getHubSpotContactByEmail(
   email: string
 ): Promise<HubSpotSkillResponse<HubSpotContact | null>> { // Return null in data if not found but no error
   console.log(`getHubSpotContactByEmail called for userId: ${userId}, email: ${email}`);
-  const hubspotClient = getHubspotClient();
+  const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
   }
@@ -119,7 +128,7 @@ export async function createHubSpotContact(
   contactProperties: HubSpotContactProperties
 ): Promise<HubSpotSkillResponse<CreateHubSpotContactResponse>> { // Updated return type
   console.log(`createHubSpotContact called for userId: ${userId} with properties:`, contactProperties);
-  const hubspotClient = getHubspotClient();
+  const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
     // Consistent error structure
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
@@ -225,7 +234,7 @@ export async function logEmailToHubSpotContact(
   emailDetails: HubSpotEmailEngagementProperties
 ): Promise<HubSpotSkillResponse<LogEngagementResponse>> { // Updated return type
   console.log(`logEmailToHubSpotContact called for userId: ${userId}, contactId: ${contactId}`);
-  const hubspotClient = getHubspotClient();
+  const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
   }
@@ -333,7 +342,7 @@ export async function getHubSpotContactActivities(
   }
 ): Promise<HubSpotSkillResponse<GetContactActivitiesResponse>> { // Updated return type
   console.log(`getHubSpotContactActivities called for userId: ${userId}, contactId: ${contactId}, filters:`, filters);
-  const hubspotClient = getHubspotClient();
+  const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
     return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
   }
