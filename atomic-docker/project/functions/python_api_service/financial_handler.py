@@ -92,3 +92,20 @@ async def get_transactions():
     except Exception as e:
         logger.error(f"Error getting transactions for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "GET_TRANSACTIONS_FAILED", "message": str(e)}}), 500
+
+@financial_bp.route('/api/financial/investments', methods=['GET'])
+async def get_investments():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await financial_service.get_investments(user_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error getting investments for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "GET_INVESTMENTS_FAILED", "message": str(e)}}), 500

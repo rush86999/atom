@@ -56,6 +56,30 @@ const Finance = () => {
   const { hasRole } = useUserRole();
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [investments, setInvestments] = useState([]);
+  const [netWorth, setNetWorth] = useState(0);
+
+  useEffect(() => {
+    const getInvestments = async () => {
+      const response = await fetch(`/api/financial/investments?user_id=${user.id}`);
+      const { data } = await response.json();
+      setInvestments(data);
+    };
+    if (user && hasRole('finance')) {
+      getInvestments();
+    }
+  }, [user, hasRole]);
+
+  useEffect(() => {
+    const getNetWorth = async () => {
+      const response = await fetch(`/api/financial/net_worth?user_id=${user.id}`);
+      const { data } = await response.json();
+      setNetWorth(data.net_worth);
+    };
+    if (user && hasRole('finance')) {
+      getNetWorth();
+    }
+  }, [user, hasRole]);
 
   if (!hasRole('finance')) {
     return <div>You do not have permission to view this page.</div>;
@@ -65,6 +89,9 @@ const Finance = () => {
     <div>
       <h1>Finance</h1>
       <PlaidLink user={user} setAccounts={setAccounts} setTransactions={setTransactions} />
+
+      <h2>Net Worth</h2>
+      <p>${netWorth}</p>
 
       <h2>Accounts</h2>
       <ul>
@@ -80,6 +107,15 @@ const Finance = () => {
         {transactions.map((transaction) => (
           <li key={transaction.transaction_id}>
             {transaction.name} - {transaction.amount}
+          </li>
+        ))}
+      </ul>
+
+      <h2>Investments</h2>
+      <ul>
+        {investments.map((investment) => (
+          <li key={investment.security_id}>
+            {investment.name} - {investment.quantity}
           </li>
         ))}
       </ul>
