@@ -1,0 +1,164 @@
+version: '3.6'
+services:
+  traefik:
+    image: "traefik:v2.10.4"
+    container_name: "traefik"
+    command:
+      - "--log.level=ERROR"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedByDefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "9090:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+  postgres:
+    restart: always
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./initdb.d:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secretpgpassword}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', '${POSTGRES_USERNAME}', '-d', 'postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - '5432:5432'
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:6.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - 3567
+    environment:
+      POSTGRESQL_CONNECTION_URI: ${SUPERTOKENS_POSTGRESQL_CONNECTION_URI}
+      POSTGRESQL_TABLE_NAMES_PREFIX: Supertokens
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=3567"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3567/hello"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  postgraphile:
+    image: graphile/postgraphile:4
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+    ports:
+      - '5000:5000'
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD:-secretpgpassword}@postgres:5432/postgres
+      PGRAPHILE_WATCH_PG: 'true'
+      PGRAPHILE_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      PGRAPHILE_JWT_PG_ROLE: public
+      PGRAPHILE_PG_DEFAULT_ROLE: public
+      PGRAPHILE_ENABLE_GRAPHIQL: 'true'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/graphql?query={__typename} || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  mongo:
+    image: mongo:5.0
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+  minio:
+    image: minio/minio:RELEASE.2021-09-24T00-24-24Z
+    entrypoint: sh
+    command: -c 'mkdir -p /data/nhost && /opt/bin/minio server --console-address :9001 --address :8484 /data'
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY}
+    ports:
+      - ${MINIO_PORT:-8484}:8484
+      - 9001:9001
+    volumes:
+      - ./data/minio:/data
+  optaplanner:
+    image: atomic-scheduler:latest
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/postgres
+      QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USERNAME}
+      QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      QUARKUS_DATASOURCE_DB-KIND: postgresql
+      USERNAME: admin
+      PASSWORD: ${API_TOKEN}
+    ports:
+      - 8081:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/q/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+  python-agent:
+    build:
+      context: ../python_agent_build_docker
+      dockerfile: Dockerfile
+    container_name: python-agent
+    environment:
+      - NOTION_API_TOKEN=${NOTION_API_TOKEN}
+      - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID}
+      - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db
+      - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
+      - PYTHONUNBUFFERED=1
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    volumes:
+      - .:/app/project
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+    tty: true
+    stdin_open: true
+  ingestion-pipeline-service:
+    build:
+      context: ../python-api/ingestion_pipeline
+      dockerfile: Dockerfile
+    container_name: ingestion-pipeline-service
+    restart: unless-stopped
+    environment:
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - NOTION_TRANSCRIPTS_DATABASE_ID=${NOTION_TRANSCRIPTS_DATABASE_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db
+      - ATOM_USER_ID_FOR_INGESTION=${ATOM_USER_ID_FOR_INGESTION:-default_atom_user_pipeline}
+      - PROCESSING_MODE=${PROCESSING_MODE:-incremental}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8002/ingestion-status || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+volumes:
+  project_node_modules:
+  functions_node_modules:
+  mongo-data: {}

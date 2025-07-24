@@ -2,8 +2,8 @@
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
     "beforeBuildCommand": "npm run build",
-    "beforeDevCommand": "npm run dev",
-    "devPath": "http://localhost:1420",
+    "beforeDevCommand": "cd ../../../atomic-docker/project && docker-compose -f docker-compose.desktop.yaml --env-file .env.local-only up -d && cd ../../desktop/tauri && npm run dev",
+    "devPath": "http://localhost:3000",
     "distDir": "../src"
   },
   "package": {

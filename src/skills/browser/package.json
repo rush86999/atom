@@ -1,12 +1,9 @@
 {
   "name": "browser-skill",
   "version": "1.0.0",
-  "description": "A skill for browser automation.",
+  "description": "A browser automation skill for Atom.",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "dependencies": {
-    "playwright": "^1.28.1"
+    "browser-use": "^0.5.5"
   }
 }

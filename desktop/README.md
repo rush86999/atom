@@ -1,56 +1,42 @@
-# Atom Desktop: Local-First Deployment
+# Atom Desktop
 
-This guide explains how to run the entire Atom stack on your local machine for development and offline use. This setup uses Docker Compose to orchestrate the necessary services.
+This guide explains how to run the Atom Desktop application.
 
 ## Prerequisites
 
 *   [Docker](https://docs.docker.com/get-docker/) installed on your system.
 *   [Docker Compose](https://docs.docker.com/compose/install/) installed on your system.
-*   A `.env.local` file in the `atomic-docker/project` directory. You can copy the provided `.env.local-example` and fill in the required API keys.
+*   [Node.js](https://nodejs.org/en/) installed on your system.
+*   [Rust](https://www.rust-lang.org/tools/install) installed on your system.
 
-## Running Atom Locally
+## Running Atom Desktop with a Local Backend
 
-1.  **Navigate to the project directory:**
+1.  **Start the backend services:**
     ```bash
     cd atomic-docker/project
+    docker-compose -f docker-compose.local-only.yaml --env-file .env.local-only up -d
     ```
 
-2.  **Create your `.env.local` file:**
-    Copy the `.env.local-example` to `.env.local` and fill in the required API keys and secrets.
+2.  **Run the desktop app:**
     ```bash
-    cp .env.local-example .env.local
+    cd ../../desktop/tauri
+    npm install
+    npm run tauri dev
     ```
 
-3.  **Start the application:**
+## Running Atom Desktop with a Cloud-Hosted Backend
+
+1.  **Run the desktop app:**
     ```bash
-    docker-compose -f docker-compose.local.yaml --env-file .env.local up -d
+    cd desktop/tauri
+    npm install
+    npm run tauri dev
     ```
 
-4.  **Access the application:**
-    Once all the services are running, you can access the Atom application by opening your web browser and navigating to `http://localhost:3000`.
+## Stopping the Local Backend
 
-## Services
-
-This local-first deployment includes the following services:
-
-*   **app:** The Next.js frontend.
-*   **functions:** The main backend service.
-*   **postgres:** PostgreSQL database.
-*   **mongo:** MongoDB database.
-*   **supertokens:** Authentication service.
-*   **postgraphile:** GraphQL API for the PostgreSQL database.
-*   **python-agent:** Python service for various tasks.
-*   **live-meeting-worker:** Worker for live meeting features.
-*   **ingestion-pipeline-service:** Service for ingesting data.
-*   **optaplanner:** Scheduling service.
-*   **handshake:** Service for meeting invites.
-*   **oauth:** OAuth service.
-*   **minio:** S3-compatible object storage.
-*   **traefik:** Reverse proxy.
-
-## Stopping the Application
-
-To stop the application, run the following command:
+To stop the backend services, run the following command:
 ```bash
-docker-compose -f docker-compose.local.yaml down
+cd atomic-docker/project
+docker-compose -f docker-compose.local-only.yaml down
 ```
