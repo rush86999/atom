@@ -37,6 +37,7 @@ from .account_handler import account_bp
 from .transaction_handler import transaction_bp
 from .investment_handler import investment_bp
 from .financial_calculation_handler import financial_calculation_bp
+from .financial_handler import financial_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -126,6 +127,8 @@ def create_app(db_pool=None):
     logger.info("Registered 'investment_bp' blueprint.")
     app.register_blueprint(financial_calculation_bp)
     logger.info("Registered 'financial_calculation_bp' blueprint.")
+    app.register_blueprint(financial_bp)
+    logger.info("Registered 'financial_bp' blueprint.")
 
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)

@@ -49,6 +49,7 @@ import { AudioModeProvider } from "@lib/contexts/AudioModeContext";
 import { AgentAudioControlProvider } from "contexts/AgentAudioControlContext";
 import { WakeWordProvider } from "contexts/WakeWordContext";
 import { UserRoleProvider } from "../contexts/userRole/userRoleContext";
+import { FinanceProvider } from "../contexts/finance";
 import { ThemeProvider as AppThemeProvider } from "@lib/contexts/ThemeContext"; // Our new ThemeProvider
 import Session from "supertokens-web-js/recipe/session";
 import SuperTokensReact, { SuperTokensWrapper } from "supertokens-auth-react";
@@ -187,11 +188,13 @@ function MyApp({
                 <AgentAudioControlProvider>
                   <WakeWordProvider>
                     <UserRoleProvider>
-                      <AppState>
-                        <SideBarWithHeader>
-                          <Component {...pageProps} />
-                        </SideBarWithHeader>
-                      </AppState>
+                      <FinanceProvider>
+                        <AppState>
+                          <SideBarWithHeader>
+                            <Component {...pageProps} />
+                          </SideBarWithHeader>
+                        </AppState>
+                      </FinanceProvider>
                     </UserRoleProvider>
                   </WakeWordProvider>
                 </AgentAudioControlProvider>

@@ -1,119 +1,90 @@
-import React, { useEffect } from "react";
-import {
-  useFinance,
-  FinanceProvider,
-} from "../../contexts/finance/financeContext";
-import FeaturePageGuard from "../../lib/components/FeaturePageGuard";
+import React, { useEffect, useState } from 'react';
+import withSideBarWithHeader from '../../layouts/SideBarWithHeader';
+import { usePlaidLink } from 'react-plaid-link';
+import { Button } from '@mui/material';
+import { useUser } from '../../lib/user-context';
 
-/**
- * The main content component for the Finance page.
- * It handles fetching, displaying, and refreshing financial data,
- * and ensures the user has the correct role to view the content.
- */
-const FinancePageContent = () => {
-  const { financeData, loading, error, fetchFinanceData } = useFinance();
+const PlaidLink = ({ user, setAccounts, setTransactions }) => {
+  const [linkToken, setLinkToken] = useState(null);
 
   useEffect(() => {
-    // Fetch data when the component mounts.
-    fetchFinanceData();
-  }, [fetchFinanceData]);
+    const createLinkToken = async () => {
+      const response = await fetch('/api/financial/plaid/create_link_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user.id }),
+      });
+      const { data } = await response.json();
+      setLinkToken(data.link_token);
+    };
+    createLinkToken();
+  }, [user]);
 
-  // Show a loading message while fetching data.
-  if (loading && !financeData) {
-    return <div>Loading financial data...</div>;
-  }
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: async (public_token, metadata) => {
+      await fetch('/api/financial/plaid/exchange_public_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ public_token, user_id: user.id }),
+      });
+      // After successful link, fetch accounts and transactions
+      const accountsResponse = await fetch(`/api/financial/accounts?user_id=${user.id}`);
+      const accountsData = await accountsResponse.json();
+      setAccounts(accountsData.data);
 
-  // Show an error message if fetching fails.
-  if (error) {
-    return <div>Error: {error.message}</div>;
+      const transactionsResponse = await fetch(`/api/financial/transactions?user_id=${user.id}&start_date=2023-01-01&end_date=2023-12-31`);
+      const transactionsData = await transactionsResponse.json();
+      setTransactions(transactionsData.data);
+    },
+  });
+
+  return (
+    <Button variant="contained" onClick={() => open()} disabled={!ready}>
+      Connect a bank account
+    </Button>
+  );
+};
+
+
+const Finance = () => {
+  const { user } = useUser();
+  const { hasRole } = useUserRole();
+  const [accounts, setAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+
+  if (!hasRole('finance')) {
+    return <div>You do not have permission to view this page.</div>;
   }
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <h1>Financial Overview</h1>
-        <button
-          onClick={() => fetchFinanceData()}
-          disabled={loading}
-          style={{ padding: "10px 15px", cursor: "pointer" }}
-        >
-          {loading ? "Refreshing..." : "Refresh Data"}
-        </button>
-      </div>
+    <div>
+      <h1>Finance</h1>
+      <PlaidLink user={user} setAccounts={setAccounts} setTransactions={setTransactions} />
 
-      {financeData ? (
-        <div>
-          {/* Net Worth Section */}
-          <div style={{ marginBottom: "30px" }}>
-            <h2>
-              Net Worth: ${financeData.netWorth.toFixed(2)}
-            </h2>
-          </div>
+      <h2>Accounts</h2>
+      <ul>
+        {accounts.map((account) => (
+          <li key={account.account_id}>
+            {account.name} - {account.balances.current}
+          </li>
+        ))}
+      </ul>
 
-          {/* Accounts Section */}
-          <div style={{ marginBottom: "30px" }}>
-            <h3>Accounts</h3>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {financeData.accounts.map((account) => (
-                <li
-                  key={account.id}
-                  style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}
-                >
-                  <strong>{account.account_name}</strong> - {account.account_type} (${account.balance.toFixed(2)})
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Investments Section */}
-          <div style={{ marginBottom: "30px" }}>
-            <h3>Investments</h3>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {financeData.investments.map((investment) => (
-                <li
-                  key={investment.id}
-                  style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}
-                >
-                  <strong>{investment.investment_name}</strong> - {investment.investment_type}
-                  <ul>
-                    {investment.holdings.map((holding) => (
-                        <li key={holding.id}>
-                            {holding.ticker}: {holding.shares} shares @ ${holding.current_price.toFixed(2)} = ${(holding.shares * holding.current_price).toFixed(2)}
-                        </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : (
-        <p>No financial data available. Click "Refresh Data" to load.</p>
-      )}
+      <h2>Transactions</h2>
+      <ul>
+        {transactions.map((transaction) => (
+          <li key={transaction.transaction_id}>
+            {transaction.name} - {transaction.amount}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
 
-/**
- * The main Finance page component.
- * It wraps the page content with the FinanceProvider to ensure
- * the context is available to all child components.
- */
-const FinancePage = () => (
-  <FeaturePageGuard
-    role="financial_analyst"
-    roleName="Financial Analyst Agent Skill"
-  >
-    <FinanceProvider>
-      <FinancePageContent />
-    </FinanceProvider>
-  </FeaturePageGuard>
-);
-
-export default FinancePage;
+export default withSideBarWithHeader(Finance);
