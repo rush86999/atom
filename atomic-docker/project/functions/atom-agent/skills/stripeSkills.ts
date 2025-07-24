@@ -1,37 +1,53 @@
 import Stripe from 'stripe';
-import { ATOM_STRIPE_SECRET_KEY } from '../_libs/constants';
+import { decrypt } from '../_libs/crypto';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
 import {
   StripeCharge,
   StripePaymentIntent,
-  // ListStripePaymentsResponse, // Superseded by StripeSkillResponse<ListStripePaymentsData>
-  // GetStripePaymentDetailsResponse, // Superseded by StripeSkillResponse<StripePaymentIntent>
-  StripeSkillResponse, // New generic response type
-  ListStripePaymentsData, // New data payload type
-  SkillError, // Standardized error type
+  StripeSkillResponse,
+  ListStripePaymentsData,
+  SkillError,
 } from '../types';
 
 let stripeClient: Stripe | null = null;
 
-// Export for testing purposes, to reset the client instance if needed.
 export function resetStripeClientCache() {
   stripeClient = null;
 }
 
-function getStripeClient(): Stripe | null {
+async function getStripeApiKey(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserCredential($userId: String!, $serviceName: String!) {
+            user_credentials(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}) {
+                encrypted_secret
+            }
+        }
+    `;
+    const variables = {
+        userId,
+        serviceName: 'stripe_api_key',
+    };
+    const response = await executeGraphQLQuery<{ user_credentials: { encrypted_secret: string }[] }>(query, variables, 'GetUserCredential', userId);
+    if (response.user_credentials && response.user_credentials.length > 0) {
+        return decrypt(response.user_credentials[0].encrypted_secret);
+    }
+    return null;
+}
+
+async function getStripeClient(userId: string): Promise<Stripe | null> {
   if (stripeClient) {
     return stripeClient;
   }
 
-  if (!ATOM_STRIPE_SECRET_KEY) {
-    console.error('Stripe Secret Key not configured.');
+  const apiKey = await getStripeApiKey(userId);
+  if (!apiKey) {
+    console.error('Stripe Secret Key not configured for this user.');
     return null;
   }
 
-  // Initialize Stripe with a specific API version for stability and enable TypeScript.
-  // The Stripe SDK automatically uses the latest API version by default, but pinning it is good practice.
-  stripeClient = new Stripe(ATOM_STRIPE_SECRET_KEY, {
-    apiVersion: '2024-04-10', // Specify the API version you are developing against
-    typescript: true, // Enable TypeScript specific features from the SDK
+  stripeClient = new Stripe(apiKey, {
+    apiVersion: '2024-04-10',
+    typescript: true,
   });
 
   return stripeClient;
@@ -73,13 +89,14 @@ function mapStripePaymentIntentToInternal(pi: Stripe.PaymentIntent): StripePayme
 }
 
 export async function listStripePayments(
+  userId: string,
   options?: {
     limit?: number;
     starting_after?: string;
     customer?: string;
   }
 ): Promise<StripeSkillResponse<ListStripePaymentsData>> {
-  const client = getStripeClient();
+  const client = await getStripeClient(userId);
   if (!client) {
     return { ok: false, error: { code: 'STRIPE_CONFIG_ERROR', message: 'Stripe Secret Key not configured.' } };
   }
@@ -122,9 +139,10 @@ export async function listStripePayments(
 }
 
 export async function getStripePaymentDetails(
+  userId: string,
   paymentIntentId: string
 ): Promise<StripeSkillResponse<StripePaymentIntent | null>> { // Data can be null if not found
-  const client = getStripeClient();
+  const client = await getStripeClient(userId);
   if (!client) {
     return { ok: false, error: { code: 'STRIPE_CONFIG_ERROR', message: 'Stripe Secret Key not configured.' } };
   }

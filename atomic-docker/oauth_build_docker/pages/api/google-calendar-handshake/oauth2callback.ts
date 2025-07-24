@@ -30,10 +30,23 @@ function runMiddleware(
 
 
 
+import supertokensNode from 'supertokens-node'
+import { backendConfig } from '../../../../../config/backendConfig'
+import Session from 'supertokens-node/recipe/session'
+
+supertokensNode.init(backendConfig())
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     try {
         // Run the middleware
         await runMiddleware(req, res, cors)
+
+        const session = await Session.getSession(req, res, {
+            overrideGlobalClaimValidators: async function () {
+                return []
+            },
+        })
+        const userId = session.getUserId()
 
         const thisUrl = new URL(req.url as string, `https://${req.headers.host}`)
 
@@ -63,13 +76,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         console.log(attendeeId, ' attendeeId')
 
-        const tokens = await exchangeCodeForTokens(code as string)
+        const tokens = await exchangeCodeForTokens(code as string, userId);
 
         // console.log(tokens, ' tokens')
 
-        return res.redirect(`${handshakeUrl}/meeting/callback-calendar-sync?${qs.stringify({ ...tokens, meetingId, attendeeId })}`)
+        return res.redirect(`${handshakeUrl}/meeting/callback-calendar-sync?${qs.stringify({ meetingId, attendeeId })}`)
 
     } catch (e) {
         console.log(e, ' unable to auth')
+        if (e.type === Session.Error.TRY_REFRESH_TOKEN) {
+            return res.status(401).send('Refresh token expired');
+        } else if (e.type === Session.Error.UNAUTHORISED) {
+            return res.status(401).send('Unauthorized');
+        }
+        return res.status(500).send('Internal server error');
     }
 }

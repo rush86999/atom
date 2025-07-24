@@ -118,6 +118,9 @@ services:
       - "traefik.http.routers.functions.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/functions/`)"
       - "traefik.http.routers.functions.entrypoints=web"
       - "traefik.http.services.functions-service.loadbalancer.server.port=3000"
+    environment:
+      NOTION_API_TOKEN: ${NOTION_API_TOKEN}
+      ATOM_NOTION_TASKS_DATABASE_ID: ${ATOM_NOTION_TASKS_DATABASE_ID}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
       interval: 30s
@@ -320,6 +323,7 @@ services:
       - LANCEDB_URI=/lancedb_data/atom_core_db
       - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
       - PYTHONUNBUFFERED=1
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     volumes:
       - .:/app/project
       - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data

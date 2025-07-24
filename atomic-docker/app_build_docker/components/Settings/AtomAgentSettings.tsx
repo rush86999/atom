@@ -118,8 +118,43 @@ const AtomAgentSettings = () => {
     // setIsLoadingStatus(false); // Status will be updated by useEffect via redirect
   };
 
-  // const handleConnectEmail = () => console.log('Connect Email Account clicked');
-  // const handleSaveZapierUrl = () => console.log('Save Zapier URL clicked:', zapierUrl);
+  const [zapierUrl, setZapierUrl] = useState('');
+
+useEffect(() => {
+    const fetchZapierUrl = async () => {
+        try {
+            const response = await fetch('/api/atom/integrations/get-zapier-url');
+            if (response.ok) {
+                const data = await response.json();
+                setZapierUrl(data.url);
+            }
+        } catch (error) {
+            console.error('Error fetching Zapier URL:', error);
+        }
+    };
+    fetchZapierUrl();
+}, []);
+
+const handleSaveZapierUrl = async () => {
+    try {
+        const response = await fetch('/api/atom/integrations/save-zapier-url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: zapierUrl }),
+        });
+        if (response.ok) {
+            setApiMessage('Zapier URL saved successfully!');
+        } else {
+            const data = await response.json();
+            setApiError(data.message || 'Failed to save Zapier URL.');
+        }
+    } catch (error) {
+        console.error('Error saving Zapier URL:', error);
+        setApiError('An error occurred while saving the Zapier URL.');
+    }
+};
 
   return (
     <Box
@@ -194,8 +229,8 @@ const AtomAgentSettings = () => {
         <input
           type="text"
           placeholder="Enter Zapier Webhook URL for Atom"
-          // value={zapierUrl}
-          // onChange={(e) => setZapierUrl(e.target.value)}
+          value={zapierUrl}
+          onChange={(e) => setZapierUrl(e.target.value)}
           style={{
             width: '100%',
             padding: '8px',
@@ -204,7 +239,7 @@ const AtomAgentSettings = () => {
             borderRadius: '4px',
           }}
         />
-        <Button onPress={() => console.log('Save Zapier URL clicked')} variant="primary" title="Save Zapier URL" />
+        <Button onPress={handleSaveZapierUrl} variant="primary" title="Save Zapier URL" />
       </Box>
 
       {/* Wake Word Detection Section */}

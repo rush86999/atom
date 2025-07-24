@@ -19,18 +19,27 @@ import {
   NotionPageSummary, // Added for getNotionPageSummaryById
 } from '../types';
 import { logger } from '../../_utils/logger'; // Added logger
-import {
-  PYTHON_RESEARCH_API_URL,
-  PYTHON_NOTE_API_URL,
-  ATOM_NOTION_TASKS_DATABASE_ID, // Added for default tasks DB
-  NOTION_API_TOKEN,
-  NOTION_NOTES_DATABASE_ID, // Default general notes DB
-  NOTION_RESEARCH_PROJECTS_DB_ID,
-  NOTION_RESEARCH_TASKS_DB_ID,
-  ATOM_SERPAPI_API_KEY, // Search API Key for research tasks
-  OPENAI_API_KEY,       // OpenAI API Key for research tasks (decomposition, synthesis)
-  DEEPGRAM_API_KEY,     // Deepgram API Key for audio notes
-} from '../_libs/constants';
+import { decrypt } from '../../_libs/crypto';
+import { executeGraphQLQuery } from '../_libs/graphqlClient';
+
+async function getNotionApiKey(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserCredential($userId: String!, $serviceName: String!) {
+            user_credentials(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}) {
+                encrypted_secret
+            }
+        }
+    `;
+    const variables = {
+        userId,
+        serviceName: 'notion',
+    };
+    const response = await executeGraphQLQuery<{ user_credentials: { encrypted_secret: string }[] }>(query, variables, 'GetUserCredential', userId);
+    if (response.user_credentials && response.user_credentials.length > 0) {
+        return decrypt(response.user_credentials[0].encrypted_secret);
+    }
+    return null;
+}
 
 // --- Helper for handling Python API responses ---
 function handlePythonApiResponse<T>(
@@ -64,11 +73,12 @@ function handlePythonApiResponse<T>(
 // --- Research Skills ---
 
 export async function initiateResearch(
-  userId: string, // Though not directly used by Python's initiate_research_project, useful for context/future
+  userId: string,
   topic: string
 ): Promise<SkillResponse<InitiateResearchData>> {
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_RESEARCH_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Research API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
   if (!OPENAI_API_KEY) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'OpenAI API key is not configured.' } };
   if (!NOTION_RESEARCH_PROJECTS_DB_ID) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion Research Projects DB ID is not configured.' } };
   if (!NOTION_RESEARCH_TASKS_DB_ID) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion Research Tasks DB ID is not configured.' } };
@@ -79,7 +89,7 @@ export async function initiateResearch(
       user_id: userId, // Pass userId to Python service
       research_db_id: NOTION_RESEARCH_PROJECTS_DB_ID,
       task_db_id: NOTION_RESEARCH_TASKS_DB_ID,
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
       openai_api_key: OPENAI_API_KEY,
     };
     const response = await axios.post<PythonApiResponse<InitiateResearchData>>(
@@ -147,8 +157,9 @@ export async function createNotionTask(
   params: CreateNotionTaskParams,
   integrations: any
 ): Promise<SkillResponse<CreateTaskData>> {
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
   if (!params.notionTasksDbId && !ATOM_NOTION_TASKS_DATABASE_ID) {
       return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion Tasks Database ID is not configured.'}};
   }
@@ -157,7 +168,7 @@ export async function createNotionTask(
     const payload = {
       ...params, // description, dueDate, status, priority, listName, notes
       user_id: userId,
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
       notion_db_id: params.notionTasksDbId || ATOM_NOTION_TASKS_DATABASE_ID
     };
 
@@ -183,8 +194,9 @@ export async function queryNotionTasks(
   userId: string,
   params: QueryNotionTasksParams
 ): Promise<TaskQueryResponse> { // Direct use of TaskQueryResponse
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_NOTE_API_URL) return { success: false, tasks: [], error: 'Python Note API URL is not configured.', message: 'Configuration error.' };
-  if (!NOTION_API_TOKEN) return { success: false, tasks: [], error: 'Notion API token is not configured.', message: 'Configuration error.' };
+  if (!notionApiKey) return { success: false, tasks: [], error: 'Notion API token is not configured.', message: 'Configuration error.' };
   if (!params.notionTasksDbId && !ATOM_NOTION_TASKS_DATABASE_ID) {
       return { success: false, tasks: [], error: 'Notion Tasks Database ID is not configured.', message: 'Configuration error.'};
   }
@@ -193,7 +205,7 @@ export async function queryNotionTasks(
     const payload = {
       ...params,
       user_id: userId, // Include userId for consistency, Python backend may or may not use it for filtering
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
       notion_db_id: params.notionTasksDbId || ATOM_NOTION_TASKS_DATABASE_ID
     };
 
@@ -224,15 +236,16 @@ export async function updateNotionTask(
   userId: string,
   params: UpdateNotionTaskParams
 ): Promise<SkillResponse<UpdateTaskData>> {
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
   if (!params.taskId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Task ID (taskId) is required for update.' }};
 
   try {
     const payload = {
       ...params,
       user_id: userId,
-      notion_api_token: NOTION_API_TOKEN
+      notion_api_token: notionApiKey
     };
 
     const response = await axios.post<PythonApiResponse<UpdateTaskData>>(
@@ -308,8 +321,9 @@ export async function searchSimilarNotionNotes(
 export async function processResearchQueue(
   userId: string // Contextual, Python service doesn't strictly need it if keys are global there
 ): Promise<SkillResponse<ProcessResearchQueueData>> {
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_RESEARCH_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Research API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
   if (!OPENAI_API_KEY) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'OpenAI API key is not configured.' } };
   if (!ATOM_SERPAPI_API_KEY) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'SerpApi API key is not configured.' } };
   if (!NOTION_RESEARCH_PROJECTS_DB_ID) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion Research Projects DB ID is not configured.' } };
@@ -320,7 +334,7 @@ export async function processResearchQueue(
       user_id: userId, // Pass userId for context if Python service uses it
       research_db_id: NOTION_RESEARCH_PROJECTS_DB_ID,
       task_db_id: NOTION_RESEARCH_TASKS_DB_ID,
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
       openai_api_key: OPENAI_API_KEY,
       search_api_key: ATOM_SERPAPI_API_KEY,
     };
@@ -370,9 +384,10 @@ export async function getNotionPageSummaryById(
   userId: string,
   pageId: string
 ): Promise<SkillResponse<NotionPageSummary>> { // Assuming NotionPageSummary is defined in types
+  const notionApiKey = await getNotionApiKey(userId);
   logger.info(`[getNotionPageSummaryById] Called for userId: ${userId}, pageId: ${pageId}`);
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
   if (!pageId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Page ID is required.'}};
 
   // This is a placeholder. In a real implementation:
@@ -419,15 +434,16 @@ export async function createNotionNote(
   content: string,
   notionDbId?: string // Optional: if not provided, Python uses its default
 ): Promise<SkillResponse<CreateNoteData>> {
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
 
   try {
     const payload: any = {
       title,
       content,
       user_id: userId,
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
     };
     if (notionDbId) payload.notion_db_id = notionDbId;
     else if (NOTION_NOTES_DATABASE_ID) payload.notion_db_id = NOTION_NOTES_DATABASE_ID; // Use default if available
@@ -458,8 +474,9 @@ export async function createAudioNoteFromUrl(
   notionSource?: string,
   linkedEventId?: string
 ): Promise<SkillResponse<CreateNoteData>> {
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
   if (!DEEPGRAM_API_KEY) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Deepgram API key is not configured.' } };
   if (!OPENAI_API_KEY) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'OpenAI API key is not configured.' } };
 
@@ -468,7 +485,7 @@ export async function createAudioNoteFromUrl(
       audio_url: audioUrl,
       title,
       user_id: userId,
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
       deepgram_api_key: DEEPGRAM_API_KEY,
       openai_api_key: OPENAI_API_KEY,
     };
@@ -501,14 +518,15 @@ export async function searchNotionNotes(
   notionDbId?: string,
   source?: string // Optional filter by 'Source' property
 ): Promise<SkillResponse<NotionPageSummary[]>> { // Changed return type
+  const notionApiKey = await getNotionApiKey(userId);
   if (!PYTHON_NOTE_API_URL) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python Note API URL is not configured.' } };
-  if (!NOTION_API_TOKEN) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
+  if (!notionApiKey) return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Notion API token is not configured.' } };
 
   try {
     const payload: any = {
       query_text: queryText,
       user_id: userId,
-      notion_api_token: NOTION_API_TOKEN,
+      notion_api_token: notionApiKey,
     };
     if (notionDbId) payload.notion_db_id = notionDbId;
     else if (NOTION_NOTES_DATABASE_ID) payload.notion_db_id = NOTION_NOTES_DATABASE_ID;

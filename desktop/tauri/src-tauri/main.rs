@@ -3,231 +3,251 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::{SystemTray, SystemTrayEvent, SystemTrayMenu, CustomMenuItem, Manager, command, AppHandle, Window};
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use tract_onnx::prelude::*;
+use tauri::{Manager, AppHandle};
+use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::aead::{Aead, NewAead};
+use hex::{encode, decode};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use std::fs;
-use std::sync::{Arc, Mutex};
-use serde_json::Value;
+use std::path::PathBuf;
+use reqwest;
 
-#[command]
-fn focus_window(window: Window) {
-    window.set_focus().unwrap();
+// --- Constants ---
+const ENCRYPTION_KEY: &[u8] = b"a_default_32_byte_encryption_key"; // 32 bytes for AES-256
+const SETTINGS_FILE: &str = "atom-settings.json";
+const DESKTOP_PROXY_URL: &str = "http://localhost:3000/api/agent/desktop-proxy"; // URL of the web app's backend
+
+// --- Structs ---
+#[derive(Serialize, Deserialize, Debug)]
+struct Settings {
+    #[serde(flatten)]
+    extra: HashMap<String, String>,
 }
 
-#[command]
-async fn get_project_health_score(app_handle: AppHandle) -> Result<String, String> {
-    let settings_path = app_handle.path_resolver()
-        .resolve_resource("settings.json")
-        .expect("failed to resolve resource");
-    let settings_file = fs::read_to_string(settings_path).map_err(|err| err.to_string())?;
-    let settings: Value = serde_json::from_str(&settings_file).map_err(|err| err.to_string())?;
-
-    let client = reqwest::Client::new();
-    let res = client.post("http://localhost:3000/api/project-health")
-        .json(&serde_json::json!({
-            "settings": settings
-        }))
-        .send()
-        .await
-        .map_err(|err| err.to_string())?;
-
-    let body = res.text().await.map_err(|err| err.to_string())?;
-    Ok(body)
+#[derive(Serialize, Deserialize, Debug)]
+struct NluResponse {
+    intent: Option<String>,
+    entities: serde_json::Value,
 }
 
-#[command]
-async fn send_message_to_agent(app_handle: AppHandle, message: String) -> Result<String, String> {
-    let settings_path = app_handle.path_resolver()
-        .resolve_resource("settings.json")
-        .expect("failed to resolve resource");
-    let settings_file = fs::read_to_string(settings_path).map_err(|err| err.to_string())?;
-    let settings: Value = serde_json::from_str(&settings_file).map_err(|err| err.to_string())?;
-
-    let client = reqwest::Client::new();
-    let res = client.post("http://localhost:3000/api/agent-handler")
-        .json(&serde_json::json!({
-            "message": message,
-            "settings": settings
-        }))
-        .send()
-        .await
-        .map_err(|err| err.to_string())?;
-
-    let body = res.text().await.map_err(|err| err.to_string())?;
-    Ok(body)
+// --- Secure Storage ---
+fn get_settings_path(app_handle: &AppHandle) -> PathBuf {
+    let mut path = app_handle.path_resolver().app_data_dir().unwrap();
+    path.push(SETTINGS_FILE);
+    path
 }
 
-use std::io::Write;
+fn encrypt(text: &str) -> String {
+    let key = Key::from_slice(ENCRYPTION_KEY);
+    let cipher = Aes256Gcm::new(key);
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ciphertext = cipher.encrypt(nonce, text.as_bytes()).unwrap();
+    format!("{}:{}", encode(nonce), encode(ciphertext))
+}
 
-fn create_silent_audio_recording_stream(app_handle: &AppHandle, stream_mutex: &Arc<Mutex<Option<cpal::Stream>>>) {
-    let settings_path = app_handle.path_resolver()
-        .resolve_resource("settings.json")
-        .expect("failed to resolve resource");
-    let settings_file = fs::read_to_string(settings_path).unwrap();
-    let settings: Value = serde_json::from_str(&settings_file).unwrap();
-    let silent_audio_recording = settings["silentAudioRecording"].as_bool().unwrap_or(false);
-
-    if !silent_audio_recording {
-        return;
+fn decrypt(encrypted_text: &str) -> Result<String, String> {
+    let parts: Vec<&str> = encrypted_text.split(':').collect();
+    if parts.len() != 2 {
+        return Err("Invalid encrypted text format".to_string());
     }
-
-    let host = cpal::default_host();
-    let device = host.default_input_device().expect("no input device available");
-    let config = device.default_input_config().unwrap();
-
-    let app_handle_clone = app_handle.clone();
-    let stream = device.build_input_stream(
-        &config.into(),
-        move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let client = reqwest::blocking::Client::new();
-            let res = client.post("http://localhost:3000/api/silent-audio-recording")
-                .body(data.to_vec())
-                .send();
-        },
-        |err| eprintln!("an error occurred on stream: {}", err),
-    ).unwrap();
-    stream.play().unwrap();
-    *stream_mutex.lock().unwrap() = Some(stream);
+    let nonce = Nonce::from_slice(&decode(parts[0]).unwrap());
+    let ciphertext = decode(parts[1]).unwrap();
+    let key = Key::from_slice(ENCRYPTION_KEY);
+    let cipher = Aes256Gcm::new(key);
+    let plaintext = cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|e| e.to_string())?;
+    Ok(String::from_utf8(plaintext).unwrap())
 }
 
-fn create_stream(app_handle: &AppHandle, stream_mutex: &Arc<Mutex<Option<cpal::Stream>>>) {
-    let settings_path = app_handle.path_resolver()
-        .resolve_resource("settings.json")
-        .expect("failed to resolve resource");
-    let settings_file = fs::read_to_string(settings_path).unwrap();
-    let settings: Value = serde_json::from_str(&settings_file).unwrap();
-    let integrations = &settings["integrations"];
-    let llm = &settings["llm"];
+#[tauri::command]
+fn save_setting(app_handle: AppHandle, key: String, value: String) {
+    let path = get_settings_path(&app_handle);
+    let mut settings: Settings = match fs::read_to_string(&path) {
+        Ok(content) => serde_json::from_str(&content).unwrap_or(Settings { extra: HashMap::new() }),
+        Err(_) => Settings { extra: HashMap::new() },
+    };
+    let encrypted_value = encrypt(&value);
+    settings.extra.insert(key, encrypted_value);
+    fs::write(&path, serde_json::to_string_pretty(&settings).unwrap()).unwrap();
+}
 
-    let host = cpal::default_host();
-    let device = host.default_input_device().expect("no input device available");
-    let config = device.default_input_config().unwrap();
-    let model = tract_onnx::onnx()
-        .model_for_path("atom_wake_word.onnx")
+#[tauri::command]
+fn get_setting(app_handle: AppHandle, key: String) -> Option<String> {
+    let path = get_settings_path(&app_handle);
+    if let Ok(content) = fs::read_to_string(&path) {
+        if let Ok(settings) = serde_json::from_str::<Settings>(&content) {
+            if let Some(encrypted_value) = settings.extra.get(&key) {
+                return decrypt(encrypted_value).ok();
+            }
+        }
+    }
+    None
+}
+
+// --- Main Agent Command ---
+#[tauri::command]
+async fn send_message_to_agent(message: String, app_handle: AppHandle) -> String {
+    let client = reqwest::Client::new();
+
+    // First, get the NLU response from the web backend
+    let nlu_response: NluResponse = client
+        .post("http://localhost:3000/api/agent/nlu")
+        .json(&serde_json::json!({ "message": message }))
+        .send()
+        .await
         .unwrap()
-        .with_input_fact(0, f32::fact([1, 16000]).into())
-        .unwrap()
-        .into_optimized()
-        .unwrap()
-        .into_runnable()
+        .json()
+        .await
         .unwrap();
 
-    let app_handle_clone = app_handle.clone();
-    let stream = device.build_input_stream(
-        &config.into(),
-        move |data: &[f32], _: &cpal::InputCallbackInfo| {
-            let input = tract_ndarray::Array1::from_vec(data.to_vec());
-            let input = input.into_shape((1, 16000)).unwrap();
-            let result = model.run(tvec!(input.into())).unwrap();
-            if let Some(tensor) = result.get(0) {
-                if let Some(value) = tensor.as_slice::<f32>().unwrap().get(0) {
-                    if *value > 0.5 {
-                        app_handle_clone.emit_all("wake-word-detected", {}).unwrap();
-                    }
-                }
+    if let Some(intent) = nlu_response.intent {
+        if intent == "Browser" {
+            if let Some(task) = nlu_response.entities.get("task").and_then(|t| t.as_str()) {
+                // Handle the browser skill locally
+                let _ = app_handle.shell().open(task, None).await;
+                return format!("Opening {} in your browser.", task);
             }
-        },
-        |err| eprintln!("an error occurred on stream: {}", err),
-    ).unwrap();
-    stream.play().unwrap();
-    *stream_mutex.lock().unwrap() = Some(stream);
+        }
+    }
+
+    // For all other intents, gather credentials and call the desktop proxy
+    let mut settings_for_proxy = HashMap::new();
+    let keys_to_fetch = vec!["notion_api_key", "zapier_webhook_url", "tts_provider", "elevenlabs_api_key", "deepgram_api_key"];
+    for key in keys_to_fetch {
+        if let Some(value) = get_setting(app_handle.clone(), key.to_string()) {
+            settings_for_proxy.insert(key.to_string(), value);
+        }
+    }
+
+    let response = client
+        .post(DESKTOP_PROXY_URL)
+        .json(&serde_json::json!({
+            "message": message,
+            "settings": settings_for_proxy,
+        }))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+
+    response
+}
+
+#[tauri::command]
+async fn get_project_health_score(app_handle: AppHandle) -> Result<u32, String> {
+    let notion_api_key = get_setting(app_handle.clone(), "notion_api_key".to_string());
+    let notion_database_id = get_setting(app_handle.clone(), "notion_tasks_database_id".to_string());
+    let github_owner = get_setting(app_handle.clone(), "github_owner".to_string());
+    let github_repo = get_setting(app_handle.clone(), "github_repo".to_string());
+    let slack_channel_id = get_setting(app_handle.clone(), "slack_channel_id".to_string());
+
+    if notion_api_key.is_none() || notion_database_id.is_none() || github_owner.is_none() || github_repo.is_none() || slack_channel_id.is_none() {
+        return Err("Notion, GitHub, and Slack credentials are not configured.".to_string());
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:3000/api/projects/health")
+        .json(&serde_json::json!({
+            "notionApiKey": notion_api_key.unwrap(),
+            "notionDatabaseId": notion_database_id.unwrap(),
+            "githubOwner": github_owner.unwrap(),
+            "githubRepo": github_repo.unwrap(),
+            "slackChannelId": slack_channel_id.unwrap(),
+        }))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                let score_response: serde_json::Value = res.json().await.unwrap();
+                Ok(score_response["score"].as_u64().unwrap() as u32)
+            } else {
+                Err(format!("Failed to get project health score: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to health endpoint: {}", err)),
+    }
+}
+
+#[tauri::command]
+async fn run_competitor_analysis(app_handle: AppHandle, competitors: Vec<String>, notion_database_id: String) -> Result<(), String> {
+    let notion_api_key = get_setting(app_handle.clone(), "notion_api_key".to_string());
+
+    if notion_api_key.is_none() {
+        return Err("Notion API key is not configured.".to_string());
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:3000/api/projects/competitor-analysis")
+        .json(&serde_json::json!({
+            "competitors": competitors,
+            "notionDatabaseId": notion_database_id,
+            "notionApiKey": notion_api_key.unwrap(),
+        }))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Failed to run competitor analysis: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to competitor analysis endpoint: {}", err)),
+    }
+}
+
+#[tauri::command]
+async fn generate_learning_plan(app_handle: AppHandle, notion_database_id: String) -> Result<(), String> {
+    let notion_api_key = get_setting(app_handle.clone(), "notion_api_key".to_string());
+
+    if notion_api_key.is_none() {
+        return Err("Notion API key is not configured.".to_string());
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:3000/api/projects/learning-plan")
+        .json(&serde_json::json!({
+            "notionDatabaseId": notion_database_id,
+            "notionApiKey": notion_api_key.unwrap(),
+        }))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Failed to generate learning plan: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to learning plan endpoint: {}", err)),
+    }
 }
 
 fn main() {
-    let show = CustomMenuItem::new("show".to_string(), "Show App");
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-    let start_transcription = CustomMenuItem::new("start_transcription".to_string(), "Start Transcription");
-    let tray_menu = SystemTrayMenu::new().add_item(show).add_item(start_transcription).add_item(quit);
-    let system_tray = SystemTray::new().with_menu(tray_menu);
-
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![send_message_to_agent, get_project_health_score, focus_window])
-        .setup(|app| {
-            let app_handle = app.handle();
-
-            let audio_stream: Arc<Mutex<Option<cpal::Stream>>> = Arc::new(Mutex::new(None));
-
-            // Initial stream creation
-            let handle_clone = app_handle.clone();
-            let stream_clone = audio_stream.clone();
-            create_stream(&handle_clone, &stream_clone);
-
-            // Silent audio recording thread
-            let handle_clone = app_handle.clone();
-            let silent_audio_stream: Arc<Mutex<Option<cpal::Stream>>> = Arc::new(Mutex::new(None));
-            let stream_clone_silent = silent_audio_stream.clone();
-            create_silent_audio_recording_stream(&handle_clone, &stream_clone_silent);
-
-            // Power monitor thread
-            let handle_clone = app_handle.clone();
-            let stream_clone_power = audio_stream.clone();
-            std::thread::spawn(move || {
-                for event in power_monitor::observe().unwrap() {
-                    match event {
-                        power_monitor::PowerEvent::Resume => {
-                            handle_clone.emit_all("resume-detected", {}).unwrap();
-                            if let Some(window) = handle_clone.get_window("main") {
-                                window.show().unwrap();
-                                focus_window(window);
-                            }
-                            println!("System resumed, restarting audio stream");
-                            create_stream(&handle_clone, &stream_clone_power);
-                        },
-                        power_monitor::PowerEvent::Suspend => {
-                            println!("System suspending, stopping audio stream");
-                            let mut stream = stream_clone_power.lock().unwrap();
-                            if let Some(s) = stream.take() {
-                                drop(s);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            });
-            Ok(())
-        })
-        .system_tray(system_tray)
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick {
-                position: _,
-                size: _,
-                ..
-            } => {
-                let window = app.get_window("main").unwrap();
-                if window.is_visible().unwrap() {
-                    window.hide().unwrap();
-                } else {
-                    window.show().unwrap();
-                    window.set_focus().unwrap();
-                }
-            }
-            SystemTrayEvent::MenuItemClick { id, .. } => {
-                let item_handle = app.tray_handle().get_item(&id);
-                match id.as_str() {
-                    "show" => {
-                        let window = app.get_window("main").unwrap();
-                        window.show().unwrap();
-                        window.set_focus().unwrap();
-                    }
-                    "quit" => {
-                        std::process::exit(0);
-                    }
-                    "start_transcription" => {
-                        app.emit_all("start-transcription", {}).unwrap();
-                    }
-                    _ => {}
-                }
-            }
-            _ => {}
-        })
-        .on_window_event(|event| match event.event() {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                event.window().hide().unwrap();
-                api.prevent_close();
-            }
-            _ => {}
-        })
+        .invoke_handler(tauri::generate_handler![
+            send_message_to_agent,
+            save_setting,
+            get_setting,
+            get_project_health_score,
+            run_competitor_analysis,
+            generate_learning_plan
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

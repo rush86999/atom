@@ -6,6 +6,8 @@ import Support from "./Support";
 import UserRole, { Role } from "./UserRole";
 import FeatureViewGuard from "./components/FeatureViewGuard";
 import ProjectHealth from './ProjectHealth';
+import CompetitorAnalysis from './CompetitorAnalysis';
+import LearningAssistant from './LearningAssistant';
 import "./App.css";
 
 // Define the roles available in the desktop application.
@@ -24,7 +26,7 @@ const AVAILABLE_ROLES: Role[] = [
 function App() {
   // State to manage the currently displayed view. Defaults to 'chat'.
   const [activeView, setActiveView] = useState<
-    "chat" | "sales" | "projects" | "support" | "settings" | "project-health"
+    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant"
   >("chat");
   // State to track which roles the user has activated.
   const [activeRoles, setActiveRoles] = useState<Role[]>([]);
@@ -89,6 +91,10 @@ function App() {
         );
       case "project-health":
         return <ProjectHealth />;
+      case "competitor-analysis":
+        return <CompetitorAnalysis />;
+      case "learning-assistant":
+        return <LearningAssistant />;
       default:
         return <Chat />;
     }
@@ -126,6 +132,18 @@ function App() {
           className={activeView === "project-health" ? "active" : ""}
         >
           Project Health
+        </button>
+        <button
+          onClick={() => setActiveView("competitor-analysis")}
+          className={activeView === "competitor-analysis" ? "active" : ""}
+        >
+          Competitor Analysis
+        </button>
+        <button
+          onClick={() => setActiveView("learning-assistant")}
+          className={activeView === "learning-assistant" ? "active" : ""}
+        >
+          Learning Assistant
         </button>
         <button
           onClick={() => setActiveView("settings")}

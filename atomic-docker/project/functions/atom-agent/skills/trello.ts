@@ -1,16 +1,46 @@
 import { SkillResponse } from '../../types';
-import { TRELLO_API_KEY, TRELLO_API_SECRET, TRELLO_TOKEN } from '../../_libs/constants';
+import { decrypt } from '../../_libs/crypto';
+import { executeGraphQLQuery } from '../../_libs/graphqlClient';
 import { handleError } from '../../_utils/errorHandler';
 import { TrelloClient } from 'trello.ts';
 
-const client = new TrelloClient({
-    apiKey: TRELLO_API_KEY,
-    apiSecret: TRELLO_API_SECRET,
-    token: TRELLO_TOKEN,
-});
+async function getTrelloCredentials(userId: string): Promise<{ apiKey: string, apiToken: string } | null> {
+    const query = `
+        query GetUserCredentials($userId: String!) {
+            user_credentials(where: {user_id: {_eq: $userId}, service_name: {_in: ["trello_api_key", "trello_api_token"]}}) {
+                service_name
+                encrypted_secret
+            }
+        }
+    `;
+    const variables = {
+        userId,
+    };
+    const response = await executeGraphQLQuery<{ user_credentials: { service_name: string, encrypted_secret: string }[] }>(query, variables, 'GetUserCredentials', userId);
+    if (response.user_credentials && response.user_credentials.length === 2) {
+        const credentials: any = {};
+        for (const cred of response.user_credentials) {
+            credentials[cred.service_name] = decrypt(cred.encrypted_secret);
+        }
+        return {
+            apiKey: credentials.trello_api_key,
+            apiToken: credentials.trello_api_token,
+        };
+    }
+    return null;
+}
 
 export async function handleCreateTrelloCard(userId: string, entities: any): Promise<string> {
     try {
+        const credentials = await getTrelloCredentials(userId);
+        if (!credentials) {
+            return "Trello credentials not configured for this user.";
+        }
+        const client = new TrelloClient({
+            apiKey: credentials.apiKey,
+            token: credentials.apiToken,
+        });
+
         const { card_name, list_id } = entities;
 
         if (!card_name || typeof card_name !== 'string') {
@@ -34,6 +64,15 @@ export async function handleCreateTrelloCard(userId: string, entities: any): Pro
 
 export async function handleQueryTrelloCards(userId: string, entities: any): Promise<string> {
     try {
+        const credentials = await getTrelloCredentials(userId);
+        if (!credentials) {
+            return "Trello credentials not configured for this user.";
+        }
+        const client = new TrelloClient({
+            apiKey: credentials.apiKey,
+            token: credentials.apiToken,
+        });
+
         const { list_id } = entities;
 
         if (!list_id || typeof list_id !== 'string') {
@@ -59,6 +98,15 @@ export async function handleQueryTrelloCards(userId: string, entities: any): Pro
 
 export async function handleUpdateTrelloCard(userId: string, entities: any): Promise<string> {
     try {
+        const credentials = await getTrelloCredentials(userId);
+        if (!credentials) {
+            return "Trello credentials not configured for this user.";
+        }
+        const client = new TrelloClient({
+            apiKey: credentials.apiKey,
+            token: credentials.apiToken,
+        });
+
         const { card_id, card_name } = entities;
 
         if (!card_id || typeof card_id !== 'string') {

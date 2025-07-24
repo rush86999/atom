@@ -14,15 +14,15 @@
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "22.7.9",
+    "aws-cdk": "^2.1021.0",
+    "cdk-nag": "^2.36.44",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
-    "aws-cdk": "2.1019.0",
     "ts-node": "^10.9.2",
-    "typescript": "~5.6.3",
-    "cdk-nag": "^2.27.18"
+    "typescript": "~5.6.3"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.201.0",
+    "aws-cdk-lib": "^2.206.0",
     "constructs": "^10.0.0"
   }
 }

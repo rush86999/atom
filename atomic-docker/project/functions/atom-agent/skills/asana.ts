@@ -1,12 +1,36 @@
 import { SkillResponse } from '../../types';
-import { ASANA_ACCESS_TOKEN } from '../../_libs/constants';
+import { decrypt } from '../../_libs/crypto';
+import { executeGraphQLQuery } from '../../_libs/graphqlClient';
 import { handleError } from '../../_utils/errorHandler';
 import * as asana from 'asana';
 
-const client = asana.Client.create().useAccessToken(ASANA_ACCESS_TOKEN);
+async function getAsanaApiKey(userId: string): Promise<string | null> {
+    const query = `
+        query GetUserCredential($userId: String!, $serviceName: String!) {
+            user_credentials(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}) {
+                encrypted_secret
+            }
+        }
+    `;
+    const variables = {
+        userId,
+        serviceName: 'asana_api_key',
+    };
+    const response = await executeGraphQLQuery<{ user_credentials: { encrypted_secret: string }[] }>(query, variables, 'GetUserCredential', userId);
+    if (response.user_credentials && response.user_credentials.length > 0) {
+        return decrypt(response.user_credentials[0].encrypted_secret);
+    }
+    return null;
+}
 
 export async function handleCreateAsanaTask(userId: string, entities: any): Promise<string> {
     try {
+        const apiKey = await getAsanaApiKey(userId);
+        if (!apiKey) {
+            return "Asana API key not configured for this user.";
+        }
+        const client = asana.Client.create().useAccessToken(apiKey);
+
         const { task_name, project_id } = entities;
 
         if (!task_name || typeof task_name !== 'string') {
@@ -30,6 +54,12 @@ export async function handleCreateAsanaTask(userId: string, entities: any): Prom
 
 export async function handleQueryAsanaTasks(userId: string, entities: any): Promise<string> {
     try {
+        const apiKey = await getAsanaApiKey(userId);
+        if (!apiKey) {
+            return "Asana API key not configured for this user.";
+        }
+        const client = asana.Client.create().useAccessToken(apiKey);
+
         const { project_id } = entities;
 
         if (!project_id || typeof project_id !== 'string') {
@@ -55,6 +85,12 @@ export async function handleQueryAsanaTasks(userId: string, entities: any): Prom
 
 export async function handleUpdateAsanaTask(userId: string, entities: any): Promise<string> {
     try {
+        const apiKey = await getAsanaApiKey(userId);
+        if (!apiKey) {
+            return "Asana API key not configured for this user.";
+        }
+        const client = asana.Client.create().useAccessToken(apiKey);
+
         const { task_id, task_name } = entities;
 
         if (!task_id || typeof task_id !== 'string') {

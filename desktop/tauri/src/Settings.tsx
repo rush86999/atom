@@ -1,176 +1,198 @@
-import { useState, useEffect, ChangeEvent } from "react";
-import { readTextFile, writeTextFile, BaseDirectory } from "@tauri-apps/api/fs";
-import Switch from "./components/Switch";
-import "./Settings.css";
+import React, { useState, useEffect } from 'react';
+import { saveSetting, getSetting, getSettingStatus } from './lib/secure-storage';
+import './Settings.css';
 
-function Settings() {
-  const [sttService, setSttService] = useState("deepgram");
-  const [sttApiKey, setSttApiKey] = useState("");
-  const [ttsService, setTtsService] = useState("deepgram");
-  const [ttsApiKey, setTtsApiKey] = useState("");
-  const [llmService, setLlmService] = useState("openai");
-  const [llmApiKey, setLlmApiKey] = useState("");
-  const [integrations, setIntegrations] = useState({
-    openai: "",
-    google: "",
-    notion: "",
-    deepgram: "",
-    zapier: "",
-    hubspot: "",
-    calendly: "",
-    zoom: "",
-    msteams: "",
-    stripe: "",
-    quickbooks: "",
-    asana: "",
-    jira: "",
-    trello: "",
-    elevenlabs: "",
-  });
-  const [silentAudioRecording, setSilentAudioRecording] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+const Settings = () => {
+  // State for each setting
+  const [notionApiKey, setNotionApiKey] = useState('');
+  const [notionDatabaseId, setNotionDatabaseId] = useState('');
+  const [zapierUrl, setZapierUrl] = useState('');
+  const [ttsProvider, setTtsProvider] = useState('elevenlabs');
+  const [ttsApiKey, setTtsApiKey] = useState('');
+  const [githubApiKey, setGithubApiKey] = useState('');
+  const [githubOwner, setGithubOwner] = useState('');
+  const [githubRepo, setGithubRepo] = useState('');
+  const [slackChannelId, setSlackChannelId] = useState('');
 
+  // UI feedback state
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // Load settings on component mount
   useEffect(() => {
-    readTextFile("settings.json", { dir: BaseDirectory.App }).then(
-      (contents: string) => {
-        const settings = JSON.parse(contents);
-        setSttService(settings.stt.service);
-        setSttApiKey(settings.stt.apiKey);
-        setTtsService(settings.tts.service);
-        setTtsApiKey(settings.tts.apiKey);
-        setLlmService(settings.llm.service);
-        setLlmApiKey(settings.llm.apiKey);
-        setIntegrations(settings.integrations);
-        setSilentAudioRecording(settings.silentAudioRecording);
-      },
-    );
+    const loadSettings = async () => {
+      // Notion
+      if (await getSettingStatus('notion_api_key')) {
+        setNotionApiKey('********');
+      }
+      const savedNotionDbId = await getSetting('notion_tasks_database_id');
+      setNotionDatabaseId(savedNotionDbId || '');
+      // Zapier
+      const savedZapierUrl = await getSetting('zapier_webhook_url');
+      setZapierUrl(savedZapierUrl || '');
+      // TTS Provider
+      const savedTtsProvider = await getSetting('tts_provider');
+      if (savedTtsProvider) {
+        setTtsProvider(savedTtsProvider);
+      }
+      // TTS API Key (check based on the loaded provider)
+      if (await getSettingStatus(`${savedTtsProvider || ttsProvider}_api_key`)) {
+        setTtsApiKey('********');
+      }
+      // GitHub
+      if (await getSettingStatus('github_api_key')) {
+        setGithubApiKey('********');
+      }
+      const savedGithubOwner = await getSetting('github_owner');
+      setGithubOwner(savedGithubOwner || '');
+      const savedGithubRepo = await getSetting('github_repo');
+      setGithubRepo(savedGithubRepo || '');
+      const savedSlackChannelId = await getSetting('slack_channel_id');
+      setSlackChannelId(savedSlackChannelId || '');
+    };
+    loadSettings();
   }, []);
 
-  const handleSave = () => {
-    const settings = {
-      stt: {
-        service: sttService,
-        apiKey: sttApiKey,
-      },
-      tts: {
-        service: ttsService,
-        apiKey: ttsApiKey,
-      },
-      llm: {
-        service: llmService,
-        apiKey: llmApiKey,
-      },
-      integrations,
-      silentAudioRecording,
-    };
-    writeTextFile("settings.json", JSON.stringify(settings), {
-      dir: BaseDirectory.App,
-    }).then(() => {
-      setSaveMessage("Settings saved successfully!");
-      setTimeout(() => setSaveMessage(""), 3000);
-    });
-  };
+  const handleSave = async () => {
+    setMessage('');
+    setError('');
+    try {
+      // Save Notion API Key (only if it's not masked)
+      if (notionApiKey !== '********') {
+        await saveSetting('notion_api_key', notionApiKey);
+      }
+      // Save Notion Database ID
+      await saveSetting('notion_tasks_database_id', notionDatabaseId);
+      // Save Zapier URL
+      await saveSetting('zapier_webhook_url', zapierUrl);
+      // Save TTS Provider
+      await saveSetting('tts_provider', ttsProvider);
+      // Save TTS API Key (only if it's not masked)
+      if (ttsApiKey !== '********') {
+        await saveSetting(`${ttsProvider}_api_key`, ttsApiKey);
+      }
+      // Save GitHub API Key (only if it's not masked)
+      if (githubApiKey !== '********') {
+        await saveSetting('github_api_key', githubApiKey);
+      }
+      // Save GitHub Owner and Repo
+      await saveSetting('github_owner', githubOwner);
+      await saveSetting('github_repo', githubRepo);
+      await saveSetting('slack_channel_id', slackChannelId);
+      
+      setMessage('Settings saved successfully!');
+      // Re-mask keys after saving
+      if (notionApiKey && notionApiKey !== '********') setNotionApiKey('********');
+      if (ttsApiKey && ttsApiKey !== '********') setTtsApiKey('********');
+      if (githubApiKey && githubApiKey !== '********') setGithubApiKey('********');
 
-  const handleIntegrationChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setIntegrations({
-      ...integrations,
-      [e.target.name]: e.target.value,
-    });
+    } catch (err) {
+      setError('Failed to save settings.');
+      console.error(err);
+    }
   };
 
   return (
     <div className="settings-container">
       <h2>Settings</h2>
-      {saveMessage && <div className="save-message">{saveMessage}</div>}
+      {message && <div className="save-message success">{message}</div>}
+      {error && <div className="save-message error">{error}</div>}
+
+      {/* Notion Settings */}
       <div className="setting">
-        <label>STT Service</label>
-        <select
-          value={sttService}
-          onChange={(e) => setSttService(e.target.value)}
-        >
-          <option value="deepgram">Deepgram</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div className="setting">
-        <label>STT API Key</label>
+        <label>Notion API Key</label>
         <input
-          type="text"
-          value={sttApiKey}
-          onChange={(e) => setSttApiKey(e.target.value)}
+          type="password"
+          value={notionApiKey}
+          onChange={(e) => setNotionApiKey(e.target.value)}
+          placeholder="Enter Notion API Key"
         />
       </div>
       <div className="setting">
-        <label>TTS Service</label>
-        <select
-          value={ttsService}
-          onChange={(e) => setTtsService(e.target.value)}
-        >
+        <label>Notion Tasks Database ID</label>
+        <input
+          type="text"
+          value={notionDatabaseId}
+          onChange={(e) => setNotionDatabaseId(e.target.value)}
+          placeholder="Enter Notion Tasks Database ID"
+        />
+      </div>
+
+      {/* GitHub Settings */}
+      <div className="setting">
+        <label>GitHub Personal Access Token</label>
+        <input
+          type="password"
+          value={githubApiKey}
+          onChange={(e) => setGithubApiKey(e.target.value)}
+          placeholder="Enter GitHub Personal Access Token"
+        />
+      </div>
+      <div className="setting">
+        <label>GitHub Repository Owner</label>
+        <input
+          type="text"
+          value={githubOwner}
+          onChange={(e) => setGithubOwner(e.target.value)}
+          placeholder="Enter GitHub repository owner"
+        />
+      </div>
+      <div className="setting">
+        <label>GitHub Repository Name</label>
+        <input
+          type="text"
+          value={githubRepo}
+          onChange={(e) => setGithubRepo(e.target.value)}
+          placeholder="Enter GitHub repository name"
+        />
+      </div>
+
+      {/* Slack Settings */}
+      <div className="setting">
+        <label>Slack Channel ID</label>
+        <input
+          type="text"
+          value={slackChannelId}
+          onChange={(e) => setSlackChannelId(e.target.value)}
+          placeholder="Enter Slack Channel ID to monitor"
+        />
+      </div>
+
+      {/* Zapier Settings */}
+      <div className="setting">
+        <label>Zapier Webhook URL</label>
+        <input
+          type="text"
+          value={zapierUrl}
+          onChange={(e) => setZapierUrl(e.target.value)}
+          placeholder="Enter Zapier Webhook URL"
+        />
+      </div>
+
+      {/* Voice Settings */}
+      <div className="setting">
+        <label>TTS Provider</label>
+        <select value={ttsProvider} onChange={(e) => {
+          setTtsProvider(e.target.value);
+          setTtsApiKey(''); // Reset API key when provider changes
+        }}>
+          <option value="elevenlabs">ElevenLabs</option>
           <option value="deepgram">Deepgram</option>
-          <option value="other">Other</option>
         </select>
       </div>
       <div className="setting">
-        <label>TTS API Key</label>
+        <label>{ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'Deepgram'} API Key</label>
         <input
-          type="text"
+          type="password"
           value={ttsApiKey}
           onChange={(e) => setTtsApiKey(e.target.value)}
+          placeholder={`Enter ${ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'Deepgram'} API Key`}
         />
       </div>
-      <div className="setting">
-        <label>LLM Service</label>
-        <select
-          value={llmService}
-          onChange={(e) => setLlmService(e.target.value)}
-        >
-          <option value="openai">OpenAI</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div className="setting">
-        <label>LLM API Key</label>
-        <input
-          type="text"
-          value={llmApiKey}
-          onChange={(e) => setLlmApiKey(e.target.value)}
-        />
-      </div>
-      <h2>Voice Settings (ElevenLabs)</h2>
-      <div className="setting">
-        <label>ElevenLabs API Key</label>
-        <input
-          type="text"
-          value={integrations.elevenlabs}
-          onChange={handleIntegrationChange}
-          name="elevenlabs"
-        />
-      </div>
-      <h2>Skills</h2>
-      <div className="setting">
-        <label>Silent Audio Recording</label>
-        <Switch
-          checked={silentAudioRecording}
-          onChange={() => setSilentAudioRecording(!silentAudioRecording)}
-        />
-      </div>
-      <h2>Integrations</h2>
-      {(Object.keys(integrations) as (keyof typeof integrations)[]).map(
-        (key) => (
-          <div className="setting" key={key}>
-            <label>{key}</label>
-            <input
-              type="text"
-              name={key}
-              value={integrations[key]}
-              onChange={handleIntegrationChange}
-            />
-          </div>
-        ),
-      )}
-      <button onClick={handleSave}>Save</button>
+
+      <button onClick={handleSave}>Save Settings</button>
     </div>
   );
-}
+};
 
 export default Settings;
