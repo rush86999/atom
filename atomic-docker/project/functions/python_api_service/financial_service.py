@@ -43,3 +43,13 @@ async def get_transactions(user_id, start_date, end_date, db_conn_pool):
         raise Exception("Plaid integration not found for this user.")
 
     return plaid_service.get_transactions(access_token, start_date, end_date)
+
+async def get_investments(user_id, db_conn_pool):
+    """
+    Gets a list of investments for a user.
+    """
+    access_token = await db_utils.get_plaid_access_token(user_id, db_conn_pool)
+    if not access_token:
+        raise Exception("Plaid integration not found for this user.")
+
+    return plaid_service.get_investments(access_token)

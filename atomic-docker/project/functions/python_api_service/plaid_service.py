@@ -61,3 +61,14 @@ def get_transactions(access_token, start_date, end_date):
     except Exception as e:
         logger.error(f"Error getting transactions for access token {access_token}: {e}", exc_info=True)
         raise
+
+def get_investments(access_token):
+    """
+    Gets a list of investments for a Plaid item.
+    """
+    try:
+        response = client.Investments.Holdings.get(access_token)
+        return response['holdings']
+    except Exception as e:
+        logger.error(f"Error getting investments for access token {access_token}: {e}", exc_info=True)
+        raise
