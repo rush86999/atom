@@ -49,6 +49,8 @@ interface LinkItemProps {
   icon: IconType;
   href: string;
 }
+import { FiDollarSign } from "react-icons/fi";
+
 const LinkItems: Array<LinkItemProps> = [
   { name: "Home", icon: FiHome, href: "/" },
   {
@@ -56,6 +58,7 @@ const LinkItems: Array<LinkItemProps> = [
     icon: GiArtificialIntelligence,
     href: "/Assist/UserListMeetingAssists",
   },
+  { name: "Finance", icon: FiDollarSign, href: "/Finance" },
   { name: "Sales", icon: FiTrendingUp, href: "/Sales" },
   { name: "Projects", icon: FiBriefcase, href: "/Projects" },
   { name: "Support", icon: FiHelpCircle, href: "/Support" },
@@ -127,6 +130,9 @@ const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
         }
         if (link.name === "Support") {
           return hasRole("support");
+        }
+        if (link.name === "Finance") {
+            return hasRole("finance");
         }
         return true;
       }).map((link) => (
