@@ -33,6 +33,10 @@ from .hr_manager_handler import hr_manager_bp
 from .content_marketer_handler import content_marketer_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
+from .account_handler import account_bp
+from .transaction_handler import transaction_bp
+from .investment_handler import investment_bp
+from .financial_calculation_handler import financial_calculation_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -114,6 +118,14 @@ def create_app(db_pool=None):
     logger.info("Registered 'content_marketer_bp' blueprint.")
     app.register_blueprint(mcp_bp)
     logger.info("Registered 'mcp_bp' blueprint.")
+    app.register_blueprint(account_bp)
+    logger.info("Registered 'account_bp' blueprint.")
+    app.register_blueprint(transaction_bp)
+    logger.info("Registered 'transaction_bp' blueprint.")
+    app.register_blueprint(investment_bp)
+    logger.info("Registered 'investment_bp' blueprint.")
+    app.register_blueprint(financial_calculation_bp)
+    logger.info("Registered 'financial_calculation_bp' blueprint.")
 
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)
