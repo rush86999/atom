@@ -1,4 +1,3 @@
-version: '3.6'
 services:
   traefik:
     image: "traefik:v2.10.4"
@@ -14,6 +13,7 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
   postgres:
+    image: postgres:13
     restart: always
     volumes:
       - ./postgres/data:/var/lib/postgresql/data
@@ -118,9 +118,6 @@ services:
       - "traefik.http.routers.functions.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/functions/`)"
       - "traefik.http.routers.functions.entrypoints=web"
       - "traefik.http.services.functions-service.loadbalancer.server.port=3000"
-    environment:
-      NOTION_API_TOKEN: ${NOTION_API_TOKEN}
-      ATOM_NOTION_TASKS_DATABASE_ID: ${ATOM_NOTION_TASKS_DATABASE_ID}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
       interval: 30s
