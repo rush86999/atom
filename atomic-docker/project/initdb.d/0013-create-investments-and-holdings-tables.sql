@@ -1,0 +1,20 @@
+CREATE TABLE investments (
+    id SERIAL PRIMARY KEY,
+    account_id INTEGER NOT NULL,
+    investment_name VARCHAR(255) NOT NULL,
+    investment_type VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (account_id) REFERENCES accounts (id)
+);
+
+CREATE TABLE holdings (
+    id SERIAL PRIMARY KEY,
+    investment_id INTEGER NOT NULL,
+    ticker VARCHAR(255) NOT NULL,
+    shares NUMERIC(15, 4) NOT NULL,
+    purchase_price NUMERIC(15, 2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (investment_id) REFERENCES investments (id)
+);
