@@ -20,6 +20,7 @@ export interface AnalyticalAgentResponse {
     };
     problemType?: string; // e.g., "information_retrieval", "task_execution", "comparison", "problem_solving"
     rawLLMResponse?: string; // For debugging
+    dataAnalystResponse?: DataAnalystAgentResponse;
 }
 
 // --- Creative Agent ---
