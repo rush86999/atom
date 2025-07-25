@@ -57,6 +57,7 @@ const Finance = () => {
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [investments, setInvestments] = useState([]);
+  const [liabilities, setLiabilities] = useState([]);
   const [netWorth, setNetWorth] = useState(0);
 
   useEffect(() => {
@@ -67,6 +68,17 @@ const Finance = () => {
     };
     if (user && hasRole('finance')) {
       getInvestments();
+    }
+  }, [user, hasRole]);
+
+  useEffect(() => {
+    const getLiabilities = async () => {
+      const response = await fetch(`/api/financial/liabilities?user_id=${user.id}`);
+      const { data } = await response.json();
+      setLiabilities(data);
+    };
+    if (user && hasRole('finance')) {
+        getLiabilities();
     }
   }, [user, hasRole]);
 
@@ -119,6 +131,15 @@ const Finance = () => {
           </li>
         ))}
       </ul>
+
+        <h2>Liabilities</h2>
+        <ul>
+            {liabilities.map((liability) => (
+                <li key={liability.account_id}>
+                    {liability.name} - {liability.last_payment_amount}
+                </li>
+            ))}
+        </ul>
     </div>
   );
 };
