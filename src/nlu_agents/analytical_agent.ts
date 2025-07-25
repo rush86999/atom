@@ -93,7 +93,7 @@ UserId: ${input.userId || 'N/A'}
         // Construct the full response, providing defaults for any missing fields
         // This also serves as a basic validation that the LLM is returning something usable.
         // More advanced schema validation could be added here (e.g., using Zod or AJV).
-        return {
+        const analyticalAgentResponse: AnalyticalAgentResponse = {
             identifiedEntities: parsedResponse.identifiedEntities || [],
             explicitTasks: parsedResponse.explicitTasks || [],
             informationNeeded: parsedResponse.informationNeeded || [],
@@ -101,6 +101,13 @@ UserId: ${input.userId || 'N/A'}
             problemType: parsedResponse.problemType || "unknown",
             rawLLMResponse: llmResponse.content, // Always include the raw response for debugging
         };
+
+        if (analyticalAgentResponse.problemType === 'data_analysis') {
+            const dataAnalystResponse = await this.dataAnalystAgent.analyze(input);
+            analyticalAgentResponse.dataAnalystResponse = dataAnalystResponse;
+        }
+
+        return analyticalAgentResponse;
     }
 }
 

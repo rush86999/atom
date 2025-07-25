@@ -3,35 +3,35 @@ import {
     AnalyticalAgentResponse,
     CreativeAgentResponse,
     PracticalAgentResponse,
-    DataAnalystAgentResponse,
     EnrichedIntent
 } from './nlu_types';
 import { AnalyticalAgent } from './analytical_agent';
 import { CreativeAgent } from './creative_agent';
 import { PracticalAgent } from './practical_agent';
 import { SynthesizingAgent } from './synthesizing_agent';
-import { DataAnalystAgent } from './data_analyst_agent';
+import { TurnContext } from 'botbuilder';
+import { AgentLLMService } from './nlu_types';
+import { DataAnalystSkill } from '../skills/dataAnalystSkill';
 
 export class NLULeadAgent {
     private analyticalAgent: AnalyticalAgent;
     private creativeAgent: CreativeAgent;
     private practicalAgent: PracticalAgent;
     private synthesizingAgent: SynthesizingAgent;
-    private dataAnalystAgent: DataAnalystAgent;
+    private dataAnalystSkill: DataAnalystSkill;
     private agentName: string = "NLULeadAgent";
 
     constructor(
-        analyticalAgent: AnalyticalAgent,
-        creativeAgent: CreativeAgent,
-        practicalAgent: PracticalAgent,
-        synthesizingAgent: SynthesizingAgent,
-        dataAnalystAgent: DataAnalystAgent
+        llmService: AgentLLMService,
+        context: TurnContext,
+        memory: any,
+        functions: any
     ) {
-        this.analyticalAgent = analyticalAgent;
-        this.creativeAgent = creativeAgent;
-        this.practicalAgent = practicalAgent;
-        this.synthesizingAgent = synthesizingAgent;
-        this.dataAnalystAgent = dataAnalystAgent;
+        this.analyticalAgent = new AnalyticalAgent(llmService);
+        this.creativeAgent = new CreativeAgent(llmService);
+        this.practicalAgent = new PracticalAgent(llmService);
+        this.synthesizingAgent = new SynthesizingAgent(llmService);
+        this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
     }
 
     public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -39,16 +39,22 @@ export class NLULeadAgent {
         const P_LEAD_SYNTHESIS_TIMER_LABEL = `[${this.agentName}] Synthesis Duration`;
 
         console.time(P_LEAD_SUB_AGENTS_TIMER_LABEL);
-        const [analyticalResponse, creativeResponse, practicalResponse, dataAnalystResponse] = await Promise.all([
+        const [analyticalResponse, creativeResponse, practicalResponse] = await Promise.all([
             this.analyticalAgent.analyze(input).catch(e => { console.error("AnalyticalAgent failed:", e); return null; }),
             this.creativeAgent.analyze(input).catch(e => { console.error("CreativeAgent failed:", e); return null; }),
-            this.practicalAgent.analyze(input).catch(e => { console.error("PracticalAgent failed:", e); return null; }),
-            this.dataAnalystAgent.analyze(input).catch(e => { console.error("DataAnalystAgent failed:", e); return null; })
+            this.practicalAgent.analyze(input).catch(e => { console.error("PracticalAgent failed:", e); return null; })
         ]);
         console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
+        if (analyticalResponse?.problemType === 'data_analysis') {
+            const dataAnalystResult = await this.dataAnalystSkill.analyzeData(input.userInput);
+            // You can decide how to incorporate the result of the data analyst skill.
+            // For now, we'll just log it.
+            console.log("Data Analyst Skill Result:", dataAnalystResult);
+        }
+
         console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
-        const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse, dataAnalystResponse);
+        const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse);
         console.timeEnd(P_LEAD_SYNTHESIS_TIMER_LABEL);
 
         return {
@@ -69,7 +75,6 @@ export class NLULeadAgent {
                 analytical: analyticalResponse,
                 creative: creativeResponse,
                 practical: practicalResponse,
-                data_analyst: dataAnalystResponse,
             },
             synthesisLog: synthesisResult.synthesisLog || ["Synthesis log not initialized."],
         };
