@@ -7,17 +7,13 @@ import {
     safeParseJSON
 } from './nlu_types';
 import { StructuredLLMPrompt, LLMServiceResponse } from '../lib/llmUtils';
-import { DataAnalystAgent } from './data_analyst_agent';
-import { TurnContext } from 'botbuilder';
 
 export class AnalyticalAgent {
     private llmService: AgentLLMService;
     private agentName: string = "AnalyticalAgent";
-    private dataAnalystAgent: DataAnalystAgent;
 
-    constructor(llmService: AgentLLMService, context: TurnContext, memory: any, functions: any) {
+    constructor(llmService: AgentLLMService) {
         this.llmService = llmService;
-        this.dataAnalystAgent = new DataAnalystAgent(context, memory, functions);
     }
 
     private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
