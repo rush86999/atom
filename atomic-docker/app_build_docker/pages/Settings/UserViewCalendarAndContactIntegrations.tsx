@@ -29,7 +29,8 @@ import {
   updateIntegration,
   deleteEventTriggers,
   deleteEventTriggerByResourceId,
- } from '@lib/Settings/calendar_integrationHelper'
+ } from '@lib/Settings/calendar_integrationHelper';
+import GithubManager from '@components/Settings/GithubManager';
 
 import {
    googleCalendarName,
@@ -942,6 +943,11 @@ function UserViewCalendarAndContactIntegrations() {
                 <Text variant="body" style={{textAlign: 'center', color: palette.mediumGray}}>
                   Management UI for Google Drive connection, file listing, and ingestion would be rendered here using the GDriveManager component.
                 </Text>
+              </Box>
+
+              {/* GitHub Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                <GithubManager />
               </Box>
 
 
