@@ -20,7 +20,6 @@ export interface AnalyticalAgentResponse {
     };
     problemType?: string; // e.g., "information_retrieval", "task_execution", "comparison", "problem_solving"
     rawLLMResponse?: string; // For debugging
-    dataAnalystResponse?: DataAnalystAgentResponse;
 }
 
 // --- Creative Agent ---
@@ -56,14 +55,6 @@ export interface PracticalAgentResponse {
     rawLLMResponse?: string; // For debugging
 }
 
-// --- Data Analyst Agent ---
-export interface DataAnalystAgentResponse {
-    dataQueries?: string[];
-    requiredVisualizations?: string[];
-    dataSources?: string[];
-    rawLLMResponse?: string; // For debugging
-}
-
 // --- NLU Lead Agent Output ---
 export interface EnrichedIntent {
     originalQuery: string;
@@ -89,7 +80,6 @@ export interface EnrichedIntent {
         analytical: AnalyticalAgentResponse | null;
         creative: CreativeAgentResponse | null;
         practical: PracticalAgentResponse | null;
-        data_analyst: DataAnalystAgentResponse | null;
     };
     synthesisLog?: string[]; // Log of how synthesis was performed
 }

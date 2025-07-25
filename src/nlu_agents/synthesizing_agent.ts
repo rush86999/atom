@@ -3,7 +3,6 @@ import {
     AnalyticalAgentResponse,
     CreativeAgentResponse,
     PracticalAgentResponse,
-    DataAnalystAgentResponse,
     EnrichedIntent,
     AgentLLMService,
     DEFAULT_MODEL_LEAD_SYNTHESIS,
@@ -24,11 +23,10 @@ export class SynthesizingAgent {
         input: SubAgentInput,
         analytical: AnalyticalAgentResponse | null,
         creative: CreativeAgentResponse | null,
-        practical: PracticalAgentResponse | null,
-        dataAnalyst: DataAnalystAgentResponse | null
+        practical: PracticalAgentResponse | null
     ): StructuredLLMPrompt {
         const systemMessage = `
-You are the Synthesizing Agent. Your task is to consolidate the analyses from four sub-agents (Analytical, Creative, Practical, DataAnalyst) into a single, actionable EnrichedIntent object.
+You are the Synthesizing Agent. Your task is to consolidate the analyses from three sub-agents (Analytical, Creative, Practical) into a single, actionable EnrichedIntent object.
 User's original query: "${input.userInput}"
 
 Analytical Agent's findings:
@@ -39,9 +37,6 @@ ${JSON.stringify(creative, null, 2)}
 
 Practical Agent's findings:
 ${JSON.stringify(practical, null, 2)}
-
-Data Analyst Agent's findings:
-${JSON.stringify(dataAnalyst, null, 2)}
 
 Based on all the above, determine the most likely primary goal, extract key parameters, and suggest the best next action.
 The next action can be:
@@ -68,7 +63,7 @@ Return ONLY a valid JSON object with the exact following structure. Ensure all f
 
 Decision-Making Guidelines:
 - If Analytical Agent identifies clear, consistent tasks and Practical Agent deems them feasible, the \`primaryGoal\` should reflect these tasks, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' or 'perform_direct_action'. Confidence should be high.
-- If the Data Analyst Agent identifies specific data queries or visualizations, the \`primaryGoal\` should reflect this, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' with a relevant data skill.
+- If the Analytical Agent identifies the problem type as 'data_analysis', the \`primaryGoal\` should reflect this, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' with a relevant data skill.
 - If Creative Agent raises significant ambiguities or Practical Agent indicates low feasibility or failed common sense validation, \`suggestedNextAction.actionType\` should likely be 'clarify_query'. Confidence in \`primaryGoal\` might be lower. The \`clarificationQuestion\` should try to address the core issue.
 - If the overall intent is very unclear even after sub-agent analysis, use 'unable_to_determine' and provide a reason.
 - \`primaryGoalConfidence\` should reflect the overall clarity and actionability. For example, if a clarification is needed due to ambiguity, confidence might be medium. If feasibility is low, confidence might also be medium/low even if the task is clear.
@@ -86,10 +81,9 @@ Do not include any explanations, apologies, or conversational text outside this 
         input: SubAgentInput,
         analytical: AnalyticalAgentResponse | null,
         creative: CreativeAgentResponse | null,
-        practical: PracticalAgentResponse | null,
-        dataAnalyst: DataAnalystAgentResponse | null
+        practical: PracticalAgentResponse | null
     ): Promise<Partial<EnrichedIntent>> {
-        const structuredPrompt = this.constructPrompt(input, analytical, creative, practical, dataAnalyst);
+        const structuredPrompt = this.constructPrompt(input, analytical, creative, practical);
         const P_SYNTHESIZING_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
 
         console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
