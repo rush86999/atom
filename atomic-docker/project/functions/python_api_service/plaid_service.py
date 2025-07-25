@@ -72,3 +72,14 @@ def get_investments(access_token):
     except Exception as e:
         logger.error(f"Error getting investments for access token {access_token}: {e}", exc_info=True)
         raise
+
+def get_liabilities(access_token):
+    """
+    Gets a list of liabilities for a Plaid item.
+    """
+    try:
+        response = client.Liabilities.get(access_token)
+        return response['liabilities']
+    except Exception as e:
+        logger.error(f"Error getting liabilities for access token {access_token}: {e}", exc_info=True)
+        raise
