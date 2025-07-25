@@ -43,6 +43,9 @@ from .net_worth_handler import net_worth_bp
 from .invoicing_handler import invoicing_bp
 from .billing_handler import billing_bp
 from .payroll_handler import payroll_bp
+from .manual_account_handler import manual_account_bp
+from .manual_transaction_handler import manual_transaction_bp
+from .reporting_handler import reporting_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -144,6 +147,12 @@ def create_app(db_pool=None):
     logger.info("Registered 'billing_bp' blueprint.")
     app.register_blueprint(payroll_bp)
     logger.info("Registered 'payroll_bp' blueprint.")
+    app.register_blueprint(manual_account_bp)
+    logger.info("Registered 'manual_account_bp' blueprint.")
+    app.register_blueprint(manual_transaction_bp)
+    logger.info("Registered 'manual_transaction_bp' blueprint.")
+    app.register_blueprint(reporting_bp)
+    logger.info("Registered 'reporting_bp' blueprint.")
 
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)
