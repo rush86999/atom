@@ -11,6 +11,8 @@ import { CreativeAgent } from './creative_agent';
 import { PracticalAgent } from './practical_agent';
 import { SynthesizingAgent } from './synthesizing_agent';
 import { DataAnalystAgent } from './data_analyst_agent';
+import { TurnContext } from 'botbuilder';
+import { AgentLLMService } from './nlu_types';
 
 export class NLULeadAgent {
     private analyticalAgent: AnalyticalAgent;
@@ -21,17 +23,16 @@ export class NLULeadAgent {
     private agentName: string = "NLULeadAgent";
 
     constructor(
-        analyticalAgent: AnalyticalAgent,
-        creativeAgent: CreativeAgent,
-        practicalAgent: PracticalAgent,
-        synthesizingAgent: SynthesizingAgent,
-        dataAnalystAgent: DataAnalystAgent
+        llmService: AgentLLMService,
+        context: TurnContext,
+        memory: any,
+        functions: any
     ) {
-        this.analyticalAgent = analyticalAgent;
-        this.creativeAgent = creativeAgent;
-        this.practicalAgent = practicalAgent;
-        this.synthesizingAgent = synthesizingAgent;
-        this.dataAnalystAgent = dataAnalystAgent;
+        this.analyticalAgent = new AnalyticalAgent(llmService, context, memory, functions);
+        this.creativeAgent = new CreativeAgent(llmService);
+        this.practicalAgent = new PracticalAgent(llmService);
+        this.synthesizingAgent = new SynthesizingAgent(llmService);
+        this.dataAnalystAgent = new DataAnalystAgent(context, memory, functions);
     }
 
     public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {

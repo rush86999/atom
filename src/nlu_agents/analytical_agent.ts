@@ -7,13 +7,17 @@ import {
     safeParseJSON
 } from './nlu_types';
 import { StructuredLLMPrompt, LLMServiceResponse } from '../lib/llmUtils';
+import { DataAnalystAgent } from './data_analyst_agent';
+import { TurnContext } from 'botbuilder';
 
 export class AnalyticalAgent {
     private llmService: AgentLLMService;
     private agentName: string = "AnalyticalAgent";
+    private dataAnalystAgent: DataAnalystAgent;
 
-    constructor(llmService: AgentLLMService) {
+    constructor(llmService: AgentLLMService, context: TurnContext, memory: any, functions: any) {
         this.llmService = llmService;
+        this.dataAnalystAgent = new DataAnalystAgent(context, memory, functions);
     }
 
     private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
@@ -93,7 +97,7 @@ UserId: ${input.userId || 'N/A'}
         // Construct the full response, providing defaults for any missing fields
         // This also serves as a basic validation that the LLM is returning something usable.
         // More advanced schema validation could be added here (e.g., using Zod or AJV).
-        return {
+        const analyticalAgentResponse: AnalyticalAgentResponse = {
             identifiedEntities: parsedResponse.identifiedEntities || [],
             explicitTasks: parsedResponse.explicitTasks || [],
             informationNeeded: parsedResponse.informationNeeded || [],
@@ -101,6 +105,13 @@ UserId: ${input.userId || 'N/A'}
             problemType: parsedResponse.problemType || "unknown",
             rawLLMResponse: llmResponse.content, // Always include the raw response for debugging
         };
+
+        if (analyticalAgentResponse.problemType === 'data_analysis') {
+            const dataAnalystResponse = await this.dataAnalystAgent.analyze(input);
+            analyticalAgentResponse.dataAnalystResponse = dataAnalystResponse;
+        }
+
+        return analyticalAgentResponse;
     }
 }
 
