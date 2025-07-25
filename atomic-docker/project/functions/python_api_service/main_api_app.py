@@ -154,6 +154,10 @@ def create_app(db_pool=None):
     app.register_blueprint(reporting_bp)
     logger.info("Registered 'reporting_bp' blueprint.")
 
+    from .github_handler import github_bp
+    app.register_blueprint(github_bp)
+    logger.info("Registered 'github_bp' blueprint.")
+
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)
     # app.register_blueprint(search_routes_bp)
