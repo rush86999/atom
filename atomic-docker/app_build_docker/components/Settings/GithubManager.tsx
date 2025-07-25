@@ -14,6 +14,7 @@ const GitHubManager = () => {
                 const data = await response.json();
                 if (data.isConnected) {
                     setIsConnected(true);
+                    setApiKey('********');
                 }
             } catch (error) {
                 console.error('Error checking GitHub connection:', error);
