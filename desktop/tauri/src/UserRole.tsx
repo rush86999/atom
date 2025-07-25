@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Define the type for a role. This can be expanded with more roles as needed.
-export type Role = 'sales' | 'support' | 'developer' | 'project_manager';
+export type Role = 'sales' | 'support' | 'developer' | 'project_manager' | 'data_analyst';
 
 // Define the props for the UserRole component
 interface UserRoleProps {
