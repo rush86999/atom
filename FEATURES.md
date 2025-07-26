@@ -134,62 +134,106 @@ To leverage some of Atom's more advanced capabilities, specific setup and config
 
 ### Integrations
 Atom connects with a wide range of third-party services to create a unified productivity hub:
-*   **File Storage & Management:**
-    *   Dropbox (Connect your Dropbox account to list, search, and ingest files.)
-    *   Google Drive (Connect your Google Drive account to list, search, and ingest files.)
-*   **Project Management:**
-    *   Trello (Connect your Trello account to manage your boards, lists, and cards.)
-*   **CRM:**
-    *   HubSpot (Manage contacts, sync activities)
-    *   Salesforce (Connect your Salesforce account to manage your contacts, accounts, and opportunities.)
-*   **Financial & Payments:**
-    *   Stripe (List payments, potentially link to projects or clients)
-    *   QuickBooks (Manage invoices, link financial data)
-    *   Xero (Connect your Xero account to manage your invoices, bills, and contacts.)
-*   **Social Media:**
-    *   Twitter (Connect your Twitter account to view your timeline, post tweets, and search for tweets.)
-    *   LinkedIn (Schedule posts to your LinkedIn profile.)
-*   **Personal Assistant:**
-    *   Weather (Get the current weather for any location.)
-    *   News (Get the top headlines from a variety of news sources.)
-    *   Reminders (Set reminders for yourself.)
-*   **Calendar Providers:**
-    *   Google Calendar (Full sync via OAuth 2.0, with token management for agent interactions. Ensure redirect URI `/api/atom/auth/calendar/callback` is configured in Google Cloud Console.)
-    *   Microsoft Teams (Integration for calendar events and online meetings)
-*   **Communication & Collaboration:**
-    *   Slack (Send messages, list channels, receive notifications)
-    *   Gmail Integration (AI-powered natural language email search and information extraction)
+
+### Communication & Collaboration
+Independent communication integrations with no banking dependencies:
+*   **Email & Gmail** (Secure OAuth 2.0 for Gmail, natural language email search, read-only access)
+*   **Microsoft Outlook** (Full Microsoft 365 integration for email, calendar, and contacts)
+*   **Slack** (Bot user and workspace integration with message search and AI-powered querying)
+*   **Microsoft Teams** (User-contextual connection with delegated permissions for chat and meetings)
+
+### File Storage & Management
+### Integrations
+Atom connects with a wide range of third-party services to create a unified productivity hub:
+
+#### Communication & Email Platforms
+*   **Email & Communication:**
+    *   Gmail (Enhanced AI-powered natural language email search, secure OAuth 2.0 integration, financial receipt extraction)
+    *   Outlook (Enterprise email integration with AI-powered querying and financial insights)
     *   Email (General email functionalities for sending notifications, meeting invites, and summaries)
-*   **Video Conferencing:**
-    *   Zoom (Create, delete, get, and update meetings; OAuth 2.0 for secure integration)
-    *   Google Meet (Agent capabilities for managing meeting links and details)
-*   **Note-Taking & Knowledge Management:**
-    *   Notion (Primary integration for notes, research databases, and knowledge organization)
+*   **Team Communication:**
+    *   Slack (Enhanced AI-powered workspace querying, natural language message search, bot interactions)
+    *   Microsoft Teams (Enhanced AI-powered chat interaction, natural language message search, voice commands)
+    *   Discord (Community communication integration for notifications and announcements)
+
+#### File Storage & Management
+*   **Cloud Storage:**
+    *   Dropbox (Connect your Dropbox account to list, search, and ingest files)
+    *   Google Drive (Connect your Google Drive account to list, search, and ingest files)
+    *   OneDrive (Microsoft OneDrive integration for file management)
+
+#### Project Management
+*   **Task Management:**
+    *   Trello (Connect your Trello account to manage your boards, lists, and cards)
+    *   Asana (Project and task management integration)
+    *   Linear (Engineering and product task management)
+
+#### CRM & Sales
+*   **Customer Management:**
+    *   HubSpot (Manage contacts, sync activities, pipeline tracking)
+    *   Salesforce (Connect your Salesforce account to manage your contacts, accounts, and opportunities)
+    *   Pipedrive (Sales pipeline management)
+
+#### Banking & Finance
+*   **Financial Data:**
+    *   Plaid (Secure bank account, credit card, and investment account connections for real-time financial data)
+    *   Yodlee (Alternative banking integration)
+    *   Quicken (Personal finance software sync)
+
+#### Calendar & Scheduling
+*   **Calendar Providers:**
+    *   Google Calendar (Full sync via OAuth 2.0, with token management for agent interactions)
+    *   Microsoft Outlook Calendar (Enterprise calendar integration)
+    *   Apple Calendar (iOS/macOS calendar sync)
 *   **Scheduling Services:**
+    *   Zoom (Create, delete, get, and update meetings with OAuth 2.0 security)
+    *   Google Meet (Agent capabilities for managing meeting links and details)
     *   Calendly (Integration to coordinate external scheduling)
-*   **Automation Platforms:**
+    *   Microsoft Teams (Calendar implementation)
+
+#### Knowledge Management
+*   **Note-Taking & Research:**
+    *   Notion (Primary integration for notes, research databases, and knowledge organization)
+
+#### Social Media
+*   **Social Platforms:**
+    *   Twitter (Connect your Twitter account to view your timeline, post tweets, and search for tweets)
+    *   LinkedIn (Schedule posts to your LinkedIn profile)
+    *   Instagram (Social media management)
+
+#### Utilities & Tools
+*   **Productivity Tools:**
     *   Zapier (Connect Atom with a vast ecosystem of other apps and services)
-*   **Banking & Financial:**
-    *   Plaid (Connect bank accounts, credit cards, investments for real-time financial data via secure APIs)
-    *   Banking integrations for finance management features
-*   **Contact Sync:**
+    *   Weather (Get the current weather for any location)
+    *   Reminders (Set reminders for yourself)
     *   Google Contacts (Keep your contacts synchronized with Atom)
-*   **Transcription Services:**
-    *   Deepgram (High-quality transcription for audio notes and other audio inputs)
-*   **Push Notifications:** Generic support for sending push notifications to keep users updated on calendar changes or important tasks.
+    *   Deepgram (High-quality transcription for audio notes)
+    *   Push Notifications (Keep users updated on important changes)
 
-### Finance Management (Voice-Powered & Wake Word Enabled)
-Complete voice-activated finance management suite integrated with wake word "Atom" for natural language financial queries:
+### Finance Management Suite (Independent Voice-Activated System)
+Complete standalone finance management system with zero-dependency voice commands via wake word "Atom":
 
-*   **Smart Net Worth Tracking:** Real-time net worth analysis with "Atom what's my net worth?" delivering complete financial overview across all connected accounts
-*   **Intelligent Budget Management:** Create budgets via "Atom create dining budget for $400" with category analysis and variance tracking
-*   **Advanced Spending Analytics:** AI-powered queries like "Atom where did I spend most money?" with detailed category breakdowns
-*   **Goal Setting & Tracking:** Progress tracking with "Atom create emergency fund goal for $5000" including milestone alerts
-*   **Portfolio Management:** Investment overview via "Atom show portfolio performance" with real-time holdings and allocation
-*   **Natural Transaction Search:** Semantic search "Atom find Amazon purchases over $75 this quarter" across all transactions
-*   **Multi-Account Integration:** Unified view across bank accounts, credit cards, and investment accounts via Plaid
-*   **Voice Recognition:** Wake word "Atom" triggers finance commands for hands-free management
-*   **Gmail Financial Insights:** Extract financial receipts and transactions from Gmail using AI-powered email analysis
+**🎤 AI-Powered Voice Commands (Independent of Other Integrations)**
+- **"Atom what's my net worth?"** - Complete financial overview across all accounts
+- **"Atom show my budget"** - Real-time budget analysis and tracking
+- **"Atom find my amazon purchases"** - Natural language transaction search
+- **"Atom create savings goal for $5000"** - Smart goal creation and tracking
+
+**📊 Core Features (Bank-Independent)**
+*   **Smart Net Worth Tracking:** Real-time net worth calculation across all connected accounts
+*   **Intelligent Budget Management:** Create and manage budgets with AI-powered insights and variance tracking
+*   **Advanced Spending Analytics:** AI-powered categorization of spending habits with trend analysis
+*   **Goal Setting & Progress Tracking:** Voice-command triggered goals with real-time progress monitoring
+*   **Natural Language Transaction Search:** Semantic search across all financial transactions
+*   **Multi-Account Dashboard:** Unified view across all account types with zero integration dependencies
+*   **Financial Goal Optimization:** AI-driven recommendations for budget optimization and goal achievement
+
+**🔍 Enhanced Financial Intelligence**
+*   **Email Financial Insights:** AI-powered analysis of Gmail and Outlook receipts for transaction extraction
+*   **Cross-Platform Analysis:** Integration-agnostic financial insights combining all data sources
+*   **Voice-First Interface:** Complete financial management via "Atom" wake word regardless of other integrations
+*   **Standalone System:** Fully operational finance management independent of calendar, team communication, or other integrations
+
 
 ### Use Cases
 By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life.
@@ -209,18 +253,7 @@ By combining multiple integrations, Atom can automate complex workflows and prov
     *   Automatically upload Trello card attachments to the corresponding Google Drive folder.
     *   Create a new Trello board from a Google Drive folder.
     *   Automatically create a Trello card for each new file added to a Google Drive folder.
-*   **Gmail Account Integration (Read-Only & AI-Powered Querying):**
-    *   **Secure Connection:** Connect your personal Gmail account via OAuth 2.0 for secure, read-only access. Tokens are encrypted at rest.
-    *   **Natural Language Email Search:** Ask the agent natural language questions to find emails (e.g., "find emails from Jane about the Q3 report sent last week"). The `atom-agent` uses an LLM (via `llm_email_query_understander.ts`) to parse your query into structured parameters, which are then used to construct a Gmail API compatible search string. This search is executed via a backend action that calls the Gmail API.
-    *   **Targeted Information Extraction:** After identifying an email (e.g., through search or by providing an email ID), ask the agent to extract specific pieces of information (e.g., "What was the contract end date mentioned in this email?", "Extract the invoice number and amount from email ID [email_id]"). The `atom-agent` uses an LLM (via `extractInformationFromEmailBody` in `emailSkills.ts`) to read the email content (fetched via a backend action) and find the requested details. Accuracy depends on LLM capabilities and the clarity of the email content.
-    *   **Agent Skills:** Core agent skills (`gmailSkills.ts`, `emailSkills.ts`) manage the NLU processing, interaction with LLMs, and calls to backend actions which interface with the Gmail API.
-    *   **User Interface:**
 
-### Complete Finance Management Suite (Voice-activated)
-Atom provides a comprehensive personal finance management system that rivals leading finance apps, accessible through natural language voice commands and wake word activation.
-
-**🎤 Voice-Activated Finance Commands**
-Simply say "Atom" followed by any finance query for instant insights:
 - **"Atom what's my net worth?"** - Complete financial overview across all connected accounts
 - **"Atom show my budget"** - Detailed budget analysis with visual breakdowns  
 - **"Atom how much did I spend on restaurants?"** - Category-specific spending insights
@@ -237,7 +270,7 @@ Simply say "Atom" followed by any finance query for instant insights:
 *   **Spending Pattern Recognition**: AI identifies spending trends, unusual transactions, and provides personalized savings recommendations
 *   **Monthly Financial Reports**: Automated comprehensive financial reports with income vs expenses, net worth changes, and budget performance
 
-**🏦 Banking & Account Integration**
+**🏦 Banking Account Integration**
 *   **Secure Bank Connection**: Connect all major banks, credit cards, investment accounts via Plaid for real-time financial data synchronization
 *   **Multi-Account Financial Dashboard**: Unified view across checking, savings, credit cards, and investment accounts with AI-powered insights
 
