@@ -11,7 +11,7 @@ class MockInvalidToken(Exception):
     """A mock exception to simulate cryptography.fernet.InvalidToken."""
     pass
 
-class MockFernet:  # type: ignore
+class MockFernet:
     """A mock class to simulate the behavior of cryptography.fernet.Fernet."""
     def __init__(self, key: bytes):
         if not isinstance(key, bytes) or len(base64.urlsafe_b64decode(key)) != 32:
@@ -52,7 +52,7 @@ try:
 except ImportError:
     logging.warning("'cryptography' library not found. Using mock implementation.")
     FernetCipher = MockFernet
-    InvalidTokenException: Type[Exception] = MockInvalidToken
+    InvalidTokenException = MockInvalidToken
 
 
 # --- Global Variables & Initialization ---

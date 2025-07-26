@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Mock Flask for local testing when not available
 try:
-    from flask import Blueprint, request, jsonify
+    from flask import Blueprint, request, jsonify  # type: ignore
 except ImportError:
     logger.warning("Flask not available, using mock implementations")
 
@@ -41,6 +41,7 @@ except ImportError:
 
 # Mock ingestion_pipeline for local testing
 class MockIngestionPipeline:
+    # type: ignore[misc]
     @staticmethod
     def add_document(doc_path, user_id, db_uri):
         logger.info(f"Mock: Would add document {doc_path} for user {user_id}")
@@ -53,6 +54,7 @@ class MockIngestionPipeline:
 
 # Mock note_utils for local testing
 class MockNoteUtils:
+    # type: ignore[misc]
     @staticmethod
     def get_text_embedding_openai(text_to_embed, openai_api_key_param=None, embedding_model="text-embedding-3-small"):
         if not text_to_embed:
@@ -97,6 +99,7 @@ class MockNoteUtils:
 
 # Mock LanceDB service for local testing
 class MockLanceDBService:
+    # type: ignore[misc]
     def __init__(self):
         self.db_path = None
 
@@ -144,14 +147,14 @@ class MockLanceDBService:
 
 # Try to import real implementations, fall back to mocks
 try:
-    from ._utils import lancedb_service
+    from ._utils import lancedb_service  # type: ignore
     logger.info("Successfully imported lancedb_service")
 except ImportError:
     logger.warning("Could not import lancedb_service, using mock")
     lancedb_service = MockLanceDBService()
 
 try:
-    from .note_utils import get_text_embedding_openai, create_note, update_note, delete_note, get_note
+    from .note_utils import get_text_embedding_openai, create_note, update_note, delete_note, get_note  # type: ignore
     note_utils = None  # We imported individual functions
     logger.info("Successfully imported note_utils functions")
 except ImportError:
@@ -164,10 +167,10 @@ except ImportError:
     get_note = note_utils.get_note
 
 try:
-    import ingestion_pipeline
+    import ingestion_pipeline  # type: ignore
     logger.info("Successfully imported ingestion_pipeline")
 except ImportError:
-    logger.warning("Could not import ingestion_pipeline, using mock")
+    logger.warning("Could not import ingestion_pipeline  # type: ignore, using mock")
     ingestion_pipeline = MockIngestionPipeline()
 
 # Create Blueprint

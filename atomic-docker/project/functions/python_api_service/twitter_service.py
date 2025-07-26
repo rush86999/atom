@@ -152,10 +152,10 @@ async def get_twitter_api(user_id: str, db_conn_pool) -> Optional['tweepy.API']:
     """
     # NOTE: This implementation is a placeholder. A real-world application must
     # implement a full OAuth flow and securely store/retrieve user tokens.
-    consumer_key = os.environ.get("TWITTER_CONSUMER_KEY")
-    consumer_secret = os.environ.get("TWITTER_CONSUMER_SECRET")
-    access_token = os.environ.get("TWITTER_ACCESS_TOKEN")
-    access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+    consumer_key = os.environ.get("TWITTER_CONSUMER_KEY", "")
+    consumer_secret = os.environ.get("TWITTER_CONSUMER_SECRET", "")
+    access_token = os.environ.get("TWITTER_ACCESS_TOKEN", "")
+    access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET", "")
 
     if not all([consumer_key, consumer_secret, access_token, access_token_secret]):
         logger.error("Twitter API credentials are not fully configured in environment variables.")

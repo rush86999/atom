@@ -5,8 +5,8 @@ from unittest.mock import patch
 # Attempt to import Flask and the blueprint. If Flask is not installed,
 # this import will fail. We use a flag to skip the tests if it's unavailable.
 try:
-    from flask import Flask, jsonify
-    from python_api_service.search_routes import search_routes_bp
+    from flask import Flask, jsonify  # type: ignore
+    from search_routes import search_routes_bp  # type: ignore
     FLASK_AVAILABLE = True
 except ImportError:
     # If Flask isn't installed, we can't run the tests, so we set a flag.
