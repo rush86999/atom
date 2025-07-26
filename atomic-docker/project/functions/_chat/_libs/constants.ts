@@ -60,3 +60,7 @@ export const replyToAddress = 'meeting@atomicscheduleassist.com'
 export const noReplyAddress = 'no-reply@atomiclife.app'
 
 export const googleResourceName = 'google'
+
+// Postgraphile configuration
+const postgraphileGraphUrl = process.env.POSTGRAPHILE_GRAPHQL_URL
+const postgraphileAdminSecret = process.env.POSTGRAPHILE_ADMIN_SECRET

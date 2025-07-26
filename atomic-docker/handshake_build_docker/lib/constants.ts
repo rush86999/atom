@@ -1,9 +1,9 @@
 
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
-export const hasuraGraphUrl = process.env.HASURA_GRAPHQL_GRAPHQL_URL as string
+export const postgraphileGraphUrl = process.env.POSTGRAPHILE_GRAPHQL_URL as string
 
-export const hasuraAdminSecret = process.env.HASURA_GRAPHQL_ADMIN_SECRET as string
+export const postgraphileAdminSecret = process.env.POSTGRAPHILE_ADMIN_SECRET as string
 export const authApiToken = process.env.API_TOKEN as string
 export const googleTokenUrl = 'https://oauth2.googleapis.com/token'
 export const googleCalendarSyncStartUrl = 'https://oauth.atomiclife.app/api/google-calendar-handshake/start-handshake'

@@ -1,7 +1,7 @@
 import got from "got"
 import { dayjs } from '@lib/date-utils'
 import _ from "lodash"
-import { googleClientIdAtomicWeb, googleClientSecretAtomicWeb, googleOAuthAtomicWebRedirectUrl, googleTokenUrl, hasuraAdminSecret, hasuraGraphUrl, zoomIVForPass, zoomPassKey, zoomSaltForPass } from "@lib/constants"
+import { googleClientIdAtomicWeb, googleClientSecretAtomicWeb, googleOAuthAtomicWebRedirectUrl, googleTokenUrl, postgraphileAdminSecret, postgraphileGraphUrl, zoomIVForPass, zoomPassKey, zoomSaltForPass } from "@lib/constants"
 import { ZoomWebhookRequestType, ZoomWebhookValidationRequestType } from "@lib/types"
 import { google } from 'googleapis';
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -195,13 +195,13 @@ export const getMinimalCalendarIntegrationByResource = async (
         const options = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin' // Assuming admin role as per original direct call
+                'X-Postgraphile-Role': 'admin' // Assuming admin role as per original direct call
             },
         };
 
-        const responseData = await resilientGot('post', hasuraGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
+        const responseData = await resilientGot('post', postgraphileGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
 
         if (responseData?.data?.Calendar_Integration?.length > 0) {
             appServiceLogger.debug(`[${operationName}] Found integration for userId: ${userId}, resource: ${resource}.`, { integrationId: responseData.data.Calendar_Integration[0].id });
@@ -258,14 +258,14 @@ export const updateAccessTokenCalendarIntegration = async (
         const gotOptions = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Role': 'admin'
             },
         };
 
         // Using resilientGot now
-        await resilientGot('post', hasuraGraphUrl, gotOptions, operationName);
+        await resilientGot('post', postgraphileGraphUrl, gotOptions, operationName);
 
         appServiceLogger.info(`[${operationName}] Successfully updated calendar integration.`, { id, enabled, hasToken: !!token, hasRefreshToken: !!refreshToken });
         // Original function implicitly returns undefined, and resilientGot for POST might not return meaningful data unless specified.
@@ -329,13 +329,13 @@ export const refreshGoogleToken = async (
         const options = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Role': 'admin'
             },
         };
 
-        const responseData = await resilientGot('post', hasuraGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
+        const responseData = await resilientGot('post', postgraphileGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
 
         if (responseData?.data?.Calendar_Integration?.length > 0) {
             appServiceLogger.debug(`[${operationName}] Found integration for userId: ${userId}, name: ${name}.`, { integrationId: responseData.data.Calendar_Integration[0].id });
@@ -436,13 +436,13 @@ export const getAllCalendarIntegratonsByResourceAndClientType = async (
         const options = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Role': 'admin'
             },
         };
 
-        const responseData = await resilientGot('post', hasuraGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
+        const responseData = await resilientGot('post', postgraphileGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
 
         if (responseData?.data?.Calendar_Integration?.length > 0) {
             appServiceLogger.debug(`[${operationName}] Found ${responseData.data.Calendar_Integration.length} integrations.`, { userId, resource, clientType });
@@ -505,13 +505,13 @@ export const getAllCalendarIntegrationsByResource = async (
         const options = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Role': 'admin'
             },
         };
 
-        const responseData = await resilientGot('post', hasuraGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
+        const responseData = await resilientGot('post', postgraphileGraphUrl, options, operationName) as { data?: { Calendar_Integration: CalendarIntegrationType[] } };
 
         if (responseData?.data?.Calendar_Integration?.length > 0) {
             appServiceLogger.debug(`[${operationName}] Found ${responseData.data.Calendar_Integration.length} integrations.`, { userId, resource });
@@ -689,13 +689,13 @@ export const updateGoogleIntegration = async (
         const options = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Role': 'admin'
             },
         };
 
-        const responseData = await resilientGot('post', hasuraGraphUrl, options, operationName) as { data?: { update_Calendar_Integration_by_pk: CalendarIntegrationType } };
+        const responseData = await resilientGot('post', postgraphileGraphUrl, options, operationName) as { data?: { update_Calendar_Integration_by_pk: CalendarIntegrationType } };
 
         appServiceLogger.info(`[${operationName}] Successfully updated Google Calendar integration.`, { integrationId: responseData?.data?.update_Calendar_Integration_by_pk?.id, enabled });
         return responseData?.data?.update_Calendar_Integration_by_pk;
@@ -927,13 +927,13 @@ export const updateZoomIntegration = async (
         const options = {
             json: { operationName, query, variables },
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                 'Content-Type': 'application/json',
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Role': 'admin'
             },
         };
 
-        await resilientGot('post', hasuraGraphUrl, options, operationName);
+        await resilientGot('post', postgraphileGraphUrl, options, operationName);
 
         appServiceLogger.info(`[${operationName}] Successfully updated Zoom integration.`, { id, appAccountId, appEmail, enabled });
     } catch (e: any) {
@@ -987,7 +987,7 @@ export const getMinimalCalendarIntegrationByName = async (
         }
 
         const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -995,9 +995,9 @@ export const getMinimalCalendarIntegrationByName = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -1100,7 +1100,7 @@ export const getAllCalendarIntegratonsByResourceAndClientType = async (
         }
 
         const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -1108,9 +1108,9 @@ export const getAllCalendarIntegratonsByResourceAndClientType = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -1173,7 +1173,7 @@ export const getAllCalendarIntegrationsByResource = async (
         }
 
         const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -1181,9 +1181,9 @@ export const getAllCalendarIntegrationsByResource = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -1387,7 +1387,7 @@ export const updateGoogleIntegration = async (
         }
 
         const res: { data: { update_Calendar_Integration_by_pk: CalendarIntegrationType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -1395,9 +1395,9 @@ export const updateGoogleIntegration = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()

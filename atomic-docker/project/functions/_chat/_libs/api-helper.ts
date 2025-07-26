@@ -1,6 +1,6 @@
 // import { SESClient } from "@aws-sdk/client-ses";
 import OpenAI from "openai"
-import { hasuraAdminSecret, hasuraGraphUrl, zoomBaseTokenUrl, zoomBaseUrl, zoomClientId, zoomClientSecret, zoomIVForPass, zoomPassKey, zoomResourceName, zoomSaltForPass, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, googleCalendarName, Day, defaultOpenAIAPIKey, openAIChatGPT35Model, openAIChatGPT35LongModel } from "./constants";
+import { postgraphileAdminSecret, postgraphileGraphUrl, zoomBaseTokenUrl, zoomBaseUrl, zoomClientId, zoomClientSecret, zoomIVForPass, zoomPassKey, zoomResourceName, zoomSaltForPass, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, googleCalendarName, Day, defaultOpenAIAPIKey, openAIChatGPT35Model, openAIChatGPT35LongModel } from "./constants";
 
 import { Dayjs, dayjs, getISODay, setISODay } from "./datetime/date-utils";
 import { searchEvents, getEventById as getEventFromLanceDbById, upsertEvents, deleteEventsByIds, searchTrainingEvents, upsertTrainingEvents, deleteTrainingEventsByIds, EventSchema as LanceDbEventSchema, TrainingEventSchema as LanceDbTrainingEventSchema } from '@functions/_utils/lancedb_service';
@@ -96,26 +96,26 @@ const openai = new OpenAI({
     apiKey: defaultOpenAIAPIKey,
 });
 
-// Helper for resilient Hasura calls using got
-const resilientGotPostHasura = async (operationName: string, query: string, variables: Record<string, any>, userId?: string) => {
+// Helper for resilient Postgraphile calls using got
+const resilientGotPostPostgraphile = async (operationName: string, query: string, variables: Record<string, any>, userId?: string) => {
   const MAX_RETRIES = 3;
-  const INITIAL_TIMEOUT_MS = 10000; // 10 seconds for Hasura calls
+  const INITIAL_TIMEOUT_MS = 10000; // 10 seconds for Postgraphile calls
   let attempt = 0;
   let lastError: any = null;
 
   const headers: Record<string, string> = {
-    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
     'Content-Type': 'application/json',
-    'X-Hasura-Role': userId ? 'user' : 'admin',
+    'X-Postgraphile-Role': userId ? 'user' : 'admin',
   };
   if (userId) {
-    headers['X-Hasura-User-Id'] = userId;
+    headers['X-Postgraphile-User-Id'] = userId;
   }
 
   while (attempt < MAX_RETRIES) {
     try {
-      chatApiHelperLogger.info(`Hasura call attempt ${attempt + 1} for ${operationName}`, { userId, operationName });
-      const response = await got.post(hasuraGraphUrl, {
+      chatApiHelperLogger.info(`Postgraphile call attempt ${attempt + 1} for ${operationName}`, { userId, operationName });
+      const response = await got.post(postgraphileGraphUrl, {
         json: { operationName, query, variables },
         headers,
         timeout: { request: INITIAL_TIMEOUT_MS },
@@ -128,11 +128,11 @@ const resilientGotPostHasura = async (operationName: string, query: string, vari
         // For now, we retry all GraphQL errors from Hasura.
         throw lastError;
       }
-      chatApiHelperLogger.info(`Hasura call ${operationName} successful on attempt ${attempt + 1}`, { userId, operationName });
+      chatApiHelperLogger.info(`Postgraphile call ${operationName} successful on attempt ${attempt + 1}`, { userId, operationName });
       return response.data;
     } catch (error: any) {
       lastError = error;
-      chatApiHelperLogger.warn(`Hasura call attempt ${attempt + 1} for ${operationName} failed.`, {
+      chatApiHelperLogger.warn(`Postgraphile call attempt ${attempt + 1} for ${operationName} failed.`, {
         userId,
         operationName,
         error: error.message,
@@ -156,12 +156,12 @@ const resilientGotPostHasura = async (operationName: string, query: string, vari
     attempt++;
     if (attempt < MAX_RETRIES) {
       const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s
-      chatApiHelperLogger.info(`Waiting ${delay}ms before Hasura retry ${attempt} for ${operationName}`, { userId, operationName });
+      chatApiHelperLogger.info(`Waiting ${delay}ms before Postgraphile retry ${attempt} for ${operationName}`, { userId, operationName });
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  chatApiHelperLogger.error(`Failed Hasura operation '${operationName}' after ${attempt} attempts.`, { userId, operationName, lastError: lastError?.message });
-  throw lastError || new Error(`Failed Hasura operation '${operationName}' after all retries.`);
+  chatApiHelperLogger.error(`Failed Postgraphile operation '${operationName}' after ${attempt} attempts.`, { userId, operationName, lastError: lastError?.message });
+  throw lastError || new Error(`Failed Postgraphile operation '${operationName}' after all retries.`);
 };
 
 
@@ -279,10 +279,10 @@ export const upsertConference = async (
             conference
         }
 
-        // const res: { data: { insert_Conference_one: ConferenceType } } = await got.post(hasuraGraphUrl, {
+        // const res: { data: { insert_Conference_one: ConferenceType } } = await got.post(postgraphileGraphUrl, {
         //     headers: {
-        //         'X-Hasura-Admin-Secret': hasuraAdminSecret,
-        //         'X-Hasura-Role': 'admin'
+        //         'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+        //         'X-Postgraphile-Role': 'admin'
         //     },
         //     json: {
         //         operationName,
@@ -296,7 +296,7 @@ export const upsertConference = async (
         return responseData?.insert_Conference_one;
     } catch (e) {
         chatApiHelperLogger.error('Error in upsertConference', { error: (e as Error).message, conferenceData: conference });
-        // Re-throw or handle as per function's contract, for now, let it propagate if resilientGotPostHasura throws
+        // Re-throw or handle as per function's contract, for now, let it propagate if resilientGotPostPostgraphile throws
         throw e;
     }
 }
@@ -343,7 +343,7 @@ export const insertReminders = async (
             chatApiHelperLogger.info('Successfully inserted reminders.', { count: responseData.insert_Reminder.returning.length });
             // responseData.insert_Reminder.returning.forEach(r => chatApiHelperLogger.debug('Inserted reminder details:', { reminder: r }));
         } else {
-            chatApiHelperLogger.warn('InsertReminders call to Hasura did not return expected data structure.', { responseData });
+            chatApiHelperLogger.warn('InsertReminders call to Postgraphile did not return expected data structure.', { responseData });
         }
         // The function doesn't return anything in its original form, so we maintain that.
     } catch (e) {
@@ -492,10 +492,10 @@ export const upsertEvents = async (
             events: _.uniqBy(events, 'id'),
         }
 
-        // const response: { data: { insert_Event: { affected_rows: number, returning: { id: string }[] } } } = await got.post(hasuraGraphUrl, {
+        // const response: { data: { insert_Event: { affected_rows: number, returning: { id: string }[] } } } = await got.post(postgraphileGraphUrl, {
         //     headers: {
-        //         'X-Hasura-Admin-Secret': hasuraAdminSecret,
-        //         'X-Hasura-Role': 'admin'
+        //         'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+        //         'X-Postgraphile-Role': 'admin'
         //     },
         //     json: {
         //         operationName,
@@ -512,7 +512,7 @@ export const upsertEvents = async (
         if (responseData?.insert_Event) {
             chatApiHelperLogger.info('Successfully upserted events.', { affected_rows: responseData.insert_Event.affected_rows, returned_ids: responseData.insert_Event.returning?.map(r => r.id) });
         } else {
-            chatApiHelperLogger.warn('UpsertEvents call to Hasura did not return expected data structure.', { responseData });
+            chatApiHelperLogger.warn('UpsertEvents call to Postgraphile did not return expected data structure.', { responseData });
         }
         // Original function returned the whole response object, so we mimic that structure if needed, or just the data part.
         // For now, let's return the 'data' part, assuming consumers expect that.
@@ -1358,7 +1358,7 @@ export const extrapolateEndDateFromJSONData = (
 export const getGlobalCalendar = async (
     userId: string,
 ) => {
-    const operationName = 'getGlobalCalendar'; // Defined operationName for logging and Hasura call
+    const operationName = 'getGlobalCalendar'; // Defined operationName for logging and Postgraphile call
     try {
         // const operationName = 'getGlobalCalendar' // Original position, removed as it's defined above
         const query = `
@@ -1385,12 +1385,12 @@ export const getGlobalCalendar = async (
 
         // Removed direct got.post call and /* */ block
         // const res: { data: { Calendar: CalendarType[] } } = await got.post(
-        //     hasuraGraphUrl,
+        //     postgraphileGraphUrl,
         //     {
         //         headers: {
-        //             'X-Hasura-Admin-Secret': hasuraAdminSecret,
+        //             'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
         //             'Content-Type': 'application/json',
-        //             'X-Hasura-Role': 'admin'
+        //             'X-Postgraphile-Role': 'admin'
         //         },
         //         json: {
         //             operationName,
@@ -1403,9 +1403,9 @@ export const getGlobalCalendar = async (
         // ).json()
         // */
 
-        // Using resilientGotPostHasura for the Hasura call
+        // Using resilientGotPostPostgraphile for the Postgraphile call
         // Assuming 'admin' role for this query as per original direct got call.
-        // If user-specific role is needed, the resilientGotPostHasura call would need the userId passed as the 4th param.
+        // If user-specific role is needed, the resilientGotPostPostgraphile call would need the userId passed as the 4th param.
         // For getGlobalCalendar, it seems like an admin or system-level query for a user's global calendar.
         const responseData = await resilientGotPostHasura(operationName, query, { userId } /*, userId (if user role needed) */) as { Calendar: CalendarType[] };
 
@@ -1418,7 +1418,7 @@ export const getGlobalCalendar = async (
         }
     } catch (e) {
         chatApiHelperLogger.error(`Error in ${operationName} for user ${userId}`, { error: (e as Error).message });
-        // resilientGotPostHasura will throw on failure after retries, so this catch block will handle that.
+        // resilientGotPostPostgraphile will throw on failure after retries, so this catch block will handle that.
         throw e;
     }
 }
@@ -1448,7 +1448,7 @@ export const getCalendarIntegrationByResource = async (
         }
 
         const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -1456,9 +1456,9 @@ export const getCalendarIntegrationByResource = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -1501,7 +1501,7 @@ export const getCalendarIntegrationByName = async (
         }
 
         const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -1509,9 +1509,9 @@ export const getCalendarIntegrationByName = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -1639,7 +1639,7 @@ export const updateCalendarIntegration = async (
         }
 
         const res = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -1647,9 +1647,9 @@ export const updateCalendarIntegration = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -1901,10 +1901,10 @@ export const deleteRemindersWithIds = async (
             eventIds,
         }
 
-        const response = await got.post(hasuraGraphUrl, {
+        const response = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -2958,12 +2958,12 @@ export const getEventFromPrimaryKey = async (eventId: string): Promise<EventType
         const operationName = 'getEventFromPrimaryKey'
         const query = getEventById
         const res: { data: { Event_by_pk: EventType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -2989,12 +2989,12 @@ export const getTaskGivenId = async (id: string): Promise<TaskType> => {
         const operationName = 'GetTaskById'
         const query = getTaskById
         const res: { data: { Task_by_pk: TaskType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -3133,10 +3133,10 @@ export const upsertAttendeesforEvent = async (
             attendees,
         }
 
-        const response: { data: { insert_Attendee: { affected_rows: number, returning: AttendeeType[] } } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { insert_Attendee: { affected_rows: number, returning: AttendeeType[] } } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3150,7 +3150,7 @@ export const upsertAttendeesforEvent = async (
         if (responseData?.insert_Attendee?.returning) {
             chatApiHelperLogger.info('Successfully upserted attendees.', { count: responseData.insert_Attendee.returning.length });
         } else {
-            chatApiHelperLogger.warn('UpsertAttendeesforEvent call to Hasura did not return expected data structure.', { responseData });
+            chatApiHelperLogger.warn('UpsertAttendeesforEvent call to Postgraphile did not return expected data structure.', { responseData });
         }
         // No return value in original
     } catch (e) {
@@ -3202,10 +3202,10 @@ export const deleteAttendeesWithIds = async (
             eventIds,
         }
 
-        const response = await got.post(hasuraGraphUrl, {
+        const response = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3247,10 +3247,10 @@ export const findContactByEmailGivenUserId = async (
             }
         }
 
-        const response: { data: { Contact: ContactType[] } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { Contact: ContactType[] } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3286,10 +3286,10 @@ export const getConferenceGivenId = async (
             id,
         }
 
-        const response: { data: { Conference_by_pk: ConferenceType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { Conference_by_pk: ConferenceType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3326,10 +3326,10 @@ export const deleteConferenceGivenId = async (
             id,
         }
 
-        const response: { data: { delete_Conference_by_pk: ConferenceType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { delete_Conference_by_pk: ConferenceType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3419,10 +3419,10 @@ export const deleteEventGivenId = async (
             id,
         }
 
-        const response: { data: { delete_Event_by_pk: EventType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { delete_Event_by_pk: EventType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3605,10 +3605,10 @@ export const upsertMeetingAssistOne = async (
             meetingAssist,
         }
 
-        const response: { data: { insert_Meeting_Assist_one: MeetingAssistType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { insert_Meeting_Assist_one: MeetingAssistType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3642,10 +3642,10 @@ export const listUserContactInfosGivenUserId = async (
             userId,
         }
 
-        const response: { data: { User_Contact_Info: UserContactInfoType[] } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { User_Contact_Info: UserContactInfoType[] } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3680,10 +3680,10 @@ export const getUserContactInfosGivenIds = async (
             ids,
         }
 
-        const response: { data: { User_Contact_Info: UserContactInfoType[] } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { User_Contact_Info: UserContactInfoType[] } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3720,10 +3720,10 @@ export const getContactByNameWithUserId = async (
             name,
         }
 
-        const response: { data: { Contact: ContactType[] } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { Contact: ContactType[] } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3757,10 +3757,10 @@ export const insertMeetingAssistAttendee = async (
             attendee,
         }
 
-        const response: { data: { insert_Meeting_Assist_Attendee_one: MeetingAssistAttendeeType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { insert_Meeting_Assist_Attendee_one: MeetingAssistAttendeeType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3837,10 +3837,10 @@ export const upsertMeetingAssistInviteMany = async (
             meetingAssistInvites,
         }
 
-        const response: { data: { insert_Meeting_Assist_Invite: MeetingAssistInviteType[] } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { insert_Meeting_Assist_Invite: MeetingAssistInviteType[] } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3877,10 +3877,10 @@ export const updateUserNameGivenId = async (
             name,
         }
 
-        const response: { data: { update_User_by_pk: UserType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { update_User_by_pk: UserType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -3914,10 +3914,10 @@ export const getUserGivenId = async (
             id: userId,
         }
 
-        const response: { data: { User_by_pk: UserType } } = await got.post(hasuraGraphUrl, {
+        const response: { data: { User_by_pk: UserType } } = await got.post(postgraphileGraphUrl, {
             headers: {
-                'X-Hasura-Admin-Secret': hasuraAdminSecret,
-                'X-Hasura-Role': 'admin'
+                'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
+                'X-Postgraphile-Role': 'admin'
             },
             json: {
                 operationName,
@@ -4223,12 +4223,12 @@ export const listEventsForUserGivenDates = async (
 
 
         const res: { data: { Event: EventType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
