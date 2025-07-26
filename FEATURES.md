@@ -146,6 +146,8 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Stripe (List payments, potentially link to projects or clients)
     *   QuickBooks (Manage invoices, link financial data)
     *   Xero (Connect your Xero account to manage your invoices, bills, and contacts.)
+*   **Banking & Investment Platforms:**
+    *   Plaid (Connect bank accounts, credit cards, investments for real-time financial data via secure APIs)
 *   **Social Media:**
     *   Twitter (Connect your Twitter account to view your timeline, post tweets, and search for tweets.)
     *   LinkedIn (Schedule posts to your LinkedIn profile.)
@@ -174,6 +176,18 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Deepgram (High-quality transcription for audio notes and other audio inputs)
 *   **Push Notifications:** Generic support for sending push notifications to keep users updated on calendar changes or important tasks.
 
+### Finance Management (Voice-Powered & Wake Word Enabled)
+Complete voice-activated finance management suite integrated with wake word "Atom" for natural language financial queries:
+
+*   **Smart Net Worth Tracking:** Real-time net worth analysis with "Atom what's my net worth?" delivering complete financial overview across all connected accounts
+*   **Intelligent Budget Management:** Create budgets via "Atom create dining budget for $400" with category analysis and variance tracking
+*   **Advanced Spending Analytics:** AI-powered queries like "Atom where did I spend most money?" with detailed category breakdowns
+*   **Goal Setting & Tracking:** Progress tracking with "Atom create emergency fund goal for $5000" including milestone alerts
+*   **Portfolio Management:** Investment overview via "Atom show portfolio performance" with real-time holdings and allocation
+*   **Natural Transaction Search:** Semantic search "Atom find Amazon purchases over $75 this quarter" across all transactions
+*   **Multi-Account Integration:** Unified view across bank accounts, credit cards, and investment accounts
+*   **Voice Recognition:** Wake word "Atom" triggers finance commands for hands-free management
+
 ### Use Cases
 By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life.
 
@@ -198,6 +212,30 @@ By combining multiple integrations, Atom can automate complex workflows and prov
     *   **Targeted Information Extraction:** After identifying an email (e.g., through search or by providing an email ID), ask the agent to extract specific pieces of information (e.g., "What was the contract end date mentioned in this email?", "Extract the invoice number and amount from email ID [email_id]"). The `atom-agent` uses an LLM (via `extractInformationFromEmailBody` in `emailSkills.ts`) to read the email content (fetched via a backend action) and find the requested details. Accuracy depends on LLM capabilities and the clarity of the email content.
     *   **Agent Skills:** Core agent skills (`gmailSkills.ts`, `emailSkills.ts`) manage the NLU processing, interaction with LLMs, and calls to backend actions which interface with the Gmail API.
     *   **User Interface:**
+
+### Complete Finance Management Suite (Voice-activated)
+Atom provides a comprehensive personal finance management system that rivals leading finance apps, accessible through natural language voice commands and wake word activation.
+
+**🎤 Voice-Activated Finance Commands**
+Simply say "Atom" followed by any finance query for instant insights:
+- **"Atom what's my net worth?"** - Complete financial overview across all connected accounts
+- **"Atom show my budget"** - Detailed budget analysis with visual breakdowns  
+- **"Atom how much did I spend on restaurants?"** - Category-specific spending insights
+- **"Atom create retirement goal for $1M"** - Smart goal creation and progress tracking
+- **"Atom find Amazon purchases this month"** - Natural language transaction search
+- **"Atom compare dining budget vs actual"** - Budget vs spending analysis with recommendations
+
+**💰 Core Finance Features**
+*   **Real-time Net Worth Tracking**: Aggregate view of all financial accounts including bank balances, credit card debt, investment holdings, crypto assets, and retirement funds with real-time updates
+*   **Smart Budget Management**: AI-powered budget creation and tracking across custom categories with predictive spending alerts and monthly analysis
+*   **Comprehensive Transaction Analysis**: Natural language search across all transactions with merchant, amount, date, and category filtering
+*   **Goal-Oriented Financial Planning**: Create, track, and optimize financial goals including emergency fund, retirement, major purchases, and debt payoff with milestone alerts
+*   **Investment Portfolio Overview**: Real-time portfolio performance, asset allocation analysis, sector breakdown, and investment recommendations
+*   **Spending Pattern Recognition**: AI identifies spending trends, unusual transactions, and provides personalized savings recommendations
+*   **Monthly Financial Reports**: Automated comprehensive financial reports with income vs expenses, net worth changes, and budget performance
+
+**🏦 Banking & Account Integration**
+*   **Secure Bank Connection**: Connect all major banks, credit cards, investment accounts via Pl
         *   The main "Google Account" connection in Settings now includes `gmail.readonly` scope. Reconnecting may be necessary if previously connected for Calendar only.
         *   (Future) A proof-of-concept UI for direct Gmail searching could be developed.
     *   **Dependencies & Setup:** Requires `ATOM_OPENAI_API_KEY` (or similar) for the `atom-agent`'s LLM utilities. The backend must be configured with appropriate Google Cloud credentials and handling for user-specific OAuth tokens with Gmail scopes.
