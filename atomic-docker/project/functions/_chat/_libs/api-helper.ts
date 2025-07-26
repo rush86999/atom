@@ -1,9 +1,11 @@
 // import { SESClient } from "@aws-sdk/client-ses";
-import OpenAI from "openai"
+import OpenAI, { OpenAI as OpenAIClass } from "openai"
+import retry from 'async-retry';
 import { postgraphileAdminSecret, postgraphileGraphUrl, zoomBaseTokenUrl, zoomBaseUrl, zoomClientId, zoomClientSecret, zoomIVForPass, zoomPassKey, zoomResourceName, zoomSaltForPass, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, googleCalendarName, Day, defaultOpenAIAPIKey, openAIChatGPT35Model, openAIChatGPT35LongModel } from "./constants";
 
 import { Dayjs, dayjs, getISODay, setISODay } from "./datetime/date-utils";
-import { searchEvents, getEventById as getEventFromLanceDbById, upsertEvents, deleteEventsByIds, searchTrainingEvents, upsertTrainingEvents, deleteTrainingEventsByIds, EventSchema as LanceDbEventSchema, TrainingEventSchema as LanceDbTrainingEventSchema } from '@functions/_utils/lancedb_service';
+import { searchEvents, getEventById as getEventFromLanceDbById, upsertEvents, deleteEventsByIds, searchTrainingEvents, upsertTrainingEvents, deleteTrainingEventsByIds } from '../../_utils/lancedb_service';
+import { EventSchema as LanceDbEventSchema, TrainingEventSchema as LanceDbTrainingEventSchema } from '../../_utils/lancedb_service.ts';
 import DateTimeJSONType, { RelativeTimeChangeFromNowType, RelativeTimeFromNowType } from "./datetime/DateTimeJSONJSONType";
 import { BufferTimeType, RecurrenceFrequencyType, RecurrenceRuleType, SendUpdatesType, Time } from "./types/EventType";
 import got from "got";
@@ -125,7 +127,7 @@ const resilientGotPostPostgraphile = async (operationName: string, query: string
       if (response.errors) {
         lastError = new Error(`GraphQL error in ${operationName}: ${JSON.stringify(response.errors)}`);
         // Potentially break here for non-retryable GraphQL errors, e.g. validation
-        // For now, we retry all GraphQL errors from Hasura.
+        // For now, we retry all GraphQL errors from Postgraphile.
         throw lastError;
       }
       chatApiHelperLogger.info(`Postgraphile call ${operationName} successful on attempt ${attempt + 1}`, { userId, operationName });
@@ -285,12 +287,7 @@ export const upsertConference = async (
         //         'X-Postgraphile-Role': 'admin'
         //     },
         //     json: {
-        //         operationName,
-        //         query,
-        //         variables,
-        //     }
-        // }).json()
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Conference_one: ConferenceType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Conference_one: ConferenceType };
 
         chatApiHelperLogger.info('Successfully upserted conference', { conferenceId: responseData?.insert_Conference_one?.id });
         return responseData?.insert_Conference_one;
@@ -337,7 +334,7 @@ export const insertReminders = async (
             reminders
         }
 
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Reminder: { returning: ReminderType[] } };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Reminder: { returning: ReminderType[] } };
 
         if (responseData?.insert_Reminder?.returning) {
             chatApiHelperLogger.info('Successfully inserted reminders.', { count: responseData.insert_Reminder.returning.length });
@@ -496,18 +493,9 @@ export const upsertEvents = async (
         //     headers: {
         //         'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
         //         'X-Postgraphile-Role': 'admin'
-        //     },
-        //     json: {
-        //         operationName,
-        //         query,
         //         variables,
         //     }
-        // }).json()
-        // console.log(response, response?.data?.insert_Event?.affected_rows, ' response after upserting events')
-        // response?.data?.insert_Event?.returning?.forEach(e => console.log(e, ' returning  response after upserting events'))
-        // return response
-
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Event: { affected_rows: number, returning: { id: string }[] } };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Event: { affected_rows: number, returning: { id: string }[] } };
 
         if (responseData?.insert_Event) {
             chatApiHelperLogger.info('Successfully upserted events.', { affected_rows: responseData.insert_Event.affected_rows, returned_ids: responseData.insert_Event.returning?.map(r => r.id) });
@@ -647,10 +635,10 @@ export const convertEventTitleToOpenAIVector = async (
     title: string,
 ) => {
     try {
-        const embeddingRequest: OpenAI.Embeddings.EmbeddingCreateParams = {
+        const embeddingRequest = {
             model: 'text-embedding-3-small',
             input: title,
-        }
+        } as any
 
         // const res = await openai.embeddings.create(embeddingRequest)
         // console.log(res, ' res inside convertEventTitleToOpenAIVectors')
@@ -933,14 +921,14 @@ export const extrapolateDateFromJSONData = (
             if (year && month) {
                 const yearAndMonthAndDate = dayjs(`${year}-${month}-${day}`, 'YYYY-MM-DD').tz(timezone, true)
                 chatApiHelperLogger.debug(`[${functionName}] Condition: day, hour, minute, year, month`, { yearAndMonthAndDateFormatted: yearAndMonthAndDate.format() });
-                
+
                 meetingStartDateObject = meetingStartDateObject
                     .year(yearAndMonthAndDate.year())
                     .month(yearAndMonthAndDate.month())
                     .date(yearAndMonthAndDate.date())
                     .hour(hour)
                     .minute(minute)
-                
+
                 chatApiHelperLogger.debug(`[${functionName}] meetingStartDateObject updated (day, hour, minute, year, month):`, { meetingStartDateObjectFormatted: meetingStartDateObject.format() });
             } else {
 
@@ -1289,13 +1277,13 @@ export const extrapolateEndDateFromJSONData = (
 
         meetingEndDateObject = givenISODay < currentISODay ? dayjs(setISODay(baseDateObj.add(1, 'w').toDate(), givenISODay)) : dayjs(setISODay(baseDateObj.toDate(), givenISODay));
 
-    } 
+    }
     // This 'else if' was incorrectly placed inside the isoWeekday block in the original. It should be at the same level.
     // Assuming it's intended to be an alternative to 'day' and 'isoWeekday' for the main date calculation.
     // However, the logic for relativeTimeFromNow in the original function for extrapolateEndDateFromJSONData *adds* to the *already calculated* meetingEndDateObject.
     // This is different from how extrapolateDateFromJSONData handles it (where it's an alternative initial calculation path).
     // Replicating the original behavior for extrapolateEndDateFromJSONData:
-    
+
     if (relativeTimeFromNow?.[0]) { // This applies *after* day/isoWeekday logic if any
         let minuteChanged = false, hourChanged = false;
         let calculatedMinute = 0, calculatedHour = 0, calculatedDay = 0, calculatedWeek = 0, calculatedMonth = 0, calculatedYear = 0;
@@ -1405,9 +1393,7 @@ export const getGlobalCalendar = async (
 
         // Using resilientGotPostPostgraphile for the Postgraphile call
         // Assuming 'admin' role for this query as per original direct got call.
-        // If user-specific role is needed, the resilientGotPostPostgraphile call would need the userId passed as the 4th param.
-        // For getGlobalCalendar, it seems like an admin or system-level query for a user's global calendar.
-        const responseData = await resilientGotPostHasura(operationName, query, { userId } /*, userId (if user role needed) */) as { Calendar: CalendarType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, { userId } /*, userId (if user role needed) */) as { Calendar: CalendarType[] };
 
         if (responseData && responseData.Calendar && responseData.Calendar.length > 0) {
             chatApiHelperLogger.info(`${operationName} successful for user ${userId}. Calendar ID: ${responseData.Calendar[0].id}`);
@@ -1467,7 +1453,7 @@ export const getCalendarIntegrationByResource = async (
         if (res?.data?.Calendar_Integration?.length > 0) {
             return res?.data?.Calendar_Integration?.[0]
         }
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
         chatApiHelperLogger.info(`getCalendarIntegrationByResource response for user ${userId}, resource ${resource}`, { dataLength: responseData?.Calendar_Integration?.length });
         return responseData?.Calendar_Integration?.[0];
     } catch (e) {
@@ -1520,7 +1506,7 @@ export const getCalendarIntegrationByName = async (
         if (res?.data?.Calendar_Integration?.length > 0) {
             return res?.data?.Calendar_Integration?.[0]
         }
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables, userId) as { Calendar_Integration: CalendarIntegrationType[] };
         chatApiHelperLogger.info(`getCalendarIntegrationByName response for user ${userId}, name ${name}`, { dataLength: responseData?.Calendar_Integration?.length });
         return responseData?.Calendar_Integration?.[0];
     } catch (e) {
@@ -1654,7 +1640,7 @@ export const updateCalendarIntegration = async (
             },
         ).json()
         console.log(res, ' res inside updateCalendarIntegration')
-        await resilientGotPostHasura(operationName, query, variables); // Assuming admin role for updates
+        await resilientGotPostPostgraphile(operationName, query, variables); // Assuming admin role for updates
         chatApiHelperLogger.info(`Successfully updated calendar integration ${id}.`);
     } catch (e) {
         chatApiHelperLogger.error('Error in updateCalendarIntegration', { id, token, expiresIn, enabled, error: (e as Error).message });
@@ -1893,7 +1879,7 @@ export const deleteRemindersWithIds = async (
         delete_Reminder(where: {userId: {_eq: $userId}, eventId: {_in: $eventIds}}) {
           affected_rows
         }
-      }    
+      }
     `
 
         const variables = {
@@ -1911,9 +1897,7 @@ export const deleteRemindersWithIds = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response, ' this is response in deleteRemindersWithIds')
-        await resilientGotPostHasura(operationName, query, variables, userId);
+        await resilientGotPostPostgraphile(operationName, query, variables, userId);
         chatApiHelperLogger.info(`Successfully deleted reminders for eventIds: ${eventIds.join(', ')} for user ${userId}.`);
 
     } catch (e) {
@@ -2976,7 +2960,7 @@ export const getEventFromPrimaryKey = async (eventId: string): Promise<EventType
         // ).json()
         // console.log(res, ' res from getEventFromPrimaryKey')
         // return res?.data?.Event_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, { eventId }) as { Event_by_pk: EventType }; // Assuming admin role or appropriate user context if eventId implies user
+        const responseData = await resilientGotPostPostgraphile(operationName, query, { eventId }) as { Event_by_pk: EventType }; // Assuming admin role or appropriate user context if eventId implies user
         return responseData?.Event_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in getEventFromPrimaryKey', { eventId, error: (e as Error).message });
@@ -3007,7 +2991,7 @@ export const getTaskGivenId = async (id: string): Promise<TaskType> => {
         // ).json()
         // console.log(res, ' res from getTaskGivenId')
         // return res?.data?.Task_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, { id }) as { Task_by_pk: TaskType }; // Assuming admin role or appropriate context
+        const responseData = await resilientGotPostPostgraphile(operationName, query, { id }) as { Task_by_pk: TaskType }; // Assuming admin role or appropriate context
         return responseData?.Task_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in getTaskGivenId', { id, error: (e as Error).message });
@@ -3143,10 +3127,8 @@ export const upsertAttendeesforEvent = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.insert_Attendee?.returning, ' this is response in insertAttendees')
-        // response?.data?.insert_Attendee?.returning.forEach(r => console.log(r, ' response in insertAttendees'))
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Attendee: { returning: AttendeeType[] } };
+
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Attendee: { returning: AttendeeType[] } };
         if (responseData?.insert_Attendee?.returning) {
             chatApiHelperLogger.info('Successfully upserted attendees.', { count: responseData.insert_Attendee.returning.length });
         } else {
@@ -3212,9 +3194,7 @@ export const deleteAttendeesWithIds = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response, ' this is response in deleteAttendeesWithIds')
-        await resilientGotPostHasura(operationName, query, variables, userId);
+        await resilientGotPostPostgraphile(operationName, query, variables, userId);
         chatApiHelperLogger.info(`Successfully deleted attendees for eventIds: ${eventIds.join(', ')} for user ${userId}.`);
     } catch (e) {
         chatApiHelperLogger.error('Error in deleteAttendeesWithIds', { userId, eventIds, error: (e as Error).message });
@@ -3257,10 +3237,8 @@ export const findContactByEmailGivenUserId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.Contact?.[0], ' this is response in findContactByEmailGivenUserId')
         // return response?.data?.Contact?.[0]
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Contact: ContactType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables, userId) as { Contact: ContactType[] };
         return responseData?.Contact?.[0];
     } catch (e) {
         chatApiHelperLogger.error('Error in findContactByEmailGivenUserId', { userId, email, error: (e as Error).message });
@@ -3296,10 +3274,8 @@ export const getConferenceGivenId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.Conference_by_pk, ' this is response in getConferenceGivenId')
         // return response?.data?.Conference_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { Conference_by_pk: ConferenceType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { Conference_by_pk: ConferenceType };
         return responseData?.Conference_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in getConferenceGivenId', { id, error: (e as Error).message });
@@ -3336,10 +3312,8 @@ export const deleteConferenceGivenId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.delete_Conference_by_pk, ' this is response in deleteConferenceGivenId')
         // return response?.data?.delete_Conference_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { delete_Conference_by_pk: ConferenceType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { delete_Conference_by_pk: ConferenceType };
         return responseData?.delete_Conference_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in deleteConferenceGivenId', { id, error: (e as Error).message });
@@ -3429,10 +3403,8 @@ export const deleteEventGivenId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.delete_Event_by_pk, ' this is response in deleteEventGivenId')
         // return response?.data?.delete_Event_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { delete_Event_by_pk: EventType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { delete_Event_by_pk: EventType };
         return responseData?.delete_Event_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in deleteEventGivenId', { id, error: (e as Error).message });
@@ -3615,10 +3587,8 @@ export const upsertMeetingAssistOne = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.insert_Meeting_Assist_one, ' this is response in upsertMeetingAssistOne')
         // return response?.data?.insert_Meeting_Assist_one
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Meeting_Assist_one: MeetingAssistType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Meeting_Assist_one: MeetingAssistType };
         return responseData?.insert_Meeting_Assist_one;
     } catch (e) {
         chatApiHelperLogger.error('Error in upsertMeetingAssistOne', { meetingAssistId: meetingAssist?.id, error: (e as Error).message });
@@ -3652,10 +3622,8 @@ export const listUserContactInfosGivenUserId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.User_Contact_Info, ' this is response?.data?.User_Contact_Info')
         // return response?.data?.User_Contact_Info
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { User_Contact_Info: UserContactInfoType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables, userId) as { User_Contact_Info: UserContactInfoType[] };
         return responseData?.User_Contact_Info;
     } catch (e) {
         chatApiHelperLogger.error('Error in listUserContactInfosGivenUserId', { userId, error: (e as Error).message });
@@ -3690,10 +3658,8 @@ export const getUserContactInfosGivenIds = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.User_Contact_Info, ' this is response in getContactInfosGivenIds')
         // return response?.data?.User_Contact_Info
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { User_Contact_Info: UserContactInfoType[] }; // Assuming admin for this system-level lookup
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { User_Contact_Info: UserContactInfoType[] }; // Assuming admin for this system-level lookup
         return responseData?.User_Contact_Info;
     } catch (e) {
         chatApiHelperLogger.error('Error in getUserContactInfosGivenIds', { ids, error: (e as Error).message });
@@ -3730,10 +3696,8 @@ export const getContactByNameWithUserId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.Contact, ' this is response in getContactByNameWithUserId')
         // return response?.data?.Contact?.[0]
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { Contact: ContactType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables, userId) as { Contact: ContactType[] };
         return responseData?.Contact?.[0];
     } catch (e) {
         chatApiHelperLogger.error('Error in getContactByNameWithUserId', { userId, name, error: (e as Error).message });
@@ -3767,10 +3731,8 @@ export const insertMeetingAssistAttendee = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.insert_Meeting_Assist_Attendee_one, ' this is response in insertMeetingAssistAttendee')
         // return response?.data?.insert_Meeting_Assist_Attendee_one
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Meeting_Assist_Attendee_one: MeetingAssistAttendeeType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Meeting_Assist_Attendee_one: MeetingAssistAttendeeType };
         return responseData?.insert_Meeting_Assist_Attendee_one;
     } catch (e) {
         chatApiHelperLogger.error('Error in insertMeetingAssistAttendee', { attendeeId: attendee?.id, error: (e as Error).message });
@@ -3847,10 +3809,8 @@ export const upsertMeetingAssistInviteMany = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.insert_Meeting_Assist_Invite, ' this is response in upsertMeetingAssistInviteMany')
         // return response?.data?.insert_Meeting_Assist_Invite
-        const responseData = await resilientGotPostHasura(operationName, query, variables) as { insert_Meeting_Assist_Invite: MeetingAssistInviteType[] };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { insert_Meeting_Assist_Invite: MeetingAssistInviteType[] };
         return responseData?.insert_Meeting_Assist_Invite;
     } catch (e) {
         chatApiHelperLogger.error('Error in upsertMeetingAssistInviteMany', { inviteCount: meetingAssistInvites?.length, error: (e as Error).message });
@@ -3887,10 +3847,8 @@ export const updateUserNameGivenId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.update_User_by_pk, ' this is response in updateUserNameGivenId')
         // return response?.data?.update_User_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { update_User_by_pk: UserType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { update_User_by_pk: UserType };
         return responseData?.update_User_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in updateUserNameGivenId', { userId, name, error: (e as Error).message });
@@ -3924,10 +3882,8 @@ export const getUserGivenId = async (
                 query,
                 variables,
             }
-        // }).json()
-        // console.log(response?.data?.User_by_pk, ' this is response in getUserGivenId')
         // return response?.data?.User_by_pk
-        const responseData = await resilientGotPostHasura(operationName, query, variables, userId) as { User_by_pk: UserType };
+        const responseData = await resilientGotPostPostgraphile(operationName, query, variables) as { User_by_pk: UserType };
         return responseData?.User_by_pk;
     } catch (e) {
         chatApiHelperLogger.error('Error in getUserGivenId', { userId, error: (e as Error).message });
@@ -4240,10 +4196,8 @@ export const listEventsForUserGivenDates = async (
                     },
                 },
             },
-        // ).json()
-        // console.log(res, ' res from listEventsforUser')
-        // return res?.data?.Event
-        const responseData = await resilientGotPostHasura(operationName, query, { userId, startDate: senderStartDate, endDate: senderEndDate }, userId) as { Event: EventType[] };
+
+        const responseData = await resilientGotPostPostgraphile(operationName, query, { userId, startDate: senderStartDate, endDate: senderEndDate }, userId) as { Event: EventType[] };
         return responseData?.Event;
     } catch (e) {
         chatApiHelperLogger.error('Error in listEventsForUserGivenDates', { userId, senderStartDate, senderEndDate, error: (e as Error).message });
@@ -4286,7 +4240,7 @@ export const generateQueryDateFromUserInput = async (
         const queryDateUserMessage3 = { role: 'user' as ChatGPTRoleType, content: extractQueryUserInputTimeToJSONExampleInput3 }
         const queryDateAssistantMessage3 = { role: 'assistant' as ChatGPTRoleType, content: extractQueryUserInputTimeToJSONExampleOutput3 }
 
-        
+
         // user work times
         const userPreferences = await getUserPreferences(userId)
 
@@ -4392,7 +4346,7 @@ export const generateDateTime = async (
         const assistantMessage1 = { role: 'assistant' as ChatGPTRoleType, content: exampleOutput1Rendered }
 
         const userMessage2 = { role: 'user' as ChatGPTRoleType, content: userInputToDateTimeJSONExampleInput2 }
-        
+
         const exampleOutput2Template = userInputToDateTimeJSONExampleOutput2
         const engine3 = new TemplateEngine(exampleOutput2Template)
         const exampleOutput2Rendered = engine3.render({ year, month })
@@ -4449,7 +4403,7 @@ export const generateMissingFieldsDateTime = async (
         const assistantMessage1 = { role: 'assistant' as ChatGPTRoleType, content: exampleOutput1Rendered }
 
         const userMessage2 = { role: 'user' as ChatGPTRoleType, content: userInputToDateTimeJSONExampleInput2 }
-        
+
         const exampleOutput2Template = userInputToDateTimeJSONExampleOutput2
         const engine3 = new TemplateEngine(exampleOutput2Template)
         const exampleOutput2Rendered = engine3.render({ year, month })
@@ -4549,7 +4503,7 @@ export const generateAssistantMessageToRequestUserForMissingFields = async (
 
                             if (requiredProperty === 'oneOf') {
                                 const oneOfs = requiredField[requiredProperty]
-                                
+
                                 if (oneOfs?.length > 0) {
                                     for (const oneOf of oneOfs) {
 
@@ -4567,7 +4521,7 @@ export const generateAssistantMessageToRequestUserForMissingFields = async (
                                                     }
                                                 }
                                             } else if (oneOfProperty === 'value') {
-                                                
+
                                                 const value = oneOf[oneOfProperty]
 
                                                 missingDataString += `${value}, `
@@ -4833,7 +4787,7 @@ export const generateJSONDataFromUserInput = async (
     userCurrentTime: string,
 ) => {
     try {
-        
+
         const messageHistory: ChatGPTMessageHistoryType = []
 
         const userMessage1 = { role: 'user' as ChatGPTRoleType, content: userInputToJSONExampleInput }
@@ -4841,7 +4795,7 @@ export const generateJSONDataFromUserInput = async (
 
         const dataEngine = new TemplateEngine(userInputToJSONPrompt);
         const dataRendered = dataEngine.render({ userCurrentTime })
-        
+
         const dataSysMessage = { role: 'system' as ChatGPTRoleType, content: dataRendered }
         const dataUserMessageInput = { role: 'user' as ChatGPTRoleType, content: userInput }
 
@@ -4867,7 +4821,7 @@ export const generateMissingFieldsJSONDataFromUserInput = async (
     userCurrentTime: string,
 ) => {
     try {
-        
+
         const messageHistory: ChatGPTMessageHistoryType = []
 
         const userMessage1 = { role: 'user' as ChatGPTRoleType, content: userInputToJSONExampleInput }
@@ -4875,7 +4829,7 @@ export const generateMissingFieldsJSONDataFromUserInput = async (
 
         const dataEngine = new TemplateEngine(userInputToJSONPrompt);
         const dataRendered = dataEngine.render({ userCurrentTime })
-        
+
         const dataSysMessage = { role: 'system' as ChatGPTRoleType, content: dataRendered }
         const dataUserMessageInput = { role: 'user' as ChatGPTRoleType, content: userInput }
 
@@ -4899,7 +4853,7 @@ export const generateMissingFieldsJSONDataFromUserInput = async (
 
 export const generateWorkSchedule = async (
     userId: string,
-    timezone: string, 
+    timezone: string,
     windowStartDate: string,
     windowEndDate: string,
 ) => {
@@ -4916,7 +4870,7 @@ export const generateWorkSchedule = async (
             if (filteredEvents?.length > 0) {
 
                 userSchedule += `${dayjs(uniqDate?.startDate?.slice(0, 19)).tz(timezone, true).format('ddd')} (${dayjs(uniqDate?.startDate?.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DD')}) \n`
-                
+
                 for (const filteredEvent of filteredEvents) {
                     userSchedule += `- ${filteredEvent?.title || filteredEvent?.summary}: ${dayjs(filteredEvent?.startDate?.slice(0, 19)).tz(timezone, true).format('h:mm a')} - ${dayjs(filteredEvent?.endDate?.slice(0, 19)).tz(timezone, true).format('h:mm a')} \n`
                 }
@@ -4955,5 +4909,3 @@ export const findAnEmptySlot = async (
         return undefined;
     }
 }
-
-
