@@ -106,8 +106,8 @@ except ImportError:
 
 
 # --- Application Service Code ---
-from .db_oauth_gdrive import get_token, update_gdrive_access_token
-from .crypto_utils import decrypt_data, encrypt_data
+from db_oauth_gdrive import get_token, update_gdrive_access_token
+from crypto_utils import decrypt_data, encrypt_data
 
 logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file']
@@ -160,7 +160,7 @@ async def get_gdrive_credentials(user_id: str, db_conn_pool: Any) -> Optional["C
 async def list_files(creds: "Credentials", query: Optional[str] = None, page_size: int = 50, page_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Lists files in Google Drive, optionally filtered by a query."""
     try:
-        service = build('drive', 'v3', credentials=creds)
+        service = build("drive", "v3", credentials=creds)  # type: ignore
         q_filter = f"name contains '{query}' and trashed = false" if query else "trashed = false"
         results = service.files().list(
             q=q_filter,
@@ -176,7 +176,7 @@ async def list_files(creds: "Credentials", query: Optional[str] = None, page_siz
 async def get_file_metadata(creds: "Credentials", file_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves metadata for a single file."""
     try:
-        service = build('drive', 'v3', credentials=creds)
+        service = build("drive", "v3", credentials=creds)  # type: ignore
         file_metadata = service.files().get(fileId=file_id, fields="*").execute()
         return file_metadata
     except HttpError as e:
@@ -186,7 +186,7 @@ async def get_file_metadata(creds: "Credentials", file_id: str) -> Optional[Dict
 async def download_file(creds: "Credentials", file_id: str) -> Optional[Tuple[bytes, Dict[str, Any]]]:
     """Downloads a file, exporting Google Docs to PDF if necessary."""
     try:
-        service = build('drive', 'v3', credentials=creds)
+        service = build("drive", "v3", credentials=creds)  # type: ignore
         metadata = await get_file_metadata(creds, file_id)
         if not metadata:
             return None
@@ -216,7 +216,7 @@ async def download_file(creds: "Credentials", file_id: str) -> Optional[Tuple[by
 async def create_file(creds: "Credentials", file_metadata: Dict[str, Any], file_content: Optional[bytes] = None) -> Optional[Dict[str, Any]]:
     """Creates a file or folder in Google Drive."""
     try:
-        service = build('drive', 'v3', credentials=creds)
+        service = build("drive", "v3", credentials=creds)  # type: ignore
         media_body = None
         if file_content:
             fh = io.BytesIO(file_content)

@@ -77,10 +77,10 @@ async def get_linkedin_api(user_id: str, db_conn_pool: Any) -> "Optional[LinkedI
     credentials from a database. This example retrieves them from environment
     variables, which is NOT secure for production.
     """
-    consumer_key = os.environ.get("LINKEDIN_CONSUMER_KEY")
-    consumer_secret = os.environ.get("LINKEDIN_CONSUMER_SECRET")
-    user_token = os.environ.get("LINKEDIN_USER_TOKEN")
-    user_secret = os.environ.get("LINKEDIN_USER_SECRET")
+    consumer_key = os.environ.get("LINKEDIN_CONSUMER_KEY", "")
+    consumer_secret = os.environ.get("LINKEDIN_CONSUMER_SECRET", "")
+    user_token = os.environ.get("LINKEDIN_USER_TOKEN", "")
+    user_secret = os.environ.get("LINKEDIN_USER_SECRET", "")
 
     if not all([consumer_key, consumer_secret, user_token, user_secret]):
         logger.error("LinkedIn API credentials are not fully configured in environment variables.")
