@@ -106,7 +106,7 @@ except ImportError:
             return MockTweet(id_str=str(id))
 
         def search_tweets(self, q, count=15, **kwargs):
-            # The real search_tweets returns a list of Status objects, not a special results object in recent versions
+            """Mock search_tweets method for compatibility with tweepy v4+."""
             return [MockTweet(id_str=f"search_{i}", text=f"Tweet about {q}") for i in range(min(count, 5))]
 
     class MockOAuth1UserHandler:
@@ -177,7 +177,7 @@ async def get_timeline(api: 'tweepy.API', count: int = 20) -> List[Dict[str, Any
     try:
         timeline = api.home_timeline(count=count)
         return [t._json for t in timeline]
-    except tweepy.TweepyException as e:
+    except Exception as e:
         logger.error(f"Error fetching Twitter timeline: {e}")
         return []
 
@@ -190,7 +190,7 @@ async def post_tweet(api: 'tweepy.API', status: str) -> Optional[Dict[str, Any]]
     try:
         tweet = api.update_status(status)
         return tweet._json
-    except tweepy.TweepyException as e:
+    except Exception as e:
         logger.error(f"Error posting tweet: {e}")
         return None
 
@@ -202,7 +202,7 @@ async def search_tweets(api: 'tweepy.API', query: str, count: int = 15) -> List[
         # In v2 it's different. Assuming v1 based on other function calls.
         tweets = api.search_tweets(q=query, count=count)
         return [t._json for t in tweets]
-    except tweepy.TweepyException as e:
+    except Exception as e:
         logger.error(f"Error searching tweets for query '{query}': {e}")
         return []
 
@@ -212,6 +212,6 @@ async def get_tweet(api: 'tweepy.API', tweet_id: str) -> Optional[Dict[str, Any]
     try:
         tweet = api.get_status(tweet_id, tweet_mode="extended")
         return tweet._json
-    except tweepy.TweepyException as e:
+    except Exception as e:
         logger.error(f"Error getting tweet {tweet_id}: {e}")
         return None

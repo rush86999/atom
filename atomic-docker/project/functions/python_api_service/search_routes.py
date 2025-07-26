@@ -1,9 +1,8 @@
 import os
-import sys
 import tempfile
 import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -103,18 +102,18 @@ class MockLanceDBService:
     def __init__(self):
         self.db_path = None
 
-    def search_meeting_transcripts(self, user_id: str, query_vector: List[float], limit: int = 5) -> List[Dict[str, Any]]:
+    def search_meeting_transcripts(self, user_id: str, query_vector: List[float], limit: int = 10) -> List[Dict[str, Any]]:
         """Mock search for meeting transcripts"""
         return [
             {
-                "transcript_id": f"mock_transcript_{i}",
-                "meeting_title": f"Mock Meeting {i}",
-                "content": f"This is mock transcript content for meeting {i}",
-                "timestamp": datetime.now().isoformat(),
-                "score": 0.9 - (i * 0.1)
-            }
-            for i in range(min(limit, 3))
-        ]
+                            "transcript_id": f"mock_transcript_{i}",
+                            "meeting_title": f"Mock Meeting {i}",
+                            "content": f"This is mock transcript content for meeting {i}",
+                            "timestamp": datetime.now().isoformat(),
+                            "score": 0.9 - (i * 0.1)
+                        }
+                        for i in range(min(limit, 3))
+                    ]
 
     def hybrid_note_search(self, user_id: str, query_vector: List[float], text_query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Mock hybrid search for notes"""

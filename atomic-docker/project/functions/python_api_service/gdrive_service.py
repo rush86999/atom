@@ -1,29 +1,33 @@
 import os
 import io
 import logging
-from typing import Optional, Tuple, Dict, Any, List, TYPE_CHECKING
+from typing import Optional, Tuple, Dict, Any, List, Union
 
-# This is the standard way to handle imports for type checking vs. runtime.
-# The 'if TYPE_CHECKING:' block is read by type checkers, but not executed at runtime.
-# This prevents ImportError if the libraries are not installed, while still allowing type hints.
-if TYPE_CHECKING:
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.errors import HttpError
-    from google.auth.transport.requests import Request
-    from googleapiclient.http import MediaIoUploader
-
-
-# --- Runtime Imports and Mock Fallbacks ---
-# We attempt to import the actual libraries. If they aren't installed,
-# we define mock classes with the same names to ensure the application can run.
+# Standard import handling for optional dependencies
 try:
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
     from google.auth.transport.requests import Request
-    from googleapiclient.http import MediaIoUploader
-    logging.info("Successfully imported Google API libraries.")
+    from googleapiclient.http import MediaIoUpload as MediaIoUploader
+    import google.auth.exceptions as google_auth_exceptions
+    HAS_GOOGLE_API = True
 except ImportError:
+    HAS_GOOGLE_API = False
+
+# Fallback type imports for type checking
+from google.oauth2.credentials import Credentials as MockCredentials
+from googleapiclient.errors import HttpError as MockHttpError
+from google.auth.transport.requests import Request as MockRequest
+from googleapiclient.http import MediaIoUpload as MockMediaIoUpload
+
+
+# --- Runtime Imports and Mock Fallbacks ---
+# We attempt to import the actual libraries. If they aren't installed,
+# we define mock classes with the same names to ensure the application can run.
+if HAS_GOOGLE_API:
+    logging.info("Successfully imported Google API libraries.")
+else:
     logging.warning("Google API libraries not found. Using mock implementation.")
 
     # --- MOCK IMPLEMENTATIONS ---
@@ -53,8 +57,12 @@ except ImportError:
             self.refresh_token = refresh_token or 'mock_refresh_token'
             self.expired = False
             self.expiry = expiry
+            self.token_uri = token_uri or "https://oauth2.googleapis.com/token"
+            self.client_id = client_id
+            self.client_secret = client_secret
+            self.scopes = scopes or []
 
-        def refresh(self, request: "MockRequest"):
+        def refresh(self, request: Union["MockRequest", "Request"]):
             from datetime import datetime, timedelta
             self.token = 'mock_refreshed_token'
             self.expiry = datetime.utcnow() + timedelta(hours=1)
@@ -112,7 +120,7 @@ from crypto_utils import decrypt_data, encrypt_data
 logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file']
 
-async def get_gdrive_credentials(user_id: str, db_conn_pool: Any) -> Optional["Credentials"]:
+async def get_gdrive_credentials(user_id: str, db_conn_pool: Any) -> Optional[Union["Credentials", MockCredentials]]:
     """
     Retrieves and refreshes Google Drive credentials for a user from the database.
     """
@@ -157,10 +165,10 @@ async def get_gdrive_credentials(user_id: str, db_conn_pool: Any) -> Optional["C
         logger.error(f"Failed to process Google credentials for user {user_id}: {e}", exc_info=True)
         return None
 
-async def list_files(creds: "Credentials", query: Optional[str] = None, page_size: int = 50, page_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+async def list_files(creds: Union["Credentials", MockCredentials], query: Optional[str] = None, page_size: int = 50, page_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Lists files in Google Drive, optionally filtered by a query."""
     try:
-        service = build("drive", "v3", credentials=creds)  # type: ignore
+        service = build("drive", "v3", credentials=creds)
         q_filter = f"name contains '{query}' and trashed = false" if query else "trashed = false"
         results = service.files().list(
             q=q_filter,
@@ -169,24 +177,24 @@ async def list_files(creds: "Credentials", query: Optional[str] = None, page_siz
             fields="nextPageToken, files(id, name, mimeType, webViewLink, modifiedTime)"
         ).execute()
         return results
-    except HttpError as e:
+    except Exception as e:
         logger.error(f"Google Drive API error during list_files: {e}", exc_info=True)
         return None
 
-async def get_file_metadata(creds: "Credentials", file_id: str) -> Optional[Dict[str, Any]]:
+async def get_file_metadata(creds: Union["Credentials", MockCredentials], file_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves metadata for a single file."""
     try:
-        service = build("drive", "v3", credentials=creds)  # type: ignore
+        service = build("drive", "v3", credentials=creds)
         file_metadata = service.files().get(fileId=file_id, fields="*").execute()
         return file_metadata
-    except HttpError as e:
+    except Exception as e:
         logger.error(f"Google Drive API error getting metadata for {file_id}: {e}", exc_info=True)
         return None
 
-async def download_file(creds: "Credentials", file_id: str) -> Optional[Tuple[bytes, Dict[str, Any]]]:
+async def download_file(creds: Union["Credentials", MockCredentials], file_id: str) -> Optional[Tuple[bytes, Dict[str, Any]]]:
     """Downloads a file, exporting Google Docs to PDF if necessary."""
     try:
-        service = build("drive", "v3", credentials=creds)  # type: ignore
+        service = build("drive", "v3", credentials=creds)
         metadata = await get_file_metadata(creds, file_id)
         if not metadata:
             return None
@@ -209,14 +217,14 @@ async def download_file(creds: "Credentials", file_id: str) -> Optional[Tuple[by
             file_content = request.execute()
             return (file_content, metadata)
         return None
-    except HttpError as e:
+    except Exception as e:
         logger.error(f"Google Drive API error downloading file {file_id}: {e}", exc_info=True)
         return None
 
-async def create_file(creds: "Credentials", file_metadata: Dict[str, Any], file_content: Optional[bytes] = None) -> Optional[Dict[str, Any]]:
+async def create_file(creds: Union["Credentials", MockCredentials], file_metadata: Dict[str, Any], file_content: Optional[bytes] = None) -> Optional[Dict[str, Any]]:
     """Creates a file or folder in Google Drive."""
     try:
-        service = build("drive", "v3", credentials=creds)  # type: ignore
+        service = build("drive", "v3", credentials=creds)
         media_body = None
         if file_content:
             fh = io.BytesIO(file_content)
@@ -229,6 +237,6 @@ async def create_file(creds: "Credentials", file_metadata: Dict[str, Any], file_
             fields='id, name, webViewLink'
         ).execute()
         return file_resource
-    except HttpError as e:
+    except Exception as e:
         logger.error(f"Google Drive API error creating file: {e}", exc_info=True)
         return None
