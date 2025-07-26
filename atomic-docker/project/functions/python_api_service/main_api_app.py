@@ -33,6 +33,19 @@ from .hr_manager_handler import hr_manager_bp
 from .content_marketer_handler import content_marketer_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
+from .account_handler import account_bp
+from .transaction_handler import transaction_bp
+from .investment_handler import investment_bp
+from .financial_calculation_handler import financial_calculation_bp
+from .financial_handler import financial_bp
+from .budgeting_handler import budgeting_bp
+from .net_worth_handler import net_worth_bp
+from .invoicing_handler import invoicing_bp
+from .billing_handler import billing_bp
+from .payroll_handler import payroll_bp
+from .manual_account_handler import manual_account_bp
+from .manual_transaction_handler import manual_transaction_bp
+from .reporting_handler import reporting_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -114,6 +127,36 @@ def create_app(db_pool=None):
     logger.info("Registered 'content_marketer_bp' blueprint.")
     app.register_blueprint(mcp_bp)
     logger.info("Registered 'mcp_bp' blueprint.")
+    app.register_blueprint(account_bp)
+    logger.info("Registered 'account_bp' blueprint.")
+    app.register_blueprint(transaction_bp)
+    logger.info("Registered 'transaction_bp' blueprint.")
+    app.register_blueprint(investment_bp)
+    logger.info("Registered 'investment_bp' blueprint.")
+    app.register_blueprint(financial_calculation_bp)
+    logger.info("Registered 'financial_calculation_bp' blueprint.")
+    app.register_blueprint(financial_bp)
+    logger.info("Registered 'financial_bp' blueprint.")
+    app.register_blueprint(budgeting_bp)
+    logger.info("Registered 'budgeting_bp' blueprint.")
+    app.register_blueprint(net_worth_bp)
+    logger.info("Registered 'net_worth_bp' blueprint.")
+    app.register_blueprint(invoicing_bp)
+    logger.info("Registered 'invoicing_bp' blueprint.")
+    app.register_blueprint(billing_bp)
+    logger.info("Registered 'billing_bp' blueprint.")
+    app.register_blueprint(payroll_bp)
+    logger.info("Registered 'payroll_bp' blueprint.")
+    app.register_blueprint(manual_account_bp)
+    logger.info("Registered 'manual_account_bp' blueprint.")
+    app.register_blueprint(manual_transaction_bp)
+    logger.info("Registered 'manual_transaction_bp' blueprint.")
+    app.register_blueprint(reporting_bp)
+    logger.info("Registered 'reporting_bp' blueprint.")
+
+    from .github_handler import github_bp
+    app.register_blueprint(github_bp)
+    logger.info("Registered 'github_bp' blueprint.")
 
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)

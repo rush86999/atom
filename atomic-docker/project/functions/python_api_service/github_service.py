@@ -1,47 +1,48 @@
 import os
-import logging
-from typing import Optional, Dict, Any
-from github import Github, GithubException
+import requests
+from .db_utils import get_decrypted_credential
 
-logger = logging.getLogger(__name__)
+GITHUB_API_URL = "https://api.github.com"
 
-async def get_github_client(user_id: str, db_conn_pool) -> Optional[Github]:
-    # This is a placeholder. In a real application, you would fetch the user's GitHub credentials
-    # from a secure database. For now, we'll use environment variables.
-    # You'll need to create a table to store these credentials, similar to the Dropbox and Google Drive implementations.
-    access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
+def get_github_token(user_id):
+    """
+    Retrieves the GitHub token for a given user from the database.
+    """
+    return get_decrypted_credential(user_id, 'github')
 
-    if not access_token:
-        logger.error("GitHub access token is not configured in environment variables.")
-        return None
+def get_user_repositories(user_id):
+    """
+    Fetches the repositories for a given user from GitHub.
+    """
+    token = get_github_token(user_id)
+    if not token:
+        raise Exception("GitHub token not found for user.")
 
-    try:
-        client = Github(access_token)
-        return client
-    except Exception as e:
-        logger.error(f"Failed to create GitHub client: {e}", exc_info=True)
-        return None
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    response = requests.get(f"{GITHUB_API_URL}/user/repos", headers=headers)
+    response.raise_for_status()
+    return response.json()
 
-async def create_issue(repo, issue_data: Dict[str, Any]):
-    try:
-        issue = repo.create_issue(**issue_data)
-        return issue
-    except GithubException as e:
-        logger.error(f"Error creating GitHub issue: {e}", exc_info=True)
-        raise
+def create_repository(user_id, name, description):
+    """
+    Creates a new repository on GitHub for the given user.
+    """
+    token = get_github_token(user_id)
+    if not token:
+        raise Exception("GitHub token not found for user.")
 
-async def get_pull_request(repo, pr_number: int):
-    try:
-        pr = repo.get_pull(pr_number)
-        return pr
-    except GithubException as e:
-        logger.error(f"Error getting GitHub pull request: {e}", exc_info=True)
-        raise
-
-async def get_issue(repo, issue_number: int):
-    try:
-        issue = repo.get_issue(issue_number)
-        return issue
-    except GithubException as e:
-        logger.error(f"Error getting GitHub issue: {e}", exc_info=True)
-        raise
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    data = {
+        "name": name,
+        "description": description,
+        "private": False
+    }
+    response = requests.post(f"{GITHUB_API_URL}/user/repos", headers=headers, json=data)
+    response.raise_for_status()
+    return response.json()

@@ -27,3 +27,5 @@ mailchimp-marketing
 linkedin-api
 zenpy
 greenhouse
+yfinance
+pytest

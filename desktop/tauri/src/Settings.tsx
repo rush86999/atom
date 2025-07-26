@@ -84,7 +84,10 @@ const Settings = () => {
       // Re-mask keys after saving
       if (notionApiKey && notionApiKey !== '********') setNotionApiKey('********');
       if (ttsApiKey && ttsApiKey !== '********') setTtsApiKey('********');
-      if (githubApiKey && githubApiKey !== '********') setGithubApiKey('********');
+      if (githubApiKey && githubApiKey !== '********') {
+        await saveSetting('github_api_key', githubApiKey);
+        setGithubApiKey('********');
+      }
 
     } catch (err) {
       setError('Failed to save settings.');
@@ -119,6 +122,7 @@ const Settings = () => {
       </div>
 
       {/* GitHub Settings */}
+      {/* GitHub Settings */}
       <div className="setting">
         <label>GitHub Personal Access Token</label>
         <input
@@ -126,24 +130,6 @@ const Settings = () => {
           value={githubApiKey}
           onChange={(e) => setGithubApiKey(e.target.value)}
           placeholder="Enter GitHub Personal Access Token"
-        />
-      </div>
-      <div className="setting">
-        <label>GitHub Repository Owner</label>
-        <input
-          type="text"
-          value={githubOwner}
-          onChange={(e) => setGithubOwner(e.target.value)}
-          placeholder="Enter GitHub repository owner"
-        />
-      </div>
-      <div className="setting">
-        <label>GitHub Repository Name</label>
-        <input
-          type="text"
-          value={githubRepo}
-          onChange={(e) => setGithubRepo(e.target.value)}
-          placeholder="Enter GitHub repository name"
         />
       </div>
 
