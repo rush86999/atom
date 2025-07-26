@@ -3,12 +3,14 @@
 Atom is a powerful and flexible open-source AI assistant designed to streamline your workflow, intelligently manage your schedule, automate research, and organize your information. Take control of your productivity with an assistant that you can host yourself, ensuring privacy and customization.
 
 ## Why Choose Atom?
-*   **Empower Your Productivity:** Let Atom handle the tedious tasks of scheduling, note-taking, and information gathering so you can focus on what matters most.
-*   **Open Source & Transparent:** Built with transparency in mind, Atom's open-source nature means you have full visibility into its operations. No black boxes.
-*   **Self-Hosted for Privacy & Control:** Host Atom on your own infrastructure for maximum privacy and control over your data and how the assistant operates.
-*   **Highly Customizable:** Adapt Atom to your specific needs. Its modular design and open codebase allow for extensive customization and integration possibilities.
-*   **Intelligent Automation:** Leverage AI for smart scheduling that considers your preferences, automated event templating, and efficient research capabilities.
-*   **Seamless Integrations:** Connect Atom with your favorite tools like Google Calendar, Notion, Slack, Zoom, and more to create a unified productivity hub.
+*   **Empower Your Productivity:** Let Atom handle schedules, finances, notes, and communications so you can focus on what matters.
+*   **Open Source & Transparent:** Full visibility into operations - no black boxes.
+*   **Self-Hosted Privacy & Control**: Host on your infrastructure for maximum privacy.
+*   **Finance, Money & Budgeting**: Complete finance suite with wake word "Atom" allows natural language queries - net worth, budgets, spending analysis, goals, investments, and transaction search across all accounts in real-time.
+*   **Communication & CRM**: Voice-enabled customer relationship management across emails, Slack, Teams, and social media.
+*   **Voice-First Interface**: "Atom show my net worth" or "Atom schedule a meeting" - works after wake word detection.
+*   **Highly Customizable:** Extensible design for your specific needs.
+*   **Seamless Integrations:** Connected finance (banks, investments), communication tools, calendars and research capabilities.
 
 ## Table of Contents
 - [Why Choose Atom?](#why-choose-atom)
@@ -38,6 +40,7 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 *   **Intelligent Information Retrieval:** Ask Atom "What did we decide about Project X?" or "Search my meetings for discussions on marketing strategy." Atom can semantically search through your transcribed meeting archives (stored in Notion & LanceDB) to find relevant information quickly.
 *   **Proactive Schedule Optimization:** With Autopilot, Atom can learn your work patterns and preferences. "My mornings are for deep work. Keep them as free of meetings as possible." Atom will then intelligently schedule new events accordingly.
 *   **LLM-Powered Scheduling:** "Find a time for a 30-minute meeting with Sarah and John to discuss the Q3 marketing plan." Atom will use a large language model to parse your request and then find an optimal time for the meeting.
+*   **Comprehensive Finance Management:** Wake word activated finance commands: "Atom what's my net worth today?" gives complete financial overview, "Atom show my dining budget" displays budget analysis, "Atom where did I spend most money this month?" provides spending insights across categories, "Atom create emergency fund goal for $5000" sets up goal tracking, "Atom find Amazon purchases over $75" performs natural language transaction search.
 *   **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
 *   **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
 *   **Proactive Meeting Prep:** "Atom, get me ready for my meeting with 'Project X'." Atom gathers related notes, emails, and tasks.
@@ -55,26 +58,39 @@ For comprehensive information about Atom, including setup, deployment, and featu
 
 ## Features
 
-Atom is equipped with a powerful suite of features to streamline your productivity:
+Atom includes complete personal finance management with natural language and voice activation:
+
+**🎤 Atom Finance Suite (Wake Word Enabled)**
+- **Complete Net Worth Overview**: "Atom what's my net worth?" - Real-time financial health across all connected accounts
+- **Smart Budget Management**: "Atom show my dining budget this month" - Visual insights with spending predictions
+- **Spending Pattern Analysis**: "Atom where did I spend most money?" - AI-powered categorization with trend alerts
+- **Goal Setting & Tracking**: "Atom create emergency fund goal for $5000" - Smart progress tracking with milestone alerts
+- **Investment Portfolio**: "Atom show portfolio performance" - Real-time holdings, allocation, and market impact
+- **Natural Transaction Search**: "Atom find Amazon purchases over $75 this quarter" - Semantic search across all transactions
+- **Budget vs Actual**: "Atom compare dining budget to actual spending" - Smart variance analysis
+- **Category Insights**: "Atom break down my entertainment spending" - Detailed category analysis with recommendations
 
 *   **AI-Powered Scheduling:** Smartly manages your calendar with AI-driven event matching, automated tagging, and customizable templates.
-*   **Voice-Powered Task Management:** Use natural language to create, query, and update tasks in Notion.
-*   **Integrated Notes & Research:** Take notes via text or audio, and leverage a multi-agent system for automated research.
+*   **Voice-Powered Finance Suite:** Complete finance management using natural language voice commands: net worth analysis, budget tracking, spending patterns, goal management, investment portfolio, and transaction search - all accessible via wake word "Atom".
+*   **Voice-Powered Task Management:** Use natural language to manage tasks in Notion alongside comprehensive financial management features.
+*   **Integrated Notes, Research & Finance:** Take notes via text or audio, leverage multi-agent research, and track personal finances including budgeting, net worth, investments, and spending analysis with natural language queries.
 *   **Semantic Search:** Instantly find information across your meeting transcripts and notes.
 *   **Live Meeting Assistance:** Atom can join meetings, provide real-time transcription, and extract action items.
 *   **Proactive Assistance:** Get automated weekly digests, smart meeting preparation, and intelligent follow-up suggestions.
 
-For a comprehensive list of all features and capabilities, please see our **[Features Overview Document](./FEATURES.md)**.
+For a comprehensive list of all features and capabilities, including wake word finance commands, please see our **[Features Overview Document](./FEATURES.md)**.
 
 ## Core Agent Capabilities
 
-Interact with Atom's AI agent via a chat interface to manage your productivity across various services. The agent's enhanced Natural Language Understanding (NLU) allows you to:
+Use Atom's AI agent via chat or wake word to manage your productivity and finances. The agent's enhanced Natural Language Understanding (NLU) allows you to:
 
-*   **Manage Calendars:** Create, list, and modify events in Google Calendar and Microsoft Teams.
-*   **Handle Tasks in Notion:** Use natural language to create, query, and update tasks in your Notion database.
-*   **Search Your Knowledge Base:** Perform semantic searches across meeting transcripts and notes.
-*   **Control Integrations:** Send Slack messages, manage Zoom meetings, handle HubSpot contacts, and much more.
-*   **Automate Workflows:** Initiate research projects, get weekly digests, and receive suggestions for meeting follow-ups.
+*   **Manage Calendars & Finances:** Create, list, and modify events in Google Calendar and Microsoft Teams, plus manage personal finances via natural language: net worth, budgets, investments, and spending tracking across all accounts.
+*   **Manage Calendars & Communications:** Create events in Google Calendar, manage Teams meetings, track emails across Gmail, send Slack messages.
+*   **Finance Management with Voice Recognition:** Complete finance suite - wake word "Atom" activates voice commands for net worth, budgets, spending insights, goal tracking, portfolio analysis, and transaction search.
+*   **Voice Task Management:** Natural language to create, query and update tasks: "Atom create follow-up task for finance review" in your Notion database.
+*   **CRM & Customer Communications:** Voice-enabled contact management, email campaigns, meeting coordination across all platforms.
+*   **Search Across Knowledge:** Semantic search through meetings, notes, emails and financial data.
+*   **Multi-agent Research:** Automated competitor analysis, market research and data collection. 
 
 For a complete list of integrations and agent capabilities, see the **[Features Overview Document](./FEATURES.md)**.
 
@@ -88,26 +104,41 @@ Specific setup instructions and variable explanations for each deployment method
 
 ## Diagram
 
+### Voice Finance Integration
+```mermaid
+    sequenceDiagram
+    participant User as You
+    participant Wake as Wake Word
+    participant NLU as NLU System
+    participant Finance as Finance Agent
+    
+    User->>Wake: "Atom what's my net worth"
+    Note over Wake: Detects "Atom" wake word
+    Wake->>NLU: Passes query to NLU
+    NLU->>Finance: Processes finance intent
+    Finance->>Backend: Queries financial data
+    Finance-->>User: "Your net worth is [amount]"
+```
+
 ### Meeting Assist
 ```mermaid
     sequenceDiagram
-    actor Alice
-    participant A as Atom
-    actor Bob
-    actor John
-    participant H as handshake.Atomlife.app
-    participant P as AI Scheduler
+        participant User
+        participant Wake as Wake Word
+        participant NLU as NLU System
+        participant Agent as Atom Agent
+    
+        User->>Wake: "Atom what is my net worth?"
+        Note over Wake: Detects "Atom" wake word
+        Wake->>NLU: Passes complete query\n"what is my net worth"
+        NLU->>Agent: Processes finance intent
+        Agent->>Backend: Queries financial accounts
+        Agent-->>User: "Your net worth across all accounts is $127,430..."
 
-    participant G as Google Calendar
-    Alice->>A: Create a new meeting assist with John & Bob as attendees
-    A->>John: Sends handshake link for a possible meeting
-    A->>Bob: Sends another handshake link to another attendee 
-    John->>H: Selects time preferences (not availability like a booking link)
-    Bob->>H: Also selects time preferences
-    H->>P: Submits & starts AI planner after minimum threshold met
-    P->>G: finds an optimal slot & creates the new event
-
-```
+        User->>Wake: "Atom create budget for dining $500"
+        Wake->>NLU: "create budget for dining $500" 
+        NLU->>Agent: Budget creation intent
+        Agent-->>User: "Created $500 monthly dining budget with alerts!"
 
 ## Deployment Options
 

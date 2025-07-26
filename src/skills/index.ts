@@ -1,0 +1,148 @@
+/**
+ * Skills Index - Finance Capabilities Registration
+ * Registers finance skills as Atom agent capabilities ready for wake word activation
+ */
+
+import { registerSkill, SkillDefinition } from '../services/agentSkillRegistry';
+import { allFinanceSkills, financeAgentTools, FinanceSkillRegistration } from './financeSkillIndex';
+import { processVoiceFinance } from './financeVoiceAgent';
+
+// Finance skill activation triggers
+const financeSkillConfig = {
+  wakeWordTriggers: [
+    'finance',
+    'money',
+    'budget',
+    'spending',
+    'net worth',
+    'investment',
+    'goals',
+    'savings',
+    'account'
+  ],
+
+  activationPatterns: [
+    '^what.*net.*worth',
+    '^show.*budget',
+    '^how.*much.*spend',
+    '^create.*budget',
+    '^set.*goal',
+    '^where.*money.*go',
+    '^investment.*portfolio',
+    '^finance.*help'
+  ],
+
+  naturalLanguagePatterns: [
+    'what is my net worth',
+    'show my budget for this month',
+    'how much did I spend on dining',
+    'create a grocery budget',
+    'am I on track for retirement',
+    'investment performance this quarter',
+    'show my financial goals',
+    'budget breakdown',
+    'overspending detection'
+  ]
+};
+
+// Register all finance skills with Atom agent
+export async function registerFinanceSkills() {
+  console.log('🔥 Registering Atom Finance Skills for Wake Word Activation');
+
+  try {
+    // Register each finance skill
+    for (const skill of allFinanceSkills) {
+      await registerSkill(skill);
+    }
+
+    // Register finance-specific tools for LLM function calling
+    for (const tool of financeAgentTools) {
+      await registerSkill({
+        name: tool.name,
+        description: tool.description || 'Finance tool',
+        parameters: {}, // Tool-specific parameters assigned during registry
+        handler: tool.handler
+      } as SkillDefinition);
+    }
+
+    console.log('✅ Finance skills registered successfully');
+
+    return {
+      success: true,
+      registeredSkills: allFinanceSkills.length + financeAgentTools.length,
+      wakeWordTriggers: financeSkillConfig.wakeWordTriggers,
+      naturalLanguageSupport: true
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to register finance skills:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// Voice Command Handler Integration
+export class FinanceVoiceHandler {
+  private isActive = false;
+
+  async handleWakeWordActivation(context: any) {
+    this.isActive = true;
+
+    return {
+      message: "💰 Finance agent activated. Ask me anything about your money!",
+      examples: financeSkillConfig.naturalLanguagePatterns.slice(0, 6),
+      isFinanceMode: true
+    };
+  }
+
+  async processFinanceVoiceCommand(voiceText: string, context: any) {
+    const userId = context?.userId || 'current_user';
+
+    try {
+      // Clean wake word from start of phrase if present
+      const cleanedText = voiceText.replace(/^(atom|hey atom)\s*/gi, '').trim();
+
+      return await processVoiceFinance.processVoiceFinanceCommand(
+        userId,
+        cleanedText,
+        {
+          ...context,
+          interface: 'voice',
+          transactionSource: 'wake_word'
+        }
+      );
+
+    } catch (error) {
+      return {
+        ok: false,
+        response: "I couldn't process your finance request. Try rephrasing or type it out.",
+        suggestions: ["What's my net worth", "Show budget", "Spending this month"]
+      };
+    }
+  }
+
+  getFinancePrompt(context: any): string {
+    return `💰 You are now in finance mode. Use any of these commands:\n${financeSkillConfig.naturalLanguagePatterns.join('\n• ')}`;
+  }
+}
+
+// Export singleton
+export const financeVoiceHandler = new FinanceVoiceHandler();
+
+// Auto-registration on import
+registerFinanceSkills().catch(console.error);
+
+// Integration exports
+export { FinanceSkillRegistration as FinanceCapabilities };
+export { financeSkillConfig as FinanceCommandConfig };
+
+// Default export for import
+export default {
+  registerFinanceSkills,
+  financeVoiceHandler,
+  financeSkillConfig,
+  allFinanceSkills,
+  financeAgentTools
+};
