@@ -146,8 +146,6 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Stripe (List payments, potentially link to projects or clients)
     *   QuickBooks (Manage invoices, link financial data)
     *   Xero (Connect your Xero account to manage your invoices, bills, and contacts.)
-*   **Banking & Investment Platforms:**
-    *   Plaid (Connect bank accounts, credit cards, investments for real-time financial data via secure APIs)
 *   **Social Media:**
     *   Twitter (Connect your Twitter account to view your timeline, post tweets, and search for tweets.)
     *   LinkedIn (Schedule posts to your LinkedIn profile.)
@@ -160,6 +158,7 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Microsoft Teams (Integration for calendar events and online meetings)
 *   **Communication & Collaboration:**
     *   Slack (Send messages, list channels, receive notifications)
+    *   Gmail Integration (AI-powered natural language email search and information extraction)
     *   Email (General email functionalities for sending notifications, meeting invites, and summaries)
 *   **Video Conferencing:**
     *   Zoom (Create, delete, get, and update meetings; OAuth 2.0 for secure integration)
@@ -170,6 +169,9 @@ Atom connects with a wide range of third-party services to create a unified prod
     *   Calendly (Integration to coordinate external scheduling)
 *   **Automation Platforms:**
     *   Zapier (Connect Atom with a vast ecosystem of other apps and services)
+*   **Banking & Financial:**
+    *   Plaid (Connect bank accounts, credit cards, investments for real-time financial data via secure APIs)
+    *   Banking integrations for finance management features
 *   **Contact Sync:**
     *   Google Contacts (Keep your contacts synchronized with Atom)
 *   **Transcription Services:**
@@ -185,8 +187,9 @@ Complete voice-activated finance management suite integrated with wake word "Ato
 *   **Goal Setting & Tracking:** Progress tracking with "Atom create emergency fund goal for $5000" including milestone alerts
 *   **Portfolio Management:** Investment overview via "Atom show portfolio performance" with real-time holdings and allocation
 *   **Natural Transaction Search:** Semantic search "Atom find Amazon purchases over $75 this quarter" across all transactions
-*   **Multi-Account Integration:** Unified view across bank accounts, credit cards, and investment accounts
+*   **Multi-Account Integration:** Unified view across bank accounts, credit cards, and investment accounts via Plaid
 *   **Voice Recognition:** Wake word "Atom" triggers finance commands for hands-free management
+*   **Gmail Financial Insights:** Extract financial receipts and transactions from Gmail using AI-powered email analysis
 
 ### Use Cases
 By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life.
@@ -235,11 +238,8 @@ Simply say "Atom" followed by any finance query for instant insights:
 *   **Monthly Financial Reports**: Automated comprehensive financial reports with income vs expenses, net worth changes, and budget performance
 
 **🏦 Banking & Account Integration**
-*   **Secure Bank Connection**: Connect all major banks, credit cards, investment accounts via Pl
-        *   The main "Google Account" connection in Settings now includes `gmail.readonly` scope. Reconnecting may be necessary if previously connected for Calendar only.
-        *   (Future) A proof-of-concept UI for direct Gmail searching could be developed.
-    *   **Dependencies & Setup:** Requires `ATOM_OPENAI_API_KEY` (or similar) for the `atom-agent`'s LLM utilities. The backend must be configured with appropriate Google Cloud credentials and handling for user-specific OAuth tokens with Gmail scopes.
-    *   **Developer Documentation:** (To be updated) Guide for backend action setup for Gmail and details on the LLM prompts used for query understanding and information extraction.
+*   **Secure Bank Connection**: Connect all major banks, credit cards, investment accounts via Plaid for real-time financial data synchronization
+*   **Multi-Account Financial Dashboard**: Unified view across checking, savings, credit cards, and investment accounts with AI-powered insights
 
 *   **Slack Workspace Integration (Enhanced AI-Powered Querying & Interaction):**
     *   **Secure Connection:** Uses a Bot User OAuth Token (`ATOM_SLACK_BOT_TOKEN`) configured for the `atom-agent` service, with necessary permissions (scopes like `search:read`, `channels:history`, `users:read`, etc.).
