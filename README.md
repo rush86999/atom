@@ -121,21 +121,6 @@ Specific setup instructions and variable explanations for each deployment method
     Finance-->>User: "Your net worth is [amount]"
 ```
 
-### Meeting Assist
-```mermaid
-    sequenceDiagram
-    participant User
-    participant Wake
-    participant NLU
-    participant Agent
-    participant Backend
-    
-    User->>Wake: "Atom create budget for dining $500"
-    Wake->>NLU: Create budget command
-    NLU->>Agent: Process budget creation
-    Agent->>Backend: Create budget in system
-    Agent-->>User: Created $500 dining budget with alerts!
-
 ## Deployment Options
 
 Atom offers two primary methods for deployment, giving you the flexibility to choose between a simple local setup or a scalable cloud solution.
