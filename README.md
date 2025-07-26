@@ -6,7 +6,7 @@ Atom is a powerful and flexible open-source AI assistant designed to streamline 
 *   **Empower Your Productivity:** Let Atom handle schedules, finances, notes, and communications so you can focus on what matters.
 *   **Open Source & Transparent:** Full visibility into operations - no black boxes.
 *   **Self-Hosted Privacy & Control**: Host on your infrastructure for maximum privacy.
-*   **Finance, Money & Budgeting**: Complete finance suite with wake word "Atom" allows natural language queries - net worth, budgets, spending analysis, goals, investments, and transaction search across all accounts in real-time.
+*   **Finance, Money & Budgeting**: Complete finance suite with Plaid banking integration and wake word "Atom" for natural language queries - net worth, budgets, spending analysis, goals, investments, and secure transaction search via Gmail email receipts.
 *   **Communication & CRM**: Voice-enabled customer relationship management across emails, Slack, Teams, and social media.
 *   **Voice-First Interface**: "Atom show my net worth" or "Atom schedule a meeting" - works after wake word detection.
 *   **Highly Customizable:** Extensible design for your specific needs.
@@ -40,7 +40,7 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 *   **Intelligent Information Retrieval:** Ask Atom "What did we decide about Project X?" or "Search my meetings for discussions on marketing strategy." Atom can semantically search through your transcribed meeting archives (stored in Notion & LanceDB) to find relevant information quickly.
 *   **Proactive Schedule Optimization:** With Autopilot, Atom can learn your work patterns and preferences. "My mornings are for deep work. Keep them as free of meetings as possible." Atom will then intelligently schedule new events accordingly.
 *   **LLM-Powered Scheduling:** "Find a time for a 30-minute meeting with Sarah and John to discuss the Q3 marketing plan." Atom will use a large language model to parse your request and then find an optimal time for the meeting.
-*   **Comprehensive Finance Management:** Wake word activated finance commands: "Atom what's my net worth today?" gives complete financial overview, "Atom show my dining budget" displays budget analysis, "Atom where did I spend most money this month?" provides spending insights across categories, "Atom create emergency fund goal for $5000" sets up goal tracking, "Atom find Amazon purchases over $75" performs natural language transaction search.
+*   **Comprehensive Finance Management:** Wake word activated finance commands via Plaid banking: "Atom what's my net worth today?" gives complete financial overview including secure bank connections, "Atom show my dining budget" displays budget analysis, "Atom where did I spend most money this month?" provides spending insights across categories, "Atom create emergency fund goal for $5000" sets up goal tracking, "Atom find Amazon purchases over $75" combines bank transactions and Gmail receipt search.
 *   **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
 *   **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
 *   **Proactive Meeting Prep:** "Atom, get me ready for my meeting with 'Project X'." Atom gathers related notes, emails, and tasks.
@@ -61,17 +61,16 @@ For comprehensive information about Atom, including setup, deployment, and featu
 Atom includes complete personal finance management with natural language and voice activation:
 
 **🎤 Atom Finance Suite (Wake Word Enabled)**
-- **Complete Net Worth Overview**: "Atom what's my net worth?" - Real-time financial health across all connected accounts
-- **Smart Budget Management**: "Atom show my dining budget this month" - Visual insights with spending predictions
-- **Spending Pattern Analysis**: "Atom where did I spend most money?" - AI-powered categorization with trend alerts
-- **Goal Setting & Tracking**: "Atom create emergency fund goal for $5000" - Smart progress tracking with milestone alerts
-- **Investment Portfolio**: "Atom show portfolio performance" - Real-time holdings, allocation, and market impact
-- **Natural Transaction Search**: "Atom find Amazon purchases over $75 this quarter" - Semantic search across all transactions
-- **Budget vs Actual**: "Atom compare dining budget to actual spending" - Smart variance analysis
-- **Category Insights**: "Atom break down my entertainment spending" - Detailed category analysis with recommendations
+- **Complete Net Worth Overview**: "Atom what's my net worth?" - Real-time financial health across all Plaid-connected bank accounts and credit cards
+- **Smart Budget Management**: "Atom show my dining budget this month" - Visual insights combining bank transaction data with spending predictions
+- **Spending Pattern Analysis**: "Atom where did I spend most money?" - AI-powered categorization from bank transactions with trend alerts
+- **Goal Setting & Tracking**: "Atom create emergency fund goal for $5000" - Smart progress tracking connecting bank balances to goal milestones
+- **Investment Portfolio**: "Atom show portfolio performance" - Real-time investment holdings and allocation analysis
+- **Natural Transaction Search**: "Atom find Amazon purchases over $75 this quarter" - Semantic search across bank transactions plus Gmail receipt extraction
+- **Budget vs Actual**: "Atom compare dining budget to actual spending" - Smart variance analysis using live bank transaction data
 
 *   **AI-Powered Scheduling:** Smartly manages your calendar with AI-driven event matching, automated tagging, and customizable templates.
-*   **Voice-Powered Finance Suite:** Complete finance management using natural language voice commands: net worth analysis, budget tracking, spending patterns, goal management, investment portfolio, and transaction search - all accessible via wake word "Atom".
+*   **Voice-Powered Finance Suite:** Complete finance management with Plaid-powered bank connections and Gmail integration via natural language voice commands - all accessible via wake word "Atom".
 *   **Voice-Powered Task Management:** Use natural language to manage tasks in Notion alongside comprehensive financial management features.
 *   **Integrated Notes, Research & Finance:** Take notes via text or audio, leverage multi-agent research, and track personal finances including budgeting, net worth, investments, and spending analysis with natural language queries.
 *   **Semantic Search:** Instantly find information across your meeting transcripts and notes.
