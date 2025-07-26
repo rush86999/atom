@@ -8,6 +8,7 @@ import FeatureViewGuard from "./components/FeatureViewGuard";
 import ProjectHealth from './ProjectHealth';
 import CompetitorAnalysis from './CompetitorAnalysis';
 import LearningAssistant from './LearningAssistant';
+import Finance from './Finance';
 import "./App.css";
 
 // Define the roles available in the desktop application.
@@ -16,6 +17,7 @@ const AVAILABLE_ROLES: Role[] = [
   "support",
   "developer",
   "project_manager",
+  "financial_analyst",
 ];
 
 /**
@@ -26,7 +28,7 @@ const AVAILABLE_ROLES: Role[] = [
 function App() {
   // State to manage the currently displayed view. Defaults to 'chat'.
   const [activeView, setActiveView] = useState<
-    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant"
+    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance"
   >("chat");
   // State to track which roles the user has activated.
   const [activeRoles, setActiveRoles] = useState<Role[]>([]);
@@ -95,6 +97,17 @@ function App() {
         return <CompetitorAnalysis />;
       case "learning-assistant":
         return <LearningAssistant />;
+      case "finance":
+        return (
+          <FeatureViewGuard
+            activeRoles={activeRoles}
+            requiredRole="financial_analyst"
+            roleName="Financial Analyst"
+            onNavigateToSettings={() => setActiveView("settings")}
+          >
+            <Finance />
+          </FeatureViewGuard>
+        );
       default:
         return <Chat />;
     }
@@ -150,6 +163,12 @@ function App() {
           className={activeView === "settings" ? "active" : ""}
         >
           Settings
+        </button>
+        <button
+            onClick={() => setActiveView("finance")}
+            className={activeView === "finance" ? "active" : ""}
+        >
+            Finance
         </button>
       </nav>
       <main className="app-content">{renderContent()}</main>

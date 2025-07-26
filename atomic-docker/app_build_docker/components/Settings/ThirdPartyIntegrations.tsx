@@ -1,57 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import Box from '@components/common/Box';
-import Text from '@components/common/Text';
-import Button from '@components/Button';
+import { Box, Button, Input, Text, useToast } from '@chakra-ui/react';
 
 const ThirdPartyIntegrations = () => {
-  const [zapierUrl, setZapierUrl] = useState('');
-  const [notionApiKey, setNotionApiKey] = useState('');
-  const [hubspotApiKey, setHubspotApiKey] = useState('');
-  const [calendlyApiKey, setCalendlyApiKey] = useState('');
-  const [stripeApiKey, setStripeApiKey] = useState('');
-  const [asanaApiKey, setAsanaApiKey] = useState('');
-  const [jiraUsername, setJiraUsername] = useState('');
-  const [jiraApiKey, setJiraApiKey] = useState('');
-  const [jiraServerUrl, setJiraServerUrl] = useState('');
-  const [trelloApiKey, setTrelloApiKey] = useState('');
-  const [trelloApiToken, setTrelloApiToken] = useState('');
-  const [githubApiKey, setGithubApiKey] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+    const [trelloApiKey, setTrelloApiKey] = useState('');
+    const [trelloToken, setTrelloToken] = useState('');
+    const [salesforceClientId, setSalesforceClientId] = useState('');
+    const [salesforceClientSecret, setSalesforceClientSecret] = useState('');
+    const [xeroClientId, setXeroClientId] = useState('');
+    const [xeroClientSecret, setXeroClientSecret] = useState('');
+    const [twitterApiKey, setTwitterApiKey] = useState('');
+    const [twitterApiSecret, setTwitterApiSecret] = useState('');
+    const [twitterAccessToken, setTwitterAccessToken] = useState('');
+    const [twitterAccessTokenSecret, setTwitterAccessTokenSecret] = useState('');
+    const toast = useToast();
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-        // ... (existing fetch logic)
-        // Calendly
-        if (await getSettingStatus('calendly_api_key')) {
-            setCalendlyApiKey('********');
-        }
-        // Stripe
-        if (await getSettingStatus('stripe_api_key')) {
-            setStripeApiKey('********');
-        }
-        // Asana
-        if (await getSettingStatus('asana_api_key')) {
-            setAsanaApiKey('********');
-        }
-        // Jira
-        if (await getSettingStatus('jira_api_key')) {
-            setJiraUsername(await getSetting('jira_username') || '');
-            setJiraApiKey('********');
-            setJiraServerUrl(await getSetting('jira_server_url') || '');
-        }
-        // Trello
-        if (await getSettingStatus('trello_api_key')) {
-            setTrelloApiKey('********');
-            setTrelloApiToken('********');
-        }
-        // GitHub
-        if (await getSettingStatus('github_api_key')) {
-            setGithubApiKey('********');
-        }
-    };
-    fetchSettings();
-  }, []);
+    useEffect(() => {
+        const loadCredentials = async () => {
+            const services = ['trello_api_key', 'trello_token', 'salesforce_client_id', 'salesforce_client_secret', 'xero_client_id', 'xero_client_secret', 'twitter_api_key', 'twitter_api_secret', 'twitter_access_token', 'twitter_access_token_secret'];
+            services.forEach(async (service) => {
+                const response = await fetch(`/api/integrations/credentials?service=${service}`);
+                const data = await response.json();
+                if (data.isConnected) {
+                    switch (service) {
+                        case 'trello_api_key': setTrelloApiKey('********'); break;
+                        case 'trello_token': setTrelloToken('********'); break;
+                        case 'salesforce_client_id': setSalesforceClientId('********'); break;
+                        case 'salesforce_client_secret': setSalesforceClientSecret('********'); break;
+                        case 'xero_client_id': setXeroClientId('********'); break;
+                        case 'xero_client_secret': setXeroClientSecret('********'); break;
+                        case 'twitter_api_key': setTwitterApiKey('********'); break;
+                        case 'twitter_api_secret': setTwitterApiSecret('********'); break;
+                        case 'twitter_access_token': setTwitterAccessToken('********'); break;
+                        case 'twitter_access_token_secret': setTwitterAccessTokenSecret('********'); break;
+                    }
+                }
+            });
+        };
+        loadCredentials();
+    }, []);
 
   // ... (existing save handlers)
 

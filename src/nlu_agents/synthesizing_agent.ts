@@ -54,7 +54,7 @@ Return ONLY a valid JSON object with the exact following structure. Ensure all f
   "extractedParameters": { /* key: value pairs, e.g., {"topic": "Project X", "attendee": "Jane"} */ },
   "suggestedNextAction": {
     "actionType": "'invoke_skill' | 'clarify_query' | 'perform_direct_action' | 'no_action_needed' | 'unable_to_determine'",
-    "skillId": "string (If actionType is 'invoke_skill', the ID of the skill to call, e.g., 'LearningAndGuidanceSkill', 'EmailTriageSkill'. Can be null if not applicable.)",
+    "skillId": "string (If actionType is 'invoke_skill', the ID of the skill to call, e.g., 'LearningAndGuidanceSkill', 'EmailTriageSkill', 'DataAnalystSkill'. Can be null if not applicable.)",
     "clarificationQuestion": "string (If actionType is 'clarify_query', a specific question to ask the user. Can be null if not applicable.)",
     "directActionDetails": { /* object (If actionType is 'perform_direct_action', details for the action. Can be null if not applicable.) */ },
     "reason": "string (A brief explanation for why this next action is suggested, considering the sub-agent inputs.)"
@@ -63,6 +63,7 @@ Return ONLY a valid JSON object with the exact following structure. Ensure all f
 
 Decision-Making Guidelines:
 - If Analytical Agent identifies clear, consistent tasks and Practical Agent deems them feasible, the \`primaryGoal\` should reflect these tasks, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' or 'perform_direct_action'. Confidence should be high.
+- If the Analytical Agent identifies the problem type as 'data_analysis', the \`primaryGoal\` should reflect this, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' with a relevant data skill.
 - If Creative Agent raises significant ambiguities or Practical Agent indicates low feasibility or failed common sense validation, \`suggestedNextAction.actionType\` should likely be 'clarify_query'. Confidence in \`primaryGoal\` might be lower. The \`clarificationQuestion\` should try to address the core issue.
 - If the overall intent is very unclear even after sub-agent analysis, use 'unable_to_determine' and provide a reason.
 - \`primaryGoalConfidence\` should reflect the overall clarity and actionability. For example, if a clarification is needed due to ambiguity, confidence might be medium. If feasibility is low, confidence might also be medium/low even if the task is clear.
