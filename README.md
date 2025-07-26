@@ -15,6 +15,7 @@ Atom is a powerful and flexible open-source AI assistant designed to streamline 
 ## Table of Contents
 - [Why Choose Atom?](#why-choose-atom)
 - [Example Use Cases](#example-use-cases)
+- [Comprehensive Use Cases](./USE_CASES.md)
 - [Documentation](#documentation)
 - [Features](#features)
 - [Core Agent Capabilities & Commands](#core-agent-capabilities--commands)
@@ -26,7 +27,7 @@ Atom is a powerful and flexible open-source AI assistant designed to streamline 
   - [AWS Cloud Deployment (Self-Hosted)](#aws-cloud-deployment-self-hosted)
 - [Support the Project](#support-the-project)
 - [Contributing](#contributing)
-- [New Use Cases](./NEW_USE_CASES.md)
+- [Comprehensive Use Cases Documentation (All Scenarios)](./USE_CASES.md)
 
 
 ## Example Use Cases
@@ -40,12 +41,13 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 *   **Intelligent Information Retrieval:** Ask Atom "What did we decide about Project X?" or "Search my meetings for discussions on marketing strategy." Atom can semantically search through your transcribed meeting archives (stored in Notion & LanceDB) to find relevant information quickly.
 *   **Proactive Schedule Optimization:** With Autopilot, Atom can learn your work patterns and preferences. "My mornings are for deep work. Keep them as free of meetings as possible." Atom will then intelligently schedule new events accordingly.
 *   **LLM-Powered Scheduling:** "Find a time for a 30-minute meeting with Sarah and John to discuss the Q3 marketing plan." Atom will use a large language model to parse your request and then find an optimal time for the meeting.
-*   **Comprehensive Finance Management:** Wake word activated finance commands via Plaid banking: "Atom what's my net worth today?" gives complete financial overview including secure bank connections, "Atom show my dining budget" displays budget analysis, "Atom where did I spend most money this month?" provides spending insights across categories, "Atom create emergency fund goal for $5000" sets up goal tracking, "Atom find Amazon purchases over $75" combines bank transactions and Gmail receipt search.
-*   **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
-*   **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
-*   **Proactive Meeting Prep:** "Atom, get me ready for my meeting with 'Project X'." Atom gathers related notes, emails, and tasks.
-*   **Weekly Review & Preview:** "Atom, what's my weekly digest?" Atom summarizes completed tasks, key meetings, and highlights upcoming critical items.
-*   **Intelligent Follow-ups:** After a meeting, ask "Atom, what follow-ups for the 'Project X' meeting?" Atom analyzes notes/transcripts for actions, decisions, and questions.
+- **Comprehensive Finance Management:** Wake word activated finance commands via Plaid banking: "Atom what's my net worth today?" gives complete financial overview including secure bank connections, "Atom show my dining budget" displays budget analysis, "Atom where did I spend most money this month?" provides spending insights across categories, "Atom create emergency fund goal for $5000" sets up goal tracking, "Atom find Amazon purchases over $75" combines bank transactions and Gmail receipt search.
+- **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
+- **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
+- **Proactive Meeting Prep:** "Atom, get me ready for my meeting with 'Project X'." Atom gathers related notes, emails, and tasks.
+- **Weekly Review & Preview:** "Atom, what's my weekly digest?" Atom summarizes completed tasks, key meetings, and highlights upcoming critical items.
+- **Intelligent Follow-ups:** After a meeting, ask "Atom, what follow-ups for the 'Project X' meeting?" Atom analyzes notes/transcripts for actions, decisions, and questions.
+- **Banking Integration**: Complete financial management with bank account connections, budget tracking, and intelligent spending insights.
 
 ## Documentation
 
@@ -176,10 +178,13 @@ The web version of Atom is available at [https://github.com/rush86999/atom/tree/
 6. Create new Pull Request from your fork
 
 
-## New Use Cases
+## Comprehensive Use Cases
 
-By combining multiple integrations, Atom can automate complex workflows and provide you with a powerful set of tools to manage your work and personal life. For more detailed information, please see our [New Use Cases Document](./NEW_USE_CASES.md).
+Atom can automate complex workflows across independent integrations. For complete scenarios including banking, email, team communications, and cross-platform automation, see our [Comprehensive Use Cases Documentation](./USE_CASES.md).
 
-*   **Proactive Project and Team Health Monitoring:** Monitor a project's health by combining data from project management, version control, communication, and calendar tools.
-*   **Automated Competitor Analysis:** Automatically gather and analyze information about competitors from a variety of sources.
-*   **Personalized Learning Assistant:** Create a personalized learning plan for the user based on their interests and learning history.
+Key scenarios include:
+- **Financial Management**: Complete money tracking with banking integrations
+- **Communication Hub**: Unified email and team collaboration
+- **Project Management**: Multi-platform workflow automation
+- **Personal Assistant**: Individual and business role optimization
+- **Voice-First Operations**: Cross-platform voice commands
