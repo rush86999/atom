@@ -108,13 +108,13 @@ Specific setup instructions and variable explanations for each deployment method
 ### Voice Finance Integration
 ```mermaid
     sequenceDiagram
-    participant User as You
-    participant Wake as Wake Word
-    participant NLU as NLU System
-    participant Finance as Finance Agent
+    participant User
+    participant Wake
+    participant NLU
+    participant Finance
+    participant Backend
     
     User->>Wake: "Atom what's my net worth"
-    Note over Wake: Detects "Atom" wake word
     Wake->>NLU: Passes query to NLU
     NLU->>Finance: Processes finance intent
     Finance->>Backend: Queries financial data
@@ -124,22 +124,17 @@ Specific setup instructions and variable explanations for each deployment method
 ### Meeting Assist
 ```mermaid
     sequenceDiagram
-        participant User
-        participant Wake as Wake Word
-        participant NLU as NLU System
-        participant Agent as Atom Agent
+    participant User
+    participant Wake
+    participant NLU
+    participant Agent
+    participant Backend
     
-        User->>Wake: "Atom what is my net worth?"
-        Note over Wake: Detects "Atom" wake word
-        Wake->>NLU: Passes complete query\n"what is my net worth"
-        NLU->>Agent: Processes finance intent
-        Agent->>Backend: Queries financial accounts
-        Agent-->>User: "Your net worth across all accounts is $127,430..."
-
-        User->>Wake: "Atom create budget for dining $500"
-        Wake->>NLU: "create budget for dining $500" 
-        NLU->>Agent: Budget creation intent
-        Agent-->>User: "Created $500 monthly dining budget with alerts!"
+    User->>Wake: "Atom create budget for dining $500"
+    Wake->>NLU: Create budget command
+    NLU->>Agent: Process budget creation
+    Agent->>Backend: Create budget in system
+    Agent-->>User: Created $500 dining budget with alerts!
 
 ## Deployment Options
 
