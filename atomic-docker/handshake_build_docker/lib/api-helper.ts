@@ -11,7 +11,7 @@ import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import _ from "lodash"
-import { authApiToken, hasuraAdminSecret, hasuraGraphUrl, meetingAssistAdminUrl } from "@lib/constants"
+import { authApiToken, postgraphileAdminSecret, postgraphileGraphUrl, meetingAssistAdminUrl } from "@lib/constants"
 import { AvailableSlot, AvailableSlotsByDate, CalendarIntegrationType, CustomAvailableTimeType, EventType, MeetingAssistAttendeeType, MeetingAssistCalendarType, MeetingAssistEventType, MeetingAssistInviteType, MeetingAssistPreferredTimeRangeType, ScheduleAssistWithMeetingQueueBodyType, MeetingAssistType, NotAvailableSlot, Time, UserContactInfoType, UserPreferenceType, RecurrenceFrequencyType, UserType } from "@lib/types"
 import { google } from 'googleapis'
 import { RRule } from 'rrule'
@@ -224,12 +224,12 @@ export const getUserPreferences = async (userId: string): Promise<UserPreference
     }    
   `
         const res: { data: { User_Preference: UserPreferenceType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -271,7 +271,7 @@ export const getUserGivenId = async (
         }
 
         const res: { data: { User_by_pk: UserType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -279,9 +279,9 @@ export const getUserGivenId = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -360,7 +360,7 @@ export const insertMeetingAssists = async (
         }
 
         const res: { data: { insert_Meeting_Assist: { affected_rows: number, returning: MeetingAssistType[] } } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -368,9 +368,9 @@ export const insertMeetingAssists = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -429,7 +429,7 @@ export const upsertMeetingAssistCalendars = async (
         }
 
         const res: { data: { insert_Meeting_Assist_Calendar: { affected_rows: number, returning: MeetingAssistCalendarType[] } } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -437,9 +437,9 @@ export const upsertMeetingAssistCalendars = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -551,7 +551,7 @@ export const upsertMeetingAssistEvents = async (
         }
 
         const res: any = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -559,9 +559,9 @@ export const upsertMeetingAssistEvents = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -739,7 +739,7 @@ export const getCalendarIntegration = async (
         }
 
         const res: { data: { Calendar_Integration: CalendarIntegrationType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 json: {
                     operationName,
@@ -747,9 +747,9 @@ export const getCalendarIntegration = async (
                     variables,
                 },
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
             },
         ).json()
@@ -825,12 +825,12 @@ export const getMeetingAssist = async (id: string) => {
         }
 
         const res: { data: { Meeting_Assist_by_pk: MeetingAssistType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -877,12 +877,12 @@ export const listMeetingAssistAttendeesGivenMeetingId = async (meetingId: string
         }
 
         const res: { data: { Meeting_Assist_Attendee: MeetingAssistAttendeeType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -964,12 +964,12 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
         const endDateInUserTimezone = dayjs(endDateInHostTimezone).tz(userTimezone).format().slice(0, 19)
 
         const res: { data: { Meeting_Assist_Event: MeetingAssistEventType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1051,12 +1051,12 @@ export const updateMeetingAssistAttendee = async (attendee: MeetingAssistAttende
         const variables = values
 
         const res: { data: { update_Meeting_Assist_Attendee_by_pk: MeetingAssistAttendeeType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1225,12 +1225,12 @@ export const insertMeetingAssistAttendees = async (
         }
 
         const res: { data: { insert_Meeting_Assist_Attendee: { affected_rows: number, returning: MeetingAssistAttendeeType[] } } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1291,12 +1291,12 @@ export const upsertOneMeetingAssistAttendee = async (attendee: MeetingAssistAtte
         }
 
         const res: { data: { insert_Meeting_Assist_Attendee_one: MeetingAssistAttendeeType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1342,12 +1342,12 @@ export const deleteMeetingAssistAttendee = async (id: string) => {
         }
 
         const res: { data: { delete_Meeting_Assist_Attendee_by_pk: MeetingAssistAttendeeType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1395,12 +1395,12 @@ export const getMeetingAssistAttendee = async (id: string) => {
         }
 
         const res: { data: { Meeting_Assist_Attendee_by_pk: MeetingAssistAttendeeType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1449,12 +1449,12 @@ export const getMeetingAssistAttendeeByEmail = async (primaryEmail: string, meet
         }
 
         const res: { data: { Meeting_Assist_Attendee: MeetingAssistAttendeeType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1530,12 +1530,12 @@ export const updateMeetingAssistAttendanceCount = async (id: string, attendeeCou
         }
 
         const res: { data: { update_Meeting_Assist_by_pk: MeetingAssistType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1575,12 +1575,12 @@ export const getUserContactInfo = async (id: string) => {
         }
 
         const res: { data: { User_Contact_Info_by_pk: UserContactInfoType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1736,12 +1736,12 @@ export const listEventsForUserGivenDates = async (
 
 
         const res: { data: { Event: EventType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1901,12 +1901,12 @@ export const findEventsForUserGivenMeetingId = async (
 
 
         const res: { data: { Event: EventType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -1953,12 +1953,12 @@ export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (meeting
         }
 
         const res: { data: { Meeting_Assist_Preferred_Time_Range: MeetingAssistPreferredTimeRangeType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -2569,12 +2569,12 @@ export const cancelMeetingAssist = async (
         }
 
         const res: { data: { update_Meeting_Assist_by_pk: MeetingAssistType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -2620,12 +2620,12 @@ export const deleteMeetingAssistPreferredTimesByIds = async (ids: string[]) => {
         }
 
         const res: { data: { delete_Meeting_Assist_Preferred_Time_Range: { affected_rows: number, returning: MeetingAssistPreferredTimeRangeType[] } } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -2686,12 +2686,12 @@ export const upsertMeetingAssistPreferredTimes = async (
         }
 
         const res: { data: { insert_Meeting_Assist_Preferred_Time_Range: { affected_rows: number, returning: MeetingAssistPreferredTimeRangeType[] } } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -2904,12 +2904,12 @@ export const getMeetingAssistInviteGivenId = async (
         }
 
         const res: { data: { Meeting_Assist_Invite_by_pk: MeetingAssistInviteType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -2955,12 +2955,12 @@ export const listMeetingAssistInvitesGivenMeetingId = async (
         }
 
         const res: { data: { Meeting_Assist_Invite: MeetingAssistInviteType[] } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
@@ -3009,12 +3009,12 @@ export const updateMeetingAssistInviteResponse = async (
         }
 
         const res: { data: { update_Meeting_Assist_Invite_by_pk: MeetingAssistInviteType } } = await got.post(
-            hasuraGraphUrl,
+            postgraphileGraphUrl,
             {
                 headers: {
-                    'X-Hasura-Admin-Secret': hasuraAdminSecret,
+                    'X-Postgraphile-Admin-Secret': postgraphileAdminSecret,
                     'Content-Type': 'application/json',
-                    'X-Hasura-Role': 'admin'
+                    'X-Postgraphile-Role': 'admin'
                 },
                 json: {
                     operationName,
