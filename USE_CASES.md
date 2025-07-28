@@ -234,3 +234,46 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 - **Financial Integration**: Extract financial data from emails independently  
 
 Refer to individual platform sections above for usage instructions for each specific integration.
+
+---
+
+## 🚀 New Agent Skills
+
+### Use Case 16: Advanced Market Research
+**Voice Command**: *"Atom, research the latest trends in the electric vehicle market and create a presentation."*
+
+**Integrations Active**:
+- **Advanced Research Agent**
+- **Content Creation Agent**
+- **Google Slides API**
+
+**Workflow**:
+1. The Advanced Research Agent gathers information from news articles, industry reports, and financial data sources.
+2. The Content Creation Agent uses the collected information to generate a presentation with key findings, charts, and graphs.
+3. The presentation is saved to the user's Google Drive account.
+
+### Use Case 17: Automated Social Media Management
+**Voice Command**: *"Atom, schedule a week's worth of social media posts about our new product launch."*
+
+**Integrations Active**:
+- **Social Media Agent**
+- **Content Creation Agent**
+- **Twitter API, Facebook Graph API, LinkedIn API**
+
+**Workflow**:
+1. The Content Creation Agent generates a series of social media posts about the new product launch.
+2. The Social Media Agent schedules the posts to be published on Twitter, Facebook, and LinkedIn at optimal times.
+3. The agent monitors the posts for comments and messages, and notifies the user of any important interactions.
+
+### Use Case 18: Personalized Shopping Experience
+**Voice Command**: *"Atom, find me a new laptop for work that's under $1000."*
+
+**Integrations Active**:
+- **Personalized Shopping Agent**
+- **Gmail Integration**
+- **Amazon Product Advertising API**
+
+**Workflow**:
+1. The Personalized Shopping Agent analyzes the user's purchase history from their email receipts to understand their preferences for brands and features.
+2. The agent searches for laptops on Amazon that meet the user's criteria.
+3. The agent presents the user with a list of recommended laptops, along with prices, reviews, and a summary of the key features.

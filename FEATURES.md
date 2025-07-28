@@ -29,6 +29,10 @@ Atom is designed to enhance your productivity through a comprehensive suite of A
 *   **Note-Taking:** Create text/audio notes automatically transcribed and saved to Notion.
 *   **In-Person Meeting Audio Notes:** Agent-controlled recording for physical meetings with automatic processing.
 *   **Multi-Agent Research System:** AI agents perform research across web and internal knowledge bases.
+*   **Advanced Research Agent:** A new agent that can perform in-depth research from a variety of sources, including academic papers, news articles, and financial data.
+*   **Social Media Agent:** A new agent that can manage social media accounts, including scheduling posts, responding to comments and messages, and analyzing engagement.
+*   **Content Creation Agent:** A new agent that can help users create a wider range of content, such as blog posts, articles, presentations, and even code.
+*   **Personalized Shopping Agent:** A new agent that can provide a more personalized shopping experience, by learning about the user's preferences and purchase history, and then recommending products that they are likely to be interested in.
 *   **Searchable Meeting Archive:** Semantic search through meeting transcripts and notes.
 
 ### Automation & AI Capabilities
