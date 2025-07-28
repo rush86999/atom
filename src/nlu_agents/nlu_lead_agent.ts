@@ -12,6 +12,7 @@ import { SynthesizingAgent } from './synthesizing_agent';
 import { TurnContext } from 'botbuilder';
 import { AgentLLMService } from './nlu_types';
 import { DataAnalystSkill } from '../skills/dataAnalystSkill';
+import { AdvancedResearchSkill } from '../skills/researchSkillIndex';
 
 export class NLULeadAgent {
     private analyticalAgent: AnalyticalAgent;
@@ -19,6 +20,7 @@ export class NLULeadAgent {
     private practicalAgent: PracticalAgent;
     private synthesizingAgent: SynthesizingAgent;
     private dataAnalystSkill: DataAnalystSkill;
+    private advancedResearchSkill: AdvancedResearchSkill;
     private agentName: string = "NLULeadAgent";
 
     constructor(
@@ -32,6 +34,7 @@ export class NLULeadAgent {
         this.practicalAgent = new PracticalAgent(llmService);
         this.synthesizingAgent = new SynthesizingAgent(llmService);
         this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
+        this.advancedResearchSkill = new AdvancedResearchSkill();
     }
 
     public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -56,6 +59,16 @@ export class NLULeadAgent {
         console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
         const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse);
         console.timeEnd(P_LEAD_SYNTHESIS_TIMER_LABEL);
+
+        if (synthesisResult.suggestedNextAction?.actionType === 'invoke_skill') {
+            const skillId = synthesisResult.suggestedNextAction.skillId;
+            if (skillId === 'advancedResearch') {
+                // @ts-ignore
+                const researchResult = await this.advancedResearchSkill.handler(synthesisResult.extractedParameters);
+                console.log("Advanced Research Skill Result:", researchResult);
+            }
+            // Add similar blocks for other skills
+        }
 
         return {
             originalQuery: input.userInput,

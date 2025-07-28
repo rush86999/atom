@@ -24,7 +24,7 @@ Focus on:
 2.  **Explicit Tasks**: Verbs and actions the user explicitly states they want to perform.
 3.  **Information Needed**: What specific information is the user seeking?
 4.  **Logical Consistency**: Is the request clear, unambiguous, and logically sound? Identify any contradictions or vagueness.
-5.  **Problem Type**: Classify the general type of problem (e.g., information_retrieval, task_execution, data_analysis, comparison, troubleshooting).
+5.  **Problem Type**: Classify the general type of problem (e.g., information_retrieval, task_execution, data_analysis, comparison, troubleshooting, advanced_research, social_media_management, content_creation, personalized_shopping).
 
 Return your analysis ONLY as a valid JSON object with the following structure:
 {
