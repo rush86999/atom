@@ -34,3 +34,5 @@ cryptography
 kafka-python
 pandas
 elevenlabs
+box-python-sdk
+asana
