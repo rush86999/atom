@@ -6,19 +6,27 @@ logger = logging.getLogger(__name__)
 
 box_bp = Blueprint('box_bp', __name__)
 
-# A mock function to get a Box client
-# In a real application, this would involve OAuth and token management
-def get_box_client(user_id: str):
-    # This is a placeholder. In a real app, you'd fetch the user's token from a database.
-    # For this example, we'll use a developer token from an environment variable.
-    import os
-    developer_token = os.getenv("BOX_DEVELOPER_TOKEN")
-    if not developer_token:
-        raise ValueError("BOX_DEVELOPER_TOKEN environment variable not set.")
-    return box_service.BoxService(developer_token)
+from boxsdk import OAuth2
+from . import db_oauth_box, crypto_utils
+
+async def get_box_client(user_id: str, db_conn_pool):
+    tokens = await db_oauth_box.get_tokens(db_conn_pool, user_id)
+    if not tokens:
+        return None
+
+    access_token = crypto_utils.decrypt_message(tokens[0])
+    refresh_token = crypto_utils.decrypt_message(tokens[1]) if tokens[1] else None
+
+    oauth = OAuth2(
+        client_id=os.getenv("BOX_CLIENT_ID"),
+        client_secret=os.getenv("BOX_CLIENT_SECRET"),
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
+    return box_service.BoxService(oauth)
 
 @box_bp.route('/api/box/search', methods=['POST'])
-def search_box_route():
+async def search_box_route():
     data = request.get_json()
     user_id = data.get('user_id')
     query = data.get('query')
@@ -26,7 +34,9 @@ def search_box_route():
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id and query are required."}}), 400
 
     try:
-        client = get_box_client(user_id)
+        client = await get_box_client(user_id, current_app.config['DB_CONNECTION_POOL'])
+        if not client:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "User not authenticated with Box."}}), 401
         search_results = client.list_files(query=query)
         return jsonify({"ok": True, "data": search_results})
     except Exception as e:
@@ -34,7 +44,7 @@ def search_box_route():
         return jsonify({"ok": False, "error": {"code": "SEARCH_FILES_FAILED", "message": str(e)}}), 500
 
 @box_bp.route('/api/box/list-files', methods=['POST'])
-def list_files():
+async def list_files():
     data = request.get_json()
     user_id = data.get('user_id')
     folder_id = data.get('folder_id', '0')
@@ -42,7 +52,9 @@ def list_files():
         return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
 
     try:
-        client = get_box_client(user_id)
+        client = await get_box_client(user_id, current_app.config['DB_CONNECTION_POOL'])
+        if not client:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "User not authenticated with Box."}}), 401
         list_results = client.list_files(folder_id=folder_id)
         return jsonify({"ok": True, "data": list_results})
     except Exception as e:
