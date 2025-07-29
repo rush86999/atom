@@ -7,6 +7,7 @@ import { registerSkill, SkillDefinition } from '../services/agentSkillRegistry';
 import { allFinanceSkills, financeAgentTools, FinanceSkillRegistration } from './financeSkillIndex';
 import { processVoiceFinance } from './financeVoiceAgent';
 import { researchSkills } from './researchSkillIndex';
+import { legalSkills } from './legalSkillIndex';
 
 // Finance skill activation triggers
 const financeSkillConfig = {
@@ -159,9 +160,37 @@ export async function registerResearchSkills() {
   }
 }
 
+// Register all legal skills with Atom agent
+export async function registerLegalSkills() {
+  console.log('⚖️ Registering Atom Legal Skills for Wake Word Activation');
+
+  try {
+    // Register each legal skill
+    for (const skill of legalSkills) {
+      await registerSkill(skill);
+    }
+
+    console.log('✅ Legal skills registered successfully');
+
+    return {
+      success: true,
+      registeredSkills: legalSkills.length,
+      naturalLanguageSupport: true,
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to register legal skills:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
 // Auto-registration on import
 registerFinanceSkills().catch(console.error);
 registerResearchSkills().catch(console.error);
+registerLegalSkills().catch(console.error);
 
 // Integration exports
 export { FinanceSkillRegistration as FinanceCapabilities };

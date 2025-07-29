@@ -277,3 +277,43 @@ Refer to individual platform sections above for usage instructions for each spec
 1. The Personalized Shopping Agent analyzes the user's purchase history from their email receipts to understand their preferences for brands and features.
 2. The agent searches for laptops on Amazon that meet the user's criteria.
 3. The agent presents the user with a list of recommended laptops, along with prices, reviews, and a summary of the key features.
+
+### Use Case 19: Legal Document Analysis
+**Voice Command**: *"Atom, analyze this contract and identify any potential risks: [URL/filepath]."*
+
+**Integrations Active**:
+- **Legal Document Analysis Agent**
+- **PDF parsing libraries**
+- **Legal NLP models**
+
+**Workflow**:
+1. The Legal Document Analysis Agent parses the contract and extracts the text.
+2. The agent uses a legal NLP model to identify key clauses, entities, and sentiment.
+3. The agent returns a summary of the contract, with the key clauses and potential risks highlighted.
+
+### Use Case 20: Recruitment Recommendation
+**Voice Command**: *"Atom, find the best candidates for the Senior Software Engineer position."*
+
+**Integrations Active**:
+- **Recruitment Recommendation Agent**
+- **Applicant Tracking System (ATS) APIs**
+- **LinkedIn Recruiter API**
+
+**Workflow**:
+1. The Recruitment Recommendation Agent accesses the job description and candidate resumes from the ATS.
+2. The agent parses the resumes and extracts key information, such as skills, experience, and education.
+3. The agent uses a matching algorithm to compare the candidates' qualifications with the job requirements.
+4. The agent returns a ranked list of the best-fit candidates, with a summary of their qualifications and a link to their resume.
+
+### Use Case 21: Vibe Hacking
+**Voice Command**: *"Atom, perform a red team test on our web application."*
+
+**Integrations Active**:
+- **Vibe Hacking Agent**
+- **Penetration testing tools**
+- **Vulnerability scanning tools**
+
+**Workflow**:
+1. The Vibe Hacking Agent uses a variety of tools to scan the target system for vulnerabilities.
+2. The agent attempts to exploit any vulnerabilities that it finds.
+3. The agent generates a report of its findings, with a description of the vulnerabilities, the steps taken to exploit them, and recommendations for remediation.
