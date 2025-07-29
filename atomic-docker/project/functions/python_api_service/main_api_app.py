@@ -46,6 +46,8 @@ from .payroll_handler import payroll_bp
 from .manual_account_handler import manual_account_bp
 from .manual_transaction_handler import manual_transaction_bp
 from .reporting_handler import reporting_bp
+from .box_handler import box_bp
+from .asana_handler import asana_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -153,6 +155,10 @@ def create_app(db_pool=None):
     logger.info("Registered 'manual_transaction_bp' blueprint.")
     app.register_blueprint(reporting_bp)
     logger.info("Registered 'reporting_bp' blueprint.")
+    app.register_blueprint(box_bp)
+    logger.info("Registered 'box_bp' blueprint.")
+    app.register_blueprint(asana_bp)
+    logger.info("Registered 'asana_bp' blueprint.")
 
     from .github_handler import github_bp
     app.register_blueprint(github_bp)
