@@ -33,6 +33,41 @@ struct NluResponse {
     entities: serde_json::Value,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct SearchResult {
+    skill: String,
+    title: String,
+    url: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DashboardData {
+    calendar: Vec<CalendarEvent>,
+    tasks: Vec<Task>,
+    social: Vec<SocialPost>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct CalendarEvent {
+    id: i32,
+    title: String,
+    time: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Task {
+    id: i32,
+    title: String,
+    due_date: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct SocialPost {
+    id: i32,
+    platform: String,
+    post: String,
+}
+
 // --- Secure Storage ---
 fn get_settings_path(app_handle: &AppHandle) -> PathBuf {
     let mut path = app_handle.path_resolver().app_data_dir().unwrap();
@@ -238,6 +273,27 @@ async fn generate_learning_plan(app_handle: AppHandle, notion_database_id: Strin
     }
 }
 
+#[tauri::command]
+async fn smart_search(query: String) -> Result<Vec<SearchResult>, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("http://localhost:3000/api/smart-search?query={}", query))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                let search_results: Vec<SearchResult> = res.json().await.unwrap();
+                Ok(search_results)
+            } else {
+                Err(format!("Failed to get search results: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to search endpoint: {}", err)),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -246,8 +302,31 @@ fn main() {
             get_setting,
             get_project_health_score,
             run_competitor_analysis,
-            generate_learning_plan
+            generate_learning_plan,
+            smart_search,
+            dashboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[tauri::command]
+async fn dashboard() -> Result<DashboardData, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:3000/api/dashboard")
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                let dashboard_data: DashboardData = res.json().await.unwrap();
+                Ok(dashboard_data)
+            } else {
+                Err(format!("Failed to get dashboard data: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to dashboard endpoint: {}", err)),
+    }
 }
