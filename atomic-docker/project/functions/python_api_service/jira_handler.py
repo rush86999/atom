@@ -6,18 +6,18 @@ logger = logging.getLogger(__name__)
 
 jira_bp = Blueprint('jira_bp', __name__)
 
-# A mock function to get a Jira client
-# In a real application, this would involve OAuth and token management
+from jira import JIRA
+import os
+
 def get_jira_client(user_id: str):
-    # This is a placeholder. In a real app, you'd fetch the user's token from a database.
-    # For this example, we'll use credentials from environment variables.
-    import os
-    server_url = os.getenv("JIRA_SERVER_URL")
-    username = os.getenv("JIRA_USERNAME")
-    api_token = os.getenv("JIRA_API_TOKEN")
+    server_url = os.getenv(f"JIRA_SERVER_URL_{user_id}")
+    username = os.getenv(f"JIRA_USERNAME_{user_id}")
+    api_token = os.getenv(f"JIRA_API_TOKEN_{user_id}")
     if not all([server_url, username, api_token]):
-        raise ValueError("Jira credentials not set in environment variables.")
-    return jira_service.JiraService(server_url, username, api_token)
+        return None
+
+    client = JIRA(server=server_url, basic_auth=(username, api_token))
+    return jira_service.JiraService(client)
 
 @jira_bp.route('/api/jira/search', methods=['POST'])
 def search_jira_route():
@@ -30,6 +30,8 @@ def search_jira_route():
 
     try:
         client = get_jira_client(user_id)
+        if not client:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "User not authenticated with Jira."}}), 401
         search_results = client.list_files(project_id=project_id, query=query)
         return jsonify({"ok": True, "data": search_results})
     except Exception as e:
@@ -46,6 +48,8 @@ def list_issues():
 
     try:
         client = get_jira_client(user_id)
+        if not client:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "User not authenticated with Jira."}}), 401
         list_results = client.list_files(project_id=project_id)
         return jsonify({"ok": True, "data": list_results})
     except Exception as e:

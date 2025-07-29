@@ -6,18 +6,25 @@ logger = logging.getLogger(__name__)
 
 trello_bp = Blueprint('trello_bp', __name__)
 
-# A mock function to get a Trello client
-# In a real application, this would involve OAuth and token management
-def get_trello_client(user_id: str):
-    # This is a placeholder. In a real app, you'd fetch the user's token from a database.
-    # For this example, we'll use credentials from environment variables.
-    import os
-    api_key = os.getenv("TRELLO_API_KEY")
-    api_secret = os.getenv("TRELLO_API_SECRET")
-    token = os.getenv("TRELLO_TOKEN")
-    if not all([api_key, api_secret, token]):
-        raise ValueError("Trello API credentials not set in environment variables.")
-    return trello_service.TrelloService(api_key, api_secret, token)
+from trello import TrelloClient
+from . import db_oauth_trello, crypto_utils
+import os
+
+async def get_trello_client(user_id: str, db_conn_pool):
+    tokens = await db_oauth_trello.get_tokens(db_conn_pool, user_id)
+    if not tokens:
+        return None
+
+    access_token = crypto_utils.decrypt_message(tokens[0])
+    access_token_secret = crypto_utils.decrypt_message(tokens[1])
+
+    client = TrelloClient(
+        api_key=os.getenv("TRELLO_API_KEY"),
+        api_secret=os.getenv("TRELLO_API_SECRET"),
+        token=access_token,
+        token_secret=access_token_secret
+    )
+    return trello_service.TrelloService(client)
 
 @trello_bp.route('/api/trello/search', methods=['POST'])
 def search_trello_route():

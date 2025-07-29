@@ -1,11 +1,12 @@
 from jira import JIRA
 from typing import Dict, Any, Optional
+import os
 
 from .mcp_base import MCPBase
 
 class JiraService(MCPBase):
-    def __init__(self, server_url: str, username: str, api_token: str):
-        self.client = JIRA(server=server_url, basic_auth=(username, api_token))
+    def __init__(self, client: JIRA):
+        self.client = client
 
     def list_files(
         self,

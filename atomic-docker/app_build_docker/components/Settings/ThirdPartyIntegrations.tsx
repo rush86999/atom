@@ -274,20 +274,7 @@ const ThirdPartyIntegrations = () => {
         <Text variant="subHeader" marginBottom="s">
           Asana Integration
         </Text>
-        <input
-          type="password"
-          value={asanaApiKey}
-          onChange={(e) => setAsanaApiKey(e.target.value)}
-          placeholder="Enter Asana Personal Access Token"
-          style={{
-            width: '100%',
-            padding: '8px',
-            marginBottom: '8px',
-            border: '1px solid #ccc',
-            borderRadius: '4px',
-          }}
-        />
-        <Button onPress={handleSaveAsanaApiKey} variant="primary" title="Save Asana Token" />
+        <Button onPress={() => window.location.href = '/api/auth/asana/initiate'} variant="primary" title="Connect Asana" />
       </Box>
       <Box marginBottom="m">
         <Text variant="subHeader" marginBottom="s">
@@ -338,13 +325,19 @@ const ThirdPartyIntegrations = () => {
         <Text variant="subHeader" marginBottom="s">
           Trello Integration
         </Text>
-        {/* ... (existing Trello inputs and button) */}
+        <Button onPress={() => window.location.href = '/api/auth/trello/initiate'} variant="primary" title="Connect Trello" />
       </Box>
       <Box marginBottom="m">
         <Text variant="subHeader" marginBottom="s">
           GitHub Integration
         </Text>
         {/* ... (existing GitHub inputs and button) */}
+      </Box>
+      <Box marginBottom="m">
+        <Text variant="subHeader" marginBottom="s">
+          Box Integration
+        </Text>
+        <Button onPress={() => window.location.href = '/api/auth/box/initiate'} variant="primary" title="Connect Box" />
       </Box>
       <Box marginBottom="m">
         <Text variant="subHeader" marginBottom="s">

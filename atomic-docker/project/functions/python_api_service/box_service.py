@@ -1,11 +1,12 @@
 from boxsdk import Client, OAuth2
 from typing import Dict, Any, Optional
+from . import db_oauth_box, crypto_utils
 
 from .mcp_base import MCPBase
 
 class BoxService(MCPBase):
-    def __init__(self, developer_token: str):
-        self.client = Client(OAuth2(client_id=None, client_secret=None, developer_token=developer_token))
+    def __init__(self, oauth: OAuth2):
+        self.client = Client(oauth)
 
     def list_files(
         self,
