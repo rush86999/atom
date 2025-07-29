@@ -195,6 +195,8 @@ registerLegalSkills().catch(console.error);
 // Integration exports
 export { FinanceSkillRegistration as FinanceCapabilities };
 export { financeSkillConfig as FinanceCommandConfig };
+export * as boxSkills from './boxSkills';
+export * as asanaSkills from './asanaSkills';
 
 // Default export for import
 export default {
