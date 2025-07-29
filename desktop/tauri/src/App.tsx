@@ -9,6 +9,7 @@ import Social from "./Social";
 import Content from "./Content";
 import Shopping from "./Shopping";
 import SmartSearch from "./SmartSearch";
+import Dashboard from "./Dashboard";
 import FeatureViewGuard from "./components/FeatureViewGuard";
 import ProjectHealth from './ProjectHealth';
 import CompetitorAnalysis from './CompetitorAnalysis';
@@ -168,88 +169,7 @@ function App() {
 
   return (
     <div className="App">
-      <SmartSearch />
-      <nav className="app-nav">
-        <button
-          onClick={() => setActiveView("chat")}
-          className={activeView === "chat" ? "active" : ""}
-        >
-          Chat
-        </button>
-        <button
-          onClick={() => setActiveView("sales")}
-          className={activeView === "sales" ? "active" : ""}
-        >
-          Sales
-        </button>
-        <button
-          onClick={() => setActiveView("projects")}
-          className={activeView === "projects" ? "active" : ""}
-        >
-          Projects
-        </button>
-        <button
-          onClick={() => setActiveView("support")}
-          className={activeView === "support" ? "active" : ""}
-        >
-          Support
-        </button>
-        <button
-          onClick={() => setActiveView("project-health")}
-          className={activeView === "project-health" ? "active" : ""}
-        >
-          Project Health
-        </button>
-        <button
-          onClick={() => setActiveView("competitor-analysis")}
-          className={activeView === "competitor-analysis" ? "active" : ""}
-        >
-          Competitor Analysis
-        </button>
-        <button
-          onClick={() => setActiveView("learning-assistant")}
-          className={activeView === "learning-assistant" ? "active" : ""}
-        >
-          Learning Assistant
-        </button>
-        <button
-          onClick={() => setActiveView("settings")}
-          className={activeView === "settings" ? "active" : ""}
-        >
-          Settings
-        </button>
-        <button
-            onClick={() => setActiveView("finance")}
-            className={activeView === "finance" ? "active" : ""}
-        >
-            Finance
-        </button>
-        <button
-          onClick={() => setActiveView("research")}
-          className={activeView === "research" ? "active" : ""}
-        >
-          Research
-        </button>
-        <button
-          onClick={() => setActiveView("social")}
-          className={activeView === "social" ? "active" : ""}
-        >
-          Social
-        </button>
-        <button
-          onClick={() => setActiveView("content")}
-          className={activeView === "content" ? "active" : ""}
-        >
-          Content
-        </button>
-        <button
-          onClick={() => setActiveView("shopping")}
-          className={activeView === "shopping" ? "active" : ""}
-        >
-          Shopping
-        </button>
-      </nav>
-      <main className="app-content">{renderContent()}</main>
+      <Dashboard />
     </div>
   );
 }
