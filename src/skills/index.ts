@@ -197,6 +197,7 @@ export { FinanceSkillRegistration as FinanceCapabilities };
 export { financeSkillConfig as FinanceCommandConfig };
 export * as boxSkills from './boxSkills';
 export * as asanaSkills from './asanaSkills';
+export * as trelloSkills from './trelloSkills';
 
 // Default export for import
 export default {
