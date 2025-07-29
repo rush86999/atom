@@ -55,6 +55,71 @@ export interface PracticalAgentResponse {
     rawLLMResponse?: string; // For debugging
 }
 
+// --- New Agent Skill Responses ---
+
+export interface AdvancedResearchAgentResponse {
+    researchSummary?: string;
+    keyFindings?: string[];
+    sources?: { title: string; url: string }[];
+    rawLLMResponse?: string;
+}
+
+export interface SocialMediaAgentResponse {
+    scheduledPosts?: {
+        platform: "Twitter" | "Facebook" | "LinkedIn";
+        content: string;
+        scheduledTime: string;
+    }[];
+    engagementSummary?: string;
+    rawLLMResponse?: string;
+}
+
+export interface ContentCreationAgentResponse {
+    generatedContent?: string;
+    contentType?: "blog post" | "article" | "presentation" | "code";
+    rawLLMResponse?: string;
+}
+
+export interface PersonalizedShoppingAgentResponse {
+    productRecommendations?: {
+        productName: string;
+        price: number;
+        url: string;
+        reasoning: string;
+    }[];
+    rawLLMResponse?: string;
+}
+
+export interface LegalDocumentAnalysisAgentResponse {
+    riskAnalysis?: {
+        clause: string;
+        riskLevel: "High" | "Medium" | "Low";
+        explanation: string;
+    }[];
+    summary?: string;
+    rawLLMResponse?: string;
+}
+
+export interface RecruitmentRecommendationAgentResponse {
+    recommendedCandidates?: {
+        name: string;
+        resumeUrl: string;
+        matchScore: number;
+        summary: string;
+    }[];
+    rawLLMResponse?: string;
+}
+
+export interface VibeHackingAgentResponse {
+    vulnerabilityReport?: {
+        vulnerability: string;
+        severity: "Critical" | "High" | "Medium" | "Low";
+        description: string;
+        remediation: string;
+    }[];
+    rawLLMResponse?: string;
+}
+
 // --- NLU Lead Agent Output ---
 export interface EnrichedIntent {
     originalQuery: string;
@@ -80,6 +145,11 @@ export interface EnrichedIntent {
         analytical: AnalyticalAgentResponse | null;
         creative: CreativeAgentResponse | null;
         practical: PracticalAgentResponse | null;
+        socialMedia: SocialMediaAgentResponse | null;
+        contentCreation: ContentCreationAgentResponse | null;
+        personalizedShopping: PersonalizedShoppingAgentResponse | null;
+        recruitmentRecommendation: RecruitmentRecommendationAgentResponse | null;
+        vibeHacking: VibeHackingAgentResponse | null;
     };
     synthesisLog?: string[]; // Log of how synthesis was performed
 }
