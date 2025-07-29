@@ -1,11 +1,12 @@
 import asana
 from typing import Dict, Any, Optional
+from . import db_oauth_asana, crypto_utils
 
 from .mcp_base import MCPBase
 
 class AsanaService(MCPBase):
-    def __init__(self, personal_access_token: str):
-        self.client = asana.Client.access_token(personal_access_token)
+    def __init__(self, client: asana.Client):
+        self.client = client
 
     def list_files(
         self,

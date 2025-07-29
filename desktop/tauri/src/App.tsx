@@ -15,6 +15,7 @@ import ProjectHealth from './ProjectHealth';
 import CompetitorAnalysis from './CompetitorAnalysis';
 import LearningAssistant from './LearningAssistant';
 import Finance from './Finance';
+import Integrations from "./components/Integrations";
 import "./App.css";
 
 // Define the roles available in the desktop application.
@@ -38,7 +39,7 @@ const AVAILABLE_ROLES: Role[] = [
 function App() {
   // State to manage the currently displayed view. Defaults to 'chat'.
   const [activeView, setActiveView] = useState<
-    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance" | "research" | "social" | "content" | "shopping"
+    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance" | "research" | "social" | "content" | "shopping" | "integrations"
   >("chat");
   // State to track which roles the user has activated.
   const [activeRoles, setActiveRoles] = useState<Role[]>([]);
@@ -101,6 +102,8 @@ function App() {
             onToggleRole={handleToggleRole}
           />
         );
+      case "integrations":
+        return <Integrations />;
       case "project-health":
         return <ProjectHealth />;
       case "competitor-analysis":
@@ -169,7 +172,10 @@ function App() {
 
   return (
     <div className="App">
-      <Dashboard />
+      <Dashboard setActiveView={setActiveView} />
+      <div className="content">
+        {renderContent()}
+      </div>
     </div>
   );
 }

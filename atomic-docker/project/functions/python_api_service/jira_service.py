@@ -1,33 +1,50 @@
-import os
-import logging
-from typing import Optional, Dict, Any
 from jira import JIRA
+from typing import Dict, Any, Optional
+import os
 
-logger = logging.getLogger(__name__)
+from .mcp_base import MCPBase
 
-async def get_jira_client(user_id: str, db_conn_pool) -> Optional[JIRA]:
-    # This is a placeholder. In a real application, you would fetch the user's Jira credentials
-    # from a secure database. For now, we'll use environment variables.
-    # You'll need to create a table to store these credentials, similar to the Dropbox and Google Drive implementations.
-    server = os.environ.get("JIRA_SERVER")
-    email = os.environ.get("JIRA_EMAIL")
-    token = os.environ.get("JIRA_TOKEN")
+class JiraService(MCPBase):
+    def __init__(self, client: JIRA):
+        self.client = client
 
-    if not all([server, email, token]):
-        logger.error("Jira credentials are not configured in environment variables.")
-        return None
+    def list_files(
+        self,
+        project_id: str,
+        query: Optional[str] = None,
+        page_size: int = 100,
+        page_token: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        try:
+            if query:
+                jql = f'project = "{project_id}" AND text ~ "{query}"'
+            else:
+                jql = f'project = "{project_id}"'
 
-    try:
-        client = JIRA(server=server, basic_auth=(email, token))
-        return client
-    except Exception as e:
-        logger.error(f"Failed to create Jira client: {e}", exc_info=True)
-        return None
+            start_at = int(page_token) if page_token else 0
+            issues = self.client.search_issues(jql, startAt=start_at, maxResults=page_size)
 
-async def create_issue(client: JIRA, issue_data: Dict[str, Any]) -> Dict[str, Any]:
-    issue = client.create_issue(fields=issue_data)
-    return issue.raw
+            next_page_token = str(start_at + len(issues)) if len(issues) == page_size else None
 
-async def get_issue(client: JIRA, issue_id: str) -> Dict[str, Any]:
-    issue = client.issue(issue_id)
-    return issue.raw
+            return {"status": "success", "data": {"files": [issue.raw for issue in issues], "nextPageToken": next_page_token}}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def get_file_metadata(
+        self,
+        file_id: str,
+        **kwargs
+    ) -> Dict[str, Any]:
+        try:
+            issue = self.client.issue(file_id)
+            return {"status": "success", "data": issue.raw}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def download_file(
+        self,
+        file_id: str,
+        **kwargs
+    ) -> Dict[str, Any]:
+        return {"status": "error", "message": "Download not directly supported for Jira issues."}

@@ -1,11 +1,12 @@
 from trello import TrelloClient
 from typing import Dict, Any, Optional
+from . import db_oauth_trello, crypto_utils
 
 from .mcp_base import MCPBase
 
 class TrelloService(MCPBase):
-    def __init__(self, api_key: str, api_secret: str, token: str):
-        self.client = TrelloClient(api_key=api_key, api_secret=api_secret, token=token)
+    def __init__(self, client: TrelloClient):
+        self.client = client
 
     def list_files(
         self,
