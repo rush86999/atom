@@ -36,3 +36,4 @@ pandas
 elevenlabs
 box-python-sdk
 asana
+py-trello
