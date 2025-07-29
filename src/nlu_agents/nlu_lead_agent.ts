@@ -13,6 +13,7 @@ import { TurnContext } from 'botbuilder';
 import { AgentLLMService } from './nlu_types';
 import { DataAnalystSkill } from '../skills/dataAnalystSkill';
 import { AdvancedResearchSkill } from '../skills/researchSkillIndex';
+import { LegalDocumentAnalysisSkill } from '../skills/legalSkillIndex';
 
 export class NLULeadAgent {
     private analyticalAgent: AnalyticalAgent;
@@ -21,6 +22,7 @@ export class NLULeadAgent {
     private synthesizingAgent: SynthesizingAgent;
     private dataAnalystSkill: DataAnalystSkill;
     private advancedResearchSkill: AdvancedResearchSkill;
+    private legalDocumentAnalysisSkill: LegalDocumentAnalysisSkill;
     private agentName: string = "NLULeadAgent";
 
     constructor(
@@ -35,6 +37,7 @@ export class NLULeadAgent {
         this.synthesizingAgent = new SynthesizingAgent(llmService);
         this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
         this.advancedResearchSkill = new AdvancedResearchSkill();
+        this.legalDocumentAnalysisSkill = new LegalDocumentAnalysisSkill();
     }
 
     public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -66,6 +69,10 @@ export class NLULeadAgent {
                 // @ts-ignore
                 const researchResult = await this.advancedResearchSkill.handler(synthesisResult.extractedParameters);
                 console.log("Advanced Research Skill Result:", researchResult);
+            } else if (skillId === 'legalDocumentAnalysis') {
+                // @ts-ignore
+                const legalResult = await this.legalDocumentAnalysisSkill.handler(synthesisResult.extractedParameters);
+                console.log("Legal Document Analysis Skill Result:", legalResult);
             }
             // Add similar blocks for other skills
         }

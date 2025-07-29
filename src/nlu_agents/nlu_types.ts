@@ -18,7 +18,7 @@ export interface AnalyticalAgentResponse {
         isConsistent: boolean;
         reason?: string;
     };
-    problemType?: string; // e.g., "information_retrieval", "task_execution", "comparison", "problem_solving", "advanced_research", "social_media_management", "content_creation", "personalized_shopping"
+    problemType?: string; // e.g., "information_retrieval", "task_execution", "comparison", "problem_solving", "advanced_research", "social_media_management", "content_creation", "personalized_shopping", "legal_document_analysis", "recruitment_recommendation", "vibe_hacking"
     rawLLMResponse?: string; // For debugging
 }
 
