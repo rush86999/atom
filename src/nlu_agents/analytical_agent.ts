@@ -102,11 +102,6 @@ UserId: ${input.userId || 'N/A'}
             rawLLMResponse: llmResponse.content, // Always include the raw response for debugging
         };
 
-        if (analyticalAgentResponse.problemType === 'data_analysis') {
-            const dataAnalystResponse = await this.dataAnalystAgent.analyze(input);
-            analyticalAgentResponse.dataAnalystResponse = dataAnalystResponse;
-        }
-
         return analyticalAgentResponse;
     }
 }
