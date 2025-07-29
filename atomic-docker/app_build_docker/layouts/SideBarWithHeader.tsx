@@ -51,6 +51,8 @@ interface LinkItemProps {
 }
 import { FiDollarSign } from "react-icons/fi";
 
+import { FaShoppingCart, FaSearch, FaFeatherAlt, FaGlobe } from "react-icons/fa";
+
 const LinkItems: Array<LinkItemProps> = [
   { name: "Home", icon: FiHome, href: "/" },
   {
@@ -62,6 +64,10 @@ const LinkItems: Array<LinkItemProps> = [
   { name: "Sales", icon: FiTrendingUp, href: "/Sales" },
   { name: "Projects", icon: FiBriefcase, href: "/Projects" },
   { name: "Support", icon: FiHelpCircle, href: "/Support" },
+  { name: "Research", icon: FaSearch, href: "/Research" },
+  { name: "Social", icon: FaGlobe, href: "/Social" },
+  { name: "Content", icon: FaFeatherAlt, href: "/Content" },
+  { name: "Shopping", icon: FaShoppingCart, href: "/Shopping" },
   { name: "Settings", icon: FiSettings, href: "/Settings" },
 ];
 
@@ -132,7 +138,19 @@ const SidebarContent = ({ onClose, ...rest }: SidebarProps) => {
           return hasRole("support");
         }
         if (link.name === "Finance") {
-            return hasRole("finance");
+            return hasRole("financial_analyst");
+        }
+        if (link.name === "Research") {
+          return hasRole("researcher");
+        }
+        if (link.name === "Social") {
+          return hasRole("social_media_manager");
+        }
+        if (link.name === "Content") {
+          return hasRole("content_creator");
+        }
+        if (link.name === "Shopping") {
+          return hasRole("shopper");
         }
         return true;
       }).map((link) => (

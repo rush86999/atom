@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 
 // Define the type for a role. This can be expanded with more roles as needed.
-export type Role = 'sales' | 'support' | 'developer' | 'project_manager';
+export type Role = 'sales' | 'support' | 'developer' | 'project_manager' | 'researcher' | 'social_media_manager' | 'content_creator' | 'shopper';
 
 // Define the interface for the context's value
 interface UserRoleContextType {
@@ -28,7 +28,7 @@ export const useUserRole = () => {
 };
 
 // A mock list of all roles available in the application.
-const MOCK_AVAILABLE_ROLES: Role[] = ['sales', 'support', 'developer', 'project_manager'];
+const MOCK_AVAILABLE_ROLES: Role[] = ['sales', 'support', 'developer', 'project_manager', 'researcher', 'social_media_manager', 'content_creator', 'shopper'];
 
 /**
  * Provider component that wraps parts of the application to provide user role management.

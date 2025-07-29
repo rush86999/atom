@@ -4,6 +4,10 @@ import Sales from "./Sales";
 import Projects from "./Projects";
 import Support from "./Support";
 import UserRole, { Role } from "./UserRole";
+import Research from "./Research";
+import Social from "./Social";
+import Content from "./Content";
+import Shopping from "./Shopping";
 import FeatureViewGuard from "./components/FeatureViewGuard";
 import ProjectHealth from './ProjectHealth';
 import CompetitorAnalysis from './CompetitorAnalysis';
@@ -18,6 +22,10 @@ const AVAILABLE_ROLES: Role[] = [
   "developer",
   "project_manager",
   "financial_analyst",
+  "researcher",
+  "social_media_manager",
+  "content_creator",
+  "shopper",
 ];
 
 /**
@@ -28,7 +36,7 @@ const AVAILABLE_ROLES: Role[] = [
 function App() {
   // State to manage the currently displayed view. Defaults to 'chat'.
   const [activeView, setActiveView] = useState<
-    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance"
+    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance" | "research" | "social" | "content" | "shopping"
   >("chat");
   // State to track which roles the user has activated.
   const [activeRoles, setActiveRoles] = useState<Role[]>([]);
@@ -108,6 +116,50 @@ function App() {
             <Finance />
           </FeatureViewGuard>
         );
+      case "research":
+        return (
+          <FeatureViewGuard
+            activeRoles={activeRoles}
+            requiredRole="researcher"
+            roleName="Researcher"
+            onNavigateToSettings={() => setActiveView("settings")}
+          >
+            <Research />
+          </FeatureViewGuard>
+        );
+      case "social":
+        return (
+          <FeatureViewGuard
+            activeRoles={activeRoles}
+            requiredRole="social_media_manager"
+            roleName="Social Media Manager"
+            onNavigateToSettings={() => setActiveView("settings")}
+          >
+            <Social />
+          </FeatureViewGuard>
+        );
+      case "content":
+        return (
+          <FeatureViewGuard
+            activeRoles={activeRoles}
+            requiredRole="content_creator"
+            roleName="Content Creator"
+            onNavigateToSettings={() => setActiveView("settings")}
+          >
+            <Content />
+          </FeatureViewGuard>
+        );
+      case "shopping":
+        return (
+          <FeatureViewGuard
+            activeRoles={activeRoles}
+            requiredRole="shopper"
+            roleName="Shopper"
+            onNavigateToSettings={() => setActiveView("settings")}
+          >
+            <Shopping />
+          </FeatureViewGuard>
+        );
       default:
         return <Chat />;
     }
@@ -169,6 +221,30 @@ function App() {
             className={activeView === "finance" ? "active" : ""}
         >
             Finance
+        </button>
+        <button
+          onClick={() => setActiveView("research")}
+          className={activeView === "research" ? "active" : ""}
+        >
+          Research
+        </button>
+        <button
+          onClick={() => setActiveView("social")}
+          className={activeView === "social" ? "active" : ""}
+        >
+          Social
+        </button>
+        <button
+          onClick={() => setActiveView("content")}
+          className={activeView === "content" ? "active" : ""}
+        >
+          Content
+        </button>
+        <button
+          onClick={() => setActiveView("shopping")}
+          className={activeView === "shopping" ? "active" : ""}
+        >
+          Shopping
         </button>
       </nav>
       <main className="app-content">{renderContent()}</main>
