@@ -33,6 +33,9 @@ Atom is designed to enhance your productivity through a comprehensive suite of A
 *   **Social Media Agent:** A new agent that can manage social media accounts, including scheduling posts, responding to comments and messages, and analyzing engagement.
 *   **Content Creation Agent:** A new agent that can help users create a wider range of content, such as blog posts, articles, presentations, and even code.
 *   **Personalized Shopping Agent:** A new agent that can provide a more personalized shopping experience, by learning about the user's preferences and purchase history, and then recommending products that they are likely to be interested in.
+*   **Legal Document Analysis Agent:** A new agent that can analyze legal documents and provide insights.
+*   **Recruitment Recommendation Agent:** A new agent that can suggest the best-fit candidates for job openings.
+*   **Vibe Hacking Agent:** An autonomous multi-agent-based red team testing service.
 *   **Searchable Meeting Archive:** Semantic search through meeting transcripts and notes.
 
 ### Automation & AI Capabilities
