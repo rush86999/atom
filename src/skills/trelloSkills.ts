@@ -1,28 +1,26 @@
 import axios, { AxiosError } from 'axios';
 import {
   SkillResponse,
-  TrelloBoard,
-  TrelloList,
-  TrelloCard
+  PythonApiResponse
 } from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
 
 // Helper to handle Python API responses, can be centralized later
 function handlePythonApiResponse<T>(
-  response: any, // Adjust type as per actual Python API response structure
+  response: PythonApiResponse<T>,
   operationName: string
 ): SkillResponse<T> {
-  if (response.data && response.data.ok && response.data.data) {
-    return { ok: true, data: response.data.data };
+  if (response.ok && response.data !== undefined) {
+    return { ok: true, data: response.data };
   }
-  logger.warn(`[${operationName}] Failed API call.`, response.data?.error);
+  logger.warn(`[${operationName}] Failed API call. API ok: ${response.ok}`, response.error);
   return {
     ok: false,
     error: {
-      code: response.data?.error?.code || 'PYTHON_API_ERROR',
-      message: response.data?.error?.message || `Failed to ${operationName}.`,
-      details: response.data?.error?.details,
+      code: response.error?.code || 'PYTHON_API_ERROR',
+      message: response.error?.message || `Failed to ${operationName}.`,
+      details: response.error?.details,
     },
   };
 }
@@ -41,135 +39,44 @@ function handleAxiosError(error: AxiosError, operationName: string): SkillRespon
     return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
 }
 
-export async function listTrelloBoards(
-  userId: string
-): Promise<SkillResponse<{ boards: TrelloBoard[] }>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/boards?user_id=${userId}`;
+export async function searchTrello(
+    userId: string,
+    boardId: string,
+    query: string
+    ): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/search`;
 
-  try {
-    const response = await axios.get(endpoint);
-    return handlePythonApiResponse(response, 'listTrelloBoards');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'listTrelloBoards');
-  }
-}
-
-export async function listTrelloLists(
-  userId: string,
-  boardId: string
-): Promise<SkillResponse<{ lists: TrelloList[] }>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/lists?user_id=${userId}&board_id=${boardId}`;
-
-  try {
-    const response = await axios.get(endpoint);
-    return handlePythonApiResponse(response, 'listTrelloLists');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'listTrelloLists');
-  }
+    try {
+        const response = await axios.post<PythonApiResponse<any>>(endpoint, {
+        user_id: userId,
+        board_id: boardId,
+        query: query,
+        });
+        return handlePythonApiResponse(response.data, 'searchTrello');
+    } catch (error) {
+        return handleAxiosError(error as AxiosError, 'searchTrello');
+    }
 }
 
 export async function listTrelloCards(
-  userId: string,
-  listId: string
-): Promise<SkillResponse<{ cards: TrelloCard[] }>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards?user_id=${userId}&list_id=${listId}`;
+    userId: string,
+    boardId: string
+    ): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/list-cards`;
 
-  try {
-    const response = await axios.get(endpoint);
-    return handlePythonApiResponse(response, 'listTrelloCards');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'listTrelloCards');
-  }
-}
-
-export async function createTrelloCard(
-  userId: string,
-  listId: string,
-  name: string,
-  desc?: string
-): Promise<SkillResponse<TrelloCard>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards`;
-
-  try {
-    const response = await axios.post(endpoint, {
-      user_id: userId,
-      list_id: listId,
-      name,
-      desc,
-    });
-    return handlePythonApiResponse(response, 'createTrelloCard');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'createTrelloCard');
-  }
-}
-
-export async function moveTrelloCard(
-  userId: string,
-  cardId: string,
-  newListId: string
-): Promise<SkillResponse<TrelloCard>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards/${cardId}/move`;
-
-  try {
-    const response = await axios.put(endpoint, {
-      user_id: userId,
-      list_id: newListId,
-    });
-    return handlePythonApiResponse(response, 'moveTrelloCard');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'moveTrelloCard');
-  }
-}
-
-export async function getTrelloCard(
-  userId: string,
-  cardId: string
-): Promise<SkillResponse<TrelloCard>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards/${cardId}?user_id=${userId}`;
-
-  try {
-    const response = await axios.get(endpoint);
-    return handlePythonApiResponse(response, 'getTrelloCard');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'getTrelloCard');
-  }
-}
-
-export async function addTrelloComment(
-  userId: string,
-  cardId: string,
-  text: string
-): Promise<SkillResponse<any>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/trello/cards/${cardId}/comments`;
-
-  try {
-    const response = await axios.post(endpoint, {
-      user_id: userId,
-      text,
-    });
-    return handlePythonApiResponse(response, 'addTrelloComment');
-  } catch (error) {
-    return handleAxiosError(error as AxiosError, 'addTrelloComment');
-  }
+    try {
+        const response = await axios.post<PythonApiResponse<any>>(endpoint, {
+        user_id: userId,
+        board_id: boardId,
+        });
+        return handlePythonApiResponse(response.data, 'listTrelloCards');
+    } catch (error) {
+        return handleAxiosError(error as AxiosError, 'listTrelloCards');
+    }
 }
