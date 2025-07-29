@@ -6,6 +6,7 @@ import { Tab, TabList, TabPanel, TabPanels, Tabs } from '@chakra-ui/react';
 import UserViewCalendar from '@pages/Calendar/UserViewCalendarWeb'
 import UserTask from '@pages/Progress/Todo/UserTask'
 import UserViewChat from '@pages/Calendar/Chat/UserViewChat'
+import SmartSearch from '@components/SmartSearch';
 import { NextApiRequest, NextApiResponse } from 'next';
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '../config/backendConfig'
@@ -57,6 +58,7 @@ const Home = () => {
   
   return (
     <Base title={title} meta_title={undefined} description={undefined} image={undefined} noindex={undefined} canonical={undefined}>
+      <SmartSearch />
       <Tabs isLazy>
         <TabList>
           <Tab>Chat</Tab>

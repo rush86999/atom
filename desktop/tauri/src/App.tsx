@@ -8,6 +8,7 @@ import Research from "./Research";
 import Social from "./Social";
 import Content from "./Content";
 import Shopping from "./Shopping";
+import SmartSearch from "./SmartSearch";
 import FeatureViewGuard from "./components/FeatureViewGuard";
 import ProjectHealth from './ProjectHealth';
 import CompetitorAnalysis from './CompetitorAnalysis';
@@ -167,6 +168,7 @@ function App() {
 
   return (
     <div className="App">
+      <SmartSearch />
       <nav className="app-nav">
         <button
           onClick={() => setActiveView("chat")}
