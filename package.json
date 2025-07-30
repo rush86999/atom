@@ -4,6 +4,7 @@
     "@types/jest": "^30.0.0",
     "aws-cdk-lib": "^2.206.0",
     "botbuilder": "^4.17.0-blobs1",
+    "react-icons": "^5.5.0",
     "ts-jest": "^29.4.0"
   }
 }
