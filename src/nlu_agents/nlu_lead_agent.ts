@@ -14,6 +14,11 @@ import { AgentLLMService } from './nlu_types';
 import { DataAnalystSkill } from '../skills/dataAnalystSkill';
 import { AdvancedResearchSkill } from '../skills/researchSkillIndex';
 import { LegalDocumentAnalysisSkill } from '../skills/legalSkillIndex';
+import { SocialMediaAgent } from '../skills/socialMediaSkill';
+import { ContentCreationAgent } from '../skills/contentCreationSkill';
+import { PersonalizedShoppingAgent } from '../skills/personalizedShoppingSkill';
+import { RecruitmentRecommendationAgent } from '../skills/recruitmentRecommendationSkill';
+import { VibeHackingAgent } from '../skills/vibeHackingSkill';
 
 export class NLULeadAgent {
     private analyticalAgent: AnalyticalAgent;
@@ -23,6 +28,11 @@ export class NLULeadAgent {
     private dataAnalystSkill: DataAnalystSkill;
     private advancedResearchSkill: AdvancedResearchSkill;
     private legalDocumentAnalysisSkill: LegalDocumentAnalysisSkill;
+    private socialMediaAgent: SocialMediaAgent;
+    private contentCreationAgent: ContentCreationAgent;
+    private personalizedShoppingAgent: PersonalizedShoppingAgent;
+    private recruitmentRecommendationAgent: RecruitmentRecommendationAgent;
+    private vibeHackingAgent: VibeHackingAgent;
     private agentName: string = "NLULeadAgent";
 
     constructor(
@@ -38,6 +48,11 @@ export class NLULeadAgent {
         this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
         this.advancedResearchSkill = new AdvancedResearchSkill();
         this.legalDocumentAnalysisSkill = new LegalDocumentAnalysisSkill();
+        this.socialMediaAgent = new SocialMediaAgent(llmService);
+        this.contentCreationAgent = new ContentCreationAgent(llmService);
+        this.personalizedShoppingAgent = new PersonalizedShoppingAgent(llmService);
+        this.recruitmentRecommendationAgent = new RecruitmentRecommendationAgent(llmService);
+        this.vibeHackingAgent = new VibeHackingAgent(llmService);
     }
 
     public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -45,10 +60,24 @@ export class NLULeadAgent {
         const P_LEAD_SYNTHESIS_TIMER_LABEL = `[${this.agentName}] Synthesis Duration`;
 
         console.time(P_LEAD_SUB_AGENTS_TIMER_LABEL);
-        const [analyticalResponse, creativeResponse, practicalResponse] = await Promise.all([
+        const [
+            analyticalResponse,
+            creativeResponse,
+            practicalResponse,
+            socialMediaResponse,
+            contentCreationResponse,
+            personalizedShoppingResponse,
+            recruitmentRecommendationResponse,
+            vibeHackingResponse
+        ] = await Promise.all([
             this.analyticalAgent.analyze(input).catch(e => { console.error("AnalyticalAgent failed:", e); return null; }),
             this.creativeAgent.analyze(input).catch(e => { console.error("CreativeAgent failed:", e); return null; }),
-            this.practicalAgent.analyze(input).catch(e => { console.error("PracticalAgent failed:", e); return null; })
+            this.practicalAgent.analyze(input).catch(e => { console.error("PracticalAgent failed:", e); return null; }),
+            this.socialMediaAgent.analyze(input).catch(e => { console.error("SocialMediaAgent failed:", e); return null; }),
+            this.contentCreationAgent.analyze(input).catch(e => { console.error("ContentCreationAgent failed:", e); return null; }),
+            this.personalizedShoppingAgent.analyze(input).catch(e => { console.error("PersonalizedShoppingAgent failed:", e); return null; }),
+            this.recruitmentRecommendationAgent.analyze(input).catch(e => { console.error("RecruitmentRecommendationAgent failed:", e); return null; }),
+            this.vibeHackingAgent.analyze(input).catch(e => { console.error("VibeHackingAgent failed:", e); return null; })
         ]);
         console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
@@ -60,7 +89,7 @@ export class NLULeadAgent {
         }
 
         console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
-        const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse);
+        const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse, socialMediaResponse, contentCreationResponse, personalizedShoppingResponse, recruitmentRecommendationResponse, vibeHackingResponse);
         console.timeEnd(P_LEAD_SYNTHESIS_TIMER_LABEL);
 
         if (synthesisResult.suggestedNextAction?.actionType === 'invoke_skill') {
@@ -95,6 +124,11 @@ export class NLULeadAgent {
                 analytical: analyticalResponse,
                 creative: creativeResponse,
                 practical: practicalResponse,
+                socialMedia: socialMediaResponse,
+                contentCreation: contentCreationResponse,
+                personalizedShopping: personalizedShoppingResponse,
+                recruitmentRecommendation: recruitmentRecommendationResponse,
+                vibeHacking: vibeHackingResponse,
             },
             synthesisLog: synthesisResult.synthesisLog || ["Synthesis log not initialized."],
         };
