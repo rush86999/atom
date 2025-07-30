@@ -11,7 +11,7 @@ import { PracticalAgent } from './practical_agent';
 import { SynthesizingAgent } from './synthesizing_agent';
 import { TurnContext } from 'botbuilder';
 import { AgentLLMService } from './nlu_types';
-import { DataAnalystSkill } from '../skills/dataAnalystSkill';
+// import { DataAnalystSkill } from '../skills/dataAnalystSkill';
 import { AdvancedResearchSkill } from '../skills/researchSkillIndex';
 import { LegalDocumentAnalysisSkill } from '../skills/legalSkillIndex';
 import { SocialMediaAgent } from '../skills/socialMediaSkill';
@@ -25,7 +25,7 @@ export class NLULeadAgent {
     private creativeAgent: CreativeAgent;
     private practicalAgent: PracticalAgent;
     private synthesizingAgent: SynthesizingAgent;
-    private dataAnalystSkill: DataAnalystSkill;
+    // private dataAnalystSkill: DataAnalystSkill;
     private advancedResearchSkill: AdvancedResearchSkill;
     private legalDocumentAnalysisSkill: LegalDocumentAnalysisSkill;
     private socialMediaAgent: SocialMediaAgent;
@@ -45,7 +45,7 @@ export class NLULeadAgent {
         this.creativeAgent = new CreativeAgent(llmService);
         this.practicalAgent = new PracticalAgent(llmService);
         this.synthesizingAgent = new SynthesizingAgent(llmService);
-        this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
+        // this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
         this.advancedResearchSkill = new AdvancedResearchSkill();
         this.legalDocumentAnalysisSkill = new LegalDocumentAnalysisSkill();
         this.socialMediaAgent = new SocialMediaAgent(llmService);
@@ -80,13 +80,6 @@ export class NLULeadAgent {
             this.vibeHackingAgent.analyze(input).catch(e => { console.error("VibeHackingAgent failed:", e); return null; })
         ]);
         console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
-
-        if (analyticalResponse?.problemType === 'data_analysis') {
-            const dataAnalystResult = await this.dataAnalystSkill.analyzeData(input.userInput);
-            // You can decide how to incorporate the result of the data analyst skill.
-            // For now, we'll just log it.
-            console.log("Data Analyst Skill Result:", dataAnalystResult);
-        }
 
         console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
         const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse, socialMediaResponse, contentCreationResponse, personalizedShoppingResponse, recruitmentRecommendationResponse, vibeHackingResponse);
