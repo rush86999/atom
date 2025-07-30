@@ -69,6 +69,7 @@ const LinkItems: Array<LinkItemProps> = [
   { name: "Content", icon: FaFeatherAlt, href: "/Content" },
   { name: "Shopping", icon: FaShoppingCart, href: "/Shopping" },
   { name: "Settings", icon: FiSettings, href: "/Settings" },
+  { name: "Referral", icon: FiStar, href: "/Settings/Referral" },
 ];
 
 export default function SidebarWithHeader({
