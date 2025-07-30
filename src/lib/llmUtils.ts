@@ -22,7 +22,14 @@ export type LLMTaskType =
   | "custom_analytical_analysis"
   | "custom_creative_analysis"
   | "custom_practical_analysis"
-  | "custom_synthesis";
+  | "custom_synthesis"
+  | "custom_advanced_research"
+  | "custom_social_media"
+  | "custom_content_creation"
+  | "custom_personalized_shopping"
+  | "custom_legal_document_analysis"
+  | "custom_recruitment_recommendation"
+  | "custom_vibe_hacking";
 
 // --- Data Payloads for specific tasks ---
 export interface EmailCategorizationData {
@@ -389,6 +396,53 @@ export class MockLLMService implements LLMServiceInterface {
             },
           });
           break;
+        }
+        case "custom_advanced_research": {
+            content = JSON.stringify({
+                researchSummary: "This is a mock research summary.",
+                keyFindings: ["Mock finding 1", "Mock finding 2"],
+                sources: [{ title: "Mock Source", url: "https://example.com" }]
+            });
+            break;
+        }
+        case "custom_social_media": {
+            content = JSON.stringify({
+                scheduledPosts: [{ platform: "Twitter", content: "This is a mock tweet.", scheduledTime: "2025-01-01T12:00:00Z" }],
+                engagementSummary: "This is a mock engagement summary."
+            });
+            break;
+        }
+        case "custom_content_creation": {
+            content = JSON.stringify({
+                generatedContent: "This is mock generated content.",
+                contentType: "blog post"
+            });
+            break;
+        }
+        case "custom_personalized_shopping": {
+            content = JSON.stringify({
+                productRecommendations: [{ productName: "Mock Laptop", price: 999, url: "https://example.com/laptop", reasoning: "It's a great value for the price." }]
+            });
+            break;
+        }
+        case "custom_legal_document_analysis": {
+            content = JSON.stringify({
+                riskAnalysis: [{ clause: "This is a mock clause.", riskLevel: "Medium", explanation: "This is a mock explanation." }],
+                summary: "This is a mock summary of the legal document."
+            });
+            break;
+        }
+        case "custom_recruitment_recommendation": {
+            content = JSON.stringify({
+                recommendedCandidates: [{ name: "Mock Candidate", resumeUrl: "https://example.com/resume", matchScore: 0.9, summary: "This is a mock summary of the candidate's qualifications." }]
+            });
+            break;
+        }
+        case "custom_vibe_hacking": {
+            content = JSON.stringify({
+                vulnerabilityReport: [{ vulnerability: "Mock Vulnerability", severity: "High", description: "This is a mock description of the vulnerability.", remediation: "This is a mock remediation." }]
+            });
+            break;
         }
         default:
           console.warn(
