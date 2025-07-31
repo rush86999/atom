@@ -1,6 +1,7 @@
 import { SkillResponse } from '../types';
 import { z } from 'zod';
 import axios from 'axios';
+import { nlu } from '../../services/nluService';
 
 // Define the structure of a tax query
 export interface TaxQuery {
@@ -20,7 +21,14 @@ export async function handleTaxQuery(
   context?: any
 ): Promise<SkillResponse<string>> {
   try {
-    const intent = await extractTaxIntent(query, context);
+    const intent = await nlu(query, {
+      intents: ['calculate_tax', 'find_deductions', 'get_tax_advice', 'lookup_tax_law'],
+      parameters: {
+        income: 'number',
+        filingStatus: ['single', 'married_jointly', 'married_separately', 'head_of_household'],
+        dependents: 'number'
+      }
+    });
 
     switch (intent.intent) {
       case 'calculate_tax':
@@ -44,56 +52,6 @@ export async function handleTaxQuery(
       }
     };
   }
-}
-
-// Extract the user's intent from their query
-async function extractTaxIntent(query: string, context?: any): Promise<TaxQuery> {
-  const normalizedQuery = query.toLowerCase().trim();
-
-  if (normalizedQuery.includes('calculate tax') || normalizedQuery.includes('how much tax')) {
-    return {
-      intent: 'calculate_tax',
-      parameters: {
-        income: extractIncome(normalizedQuery),
-        filingStatus: extractFilingStatus(normalizedQuery),
-        dependents: extractDependents(normalizedQuery)
-      }
-    };
-  }
-
-  if (normalizedQuery.includes('deductions') || normalizedQuery.includes('tax breaks')) {
-    return {
-      intent: 'find_deductions',
-      parameters: {
-        query: normalizedQuery
-      }
-    };
-  }
-
-  if (normalizedQuery.includes('tax advice') || normalizedQuery.includes('tax help')) {
-    return {
-      intent: 'get_tax_advice',
-      parameters: {
-        query: normalizedQuery
-      }
-    };
-  }
-
-  if (normalizedQuery.includes('tax law') || normalizedQuery.includes('tax code')) {
-    return {
-      intent: 'lookup_tax_law',
-      parameters: {
-        query: normalizedQuery
-      }
-    };
-  }
-
-  return {
-    intent: 'get_tax_advice',
-    parameters: {
-      query: normalizedQuery
-    }
-  };
 }
 
 // --- Response Functions ---
