@@ -1,10 +1,11 @@
 import { SkillResponse, ToolImplementation } from '../types';
 import { z } from 'zod';
 import axios, { AxiosError } from 'axios';
+import { handleTaxQuery } from './taxExpertSkills';
 
 // Enhanced types for finance interactions
 export interface FinanceQuery {
-  intent: 'net_worth' | 'budgets' | 'spending' | 'goals' | 'accounts' | 'investments' | 'insights' | 'create_budget' | 'create_goal';
+  intent: 'net_worth' | 'budgets' | 'spending' | 'goals' | 'accounts' | 'investments' | 'insights' | 'create_budget' | 'create_goal' | 'tax_question';
   parameters: Record<string, any>;
   timeframe?: 'current' | 'last_month' | 'last_week' | 'this_quarter' | 'year_to_date' | 'custom';
   category?: string;
@@ -49,6 +50,9 @@ export async function handleFinanceQuery(
 
       case 'create_goal':
         return await createGoalResponse(userId, intent.parameters);
+
+      case 'tax_question':
+        return await handleTaxQuery(userId, query, context);
 
       default:
         return await provideFinanceHelp(userId);
@@ -169,6 +173,16 @@ async function extractFinanceIntent(query: string, context?: any): Promise<Finan
       intent: 'accounts',
       parameters: {
         accountType: extractAccountType(normalizedQuery)
+      }
+    };
+  }
+
+  // Tax questions
+  if (normalizedQuery.includes('tax') || normalizedQuery.includes('taxes')) {
+    return {
+      intent: 'tax_question',
+      parameters: {
+        query: normalizedQuery
       }
     };
   }

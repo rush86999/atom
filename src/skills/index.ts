@@ -8,6 +8,7 @@ import { allFinanceSkills, financeAgentTools, FinanceSkillRegistration } from '.
 import { processVoiceFinance } from './financeVoiceAgent';
 import { researchSkills } from './researchSkillIndex';
 import { legalSkills } from './legalSkillIndex';
+import { allTaxSkills, taxAgentTools, TaxSkillRegistration } from './taxSkillIndex';
 
 // Finance skill activation triggers
 const financeSkillConfig = {
@@ -187,13 +188,52 @@ export async function registerLegalSkills() {
   }
 }
 
+// Register all tax skills with Atom agent
+export async function registerTaxSkills() {
+  console.log('💸 Registering Atom Tax Skills for Wake Word Activation');
+
+  try {
+    // Register each tax skill
+    for (const skill of allTaxSkills) {
+      await registerSkill(skill);
+    }
+
+    // Register tax-specific tools for LLM function calling
+    for (const tool of taxAgentTools) {
+      await registerSkill({
+        name: tool.name,
+        description: tool.description || 'Tax tool',
+        parameters: {}, // Tool-specific parameters assigned during registry
+        handler: tool.handler
+      } as SkillDefinition);
+    }
+
+    console.log('✅ Tax skills registered successfully');
+
+    return {
+      success: true,
+      registeredSkills: allTaxSkills.length + taxAgentTools.length,
+      naturalLanguageSupport: true
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to register tax skills:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 // Auto-registration on import
 registerFinanceSkills().catch(console.error);
 registerResearchSkills().catch(console.error);
 registerLegalSkills().catch(console.error);
+registerTaxSkills().catch(console.error);
 
 // Integration exports
 export { FinanceSkillRegistration as FinanceCapabilities };
+export { TaxSkillRegistration as TaxCapabilities };
 export { financeSkillConfig as FinanceCommandConfig };
 export * as boxSkills from './boxSkills';
 export * as asanaSkills from './asanaSkills';

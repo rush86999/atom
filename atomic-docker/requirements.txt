@@ -4,7 +4,7 @@ flask
 lancedb
 requests
 kafka-python
-psycopg2
+psycopg2-binary
 websockets
 deepgram-sdk
 cryptography
