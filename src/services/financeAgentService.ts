@@ -562,4 +562,13 @@ export const financeToolImplementations = {
     const response = await fetch(`/api/zoho/customers?user_id=${user_id}&org_id=${organization_id}`);
     return await response.json();
   },
+
+  create_zoho_customer: async (user_id: string, organization_id: string, customer_data: any) => {
+    const response = await fetch('/api/zoho/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, org_id: organization_id, customer_data }),
+    });
+    return await response.json();
+  },
 };
