@@ -205,4 +205,28 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'get_zoho_customers',
+    description: 'Get a list of Zoho customers for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to get the Zoho customers for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to get the customers from',
+        },
+      },
+      required: ['user_id', 'organization_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.get_zoho_customers(
+        params.user_id,
+        params.organization_id
+      );
+    },
+  },
 ];
