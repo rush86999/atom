@@ -38,3 +38,17 @@ async def get_bookkeeping_summary(user_id, db_conn_pool):
 
     # In a real application, we would do more here, like calculating total income, expenses, etc.
     return {"total_accounts": len(accounts), "total_transactions": len(transactions)}
+
+async def get_bookkeeping_report(user_id, db_conn_pool):
+    """
+    Gets a detailed report of the bookkeeping data for a user.
+    """
+    access_token = await db_utils.get_plaid_access_token(user_id, db_conn_pool)
+    if not access_token:
+        raise Exception("Plaid integration not found for this user.")
+
+    accounts = plaid_service.get_accounts(access_token)
+    transactions = plaid_service.get_transactions(access_token, "2023-01-01", "2023-12-31")
+
+    # In a real application, we would do more here, like generating a PDF report, etc.
+    return {"accounts": accounts, "transactions": transactions}
