@@ -67,10 +67,10 @@ async def export_bookkeeping_data(user_id, db_conn_pool):
     # In a real application, we would do more here, like generating a CSV file, etc.
     return {"status": "success", "export_url": "https://example.com/export.csv"}
 
-async def send_to_zoho(user_id, db_conn_pool):
+async def send_to_zoho(user_id, org_id, db_conn_pool):
     """
     Sends bookkeeping data to Zoho.
     """
     from . import zoho_service
     bookkeeping_data = await get_bookkeeping_report(user_id, db_conn_pool)
-    return await zoho_service.send_to_zoho(user_id, bookkeeping_data, db_conn_pool)
+    return await zoho_service.send_to_zoho(user_id, org_id, bookkeeping_data, db_conn_pool)
