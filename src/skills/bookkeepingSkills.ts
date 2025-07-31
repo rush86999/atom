@@ -77,4 +77,21 @@ export const bookkeepingSkills: SkillDefinition[] = [
       return await bookkeeping_service.get_bookkeeping_report(params.user_id);
     },
   },
+  {
+    name: 'export_bookkeeping_data',
+    description: 'Export the bookkeeping data for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to export the bookkeeping data for',
+        },
+      },
+      required: ['user_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.export_bookkeeping_data(params.user_id);
+    },
+  },
 ];
