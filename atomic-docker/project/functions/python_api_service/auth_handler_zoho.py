@@ -38,6 +38,6 @@ async def zoho_callback():
     token_info = response.json()
 
     db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
-    await db_oauth_zoho.store_zoho_tokens(user_id, token_info['access_token'], token_info.get('refresh_token'), db_conn_pool)
+    await db_oauth_zoho.store_zoho_tokens(user_id, token_info['access_token'], token_info['refresh_token'], db_conn_pool)
 
     return "Zoho authentication successful!", 200
