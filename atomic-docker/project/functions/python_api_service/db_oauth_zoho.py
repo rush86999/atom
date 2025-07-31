@@ -34,3 +34,16 @@ async def get_zoho_tokens(user_id, db_conn_pool):
             result = await cur.fetchone()
         db_conn_pool.putconn(conn)
     return result if result else (None, None)
+
+async def delete_zoho_tokens(user_id, db_conn_pool):
+    """
+    Deletes Zoho OAuth tokens from the database.
+    """
+    query = sql.SQL("""
+        DELETE FROM user_credentials
+        WHERE user_id = %s AND service = 'zoho';
+    """)
+    async with db_conn_pool.getconn() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, (user_id,))
+        db_conn_pool.putconn(conn)

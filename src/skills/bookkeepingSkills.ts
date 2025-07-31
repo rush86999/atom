@@ -118,4 +118,21 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'disconnect_zoho_account',
+    description: 'Disconnect a user\'s Zoho account',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to disconnect the Zoho account for',
+        },
+      },
+      required: ['user_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.disconnect_zoho_account(params.user_id);
+    },
+  },
 ];
