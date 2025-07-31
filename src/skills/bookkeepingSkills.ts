@@ -94,4 +94,21 @@ export const bookkeepingSkills: SkillDefinition[] = [
       return await bookkeeping_service.export_bookkeeping_data(params.user_id);
     },
   },
+  {
+    name: 'send_bookkeeping_data_to_zoho',
+    description: 'Send bookkeeping data to Zoho for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to send bookkeeping data to Zoho for',
+        },
+      },
+      required: ['user_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.send_to_zoho(params.user_id);
+    },
+  },
 ];
