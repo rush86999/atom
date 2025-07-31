@@ -1,21 +1,22 @@
 import logging
 import os
 import requests
+from . import db_oauth_zoho
 
 logger = logging.getLogger(__name__)
 
-ZOHO_API_KEY = os.getenv("ZOHO_API_KEY")
 ZOHO_ORG_ID = os.getenv("ZOHO_ORG_ID")
 
-def send_to_zoho(data):
+async def send_to_zoho(user_id, data, db_conn_pool):
     """
     Sends data to Zoho Books.
     """
-    if not all([ZOHO_API_KEY, ZOHO_ORG_ID]):
-        raise Exception("Zoho API key and organization ID are not configured.")
+    access_token, _ = await db_oauth_zoho.get_zoho_tokens(user_id, db_conn_pool)
+    if not access_token:
+        raise Exception("Zoho credentials not found for this user.")
 
     headers = {
-        "Authorization": f"Zoho-oauthtoken {ZOHO_API_KEY}",
+        "Authorization": f"Zoho-oauthtoken {access_token}",
         "Content-Type": "application/json;charset=UTF-8",
     }
 

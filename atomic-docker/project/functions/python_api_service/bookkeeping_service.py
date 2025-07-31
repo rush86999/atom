@@ -73,4 +73,4 @@ async def send_to_zoho(user_id, db_conn_pool):
     """
     from . import zoho_service
     bookkeeping_data = await get_bookkeeping_report(user_id, db_conn_pool)
-    return zoho_service.send_to_zoho(bookkeeping_data)
+    return await zoho_service.send_to_zoho(user_id, bookkeeping_data, db_conn_pool)
