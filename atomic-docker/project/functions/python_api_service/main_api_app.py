@@ -54,6 +54,7 @@ from .auth_handler_box import box_auth_bp
 from .auth_handler_asana import asana_auth_bp
 from .auth_handler_trello import trello_auth_bp
 from .auth_handler_zoho import zoho_auth_bp
+from .zoho_handler import zoho_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -177,6 +178,8 @@ def create_app(db_pool=None):
     logger.info("Registered 'trello_auth_bp' blueprint.")
     app.register_blueprint(zoho_auth_bp)
     logger.info("Registered 'zoho_auth_bp' blueprint.")
+    app.register_blueprint(zoho_bp)
+    logger.info("Registered 'zoho_bp' blueprint.")
 
     from .github_handler import github_bp
     app.register_blueprint(github_bp)
