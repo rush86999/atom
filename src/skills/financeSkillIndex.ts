@@ -9,6 +9,7 @@ import {
   getFinanceSuggestions,
   financeAgentTools
 } from './financeAgentSkills';
+import { bookkeepingSkills } from './bookkeepingSkills';
 import {
   processVoiceFinance,
   VOICE_FINANCE_INTEGRATION
@@ -231,4 +232,4 @@ n  name: \"Atom Finance Suite\",\n  version: \"2.0.0\",\n  description: \"Compre
 
 // Export complete skill set for Atom agent registration
 nexport const allFinanceSkills = [
-n  ...financeSkills,\n  ...voiceEnabledFinanceSkills\n];\n
+n  ...financeSkills,\n  ...voiceEnabledFinanceSkills,\n  ...bookkeepingSkills\n];\n
