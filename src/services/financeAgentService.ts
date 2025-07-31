@@ -538,4 +538,9 @@ export const financeToolImplementations = {
     });
     return await response.json();
   },
+
+  get_zoho_integration_status: async (user_id: string) => {
+    const response = await fetch(`/api/auth/zoho/status?user_id=${user_id}`);
+    return await response.json();
+  },
 };
