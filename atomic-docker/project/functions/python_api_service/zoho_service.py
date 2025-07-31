@@ -21,6 +21,9 @@ async def refresh_zoho_token(user_id, refresh_token, db_conn_pool):
         "refresh_token": refresh_token,
     }
     response = requests.post(token_url, data=token_data)
+    if response.status_code != 200:
+        logger.error(f"Error refreshing Zoho token: {response.text}")
+        raise Exception(f"Error refreshing Zoho token: {response.text}")
     token_info = response.json()
     await db_oauth_zoho.store_zoho_tokens(user_id, token_info['access_token'], refresh_token, db_conn_pool)
     return token_info['access_token']
@@ -58,6 +61,7 @@ async def send_to_zoho(user_id, data, db_conn_pool):
             )
 
     if response.status_code != 201:
+        logger.error(f"Error sending data to Zoho: {response.text}")
         raise Exception(f"Error sending data to Zoho: {response.text}")
 
     return response.json()
