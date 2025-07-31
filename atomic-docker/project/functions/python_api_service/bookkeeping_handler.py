@@ -41,3 +41,54 @@ async def create_bookkeeping_entry():
     except Exception as e:
         logger.error(f"Error creating bookkeeping entry for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "CREATE_BOOKKEEPING_ENTRY_FAILED", "message": str(e)}}), 500
+
+@bookkeeping_bp.route('/api/financial/bookkeeping/summary', methods=['GET'])
+async def get_bookkeeping_summary():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await bookkeeping_service.get_bookkeeping_summary(user_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error getting bookkeeping summary for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "GET_BOOKKEEPING_SUMMARY_FAILED", "message": str(e)}}), 500
+
+@bookkeeping_bp.route('/api/financial/bookkeeping/report', methods=['GET'])
+async def get_bookkeeping_report():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await bookkeeping_service.get_bookkeeping_report(user_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error getting bookkeeping report for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "GET_BOOKKEEPING_REPORT_FAILED", "message": str(e)}}), 500
+
+@bookkeeping_bp.route('/api/financial/bookkeeping/export', methods=['GET'])
+async def export_bookkeeping_data():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await bookkeeping_service.export_bookkeeping_data(user_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error exporting bookkeeping data for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "EXPORT_BOOKKEEPING_DATA_FAILED", "message": str(e)}}), 500
