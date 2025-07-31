@@ -528,5 +528,14 @@ export const financeToolImplementations = {
     const service = new FinanceAgentService(params.userId);
     // Implementation for goal creation would go here
     return "Financial goal created successfully!";
-  }
+  },
+
+  disconnect_zoho_account: async (params: any) => {
+    const response = await fetch('/api/auth/zoho/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: params.user_id }),
+    });
+    return await response.json();
+  },
 };
