@@ -35,6 +35,9 @@ async def zoho_callback():
         "code": code,
     }
     response = requests.post(token_url, data=token_data)
+    if response.status_code != 200:
+        logger.error(f"Error getting Zoho token: {response.text}")
+        return "Error getting Zoho token.", 400
     token_info = response.json()
 
     db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
