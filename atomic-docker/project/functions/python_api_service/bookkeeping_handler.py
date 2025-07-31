@@ -92,3 +92,21 @@ async def export_bookkeeping_data():
     except Exception as e:
         logger.error(f"Error exporting bookkeeping data for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "EXPORT_BOOKKEEPING_DATA_FAILED", "message": str(e)}}), 500
+
+@bookkeeping_bp.route('/api/financial/bookkeeping/send_to_zoho', methods=['POST'])
+async def send_to_zoho():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await bookkeeping_service.send_to_zoho(user_id, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error sending bookkeeping data to Zoho for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "SEND_TO_ZOHO_FAILED", "message": str(e)}}), 500
