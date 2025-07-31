@@ -543,4 +543,9 @@ export const financeToolImplementations = {
     const response = await fetch(`/api/auth/zoho/status?user_id=${user_id}`);
     return await response.json();
   },
+
+  get_zoho_invoices: async (user_id: string, organization_id: string) => {
+    const response = await fetch(`/api/zoho/invoices?user_id=${user_id}&org_id=${organization_id}`);
+    return await response.json();
+  },
 };
