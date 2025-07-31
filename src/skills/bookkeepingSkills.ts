@@ -152,4 +152,28 @@ export const bookkeepingSkills: SkillDefinition[] = [
       return await bookkeeping_service.get_zoho_integration_status(params.user_id);
     },
   },
+  {
+    name: 'get_zoho_invoices',
+    description: 'Get a list of Zoho invoices for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to get the Zoho invoices for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to get the invoices from',
+        },
+      },
+      required: ['user_id', 'organization_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.get_zoho_invoices(
+        params.user_id,
+        params.organization_id
+      );
+    },
+  },
 ];

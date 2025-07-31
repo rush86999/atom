@@ -98,3 +98,36 @@ async def send_to_zoho(user_id, org_id, data, db_conn_pool):
         raise Exception(f"Error sending data to Zoho: {response.text}")
 
     return response.json()
+
+async def get_zoho_invoices(user_id, org_id, db_conn_pool):
+    """
+    Gets a list of Zoho invoices for a user.
+    """
+    access_token, _ = await db_oauth_zoho.get_zoho_tokens(user_id, db_conn_pool)
+    if not access_token:
+        raise Exception("Zoho credentials not found for this user.")
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+    }
+
+    response = requests.get(
+        f"https://books.zoho.com/api/v3/invoices?organization_id={org_id}",
+        headers=headers,
+    )
+
+    if response.status_code == 401:
+        _, refresh_token = await db_oauth_zoho.get_zoho_tokens(user_id, db_conn_pool)
+        if refresh_token:
+            access_token = await refresh_zoho_token(user_id, refresh_token, db_conn_pool)
+            headers["Authorization"] = f"Zoho-oauthtoken {access_token}"
+            response = requests.get(
+                f"https://books.zoho.com/api/v3/invoices?organization_id={org_id}",
+                headers=headers,
+            )
+
+    if response.status_code != 200:
+        logger.error(f"Error getting Zoho invoices: {response.text}")
+        raise Exception(f"Error getting Zoho invoices: {response.text}")
+
+    return response.json()['invoices']
