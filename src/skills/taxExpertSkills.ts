@@ -1,7 +1,7 @@
 import { SkillResponse } from '../types';
 import { z } from 'zod';
 import axios from 'axios';
-import { nlu } from '../../services/nluService';
+import { EnrichedIntent } from '../nlu_agents/nlu_types';
 
 // Define the structure of a tax query
 export interface TaxQuery {
@@ -17,28 +17,19 @@ export interface TaxQuery {
 // Handle tax-related queries
 export async function handleTaxQuery(
   userId: string,
-  query: string,
+  intent: EnrichedIntent,
   context?: any
 ): Promise<SkillResponse<string>> {
   try {
-    const intent = await nlu(query, {
-      intents: ['calculate_tax', 'find_deductions', 'get_tax_advice', 'lookup_tax_law'],
-      parameters: {
-        income: 'number',
-        filingStatus: ['single', 'married_jointly', 'married_separately', 'head_of_household'],
-        dependents: 'number'
-      }
-    });
-
-    switch (intent.intent) {
+    switch (intent.primaryGoal) {
       case 'calculate_tax':
-        return await getTaxCalculation(userId, intent.parameters);
+        return await getTaxCalculation(userId, intent.extractedParameters);
       case 'find_deductions':
-        return await findTaxDeductions(userId, intent.parameters);
+        return await findTaxDeductions(userId, intent.extractedParameters);
       case 'get_tax_advice':
-        return await getTaxAdvice(userId, intent.parameters);
+        return await getTaxAdvice(userId, intent.extractedParameters);
       case 'lookup_tax_law':
-        return await lookupTaxLaw(userId, intent.parameters);
+        return await lookupTaxLaw(userId, intent.extractedParameters);
       default:
         return await provideTaxHelp();
     }
