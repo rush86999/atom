@@ -135,4 +135,21 @@ export const bookkeepingSkills: SkillDefinition[] = [
       return await bookkeeping_service.disconnect_zoho_account(params.user_id);
     },
   },
+  {
+    name: 'get_zoho_integration_status',
+    description: 'Get the status of a user\'s Zoho integration',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to get the Zoho integration status for',
+        },
+      },
+      required: ['user_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.get_zoho_integration_status(params.user_id);
+    },
+  },
 ];

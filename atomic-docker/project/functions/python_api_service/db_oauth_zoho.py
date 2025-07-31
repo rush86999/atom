@@ -47,3 +47,10 @@ async def delete_zoho_tokens(user_id, db_conn_pool):
         async with conn.cursor() as cur:
             await cur.execute(query, (user_id,))
         db_conn_pool.putconn(conn)
+
+async def get_zoho_integration_status(user_id, db_conn_pool):
+    """
+    Gets the status of a user's Zoho integration.
+    """
+    access_token, _ = await get_zoho_tokens(user_id, db_conn_pool)
+    return {"connected": bool(access_token)}

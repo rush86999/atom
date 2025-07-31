@@ -56,3 +56,14 @@ async def zoho_disconnect():
     await db_oauth_zoho.delete_zoho_tokens(user_id, db_conn_pool)
 
     return "Zoho account disconnected successfully!", 200
+
+@zoho_auth_bp.route('/api/auth/zoho/status', methods=['GET'])
+async def zoho_status():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return "Error: User ID is required.", 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    status = await db_oauth_zoho.get_zoho_integration_status(user_id, db_conn_pool)
+
+    return jsonify(status), 200
