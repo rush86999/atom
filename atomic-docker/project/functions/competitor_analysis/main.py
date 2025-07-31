@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
-from competitor_analysis import generate_competitor_briefing
+from competitor_analysis.competitor_analysis import generate_competitor_briefing
 from dependencies import (
     install_dependencies,
     get_scrape_website,
@@ -11,13 +11,20 @@ from dependencies import (
     get_generate_weekly_briefing,
 )
 
-from scheduler import start_scheduler
+from dependencies import (
+    install_dependencies,
+    get_scrape_website,
+    get_get_twitter_data,
+    get_get_news_data,
+    get_get_financial_data,
+    get_create_notion_page,
+    get_store_data,
+    get_generate_weekly_briefing,
+)
 
 install_dependencies()
 
 app = FastAPI()
-
-start_scheduler()
 
 from database import get_db_connection
 
