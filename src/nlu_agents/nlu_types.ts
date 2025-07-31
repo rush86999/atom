@@ -120,6 +120,12 @@ export interface VibeHackingAgentResponse {
     rawLLMResponse?: string;
 }
 
+export interface TaxAgentResponse {
+    isTaxRelated: boolean;
+    confidence: number;
+    details: string;
+}
+
 // --- NLU Lead Agent Output ---
 export interface EnrichedIntent {
     originalQuery: string;
@@ -150,6 +156,7 @@ export interface EnrichedIntent {
         personalizedShopping: PersonalizedShoppingAgentResponse | null;
         recruitmentRecommendation: RecruitmentRecommendationAgentResponse | null;
         vibeHacking: VibeHackingAgentResponse | null;
+                tax: TaxAgentResponse | null;
     };
     synthesisLog?: string[]; // Log of how synthesis was performed
 }
