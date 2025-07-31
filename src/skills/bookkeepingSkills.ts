@@ -176,4 +176,33 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'create_zoho_invoice',
+    description: 'Create a new Zoho invoice for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho invoice for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the invoice in',
+        },
+        invoice_data: {
+          type: 'object',
+          description: 'The data for the new Zoho invoice',
+        },
+      },
+      required: ['user_id', 'organization_id', 'invoice_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_invoice(
+        params.user_id,
+        params.organization_id,
+        params.invoice_data
+      );
+    },
+  },
 ];
