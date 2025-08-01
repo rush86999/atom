@@ -311,4 +311,28 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'get_zoho_bills',
+    description: 'Get a list of Zoho bills for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to get the Zoho bills for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to get the bills from',
+        },
+      },
+      required: ['user_id', 'organization_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.get_zoho_bills(
+        params.user_id,
+        params.organization_id
+      );
+    },
+  },
 ];

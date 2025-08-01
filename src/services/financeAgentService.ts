@@ -585,4 +585,9 @@ export const financeToolImplementations = {
     });
     return await response.json();
   },
+
+  get_zoho_bills: async (user_id: string, organization_id: string) => {
+    const response = await fetch(`/api/zoho/bills?user_id=${user_id}&org_id=${organization_id}`);
+    return await response.json();
+  },
 };
