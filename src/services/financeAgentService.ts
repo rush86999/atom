@@ -599,4 +599,9 @@ export const financeToolImplementations = {
     });
     return await response.json();
   },
+
+  get_zoho_vendors: async (user_id: string, organization_id: string) => {
+    const response = await fetch(`/api/zoho/vendors?user_id=${user_id}&org_id=${organization_id}`);
+    return await response.json();
+  },
 };
