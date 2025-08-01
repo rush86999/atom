@@ -20,6 +20,7 @@ import { PersonalizedShoppingAgent } from '../skills/personalizedShoppingSkill';
 import { RecruitmentRecommendationAgent } from '../skills/recruitmentRecommendationSkill';
 import { VibeHackingAgent } from '../skills/vibeHackingSkill';
 import { TaxAgent } from './tax_agent';
+import { MarketingAutomationAgent } from '../skills/marketingAutomationSkill';
 
 export class NLULeadAgent {
     private analyticalAgent: AnalyticalAgent;
@@ -35,6 +36,7 @@ export class NLULeadAgent {
     private recruitmentRecommendationAgent: RecruitmentRecommendationAgent;
     private vibeHackingAgent: VibeHackingAgent;
     private taxAgent: TaxAgent;
+    private marketingAutomationAgent: MarketingAutomationAgent;
     private agentName: string = "NLULeadAgent";
 
     constructor(
@@ -56,6 +58,7 @@ export class NLULeadAgent {
         this.recruitmentRecommendationAgent = new RecruitmentRecommendationAgent(llmService);
         this.vibeHackingAgent = new VibeHackingAgent(llmService);
         this.taxAgent = new TaxAgent(llmService);
+        this.marketingAutomationAgent = new MarketingAutomationAgent(llmService);
     }
 
     public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -72,7 +75,8 @@ export class NLULeadAgent {
             personalizedShoppingResponse,
             recruitmentRecommendationResponse,
             vibeHackingResponse,
-            taxResponse
+            taxResponse,
+            marketingAutomationResponse
         ] = await Promise.all([
             this.analyticalAgent.analyze(input).catch(e => { console.error("AnalyticalAgent failed:", e); return null; }),
             this.creativeAgent.analyze(input).catch(e => { console.error("CreativeAgent failed:", e); return null; }),
@@ -82,7 +86,8 @@ export class NLULeadAgent {
             this.personalizedShoppingAgent.analyze(input).catch(e => { console.error("PersonalizedShoppingAgent failed:", e); return null; }),
             this.recruitmentRecommendationAgent.analyze(input).catch(e => { console.error("RecruitmentRecommendationAgent failed:", e); return null; }),
             this.vibeHackingAgent.analyze(input).catch(e => { console.error("VibeHackingAgent failed:", e); return null; }),
-            this.taxAgent.analyze(input).catch(e => { console.error("TaxAgent failed:", e); return null; })
+            this.taxAgent.analyze(input).catch(e => { console.error("TaxAgent failed:", e); return null; }),
+            this.marketingAutomationAgent.analyze(input).catch(e => { console.error("MarketingAutomationAgent failed:", e); return null; })
         ]);
         console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
@@ -94,7 +99,7 @@ export class NLULeadAgent {
         }
 
         console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
-        const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse, socialMediaResponse, contentCreationResponse, personalizedShoppingResponse, recruitmentRecommendationResponse, vibeHackingResponse, taxResponse);
+        const synthesisResult = await this.synthesizingAgent.synthesize(input, analyticalResponse, creativeResponse, practicalResponse, socialMediaResponse, contentCreationResponse, personalizedShoppingResponse, recruitmentRecommendationResponse, vibeHackingResponse, taxResponse, marketingAutomationResponse);
         console.timeEnd(P_LEAD_SYNTHESIS_TIMER_LABEL);
 
         if (synthesisResult.suggestedNextAction?.actionType === 'invoke_skill') {
@@ -135,6 +140,7 @@ export class NLULeadAgent {
                 recruitmentRecommendation: recruitmentRecommendationResponse,
                 vibeHacking: vibeHackingResponse,
                 tax: taxResponse,
+                marketingAutomation: marketingAutomationResponse,
             },
             synthesisLog: synthesisResult.synthesisLog || ["Synthesis log not initialized."],
         };
