@@ -269,3 +269,39 @@ async def get_zoho_items(user_id, org_id, db_conn_pool):
         raise Exception(f"Error getting Zoho items: {response.text}")
 
     return response.json()['items']
+
+async def create_zoho_item(user_id, org_id, item_data, db_conn_pool):
+    """
+    Creates a new Zoho item for a user.
+    """
+    access_token, _ = await db_oauth_zoho.get_zoho_tokens(user_id, db_conn_pool)
+    if not access_token:
+        raise Exception("Zoho credentials not found for this user.")
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}",
+        "Content-Type": "application/json;charset=UTF-8",
+    }
+
+    response = requests.post(
+        f"https://books.zoho.com/api/v3/items?organization_id={org_id}",
+        headers=headers,
+        json=item_data,
+    )
+
+    if response.status_code == 401:
+        _, refresh_token = await db_oauth_zoho.get_zoho_tokens(user_id, db_conn_pool)
+        if refresh_token:
+            access_token = await refresh_zoho_token(user_id, refresh_token, db_conn_pool)
+            headers["Authorization"] = f"Zoho-oauthtoken {access_token}"
+            response = requests.post(
+                f"https://books.zoho.com/api/v3/items?organization_id={org_id}",
+                headers=headers,
+                json=item_data,
+            )
+
+    if response.status_code != 201:
+        logger.error(f"Error creating Zoho item: {response.text}")
+        raise Exception(f"Error creating Zoho item: {response.text}")
+
+    return response.json()
