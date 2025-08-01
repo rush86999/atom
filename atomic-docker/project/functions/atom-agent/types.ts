@@ -1402,6 +1402,36 @@ export interface SalesforceOpportunity {
   CloseDate: string;
 }
 
+export interface ShopifyProduct {
+  id: number;
+  title: string;
+  vendor: string;
+  product_type: string;
+  status: 'active' | 'archived' | 'draft';
+  variants: Array<{
+    id: number;
+    price: string;
+    sku: string;
+    inventory_quantity: number;
+  }>;
+}
+
+export interface ShopifyOrder {
+  id: number;
+  name: string; // The order name, e.g., "#1001"
+  email: string;
+  total_price: string;
+  financial_status: 'pending' | 'authorized' | 'partially_paid' | 'paid' | 'partially_refunded' | 'refunded' | 'voided';
+  fulfillment_status: 'fulfilled' | 'unfulfilled' | 'partial' | null;
+  line_items: Array<{
+    id: number;
+    name: string;
+    sku: string;
+    quantity: number;
+    price: string;
+  }>;
+}
+
 export interface XeroInvoice {
   InvoiceID: string;
   InvoiceNumber?: string;
