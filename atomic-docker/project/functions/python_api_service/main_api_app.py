@@ -17,6 +17,7 @@ from .gdrive_handler import gdrive_bp
 from .trello_handler import trello_bp
 from .salesforce_handler import salesforce_bp
 from .xero_handler import xero_bp
+from .shopify_handler import shopify_bp
 from .twitter_handler import twitter_bp
 from .social_media_handler import social_media_bp
 from .sales_manager_handler import sales_manager_bp
@@ -106,6 +107,8 @@ def create_app(db_pool=None):
     logger.info("Registered 'trello_bp' blueprint.")
     app.register_blueprint(salesforce_bp)
     logger.info("Registered 'salesforce_bp' blueprint.")
+    app.register_blueprint(shopify_bp)
+    logger.info("Registered 'shopify_bp' blueprint.")
     app.register_blueprint(xero_bp)
     logger.info("Registered 'xero_bp' blueprint.")
     app.register_blueprint(twitter_bp)
