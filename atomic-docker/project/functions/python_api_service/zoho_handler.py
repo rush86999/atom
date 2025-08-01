@@ -192,3 +192,23 @@ async def get_zoho_vendors():
     except Exception as e:
         logger.error(f"Error getting Zoho vendors for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "GET_ZOHO_VENDORS_FAILED", "message": str(e)}}), 500
+
+@zoho_bp.route('/api/zoho/vendors', methods=['POST'])
+async def create_zoho_vendor():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    org_id = data.get('org_id')
+    vendor_data = data.get('vendor_data')
+    if not all([user_id, org_id, vendor_data]):
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id, org_id, and vendor_data are required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await zoho_service.create_zoho_vendor(user_id, org_id, vendor_data, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error creating Zoho vendor for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "CREATE_ZOHO_VENDOR_FAILED", "message": str(e)}}), 500
