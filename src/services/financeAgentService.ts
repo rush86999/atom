@@ -604,4 +604,13 @@ export const financeToolImplementations = {
     const response = await fetch(`/api/zoho/vendors?user_id=${user_id}&org_id=${organization_id}`);
     return await response.json();
   },
+
+  create_zoho_vendor: async (user_id: string, organization_id: string, vendor_data: any) => {
+    const response = await fetch('/api/zoho/vendors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, org_id: organization_id, vendor_data }),
+    });
+    return await response.json();
+  },
 };

@@ -388,4 +388,33 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'create_zoho_vendor',
+    description: 'Create a new Zoho vendor for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho vendor for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the vendor in',
+        },
+        vendor_data: {
+          type: 'object',
+          description: 'The data for the new Zoho vendor',
+        },
+      },
+      required: ['user_id', 'organization_id', 'vendor_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_vendor(
+        params.user_id,
+        params.organization_id,
+        params.vendor_data
+      );
+    },
+  },
 ];
