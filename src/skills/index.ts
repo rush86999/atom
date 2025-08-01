@@ -239,6 +239,7 @@ export * as boxSkills from './boxSkills';
 export * as asanaSkills from './asanaSkills';
 export * as trelloSkills from './trelloSkills';
 export * as jiraSkills from './jiraSkills';
+export * as shopifySkills from './shopifySkills';
 
 // Default export for import
 export default {
