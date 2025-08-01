@@ -282,4 +282,33 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'create_zoho_item',
+    description: 'Create a new Zoho item for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho item for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the item in',
+        },
+        item_data: {
+          type: 'object',
+          description: 'The data for the new Zoho item',
+        },
+      },
+      required: ['user_id', 'organization_id', 'item_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_item(
+        params.user_id,
+        params.organization_id,
+        params.item_data
+      );
+    },
+  },
 ];
