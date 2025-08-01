@@ -335,4 +335,33 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'create_zoho_bill',
+    description: 'Create a new Zoho bill for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho bill for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the bill in',
+        },
+        bill_data: {
+          type: 'object',
+          description: 'The data for the new Zoho bill',
+        },
+      },
+      required: ['user_id', 'organization_id', 'bill_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_bill(
+        params.user_id,
+        params.organization_id,
+        params.bill_data
+      );
+    },
+  },
 ];
