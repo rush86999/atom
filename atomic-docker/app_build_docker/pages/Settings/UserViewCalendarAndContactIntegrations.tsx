@@ -100,6 +100,33 @@ const GENERATE_GMAIL_AUTH_URL_MUTATION = gql`
   }
 `;
 
+// GraphQL for Shopify Integration
+const GENERATE_SHOPIFY_AUTH_URL_MUTATION = gql`
+  mutation GenerateShopifyAuthUrl($shopName: String!) {
+    generateShopifyAuthUrl(shop_name: $shopName) {
+      authUrl
+    }
+  }
+`;
+
+const GET_SHOPIFY_CONNECTION_STATUS_QUERY = gql`
+  query GetShopifyConnectionStatus {
+    getShopifyConnectionStatus {
+      isConnected
+      shopUrl
+    }
+  }
+`;
+
+const DISCONNECT_SHOPIFY_ACCOUNT_MUTATION = gql`
+  mutation DisconnectShopifyAccount {
+    disconnectShopifyAccount {
+      success
+      message
+    }
+  }
+`;
+
 const GENERATE_OUTLOOK_AUTH_URL_MUTATION = gql`
   mutation GenerateOutlookAuthUrl {
     generateOutlookAuthUrl {
@@ -300,6 +327,12 @@ function UserViewCalendarAndContactIntegrations() {
     const [outlookUserEmail, setOutlookUserEmail] = useState<string | null>(null);
     const [isOutlookStatusLoading, setIsOutlookStatusLoading] = useState<boolean>(true);
 
+    // State for Shopify Integration
+    const [isShopifyConnected, setIsShopifyConnected] = useState<boolean>(false);
+    const [shopifyShopUrl, setShopifyShopUrl] = useState<string | null>(null);
+    const [isShopifyStatusLoading, setIsShopifyStatusLoading] = useState<boolean>(true);
+    const [shopifyShopName, setShopifyShopName] = useState<string>('');
+
 
     const googleCalendarElement = useRef<any>()
     const toast = useToast()
@@ -412,6 +445,98 @@ function UserViewCalendarAndContactIntegrations() {
       toast({
         title: 'Error Disconnecting Gmail',
         description: (error as Error).message || 'Could not disconnect Gmail. Please try again.',
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Shopify Connection Handler
+  const handleConnectShopify = async () => {
+    if (!shopifyShopName.trim()) {
+      toast({
+        title: 'Shop Name Required',
+        description: 'Please enter your Shopify shop name (e.g., my-great-store).',
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await client.mutate({
+        mutation: GENERATE_SHOPIFY_AUTH_URL_MUTATION,
+        variables: { shopName: shopifyShopName },
+      });
+
+      if (response.data?.generateShopifyAuthUrl?.authUrl) {
+        window.location.href = response.data.generateShopifyAuthUrl.authUrl;
+      } else {
+        throw new Error('Failed to get Shopify authorization URL.');
+      }
+    } catch (error) {
+      console.error('Error initiating Shopify connection:', error);
+      toast({
+        title: 'Error Connecting Shopify',
+        description: (error as Error).message || 'Could not initiate Shopify connection. Please try again.',
+        status: 'error',
+        duration: 9000,
+        isClosable: true,
+      });
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch Shopify connection status on mount
+    setIsShopifyStatusLoading(true);
+    client.query({ query: GET_SHOPIFY_CONNECTION_STATUS_QUERY, fetchPolicy: 'network-only' })
+      .then(response => {
+        const status = response.data?.getShopifyConnectionStatus;
+        if (status) {
+          setIsShopifyConnected(status.isConnected);
+          setShopifyShopUrl(status.shopUrl || null);
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching Shopify connection status:", err);
+        // Assume not connected on error
+        setIsShopifyConnected(false);
+        setShopifyShopUrl(null);
+      })
+      .finally(() => {
+        setIsShopifyStatusLoading(false);
+      });
+  }, [client, toast]);
+
+  const handleDisconnectShopify = async () => {
+    setLoading(true);
+    try {
+      const response = await client.mutate({
+        mutation: DISCONNECT_SHOPIFY_ACCOUNT_MUTATION,
+      });
+      if (response.data?.disconnectShopifyAccount?.success) {
+        toast({
+          title: 'Shopify Disconnected',
+          description: response.data.disconnectShopifyAccount.message || 'Successfully disconnected your Shopify account.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        setIsShopifyConnected(false);
+        setShopifyShopUrl(null);
+      } else {
+        throw new Error(response.data?.disconnectShopifyAccount?.message || 'Failed to disconnect Shopify account.');
+      }
+    } catch (error) {
+      console.error('Error disconnecting Shopify:', error);
+      toast({
+        title: 'Error Disconnecting Shopify',
+        description: (error as Error).message || 'Could not disconnect Shopify. Please try again.',
         status: 'error',
         duration: 9000,
         isClosable: true,
@@ -948,6 +1073,45 @@ function UserViewCalendarAndContactIntegrations() {
               {/* GitHub Integration Section */}
               <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
                 <GithubManager />
+              </Box>
+
+              {/* Shopify Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                <Text variant="optionHeader" style={{ color: palette.darkGray, marginBottom: 10 }}>
+                  Shopify Integration
+                </Text>
+                {isShopifyStatusLoading ? (
+                  <ActivityIndicator size="small" color={palette.primary} style={{ marginTop: 10 }} />
+                ) : isShopifyConnected ? (
+                  <Box alignItems="center">
+                    <Text variant="body" mb="s">
+                      {shopifyShopUrl ? `Connected to: ${shopifyShopUrl}` : "Shopify is connected."}
+                    </Text>
+                    <Button
+                      label="Disconnect Shopify"
+                      onClick={handleDisconnectShopify}
+                      variant="warning"
+                      disabled={loading}
+                    />
+                  </Box>
+                ) : (
+                  <Box alignItems="center">
+                    <TextField
+                      onChange={(e: { target: { value: string } }) => setShopifyShopName(e.target.value)}
+                      value={shopifyShopName}
+                      placeholder="your-store-name"
+                      label="Shopify Shop Name"
+                      style={{ width: '80%', marginBottom: 10 }}
+                      hint="Enter your shop name (e.g., 'your-store-name' from 'your-store-name.myshopify.com')"
+                    />
+                    <Button
+                      label="Connect Shopify"
+                      onClick={handleConnectShopify}
+                      disabled={loading}
+                    />
+                  </Box>
+                )}
+                {(loading && !isShopifyStatusLoading) && <ActivityIndicator style={{ marginTop: 10 }} color={palette.primary} />}
               </Box>
 
 

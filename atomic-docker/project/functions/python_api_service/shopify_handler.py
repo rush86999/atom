@@ -50,3 +50,47 @@ async def handle_order(order_id):
     except Exception as e:
         logger.error(f"Error handling Shopify order {order_id} for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "ORDER_HANDLING_FAILED", "message": str(e)}}), 500
+
+@shopify_bp.route('/api/shopify/connection-status', methods=['GET'])
+def get_connection_status():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        with get_db_connection(db_conn_pool) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT shop_url FROM shopify_oauth_tokens WHERE user_id = %s", (user_id,))
+                token_info = cur.fetchone()
+
+        if token_info:
+            return jsonify({"ok": True, "data": {"isConnected": True, "shopUrl": token_info[0]}})
+        else:
+            return jsonify({"ok": True, "data": {"isConnected": False}})
+    except Exception as e:
+        logger.error(f"Error checking Shopify connection status for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "CONNECTION_STATUS_FAILED", "message": str(e)}}), 500
+
+@shopify_bp.route('/api/shopify/disconnect', methods=['POST'])
+def disconnect_shopify():
+    user_id = request.get_json().get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        with get_db_connection(db_conn_pool) as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM shopify_oauth_tokens WHERE user_id = %s", (user_id,))
+
+        return jsonify({"ok": True, "data": None})
+    except Exception as e:
+        logger.error(f"Error disconnecting Shopify for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "DISCONNECT_FAILED", "message": str(e)}}), 500
