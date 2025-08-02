@@ -63,6 +63,23 @@ export async function createDripCampaign(
   }
 }
 
+export async function getCampaignStatus(
+  userId: string,
+  campaignId: string
+): Promise<SkillResponse<any>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/campaign-status/${campaignId}?user_id=${userId}`;
+
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getCampaignStatus');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getCampaignStatus');
+  }
+}
+
 export class MarketingAutomationAgent {
     private llmService: AgentLLMService;
 
@@ -73,6 +90,23 @@ export class MarketingAutomationAgent {
     public async analyze(input: SubAgentInput): Promise<any> {
         // For now, returning a mock response.
         // In a real implementation, this would involve an LLM call to analyze the input.
+
+        if (input.userInput.toLowerCase().includes('status')) {
+            return Promise.resolve({
+                problemType: 'marketing_automation',
+                summary: 'The user wants to get the status of a marketing campaign.',
+                tasks: [
+                    {
+                        id: 'get_campaign_status',
+                        description: 'Get the status of a marketing campaign.',
+                        parameters: {
+                            campaignId: 'campaign_123' // Mock campaign ID
+                        }
+                    }
+                ]
+            });
+        }
+
         return Promise.resolve({
             problemType: 'marketing_automation',
             summary: 'The user wants to automate a marketing task.',
