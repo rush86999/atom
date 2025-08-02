@@ -211,7 +211,7 @@ export async function searchTableByVector(
   query = query.limit(limit);
 
   try {
-    const results = await query.execute();
+    const results = await query.toArray();
     return results;
   } catch (error) {
     console.error(`Error searching table "${tableName}" by vector:`, error);
@@ -242,12 +242,9 @@ export async function getItemById(
     .query()
     .where(`id = '${id.replace(/'/g, "''")}'`)
     .limit(1)
-    .execute();
+    .toArray();
 
-  if (results && results.length > 0) {
-    return results[0];
-  }
-  return null;
+  return results.length > 0 ? results[0] : null;
 }
 
 // Update getEventDataTable and getTrainingDataTable to pass the db connection
