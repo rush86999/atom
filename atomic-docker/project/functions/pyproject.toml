@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atom-platform"
+version = "1.0.0"
+description = "ATOM Platform Services"
+
+[tool.pyright]
+include = ["**/*.py", "**/*.ts"]
+exclude = ["**/node_modules/**", "**/__pycache__/**", "**/.venv/**", "**/venv/**", "dist/**", "build/**"]
+
+# Python version
+pythonVersion = "3.8"
+pythonPlatform = "Linux"
+
+# Import resolution
+# Skip import errors for optional Google API packages
+reportMissingImports = "none"
+reportImportCycles = "none"
+reportWildcardImportFromLibrary = "none"
+
+# Type checking
+strictListInference = true
+strictDictionaryInference = true
+typeCheckingMode = "standard"
+
+# Ignore specific Google API import errors
+# These will suppress the "Import could not be resolved" errors
+externalPackagePath = [".", "python_api_service"]
+
+# Suppress import errors for these packages
+[[tool.pyright.ignore]]
+module = "google.oauth2.credentials"
+addMissing = true
+
+[[tool.pyright.ignore]]
+module = "googleapiclient.discovery"
+addMissing = true
+
+[[tool.pyright.ignore]]
+module = "googleapiclient.errors"
+addMissing = true
+
+[[tool.pyright.ignore]]
+module = "google.auth.transport.requests"
+addMissing = true
+
+[[tool.pyright.ignore]]
+module = "googleapiclient.http"
+addMissing = true
+
+[[tool.pyright.ignore]]
+module = "google.auth.exceptions"
+addMissing = true
+
+[[tool.pyright.ignore]]
+module = "PyPDF2"
+addMissing = true
+
+# Allow specific typing relaxation
+reportOptionalParameterMissing = false
+reportOptionalSubscript = false
+
+# Override for specific directories
+[tool.pyright.targets]
+python_api_service = {
+  reportMissingImports = "none",
+  reportPrivateUsage = "none"
+}
+```
+
+Now let me create the corresponding VS Code settings for additional IDE configuration:
