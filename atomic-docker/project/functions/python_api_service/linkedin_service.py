@@ -10,10 +10,7 @@ through dedicated worker threads to prevent blocking the main application thread
 """
 
 import os
-import asyncio
-import logging
-import json
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 import urllib.parse
 import requests
@@ -89,7 +86,7 @@ class LinkedInConnection:
 class LinkedInService:
     """Service class for LinkedIn API operations."""
 
-    def __init__(self, client_id: str = None, client_secret: str = None):
+    def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None):
         """Initialize the LinkedIn service with OAuth credentials."""
         self.client_id = client_id or os.getenv('LINKEDIN_CLIENT_ID')
         self.client_secret = client_secret or os.getenv('LINKEDIN_CLIENT_SECRET')
@@ -135,7 +132,7 @@ class LinkedInService:
             logger.error(f"LinkedIn authentication failed: {str(e)}")
             raise AuthenticationError(f"Authentication failed: {str(e)}")
 
-    def get_authorization_url(self, state: str = None) -> str:
+    def get_authorization_url(self, state: Optional[str] = None) -> str:
         """
         Generate LinkedIn OAuth authorization URL.
 
@@ -328,7 +325,7 @@ class LinkedInService:
             logger.error(f"Error posting to LinkedIn: {str(e)}")
             return False
 
-    async def search_jobs(self, keywords: str, location: str = None, count: int = 10) -> List[Dict[str, Any]]:
+    async def search_jobs(self, keywords: str, location: Optional[str] = None, count: int = 10) -> List[Dict[str, Any]]:
         """
         Search for jobs on LinkedIn.
 
