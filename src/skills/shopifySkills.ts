@@ -73,3 +73,35 @@ export async function getShopifyOrder(
     return handleAxiosError(error as AxiosError, 'getShopifyOrder');
   }
 }
+
+export async function getShopifyConnectionStatus(
+  userId: string
+): Promise<SkillResponse<{ isConnected: boolean; shopUrl?: string }>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/shopify/connection-status?user_id=${userId}`;
+
+  try {
+    const response = await axios.get<PythonApiResponse<{ isConnected: boolean; shopUrl?: string }>>(endpoint);
+    return handlePythonApiResponse(response.data, 'getShopifyConnectionStatus');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getShopifyConnectionStatus');
+  }
+}
+
+export async function disconnectShopify(
+  userId: string
+): Promise<SkillResponse<null>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/shopify/disconnect`;
+
+  try {
+    const response = await axios.post<PythonApiResponse<null>>(endpoint, { user_id: userId });
+    return handlePythonApiResponse(response.data, 'disconnectShopify');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'disconnectShopify');
+  }
+}
