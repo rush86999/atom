@@ -7,6 +7,7 @@ import {
     safeParseJSON
 } from '../nlu_agents/nlu_types';
 import { StructuredLLMPrompt } from '../lib/llmUtils';
+import { createDesign } from './canvaSkills';
 
 export class AdvancedResearchAgent {
     private llmService: AgentLLMService;
@@ -48,7 +49,34 @@ User ID: ${input.userId || 'N/A'}
         };
     }
 
+    private async createCanvaDesign(userId: string, title: string): Promise<AdvancedResearchAgentResponse> {
+        try {
+            const design = await createDesign(userId, title);
+            return {
+                researchSummary: `Successfully created Canva design: "${design.title}"`,
+                keyFindings: [`Design ID: ${design.id}`, `Edit URL: ${design.urls.edit_url}`],
+                sources: [{ title: 'Canva Design', url: design.urls.edit_url }],
+                rawLLMResponse: JSON.stringify(design),
+            };
+        } catch (error: any) {
+            return {
+                researchSummary: `Failed to create Canva design: ${error.message}`,
+                keyFindings: [],
+                sources: [],
+                rawLLMResponse: '',
+            };
+        }
+    }
+
     public async analyze(input: SubAgentInput): Promise<AdvancedResearchAgentResponse> {
+        const canvaCommandRegex = /create canva design with title "([^"]+)"/i;
+        const canvaMatch = input.userInput.match(canvaCommandRegex);
+
+        if (canvaMatch && canvaMatch[1]) {
+            const title = canvaMatch[1];
+            return this.createCanvaDesign(input.userId, title);
+        }
+
         const structuredPrompt = this.constructPrompt(input);
         const TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
 
