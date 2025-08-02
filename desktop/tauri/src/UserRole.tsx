@@ -1,7 +1,16 @@
-import React from 'react';
+import React from "react";
 
 // Define the type for a role. This can be expanded with more roles as needed.
-export type Role = 'sales' | 'support' | 'developer' | 'project_manager' | 'data_analyst';
+export type Role =
+  | "sales"
+  | "support"
+  | "developer"
+  | "project_manager"
+  | "financial_analyst"
+  | "researcher"
+  | "social_media_manager"
+  | "content_creator"
+  | "shopper";
 
 // Define the props for the UserRole component
 interface UserRoleProps {
@@ -19,22 +28,49 @@ interface UserRoleProps {
  * @param {Role[]} props.availableRoles - All possible roles.
  * @param {(role: Role) => void} props.onToggleRole - Callback function to toggle a role.
  */
-const UserRole: React.FC<UserRoleProps> = ({ activeRoles, availableRoles, onToggleRole }) => {
+const UserRole: React.FC<UserRoleProps> = ({
+  activeRoles,
+  availableRoles,
+  onToggleRole,
+}) => {
   return (
-    <div className="user-role-container" style={{ padding: '20px', fontFamily: 'Arial, sans-serif', border: '1px solid #ccc', borderRadius: '8px', marginTop: '20px' }}>
+    <div
+      className="user-role-container"
+      style={{
+        padding: "20px",
+        fontFamily: "Arial, sans-serif",
+        border: "1px solid #ccc",
+        borderRadius: "8px",
+        marginTop: "20px",
+      }}
+    >
       <h2>Manage Your Roles & Agent Skills</h2>
       <p>Select the roles you want to activate to enable specific features.</p>
-      <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div
+        style={{
+          marginTop: "15px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        }}
+      >
         {availableRoles.map((role) => (
           <div key={role}>
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', textTransform: 'capitalize' }}>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                textTransform: "capitalize",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={activeRoles.includes(role)}
                 onChange={() => onToggleRole(role)}
-                style={{ marginRight: '10px', height: '18px', width: '18px' }}
+                style={{ marginRight: "10px", height: "18px", width: "18px" }}
               />
-              {role.replace('_', ' ')}
+              {role.replace("_", " ")}
             </label>
           </div>
         ))}

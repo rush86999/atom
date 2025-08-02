@@ -9,234 +9,294 @@ try:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
     from google.auth.transport.requests import Request
-    from googleapiclient.http import MediaIoUpload as MediaIoUploader
+    from googleapiclient.http import MediaIoUpload
     import google.auth.exceptions as google_auth_exceptions
     HAS_GOOGLE_API = True
+
+    CredentialsType = Credentials
+    HttpErrorType = HttpError
+    RequestType = Request
+    MediaIoUploadType = MediaIoUpload
+    GoogleAuthErrorType = google_auth_exceptions.GoogleAuthError
+
 except ImportError:
     HAS_GOOGLE_API = False
 
-# Fallback type imports for type checking
-from google.oauth2.credentials import Credentials as MockCredentials
-from googleapiclient.errors import HttpError as MockHttpError
-from google.auth.transport.requests import Request as MockRequest
-from googleapiclient.http import MediaIoUpload as MockMediaIoUpload
+    class CredentialsType:
+        """Mock Credentials type"""
+        def __init__(self, **kwargs):
+            self.token = kwargs.get('token', 'mock_token')
+            self.expired = kwargs.get('expired', False)
+            self.refresh_token = kwargs.get('refresh_token', 'mock_refresh_token')
+            self.client_id = kwargs.get('client_id', 'mock_client_id')
+            self.client_secret = kwargs.get('client_secret', 'mock_client_secret')
+            self.scopes = kwargs.get('scopes', [])
+            self.token_uri = "https://oauth2.googleapis.com/token"
 
-
-# --- Runtime Imports and Mock Fallbacks ---
-# We attempt to import the actual libraries. If they aren't installed,
-# we define mock classes with the same names to ensure the application can run.
-if HAS_GOOGLE_API:
-    logging.info("Successfully imported Google API libraries.")
-else:
-    logging.warning("Google API libraries not found. Using mock implementation.")
-
-    # --- MOCK IMPLEMENTATIONS ---
-    # These classes simulate the behavior of the Google libraries for local development.
-
-    class MockHttpError(Exception):
-        """Mocks googleapiclient.errors.HttpError."""
+    class HttpErrorType(Exception):
+        """Mock HttpError type"""
         def __init__(self, resp, content, uri=None):
+            super().__init__(str(resp))
             self.resp = resp
             self.content = content
-            self.uri = uri
-            super().__init__(f"HttpError {resp.get('status', 'unknown')}")
 
-    class MockRequest:
-        """Mocks google.auth.transport.requests.Request."""
+    class RequestType:
+        """Mock Request type"""
         pass
 
-    class MockMediaIoUploader:
-        """Mocks googleapiclient.http.MediaIoUploader."""
+    class MediaIoUploadType:
+        """Mock MediaIoUpload type"""
         def __init__(self, fd, mimetype, chunksize, resumable):
             pass
 
-    class MockCredentials:
-        """Mocks google.oauth2.credentials.Credentials."""
-        def __init__(self, token=None, refresh_token=None, token_uri=None, client_id=None, client_secret=None, scopes=None, expiry=None):
-            self.token = token or 'mock_access_token'
-            self.refresh_token = refresh_token or 'mock_refresh_token'
-            self.expired = False
-            self.expiry = expiry
-            self.token_uri = token_uri or "https://oauth2.googleapis.com/token"
-            self.client_id = client_id
-            self.client_secret = client_secret
-            self.scopes = scopes or []
+    class GoogleAuthErrorType(Exception):
+        """Mock GoogleAuthError type"""
+        pass
 
-        def refresh(self, request: Union["MockRequest", "Request"]):
-            from datetime import datetime, timedelta
-            self.token = 'mock_refreshed_token'
-            self.expiry = datetime.utcnow() + timedelta(hours=1)
-            self.expired = False
-
-    # --- Mock Service and Resource Objects ---
-    class _MockExecute:
-        def execute(self) -> Any:
-            raise NotImplementedError
-
-    class _MockFileListRequest(_MockExecute):
-        def execute(self) -> Dict[str, List[Dict[str, Any]]]:
-            return {'files': [{'id': 'mock_id_1', 'name': 'MockFile1.pdf'}]}
-
-    class _MockFileGetRequest(_MockExecute):
-        def __init__(self, fileId: str, fields: str):
-            self._fileId = fileId
-        def execute(self) -> Dict[str, Any]:
-            return {'id': self._fileId, 'name': 'Mock File', 'mimeType': 'application/pdf', 'exportLinks': {'application/pdf': 'http://mock'}}
-
-    class _MockFileMediaRequest(_MockExecute):
-        def execute(self) -> bytes:
-            return b"mock file content"
-
-    class _MockFileCreateRequest(_MockExecute):
-        def __init__(self, body: Dict, media_body: Any):
-            self._body = body
-        def execute(self) -> Dict[str, Any]:
-            return {'id': 'mock-created-file-id', 'name': self._body.get('name', 'Untitled')}
-
-    class _MockFilesResource:
-        def list(self, **kwargs) -> _MockFileListRequest: return _MockFileListRequest()
-        def get(self, fileId: str, fields: str) -> _MockFileGetRequest: return _MockFileGetRequest(fileId, fields)
-        def get_media(self, fileId: str) -> _MockFileMediaRequest: return _MockFileMediaRequest()
-        def export_media(self, fileId: str, mimeType: str) -> _MockFileMediaRequest: return _MockFileMediaRequest()
-        def create(self, **kwargs) -> _MockFileCreateRequest: return _MockFileCreateRequest(kwargs.get('body'), kwargs.get('media_body'))
-
-    class _MockDriveService:
-        def files(self) -> _MockFilesResource: return _MockFilesResource()
-
-    # --- Assign mocks to the names expected by the application ---
-    # This ensures that the rest of the file can use these names without knowing if they are real or mocks.
-    Credentials = MockCredentials
-    HttpError = MockHttpError
-    Request = MockRequest
-    MediaIoUploader = MockMediaIoUploader
-    def build(service_name: str, version: str, credentials: Any) -> _MockDriveService:
-        return _MockDriveService()
-
-
-# --- Application Service Code ---
 from db_oauth_gdrive import get_token, update_gdrive_access_token
 from crypto_utils import decrypt_data, encrypt_data
 
 logger = logging.getLogger(__name__)
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file']
 
-async def get_gdrive_credentials(user_id: str, db_conn_pool: Any) -> Optional[Union["Credentials", MockCredentials]]:
-    """
-    Retrieves and refreshes Google Drive credentials for a user from the database.
-    """
-    encrypted_token_data = get_token(db_conn_pool, user_id)
-    if not encrypted_token_data:
-        logger.warning(f"No GDrive token found in DB for user {user_id}")
-        return None
+async def get_gdrive_credentials(user_id: str, db_conn_pool: Any) -> Optional[CredentialsType]:
+    """Retrieve and prepare Google Drive credentials for a specific user."""
+    from db_oauth_gdrive import get_user_by_id
+
+    logger.info(f"Retrieving Google Drive credentials for user_id: {user_id}")
 
     try:
-        client_id = os.environ.get("GOOGLE_CLIENT_ID")
-        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-        if not client_id or not client_secret:
-            logger.error("GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not configured.")
+        user_row = await get_user_by_id(user_id, db_conn_pool)
+        if not user_row or not user_row.get('google_token_encrypted'):
+            logger.warning("No encrypted Google token found for user")
             return None
 
-        decrypted_access_token = decrypt_data(encrypted_token_data['access_token_encrypted'])
-        if not decrypted_access_token:
-            logger.error(f"Failed to decrypt access token for user {user_id}")
+        raw_token_json_str = decrypt_data(user_row['google_token_encrypted'])
+        if not raw_token_json_str:
+            logger.error("Failed to decrypt Google token")
             return None
 
-        decrypted_refresh_token = decrypt_data(encrypted_token_data['refresh_token_encrypted']) if encrypted_token_data.get('refresh_token_encrypted') else None
+        token_dict = json.loads(raw_token_json_str)
 
-        creds = Credentials(
-            token=decrypted_access_token,
-            refresh_token=decrypted_refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=client_id,
-            client_secret=client_secret,
-            scopes=SCOPES)
+        credentials = CredentialsType(
+            token=token_dict.get('access_token'),
+            refresh_token=token_dict.get('refresh_token'),
+            client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+            client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+            scopes=SCOPES,
+            token_uri="https://oauth2.googleapis.com/token"
+        )
 
-        if creds.expired and creds.refresh_token:
-            logger.info(f"GDrive token for user {user_id} expired. Refreshing...")
-            creds.refresh(Request())
-            if creds.token and hasattr(creds, 'expiry') and creds.expiry:
-                new_encrypted_access_token = encrypt_data(creds.token)
-                new_expiry_ms = int(creds.expiry.timestamp() * 1000)
-                if new_encrypted_access_token:
-                    update_gdrive_access_token(db_conn_pool, user_id, new_encrypted_access_token, new_expiry_ms)
-                    logger.info(f"Refreshed and updated GDrive token for user {user_id}")
-        return creds
+        logger.info("Successfully retrieved Google Drive credentials")
+        return credentials
+
     except Exception as e:
-        logger.error(f"Failed to process Google credentials for user {user_id}: {e}", exc_info=True)
+        logger.error(f"Error getting Google Drive credentials: {str(e)}")
         return None
 
-async def list_files(creds: Union["Credentials", MockCredentials], query: Optional[str] = None, page_size: int = 50, page_token: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Lists files in Google Drive, optionally filtered by a query."""
+async def refresh_and_update_gdrive_token(
+    db_conn_pool: Any,
+    user_id: str,
+    credentials: CredentialsType
+) -> CredentialsType:
+    """Refresh Google token and update database."""
     try:
-        service = build("drive", "v3", credentials=creds)
-        q_filter = f"name contains '{query}' and trashed = false" if query else "trashed = false"
-        results = service.files().list(
-            q=q_filter,
-            pageSize=page_size,
-            pageToken=page_token,
-            fields="nextPageToken, files(id, name, mimeType, webViewLink, modifiedTime)"
-        ).execute()
-        return results
-    except Exception as e:
-        logger.error(f"Google Drive API error during list_files: {e}", exc_info=True)
-        return None
+        if not credentials.expired:
+            return credentials
 
-async def get_file_metadata(creds: Union["Credentials", MockCredentials], file_id: str) -> Optional[Dict[str, Any]]:
-    """Retrieves metadata for a single file."""
-    try:
-        service = build("drive", "v3", credentials=creds)
-        file_metadata = service.files().get(fileId=file_id, fields="*").execute()
-        return file_metadata
-    except Exception as e:
-        logger.error(f"Google Drive API error getting metadata for {file_id}: {e}", exc_info=True)
-        return None
+        request = RequestType()
+        credentials.refresh(request)
 
-async def download_file(creds: Union["Credentials", MockCredentials], file_id: str) -> Optional[Tuple[bytes, Dict[str, Any]]]:
-    """Downloads a file, exporting Google Docs to PDF if necessary."""
+        updated_token = {
+            'access_token': credentials.token,
+            'refresh_token': credentials.refresh_token or await get_refresh_token(user_id, db_conn_pool),
+            'token_type': 'Bearer'
+        }
+
+        encrypted_token = encrypt_data(json.dumps(updated_token))
+        await update_gdrive_access_token(user_id, encrypted_token, db_conn_pool)
+
+        logger.info("Successfully refreshed and updated Google Drive token")
+        return credentials
+
+    except Exception as e:
+        logger.error(f"Error refreshing Google Drive token: {str(e)}")
+        await update_gdrive_access_token(user_id, None, db_conn_pool)
+        raise e
+
+async def extract_text_from_pdf(user_id: str, file_id: str, db_conn_pool: Any) -> str:
+    """Extract text content from a PDF file in Google Drive."""
     try:
-        service = build("drive", "v3", credentials=creds)
-        metadata = await get_file_metadata(creds, file_id)
-        if not metadata:
+        credentials = await get_gdrive_credentials(user_id, db_conn_pool)
+        if not credentials:
+            return ""
+
+        credentials = await refresh_and_update_gdrive_token(db_conn_pool, user_id, credentials)
+
+        if not HAS_GOOGLE_API:
+            logger.warning("Google API not available, returning placeholder")
+            return "[Google Drive API not available - output below is placeholder]"
+
+        service = build('drive', 'v3', credentials=credentials)
+
+        request = service.files().get_media(fileId=file_id)
+        file_content = request.execute()
+
+        from PyPDF2 import PdfReader
+
+        with io.BytesIO(file_content) as pdf_file:
+            reader = PdfReader(pdf_file)
+            text_content = ""
+
+            for page_num, page in enumerate(reader.pages):
+                text_content += f"\n--- Page {page_num + 1} ---\n"
+                text_content += page.extract_text() or "[No text detected on this page]"
+
+        return text_content
+
+    except HttpErrorType as e:
+        logger.error(f"HttpError extracting text from PDF: {str(e)}")
+        if e.resp.status == 403:
+            return "[Permission denied when accessing Google Drive file]"
+        elif e.resp.status == 404:
+            return "[File not found in Google Drive]"
+        return f"[Error accessing Google Drive file: {str(e)}]"
+    except Exception as e:
+        logger.error(f"Unexpected error extracting text from PDF: {str(e)}")
+        return f"[Error processing PDF: {str(e)}]"
+
+async def extract_metadata_from_files(user_id: str, file_ids: List[str], db_conn_pool: Any) -> List[Dict[str, Any]]:
+    """Extract metadata for multiple files from Google Drive."""
+    try:
+        credentials = await get_gdrive_credentials(user_id, db_conn_pool)
+        if not credentials:
+            return []
+
+        credentials = await refresh_and_update_gdrive_token(db_conn_pool, user_id, credentials)
+
+        if not HAS_GOOGLE_API:
+            logger.warning("Google API not available, returning mock metadata")
+            return [{'id': file_id, 'name': f'file_{file_id[-8:]}', 'mimeType': 'application/octet-stream'} for file_id in file_ids]
+
+        service = build('drive', 'v3', credentials=credentials)
+
+        files = []
+        for file_id in file_ids:
+            try:
+                file = service.files().get(fileId=file_id, fields="id, name, mimeType, modifiedTime, size").execute()
+                files.append(file)
+            except HttpErrorType as e:
+                logger.error(f"Error getting metadata for file {file_id}: {str(e)}")
+                files.append({'id': file_id, 'name': 'Unknown File', 'mimeType': 'application/octet-stream', 'error': str(e)})
+
+        return files
+
+    except Exception as e:
+        logger.error(f"Error extracting metadata from files: {str(e)}")
+        return []
+
+async def upload_file(user_id: str, file_path: str, file_name: str, mime_type: str, db_conn_pool: Any) -> Optional[str]:
+    """Upload a file to Google Drive."""
+    try:
+        credentials = await get_gdrive_credentials(user_id, db_conn_pool)
+        if not credentials:
             return None
 
-        mime_type = metadata.get('mimeType', '')
-        request = None
-        if 'google-apps' in mime_type:
-            export_links = metadata.get('exportLinks', {})
-            if 'application/pdf' in export_links:
-                request = service.files().export_media(fileId=file_id, mimeType='application/pdf')
-                metadata['name'] = f"{metadata.get('name', 'Untitled')}.pdf"
-                metadata['mimeType'] = 'application/pdf'
-            else:
-                logger.warning(f"No suitable PDF export format for GDrive file {file_id} of type {mime_type}")
-                return None
-        else:
-            request = service.files().get_media(fileId=file_id)
+        credentials = await refresh_and_update_gdrive_token(db_conn_pool, user_id, credentials)
 
-        if request:
-            file_content = request.execute()
-            return (file_content, metadata)
-        return None
+        if not HAS_GOOGLE_API:
+            logger.warning("Google API not available, returning mock file ID")
+            return f"mock-file-id-{file_name}"
+
+        service = build('drive', 'v3', credentials=credentials)
+
+        file_metadata = {'name': file_name}
+
+        with io.FileIO(file_path, 'rb') as file_data:
+            media = MediaIoUploadType(file_data, mimetype=mime_type, resumable=True)
+            file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
+        return file.get('id')
+
     except Exception as e:
-        logger.error(f"Google Drive API error downloading file {file_id}: {e}", exc_info=True)
+        logger.error(f"Error uploading file to Google Drive: {str(e)}")
         return None
 
-async def create_file(creds: Union["Credentials", MockCredentials], file_metadata: Dict[str, Any], file_content: Optional[bytes] = None) -> Optional[Dict[str, Any]]:
-    """Creates a file or folder in Google Drive."""
+async def list_files(user_id: str, query: str = None, limit: int = 100, db_conn_pool: Any) -> List[Dict[str, Any]]:
+    """List files from Google Drive with optional query."""
     try:
-        service = build("drive", "v3", credentials=creds)
-        media_body = None
-        if file_content:
-            fh = io.BytesIO(file_content)
-            mimetype = file_metadata.get('mimeType', 'application/octet-stream')
-            media_body = MediaIoUploader(fh, mimetype=mimetype, resumable=True, chunksize=1024 * 1024)
+        credentials = await get_gdrive_credentials(user_id, db_conn_pool)
+        if not credentials:
+            return []
 
-        file_resource = service.files().create(
-            body=file_metadata,
-            media_body=media_body,
-            fields='id, name, webViewLink'
-        ).execute()
-        return file_resource
+        credentials = await refresh_and_update_gdrive_token(db_conn_pool, user_id, credentials)
+
+        if not HAS_GOOGLE_API:
+            logger.warning("Google API not available, returning mock file list")
+            return [
+                {'id': 'mock-file-1', 'name': 'document1.pdf', 'mimeType': 'application/pdf', 'modifiedTime': '2023-01-01'},
+                {'id': 'mock-file-2', 'name': 'spreadsheet.xlsx', 'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'modifiedTime': '2023-01-02'}
+            ]
+
+        service = build('drive', 'v3', credentials=credentials)
+
+        query_str = query or "mimeType!='application/vnd.google-apps.folder'"
+        results = service.files().list(q=query_str, pageSize=limit, fields="files(id, name, mimeType, modifiedTime, size)").execute()
+
+        return results.get('files', [])
+
     except Exception as e:
-        logger.error(f"Google Drive API error creating file: {e}", exc_info=True)
+        logger.error(f"Error listing Google Drive files: {str(e)}")
+        return []
+
+async def download_file(user_id: str, file_id: str, output_path: str, db_conn_pool: Any) -> bool:
+    """Download a file from Google Drive to local path."""
+    try:
+        credentials = await get_gdrive_credentials(user_id, db_conn_pool)
+        if not credentials:
+            return False
+
+        credentials = await refresh_and_update_gdrive_token(db_conn_pool, user_id, credentials)
+
+        if not HAS_GOOGLE_API:
+            logger.warning("Google API not available, creating placeholder file")
+            with open(output_path, 'w') as f:
+                f.write("# Placeholder - Google API not available")
+            return True
+
+        service = build('drive', 'v3', credentials=credentials)
+
+        request = service.files().get_media(fileId=file_id)
+        file_content = request.execute()
+
+        with open(output_path, 'wb') as f:
+            f.write(file_content)
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error downloading file from Google Drive: {str(e)}")
+        return False
+
+async def get_refresh_token(user_id: str, db_conn_pool: Any) -> Optional[str]:
+    """Extract refresh token from user's saved credentials."""
+    try:
+        from db_oauth_gdrive import get_user_by_id
+
+        user_row = await get_user_by_id(user_id, db_conn_pool)
+        if not user_row or not user_row.get('google_token_encrypted'):
+            return None
+
+        raw_token_json_str = decrypt_data(user_row['google_token_encrypted'])
+        if not raw_token_json_str:
+            return None
+
+        token_dict = json.loads(raw_token_json_str)
+        return token_dict.get('refresh_token')
+
+    except Exception as e:
+        logger.error(f"Error getting refresh token: {str(e)}")
         return None
+
+# Import required modules at the end to avoid circular imports
+import json

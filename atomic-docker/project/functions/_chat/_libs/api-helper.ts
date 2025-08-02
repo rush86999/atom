@@ -1,11 +1,11 @@
 // import { SESClient } from "@aws-sdk/client-ses";
-import OpenAI, { OpenAI as OpenAIClass } from "openai"
-import retry from 'async-retry';
+import OpenAI from "openai"
+import * as retry from 'async-retry';
 import { postgraphileAdminSecret, postgraphileGraphUrl, zoomBaseTokenUrl, zoomBaseUrl, zoomClientId, zoomClientSecret, zoomIVForPass, zoomPassKey, zoomResourceName, zoomSaltForPass, googleClientIdAndroid, googleClientIdAtomicWeb, googleClientIdIos, googleClientIdWeb, googleClientSecretAtomicWeb, googleClientSecretWeb, googleTokenUrl, googleCalendarName, Day, defaultOpenAIAPIKey, openAIChatGPT35Model, openAIChatGPT35LongModel } from "./constants";
 
 import { Dayjs, dayjs, getISODay, setISODay } from "./datetime/date-utils";
 import { searchEvents, getEventById as getEventFromLanceDbById, upsertEvents, deleteEventsByIds, searchTrainingEvents, upsertTrainingEvents, deleteTrainingEventsByIds } from '../../_utils/lancedb_service';
-import { EventSchema as LanceDbEventSchema, TrainingEventSchema as LanceDbTrainingEventSchema } from '../../_utils/lancedb_service.ts';
+import { EventSchema as LanceDbEventSchema, TrainingEventSchema as LanceDbTrainingEventSchema } from '../../_utils/lancedb_service';
 import DateTimeJSONType, { RelativeTimeChangeFromNowType, RelativeTimeFromNowType } from "./datetime/DateTimeJSONJSONType";
 import { BufferTimeType, RecurrenceFrequencyType, RecurrenceRuleType, SendUpdatesType, Time } from "./types/EventType";
 import got from "got";
