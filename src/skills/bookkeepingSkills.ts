@@ -441,4 +441,86 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'create_zoho_purchase_order',
+    description: 'Create a new Zoho purchase order for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho purchase order for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the purchase order in',
+        },
+        purchase_order_data: {
+          type: 'object',
+          description: 'The data for the new Zoho purchase order',
+        },
+      },
+      required: ['user_id', 'organization_id', 'purchase_order_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_purchase_order(
+        params.user_id,
+        params.organization_id,
+        params.purchase_order_data
+      );
+    },
+  },
+  {
+    name: 'get_zoho_sales_orders',
+    description: 'Get a list of Zoho sales orders for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to get the Zoho sales orders for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to get the sales orders from',
+        },
+      },
+      required: ['user_id', 'organization_id'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.get_zoho_sales_orders(
+        params.user_id,
+        params.organization_id
+      );
+    },
+  },
+  {
+    name: 'create_zoho_sales_order',
+    description: 'Create a new Zoho sales order for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho sales order for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the sales order in',
+        },
+        sales_order_data: {
+          type: 'object',
+          description: 'The data for the new Zoho sales order',
+        },
+      },
+      required: ['user_id', 'organization_id', 'sales_order_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_sales_order(
+        params.user_id,
+        params.organization_id,
+        params.sales_order_data
+      );
+    },
+  },
 ];
