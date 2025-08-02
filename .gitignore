@@ -254,3 +254,24 @@ amplifytools.xcconfig
 
 # Database
 /project/postgres
+
+# Personal IDE setup files
+*_setup_*.md
+*personal*
+*private*
+
+# IDE configuration files that may contain personal paths
+.vscode/settings.json
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries
+
+# System-specific path references
+*_setup_*.md
+paths.cache
+
+# OS user profiles
+*-profile
+*-settings
+*-config
