@@ -441,4 +441,33 @@ export const bookkeepingSkills: SkillDefinition[] = [
       );
     },
   },
+  {
+    name: 'create_zoho_purchase_order',
+    description: 'Create a new Zoho purchase order for a user',
+    parameters: {
+      type: 'object',
+      properties: {
+        user_id: {
+          type: 'string',
+          description: 'The ID of the user to create the Zoho purchase order for',
+        },
+        organization_id: {
+          type: 'string',
+          description: 'The ID of the Zoho organization to create the purchase order in',
+        },
+        purchase_order_data: {
+          type: 'object',
+          description: 'The data for the new Zoho purchase order',
+        },
+      },
+      required: ['user_id', 'organization_id', 'purchase_order_data'],
+    },
+    handler: async (params: any) => {
+      return await bookkeeping_service.create_zoho_purchase_order(
+        params.user_id,
+        params.organization_id,
+        params.purchase_order_data
+      );
+    },
+  },
 ];
