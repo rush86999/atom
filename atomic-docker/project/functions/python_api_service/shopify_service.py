@@ -5,25 +5,33 @@ import shopify
 
 logger = logging.getLogger(__name__)
 
+from .db_utils import get_db_connection
+
 def get_shopify_client(user_id: str, db_conn_pool) -> Optional[shopify.ShopifyAPI]:
     """
-    Constructs and returns a Shopify API client.
-
-    For now, this function uses environment variables for credentials.
-    In a production environment, these should be fetched from a secure database
-    based on the user_id.
+    Constructs and returns an authenticated Shopify API client for the given user.
     """
-    shop_url = os.environ.get("SHOPIFY_SHOP_URL")
-    api_key = os.environ.get("SHOPIFY_API_KEY")
-    password = os.environ.get("SHOPIFY_PASSWORD")
-    api_version = os.environ.get("SHOPIFY_API_VERSION", "2023-01")
-
-    if not all([shop_url, api_key, password]):
-        logger.error("Shopify credentials are not fully configured in environment variables.")
+    try:
+        with get_db_connection(db_conn_pool) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT access_token, shop_url FROM shopify_oauth_tokens WHERE user_id = %s",
+                    (user_id,)
+                )
+                token_info = cur.fetchone()
+    except Exception as e:
+        logger.error(f"Database error while fetching Shopify token for user {user_id}: {e}", exc_info=True)
         return None
 
+    if not token_info:
+        logger.warn(f"No Shopify token found for user {user_id}.")
+        return None
+
+    access_token, shop_url = token_info
+    api_version = os.environ.get("SHOPIFY_API_VERSION", "2023-01")
+
     try:
-        session = shopify.Session(shop_url, api_version, password)
+        session = shopify.Session(shop_url, api_version, access_token)
         shopify.ShopifyResource.activate_session(session)
         return shopify
     except Exception as e:
