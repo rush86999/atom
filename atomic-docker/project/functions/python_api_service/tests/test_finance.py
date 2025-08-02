@@ -1,5 +1,5 @@
 import pytest
-from main_api_app import create_app
+from ..main_api_app import create_app
 import json
 
 @pytest.fixture

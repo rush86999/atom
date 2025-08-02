@@ -6,12 +6,12 @@ PROJECT_ROOT=$(pwd)
 # The PYTHONPATH needs to contain the directory where the top-level 'project' package resides.
 # In this project structure, the 'project' package is inside the 'atomic-docker' directory.
 # Setting the PYTHONPATH to this directory allows Python to resolve imports like 'from project.functions...'.
-export PYTHONPATH="${PROJECT_ROOT}/atomic-docker"
+export PYTHONPATH="${PROJECT_ROOT}/atomic-docker/project:${PROJECT_ROOT}/atomic-docker"
 
 # Specify the absolute path to the Python interpreter in the correct conda environment.
 # This avoids issues with shell activation (`conda activate`) and ensures the correct
 # interpreter and its installed packages are used.
-PYTHON_EXEC="/Users/rushiparikh/anaconda3/envs/learnPytorch/envs/atom-prod/bin/python"
+PYTHON_EXEC="/home/jules/.pyenv/shims/python"
 
 # Verify that the specified Python executable exists before trying to use it.
 if [ ! -f "$PYTHON_EXEC" ]; then

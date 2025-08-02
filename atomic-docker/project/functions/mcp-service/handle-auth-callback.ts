@@ -6,58 +6,9 @@ import { getMcpUserTokens } from '../google-api-auth/_libs/api-helper';
 import { googleMcpRedirectUrl } from '../google-api-auth/_libs/constants';
 // Assuming a utility for admin client, adjust path as necessary
 import { createAdminGraphQLClient } from '../_utils/dbService';
+import { encrypt, decrypt } from '../_utils/crypto';
 
-// Encryption Configuration - MCP_TOKEN_ENCRYPTION_KEY must be set in environment
-const ENCRYPTION_KEY_HEX = process.env.MCP_TOKEN_ENCRYPTION_KEY; // Must be 64 hex characters for AES-256 (32 bytes)
-const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16; // For AES, this is typically 16 bytes for GCM
-const AUTH_TAG_LENGTH = 16; // GCM auth tag is typically 16 bytes
-
-function encrypt(text: string): string {
-  if (!ENCRYPTION_KEY_HEX) {
-    console.error('MCP_TOKEN_ENCRYPTION_KEY is not set. Cannot encrypt token.');
-    throw new Error('Server configuration error: Encryption key not set.');
-  }
-  const key = Buffer.from(ENCRYPTION_KEY_HEX, 'hex');
-  if (key.length !== 32) {
-    console.error(`MCP_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters), current length: ${key.length} bytes.`);
-    throw new Error('Server configuration error: Invalid encryption key length.');
-  }
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const authTag = cipher.getAuthTag(); // Returns a Buffer
-  // Prepend IV and authTag to the encrypted text. Store them as hex.
-  return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
-}
-
-// Decryption function (for later use when retrieving tokens)
-export function decrypt(text: string): string {
-  if (!ENCRYPTION_KEY_HEX) {
-    console.error('MCP_TOKEN_ENCRYPTION_KEY is not set. Cannot decrypt token.');
-    throw new Error('Server configuration error: Encryption key not set for decryption.');
-  }
-  const key = Buffer.from(ENCRYPTION_KEY_HEX, 'hex');
-   if (key.length !== 32) {
-    console.error(`MCP_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters) for decryption. Current length: ${key.length} bytes.`);
-    throw new Error('Server configuration error: Invalid encryption key length for decryption.');
-  }
-  const parts = text.split(':');
-  if (parts.length !== 3) {
-    console.error('Invalid encrypted text format. Expected iv:authTag:encryptedText');
-    throw new Error('Decryption error: Invalid encrypted text format.');
-  }
-  const iv = Buffer.from(parts[0], 'hex');
-  const authTag = Buffer.from(parts[1], 'hex');
-  const encryptedText = parts[2];
-
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag); // Critical: Must set authTag before updating
-  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
-}
+const ENCRYPTION_KEY_HEX = process.env.MCP_TOKEN_ENCRYPTION_KEY;
 
 interface HandleMcpAuthCallbackRequestBody {
   session_variables: {
@@ -134,10 +85,10 @@ const handler = async (req: Request<{}, {}, HandleMcpAuthCallbackRequestBody>, r
       return res.status(500).json({ success: false, message: 'Failed to obtain access token from Google.' });
     }
 
-    const encryptedAccessToken = encrypt(tokens.access_token);
+    const encryptedAccessToken = encrypt(tokens.access_token, ENCRYPTION_KEY_HEX);
     let encryptedRefreshToken: string | null = null;
     if (tokens.refresh_token) {
-      encryptedRefreshToken = encrypt(tokens.refresh_token);
+      encryptedRefreshToken = encrypt(tokens.refresh_token, ENCRYPTION_KEY_HEX);
     }
 
     const expiryTimestamp = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;

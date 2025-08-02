@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import requests
 from bs4 import BeautifulSoup
-from atom_agent import research_agent
+from .atom_agent import research_agent
 
 class TestResearchAgent(unittest.TestCase):
 

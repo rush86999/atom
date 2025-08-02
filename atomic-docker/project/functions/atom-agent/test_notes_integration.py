@@ -3,8 +3,6 @@ import time
 import tempfile
 from typing import Dict, Any, Optional
 
-# Imports assume PYTHONPATH="/app" is set in Docker environment,
-# and the 'project' directory is directly under /app.
 from .. import note_utils
 from . import command_handlers
 
