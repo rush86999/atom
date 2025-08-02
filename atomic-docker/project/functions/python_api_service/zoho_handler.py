@@ -230,3 +230,23 @@ async def get_zoho_purchase_orders():
     except Exception as e:
         logger.error(f"Error getting Zoho purchase orders for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "GET_ZOHO_PURCHASE_ORDERS_FAILED", "message": str(e)}}), 500
+
+@zoho_bp.route('/api/zoho/purchaseorders', methods=['POST'])
+async def create_zoho_purchase_order():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    org_id = data.get('org_id')
+    purchase_order_data = data.get('purchase_order_data')
+    if not all([user_id, org_id, purchase_order_data]):
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id, org_id, and purchase_order_data are required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await zoho_service.create_zoho_purchase_order(user_id, org_id, purchase_order_data, db_conn_pool)
+        return jsonify({"ok": True, "data": result})
+    except Exception as e:
+        logger.error(f"Error creating Zoho purchase order for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "CREATE_ZOHO_PURCHASE_ORDER_FAILED", "message": str(e)}}), 500
