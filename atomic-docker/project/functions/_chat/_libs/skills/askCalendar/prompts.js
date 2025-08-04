@@ -1,0 +1,26 @@
+export const extractActionableIntentPrompt = `
+You are a user intent interpreter for a calendar AI assistant. Your job is to interpret user intent to actionable commands that fall into a relevant category bucket for processing. Among the list of available categories match the actionable user intent to the relevant category to fulfill user request. list of categories: availability, single event, many events, next single event. Reply with the category name only. Any user input related to "any" value check should fall into plural categories. reply unknown if unsure.
+`;
+export const extractActionableIntentExampleInput = `
+ Can you check if I have any conflicts on [date] for a new appointment?
+`;
+export const extractActionableIntentExampleOutput = `
+    Availability
+`;
+export const extractNeededAttributesPrompt = `
+    You are a data extractor for user input to answer user's question. Extract attributes if any required to answer user's question. Reply with null if unknown. Also mention if user's question pertains to a meeting or not using the 'isMeeting' key. Use the pseudo JSON format:
+    {
+        "attributes": ['count' | 'all' | 'none' | 'id', 'userId', 'title', 'startDate', 'endDate', 'allDay', 'recurrenceRule', 'location', 'notes', 'timezone', 'taskId', 'priority', 'isFollowUp', 'isPreEvent', 'isPostEvent', 'modifiable', 'conferenceId', 'recurringEventId', 'organizer', 'dailyTaskList', 'weeklyTaskList', 'isBreak', 'bufferTime', 'hardDeadline', 'softDeadline', 'duration', 'conference-name', 'conference-notes', 'conference-joinUrl', 'conference-startUrl', 'task', 'task-listName', 'task-status'], // or null
+        "isMeeting": Boolean
+    }
+`;
+export const extractNeededAttributesExampleInput = `
+    What's the duration of my meeting with [person]?
+`;
+export const extractNeededAttributesExampleOutput = `
+{
+    "attributes": ["duration"],
+    "isMeeting": true
+}
+`;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoicHJvbXB0cy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbInByb21wdHMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxDQUFDLE1BQU0sNkJBQTZCLEdBQUc7O0NBRTVDLENBQUM7QUFFRixNQUFNLENBQUMsTUFBTSxtQ0FBbUMsR0FBRzs7Q0FFbEQsQ0FBQztBQUNGLE1BQU0sQ0FBQyxNQUFNLG9DQUFvQyxHQUFHOztDQUVuRCxDQUFDO0FBRUYsTUFBTSxDQUFDLE1BQU0sNkJBQTZCLEdBQUc7Ozs7OztDQU01QyxDQUFDO0FBRUYsTUFBTSxDQUFDLE1BQU0sbUNBQW1DLEdBQUc7O0NBRWxELENBQUM7QUFFRixNQUFNLENBQUMsTUFBTSxvQ0FBb0MsR0FBRzs7Ozs7Q0FLbkQsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBjb25zdCBleHRyYWN0QWN0aW9uYWJsZUludGVudFByb21wdCA9IGBcbllvdSBhcmUgYSB1c2VyIGludGVudCBpbnRlcnByZXRlciBmb3IgYSBjYWxlbmRhciBBSSBhc3Npc3RhbnQuIFlvdXIgam9iIGlzIHRvIGludGVycHJldCB1c2VyIGludGVudCB0byBhY3Rpb25hYmxlIGNvbW1hbmRzIHRoYXQgZmFsbCBpbnRvIGEgcmVsZXZhbnQgY2F0ZWdvcnkgYnVja2V0IGZvciBwcm9jZXNzaW5nLiBBbW9uZyB0aGUgbGlzdCBvZiBhdmFpbGFibGUgY2F0ZWdvcmllcyBtYXRjaCB0aGUgYWN0aW9uYWJsZSB1c2VyIGludGVudCB0byB0aGUgcmVsZXZhbnQgY2F0ZWdvcnkgdG8gZnVsZmlsbCB1c2VyIHJlcXVlc3QuIGxpc3Qgb2YgY2F0ZWdvcmllczogYXZhaWxhYmlsaXR5LCBzaW5nbGUgZXZlbnQsIG1hbnkgZXZlbnRzLCBuZXh0IHNpbmdsZSBldmVudC4gUmVwbHkgd2l0aCB0aGUgY2F0ZWdvcnkgbmFtZSBvbmx5LiBBbnkgdXNlciBpbnB1dCByZWxhdGVkIHRvIFwiYW55XCIgdmFsdWUgY2hlY2sgc2hvdWxkIGZhbGwgaW50byBwbHVyYWwgY2F0ZWdvcmllcy4gcmVwbHkgdW5rbm93biBpZiB1bnN1cmUuXG5gO1xuXG5leHBvcnQgY29uc3QgZXh0cmFjdEFjdGlvbmFibGVJbnRlbnRFeGFtcGxlSW5wdXQgPSBgXG4gQ2FuIHlvdSBjaGVjayBpZiBJIGhhdmUgYW55IGNvbmZsaWN0cyBvbiBbZGF0ZV0gZm9yIGEgbmV3IGFwcG9pbnRtZW50P1xuYDtcbmV4cG9ydCBjb25zdCBleHRyYWN0QWN0aW9uYWJsZUludGVudEV4YW1wbGVPdXRwdXQgPSBgXG4gICAgQXZhaWxhYmlsaXR5XG5gO1xuXG5leHBvcnQgY29uc3QgZXh0cmFjdE5lZWRlZEF0dHJpYnV0ZXNQcm9tcHQgPSBgXG4gICAgWW91IGFyZSBhIGRhdGEgZXh0cmFjdG9yIGZvciB1c2VyIGlucHV0IHRvIGFuc3dlciB1c2VyJ3MgcXVlc3Rpb24uIEV4dHJhY3QgYXR0cmlidXRlcyBpZiBhbnkgcmVxdWlyZWQgdG8gYW5zd2VyIHVzZXIncyBxdWVzdGlvbi4gUmVwbHkgd2l0aCBudWxsIGlmIHVua25vd24uIEFsc28gbWVudGlvbiBpZiB1c2VyJ3MgcXVlc3Rpb24gcGVydGFpbnMgdG8gYSBtZWV0aW5nIG9yIG5vdCB1c2luZyB0aGUgJ2lzTWVldGluZycga2V5LiBVc2UgdGhlIHBzZXVkbyBKU09OIGZvcm1hdDpcbiAgICB7XG4gICAgICAgIFwiYXR0cmlidXRlc1wiOiBbJ2NvdW50JyB8ICdhbGwnIHwgJ25vbmUnIHwgJ2lkJywgJ3VzZXJJZCcsICd0aXRsZScsICdzdGFydERhdGUnLCAnZW5kRGF0ZScsICdhbGxEYXknLCAncmVjdXJyZW5jZVJ1bGUnLCAnbG9jYXRpb24nLCAnbm90ZXMnLCAndGltZXpvbmUnLCAndGFza0lkJywgJ3ByaW9yaXR5JywgJ2lzRm9sbG93VXAnLCAnaXNQcmVFdmVudCcsICdpc1Bvc3RFdmVudCcsICdtb2RpZmlhYmxlJywgJ2NvbmZlcmVuY2VJZCcsICdyZWN1cnJpbmdFdmVudElkJywgJ29yZ2FuaXplcicsICdkYWlseVRhc2tMaXN0JywgJ3dlZWtseVRhc2tMaXN0JywgJ2lzQnJlYWsnLCAnYnVmZmVyVGltZScsICdoYXJkRGVhZGxpbmUnLCAnc29mdERlYWRsaW5lJywgJ2R1cmF0aW9uJywgJ2NvbmZlcmVuY2UtbmFtZScsICdjb25mZXJlbmNlLW5vdGVzJywgJ2NvbmZlcmVuY2Utam9pblVybCcsICdjb25mZXJlbmNlLXN0YXJ0VXJsJywgJ3Rhc2snLCAndGFzay1saXN0TmFtZScsICd0YXNrLXN0YXR1cyddLCAvLyBvciBudWxsXG4gICAgICAgIFwiaXNNZWV0aW5nXCI6IEJvb2xlYW5cbiAgICB9XG5gO1xuXG5leHBvcnQgY29uc3QgZXh0cmFjdE5lZWRlZEF0dHJpYnV0ZXNFeGFtcGxlSW5wdXQgPSBgXG4gICAgV2hhdCdzIHRoZSBkdXJhdGlvbiBvZiBteSBtZWV0aW5nIHdpdGggW3BlcnNvbl0/XG5gO1xuXG5leHBvcnQgY29uc3QgZXh0cmFjdE5lZWRlZEF0dHJpYnV0ZXNFeGFtcGxlT3V0cHV0ID0gYFxue1xuICAgIFwiYXR0cmlidXRlc1wiOiBbXCJkdXJhdGlvblwiXSxcbiAgICBcImlzTWVldGluZ1wiOiB0cnVlXG59XG5gO1xuIl19

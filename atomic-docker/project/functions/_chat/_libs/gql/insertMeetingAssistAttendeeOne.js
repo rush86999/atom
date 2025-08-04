@@ -1,0 +1,21 @@
+export default `
+mutation InsertMeetingAssistAttendee($attendee: Meeting_Assist_Attendee_insert_input!) {
+  insert_Meeting_Assist_Attendee_one(object: $attendee) {
+    createdDate
+    contactId
+    emails
+    externalAttendee
+    hostId
+    id
+    imAddresses
+    meetingId
+    name
+    phoneNumbers
+    primaryEmail
+    timezone
+    updatedAt
+    userId
+  }
+}
+`;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5zZXJ0TWVldGluZ0Fzc2lzdEF0dGVuZGVlT25lLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiaW5zZXJ0TWVldGluZ0Fzc2lzdEF0dGVuZGVlT25lLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGVBQWU7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Q0FtQmQsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImV4cG9ydCBkZWZhdWx0IGBcbm11dGF0aW9uIEluc2VydE1lZXRpbmdBc3Npc3RBdHRlbmRlZSgkYXR0ZW5kZWU6IE1lZXRpbmdfQXNzaXN0X0F0dGVuZGVlX2luc2VydF9pbnB1dCEpIHtcbiAgaW5zZXJ0X01lZXRpbmdfQXNzaXN0X0F0dGVuZGVlX29uZShvYmplY3Q6ICRhdHRlbmRlZSkge1xuICAgIGNyZWF0ZWREYXRlXG4gICAgY29udGFjdElkXG4gICAgZW1haWxzXG4gICAgZXh0ZXJuYWxBdHRlbmRlZVxuICAgIGhvc3RJZFxuICAgIGlkXG4gICAgaW1BZGRyZXNzZXNcbiAgICBtZWV0aW5nSWRcbiAgICBuYW1lXG4gICAgcGhvbmVOdW1iZXJzXG4gICAgcHJpbWFyeUVtYWlsXG4gICAgdGltZXpvbmVcbiAgICB1cGRhdGVkQXRcbiAgICB1c2VySWRcbiAgfVxufVxuYDtcbiJdfQ==

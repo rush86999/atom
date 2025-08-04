@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import * as cdk from "aws-cdk-lib";
-import { AwsStack } from "../lib/aws-stack";
+import * as cdk from 'aws-cdk-lib';
+import { AwsStack } from '../lib/aws-stack';
 
-import { Aspects } from "aws-cdk-lib";
-import { AwsSolutionsChecks, NagSuppressions } from "cdk-nag";
+import { Aspects } from 'aws-cdk-lib';
+import { AwsSolutionsChecks, NagSuppressions } from 'cdk-nag';
 
 const app = new cdk.App();
-const awsStack = new AwsStack(app, "AwsStack", {
+const awsStack = new AwsStack(app, 'AwsStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */
@@ -28,71 +28,71 @@ Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 
 NagSuppressions.addStackSuppressions(awsStack, [
   {
-    id: "AwsSolutions-SNS3",
-    reason: "Suppressing SSL check for this workshop",
+    id: 'AwsSolutions-SNS3',
+    reason: 'Suppressing SSL check for this workshop',
   },
   {
-    id: "AwsSolutions-VPC7",
-    reason: "Suppressing VPC flow logs for this workshop",
+    id: 'AwsSolutions-VPC7',
+    reason: 'Suppressing VPC flow logs for this workshop',
   },
   {
-    id: "AwsSolutions-ECS4",
-    reason: "Suppressing Container Insights for this workshop",
+    id: 'AwsSolutions-ECS4',
+    reason: 'Suppressing Container Insights for this workshop',
   },
   {
-    id: "AwsSolutions-IAM5",
-    reason: "Suppressing IAM wildcard permissions for this workshop",
+    id: 'AwsSolutions-IAM5',
+    reason: 'Suppressing IAM wildcard permissions for this workshop',
   },
   {
-    id: "AwsSolutions-RDS2",
-    reason: "Suppressing RDS storage encryption for this workshop",
+    id: 'AwsSolutions-RDS2',
+    reason: 'Suppressing RDS storage encryption for this workshop',
   },
   {
-    id: "AwsSolutions-RDS3",
-    reason: "Suppressing RDS multi-AZ for this workshop",
+    id: 'AwsSolutions-RDS3',
+    reason: 'Suppressing RDS multi-AZ for this workshop',
   },
   {
-    id: "AwsSolutions-RDS10",
-    reason: "Suppressing RDS deletion protection for this workshop",
+    id: 'AwsSolutions-RDS10',
+    reason: 'Suppressing RDS deletion protection for this workshop',
   },
   {
-    id: "AwsSolutions-S1",
+    id: 'AwsSolutions-S1',
     reason:
-      "S3 server access logging is not implemented for the data bucket in this phase.",
+      'S3 server access logging is not implemented for the data bucket in this phase.',
   },
   {
-    id: "AwsSolutions-ELB2",
-    reason: "ALB access logging is not implemented in this phase.",
+    id: 'AwsSolutions-ELB2',
+    reason: 'ALB access logging is not implemented in this phase.',
   },
   {
-    id: "AwsSolutions-RDS6",
+    id: 'AwsSolutions-RDS6',
     reason:
-      "IAM DB Authentication is not currently a requirement; using native DB auth with Secrets Manager.",
+      'IAM DB Authentication is not currently a requirement; using native DB auth with Secrets Manager.',
   },
   {
-    id: "AwsSolutions-RDS11",
+    id: 'AwsSolutions-RDS11',
     reason:
-      "Using standard DB port is acceptable for this internal RDS instance.",
+      'Using standard DB port is acceptable for this internal RDS instance.',
   },
   {
-    id: "AwsSolutions-EC23",
+    id: 'AwsSolutions-EC23',
     reason:
-      "Restricting all security group egress is a larger hardening task deferred for now.",
+      'Restricting all security group egress is a larger hardening task deferred for now.',
   },
   {
-    id: "AwsSolutions-ECS2",
+    id: 'AwsSolutions-ECS2',
     reason:
-      "Read-only root filesystem for ECS tasks requires per-service analysis and is deferred.",
+      'Read-only root filesystem for ECS tasks requires per-service analysis and is deferred.',
   },
   {
-    id: "AwsSolutions-EFS3",
+    id: 'AwsSolutions-EFS3',
     reason:
-      "EFS default encryption (AWS-managed KMS key) is considered sufficient for this phase.",
+      'EFS default encryption (AWS-managed KMS key) is considered sufficient for this phase.',
   },
   {
-    id: "AwsSolutions-LOG1",
+    id: 'AwsSolutions-LOG1',
     reason:
-      "CloudWatch Log groups are not encrypted with KMS by default in this stack; using default AWS-managed encryption.",
+      'CloudWatch Log groups are not encrypted with KMS by default in this stack; using default AWS-managed encryption.',
   },
 ]);
 const nagPack = new AwsSolutionsChecks({ verbose: true });
@@ -105,43 +105,43 @@ Aspects.of(app).add(nagPack);
 
 NagSuppressions.addStackSuppressions(awsStack, [
   {
-    id: "AwsSolutions-S1",
+    id: 'AwsSolutions-S1',
     reason:
-      "S3 server access logging is not implemented for the data bucket in this phase.",
+      'S3 server access logging is not implemented for the data bucket in this phase.',
   },
   {
-    id: "AwsSolutions-ELB2",
-    reason: "ALB access logging is not implemented in this phase.",
+    id: 'AwsSolutions-ELB2',
+    reason: 'ALB access logging is not implemented in this phase.',
   },
   {
-    id: "AwsSolutions-RDS6",
+    id: 'AwsSolutions-RDS6',
     reason:
-      "IAM DB Authentication is not currently a requirement; using native DB auth with Secrets Manager.",
+      'IAM DB Authentication is not currently a requirement; using native DB auth with Secrets Manager.',
   },
   {
-    id: "AwsSolutions-RDS11",
+    id: 'AwsSolutions-RDS11',
     reason:
-      "Using standard DB port is acceptable for this internal RDS instance.",
+      'Using standard DB port is acceptable for this internal RDS instance.',
   },
   {
-    id: "AwsSolutions-EC23",
+    id: 'AwsSolutions-EC23',
     reason:
-      "Restricting all security group egress is a larger hardening task deferred for now.",
+      'Restricting all security group egress is a larger hardening task deferred for now.',
   },
   {
-    id: "AwsSolutions-ECS2",
+    id: 'AwsSolutions-ECS2',
     reason:
-      "Read-only root filesystem for ECS tasks requires per-service analysis and is deferred.",
+      'Read-only root filesystem for ECS tasks requires per-service analysis and is deferred.',
   },
   {
-    id: "AwsSolutions-EFS3",
+    id: 'AwsSolutions-EFS3',
     reason:
-      "EFS default encryption (AWS-managed KMS key) is considered sufficient for this phase.",
+      'EFS default encryption (AWS-managed KMS key) is considered sufficient for this phase.',
   },
   {
-    id: "AwsSolutions-LOG1",
+    id: 'AwsSolutions-LOG1',
     reason:
-      "CloudWatch Log groups are not encrypted with KMS by default in this stack; using default AWS-managed encryption.",
+      'CloudWatch Log groups are not encrypted with KMS by default in this stack; using default AWS-managed encryption.',
   },
 ]);
 

@@ -11,37 +11,41 @@ export class MockOpenAI {
         object: 'chat.completion',
         created: Date.now(),
         model: params.model || 'mock-model',
-        choices: [{
-          index: 0,
-          message: {
-            role: 'assistant',
-            content: `Mock response for: ${params.messages[params.messages.length - 1].content}`
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: `Mock response for: ${params.messages[params.messages.length - 1].content}`,
+            },
+            finish_reason: 'stop',
           },
-          finish_reason: 'stop'
-        }],
+        ],
         usage: {
           prompt_tokens: 10,
           completion_tokens: 10,
-          total_tokens: 20
-        }
-      })
-    }
+          total_tokens: 20,
+        },
+      }),
+    },
   };
 
   embeddings = {
     create: async (params: any) => ({
       object: 'list',
-      data: [{
-        object: 'embedding',
-        embedding: new Array(1536).fill(0.01), // Mock embedding vector
-        index: 0
-      }],
+      data: [
+        {
+          object: 'embedding',
+          embedding: new Array(1536).fill(0.01), // Mock embedding vector
+          index: 0,
+        },
+      ],
       model: params.model || 'text-embedding-3-small',
       usage: {
         prompt_tokens: 10,
-        total_tokens: 10
-      }
-    })
+        total_tokens: 10,
+      },
+    }),
   };
 }
 
@@ -97,7 +101,7 @@ export const mockDateFns = {
   getISODay: (date: Date) => {
     const day = date.getDay();
     return day === 0 ? 7 : day;
-  }
+  },
 };
 
 // Mock googleapis
@@ -107,7 +111,11 @@ export const mockGoogleApis = {
       OAuth2: class MockOAuth2 {
         credentials: any = {};
 
-        constructor(clientId?: string, clientSecret?: string, redirectUri?: string) {}
+        constructor(
+          clientId?: string,
+          clientSecret?: string,
+          redirectUri?: string
+        ) {}
 
         setCredentials(tokens: any) {
           this.credentials = tokens;
@@ -116,7 +124,7 @@ export const mockGoogleApis = {
         getAccessToken() {
           return Promise.resolve({
             token: 'mock-access-token',
-            res: null
+            res: null,
           });
         }
 
@@ -125,11 +133,11 @@ export const mockGoogleApis = {
             credentials: {
               access_token: 'mock-refreshed-token',
               refresh_token: 'mock-refresh-token',
-              expiry_date: Date.now() + 3600000
-            }
+              expiry_date: Date.now() + 3600000,
+            },
           });
         }
-      }
+      },
     },
     calendar: (options: any) => ({
       events: {
@@ -138,48 +146,50 @@ export const mockGoogleApis = {
             items: [],
             nextPageToken: null,
             summary: 'Mock Calendar',
-            updated: new Date().toISOString()
-          }
+            updated: new Date().toISOString(),
+          },
         }),
         get: async (params: any) => ({
           data: {
             id: params.eventId || 'mock-event-id',
             summary: 'Mock Event',
             start: { dateTime: new Date().toISOString() },
-            end: { dateTime: new Date(Date.now() + 3600000).toISOString() }
-          }
+            end: { dateTime: new Date(Date.now() + 3600000).toISOString() },
+          },
         }),
         insert: async (params: any) => ({
           data: {
             id: 'mock-new-event-id',
             ...params.requestBody,
             created: new Date().toISOString(),
-            updated: new Date().toISOString()
-          }
+            updated: new Date().toISOString(),
+          },
         }),
         update: async (params: any) => ({
           data: {
             id: params.eventId,
             ...params.requestBody,
-            updated: new Date().toISOString()
-          }
+            updated: new Date().toISOString(),
+          },
         }),
-        delete: async (params: any) => ({})
+        delete: async (params: any) => ({}),
       },
       calendarList: {
         list: async () => ({
           data: {
-            items: [{
-              id: 'primary',
-              summary: 'Primary Calendar',
-              primary: true,
-              accessRole: 'owner'
-            }]
-          }
-        })
-      }
-    })
-  }
+            items: [
+              {
+                id: 'primary',
+                summary: 'Primary Calendar',
+                primary: true,
+                accessRole: 'owner',
+              },
+            ],
+          },
+        }),
+      },
+    }),
+  },
 };
 
 // Mock OpenSearch
@@ -193,9 +203,9 @@ export class MockOpenSearchClient {
         timed_out: false,
         hits: {
           total: { value: 0, relation: 'eq' },
-          hits: []
-        }
-      }
+          hits: [],
+        },
+      },
     };
   }
 
@@ -205,8 +215,8 @@ export class MockOpenSearchClient {
         _index: params.index,
         _id: params.id || 'mock-doc-id',
         _version: 1,
-        result: 'created'
-      }
+        result: 'created',
+      },
     };
   }
 
@@ -215,8 +225,8 @@ export class MockOpenSearchClient {
       body: {
         took: 1,
         errors: false,
-        items: []
-      }
+        items: [],
+      },
     };
   }
 
@@ -225,8 +235,8 @@ export class MockOpenSearchClient {
       body: {
         _index: params.index,
         _id: params.id,
-        result: 'deleted'
-      }
+        result: 'deleted',
+      },
     };
   }
 }
@@ -239,7 +249,7 @@ export class MockS3Client {
     if (command instanceof MockPutObjectCommand) {
       return {
         ETag: '"mock-etag"',
-        VersionId: 'mock-version-id'
+        VersionId: 'mock-version-id',
       };
     }
     return {};
@@ -261,7 +271,7 @@ export class MockKafka {
         console.log('Mock Kafka send:', params);
         return [{ topicName: params.topic, partition: 0, errorCode: 0 }];
       },
-      disconnect: async () => {}
+      disconnect: async () => {},
     };
   }
 
@@ -270,7 +280,7 @@ export class MockKafka {
       connect: async () => {},
       subscribe: async (params: any) => {},
       run: async (params: any) => {},
-      disconnect: async () => {}
+      disconnect: async () => {},
     };
   }
 }
@@ -278,9 +288,12 @@ export class MockKafka {
 // Mock ip module
 export const mockIp = {
   address: () => '127.0.0.1',
-  isPrivate: (addr: string) => addr.startsWith('192.168.') || addr.startsWith('10.') || addr === '127.0.0.1',
+  isPrivate: (addr: string) =>
+    addr.startsWith('192.168.') ||
+    addr.startsWith('10.') ||
+    addr === '127.0.0.1',
   isLoopback: (addr: string) => addr === '127.0.0.1' || addr === '::1',
-  loopback: (family?: string) => family === 'ipv6' ? '::1' : '127.0.0.1'
+  loopback: (family?: string) => (family === 'ipv6' ? '::1' : '127.0.0.1'),
 };
 
 // Mock got (HTTP client)
@@ -288,23 +301,23 @@ export const mockGot = {
   get: async (url: string, options?: any) => ({
     body: {},
     statusCode: 200,
-    headers: {}
+    headers: {},
   }),
   post: async (url: string, options?: any) => ({
     body: {},
     statusCode: 200,
-    headers: {}
+    headers: {},
   }),
   put: async (url: string, options?: any) => ({
     body: {},
     statusCode: 200,
-    headers: {}
+    headers: {},
   }),
   delete: async (url: string, options?: any) => ({
     body: {},
     statusCode: 200,
-    headers: {}
-  })
+    headers: {},
+  }),
 };
 
 // Mock axios
@@ -314,29 +327,29 @@ export const mockAxios = {
     status: 200,
     statusText: 'OK',
     headers: {},
-    config: config || {}
+    config: config || {},
   }),
   post: async (url: string, data?: any, config?: any) => ({
     data: {},
     status: 200,
     statusText: 'OK',
     headers: {},
-    config: config || {}
+    config: config || {},
   }),
   put: async (url: string, data?: any, config?: any) => ({
     data: {},
     status: 200,
     statusText: 'OK',
     headers: {},
-    config: config || {}
+    config: config || {},
   }),
   delete: async (url: string, config?: any) => ({
     data: {},
     status: 200,
     statusText: 'OK',
     headers: {},
-    config: config || {}
-  })
+    config: config || {},
+  }),
 };
 
 // Export all mocks
@@ -350,5 +363,5 @@ export default {
   Kafka: MockKafka,
   ip: mockIp,
   got: mockGot,
-  axios: mockAxios
+  axios: mockAxios,
 };

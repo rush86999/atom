@@ -1,3 +1,4 @@
+/*
 // instrumentation.node.js - For Next.js server-side OpenTelemetry
 // This file should be in the root of your Next.js project.
 // Next.js (version 12.2.0 and newer) will automatically load this file
@@ -124,15 +125,9 @@ if (process.env.NODE_ENV !== 'production' || process.env.NEXT_RUNTIME === 'nodej
         // Minimal setup for direct require, assuming register() might not be called by Next.js in all contexts.
         // This logic is tricky with Next.js's evolving instrumentation.
         // For now, let's assume NODE_OPTIONS will make `register()` effectively run or the below.
-        // The `register()` export is the cleaner Next.js way.
+        // The `register` export is the cleaner Next.js way.
         // The CDK uses NODE_OPTIONS, so this file will be required.
         // The `register` function itself won't be auto-called unless `instrumentationHook` is true.
-        // So, we call `register()` if this file is directly required.
-
-        // The `NODE_OPTIONS="--require ./instrumentation.node.js"` in the CDK for AppService
-        // means this file *will* be loaded. The `register()` function is the standard
-        // Next.js way to hook into its lifecycle for this.
-        // If `instrumentationHook` is not enabled in next.config.js, `register` might not be called.
         // However, newer Next.js versions might call it by default.
         // For safety with NODE_OPTIONS, we can just run the core logic.
 
@@ -250,4 +245,6 @@ function initializeOtel() {
 
 // Initialize if this file is required (e.g., by NODE_OPTIONS) and it's server-side
 initializeOtel();
+*/
+
 ```

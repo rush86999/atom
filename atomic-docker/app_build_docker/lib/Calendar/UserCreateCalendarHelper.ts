@@ -1998,6 +1998,7 @@ export const createNewEvent = async (
   iCalUID?: string,
   htmlLink?: string,
   colorId?: string,
+) => {}
   originalTimezone?: string,
   backgroundColor?: string,
   foregroundColor?: string,

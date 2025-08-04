@@ -5,17 +5,17 @@ import { logger } from '../../_utils/logger';
 
 // Interface for structured Slack search queries
 export interface StructuredSlackQuery {
-  fromUser?: string;      // Slack user ID or display name. Resolve to ID if possible before API query.
-  inChannel?: string;     // Slack channel ID or name. Resolve to ID if possible.
-  mentionsUser?: string;  // Slack user ID or display name mentioned.
+  fromUser?: string; // Slack user ID or display name. Resolve to ID if possible before API query.
+  inChannel?: string; // Slack channel ID or name. Resolve to ID if possible.
+  mentionsUser?: string; // Slack user ID or display name mentioned.
   hasFile?: boolean;
   hasLink?: boolean;
-  hasReaction?: string;   // Emoji code for reaction (e.g., :thumbsup:)
-  onDate?: string;        // Date in YYYY-MM-DD format.
-  beforeDate?: string;    // Date in YYYY-MM-DD format.
-  afterDate?: string;     // Date in YYYY-MM-DD format.
-  textKeywords?: string;  // General keywords for message text.
-  exactPhrase?: string;   // An exact phrase to search for.
+  hasReaction?: string; // Emoji code for reaction (e.g., :thumbsup:)
+  onDate?: string; // Date in YYYY-MM-DD format.
+  beforeDate?: string; // Date in YYYY-MM-DD format.
+  afterDate?: string; // Date in YYYY-MM-DD format.
+  textKeywords?: string; // General keywords for message text.
+  exactPhrase?: string; // An exact phrase to search for.
 }
 
 let openAIClientForSlackQueryUnderstanding: OpenAI | null = null;
@@ -25,10 +25,16 @@ function getOpenAIClient(): OpenAI {
     return openAIClientForSlackQueryUnderstanding;
   }
   if (!ATOM_OPENAI_API_KEY) {
-    logger.error('[LLMSlackQueryUnderstander] OpenAI API Key (ATOM_OPENAI_API_KEY) is not configured.');
-    throw new Error('OpenAI API Key not configured for LLM Slack Query Understander.');
+    logger.error(
+      '[LLMSlackQueryUnderstander] OpenAI API Key (ATOM_OPENAI_API_KEY) is not configured.'
+    );
+    throw new Error(
+      'OpenAI API Key not configured for LLM Slack Query Understander.'
+    );
   }
-  openAIClientForSlackQueryUnderstanding = new OpenAI({ apiKey: ATOM_OPENAI_API_KEY });
+  openAIClientForSlackQueryUnderstanding = new OpenAI({
+    apiKey: ATOM_OPENAI_API_KEY,
+  });
   logger.info('[LLMSlackQueryUnderstander] OpenAI client initialized.');
   return openAIClientForSlackQueryUnderstanding;
 }
@@ -83,7 +89,9 @@ If the request is very vague (e.g., "find messages"), return an empty JSON objec
  * @param rawUserQuery The user's natural language query about finding Slack messages.
  * @returns A Promise resolving to a Partial<StructuredSlackQuery> object.
  */
-export async function understandSlackSearchQueryLLM(rawUserQuery: string): Promise<Partial<StructuredSlackQuery>> {
+export async function understandSlackSearchQueryLLM(
+  rawUserQuery: string
+): Promise<Partial<StructuredSlackQuery>> {
   const client = getOpenAIClient();
   const now = new Date();
   const year = now.getFullYear();
@@ -91,14 +99,19 @@ export async function understandSlackSearchQueryLLM(rawUserQuery: string): Promi
   const day = now.getDate().toString().padStart(2, '0');
   const currentDate = `${year}-${month}-${day}`; // YYYY-MM-DD
 
-  const systemPromptWithDate = SLACK_QUERY_UNDERSTANDING_SYSTEM_PROMPT.replace(/{{CURRENT_DATE}}/g, currentDate);
+  const systemPromptWithDate = SLACK_QUERY_UNDERSTANDING_SYSTEM_PROMPT.replace(
+    /{{CURRENT_DATE}}/g,
+    currentDate
+  );
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPromptWithDate },
     { role: 'user', content: rawUserQuery },
   ];
 
-  logger.debug(`[LLMSlackQueryUnderstander] Processing query: "${rawUserQuery}" with current date ${currentDate}`);
+  logger.debug(
+    `[LLMSlackQueryUnderstander] Processing query: "${rawUserQuery}" with current date ${currentDate}`
+  );
 
   try {
     const completion = await client.chat.completions.create({
@@ -110,19 +123,26 @@ export async function understandSlackSearchQueryLLM(rawUserQuery: string): Promi
 
     const llmResponse = completion.choices[0]?.message?.content;
     if (!llmResponse) {
-      logger.error('[LLMSlackQueryUnderstander] Received an empty response from AI.');
+      logger.error(
+        '[LLMSlackQueryUnderstander] Received an empty response from AI.'
+      );
       throw new Error('LLM Slack Query Understander: Empty response from AI.');
     }
 
-    logger.debug('[LLMSlackQueryUnderstander] Raw LLM JSON response:', llmResponse);
+    logger.debug(
+      '[LLMSlackQueryUnderstander] Raw LLM JSON response:',
+      llmResponse
+    );
     let parsedResponse = JSON.parse(llmResponse);
 
     // Clean up null/empty values
     const cleanedResponse: Partial<StructuredSlackQuery> = {};
     for (const key in parsedResponse) {
-      if (Object.prototype.hasOwnProperty.call(parsedResponse, key) &&
-          parsedResponse[key] !== null &&
-          parsedResponse[key] !== "") {
+      if (
+        Object.prototype.hasOwnProperty.call(parsedResponse, key) &&
+        parsedResponse[key] !== null &&
+        parsedResponse[key] !== ''
+      ) {
         // @ts-ignore - assigning to potentially different types, but keys should match
         cleanedResponse[key] = parsedResponse[key];
       }
@@ -130,32 +150,58 @@ export async function understandSlackSearchQueryLLM(rawUserQuery: string): Promi
     // Validate date formats if LLM doesn't strictly adhere
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (cleanedResponse.onDate && !dateRegex.test(cleanedResponse.onDate)) {
-        logger.warn(`[LLMSlackQueryUnderstander] LLM provided 'onDate' in unexpected format: ${cleanedResponse.onDate}. Discarding.`);
-        delete cleanedResponse.onDate;
+      logger.warn(
+        `[LLMSlackQueryUnderstander] LLM provided 'onDate' in unexpected format: ${cleanedResponse.onDate}. Discarding.`
+      );
+      delete cleanedResponse.onDate;
     }
-    if (cleanedResponse.beforeDate && !dateRegex.test(cleanedResponse.beforeDate)) {
-        logger.warn(`[LLMSlackQueryUnderstander] LLM provided 'beforeDate' in unexpected format: ${cleanedResponse.beforeDate}. Discarding.`);
-        delete cleanedResponse.beforeDate;
+    if (
+      cleanedResponse.beforeDate &&
+      !dateRegex.test(cleanedResponse.beforeDate)
+    ) {
+      logger.warn(
+        `[LLMSlackQueryUnderstander] LLM provided 'beforeDate' in unexpected format: ${cleanedResponse.beforeDate}. Discarding.`
+      );
+      delete cleanedResponse.beforeDate;
     }
-    if (cleanedResponse.afterDate && !dateRegex.test(cleanedResponse.afterDate)) {
-        logger.warn(`[LLMSlackQueryUnderstander] LLM provided 'afterDate' in unexpected format: ${cleanedResponse.afterDate}. Discarding.`);
-        delete cleanedResponse.afterDate;
+    if (
+      cleanedResponse.afterDate &&
+      !dateRegex.test(cleanedResponse.afterDate)
+    ) {
+      logger.warn(
+        `[LLMSlackQueryUnderstander] LLM provided 'afterDate' in unexpected format: ${cleanedResponse.afterDate}. Discarding.`
+      );
+      delete cleanedResponse.afterDate;
     }
 
-
-    logger.info('[LLMSlackQueryUnderstander] Cleaned structured Slack query:', cleanedResponse);
+    logger.info(
+      '[LLMSlackQueryUnderstander] Cleaned structured Slack query:',
+      cleanedResponse
+    );
     return cleanedResponse;
-
   } catch (error: any) {
-    logger.error('[LLMSlackQueryUnderstander] Error processing Slack search query with OpenAI:', error.message);
+    logger.error(
+      '[LLMSlackQueryUnderstander] Error processing Slack search query with OpenAI:',
+      error.message
+    );
     if (error instanceof SyntaxError) {
-        logger.error('[LLMSlackQueryUnderstander] Failed to parse JSON response from LLM:', llmResponse);
-        throw new Error('LLM Slack Query Understander: Failed to parse response from AI.');
+      logger.error(
+        '[LLMSlackQueryUnderstander] Failed to parse JSON response from LLM:',
+        llmResponse
+      );
+      throw new Error(
+        'LLM Slack Query Understander: Failed to parse response from AI.'
+      );
     }
-    if (error.response?.data?.error?.message) { // Axios-style error
-        throw new Error(`LLM Slack Query Understander: API Error - ${error.response.data.error.message}`);
+    if (error.response?.data?.error?.message) {
+      // Axios-style error
+      throw new Error(
+        `LLM Slack Query Understander: API Error - ${error.response.data.error.message}`
+      );
     }
-    throw new Error(`LLM Slack Query Understander: Failed to understand Slack search query. ${error.message}`);
+    throw new Error(
+      `LLM Slack Query Understander: Failed to understand Slack search query. ${error.message}`
+    );
   }
 }
 

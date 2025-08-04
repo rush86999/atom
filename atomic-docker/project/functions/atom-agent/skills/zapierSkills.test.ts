@@ -13,7 +13,9 @@ describe('Zapier Skills', () => {
       expect(response.zapName).toBe(zapName);
       expect(response.runId).toBeDefined();
       expect(typeof response.runId).toBe('string');
-      expect(response.message).toContain(`Zap "${zapName}" triggered successfully (mock).`);
+      expect(response.message).toContain(
+        `Zap "${zapName}" triggered successfully (mock).`
+      );
     });
 
     it('should handle triggering a Zap with empty data', async () => {
@@ -25,7 +27,9 @@ describe('Zapier Skills', () => {
       expect(response.success).toBe(true);
       expect(response.zapName).toBe(zapName);
       expect(response.runId).toBeDefined();
-      expect(response.message).toContain(`Zap "${zapName}" triggered successfully (mock).`);
+      expect(response.message).toContain(
+        `Zap "${zapName}" triggered successfully (mock).`
+      );
     });
 
     it('should return a failure response if zapName is missing', async () => {
@@ -43,16 +47,23 @@ describe('Zapier Skills', () => {
 
     // Example of console log spying if needed, though less critical for mock functions
     it('should log the zapName and data', async () => {
-        const consoleSpy = jest.spyOn(console, 'log');
-        const zapName = 'LoggingTestZap';
-        const data = { item: 'logging item' };
+      const consoleSpy = jest.spyOn(console, 'log');
+      const zapName = 'LoggingTestZap';
+      const data = { item: 'logging item' };
 
-        await zapierSkills.triggerZap(zapName, data);
+      await zapierSkills.triggerZap(zapName, data);
 
-        expect(consoleSpy).toHaveBeenCalledWith(`Triggering Zap: "${zapName}" with data:`, data);
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(`Mock Zap "${zapName}" triggered successfully. Run ID:`));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        `Triggering Zap: "${zapName}" with data:`,
+        data
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Mock Zap "${zapName}" triggered successfully. Run ID:`
+        )
+      );
 
-        consoleSpy.mockRestore(); // Clean up spy
-      });
+      consoleSpy.mockRestore(); // Clean up spy
+    });
   });
 });

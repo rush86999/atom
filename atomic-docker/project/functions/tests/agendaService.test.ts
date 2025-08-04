@@ -1,7 +1,13 @@
 import { Agenda as ActualAgenda, Job } from 'agenda'; // Import actual types for casting
 import axios from 'axios';
 // Import the service to be tested
-import { agenda as agendaInstance, startAgenda, stopAgenda, ScheduledAgentTaskData, defineJob } from '../agendaService';
+import {
+  agenda as agendaInstance,
+  startAgenda,
+  stopAgenda,
+  ScheduledAgentTaskData,
+  defineJob,
+} from '../agendaService';
 
 // Mock 'agenda' package
 const mockAgendaDefine = jest.fn();
@@ -62,7 +68,10 @@ describe('agendaService', () => {
     // However, given its current structure (singleton export), we check the initial call.
     expect(mockAgendaConstructor).toHaveBeenCalledTimes(1); // Assuming it's called once per test file execution due to import
     expect(mockAgendaConstructor).toHaveBeenCalledWith({
-      db: { address: process.env.MONGODB_URI, collection: 'agentScheduledTasks' },
+      db: {
+        address: process.env.MONGODB_URI,
+        collection: 'agentScheduledTasks',
+      },
       processEvery: '1 minute',
       maxConcurrency: 20,
     });
@@ -77,10 +86,9 @@ describe('agendaService', () => {
     let agendaServiceModule: typeof import('../agendaService');
 
     beforeEach(async () => {
-        // Dynamically import the module to get a fresh instance with current mocks
-        agendaServiceModule = await import('../agendaService');
+      // Dynamically import the module to get a fresh instance with current mocks
+      agendaServiceModule = await import('../agendaService');
     });
-
 
     it('should call agenda.start() and attach event listeners', async () => {
       await agendaServiceModule.startAgenda();
@@ -89,14 +97,23 @@ describe('agendaService', () => {
       expect(mockAgendaOn).toHaveBeenCalledWith('error', expect.any(Function));
       // Check for all event listeners defined in agendaService.ts
       expect(mockAgendaOn).toHaveBeenCalledWith('start', expect.any(Function));
-      expect(mockAgendaOn).toHaveBeenCalledWith('complete', expect.any(Function));
-      expect(mockAgendaOn).toHaveBeenCalledWith('success', expect.any(Function));
+      expect(mockAgendaOn).toHaveBeenCalledWith(
+        'complete',
+        expect.any(Function)
+      );
+      expect(mockAgendaOn).toHaveBeenCalledWith(
+        'success',
+        expect.any(Function)
+      );
       expect(mockAgendaOn).toHaveBeenCalledWith('fail', expect.any(Function));
     });
 
     it('should define EXECUTE_AGENT_ACTION job processor', async () => {
       await agendaServiceModule.startAgenda(); // This is where EXECUTE_AGENT_ACTION is defined in the current structure
-      expect(mockAgendaDefine).toHaveBeenCalledWith('EXECUTE_AGENT_ACTION', expect.any(Function));
+      expect(mockAgendaDefine).toHaveBeenCalledWith(
+        'EXECUTE_AGENT_ACTION',
+        expect.any(Function)
+      );
     });
 
     describe('EXECUTE_AGENT_ACTION job processor', () => {
@@ -120,11 +137,15 @@ describe('agendaService', () => {
         // Need to call startAgenda to ensure agenda.define is called
         await agendaServiceModule.startAgenda();
         // Find the call to define for 'EXECUTE_AGENT_ACTION' and get the handler
-        const defineCall = mockAgendaDefine.mock.calls.find(call => call[0] === 'EXECUTE_AGENT_ACTION');
+        const defineCall = mockAgendaDefine.mock.calls.find(
+          (call) => call[0] === 'EXECUTE_AGENT_ACTION'
+        );
         if (defineCall && typeof defineCall[1] === 'function') {
           jobProcessor = defineCall[1];
         } else {
-          throw new Error("EXECUTE_AGENT_ACTION job processor not defined or not a function");
+          throw new Error(
+            'EXECUTE_AGENT_ACTION job processor not defined or not a function'
+          );
         }
         mockedAxiosPost.mockReset();
         mockJobFail.mockClear();
@@ -132,7 +153,10 @@ describe('agendaService', () => {
       });
 
       it('should call axios.post with correct payload and handle successful response', async () => {
-        mockedAxiosPost.mockResolvedValue({ status: 200, data: { success: true } });
+        mockedAxiosPost.mockResolvedValue({
+          status: 200,
+          data: { success: true },
+        });
         await jobProcessor(mockJob);
 
         expect(mockedAxiosPost).toHaveBeenCalledTimes(1);
@@ -153,9 +177,9 @@ describe('agendaService', () => {
 
       it('should handle axios.post failure and call job.fail and job.save', async () => {
         const axiosError = {
-            isAxiosError: true,
-            response: { status: 500, data: { message: 'Agent internal error' } },
-            message: 'Request failed with status code 500'
+          isAxiosError: true,
+          response: { status: 500, data: { message: 'Agent internal error' } },
+          message: 'Request failed with status code 500',
         };
         mockedAxiosPost.mockRejectedValue(axiosError);
         await jobProcessor(mockJob);
@@ -180,7 +204,11 @@ describe('agendaService', () => {
 
       it('should handle missing job.attrs.data', async () => {
         const jobWithMissingData = {
-          attrs: { _id: 'job-id-no-data', name: 'EXECUTE_AGENT_ACTION', data: null }, // data is null
+          attrs: {
+            _id: 'job-id-no-data',
+            name: 'EXECUTE_AGENT_ACTION',
+            data: null,
+          }, // data is null
           fail: mockJobFail,
           save: mockJobSave,
         } as unknown as Job<ScheduledAgentTaskData>;
@@ -207,7 +235,9 @@ describe('agendaService', () => {
   describe('defineJob', () => {
     it('should call agenda.define with the given name and handler', () => {
       const jobName = 'test-job-definition';
-      const handler = async (job: Job) => { console.log('test handler'); };
+      const handler = async (job: Job) => {
+        console.log('test handler');
+      };
       // Re-import or re-evaluate agendaService to get a fresh instance for these tests if needed
       const localAgendaServiceModule = require('../agendaService'); // Use require for re-evaluation in CJS context if not using dynamic import
       localAgendaServiceModule.defineJob(jobName, handler);

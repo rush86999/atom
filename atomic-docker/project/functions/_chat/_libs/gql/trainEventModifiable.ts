@@ -1,4 +1,3 @@
-
 export default `
 mutation TrainEventModifiable($id: String!, $modifiable: Boolean) {
   update_Event_by_pk(pk_columns: {id: $id}, _set: {modifiable: $modifiable, copyPriorityLevel: true, copyTimePreference: true}) {
@@ -119,4 +118,4 @@ mutation TrainEventModifiable($id: String!, $modifiable: Boolean) {
   }
 }
 
-  `
+  `;

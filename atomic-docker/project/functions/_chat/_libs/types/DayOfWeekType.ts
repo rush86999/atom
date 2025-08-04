@@ -1,5 +1,3 @@
+type DayOfWeekType = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 
-
-type DayOfWeekType = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
-
-export default DayOfWeekType
+export default DayOfWeekType;

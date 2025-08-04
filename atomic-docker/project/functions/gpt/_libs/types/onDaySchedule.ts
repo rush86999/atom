@@ -1,14 +1,12 @@
-
-
-type etag = string
+type etag = string;
 // example date =  dayjs().format('YYYY-MM-DD')
-type date = string
+type date = string;
 
 // with utc offset
 // example isostring = dayjs().format('YYYY-MM-DDTHH:mm:ssZ[Z]')
 // without T between values in ISO string
 // example datetime = dayjs().format('YYYY-MM-DD HH:mm:ssZ[Z]')
-type datetime = string
+type datetime = string;
 /**
 {
   entryPointType: 'video' | 'phone' | 'sip' | 'more',
@@ -22,20 +20,20 @@ type datetime = string
   password?: string
 } */
 export type entryPoint = {
-  accessCode?: string,
-  label?: string,
-  entryPointType: 'video' | 'phone' | 'sip' | 'more',
-  meetingCode?: string,
-  passcode?: string,
-  password?: string,
-  pin?: string,
-  uri?: string,
-}
+  accessCode?: string;
+  label?: string;
+  entryPointType: 'video' | 'phone' | 'sip' | 'more';
+  meetingCode?: string;
+  passcode?: string;
+  password?: string;
+  pin?: string;
+  uri?: string;
+};
 
 export type parameterType = {
-  keys: string[],
-  values: string[],
-}
+  keys: string[];
+  values: string[];
+};
 
 // export type ConferenceType = {
 //   id: string,
@@ -65,118 +63,118 @@ export type parameterType = {
 // }
 
 export type email = {
-  primary: boolean,
-  value: string,
-  type: string,
-  displayName: string,
-}
+  primary: boolean;
+  value: string;
+  type: string;
+  displayName: string;
+};
 
 export type phoneNumber = {
-  primary: boolean,
-  value: string,
-  type: string,
-}
+  primary: boolean;
+  value: string;
+  type: string;
+};
 
 export type imAddress = {
-  primary: boolean,
-  username: string,
-  service: string,
-  type: string,
-}
+  primary: boolean;
+  username: string;
+  service: string;
+  type: string;
+};
 
 export type AttendeeType = {
-  id: string,
-  userId: string,
-  name?: string,
-  contactId?: string,
-  emails: email[],
-  phoneNumbers?: phoneNumber[],
-  imAddresses?: imAddress[],
-  eventId: string,
-  additionalGuests?: number,
-  comment?: string,
-  responseStatus?: string,
-  optional?: boolean,
-  resource?: boolean,
-  updatedAt: string,
-  createdDate: string,
-  deleted: boolean
-}
+  id: string;
+  userId: string;
+  name?: string;
+  contactId?: string;
+  emails: email[];
+  phoneNumbers?: phoneNumber[];
+  imAddresses?: imAddress[];
+  eventId: string;
+  additionalGuests?: number;
+  comment?: string;
+  responseStatus?: string;
+  optional?: boolean;
+  resource?: boolean;
+  updatedAt: string;
+  createdDate: string;
+  deleted: boolean;
+};
 
 export type eventTriggerResponse = {
-  "message": string,
-  "event_id": string
-}
+  message: string;
+  event_id: string;
+};
 
 export type colorTypeResponse = {
-  kind: string,
-  updated: datetime,
+  kind: string;
+  updated: datetime;
   calendar: {
     /** colorId */
     [key: string]: {
-      background: string,
-      foreground: string
-    }
-  },
+      background: string;
+      foreground: string;
+    };
+  };
   event: {
     /** colorId */
     [key: string]: {
-      background: string,
-      foreground: string
-    }
-  }
-}
+      background: string;
+      foreground: string;
+    };
+  };
+};
 
 export type eventResource = {
-  "kind": "calendar#event",
-  "etag": etag,
-  "id": string,
-  "status": string,
-  "htmlLink": string,
-  "created": datetime,
-  "updated": datetime,
-  "summary": string,
-  "description": string,
-  "location": string,
-  "colorId": string,
-  "creator": {
-    "id": string,
-    "email": string,
-    "displayName": string,
-    "self": boolean
-  },
-  "organizer": {
-    "id": string,
-    "email": string,
-    "displayName": string,
-    "self": boolean
-  },
-  "start": {
-    "date": date,
-    "dateTime": datetime,
-    "timeZone": string
-  },
-  "end": {
-    "date": date,
-    "dateTime": datetime,
-    "timeZone": string
-  },
-  "endTimeUnspecified": boolean,
-  "recurrence": string[],
-  "recurringEventId": string,
-  "originalStartTime": {
-    "date": date,
-    "dateTime": datetime,
-    "timeZone": string
-  },
-  "transparency": string,
-  "visibility": string,
-  "iCalUID": string,
-  "sequence": number,
-  "attendees": {
+  kind: 'calendar#event';
+  etag: etag;
+  id: string;
+  status: string;
+  htmlLink: string;
+  created: datetime;
+  updated: datetime;
+  summary: string;
+  description: string;
+  location: string;
+  colorId: string;
+  creator: {
+    id: string;
+    email: string;
+    displayName: string;
+    self: boolean;
+  };
+  organizer: {
+    id: string;
+    email: string;
+    displayName: string;
+    self: boolean;
+  };
+  start: {
+    date: date;
+    dateTime: datetime;
+    timeZone: string;
+  };
+  end: {
+    date: date;
+    dateTime: datetime;
+    timeZone: string;
+  };
+  endTimeUnspecified: boolean;
+  recurrence: string[];
+  recurringEventId: string;
+  originalStartTime: {
+    date: date;
+    dateTime: datetime;
+    timeZone: string;
+  };
+  transparency: string;
+  visibility: string;
+  iCalUID: string;
+  sequence: number;
+  attendees: {
     /**
-      * Number of additional guests. Optional. The default is 0.
-      */
+     * Number of additional guests. Optional. The default is 0.
+     */
     additionalGuests?: number | null;
     /**
      * The attendee's response comment. Optional.
@@ -219,8 +217,8 @@ export type eventResource = {
      * Whether this entry represents the calendar on which this copy of the event appears. Read-only. The default is False.
      */
     self?: boolean | null;
-  }[],
-  "attendeesOmitted": boolean,
+  }[];
+  attendeesOmitted: boolean;
   extendedProperties?: {
     private?: {
       [key: string]: string;
@@ -228,40 +226,40 @@ export type eventResource = {
     shared?: {
       [key: string]: string;
     };
-  } | null,
-  "hangoutLink": string,
-  "conferenceData"?: {
-    "createRequest"?: {
-      "requestId"?: string,
-      "conferenceSolutionKey"?: {
-        "type"?: string
-      },
-      "status"?: {
-        "statusCode"?: string
-      }
-    },
-    "entryPoints"?: {
-      entryPointType: 'video' | 'phone' | 'sip' | 'more',
-      uri?: string,
-      label?: string,
-      pin?: string,
-      accessCode?: string,
-      meetingCode?: string,
-      passcode?: string,
-      password?: string
-    }[],
-    "conferenceSolution"?: {
-      "key"?: {
-        "type"?: string
-      },
-      "name"?: string,
-      "iconUri"?: string
-    },
-    "conferenceId"?: string,
-    "signature"?: string,
-    "notes"?: string,
-  },
-  "gadget"?: {
+  } | null;
+  hangoutLink: string;
+  conferenceData?: {
+    createRequest?: {
+      requestId?: string;
+      conferenceSolutionKey?: {
+        type?: string;
+      };
+      status?: {
+        statusCode?: string;
+      };
+    };
+    entryPoints?: {
+      entryPointType: 'video' | 'phone' | 'sip' | 'more';
+      uri?: string;
+      label?: string;
+      pin?: string;
+      accessCode?: string;
+      meetingCode?: string;
+      passcode?: string;
+      password?: string;
+    }[];
+    conferenceSolution?: {
+      key?: {
+        type?: string;
+      };
+      name?: string;
+      iconUri?: string;
+    };
+    conferenceId?: string;
+    signature?: string;
+    notes?: string;
+  };
+  gadget?: {
     display?: string;
     height?: number;
     iconLink?: string;
@@ -272,115 +270,111 @@ export type eventResource = {
     title?: string;
     type?: string;
     width?: number;
-  } | null,
-  "anyoneCanAddSelf": boolean,
-  "guestsCanInviteOthers": boolean,
-  "guestsCanModify": boolean,
-  "guestsCanSeeOtherGuests": boolean,
-  "privateCopy": boolean,
-  "locked": boolean,
-  "reminders": {
-    "useDefault": boolean,
-    "overrides": [
+  } | null;
+  anyoneCanAddSelf: boolean;
+  guestsCanInviteOthers: boolean;
+  guestsCanModify: boolean;
+  guestsCanSeeOtherGuests: boolean;
+  privateCopy: boolean;
+  locked: boolean;
+  reminders: {
+    useDefault: boolean;
+    overrides: [
       {
-        "method": string,
-        "minutes": number
-      }
-    ]
-  },
-  "source": {
-    "url": string,
-    "title": string
-  },
-  "attachments": [
+        method: string;
+        minutes: number;
+      },
+    ];
+  };
+  source: {
+    url: string;
+    title: string;
+  };
+  attachments: [
     {
-      "fileUrl": string,
-      "title": string,
-      "mimeType": string,
-      "iconLink": string,
-      "fileId": string
-    }
-  ],
-  "eventType": 'default' | 'outOfOffice' | 'focusTime'
-}
+      fileUrl: string;
+      title: string;
+      mimeType: string;
+      iconLink: string;
+      fileId: string;
+    },
+  ];
+  eventType: 'default' | 'outOfOffice' | 'focusTime';
+};
 
 export type eventListResponse = {
-  "kind": "calendar#events",
-  "etag": etag,
-  "summary": string,
-  "description": string,
-  "updated": datetime,
-  "timeZone": string,
-  "accessRole": string,
-  "defaultReminders": [
+  kind: 'calendar#events';
+  etag: etag;
+  summary: string;
+  description: string;
+  updated: datetime;
+  timeZone: string;
+  accessRole: string;
+  defaultReminders: [
     {
-      "method": string,
-      "minutes": number
-    }
-  ],
-  "nextPageToken": string,
-  "nextSyncToken": string,
-  "items": eventResource[],
-}
-
+      method: string;
+      minutes: number;
+    },
+  ];
+  nextPageToken: string;
+  nextSyncToken: string;
+  items: eventResource[];
+};
 
 type DefaultReminder = {
-  method: string,
-  minutes: number,
-}
-
+  method: string;
+  minutes: number;
+};
 
 export type CalendarType = {
-  id: string,
-  title?: string,
-  backgroundColor?: string,
-  foregroundColor?: string,
-  colorId?: string,
-  account?: object,
-  accessLevel?: string,
-  resource?: string,
-  modifiable?: boolean,
-  defaultReminders?: DefaultReminder[],
+  id: string;
+  title?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  colorId?: string;
+  account?: object;
+  accessLevel?: string;
+  resource?: string;
+  modifiable?: boolean;
+  defaultReminders?: DefaultReminder[];
   // weird behavior by enabling primary here commented out for now
   // primary?: boolean,
-  globalPrimary?: boolean,
-  pageToken?: string,
-  syncToken?: string,
-  deleted: boolean,
-  createdDate: string,
-  updatedAt: string,
-  userId: string,
-}
-
+  globalPrimary?: boolean;
+  pageToken?: string;
+  syncToken?: string;
+  deleted: boolean;
+  createdDate: string;
+  updatedAt: string;
+  userId: string;
+};
 
 export type colorType = {
-  id: string,
-  background: string,
-  foreground: string,
-  itemType: 'calendar' | 'event',
-}
+  id: string;
+  background: string;
+  foreground: string;
+  itemType: 'calendar' | 'event';
+};
 
 export type CalendarIntegrationType = {
-  id: string,
-  userId: string,
-  token?: string,
-  refreshToken?: string,
-  resource?: string,
-  name?: string,
-  enabled?: boolean,
-  syncEnabled?: boolean,
-  deleted?: boolean,
-  appId?: string,
-  appEmail?: string,
-  appAccountId?: string,
-  contactName?: string,
-  contactEmail?: string,
-  colors?: colorType[],
-  clientType?: 'ios' | 'android' | 'web' | 'atomic-web',
-  expiresAt?: string,
-  updatedAt: string,
-  createdDate: string,
-  pageToken?: string,
-  syncToken?: string,
-}
-
+  id: string;
+  userId: string;
+  token?: string;
+  refreshToken?: string;
+  resource?: string;
+  name?: string;
+  enabled?: boolean;
+  syncEnabled?: boolean;
+  deleted?: boolean;
+  appId?: string;
+  appEmail?: string;
+  appAccountId?: string;
+  contactName?: string;
+  contactEmail?: string;
+  colors?: colorType[];
+  clientType?: 'ios' | 'android' | 'web' | 'atomic-web';
+  expiresAt?: string;
+  updatedAt: string;
+  createdDate: string;
+  pageToken?: string;
+  syncToken?: string;
+};

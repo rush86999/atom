@@ -1,0 +1,15 @@
+import { Dispatch } from 'react';
+import { CalendarType } from '@lib/dataTypes/CalendarType';
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+export declare const listEventsForCalendar: (client: ApolloClient<NormalizedCacheObject>, calendarId: string) => Promise<any>;
+export declare const dropPrimaryLabelForCalendars: (client: ApolloClient<NormalizedCacheObject>, calendarIds: string[]) => Promise<void | null>;
+export declare const dropPrimaryLabelForCalendar: (client: ApolloClient<NormalizedCacheObject>, calendarId: string) => Promise<void | null>;
+export declare const setPrimaryCalendar: (client: ApolloClient<NormalizedCacheObject>, calendar: CalendarType) => Promise<void>;
+export declare const generateDefaultCategories: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<void>;
+export declare const getUserPreference: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<any>;
+export declare const updateUserForPreferenceId: (client: ApolloClient<NormalizedCacheObject>, userId: string, preferenceId: string) => Promise<void>;
+export declare const updateUserPreferenceOnBoarded: (client: ApolloClient<NormalizedCacheObject>, userId: string, onBoarded: boolean) => Promise<void>;
+export declare const createUserPreference: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<void>;
+export declare const createDefaultPrimaryCalendar: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<void>;
+export declare const createDefaultUser: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<void>;
+export declare const createInitialSelectedCalendar: (client: ApolloClient<NormalizedCacheObject>, userId: string, setSelectedCalendar: Dispatch<string>) => Promise<void>;

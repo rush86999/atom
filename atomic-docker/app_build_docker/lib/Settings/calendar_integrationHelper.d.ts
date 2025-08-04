@@ -1,0 +1,11 @@
+import { colorType } from '@lib/dataTypes/Calendar_IntegrationType';
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+export declare const deleteEventTriggerById: (id: string) => Promise<void>;
+export declare const deleteEventTriggerByResourceId: (resourceId: string) => Promise<void>;
+export declare const deleteEventTriggers: (userId: string, resource: string, name: string) => Promise<void>;
+export declare const listGoogleCalendars: (googleToken: string) => Promise<CalendarListItemResponseType[] | undefined>;
+export declare const triggerGoogleCalendarSync: (calendarIntegrationId: string, calendarId: string, userId: string) => Promise<void>;
+export declare const triggerGooglePeopleSync: (calendarIntegrationId: string, userId: string) => Promise<void>;
+export declare const updateIntegration: (client: ApolloClient<NormalizedCacheObject>, id: string, enabled?: boolean, token?: string, refreshToken?: string, expiresAt?: string, syncEnabled?: boolean, colors?: colorType[], pageToken?: string, syncToken?: string, clientType?: "ios" | "android" | "web" | "atomic-web") => Promise<any>;
+export declare const getIntegrationById: (client: ApolloClient<NormalizedCacheObject>, id: string) => Promise<any>;
+export declare const createInitialCalendarIntegrations: (client: ApolloClient<NormalizedCacheObject>, sub: string) => Promise<void>;

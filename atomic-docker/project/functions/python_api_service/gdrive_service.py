@@ -10,19 +10,13 @@ from __future__ import annotations
 
 import os
 import io
-import json
+
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from pathlib import Path
 
 if TYPE_CHECKING:
     from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
-    from google.auth.transport.requests import Request
-    from googleapiclient.http import MediaIoBaseUpload
-    import google.auth.exceptions as google_auth_exceptions
-    BuildServiceType = Any
     FileMetadataType = Dict[str, Any]
     FileListType = Dict[str, List[Dict[str, Any]]]
 
@@ -112,7 +106,7 @@ class GDriveApiClient:
         service_instance = MockService()
         return service_instance
 
-    def _get_service(self) -> BuildServiceType:
+    def _get_service(self) -> Any:
         """Get or create the service instance."""
         if self._service is None:
             modules = self._get_google_modules()
@@ -173,6 +167,7 @@ class GDriveApiClient:
         try:
             q_query = f"name contains '{query}' and trashed = false" if query else "trashed = false"
 
+            service = self._get_service()
             results = service.files().list(
                 q=q_query,
                 pageSize=limit,
@@ -250,7 +245,7 @@ class GDriveApiClient:
     def upload_file(self, file_path: str, file_name: str, mime_type: str, folder_id: Optional[str] = None) -> Optional[str]:
         """Upload a file to Google Drive."""
         if not file_path or not file_name:
-            return None
+            return ""
 
         service = self._get_service()
 
@@ -264,6 +259,7 @@ class GDriveApiClient:
                     from googleapiclient.http import MediaIoBaseUpload
                     media = MediaIoBaseUpload(f, mimetype=mime_type, resumable=True)
 
+                    service = self._get_service()
                     file = service.files().create(
                         body=file_metadata,
                         media_body=media,
@@ -280,9 +276,9 @@ class GDriveApiClient:
 
         except Exception as e:
             logger.error(f"Failed to upload file: {str(e)}")
-            return None
+            return ""
 
-    def get_folder_contents(self, folder_id: str = None) -> List[Dict[str, Any]]:
+    def get_folder_contents(self, folder_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get contents of a folder. If no folder_id provided, gets root."""
         folder_id = folder_id or 'root'
         query = f"'{folder_id}' in parents and trashed = false"

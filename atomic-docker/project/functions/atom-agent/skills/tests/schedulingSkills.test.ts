@@ -1,4 +1,9 @@
-import { scheduleTask, cancelTask, ScheduleTaskParams, CancelTaskParams } from '../schedulingSkills';
+import {
+  scheduleTask,
+  cancelTask,
+  ScheduleTaskParams,
+  CancelTaskParams,
+} from '../schedulingSkills';
 import { agenda, ScheduledAgentTaskData } from '../../../agendaService'; // Actual import for type, mock handles implementation
 
 // Mock the agendaService
@@ -20,8 +25,8 @@ describe('schedulingSkills (Agenda-based)', () => {
   beforeEach(() => {
     // Reset mocks before each test
     mockAgendaSchedule.mockReset().mockResolvedValue({}); // Default to resolve successfully
-    mockAgendaEvery.mockReset().mockResolvedValue({});    // Default to resolve successfully
-    mockAgendaCancel.mockReset().mockResolvedValue(1);    // Default to 1 job cancelled
+    mockAgendaEvery.mockReset().mockResolvedValue({}); // Default to resolve successfully
+    mockAgendaCancel.mockReset().mockResolvedValue(1); // Default to 1 job cancelled
   });
 
   describe('scheduleTask', () => {
@@ -45,9 +50,15 @@ describe('schedulingSkills (Agenda-based)', () => {
       const params: ScheduleTaskParams = { ...baseParams, isRecurring: false };
       const result = await scheduleTask(params);
 
-      expect(result).toBe(`Task "${params.taskDescription}" has been scheduled for ${params.when}.`);
+      expect(result).toBe(
+        `Task "${params.taskDescription}" has been scheduled for ${params.when}.`
+      );
       expect(mockAgendaSchedule).toHaveBeenCalledTimes(1);
-      expect(mockAgendaSchedule).toHaveBeenCalledWith(params.when, 'EXECUTE_AGENT_ACTION', baseJobData);
+      expect(mockAgendaSchedule).toHaveBeenCalledWith(
+        params.when,
+        'EXECUTE_AGENT_ACTION',
+        baseJobData
+      );
       expect(mockAgendaEvery).not.toHaveBeenCalled();
     });
 
@@ -60,7 +71,9 @@ describe('schedulingSkills (Agenda-based)', () => {
       };
       const result = await scheduleTask(params);
 
-      expect(result).toBe(`Recurring task "${params.taskDescription}" scheduled to run based on interval: ${params.repeatInterval}.`);
+      expect(result).toBe(
+        `Recurring task "${params.taskDescription}" scheduled to run based on interval: ${params.repeatInterval}.`
+      );
       expect(mockAgendaEvery).toHaveBeenCalledTimes(1);
       expect(mockAgendaEvery).toHaveBeenCalledWith(
         params.repeatInterval,
@@ -72,21 +85,21 @@ describe('schedulingSkills (Agenda-based)', () => {
     });
 
     it('should schedule a recurring task without timezone if not provided', async () => {
-        const params: ScheduleTaskParams = {
-          ...baseParams,
-          isRecurring: true,
-          repeatInterval: '0 0 * * *', // every day at midnight
-        };
-        await scheduleTask(params);
+      const params: ScheduleTaskParams = {
+        ...baseParams,
+        isRecurring: true,
+        repeatInterval: '0 0 * * *', // every day at midnight
+      };
+      await scheduleTask(params);
 
-        expect(mockAgendaEvery).toHaveBeenCalledTimes(1);
-        expect(mockAgendaEvery).toHaveBeenCalledWith(
-          params.repeatInterval,
-          'EXECUTE_AGENT_ACTION',
-          baseJobData,
-          {} // Empty options because timezone is undefined
-        );
-      });
+      expect(mockAgendaEvery).toHaveBeenCalledTimes(1);
+      expect(mockAgendaEvery).toHaveBeenCalledWith(
+        params.repeatInterval,
+        'EXECUTE_AGENT_ACTION',
+        baseJobData,
+        {} // Empty options because timezone is undefined
+      );
+    });
 
     it('should return an error message if agenda.schedule fails', async () => {
       const error = new Error('Agenda schedule failed');
@@ -100,7 +113,11 @@ describe('schedulingSkills (Agenda-based)', () => {
     it('should return an error message if agenda.every fails', async () => {
       const error = new Error('Agenda every failed');
       mockAgendaEvery.mockRejectedValue(error);
-      const params: ScheduleTaskParams = { ...baseParams, isRecurring: true, repeatInterval: '1 day' };
+      const params: ScheduleTaskParams = {
+        ...baseParams,
+        isRecurring: true,
+        repeatInterval: '1 day',
+      };
       const result = await scheduleTask(params);
 
       expect(result).toBe(`Failed to schedule task: ${error.message}`);
@@ -108,18 +125,20 @@ describe('schedulingSkills (Agenda-based)', () => {
     });
 
     it('should validate required parameters: when (for one-time)', async () => {
-        const params: any = { ...baseParams, when: undefined };
-        const result = await scheduleTask(params);
-        expect(result).toBe("Scheduling time ('when') must be provided.");
-        expect(mockAgendaSchedule).not.toHaveBeenCalled();
-      });
+      const params: any = { ...baseParams, when: undefined };
+      const result = await scheduleTask(params);
+      expect(result).toBe("Scheduling time ('when') must be provided.");
+      expect(mockAgendaSchedule).not.toHaveBeenCalled();
+    });
 
-      it('should validate required parameters: originalUserIntent', async () => {
-        const params: any = { ...baseParams, originalUserIntent: undefined };
-        const result = await scheduleTask(params);
-        expect(result).toBe("The original user intent to be scheduled must be provided.");
-        expect(mockAgendaSchedule).not.toHaveBeenCalled();
-      });
+    it('should validate required parameters: originalUserIntent', async () => {
+      const params: any = { ...baseParams, originalUserIntent: undefined };
+      const result = await scheduleTask(params);
+      expect(result).toBe(
+        'The original user intent to be scheduled must be provided.'
+      );
+      expect(mockAgendaSchedule).not.toHaveBeenCalled();
+    });
   });
 
   describe('cancelTask', () => {
@@ -138,7 +157,9 @@ describe('schedulingSkills (Agenda-based)', () => {
       mockAgendaCancel.mockResolvedValue(2); // Simulate 2 jobs cancelled
       const result = await cancelTask(params);
 
-      expect(result).toBe('Successfully cancelled 2 task(s) matching criteria.');
+      expect(result).toBe(
+        'Successfully cancelled 2 task(s) matching criteria.'
+      );
       expect(mockAgendaCancel).toHaveBeenCalledTimes(1);
       expect(mockAgendaCancel).toHaveBeenCalledWith(query);
     });
@@ -149,14 +170,18 @@ describe('schedulingSkills (Agenda-based)', () => {
       const result = await cancelTask(params);
 
       expect(result).toBe('No tasks found matching the criteria to cancel.');
-      expect(mockAgendaCancel).toHaveBeenCalledWith({ 'data.userId': 'user-nonexistent' });
+      expect(mockAgendaCancel).toHaveBeenCalledWith({
+        'data.userId': 'user-nonexistent',
+      });
     });
 
     it('should return an error if no criteria provided for cancellation', async () => {
-        const result = await cancelTask({});
-        expect(result).toBe("No criteria provided to cancel tasks. Please specify jobName, userId, or originalUserIntent.");
-        expect(mockAgendaCancel).not.toHaveBeenCalled();
-      });
+      const result = await cancelTask({});
+      expect(result).toBe(
+        'No criteria provided to cancel tasks. Please specify jobName, userId, or originalUserIntent.'
+      );
+      expect(mockAgendaCancel).not.toHaveBeenCalled();
+    });
 
     it('should return an error message if agenda.cancel fails', async () => {
       const error = new Error('Agenda cancel failed');

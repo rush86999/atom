@@ -1,0 +1,441 @@
+export type GoogleSendUpdatesType = 'all' | 'externalOnly' | 'none';
+export type GoogleAttendeeType = {
+    additionalGuests?: number;
+    comment?: string;
+    displayName?: string;
+    email: string;
+    id?: string;
+    responseStatus?: 'needsAction' | 'declined' | 'tentative' | 'accepted';
+};
+type GoogleEntryPointType = {
+    accessCode?: string;
+    label?: string;
+    entryPointType: 'video' | 'phone' | 'sip' | 'more';
+    meetingCode?: string;
+    passcode?: string;
+    password?: string;
+    pin?: string;
+    uri?: string;
+};
+export type GoogleConferenceDataType = {
+    type: 'hangoutsMeet' | 'addOn';
+    iconUri?: string;
+    name?: string;
+    requestId?: string;
+    conferenceId?: string;
+    createRequest?: {
+        requestId: string;
+        conferenceSolutionKey: {
+            type: 'hangoutsMeet' | 'addOn';
+        };
+    };
+    entryPoints?: GoogleEntryPointType[];
+};
+export type GoogleExtendedPropertiesType = {
+    private?: Record<string, string>;
+    shared?: Record<string, string>;
+};
+type OverrideType = {
+    method?: 'email' | 'popup';
+    minutes?: number;
+};
+export type OverrideTypes = OverrideType[];
+export type GoogleReminderType = {
+    overrides?: OverrideTypes;
+    useDefault: boolean;
+};
+export type GoogleSourceType = {
+    title?: string;
+    url?: string;
+};
+export type GoogleTransparencyType = 'opaque' | 'transparent';
+export type GoogleVisibilityType = 'default' | 'public' | 'private' | 'confidential';
+export type GoogleAttachmentType = {
+    title: string;
+    fileUrl: string;
+    mimeType: string;
+    iconLink: string;
+    fileId: string;
+};
+export type GoogleApiEventType = 'default' | 'outOfOffice' | 'focusTime' | 'workingLocation';
+export type ColorType = {
+    id: string;
+    background: string;
+    foreground: string;
+    itemType: 'calendar' | 'event';
+};
+export type CalendarIntegrationType = {
+    id: string;
+    userId: string;
+    token?: string;
+    refreshToken?: string;
+    resource?: string;
+    name?: string;
+    enabled?: boolean;
+    syncEnabled?: boolean;
+    deleted?: boolean;
+    appId?: string;
+    appEmail?: string;
+    appAccountId?: string;
+    contactName?: string;
+    contactEmail?: string;
+    colors?: ColorType[];
+    clientType?: 'ios' | 'android' | 'web' | 'atomic-web';
+    expiresAt?: string;
+    updatedAt: string;
+    createdDate: string;
+    pageToken?: string;
+    syncToken?: string;
+    primaryCalendarId?: string;
+};
+export type RecurrenceRuleType = {
+    frequency: string;
+    endDate: string;
+    occurrence?: number;
+    interval: number;
+    byWeekDay?: string[];
+} | {
+    frequency: string;
+    endDate?: string;
+    occurrence: number;
+    interval: number;
+    byWeekDay?: string[];
+};
+export type LocationType = {
+    title: string;
+    proximity?: string;
+    radius?: number;
+    coords?: {
+        latitude?: number;
+        longitude?: number;
+    };
+    address?: {
+        houseNumber?: number;
+        prefixDirection?: string;
+        prefixType?: string;
+        streetName?: string;
+        streetType?: string;
+        suffixDirection?: string;
+        city?: string;
+        state?: string;
+        postalCode?: string;
+        country?: string;
+    };
+};
+export type LinkType = {
+    title: string;
+    link: string;
+};
+export type TransparencyType = 'opaque' | 'transparent';
+export type VisibilityType = 'default' | 'public' | 'private' | 'confidential';
+export type CreatorType = {
+    id?: string;
+    email?: string;
+    displayName?: string;
+    self?: boolean;
+};
+export type OrganizerType = {
+    id?: string;
+    email: string;
+    displayName?: string;
+    self?: boolean;
+};
+export type BufferTimeNumberType = {
+    beforeEvent: number;
+    afterEvent: number;
+};
+export type MM = '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12';
+export type HH = '00' | '01' | '02' | '03' | '04' | '05' | '06' | '07' | '08' | '09' | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20' | '21' | '22' | '23';
+export type Time = `${HH}:${MM}`;
+export type EventType = {
+    id: string;
+    userId: string;
+    calendarId: string;
+    gEventId?: string | null;
+    provider?: string | null;
+    title?: string;
+    summary?: string | null;
+    description?: string | null;
+    startDate: string;
+    endDate: string;
+    startDateTime?: string | null;
+    endDateTime?: string | null;
+    allDay?: boolean;
+    recurrenceRule?: RecurrenceRuleType;
+    location?: LocationType;
+    notes?: string;
+    attachments?: GoogleAttachmentType[];
+    links?: LinkType[];
+    timezone?: string;
+    createdDate: string;
+    deleted: boolean;
+    isDeleted?: boolean | null;
+    taskId?: string;
+    taskType?: string;
+    priority: number;
+    followUpEventId?: string;
+    isFollowUp: boolean;
+    isPreEvent: boolean;
+    isPostEvent: boolean;
+    preEventId?: string;
+    postEventId?: string;
+    modifiable: boolean;
+    forEventId?: string;
+    conferenceId?: string;
+    maxAttendees?: number;
+    sendUpdates?: GoogleSendUpdatesType;
+    anyoneCanAddSelf: boolean;
+    guestsCanInviteOthers: boolean;
+    guestsCanSeeOtherGuests: boolean;
+    originalStartDate: string;
+    originalAllDay: boolean;
+    status?: string;
+    summary?: string | null;
+    transparency?: GoogleTransparencyType;
+    visibility?: GoogleVisibilityType;
+    recurringEventId?: string;
+    updatedAt: string;
+    iCalUID?: string;
+    htmlLink?: string;
+    colorId?: string;
+    creator?: CreatorType;
+    organizer?: OrganizerType;
+    endTimeUnspecified?: boolean;
+    recurrence?: string[];
+    originalTimezone?: string;
+    attendeesOmitted?: boolean;
+    extendedProperties?: GoogleExtendedPropertiesType;
+    hangoutLink?: string;
+    guestsCanModify?: boolean;
+    locked?: boolean;
+    source?: GoogleSourceType;
+    eventType?: GoogleApiEventType;
+    privateCopy?: boolean;
+    backgroundColor?: string;
+    foregroundColor?: string;
+    useDefaultAlarms?: boolean;
+    meetingId?: string;
+    eventId: string;
+};
+type DefaultReminder = {
+    method: string;
+    minutes: number;
+};
+export type CalendarType = {
+    id: string;
+    userId: string;
+    title?: string;
+    backgroundColor?: string;
+    foregroundColor?: string;
+    colorId?: string;
+    account?: object;
+    accessLevel?: string;
+    resource?: string;
+    modifiable?: boolean;
+    defaultReminders?: DefaultReminder[];
+    primary?: boolean;
+    globalPrimary?: boolean;
+    pageToken?: string;
+    syncToken?: string;
+    deleted: boolean;
+    createdDate: string;
+    updatedAt: string;
+    type?: string;
+};
+type DayOfWeekIntType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type StartTimeType = {
+    day: DayOfWeekIntType;
+    hour: number;
+    minutes: number;
+};
+type EndTimeType = {
+    day: DayOfWeekIntType;
+    hour: number;
+    minutes: number;
+};
+export type NotAvailableSlotType = {
+    startDate: string;
+    endDate: string;
+};
+export interface UserPreferencesType {
+    id: string;
+    userId: string;
+    reminders?: number[];
+    followUp?: number[];
+    isPublicCalendar?: boolean;
+    publicCalendarCategories?: string[];
+    startTimes?: StartTimeType[];
+    endTimes?: EndTimeType[];
+    workHoursStartTime?: string;
+    workHoursEndTime?: string;
+    workDays?: number[];
+    slotDuration?: number;
+    timezone?: string;
+    bufferBetweenMeetings?: number;
+    maxWorkLoadPercent: number;
+    minNumberOfBreaks: number;
+    breakLength: number;
+    breakColor?: string;
+    backToBackMeetings: boolean;
+    maxNumberOfMeetings: number;
+    somePreference?: string;
+    copyAvailability?: boolean;
+    copyTimeBlocking?: boolean;
+    copyTimePreference?: boolean;
+    copyReminders?: boolean;
+    copyPriorityLevel?: boolean;
+    copyModifiable?: boolean;
+    copyCategories?: boolean;
+    copyIsBreak?: boolean;
+    copyIsMeeting?: boolean;
+    copyIsExternalMeeting?: boolean;
+    copyColor?: boolean;
+    updatedAt?: string;
+    createdDate?: string;
+    deleted: boolean;
+}
+export type AvailabilitySlotType = {
+    startDate: string;
+    endDate: string;
+};
+export type FindAvailabilityBodyType = {
+    userId: string;
+    email: string;
+    shareAvailability: boolean;
+    receiver: string;
+    sender: string;
+    receiverCharacteristics?: string[];
+    receiverGoals?: string[];
+    senderCharacteristics?: string[];
+    senderGoals?: string[];
+    windowStartDate?: string;
+    windowEndDate?: string;
+    senderTimezone?: string;
+    receiverTimezone?: string;
+    slotDuration?: number;
+};
+export interface MeetingRequestBodyType {
+    userId: string;
+    clientType: 'ios' | 'android' | 'web' | 'atomic-web';
+    userTimezone: string;
+    userDateContext: string;
+    attendees: string;
+    subject: string;
+    prompt: string;
+    durationMinutes: number;
+    shareAvailability: boolean;
+    availabilityUserDateStart?: string;
+    availabilityUserDateEnd?: string;
+    emailTo: string;
+    emailName: string;
+    yesLink: string;
+    noLink: string;
+    receiver: string;
+    sender: string;
+    [key: string]: any;
+}
+export type DailyScheduleObjectType = {
+    start_time: string;
+    end_time: string;
+    task: string;
+    description?: string;
+};
+export type HowToTaskRequestBodyType = {
+    userId: string;
+    task: string;
+    isAllDay: boolean;
+    timezone: string;
+    startDate: string;
+    endDate: string;
+    email?: string;
+    name?: string;
+    isTwo?: boolean;
+};
+export type CreateDayScheduleBodyType = {
+    userId: string;
+    tasks: Array<{
+        summary: string;
+        description?: string;
+        start_time?: string;
+        end_time?: string;
+        duration?: number;
+    }>;
+    isAllDay?: boolean;
+    timezone: string;
+    startDate: string;
+    endDate: string;
+    email?: string;
+    name?: string;
+    isTwo?: boolean;
+    prompt?: string;
+};
+export type BreakDownTaskRequestBodyType = {
+    userId: string;
+    task: string;
+    taskDescription?: string;
+    isAllDay: boolean;
+    timezone: string;
+    startDate: string;
+    endDate: string;
+    email?: string;
+    name?: string;
+    isTwo?: boolean;
+};
+export type CreatePeriodSummaryRequestBodyType = {
+    userId: string;
+    startDate: string;
+    endDate: string;
+    timezone: string;
+    email?: string;
+    name?: string;
+};
+export type CreateAgendaRequestBodyType = {
+    userId: string;
+    clientType: CalendarIntegrationType['clientType'];
+    isAllDay: boolean;
+    timezone: string;
+    email: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    mainTopic: string;
+    relevantPoints?: string[];
+    goals?: string[];
+    location?: string;
+    isTwo?: boolean;
+};
+export type GoogleResType = {
+    id: string;
+    googleEventId: string;
+    generatedId: string;
+    calendarId: string;
+    generatedEventId: string;
+};
+export interface CreateGoogleEventOptions {
+    summary?: string;
+    description?: string;
+    location?: string;
+    colorId?: string;
+    attendees?: GoogleAttendeeType[];
+    conferenceData?: GoogleConferenceDataType;
+    extendedProperties?: GoogleExtendedPropertiesType;
+    recurrence?: string[];
+    reminders?: GoogleReminderType;
+    source?: GoogleSourceType;
+    status?: 'confirmed' | 'tentative' | 'cancelled';
+    transparency?: GoogleTransparencyType;
+    visibility?: GoogleVisibilityType;
+    iCalUID?: string;
+    attendeesOmitted?: boolean;
+    hangoutLink?: string;
+    privateCopy?: boolean;
+    locked?: boolean;
+    attachments?: GoogleAttachmentType[];
+    eventType?: GoogleApiEventType;
+    startDateTime?: string;
+    endDateTime?: string;
+    startDate?: string;
+    endDate?: string;
+    timezone: string;
+}
+export {};

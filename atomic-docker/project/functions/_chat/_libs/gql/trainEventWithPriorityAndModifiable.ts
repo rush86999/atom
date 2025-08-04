@@ -1,5 +1,3 @@
-
-
 export default `
 mutation UpdateEventTrainingWithPriorityAndModifiable($id: String!, $modifiable: Boolean, $priority: Int!) {
   update_Event_by_pk(pk_columns: {id: $id}, _set: {modifiable: $modifiable, priority: $priority, copyPriorityLevel: true, copyTimePreference: true}) {
@@ -121,4 +119,4 @@ mutation UpdateEventTrainingWithPriorityAndModifiable($id: String!, $modifiable:
 }
 
   
-  `
+  `;

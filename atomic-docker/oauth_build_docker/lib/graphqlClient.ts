@@ -7,18 +7,20 @@ export async function executeGraphQLMutation<T>(
   operationName: string,
   userId: string
 ): Promise<T> {
-  const response = await got.post(hasuraGraphUrl, {
-    json: {
-      query: mutation,
-      variables,
-      operationName,
-    },
-    headers: {
-      'X-Hasura-Admin-Secret': hasuraAdminSecret,
-      'Content-Type': 'application/json',
-      'X-Hasura-Role': 'user',
-      'X-Hasura-User-Id': userId,
-    },
-  }).json();
+  const response = await got
+    .post(hasuraGraphUrl, {
+      json: {
+        query: mutation,
+        variables,
+        operationName,
+      },
+      headers: {
+        'X-Hasura-Admin-Secret': hasuraAdminSecret,
+        'Content-Type': 'application/json',
+        'X-Hasura-Role': 'user',
+        'X-Hasura-User-Id': userId,
+      },
+    })
+    .json();
   return response as T;
 }

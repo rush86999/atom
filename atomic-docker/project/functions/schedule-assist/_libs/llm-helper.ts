@@ -1,4 +1,4 @@
-import { Configuration, OpenAIApi } from "openai";
+import { Configuration, OpenAIApi } from 'openai';
 
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,15 +7,15 @@ const openai = new OpenAIApi(configuration);
 
 export const parseUserRequest = async (request: string) => {
   const response = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
+    model: 'gpt-3.5-turbo',
     messages: [
       {
-        role: "system",
+        role: 'system',
         content:
-          "You are a helpful assistant that parses user requests for scheduling meetings. The user will provide a request in natural language, and you should extract the following information: the attendees, the duration of the meeting, and the topic of the meeting. You should return this information as a JSON object.",
+          'You are a helpful assistant that parses user requests for scheduling meetings. The user will provide a request in natural language, and you should extract the following information: the attendees, the duration of the meeting, and the topic of the meeting. You should return this information as a JSON object.',
       },
       {
-        role: "user",
+        role: 'user',
         content: request,
       },
     ],
@@ -33,12 +33,12 @@ export const parseUserRequest = async (request: string) => {
 
     if (attendees && duration && topic) {
       return {
-        attendees: attendees.split(",").map((s) => s.trim()),
+        attendees: attendees.split(',').map((s) => s.trim()),
         duration,
         topic,
       };
     } else {
-      throw new Error("Unable to parse user request");
+      throw new Error('Unable to parse user request');
     }
   }
 };

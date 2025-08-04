@@ -13,11 +13,19 @@ interface GenerateCanvaAuthUrlRequestBody {
   input: {};
 }
 
-const handler = async (req: Request<{}, {}, GenerateCanvaAuthUrlRequestBody>, res: Response) => {
+const handler = async (
+  req: Request<{}, {}, GenerateCanvaAuthUrlRequestBody>,
+  res: Response
+) => {
   try {
     if (!canvaClientId || !canvaClientSecret || !canvaRedirectUrl) {
       console.error('Canva environment variables are not configured.');
-      return res.status(500).json({ message: 'Server configuration error: Missing Canva integration credentials.' });
+      return res
+        .status(500)
+        .json({
+          message:
+            'Server configuration error: Missing Canva integration credentials.',
+        });
     }
 
     const client = new AuthorizationCode({
@@ -41,11 +49,12 @@ const handler = async (req: Request<{}, {}, GenerateCanvaAuthUrlRequestBody>, re
     return res.status(200).json({
       authorizationUrl: authorizationUrl,
     });
-
   } catch (e: any) {
     console.error('Error generating Canva auth URL:', e);
     return res.status(500).json({
-      message: 'Error generating Canva authorization URL: ' + (e.message || 'Unknown error'),
+      message:
+        'Error generating Canva authorization URL: ' +
+        (e.message || 'Unknown error'),
     });
   }
 };

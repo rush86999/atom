@@ -1,5 +1,10 @@
 import OpenAI from 'openai';
-import { EventRecord, CategoryType, AIProcessedEvent, AIQueryEnhancementResult } from './types'; // Added AIQueryEnhancementResult
+import {
+  EventRecord,
+  CategoryType,
+  AIProcessedEvent,
+  AIQueryEnhancementResult,
+} from './types'; // Added AIQueryEnhancementResult
 import { DEFAULT_OPENAI_MODEL } from './constants';
 
 /**
@@ -13,7 +18,7 @@ export async function callLLM(
   prompt: string, // In this setup, prompt is the user message, system message is separate
   systemPrompt: string,
   apiKey: string,
-  model: string = DEFAULT_OPENAI_MODEL,
+  model: string = DEFAULT_OPENAI_MODEL
 ): Promise<string | null> {
   try {
     const openai = new OpenAI({ apiKey });
@@ -29,7 +34,11 @@ export async function callLLM(
     console.error('Error calling OpenAI LLM:', error);
     // Consider more specific error handling or re-throwing
     if (error.response) {
-        console.error('OpenAI API Error Details:', error.response.status, error.response.data);
+      console.error(
+        'OpenAI API Error Details:',
+        error.response.status,
+        error.response.data
+      );
     }
     return null; // Or throw error to be handled by caller
   }
@@ -54,28 +63,40 @@ export async function callAIEventProcessor(
   const systemMessage = `You are an intelligent event processing assistant. Your task is to analyze a list of events based on a user's search query and a list of available event categories. Assign the single most relevant category to each event and provide a relevance score from 0.0 to 1.0. Only return events that you determine to be relevant to the user's query. If no events are relevant, return an empty list.`;
 
   let userMessage = `User Query: ${userQuery}\n\n`;
-  userMessage += "Available Categories:\n";
-  userCategories.forEach(cat => {
+  userMessage += 'Available Categories:\n';
+  userCategories.forEach((cat) => {
     userMessage += `ID: ${cat.id}, Name: ${cat.name}\n`;
   });
-  userMessage += "\nEvents to Process:\n";
-  events.forEach(event => {
+  userMessage += '\nEvents to Process:\n';
+  events.forEach((event) => {
     // Assuming raw_event_text contains summary and potentially description
-    const title = event.raw_event_text?.split(':')[0] || event.raw_event_text || 'No Title';
-    const description = event.raw_event_text?.includes(':') ? event.raw_event_text.substring(event.raw_event_text.indexOf(':') + 1).trim() : 'No Description';
+    const title =
+      event.raw_event_text?.split(':')[0] || event.raw_event_text || 'No Title';
+    const description = event.raw_event_text?.includes(':')
+      ? event.raw_event_text
+          .substring(event.raw_event_text.indexOf(':') + 1)
+          .trim()
+      : 'No Description';
     userMessage += `Event ID: ${event.id}, Title: ${title}, Description: ${description}, Start Date: ${event.start_date}, End Date: ${event.end_date}\n`;
   });
 
   if (userMessageHistory && userMessageHistory.length > 0) {
     // Simple formatting for history, adjust as needed
-    const historyStr = userMessageHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+    const historyStr = userMessageHistory
+      .map((msg) => `${msg.role}: ${msg.content}`)
+      .join('\n');
     userMessage += `\nConsider this recent user message history for intent:\n${historyStr}\n`;
   }
 
-  userMessage += "\nRequired Output Format: Return a JSON array of objects. Each object must have 'eventId', 'assignedCategoryId', and 'relevanceScore'. Example: [{'eventId': 'evt1', 'assignedCategoryId': 'cat2', 'relevanceScore': 0.88}]. If no events are relevant, return [].";
+  userMessage +=
+    "\nRequired Output Format: Return a JSON array of objects. Each object must have 'eventId', 'assignedCategoryId', and 'relevanceScore'. Example: [{'eventId': 'evt1', 'assignedCategoryId': 'cat2', 'relevanceScore': 0.88}]. If no events are relevant, return [].";
 
   try {
-    const llmResponseString = await callLLM(userMessage, systemMessage, openAIApiKey);
+    const llmResponseString = await callLLM(
+      userMessage,
+      systemMessage,
+      openAIApiKey
+    );
 
     if (!llmResponseString) {
       console.error('LLM returned null or empty response.');
@@ -87,12 +108,11 @@ export async function callAIEventProcessor(
     const jsonMatch = llmResponseString.match(/```json\n([\s\S]*?)\n```/);
     let parsedResponse;
     if (jsonMatch && jsonMatch[1]) {
-        parsedResponse = JSON.parse(jsonMatch[1]);
+      parsedResponse = JSON.parse(jsonMatch[1]);
     } else {
-        // Assume the response is directly JSON or attempt parsing directly
-        parsedResponse = JSON.parse(llmResponseString);
+      // Assume the response is directly JSON or attempt parsing directly
+      parsedResponse = JSON.parse(llmResponseString);
     }
-
 
     // Validate the parsed response structure
     if (!Array.isArray(parsedResponse)) {
@@ -102,19 +122,25 @@ export async function callAIEventProcessor(
 
     const validatedEvents: AIProcessedEvent[] = [];
     for (const item of parsedResponse) {
-      if (item && typeof item.eventId === 'string' &&
-          typeof item.assignedCategoryId === 'string' &&
-          typeof item.relevanceScore === 'number' &&
-          item.relevanceScore >= 0.0 && item.relevanceScore <= 1.0) {
+      if (
+        item &&
+        typeof item.eventId === 'string' &&
+        typeof item.assignedCategoryId === 'string' &&
+        typeof item.relevanceScore === 'number' &&
+        item.relevanceScore >= 0.0 &&
+        item.relevanceScore <= 1.0
+      ) {
         validatedEvents.push(item as AIProcessedEvent);
       } else {
         console.warn('Invalid item in LLM response, skipping:', item);
       }
     }
     return validatedEvents;
-
   } catch (error) {
-    console.error('Error processing events with AI or parsing LLM response:', error);
+    console.error(
+      'Error processing events with AI or parsing LLM response:',
+      error
+    );
     // Log the raw response if parsing failed for debugging
     // console.error('Raw LLM response string:', llmResponseString); // llmResponseString not in this scope
     return []; // Return empty or throw, depending on desired error handling
@@ -141,13 +167,15 @@ export async function callAIQueryEnhancer(
 
   if (userMessageHistory && userMessageHistory.length > 0) {
     const historyStr = userMessageHistory
-      .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`) // Basic formatting
+      .map(
+        (msg) => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ) // Basic formatting
       .join('\n');
     userPrompt += `User Message History (most recent first):\n${historyStr}\n\n`;
   }
 
-  userPrompt += "Available Event Categories:\n";
-  userCategories.forEach(cat => {
+  userPrompt += 'Available Event Categories:\n';
+  userCategories.forEach((cat) => {
     userPrompt += `ID: ${cat.id}, Name: ${cat.name}\n`;
   });
 
@@ -194,38 +222,62 @@ Example 3 (only refined query): {"refinedQueryText": "general project updates"}`
     const jsonMatch = llmResponseString.match(/```json\n([\s\S]*?)\n```/);
     let parsedJson;
     if (jsonMatch && jsonMatch[1]) {
-        parsedJson = JSON.parse(jsonMatch[1]);
+      parsedJson = JSON.parse(jsonMatch[1]);
     } else {
-        // Assume the response is directly JSON or attempt parsing directly
-        // This is more risky if the LLM doesn't strictly adhere to JSON output without ```
-        try {
-            parsedJson = JSON.parse(llmResponseString);
-        } catch (e) {
-            console.error('AIQueryEnhancer: Failed to parse LLM response as direct JSON.', e.message);
-            console.error('AIQueryEnhancer: Raw LLM response:', llmResponseString);
-            return defaultResult;
-        }
+      // Assume the response is directly JSON or attempt parsing directly
+      // This is more risky if the LLM doesn't strictly adhere to JSON output without ```
+      try {
+        parsedJson = JSON.parse(llmResponseString);
+      } catch (e) {
+        console.error(
+          'AIQueryEnhancer: Failed to parse LLM response as direct JSON.',
+          e.message
+        );
+        console.error('AIQueryEnhancer: Raw LLM response:', llmResponseString);
+        return defaultResult;
+      }
     }
 
     // Validate the structure
-    if (typeof parsedJson.refinedQueryText !== 'string' || parsedJson.refinedQueryText.trim() === '') {
-      console.error('AIQueryEnhancer: Validation failed - refinedQueryText is missing or empty.', parsedJson);
+    if (
+      typeof parsedJson.refinedQueryText !== 'string' ||
+      parsedJson.refinedQueryText.trim() === ''
+    ) {
+      console.error(
+        'AIQueryEnhancer: Validation failed - refinedQueryText is missing or empty.',
+        parsedJson
+      );
       // Keep original query text if refined one is invalid
       parsedJson.refinedQueryText = userQuery;
     }
 
-    if (parsedJson.suggestedCategoryIds && !Array.isArray(parsedJson.suggestedCategoryIds)) {
-      console.warn('AIQueryEnhancer: suggestedCategoryIds is not an array, defaulting to empty.', parsedJson);
+    if (
+      parsedJson.suggestedCategoryIds &&
+      !Array.isArray(parsedJson.suggestedCategoryIds)
+    ) {
+      console.warn(
+        'AIQueryEnhancer: suggestedCategoryIds is not an array, defaulting to empty.',
+        parsedJson
+      );
       parsedJson.suggestedCategoryIds = [];
     } else if (parsedJson.suggestedCategoryIds) {
-        parsedJson.suggestedCategoryIds = parsedJson.suggestedCategoryIds.filter(id => typeof id === 'string');
+      parsedJson.suggestedCategoryIds = parsedJson.suggestedCategoryIds.filter(
+        (id) => typeof id === 'string'
+      );
     }
 
     if (parsedJson.identifiedDateRange) {
-      if (typeof parsedJson.identifiedDateRange !== 'object' ||
-          !parsedJson.identifiedDateRange.start || typeof parsedJson.identifiedDateRange.start !== 'string' ||
-          !parsedJson.identifiedDateRange.end || typeof parsedJson.identifiedDateRange.end !== 'string') {
-        console.warn('AIQueryEnhancer: identifiedDateRange is invalid, removing.', parsedJson);
+      if (
+        typeof parsedJson.identifiedDateRange !== 'object' ||
+        !parsedJson.identifiedDateRange.start ||
+        typeof parsedJson.identifiedDateRange.start !== 'string' ||
+        !parsedJson.identifiedDateRange.end ||
+        typeof parsedJson.identifiedDateRange.end !== 'string'
+      ) {
+        console.warn(
+          'AIQueryEnhancer: identifiedDateRange is invalid, removing.',
+          parsedJson
+        );
         delete parsedJson.identifiedDateRange;
       }
     }
@@ -235,11 +287,16 @@ Example 3 (only refined query): {"refinedQueryText": "general project updates"}`
       suggestedCategoryIds: parsedJson.suggestedCategoryIds || [],
       identifiedDateRange: parsedJson.identifiedDateRange,
     };
-
   } catch (error) {
-    console.error('AIQueryEnhancer: Error processing query with AI or parsing LLM response:', error);
+    console.error(
+      'AIQueryEnhancer: Error processing query with AI or parsing LLM response:',
+      error
+    );
     if (llmResponseString) {
-        console.error('AIQueryEnhancer: Raw LLM response string on error:', llmResponseString);
+      console.error(
+        'AIQueryEnhancer: Raw LLM response string on error:',
+        llmResponseString
+      );
     }
     return defaultResult;
   }

@@ -1,0 +1,60 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.requestScheduleMeeting = exports.getGlobalPrimaryCalendarFunction = void 0;
+const UserCreateCalendarHelper_1 = require("@lib/Calendar/UserCreateCalendarHelper");
+const getGlobalPrimaryCalendarFunction = async (client, userId) => {
+    try {
+        // get global primary calendar
+        return (0, UserCreateCalendarHelper_1.getCalendarInDb)(client, userId, undefined, true);
+    }
+    catch (e) {
+        console.log(e, ' getGlobalPrimaryCalendarFunction');
+    }
+};
+exports.getGlobalPrimaryCalendarFunction = getGlobalPrimaryCalendarFunction;
+const api_backend_helper_1 = require("@lib/api-backend-helper");
+/**
+ * Helper function to request scheduling a new meeting.
+ * This function constructs the request payload and calls the backend API.
+ * @param client ApolloClient instance (currently unused but kept for consistency or future use with session/auth)
+ * @param userId The ID of the user initiating the request (currently unused, might be needed for auth)
+ * @param participantNames Array of participant names or IDs
+ * @param durationMinutes Duration of the meeting in minutes
+ * @param preferredDate Preferred date in YYYY-MM-DD format
+ * @param preferredTime Preferred time in HH:MM:SS format
+ * @returns Promise<any> The response from the scheduling API.
+ */
+const requestScheduleMeeting = async (client, // Maintained for API consistency, not directly used unless for session/auth
+userId, // Maintained for future use (e.g., logging, auth context)
+participantNames, durationMinutes, preferredDate, preferredStartTimeFrom, preferredStartTimeTo) => {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
+    try {
+        console.log(`requestScheduleMeeting called by userId: ${userId} with params:`, {
+            participantNames,
+            durationMinutes,
+            preferredDate,
+            preferredStartTimeFrom,
+            preferredStartTimeTo,
+        });
+        const payload = {
+            participantNames,
+            durationMinutes,
+            preferredDate,
+            preferredStartTimeFrom,
+            preferredStartTimeTo,
+        };
+        // Note: The current `callScheduleMeetingApi` in api-backend-helper.ts doesn't take userId or client.
+        // If authentication or user context is needed at the `got` call level,
+        // `api-backend-helper.ts` will need to be updated.
+        const response = await (0, api_backend_helper_1.scheduleMeeting)(payload);
+        console.log('Meeting scheduling requested successfully:', response);
+        return response;
+    }
+    catch (error) {
+        console.error('Error in requestScheduleMeeting helper:', error);
+        // Propagate the error so the caller can handle it
+        throw error;
+    }
+};
+exports.requestScheduleMeeting = requestScheduleMeeting;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiU2NoZWR1bGVIZWxwZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJTY2hlZHVsZUhlbHBlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFDQSxxRkFBeUU7QUFFbEUsTUFBTSxnQ0FBZ0MsR0FBRyxLQUFLLEVBQ25ELE1BQTJDLEVBQzNDLE1BQWMsRUFDZCxFQUFFO0lBQ0YsSUFBSSxDQUFDO1FBQ0gsOEJBQThCO1FBQzlCLE9BQU8sSUFBQSwwQ0FBZSxFQUFDLE1BQU0sRUFBRSxNQUFNLEVBQUUsU0FBUyxFQUFFLElBQUksQ0FBQyxDQUFDO0lBQzFELENBQUM7SUFBQyxPQUFPLENBQUMsRUFBRSxDQUFDO1FBQ1gsT0FBTyxDQUFDLEdBQUcsQ0FBQyxDQUFDLEVBQUUsbUNBQW1DLENBQUMsQ0FBQztJQUN0RCxDQUFDO0FBQ0gsQ0FBQyxDQUFDO0FBVlcsUUFBQSxnQ0FBZ0Msb0NBVTNDO0FBRUYsZ0VBQW9GO0FBR3BGOzs7Ozs7Ozs7O0dBVUc7QUFDSSxNQUFNLHNCQUFzQixHQUFHLEtBQUssRUFDekMsTUFBMkMsRUFBRSw0RUFBNEU7QUFDekgsTUFBYyxFQUFFLDBEQUEwRDtBQUMxRSxnQkFBMEIsRUFDMUIsZUFBdUIsRUFDdkIsYUFBcUIsRUFDckIsc0JBQThCLEVBQzlCLG9CQUE0QixFQUNkLEVBQUU7SUFDaEIseURBQXlEO0lBQ3pELElBQUksQ0FBQztRQUNILE9BQU8sQ0FBQyxHQUFHLENBQ1QsNENBQTRDLE1BQU0sZUFBZSxFQUNqRTtZQUNFLGdCQUFnQjtZQUNoQixlQUFlO1lBQ2YsYUFBYTtZQUNiLHNCQUFzQjtZQUN0QixvQkFBb0I7U0FDckIsQ0FDRixDQUFDO1FBRUYsTUFBTSxPQUFPLEdBQStCO1lBQzFDLGdCQUFnQjtZQUNoQixlQUFlO1lBQ2YsYUFBYTtZQUNiLHNCQUFzQjtZQUN0QixvQkFBb0I7U0FDckIsQ0FBQztRQUVGLHFHQUFxRztRQUNyRyx1RUFBdUU7UUFDdkUsbURBQW1EO1FBQ25ELE1BQU0sUUFBUSxHQUFHLE1BQU0sSUFBQSxvQ0FBc0IsRUFBQyxPQUFPLENBQUMsQ0FBQztRQUV2RCxPQUFPLENBQUMsR0FBRyxDQUFDLDRDQUE0QyxFQUFFLFFBQVEsQ0FBQyxDQUFDO1FBQ3BFLE9BQU8sUUFBUSxDQUFDO0lBQ2xCLENBQUM7SUFBQyxPQUFPLEtBQUssRUFBRSxDQUFDO1FBQ2YsT0FBTyxDQUFDLEtBQUssQ0FBQyx5Q0FBeUMsRUFBRSxLQUFLLENBQUMsQ0FBQztRQUNoRSxrREFBa0Q7UUFDbEQsTUFBTSxLQUFLLENBQUM7SUFDZCxDQUFDO0FBQ0gsQ0FBQyxDQUFDO0FBMUNXLFFBQUEsc0JBQXNCLDBCQTBDakMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBBcG9sbG9DbGllbnQsIE5vcm1hbGl6ZWRDYWNoZU9iamVjdCB9IGZyb20gJ0BhcG9sbG8vY2xpZW50JztcbmltcG9ydCB7IGdldENhbGVuZGFySW5EYiB9IGZyb20gJ0BsaWIvQ2FsZW5kYXIvVXNlckNyZWF0ZUNhbGVuZGFySGVscGVyJztcblxuZXhwb3J0IGNvbnN0IGdldEdsb2JhbFByaW1hcnlDYWxlbmRhckZ1bmN0aW9uID0gYXN5bmMgKFxuICBjbGllbnQ6IEFwb2xsb0NsaWVudDxOb3JtYWxpemVkQ2FjaGVPYmplY3Q+LFxuICB1c2VySWQ6IHN0cmluZ1xuKSA9PiB7XG4gIHRyeSB7XG4gICAgLy8gZ2V0IGdsb2JhbCBwcmltYXJ5IGNhbGVuZGFyXG4gICAgcmV0dXJuIGdldENhbGVuZGFySW5EYihjbGllbnQsIHVzZXJJZCwgdW5kZWZpbmVkLCB0cnVlKTtcbiAgfSBjYXRjaCAoZSkge1xuICAgIGNvbnNvbGUubG9nKGUsICcgZ2V0R2xvYmFsUHJpbWFyeUNhbGVuZGFyRnVuY3Rpb24nKTtcbiAgfVxufTtcblxuaW1wb3J0IHsgc2NoZWR1bGVNZWV0aW5nIGFzIGNhbGxTY2hlZHVsZU1lZXRpbmdBcGkgfSBmcm9tICdAbGliL2FwaS1iYWNrZW5kLWhlbHBlcic7XG5pbXBvcnQgeyBTY2hlZHVsZU1lZXRpbmdSZXF1ZXN0VHlwZSB9IGZyb20gJ0BsaWIvZGF0YVR5cGVzL1NjaGVkdWxlTWVldGluZ1JlcXVlc3RUeXBlJztcblxuLyoqXG4gKiBIZWxwZXIgZnVuY3Rpb24gdG8gcmVxdWVzdCBzY2hlZHVsaW5nIGEgbmV3IG1lZXRpbmcuXG4gKiBUaGlzIGZ1bmN0aW9uIGNvbnN0cnVjdHMgdGhlIHJlcXVlc3QgcGF5bG9hZCBhbmQgY2FsbHMgdGhlIGJhY2tlbmQgQVBJLlxuICogQHBhcmFtIGNsaWVudCBBcG9sbG9DbGllbnQgaW5zdGFuY2UgKGN1cnJlbnRseSB1bnVzZWQgYnV0IGtlcHQgZm9yIGNvbnNpc3RlbmN5IG9yIGZ1dHVyZSB1c2Ugd2l0aCBzZXNzaW9uL2F1dGgpXG4gKiBAcGFyYW0gdXNlcklkIFRoZSBJRCBvZiB0aGUgdXNlciBpbml0aWF0aW5nIHRoZSByZXF1ZXN0IChjdXJyZW50bHkgdW51c2VkLCBtaWdodCBiZSBuZWVkZWQgZm9yIGF1dGgpXG4gKiBAcGFyYW0gcGFydGljaXBhbnROYW1lcyBBcnJheSBvZiBwYXJ0aWNpcGFudCBuYW1lcyBvciBJRHNcbiAqIEBwYXJhbSBkdXJhdGlvbk1pbnV0ZXMgRHVyYXRpb24gb2YgdGhlIG1lZXRpbmcgaW4gbWludXRlc1xuICogQHBhcmFtIHByZWZlcnJlZERhdGUgUHJlZmVycmVkIGRhdGUgaW4gWVlZWS1NTS1ERCBmb3JtYXRcbiAqIEBwYXJhbSBwcmVmZXJyZWRUaW1lIFByZWZlcnJlZCB0aW1lIGluIEhIOk1NOlNTIGZvcm1hdFxuICogQHJldHVybnMgUHJvbWlzZTxhbnk+IFRoZSByZXNwb25zZSBmcm9tIHRoZSBzY2hlZHVsaW5nIEFQSS5cbiAqL1xuZXhwb3J0IGNvbnN0IHJlcXVlc3RTY2hlZHVsZU1lZXRpbmcgPSBhc3luYyAoXG4gIGNsaWVudDogQXBvbGxvQ2xpZW50PE5vcm1hbGl6ZWRDYWNoZU9iamVjdD4sIC8vIE1haW50YWluZWQgZm9yIEFQSSBjb25zaXN0ZW5jeSwgbm90IGRpcmVjdGx5IHVzZWQgdW5sZXNzIGZvciBzZXNzaW9uL2F1dGhcbiAgdXNlcklkOiBzdHJpbmcsIC8vIE1haW50YWluZWQgZm9yIGZ1dHVyZSB1c2UgKGUuZy4sIGxvZ2dpbmcsIGF1dGggY29udGV4dClcbiAgcGFydGljaXBhbnROYW1lczogc3RyaW5nW10sXG4gIGR1cmF0aW9uTWludXRlczogbnVtYmVyLFxuICBwcmVmZXJyZWREYXRlOiBzdHJpbmcsXG4gIHByZWZlcnJlZFN0YXJ0VGltZUZyb206IHN0cmluZyxcbiAgcHJlZmVycmVkU3RhcnRUaW1lVG86IHN0cmluZ1xuKTogUHJvbWlzZTxhbnk+ID0+IHtcbiAgLy8gZXNsaW50LWRpc2FibGUtbGluZSBAdHlwZXNjcmlwdC1lc2xpbnQvbm8tZXhwbGljaXQtYW55XG4gIHRyeSB7XG4gICAgY29uc29sZS5sb2coXG4gICAgICBgcmVxdWVzdFNjaGVkdWxlTWVldGluZyBjYWxsZWQgYnkgdXNlcklkOiAke3VzZXJJZH0gd2l0aCBwYXJhbXM6YCxcbiAgICAgIHtcbiAgICAgICAgcGFydGljaXBhbnROYW1lcyxcbiAgICAgICAgZHVyYXRpb25NaW51dGVzLFxuICAgICAgICBwcmVmZXJyZWREYXRlLFxuICAgICAgICBwcmVmZXJyZWRTdGFydFRpbWVGcm9tLFxuICAgICAgICBwcmVmZXJyZWRTdGFydFRpbWVUbyxcbiAgICAgIH1cbiAgICApO1xuXG4gICAgY29uc3QgcGF5bG9hZDogU2NoZWR1bGVNZWV0aW5nUmVxdWVzdFR5cGUgPSB7XG4gICAgICBwYXJ0aWNpcGFudE5hbWVzLFxuICAgICAgZHVyYXRpb25NaW51dGVzLFxuICAgICAgcHJlZmVycmVkRGF0ZSxcbiAgICAgIHByZWZlcnJlZFN0YXJ0VGltZUZyb20sXG4gICAgICBwcmVmZXJyZWRTdGFydFRpbWVUbyxcbiAgICB9O1xuXG4gICAgLy8gTm90ZTogVGhlIGN1cnJlbnQgYGNhbGxTY2hlZHVsZU1lZXRpbmdBcGlgIGluIGFwaS1iYWNrZW5kLWhlbHBlci50cyBkb2Vzbid0IHRha2UgdXNlcklkIG9yIGNsaWVudC5cbiAgICAvLyBJZiBhdXRoZW50aWNhdGlvbiBvciB1c2VyIGNvbnRleHQgaXMgbmVlZGVkIGF0IHRoZSBgZ290YCBjYWxsIGxldmVsLFxuICAgIC8vIGBhcGktYmFja2VuZC1oZWxwZXIudHNgIHdpbGwgbmVlZCB0byBiZSB1cGRhdGVkLlxuICAgIGNvbnN0IHJlc3BvbnNlID0gYXdhaXQgY2FsbFNjaGVkdWxlTWVldGluZ0FwaShwYXlsb2FkKTtcblxuICAgIGNvbnNvbGUubG9nKCdNZWV0aW5nIHNjaGVkdWxpbmcgcmVxdWVzdGVkIHN1Y2Nlc3NmdWxseTonLCByZXNwb25zZSk7XG4gICAgcmV0dXJuIHJlc3BvbnNlO1xuICB9IGNhdGNoIChlcnJvcikge1xuICAgIGNvbnNvbGUuZXJyb3IoJ0Vycm9yIGluIHJlcXVlc3RTY2hlZHVsZU1lZXRpbmcgaGVscGVyOicsIGVycm9yKTtcbiAgICAvLyBQcm9wYWdhdGUgdGhlIGVycm9yIHNvIHRoZSBjYWxsZXIgY2FuIGhhbmRsZSBpdFxuICAgIHRocm93IGVycm9yO1xuICB9XG59O1xuIl19

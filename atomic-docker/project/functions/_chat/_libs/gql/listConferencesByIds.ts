@@ -1,5 +1,3 @@
-
-
 export default `query listConferencesByIds($ids: [String!]!) {
   Conference(where: {id: {_in: $ids}}) {
     app
@@ -25,4 +23,4 @@ export default `query listConferencesByIds($ids: [String!]!) {
     zoomPrivateMeeting
   }
 }
-`
+`;

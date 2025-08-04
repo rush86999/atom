@@ -1,0 +1,14 @@
+import DateTimeJSONType from '@chat/_libs/datetime/DateTimeJSONJSONType';
+import UserInputToJSONType, { MutatedCalendarExtractedJSONAttendeeType } from '@chat/_libs/types/UserInputToJSONType';
+import { ReceiverTimezoneFormDataResponseType, SendMeetingInviteType } from './types';
+import { DayAvailabilityType, SummarizeDayAvailabilityType } from './availabilityTypes';
+import OpenAI from 'openai';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+import { ChatMeetingPreferencesType } from '@chat/_libs/types/ChatMeetingPreferencesType';
+export declare const day_availability_summary: (dayAvailabilityObject: DayAvailabilityType) => Promise<any>;
+export declare const summarize_availability: (summarizeAvailabilityObject: SummarizeDayAvailabilityType) => Promise<any>;
+export declare const sendMeetingRequestTemplate: (name: string, email: string, body: string, subject: string) => Promise<void>;
+export declare const finalStepSendMeetingInvite: (body: SendMeetingInviteType, primaryHostAttendeeInfo: MutatedCalendarExtractedJSONAttendeeType, defaultMeetingPreferences: ChatMeetingPreferencesType, currentTime: string, response: any) => Promise<any>;
+export declare const processSendMeetingInvitePending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, formData: ReceiverTimezoneFormDataResponseType) => Promise<any>;
+export declare const processSendMeetingInviteMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, formData: ReceiverTimezoneFormDataResponseType, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const sendMeetingInviteControlCenter: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;

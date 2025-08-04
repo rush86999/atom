@@ -22,22 +22,39 @@ function formatSourceResults(sourceEntry: PrepResultSourceEntry): string {
   switch (sourceEntry.source) {
     case 'gmail':
       const gmailResults = sourceEntry.results as GmailMessageSnippet[];
-      details = gmailResults.map(r => `    - Subject: ${r.subject || 'N/A'}, From: ${r.from || 'N/A'}, Snippet: ${r.snippet?.substring(0, 50)}...`).join('\n');
+      details = gmailResults
+        .map(
+          (r) =>
+            `    - Subject: ${r.subject || 'N/A'}, From: ${r.from || 'N/A'}, Snippet: ${r.snippet?.substring(0, 50)}...`
+        )
+        .join('\n');
       break;
     case 'slack':
       const slackResults = sourceEntry.results as SlackMessageSnippet[];
-      details = slackResults.map(r => `    - Channel: ${r.channel?.name || r.channel?.id || 'N/A'}, User: ${r.user?.name || r.user?.id || 'N/A'}, Text: ${r.text?.substring(0,50)}...`).join('\n');
+      details = slackResults
+        .map(
+          (r) =>
+            `    - Channel: ${r.channel?.name || r.channel?.id || 'N/A'}, User: ${r.user?.name || r.user?.id || 'N/A'}, Text: ${r.text?.substring(0, 50)}...`
+        )
+        .join('\n');
       break;
     case 'notion':
       const notionResults = sourceEntry.results as NotionPageSummary[];
-      details = notionResults.map(r => `    - Title: ${r.title || 'N/A'}, URL: ${r.url || 'N/A'}`).join('\n');
+      details = notionResults
+        .map((r) => `    - Title: ${r.title || 'N/A'}, URL: ${r.url || 'N/A'}`)
+        .join('\n');
       break;
     case 'calendar_events':
       const calendarResults = sourceEntry.results as CalendarEventSummary[];
-      details = calendarResults.map(r => `    - Summary: ${r.summary || 'N/A'}, Start: ${r.start ? new Date(r.start).toLocaleString() : 'N/A'}`).join('\n');
+      details = calendarResults
+        .map(
+          (r) =>
+            `    - Summary: ${r.summary || 'N/A'}, Start: ${r.start ? new Date(r.start).toLocaleString() : 'N/A'}`
+        )
+        .join('\n');
       break;
     default:
-      details = `    Raw results: ${JSON.stringify(sourceEntry.results.slice(0,2))}...`;
+      details = `    Raw results: ${JSON.stringify(sourceEntry.results.slice(0, 2))}...`;
   }
   return `  From ${sourceEntry.source} (${sourceEntry.count} item(s)):\n${details}\n`;
 }
@@ -52,14 +69,23 @@ function formatSourceResults(sourceEntry: PrepResultSourceEntry): string {
  */
 export async function handleMeetingPreparationRequest(
   userId: string,
-  entities: MeetingPrepNluEntities,
+  entities: MeetingPrepNluEntities
 ): Promise<string> {
-  logger.info(`[MeetingPrepCommandHandler] Handling meeting preparation request for user ${userId}, meeting reference: "${entities.meeting_reference}"`);
-  logger.debug(`[MeetingPrepCommandHandler] Received NLU entities: ${JSON.stringify(entities)}`);
+  logger.info(
+    `[MeetingPrepCommandHandler] Handling meeting preparation request for user ${userId}, meeting reference: "${entities.meeting_reference}"`
+  );
+  logger.debug(
+    `[MeetingPrepCommandHandler] Received NLU entities: ${JSON.stringify(entities)}`
+  );
 
   try {
-    const prepResults: AggregatedPrepResults = await fetchMeetingPrepInfo(userId, entities);
-    logger.info(`[MeetingPrepCommandHandler] Meeting preparation skill finished. Sources processed: ${prepResults.results_by_source.length}`);
+    const prepResults: AggregatedPrepResults = await fetchMeetingPrepInfo(
+      userId,
+      entities
+    );
+    logger.info(
+      `[MeetingPrepCommandHandler] Meeting preparation skill finished. Sources processed: ${prepResults.results_by_source.length}`
+    );
 
     let responseText = `Okay, I've gathered some information for your meeting: "${prepResults.meeting_reference_identified}":\n\n`;
 
@@ -70,29 +96,37 @@ export async function handleMeetingPreparationRequest(
     }
 
     if (prepResults.results_by_source.length > 0) {
-      prepResults.results_by_source.forEach(sourceEntry => {
+      prepResults.results_by_source.forEach((sourceEntry) => {
         responseText += formatSourceResults(sourceEntry);
       });
     } else {
-      responseText += "I didn't find any specific items from the requested sources.\n";
+      responseText +=
+        "I didn't find any specific items from the requested sources.\n";
     }
 
     if (prepResults.overall_summary_notes) {
       responseText += `\nSummary of Findings:\n${prepResults.overall_summary_notes}\n`;
     }
 
-    if (prepResults.errors_encountered && prepResults.errors_encountered.length > 0) {
-      responseText += "\nSome issues were encountered during preparation:\n";
-      prepResults.errors_encountered.forEach(err => {
+    if (
+      prepResults.errors_encountered &&
+      prepResults.errors_encountered.length > 0
+    ) {
+      responseText += '\nSome issues were encountered during preparation:\n';
+      prepResults.errors_encountered.forEach((err) => {
         responseText += `  - ${err.source_attempted || 'Overall'}: ${err.message}\n`;
       });
     }
 
-    logger.debug(`[MeetingPrepCommandHandler] Final response text: ${responseText}`);
+    logger.debug(
+      `[MeetingPrepCommandHandler] Final response text: ${responseText}`
+    );
     return responseText;
-
   } catch (error: any) {
-    logger.error(`[MeetingPrepCommandHandler] Critical error handling meeting preparation request: ${error.message}`, error);
+    logger.error(
+      `[MeetingPrepCommandHandler] Critical error handling meeting preparation request: ${error.message}`,
+      error
+    );
     return `I encountered an unexpected error while trying to prepare for your meeting: ${error.message}. Please try again later.`;
   }
 }

@@ -100,7 +100,7 @@ const colorsPalette = {
   white: '#FFFFFF',
   black: '#000000',
   dark: '#0E1216',
-  transparent: 'transparent'
+  transparent: 'transparent',
 };
 
 // For Eslint --fix
@@ -108,6 +108,6 @@ const extraFixColorsMap = {
   black: 'black',
   white: 'white',
   '#000': 'black',
-  '#fff': 'white'
+  '#fff': 'white',
 };
 export { colorsPalette, extraFixColorsMap };

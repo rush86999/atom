@@ -128,6 +128,7 @@ export class SemanticSearchSkills implements IAgentSkills {
                             summaryText: summaryText,
                             data: backendData.data // This is ApiMeetingSearchResult[]
                         };
+                    });
                     // Original text formatting, kept for reference or if structured display fails.
                     // const formattedResults = backendData.data.map(result => {
                     //     const link = result.notion_page_url || `notion://page/${result.notion_page_id.replace(/-/g, "")}`;
@@ -143,6 +144,7 @@ export class SemanticSearchSkills implements IAgentSkills {
                     //     return `- "${result.notion_page_title}" (Edited: ${displayDate}, Score: ${result.score.toFixed(2)})${preview}\n    Link: ${link}`;
                     // }).join("\n\n");
                     // return `I found the following meeting notes related to your query:\n\n${formattedResults}`;
+                    return formattedResults[0];
                 } else {
                     return "Sorry, I couldn't find any meeting notes matching your query.";
                 }

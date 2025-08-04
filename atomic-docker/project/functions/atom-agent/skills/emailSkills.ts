@@ -600,5 +600,12 @@ export async function sendEmail(emailDetails: EmailDetails): Promise<SendEmailRe
       recipient: emailDetails.to,
     });
     return { success: false, message: `Failed to send email via AWS SES after ${MAX_RETRIES} attempts: ${lastError?.message}` };
+  } catch (error: any) {
+    logger.error('Unhandled exception in sendEmail function:', {
+        errorMessage: error.message,
+        errorStack: error.stack,
+        recipient: emailDetails.to,
+    });
+    return { success: false, message: `An unexpected error occurred: ${error.message}` };
   }
 }

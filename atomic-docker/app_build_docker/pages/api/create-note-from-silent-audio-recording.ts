@@ -10,7 +10,10 @@ export const config = {
   },
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method === 'POST') {
     const form = new formidable.IncomingForm();
     form.parse(req, async (err, fields, files) => {
@@ -28,7 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const audioFilePath = audioFile.filepath;
-      const result = await process_silent_audio_recording_for_notion(audioFilePath, title);
+      const result = await process_silent_audio_recording_for_notion(
+        audioFilePath,
+        title
+      );
 
       if (result.status === 'success') {
         res.status(200).json(result.data);

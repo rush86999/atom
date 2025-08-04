@@ -1,12 +1,19 @@
-import { listCalendlyEventTypes, listCalendlyScheduledEvents } from './calendlySkills';
+import {
+  listCalendlyEventTypes,
+  listCalendlyScheduledEvents,
+} from './calendlySkills';
 import * as constants from '../_libs/constants';
 import { Calendly } from '@calendly/api-client';
-import { CalendlyEventType, CalendlyScheduledEvent, CalendlyPagination } from '../types'; // Using our types for expected results
+import {
+  CalendlyEventType,
+  CalendlyScheduledEvent,
+  CalendlyPagination,
+} from '../types'; // Using our types for expected results
 
 // Mock the Calendly SDK and constants
 jest.mock('@calendly/api-client');
 jest.mock('../_libs/constants', () => ({
-    ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN: 'test-pat-token', // Default mock value
+  ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN: 'test-pat-token', // Default mock value
 }));
 
 // Declare mock functions for Calendly client methods
@@ -27,7 +34,9 @@ describe('calendlySkills', () => {
     // The jest.mock above sets a default. To change it per test, we can spyOn the getter or re-mock.
     // For simplicity, we'll ensure tests that need an empty token set it directly via the spy.
     // The default 'test-pat-token' will be used unless a test overrides it.
-     jest.spyOn(constants, 'ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN', 'get').mockReturnValue('test-pat-token');
+    jest
+      .spyOn(constants, 'ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN', 'get')
+      .mockReturnValue('test-pat-token');
 
     mockGetCurrentUser = jest.fn();
     mockListEventTypes = jest.fn();
@@ -51,10 +60,20 @@ describe('calendlySkills', () => {
 
   describe('listCalendlyEventTypes', () => {
     it('should list event types successfully', async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ resource: { uri: mockUserUri } });
-      const mockEventTypes: Partial<CalendlyEventType>[] = [{ name: 'Test Event Type', uri: 'event_type_uri_1' }];
-      const mockPagination: Partial<CalendlyPagination> = { count: 1, next_page_token: null };
-      mockListEventTypes.mockResolvedValueOnce({ collection: mockEventTypes, pagination: mockPagination });
+      mockGetCurrentUser.mockResolvedValueOnce({
+        resource: { uri: mockUserUri },
+      });
+      const mockEventTypes: Partial<CalendlyEventType>[] = [
+        { name: 'Test Event Type', uri: 'event_type_uri_1' },
+      ];
+      const mockPagination: Partial<CalendlyPagination> = {
+        count: 1,
+        next_page_token: null,
+      };
+      mockListEventTypes.mockResolvedValueOnce({
+        collection: mockEventTypes,
+        pagination: mockPagination,
+      });
 
       const result = await listCalendlyEventTypes(callingUserId);
 
@@ -62,26 +81,40 @@ describe('calendlySkills', () => {
       expect(result.collection).toEqual(mockEventTypes);
       expect(result.pagination).toEqual(mockPagination);
       expect(mockGetCurrentUser).toHaveBeenCalledTimes(1);
-      expect(mockListEventTypes).toHaveBeenCalledWith({ user: mockUserUri, active: true, count: 100 });
-      expect(consoleLogSpy).toHaveBeenCalledWith(`listCalendlyEventTypes called by userId: ${callingUserId}`);
+      expect(mockListEventTypes).toHaveBeenCalledWith({
+        user: mockUserUri,
+        active: true,
+        count: 100,
+      });
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `listCalendlyEventTypes called by userId: ${callingUserId}`
+      );
     });
 
     it('should return error if token is missing', async () => {
-      jest.spyOn(constants, 'ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN', 'get').mockReturnValue('');
+      jest
+        .spyOn(constants, 'ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN', 'get')
+        .mockReturnValue('');
       const result = await listCalendlyEventTypes(callingUserId);
-      expect(result).toEqual({ ok: false, error: 'Calendly Personal Access Token not configured.' });
+      expect(result).toEqual({
+        ok: false,
+        error: 'Calendly Personal Access Token not configured.',
+      });
       expect(mockGetCurrentUser).not.toHaveBeenCalled();
       expect(mockListEventTypes).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Calendly Personal Access Token not configured.');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Calendly Personal Access Token not configured.'
+      );
     });
 
     it('should return error if getCurrentUser fails to return URI', async () => {
-        mockGetCurrentUser.mockResolvedValueOnce({ resource: {} }); // Missing URI
-        const result = await listCalendlyEventTypes(callingUserId);
-        expect(result.ok).toBe(false);
-        expect(result.error).toBe('Failed to retrieve current user URI from Calendly.');
+      mockGetCurrentUser.mockResolvedValueOnce({ resource: {} }); // Missing URI
+      const result = await listCalendlyEventTypes(callingUserId);
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe(
+        'Failed to retrieve current user URI from Calendly.'
+      );
     });
-
 
     it('should handle API error from getCurrentUser', async () => {
       const apiError = new Error('User API Error');
@@ -89,11 +122,16 @@ describe('calendlySkills', () => {
       const result = await listCalendlyEventTypes(callingUserId);
       expect(result.ok).toBe(false);
       expect(result.error).toContain('User API Error');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error listing Calendly event types for userId ${callingUserId}:`, apiError.message);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error listing Calendly event types for userId ${callingUserId}:`,
+        apiError.message
+      );
     });
 
     it('should handle API error from listEventTypes', async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ resource: { uri: mockUserUri } });
+      mockGetCurrentUser.mockResolvedValueOnce({
+        resource: { uri: mockUserUri },
+      });
       const apiError = new Error('Event Type API Error');
       mockListEventTypes.mockRejectedValueOnce(apiError);
       const result = await listCalendlyEventTypes(callingUserId);
@@ -104,10 +142,20 @@ describe('calendlySkills', () => {
 
   describe('listCalendlyScheduledEvents', () => {
     it('should list scheduled events successfully (no options)', async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ resource: { uri: mockUserUri } });
-      const mockEvents: Partial<CalendlyScheduledEvent>[] = [{ name: 'Scheduled Meeting', uri: 'scheduled_event_uri_1' }];
-      const mockPagination: Partial<CalendlyPagination> = { count: 1, next_page_token: null };
-      mockListScheduledEvents.mockResolvedValueOnce({ collection: mockEvents, pagination: mockPagination });
+      mockGetCurrentUser.mockResolvedValueOnce({
+        resource: { uri: mockUserUri },
+      });
+      const mockEvents: Partial<CalendlyScheduledEvent>[] = [
+        { name: 'Scheduled Meeting', uri: 'scheduled_event_uri_1' },
+      ];
+      const mockPagination: Partial<CalendlyPagination> = {
+        count: 1,
+        next_page_token: null,
+      };
+      mockListScheduledEvents.mockResolvedValueOnce({
+        collection: mockEvents,
+        pagination: mockPagination,
+      });
 
       const result = await listCalendlyScheduledEvents(callingUserId);
 
@@ -115,13 +163,23 @@ describe('calendlySkills', () => {
       expect(result.collection).toEqual(mockEvents);
       expect(result.pagination).toEqual(mockPagination);
       expect(mockGetCurrentUser).toHaveBeenCalledTimes(1);
-      expect(mockListScheduledEvents).toHaveBeenCalledWith(expect.objectContaining({ user: mockUserUri }));
-      expect(consoleLogSpy).toHaveBeenCalledWith(`listCalendlyScheduledEvents called by userId: ${callingUserId} with options:`, undefined);
+      expect(mockListScheduledEvents).toHaveBeenCalledWith(
+        expect.objectContaining({ user: mockUserUri })
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `listCalendlyScheduledEvents called by userId: ${callingUserId} with options:`,
+        undefined
+      );
     });
 
     it('should list scheduled events with options correctly passed', async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ resource: { uri: mockUserUri } });
-      mockListScheduledEvents.mockResolvedValueOnce({ collection: [], pagination: {} });
+      mockGetCurrentUser.mockResolvedValueOnce({
+        resource: { uri: mockUserUri },
+      });
+      mockListScheduledEvents.mockResolvedValueOnce({
+        collection: [],
+        pagination: {},
+      });
       const options = {
         count: 5,
         status: 'active' as const,
@@ -144,21 +202,31 @@ describe('calendlySkills', () => {
 
       await listCalendlyScheduledEvents(callingUserId, options);
       expect(mockListScheduledEvents).toHaveBeenCalledWith(expectedApiOptions);
-      expect(consoleLogSpy).toHaveBeenCalledWith(`listCalendlyScheduledEvents called by userId: ${callingUserId} with options:`, options);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `listCalendlyScheduledEvents called by userId: ${callingUserId} with options:`,
+        options
+      );
     });
 
     it('should return error if token is missing', async () => {
-      jest.spyOn(constants, 'ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN', 'get').mockReturnValue('');
+      jest
+        .spyOn(constants, 'ATOM_CALENDLY_PERSONAL_ACCESS_TOKEN', 'get')
+        .mockReturnValue('');
       const result = await listCalendlyScheduledEvents(callingUserId);
-      expect(result).toEqual({ ok: false, error: 'Calendly Personal Access Token not configured.' });
+      expect(result).toEqual({
+        ok: false,
+        error: 'Calendly Personal Access Token not configured.',
+      });
       expect(mockGetCurrentUser).not.toHaveBeenCalled();
     });
 
     it('should return error if getCurrentUser fails to return URI', async () => {
-        mockGetCurrentUser.mockResolvedValueOnce({ resource: {} }); // Missing URI
-        const result = await listCalendlyScheduledEvents(callingUserId);
-        expect(result.ok).toBe(false);
-        expect(result.error).toBe('Failed to retrieve current user URI from Calendly.');
+      mockGetCurrentUser.mockResolvedValueOnce({ resource: {} }); // Missing URI
+      const result = await listCalendlyScheduledEvents(callingUserId);
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe(
+        'Failed to retrieve current user URI from Calendly.'
+      );
     });
 
     it('should handle API error from getCurrentUser', async () => {
@@ -167,11 +235,16 @@ describe('calendlySkills', () => {
       const result = await listCalendlyScheduledEvents(callingUserId);
       expect(result.ok).toBe(false);
       expect(result.error).toContain('User API Error for Scheduled Events');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error listing Calendly scheduled events for userId ${callingUserId}:`, apiError.message);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error listing Calendly scheduled events for userId ${callingUserId}:`,
+        apiError.message
+      );
     });
 
     it('should handle API error from listScheduledEvents', async () => {
-      mockGetCurrentUser.mockResolvedValueOnce({ resource: { uri: mockUserUri } });
+      mockGetCurrentUser.mockResolvedValueOnce({
+        resource: { uri: mockUserUri },
+      });
       const apiError = new Error('Scheduled Events API Error');
       mockListScheduledEvents.mockRejectedValueOnce(apiError);
       const result = await listCalendlyScheduledEvents(callingUserId);

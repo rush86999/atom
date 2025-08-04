@@ -11,7 +11,7 @@ type CategoryType = { name: string };
 
 async function runTest() {
   // 1. Set placeholder API key
-  process.env.OPENAI_API_KEY = "test_key_cat_123";
+  process.env.OPENAI_API_KEY = 'test_key_cat_123';
   console.log(`OPENAI_API_KEY set to: ${process.env.OPENAI_API_KEY}`);
 
   // 3. Define a sample eventDetails
@@ -27,22 +27,33 @@ async function runTest() {
     { name: 'Meeting' },
     { name: 'Review' },
     { name: 'Planning' },
-    { name: 'Marketing' }
+    { name: 'Marketing' },
   ];
 
   // 5. Announce call
-  console.log(`Calling findBestMatchCategory2 with event: "${eventDetails.summary}" and labels: ${possibleLabels.map(l => l.name).join(', ')}`);
+  console.log(
+    `Calling findBestMatchCategory2 with event: "${eventDetails.summary}" and labels: ${possibleLabels.map((l) => l.name).join(', ')}`
+  );
 
   // 6. Call the function and print result/error
   try {
     // Using 'as any' for eventDetails to simplify the test, as EventPlusType is complex.
     // The findBestMatchCategory2 function primarily uses summary and notes.
-    const result = await findBestMatchCategory2(eventDetails as any, possibleLabels);
-    console.log('Result from findBestMatchCategory2:', JSON.stringify(result, null, 2));
+    const result = await findBestMatchCategory2(
+      eventDetails as any,
+      possibleLabels
+    );
+    console.log(
+      'Result from findBestMatchCategory2:',
+      JSON.stringify(result, null, 2)
+    );
   } catch (e) {
-    console.error('Error during findBestMatchCategory2 call in test script:', e);
+    console.error(
+      'Error during findBestMatchCategory2 call in test script:',
+      e
+    );
   } finally {
-    console.log("Test script finished.");
+    console.log('Test script finished.');
   }
 }
 

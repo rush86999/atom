@@ -1,11 +1,19 @@
 import { SearchResult, WebResearchSkillResponse, SkillError } from '../types';
 import { google_web_search } from 'google_web_search';
 
-export async function searchWeb(query: string): Promise<WebResearchSkillResponse<SearchResult[]>> {
+export async function searchWeb(
+  query: string
+): Promise<WebResearchSkillResponse<SearchResult[]>> {
   console.log(`Initiating web search for query: "${query}"`);
 
-  if (!query || query.trim() === "") {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Search query cannot be empty.' } };
+  if (!query || query.trim() === '') {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Search query cannot be empty.',
+      },
+    };
   }
 
   try {

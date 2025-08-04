@@ -1,0 +1,10 @@
+import DateTimeJSONType from '@chat/_libs/datetime/DateTimeJSONJSONType';
+import UserInputToJSONType from '@chat/_libs/types/UserInputToJSONType';
+import { CancelMeetingType } from './types';
+import ResponseActionType from '@chat/_libs/types/ResponseActionType';
+import OpenAI from 'openai';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+export declare const finalStepCancelMeeting: (body: CancelMeetingType, eventId: string, response: any) => Promise<any>;
+export declare const processCancelMeetingPending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string) => Promise<ResponseActionType>;
+export declare const processCancelMeetingMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const cancelMeetingControlCenterPending: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;

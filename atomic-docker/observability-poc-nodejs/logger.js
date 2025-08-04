@@ -26,22 +26,25 @@ const loggerConfig = {
         }
       }
       return object;
-    }
+    },
   },
   timestamp: () => `,"timestamp":"${new Date(Date.now()).toISOString()}"`,
 };
 
 // Use pino-pretty for local development if not in production
-const transport = process.env.NODE_ENV !== 'production' ?
-  pino.transport({
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      translateTime: 'SYS:standard',
-      ignore: 'pid,hostname,service_name,version,trace_id,span_id', // pino-pretty will show its own time
-      messageFormat: '{service_name}@{version} {if trace_id}(trace_id:{trace_id} span_id:{span_id}){end} {msg}'
-    }
-  }) : undefined;
+const transport =
+  process.env.NODE_ENV !== 'production'
+    ? pino.transport({
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname,service_name,version,trace_id,span_id', // pino-pretty will show its own time
+          messageFormat:
+            '{service_name}@{version} {if trace_id}(trace_id:{trace_id} span_id:{span_id}){end} {msg}',
+        },
+      })
+    : undefined;
 
 const logger = pino(loggerConfig, transport);
 

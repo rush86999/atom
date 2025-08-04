@@ -43,19 +43,33 @@ interface HandleCanvaAuthCallbackRequestBody {
   };
 }
 
-const handler = async (req: Request<{}, {}, HandleCanvaAuthCallbackRequestBody>, res: Response) => {
+const handler = async (
+  req: Request<{}, {}, HandleCanvaAuthCallbackRequestBody>,
+  res: Response
+) => {
   const { code } = req.body.input;
   const userId = req.body.session_variables['x-hasura-user-id'];
 
   if (!code) {
-    return res.status(400).json({ success: false, message: 'Authorization code is missing.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Authorization code is missing.' });
   }
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'User ID is missing from session.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'User ID is missing from session.' });
   }
   if (!ENCRYPTION_KEY_HEX) {
-    console.error('CANVA_TOKEN_ENCRYPTION_KEY is not set. Please configure a 64-character hex key (32 bytes).');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Encryption key not configured.' });
+    console.error(
+      'CANVA_TOKEN_ENCRYPTION_KEY is not set. Please configure a 64-character hex key (32 bytes).'
+    );
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Encryption key not configured.',
+      });
   }
 
   const adminGraphQLClient = createAdminGraphQLClient();
@@ -65,7 +79,12 @@ const handler = async (req: Request<{}, {}, HandleCanvaAuthCallbackRequestBody>,
 
   if (!canvaClientId || !canvaClientSecret || !canvaRedirectUrl) {
     console.error('Canva environment variables are not configured.');
-    return res.status(500).json({ message: 'Server configuration error: Missing Canva integration credentials.' });
+    return res
+      .status(500)
+      .json({
+        message:
+          'Server configuration error: Missing Canva integration credentials.',
+      });
   }
 
   const client = new AuthorizationCode({
@@ -91,17 +110,33 @@ const handler = async (req: Request<{}, {}, HandleCanvaAuthCallbackRequestBody>,
 
     if (!token.access_token) {
       console.error('Failed to obtain access token from Canva.');
-      return res.status(500).json({ success: false, message: 'Failed to obtain access token from Canva.' });
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Failed to obtain access token from Canva.',
+        });
     }
 
-    const encryptedAccessToken = encrypt(token.access_token as string, ENCRYPTION_KEY_HEX);
+    const encryptedAccessToken = encrypt(
+      token.access_token as string,
+      ENCRYPTION_KEY_HEX
+    );
     let encryptedRefreshToken: string | null = null;
     if (token.refresh_token) {
-      encryptedRefreshToken = encrypt(token.refresh_token as string, ENCRYPTION_KEY_HEX);
+      encryptedRefreshToken = encrypt(
+        token.refresh_token as string,
+        ENCRYPTION_KEY_HEX
+      );
     }
 
-    const expiryTimestamp = token.expires_at ? (token.expires_at as Date).toISOString() : null;
-    const scopesArray = typeof token.scope === 'string' ? token.scope.split(' ') : token.scope || [];
+    const expiryTimestamp = token.expires_at
+      ? (token.expires_at as Date).toISOString()
+      : null;
+    const scopesArray =
+      typeof token.scope === 'string'
+        ? token.scope.split(' ')
+        : token.scope || [];
 
     await adminGraphQLClient.request(UPSERT_CANVA_TOKEN_MUTATION, {
       userId: userId,
@@ -111,8 +146,12 @@ const handler = async (req: Request<{}, {}, HandleCanvaAuthCallbackRequestBody>,
       scopesArr: scopesArray,
     });
 
-    return res.status(200).json({ success: true, message: 'Canva account connected successfully.' });
-
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Canva account connected successfully.',
+      });
   } catch (e: any) {
     console.error('Error handling Canva auth callback:', e);
     return res.status(500).json({

@@ -1,28 +1,26 @@
-
-
 import formValidators from './validators';
 
-import React, {LegacyRef, PropsWithChildren, ReactElement} from 'react';
+import React, { LegacyRef, PropsWithChildren, ReactElement } from 'react';
 
 export type TextInputProps = {
-    hint?: string,
-    label?: string,
-    labelColor?: string,
-    labelStyle?: React.CSSProperties,
-    labelClassNames?: string,
-    leadingAccessory?: string | React.ReactElement,
-    trailingAccessory?: string | React.ReactElement,
-    validate?: Validator | Validator[],
-    fieldStyle?: object,
-    className?: string,
-    containerStyle?: object,
-    containerClassNames?: string,
-    validationMessage?: string | string[],
-    multiline?: boolean,
-  numberOfLines?: number,
-  hintClassNames?: string,
-  innerRef?: React.Ref<HTMLTextAreaElement> | LegacyRef<HTMLInputElement>,
-}
+  hint?: string;
+  label?: string;
+  labelColor?: string;
+  labelStyle?: React.CSSProperties;
+  labelClassNames?: string;
+  leadingAccessory?: string | React.ReactElement;
+  trailingAccessory?: string | React.ReactElement;
+  validate?: Validator | Validator[];
+  fieldStyle?: object;
+  className?: string;
+  containerStyle?: object;
+  containerClassNames?: string;
+  validationMessage?: string | string[];
+  multiline?: boolean;
+  numberOfLines?: number;
+  hintClassNames?: string;
+  innerRef?: React.Ref<HTMLTextAreaElement> | LegacyRef<HTMLInputElement>;
+};
 
 export type ColorType =
   | string
@@ -35,7 +33,7 @@ export type ColorType =
 
 export enum ValidationMessagePosition {
   TOP = 'top',
-  BOTTOM = 'bottom'
+  BOTTOM = 'bottom',
 }
 
 export type Validator = Function | keyof typeof formValidators;
@@ -121,8 +119,6 @@ export interface ValidationMessageProps {
   testID?: string;
 }
 
-
-
 export interface InputProps {
   /**
    * A hint text to display when focusing the field
@@ -140,7 +136,6 @@ export interface InputProps {
    * Custom formatter for the input value (used only when input if not focused)
    */
   formatter?: (value?: string) => string | undefined;
-
 }
 
 export type TextFieldProps = InputProps &
@@ -200,7 +195,10 @@ export type TextFieldProps = InputProps &
     /**
      * Internal dynamic style callback for the field container
      */
-    dynamicFieldStyle?: (context: FieldContextType, props: {preset: TextFieldProps['preset']}) => object;
+    dynamicFieldStyle?: (
+      context: FieldContextType,
+      props: { preset: TextFieldProps['preset'] }
+    ) => object;
     /**
      * Container style of the whole component
      */
@@ -220,9 +218,7 @@ export type TextFieldProps = InputProps &
     inline?: boolean;
   };
 
-export type InternalTextFieldProps = PropsWithChildren<
-  TextFieldProps
->;
+export type InternalTextFieldProps = PropsWithChildren<TextFieldProps>;
 
 export type FieldContextType = {
   value?: string;

@@ -11,7 +11,11 @@ interface ConversationState {
   isActive: boolean;
   isAgentResponding: boolean; // New state: true if agent is currently "speaking" or processing a response
   lastInteractionTime: number | null;
-  conversationHistory: Array<{ user: string; agent: HandleMessageResponse; timestamp: number }>; // Retained for existing detailed history
+  conversationHistory: Array<{
+    user: string;
+    agent: HandleMessageResponse;
+    timestamp: number;
+  }>; // Retained for existing detailed history
   idleTimer: NodeJS.Timeout | null;
 
   // New STM fields
@@ -31,7 +35,9 @@ interface ConversationState {
 // In-memory store for conversation states, keyed by InterfaceType.
 const conversationStates = new Map<InterfaceType, ConversationState>();
 
-function getOrCreateConversationState(interfaceType: InterfaceType): ConversationState {
+function getOrCreateConversationState(
+  interfaceType: InterfaceType
+): ConversationState {
   if (!conversationStates.has(interfaceType)) {
     conversationStates.set(interfaceType, {
       isActive: false,
@@ -50,10 +56,14 @@ function getOrCreateConversationState(interfaceType: InterfaceType): Conversatio
 }
 
 function log(interfaceType: InterfaceType, message: string) {
-  console.log(`[ConversationState][${interfaceType}] ${new Date().toISOString()}: ${message}`);
+  console.log(
+    `[ConversationState][${interfaceType}] ${new Date().toISOString()}: ${message}`
+  );
 }
 
-export function getConversationStateSnapshot(interfaceType: InterfaceType): Readonly<ConversationState> {
+export function getConversationStateSnapshot(
+  interfaceType: InterfaceType
+): Readonly<ConversationState> {
   const state = getOrCreateConversationState(interfaceType);
   // Return a copy to prevent direct modification of the state object
   return JSON.parse(JSON.stringify(state));
@@ -67,7 +77,10 @@ function clearIdleTimer(interfaceType: InterfaceType) {
   }
 }
 
-export function setAgentResponding(interfaceType: InterfaceType, isResponding: boolean) {
+export function setAgentResponding(
+  interfaceType: InterfaceType,
+  isResponding: boolean
+) {
   const state = getOrCreateConversationState(interfaceType);
   state.isAgentResponding = isResponding;
   log(interfaceType, `Agent responding state set to: ${isResponding}`);
@@ -84,12 +97,17 @@ export function setAgentResponding(interfaceType: InterfaceType, isResponding: b
   }
 }
 
-export function checkIfAgentIsResponding(interfaceType: InterfaceType): boolean {
+export function checkIfAgentIsResponding(
+  interfaceType: InterfaceType
+): boolean {
   const state = getOrCreateConversationState(interfaceType);
   return state.isAgentResponding;
 }
 
-export function deactivateConversation(interfaceType: InterfaceType, reason: string = "timeout") {
+export function deactivateConversation(
+  interfaceType: InterfaceType,
+  reason: string = 'timeout'
+) {
   clearIdleTimer(interfaceType);
   const state = getOrCreateConversationState(interfaceType);
   if (state.isActive || state.isAgentResponding) {
@@ -97,7 +115,10 @@ export function deactivateConversation(interfaceType: InterfaceType, reason: str
     state.isAgentResponding = false; // Ensure this is also reset
     state.lastInteractionTime = null;
     state.ltmContext = null; // Reset LTM context
-    log(interfaceType, `Conversation deactivated due to ${reason}. LTM context cleared.`);
+    log(
+      interfaceType,
+      `Conversation deactivated due to ${reason}. LTM context cleared.`
+    );
   }
 }
 
@@ -108,19 +129,32 @@ function startIdleTimer(interfaceType: InterfaceType) {
   if (!state.isAgentResponding && state.isActive) {
     state.idleTimer = setTimeout(() => {
       const currentState = getOrCreateConversationState(interfaceType); // Re-fetch current state
-      if (currentState.isActive && !currentState.isAgentResponding) { // Double check state
-        deactivateConversation(interfaceType, "idle_timeout");
+      if (currentState.isActive && !currentState.isAgentResponding) {
+        // Double check state
+        deactivateConversation(interfaceType, 'idle_timeout');
       }
     }, IDLE_TIMEOUT_MS);
-    log(interfaceType, `Idle timer started for ${IDLE_TIMEOUT_MS / 1000} seconds.`);
+    log(
+      interfaceType,
+      `Idle timer started for ${IDLE_TIMEOUT_MS / 1000} seconds.`
+    );
   } else if (state.isAgentResponding) {
-    log(interfaceType, "Idle timer not started because agent is currently responding.");
+    log(
+      interfaceType,
+      'Idle timer not started because agent is currently responding.'
+    );
   } else if (!state.isActive) {
-    log(interfaceType, "Idle timer not started because conversation is not active.");
+    log(
+      interfaceType,
+      'Idle timer not started because conversation is not active.'
+    );
   }
 }
 
-export function activateConversation(interfaceType: InterfaceType): { status: string; active: boolean } {
+export function activateConversation(interfaceType: InterfaceType): {
+  status: string;
+  active: boolean;
+} {
   const state = getOrCreateConversationState(interfaceType);
   const wasActive = state.isActive;
   state.isActive = true;
@@ -130,18 +164,31 @@ export function activateConversation(interfaceType: InterfaceType): { status: st
   startIdleTimer(interfaceType);
 
   if (!wasActive) {
-    log(interfaceType, "Conversation activated. LTM context cleared.");
-    return { status: "Conversation activated.", active: true };
+    log(interfaceType, 'Conversation activated. LTM context cleared.');
+    return { status: 'Conversation activated.', active: true };
   } else {
-    log(interfaceType, "Conversation was already active. Interaction time and timer reset. Agent responding state ensured false. LTM context cleared.");
-    return { status: "Conversation was already active. State reset for new interaction.", active: true };
+    log(
+      interfaceType,
+      'Conversation was already active. Interaction time and timer reset. Agent responding state ensured false. LTM context cleared.'
+    );
+    return {
+      status:
+        'Conversation was already active. State reset for new interaction.',
+      active: true,
+    };
   }
 }
 
-export function recordUserInteraction(interfaceType: InterfaceType, text: string) {
+export function recordUserInteraction(
+  interfaceType: InterfaceType,
+  text: string
+) {
   const state = getOrCreateConversationState(interfaceType);
   if (!state.isActive) {
-    log(interfaceType, "Interaction recorded (text received) while conversation is inactive. This shouldn't lead to processing by agent logic.");
+    log(
+      interfaceType,
+      "Interaction recorded (text received) while conversation is inactive. This shouldn't lead to processing by agent logic."
+    );
     return; // Don't update interaction time or restart timer if not active
   }
   // If user speaks, it implies they are interrupting or starting new turn.
@@ -150,7 +197,10 @@ export function recordUserInteraction(interfaceType: InterfaceType, text: string
   // This function primarily resets the idle timer for the user's current speech.
   state.lastInteractionTime = Date.now();
   startIdleTimer(interfaceType);
-  log(interfaceType, `User interaction recorded. Time and timer reset. Text: "${text.substring(0, 50)}..."`);
+  log(
+    interfaceType,
+    `User interaction recorded. Time and timer reset. Text: "${text.substring(0, 50)}..."`
+  );
 }
 
 export function recordAgentResponse(
@@ -160,57 +210,74 @@ export function recordAgentResponse(
   intent?: string,
   entities?: Record<string, any>
 ) {
-    const state = getOrCreateConversationState(interfaceType);
-    // Record to existing conversationHistory
-    state.conversationHistory.push({
-        user: userText,
-        agent: agentResponse,
-        timestamp: Date.now()
-    });
-    if (state.conversationHistory.length > 20) { // Existing limit
-        state.conversationHistory.shift();
-    }
-    log(interfaceType, "Agent response recorded in detailed history.");
+  const state = getOrCreateConversationState(interfaceType);
+  // Record to existing conversationHistory
+  state.conversationHistory.push({
+    user: userText,
+    agent: agentResponse,
+    timestamp: Date.now(),
+  });
+  if (state.conversationHistory.length > 20) {
+    // Existing limit
+    state.conversationHistory.shift();
+  }
+  log(interfaceType, 'Agent response recorded in detailed history.');
 
-    // Update new turnHistory for STM
-    const turn = {
-        userInput: userText,
-        agentResponse: agentResponse, // Or a summary/specific part of it
-        intent: intent,
-        entities: entities,
-        timestamp: Date.now()
-    };
-    state.turnHistory.push(turn);
-    if (state.turnHistory.length > MAX_TURN_HISTORY_LENGTH) {
-        state.turnHistory.shift();
-    }
-    log(interfaceType, `Turn recorded in STM history. Current STM history length: ${state.turnHistory.length}`);
+  // Update new turnHistory for STM
+  const turn = {
+    userInput: userText,
+    agentResponse: agentResponse, // Or a summary/specific part of it
+    intent: intent,
+    entities: entities,
+    timestamp: Date.now(),
+  };
+  state.turnHistory.push(turn);
+  if (state.turnHistory.length > MAX_TURN_HISTORY_LENGTH) {
+    state.turnHistory.shift();
+  }
+  log(
+    interfaceType,
+    `Turn recorded in STM history. Current STM history length: ${state.turnHistory.length}`
+  );
 
-    // Potentially update currentIntent and identifiedEntities from the latest turn
-    if (intent) {
-        state.currentIntent = intent;
-        log(interfaceType, `Current intent updated to: ${intent}`);
-    }
-    if (entities) {
-        state.identifiedEntities = entities;
-        log(interfaceType, `Identified entities updated.`);
-    }
+  // Potentially update currentIntent and identifiedEntities from the latest turn
+  if (intent) {
+    state.currentIntent = intent;
+    log(interfaceType, `Current intent updated to: ${intent}`);
+  }
+  if (entities) {
+    state.identifiedEntities = entities;
+    log(interfaceType, `Identified entities updated.`);
+  }
 }
 
-export function updateIntentAndEntities(interfaceType: InterfaceType, intent: string | null, entities: Record<string, any> | null) {
+export function updateIntentAndEntities(
+  interfaceType: InterfaceType,
+  intent: string | null,
+  entities: Record<string, any> | null
+) {
   const state = getOrCreateConversationState(interfaceType);
   state.currentIntent = intent;
   state.identifiedEntities = entities;
-  log(interfaceType, `Intent and entities updated: Intent - ${intent}, Entities - ${JSON.stringify(entities)}`);
+  log(
+    interfaceType,
+    `Intent and entities updated: Intent - ${intent}, Entities - ${JSON.stringify(entities)}`
+  );
 }
 
-export function updateUserGoal(interfaceType: InterfaceType, goal: string | null) {
+export function updateUserGoal(
+  interfaceType: InterfaceType,
+  goal: string | null
+) {
   const state = getOrCreateConversationState(interfaceType);
   state.userGoal = goal;
   log(interfaceType, `User goal updated to: ${goal}`);
 }
 
-export function updateLTMContext(interfaceType: InterfaceType, context: any[] | null) {
+export function updateLTMContext(
+  interfaceType: InterfaceType,
+  context: any[] | null
+) {
   const state = getOrCreateConversationState(interfaceType);
   state.ltmContext = context;
   if (context) {
@@ -225,21 +292,31 @@ export function isConversationActive(interfaceType: InterfaceType): boolean {
   return state.isActive;
 }
 
-export function getConversationHistory(interfaceType: InterfaceType): Readonly<Array<{ user: string; agent: HandleMessageResponse; timestamp: number }>> {
-    const state = getOrCreateConversationState(interfaceType);
-    return state.conversationHistory;
+export function getConversationHistory(
+  interfaceType: InterfaceType
+): Readonly<
+  Array<{ user: string; agent: HandleMessageResponse; timestamp: number }>
+> {
+  const state = getOrCreateConversationState(interfaceType);
+  return state.conversationHistory;
 }
 
 // Example of how to expose a function to manually set state for testing (as requested)
 // This would typically be part of a testing setup, not production code.
-export function _test_setConversationActive(interfaceType: InterfaceType, active: boolean) {
+export function _test_setConversationActive(
+  interfaceType: InterfaceType,
+  active: boolean
+) {
   if (active) {
     activateConversation(interfaceType);
   } else {
-    deactivateConversation(interfaceType, "manual test override");
+    deactivateConversation(interfaceType, 'manual test override');
   }
-  log(interfaceType, `Conversation state manually set to active: ${active} for testing.`);
+  log(
+    interfaceType,
+    `Conversation state manually set to active: ${active} for testing.`
+  );
 }
 
-log('text', "Conversation state manager initialized for text interface.");
-log('voice', "Conversation state manager initialized for voice interface.");
+log('text', 'Conversation state manager initialized for text interface.');
+log('voice', 'Conversation state manager initialized for voice interface.');

@@ -1,29 +1,29 @@
 import {
-    SubAgentInput,
-    PracticalAgentResponse,
-    AgentLLMService,
-    DEFAULT_MODEL_FOR_AGENTS,
-    DEFAULT_TEMPERATURE_PRACTICAL,
-    safeParseJSON
+  SubAgentInput,
+  PracticalAgentResponse,
+  AgentLLMService,
+  DEFAULT_MODEL_FOR_AGENTS,
+  DEFAULT_TEMPERATURE_PRACTICAL,
+  safeParseJSON,
 } from './nlu_types';
 import { StructuredLLMPrompt, LLMServiceResponse } from '../lib/llmUtils';
 
 export class PracticalAgent {
-    private llmService: AgentLLMService;
-    private agentName: string = "PracticalAgent";
+  private llmService: AgentLLMService;
+  private agentName: string = 'PracticalAgent';
 
-    constructor(llmService: AgentLLMService) {
-        this.llmService = llmService;
-    }
+  constructor(llmService: AgentLLMService) {
+    this.llmService = llmService;
+  }
 
-    private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
-        // Consider enhancing SubAgentInput to include more context like:
-        // input.availableTools = ["ToolA", "ToolB", "AI_Helper_Bot"];
-        // input.userRole = "Marketing Analyst";
-        // input.recentActivity = ["Viewed Q2 Report", "Edited Campaign Brief X"];
-        // This would make the practical agent much more powerful.
+  private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
+    // Consider enhancing SubAgentInput to include more context like:
+    // input.availableTools = ["ToolA", "ToolB", "AI_Helper_Bot"];
+    // input.userRole = "Marketing Analyst";
+    // input.recentActivity = ["Viewed Q2 Report", "Edited Campaign Brief X"];
+    // This would make the practical agent much more powerful.
 
-        const systemMessage = `
+    const systemMessage = `
 You are the Practical Intelligence Agent. Your role is to assess the real-world applicability and implications of the user's query.
 Focus on:
 1.  **Contextual Factors**: What current user/system context is relevant? (e.g., current project, recent documents, user role).
@@ -61,71 +61,102 @@ Hypothetical available tools or system capabilities: ["Standard Office Suite", "
 (If specific user context like current application, role, or recent documents were provided, you would use that here too.)
 `;
 
-        return {
-            task: 'custom_practical_analysis', // Custom task type
-            data: {
-                system_prompt: systemMessage,
-                user_query: input.userInput,
-            }
-        };
+    return {
+      task: 'custom_practical_analysis', // Custom task type
+      data: {
+        system_prompt: systemMessage,
+        user_query: input.userInput,
+      },
+    };
+  }
+
+  public async analyze(input: SubAgentInput): Promise<PracticalAgentResponse> {
+    const structuredPrompt = this.constructPrompt(input);
+    const P_PRACTICAL_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
+
+    console.log(
+      `[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`
+    );
+    console.time(P_PRACTICAL_AGENT_TIMER_LABEL);
+    const llmResponse = await this.llmService.generate(
+      structuredPrompt,
+      DEFAULT_MODEL_FOR_AGENTS, // Or a model specifically chosen for practical tasks
+      {
+        temperature: DEFAULT_TEMPERATURE_PRACTICAL,
+        isJsonOutput: true,
+      }
+    );
+    console.timeEnd(P_PRACTICAL_AGENT_TIMER_LABEL);
+
+    if (llmResponse.usage) {
+      console.log(
+        `[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`
+      );
     }
 
-    public async analyze(input: SubAgentInput): Promise<PracticalAgentResponse> {
-        const structuredPrompt = this.constructPrompt(input);
-        const P_PRACTICAL_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
-
-        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
-        console.time(P_PRACTICAL_AGENT_TIMER_LABEL);
-        const llmResponse = await this.llmService.generate(
-            structuredPrompt,
-            DEFAULT_MODEL_FOR_AGENTS, // Or a model specifically chosen for practical tasks
-            {
-                temperature: DEFAULT_TEMPERATURE_PRACTICAL,
-                isJsonOutput: true
-            }
-        );
-        console.timeEnd(P_PRACTICAL_AGENT_TIMER_LABEL);
-
-        if (llmResponse.usage) {
-            console.log(`[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`);
-        }
-
-        if (!llmResponse.success || !llmResponse.content) {
-            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
-            return { // Return a default/error response structure, ensuring all fields are covered
-                contextualFactors: [],
-                feasibilityAssessment: { rating: "Unknown", reason: `LLM analysis failed: ${llmResponse.error || 'No content'}` },
-                efficiencyTips: [],
-                resourceImplications: { timeEstimate: "Unknown", toolsNeeded: [] },
-                commonSenseValidation: { isValid: false, reason: `LLM analysis failed: ${llmResponse.error || 'No content'}` },
-                rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`
-            };
-        }
-
-        const parsedResponse = safeParseJSON<Partial<PracticalAgentResponse>>(
-            llmResponse.content,
-            this.agentName,
-            structuredPrompt.task
-        );
-
-        if (!parsedResponse) {
-            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
-            return { // Return a default/error response structure if parsing fails
-                feasibilityAssessment: { rating: "Unknown", reason: "Failed to parse LLM JSON response." },
-                commonSenseValidation: { isValid: false, reason: "Failed to parse LLM JSON response." },
-                rawLLMResponse: llmResponse.content
-            };
-        }
-
-        return {
-            contextualFactors: parsedResponse.contextualFactors || [],
-            feasibilityAssessment: parsedResponse.feasibilityAssessment || { rating: "Unknown", reason: "Not specified by LLM." },
-            efficiencyTips: parsedResponse.efficiencyTips || [],
-            resourceImplications: parsedResponse.resourceImplications || { timeEstimate: "Unknown", toolsNeeded: [] },
-            commonSenseValidation: parsedResponse.commonSenseValidation || { isValid: true, reason: "Not specified by LLM." },
-            rawLLMResponse: llmResponse.content,
-        };
+    if (!llmResponse.success || !llmResponse.content) {
+      console.error(
+        `[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`
+      );
+      return {
+        // Return a default/error response structure, ensuring all fields are covered
+        contextualFactors: [],
+        feasibilityAssessment: {
+          rating: 'Unknown',
+          reason: `LLM analysis failed: ${llmResponse.error || 'No content'}`,
+        },
+        efficiencyTips: [],
+        resourceImplications: { timeEstimate: 'Unknown', toolsNeeded: [] },
+        commonSenseValidation: {
+          isValid: false,
+          reason: `LLM analysis failed: ${llmResponse.error || 'No content'}`,
+        },
+        rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`,
+      };
     }
+
+    const parsedResponse = safeParseJSON<Partial<PracticalAgentResponse>>(
+      llmResponse.content,
+      this.agentName,
+      structuredPrompt.task
+    );
+
+    if (!parsedResponse) {
+      console.error(
+        `[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`
+      );
+      return {
+        // Return a default/error response structure if parsing fails
+        feasibilityAssessment: {
+          rating: 'Unknown',
+          reason: 'Failed to parse LLM JSON response.',
+        },
+        commonSenseValidation: {
+          isValid: false,
+          reason: 'Failed to parse LLM JSON response.',
+        },
+        rawLLMResponse: llmResponse.content,
+      };
+    }
+
+    return {
+      contextualFactors: parsedResponse.contextualFactors || [],
+      feasibilityAssessment: parsedResponse.feasibilityAssessment || {
+        rating: 'Unknown',
+        reason: 'Not specified by LLM.',
+      },
+      efficiencyTips: parsedResponse.efficiencyTips || [],
+      resourceImplications: parsedResponse.resourceImplications || {
+        timeEstimate: 'Unknown',
+        toolsNeeded: [],
+      },
+      commonSenseValidation: parsedResponse.commonSenseValidation || {
+        isValid: true,
+        reason: 'Not specified by LLM.',
+      },
+      rawLLMResponse: llmResponse.content,
+    };
+  }
 }
 
 // Example Usage (for testing purposes)
@@ -163,4 +194,6 @@ async function testPracticalAgent() {
 
 // testPracticalAgent();
 */
-console.log("PracticalAgent class loaded. To test, uncomment and run testPracticalAgent().");
+console.log(
+  'PracticalAgent class loaded. To test, uncomment and run testPracticalAgent().'
+);

@@ -41,9 +41,9 @@ describe('AwsStack Synthesized Template', () => {
             Protocol: 'HTTPS',
             Port: '443',
             StatusCode: 'HTTP_301',
-          }
-        }
-      ]
+          },
+        },
+      ],
     });
   });
 
@@ -107,29 +107,29 @@ describe('AwsStack Synthesized Template', () => {
       PolicyDocument: {
         Statement: Match.arrayWith([
           Match.objectLike({
-            Action: [
-              "xray:PutTraceSegments",
-              "xray:PutTelemetryRecords"
-            ],
-            Effect: "Allow",
-            Resource: "*"
-          })
-        ])
+            Action: ['xray:PutTraceSegments', 'xray:PutTelemetryRecords'],
+            Effect: 'Allow',
+            Resource: '*',
+          }),
+        ]),
       },
       Roles: Match.arrayWith([
-        { "Ref": Match.stringLikeRegexp("ECSTaskRole") } // Match the logical ID of the ECS Task Role
+        { Ref: Match.stringLikeRegexp('ECSTaskRole') }, // Match the logical ID of the ECS Task Role
       ]),
     });
   });
 
   test('ALB has X-Ray tracing enabled', () => {
-    template.hasResourceProperties('AWS::ElasticLoadBalancingV2::LoadBalancer', {
-      LoadBalancerAttributes: Match.arrayWith([
-        {
-          Key: 'routing.http.xray.enabled',
-          Value: 'true'
-        }
-      ])
-    });
+    template.hasResourceProperties(
+      'AWS::ElasticLoadBalancingV2::LoadBalancer',
+      {
+        LoadBalancerAttributes: Match.arrayWith([
+          {
+            Key: 'routing.http.xray.enabled',
+            Value: 'true',
+          },
+        ]),
+      }
+    );
   });
 });

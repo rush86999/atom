@@ -1,0 +1,2 @@
+declare const _default: "\nmutation DeleteConferenceById($id: String!) {\n  delete_Conference_by_pk(id: $id) {\n    app\n    calendarId\n    createdDate\n    deleted\n    entryPoints\n    hangoutLink\n    iconUri\n    id\n    isHost\n    joinUrl\n    key\n    name\n    notes\n    parameters\n    requestId\n    startUrl\n    status\n    type\n    updatedAt\n    userId\n    zoomPrivateMeeting\n  }\n}\n";
+export default _default;

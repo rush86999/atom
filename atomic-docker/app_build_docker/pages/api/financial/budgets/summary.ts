@@ -1,6 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -16,59 +19,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Mock budget data for demonstration
     const mockBudgetSummary = {
       totalBudget: 2500,
-      spent: 1837.50,
-      remaining: 662.50,
+      spent: 1837.5,
+      remaining: 662.5,
       categories: [
         {
           category: 'Dining',
           budgeted: 500,
           spent: 485.75,
           remaining: 14.25,
-          utilization: 97.15
+          utilization: 97.15,
         },
         {
           category: 'Groceries',
           budgeted: 400,
-          spent: 312.80,
-          remaining: 87.20,
-          utilization: 78.20
+          spent: 312.8,
+          remaining: 87.2,
+          utilization: 78.2,
         },
         {
           category: 'Transportation',
           budgeted: 300,
           spent: 198.45,
           remaining: 101.55,
-          utilization: 66.15
+          utilization: 66.15,
         },
         {
           category: 'Entertainment',
           budgeted: 200,
-          spent: 235.30,
-          remaining: -35.30,
-          utilization: 117.65
+          spent: 235.3,
+          remaining: -35.3,
+          utilization: 117.65,
         },
         {
           category: 'Shopping',
           budgeted: 350,
-          spent: 178.20,
-          remaining: 171.80,
-          utilization: 50.91
+          spent: 178.2,
+          remaining: 171.8,
+          utilization: 50.91,
         },
         {
           category: 'Utilities',
           budgeted: 250,
-          spent: 187.00,
-          remaining: 63.00,
-          utilization: 74.80
+          spent: 187.0,
+          remaining: 63.0,
+          utilization: 74.8,
         },
         {
           category: 'Other',
           budgeted: 500,
-          spent: 240.00,
-          remaining: 260.00,
-          utilization: 48.00
-        }
-      ]
+          spent: 240.0,
+          remaining: 260.0,
+          utilization: 48.0,
+        },
+      ],
     };
 
     res.status(200).json({ data: mockBudgetSummary });

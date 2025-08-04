@@ -16,12 +16,50 @@ export interface CalendarEventSummary {
 }
 
 const STOP_WORDS: string[] = [
-  "a", "an", "and", "are", "as", "at", "be", "but", "by",
-  "for", "if", "in", "into", "is", "it", "its", "my",
-  "no", "not", "of", "on", "or", "such",
-  "that", "the", "their", "then", "there", "these",
-  "they", "this", "to", "was", "will", "with", "i", "me",
-  "you", "he", "she", "we", "us", "am", "pm" // also time indicators if not handled by date parser
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'but',
+  'by',
+  'for',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'my',
+  'no',
+  'not',
+  'of',
+  'on',
+  'or',
+  'such',
+  'that',
+  'the',
+  'their',
+  'then',
+  'there',
+  'these',
+  'they',
+  'this',
+  'to',
+  'was',
+  'will',
+  'with',
+  'i',
+  'me',
+  'you',
+  'he',
+  'she',
+  'we',
+  'us',
+  'am',
+  'pm', // also time indicators if not handled by date parser
 ];
 
 /**
@@ -49,7 +87,11 @@ function _getNgrams(str: string, n: number = 2): string[] {
  * @param n N-gram size (default 2 for bigrams).
  * @returns Similarity score between 0 and 1.
  */
-function getStringSimilarity(str1: string, str2: string, n: number = 2): number {
+function getStringSimilarity(
+  str1: string,
+  str2: string,
+  n: number = 2
+): number {
   if (!str1 || !str2) {
     return 0;
   }
@@ -57,7 +99,8 @@ function getStringSimilarity(str1: string, str2: string, n: number = 2): number 
   const s1 = str1.toLowerCase().replace(/\s+/g, '');
   const s2 = str2.toLowerCase().replace(/\s+/g, '');
 
-  if (s1 === s2) { // Exact match after normalization
+  if (s1 === s2) {
+    // Exact match after normalization
     return 1.0;
   }
 
@@ -86,11 +129,11 @@ function getStringSimilarity(str1: string, str2: string, n: number = 2): number 
   commonCount = 0;
   const ngrams2Copy = [...ngrams2];
   for (const ngram of ngrams1) {
-      const indexInCopy = ngrams2Copy.indexOf(ngram);
-      if (indexInCopy !== -1) {
-          commonCount++;
-          ngrams2Copy.splice(indexInCopy, 1); // Remove to handle duplicates correctly
-      }
+    const indexInCopy = ngrams2Copy.indexOf(ngram);
+    if (indexInCopy !== -1) {
+      commonCount++;
+      ngrams2Copy.splice(indexInCopy, 1); // Remove to handle duplicates correctly
+    }
   }
 
   return (2 * commonCount) / (ngrams1.length + ngrams2.length);
@@ -102,7 +145,7 @@ function getStringSimilarity(str1: string, str2: string, n: number = 2): number 
  * @returns A lowercase, cleaned name part or an empty string.
  */
 function _extractNameFromAttendeeString(attendeeString: string): string {
-  if (!attendeeString) return "";
+  if (!attendeeString) return '';
 
   attendeeString = attendeeString.toLowerCase();
 
@@ -131,7 +174,6 @@ function _extractNameFromAttendeeString(attendeeString: string): string {
   return attendeeString.replace(/[^a-z\s'-]/gi, '').trim();
 }
 
-
 /**
  * Optional date hints to narrow down the search for a calendar event.
  * - specificDate: Looks for events on this particular day.
@@ -141,8 +183,8 @@ function _extractNameFromAttendeeString(attendeeString: string): string {
  */
 export interface DateHints {
   specificDate?: Date; // e.g., "find my meeting on 2024-03-15"
-  startDate?: Date;    // e.g., "my meeting sometime after next Monday"
-  endDate?: Date;      // e.g., "my meeting before the end of next week"
+  startDate?: Date; // e.g., "my meeting sometime after next Monday"
+  endDate?: Date; // e.g., "my meeting before the end of next week"
 }
 
 /**
@@ -160,7 +202,9 @@ export async function findCalendarEventByFuzzyReference(
   meeting_reference: string,
   date_hints?: DateHints
 ): Promise<CalendarEventSummary | undefined> {
-  console.log(`[findCalendarEventByFuzzyReference] Inputs: userId=${userId}, reference="${meeting_reference}", hints=${JSON.stringify(date_hints)}`);
+  console.log(
+    `[findCalendarEventByFuzzyReference] Inputs: userId=${userId}, reference="${meeting_reference}", hints=${JSON.stringify(date_hints)}`
+  );
 
   // 1. Determine search window based on date_hints or defaults.
   let searchWindowStart: Date;
@@ -194,15 +238,25 @@ export async function findCalendarEventByFuzzyReference(
     searchWindowEnd.setHours(23, 59, 59, 999);
   }
 
-  console.log(`[findCalendarEventByFuzzyReference] Determined search window: ${searchWindowStart.toISOString()} to ${searchWindowEnd.toISOString()}`);
+  console.log(
+    `[findCalendarEventByFuzzyReference] Determined search window: ${searchWindowStart.toISOString()} to ${searchWindowEnd.toISOString()}`
+  );
 
   // 2. Fetch calendar events for the user within that window (mocked for now).
-  const mockEvents = await mockFetchUserCalendarEvents(userId, searchWindowStart, searchWindowEnd);
-  console.log(`[findCalendarEventByFuzzyReference] Fetched ${mockEvents.length} mock events.`);
+  const mockEvents = await mockFetchUserCalendarEvents(
+    userId,
+    searchWindowStart,
+    searchWindowEnd
+  );
+  console.log(
+    `[findCalendarEventByFuzzyReference] Fetched ${mockEvents.length} mock events.`
+  );
 
   // 3. Apply matching logic (fuzzy, keyword, or LLM-based) against meeting_reference.
   if (mockEvents.length === 0) {
-    console.log("[findCalendarEventByFuzzyReference] No mock events found in the search window. Returning undefined.");
+    console.log(
+      '[findCalendarEventByFuzzyReference] No mock events found in the search window. Returning undefined.'
+    );
     return undefined;
   }
 
@@ -213,31 +267,39 @@ export async function findCalendarEventByFuzzyReference(
   // 2. Filter out stop words
   // 3. Filter out very short words (e.g., < 3 chars)
   const rawWords = meetingReferenceLower.split(/[^a-z0-9]+/).filter(Boolean); // Split and remove empty strings
-  const keywords = rawWords.filter(word =>
-    !STOP_WORDS.includes(word) && word.length >= 3
+  const keywords = rawWords.filter(
+    (word) => !STOP_WORDS.includes(word) && word.length >= 3
   );
 
   if (keywords.length === 0 && rawWords.length > 0) {
     // If all words were stop words or too short, fall back to using all short words from original reference
     // to catch cases like "1:1" or if the meeting title itself is very short and like a stop word.
-    console.log("[findCalendarEventByFuzzyReference] No significant keywords after filtering, falling back to raw short words if any.");
-    keywords.push(...rawWords.filter(word => word.length > 0 && word.length < 3)); // Add back very short words
-    if (keywords.length === 0) { // If still nothing, use all raw words
-         keywords.push(...rawWords);
+    console.log(
+      '[findCalendarEventByFuzzyReference] No significant keywords after filtering, falling back to raw short words if any.'
+    );
+    keywords.push(
+      ...rawWords.filter((word) => word.length > 0 && word.length < 3)
+    ); // Add back very short words
+    if (keywords.length === 0) {
+      // If still nothing, use all raw words
+      keywords.push(...rawWords);
     }
-     console.log(`[findCalendarEventByFuzzyReference] Fallback keywords: ${keywords.join(", ")}`);
+    console.log(
+      `[findCalendarEventByFuzzyReference] Fallback keywords: ${keywords.join(', ')}`
+    );
   }
 
-
-  console.log(`[findCalendarEventByFuzzyReference] Processed Keywords from reference: ${keywords.join(", ")}`);
-  const processedReference = keywords.join(" "); // Use this for overall similarity
+  console.log(
+    `[findCalendarEventByFuzzyReference] Processed Keywords from reference: ${keywords.join(', ')}`
+  );
+  const processedReference = keywords.join(' '); // Use this for overall similarity
 
   let bestMatch: CalendarEventSummary | undefined = undefined;
   let highestScore = 0.0; // Scores are now float (0.0 to 1.0+)
 
   for (const event of mockEvents) {
     const eventTitleLower = event.title.toLowerCase();
-    const eventDescriptionLower = event.description?.toLowerCase() || "";
+    const eventDescriptionLower = event.description?.toLowerCase() || '';
 
     // Primary score from fuzzy matching the processed reference against the event title
     let currentScore = getStringSimilarity(processedReference, eventTitleLower);
@@ -252,7 +314,6 @@ export async function findCalendarEventByFuzzyReference(
     }
     // Cap title bonus to avoid over-inflation by many small keywords
     currentScore += Math.min(titleBonus, 0.25);
-
 
     // Bonus for exact keyword matches in description (smaller bonus)
     let descriptionBonus = 0;
@@ -269,14 +330,19 @@ export async function findCalendarEventByFuzzyReference(
     if (event.attendees && event.attendees.length > 0) {
       const matchedKeywordsInAttendees = new Set<string>(); // Track keywords that already gave a bonus for this event
       for (const attendeeString of event.attendees) {
-        const eventAttendeeName = _extractNameFromAttendeeString(attendeeString);
+        const eventAttendeeName =
+          _extractNameFromAttendeeString(attendeeString);
         if (eventAttendeeName) {
           for (const keyword of keywords) {
             // Avoid re-scoring the same keyword if it matched another attendee for this event already
             if (matchedKeywordsInAttendees.has(keyword)) continue;
 
-            const nameSimilarity = getStringSimilarity(keyword, eventAttendeeName);
-            if (nameSimilarity > 0.7) { // High threshold for name match
+            const nameSimilarity = getStringSimilarity(
+              keyword,
+              eventAttendeeName
+            );
+            if (nameSimilarity > 0.7) {
+              // High threshold for name match
               attendeeMatchBonus += 0.15; // Significant bonus for a good name match
               matchedKeywordsInAttendees.add(keyword); // Mark this keyword as used for attendee bonus for this event
               // console.log(`[findCalendarEventByFuzzyReference] Attendee match: keyword "${keyword}" vs attendee "${eventAttendeeName}", similarity ${nameSimilarity.toFixed(3)}`);
@@ -287,15 +353,20 @@ export async function findCalendarEventByFuzzyReference(
     }
     currentScore += Math.min(attendeeMatchBonus, maxAttendeeBonus); // Cap attendee bonus
 
-    console.log(`[findCalendarEventByFuzzyReference] Event: "${event.title}", Similarity: ${getStringSimilarity(processedReference, eventTitleLower).toFixed(3)}, TitleBonus: ${titleBonus.toFixed(3)}, DescBonus: ${descriptionBonus.toFixed(3)}, AttendeeBonus: ${attendeeMatchBonus.toFixed(3)}, Final Score: ${currentScore.toFixed(3)}`);
+    console.log(
+      `[findCalendarEventByFuzzyReference] Event: "${event.title}", Similarity: ${getStringSimilarity(processedReference, eventTitleLower).toFixed(3)}, TitleBonus: ${titleBonus.toFixed(3)}, DescBonus: ${descriptionBonus.toFixed(3)}, AttendeeBonus: ${attendeeMatchBonus.toFixed(3)}, Final Score: ${currentScore.toFixed(3)}`
+    );
 
     if (currentScore > highestScore) {
       highestScore = currentScore;
       bestMatch = event;
-    } else if (currentScore === highestScore && currentScore > 0.01) { // Check currentScore > 0.01 to avoid tie-breaking on zero scores
+    } else if (currentScore === highestScore && currentScore > 0.01) {
+      // Check currentScore > 0.01 to avoid tie-breaking on zero scores
       // If scores are tied, prefer the one that starts sooner
       if (bestMatch && event.startTime < bestMatch.startTime) {
-        console.log(`[findCalendarEventByFuzzyReference] Tied score, preferring earlier event: "${event.title}" over "${bestMatch.title}"`);
+        console.log(
+          `[findCalendarEventByFuzzyReference] Tied score, preferring earlier event: "${event.title}" over "${bestMatch.title}"`
+        );
         bestMatch = event;
       }
     }
@@ -304,15 +375,25 @@ export async function findCalendarEventByFuzzyReference(
   // Adjust minimum score threshold for similarity scores (0.0 to 1.0 range)
   const minimumScoreThreshold = 0.3;
   if (bestMatch && highestScore >= minimumScoreThreshold) {
-    console.log(`[findCalendarEventByFuzzyReference] Best match found: "${bestMatch.title}" with score ${highestScore.toFixed(3)} (Threshold: ${minimumScoreThreshold})`);
+    console.log(
+      `[findCalendarEventByFuzzyReference] Best match found: "${bestMatch.title}" with score ${highestScore.toFixed(3)} (Threshold: ${minimumScoreThreshold})`
+    );
     return bestMatch;
   } else {
-    if (bestMatch) { // A best match was found, but it didn't meet the threshold
-        console.log(`[findCalendarEventByFuzzyReference] A potential match "${bestMatch.title}" was found with score ${highestScore.toFixed(3)}, but it's below the threshold of ${minimumScoreThreshold}.`);
-    } else { // No events scored > 0 or no events at all after filtering
-        console.log(`[findCalendarEventByFuzzyReference] No event scored above 0 or no events to score.`);
+    if (bestMatch) {
+      // A best match was found, but it didn't meet the threshold
+      console.log(
+        `[findCalendarEventByFuzzyReference] A potential match "${bestMatch.title}" was found with score ${highestScore.toFixed(3)}, but it's below the threshold of ${minimumScoreThreshold}.`
+      );
+    } else {
+      // No events scored > 0 or no events at all after filtering
+      console.log(
+        `[findCalendarEventByFuzzyReference] No event scored above 0 or no events to score.`
+      );
     }
-    console.log(`[findCalendarEventByFuzzyReference] No event met the minimum score threshold (${minimumScoreThreshold}).`);
+    console.log(
+      `[findCalendarEventByFuzzyReference] No event met the minimum score threshold (${minimumScoreThreshold}).`
+    );
     return undefined;
   }
 }
@@ -328,97 +409,135 @@ async function mockFetchUserCalendarEvents(
 
   const sampleEvents: CalendarEventSummary[] = [
     {
-      id: "evt1",
-      title: "Project Phoenix Sync-Up",
+      id: 'evt1',
+      title: 'Project Phoenix Sync-Up',
       startTime: new Date(new Date(today).setDate(today.getDate() + 1)),
       endTime: new Date(new Date(today).setDate(today.getDate() + 1)),
-      description: "Weekly sync for Project Phoenix.",
-      attendees: ["currentUser@example.com", "Mark Johnson <mark.j@example.com>", "team.member.jane@example.com"],
-      organizer: "mark.j@example.com",
+      description: 'Weekly sync for Project Phoenix.',
+      attendees: [
+        'currentUser@example.com',
+        'Mark Johnson <mark.j@example.com>',
+        'team.member.jane@example.com',
+      ],
+      organizer: 'mark.j@example.com',
     },
     {
-      id: "evt2",
-      title: "Marketing Strategy Meeting",
+      id: 'evt2',
+      title: 'Marketing Strategy Meeting',
       startTime: new Date(new Date(today).setDate(today.getDate() + 2)),
       endTime: new Date(new Date(today).setDate(today.getDate() + 2)),
-      description: "Discuss Q3 marketing strategy with Alice and the team.",
-      attendees: ["currentUser@example.com", "Alice Wonderland <alice.w@example.com>", "marketing_lead@example.com", "Bob (Guest)"],
-      location: "Conference Room B",
-      organizer: "marketing_lead@example.com",
+      description: 'Discuss Q3 marketing strategy with Alice and the team.',
+      attendees: [
+        'currentUser@example.com',
+        'Alice Wonderland <alice.w@example.com>',
+        'marketing_lead@example.com',
+        'Bob (Guest)',
+      ],
+      location: 'Conference Room B',
+      organizer: 'marketing_lead@example.com',
     },
     {
-      id: "evt3",
-      title: "1:1 with Sarah Miller", // More specific title
+      id: 'evt3',
+      title: '1:1 with Sarah Miller', // More specific title
       startTime: new Date(new Date(today).setDate(today.getDate() + 3)),
       endTime: new Date(new Date(today).setDate(today.getDate() + 3)),
-      attendees: ["currentUser@example.com", "Sarah Miller <sarahm@corp.com>"], // Specific manager name
-      organizer: "sarahm@corp.com",
+      attendees: ['currentUser@example.com', 'Sarah Miller <sarahm@corp.com>'], // Specific manager name
+      organizer: 'sarahm@corp.com',
     },
     {
-      id: "evt4",
-      title: "Team Lunch",
+      id: 'evt4',
+      title: 'Team Lunch',
       startTime: new Date(new Date(today).setDate(today.getDate() + 7)),
       endTime: new Date(new Date(today).setDate(today.getDate() + 7)),
-      description: "Casual team lunch at The Eatery.",
-      attendees: ["currentUser@example.com", "Mark Johnson <mark.j@example.com>", "team.member.jane@example.com", "Alice Wonderland <alice.w@example.com>"],
-      location: "The Eatery",
-      organizer: "currentUser@example.com",
+      description: 'Casual team lunch at The Eatery.',
+      attendees: [
+        'currentUser@example.com',
+        'Mark Johnson <mark.j@example.com>',
+        'team.member.jane@example.com',
+        'Alice Wonderland <alice.w@example.com>',
+      ],
+      location: 'The Eatery',
+      organizer: 'currentUser@example.com',
     },
     {
-      id: "evt5",
-      title: "Budget Review Q2",
+      id: 'evt5',
+      title: 'Budget Review Q2',
       startTime: new Date(new Date(today).setDate(today.getDate() - 7)),
       endTime: new Date(new Date(today).setDate(today.getDate() - 7)),
-      description: "Final review of Q2 budget.",
-      attendees: ["currentUser@example.com", "finance_dept@example.com", "Sarah Miller <sarahm@corp.com>"],
-      organizer: "finance_dept@example.com",
+      description: 'Final review of Q2 budget.',
+      attendees: [
+        'currentUser@example.com',
+        'finance_dept@example.com',
+        'Sarah Miller <sarahm@corp.com>',
+      ],
+      organizer: 'finance_dept@example.com',
     },
     {
-      id: "evt6",
-      title: "Project Phoenix - Critical Path Discussion",
+      id: 'evt6',
+      title: 'Project Phoenix - Critical Path Discussion',
       startTime: new Date(new Date(today).setDate(today.getDate() + 1)),
       endTime: new Date(new Date(today).setDate(today.getDate() + 1)),
-      description: "Urgent discussion on Project Phoenix blockers with Mark.",
-      attendees: ["currentUser@example.com", "Mark Johnson <mark.j@example.com>", "cto@example.com"],
-      organizer: "cto@example.com",
+      description: 'Urgent discussion on Project Phoenix blockers with Mark.',
+      attendees: [
+        'currentUser@example.com',
+        'Mark Johnson <mark.j@example.com>',
+        'cto@example.com',
+      ],
+      organizer: 'cto@example.com',
     },
-    { // New event for attendee matching
-      id: "evt7",
-      title: "Planning Session",
+    {
+      // New event for attendee matching
+      id: 'evt7',
+      title: 'Planning Session',
       startTime: new Date(new Date(today).setDate(today.getDate() + 4)), // 4 days from now 10 AM
-      endTime: new Date(new Date(today).setDate(today.getDate() + 4)),   // 4 days from now 12 PM
-      description: "General planning meeting.",
-      attendees: ["currentUser@example.com", "Alice Wonderland <alice.w@example.com>", "Bob The Builder <bob@build.it>", "Charlie <charlie.doe@email.com>"],
-      organizer: "currentUser@example.com",
-    }
+      endTime: new Date(new Date(today).setDate(today.getDate() + 4)), // 4 days from now 12 PM
+      description: 'General planning meeting.',
+      attendees: [
+        'currentUser@example.com',
+        'Alice Wonderland <alice.w@example.com>',
+        'Bob The Builder <bob@build.it>',
+        'Charlie <charlie.doe@email.com>',
+      ],
+      organizer: 'currentUser@example.com',
+    },
   ];
 
   // Adjust fixed times for sample events to be relative to 'today' for consistent testing
-  sampleEvents.forEach(event => {
-      if (event.id === "evt1") {
-          event.startTime.setHours(9,0,0,0); event.endTime.setHours(10,0,0,0); // Tomorrow 9 AM
-      } else if (event.id === "evt2") {
-          event.startTime.setHours(14,0,0,0); event.endTime.setHours(15,0,0,0); // Day after tomorrow 2 PM
-      } else if (event.id === "evt3") {
-          event.startTime.setHours(11,0,0,0); event.endTime.setHours(11,30,0,0); // 3 days from now 11 AM
-      } else if (event.id === "evt4") {
-          event.startTime.setHours(12,0,0,0); event.endTime.setHours(13,0,0,0); // Next week 12 PM
-      } else if (event.id === "evt5") {
-          event.startTime.setHours(15,0,0,0); event.endTime.setHours(16,0,0,0); // Last week 3 PM
-      } else if (event.id === "evt6") {
-          event.startTime.setHours(14,0,0,0); event.endTime.setHours(15,0,0,0); // Tomorrow 2 PM
-      } else if (event.id === "evt7") {
-          event.startTime.setHours(10,0,0,0); event.endTime.setHours(12,0,0,0); // 4 days from now 10 AM
-      }
+  sampleEvents.forEach((event) => {
+    if (event.id === 'evt1') {
+      event.startTime.setHours(9, 0, 0, 0);
+      event.endTime.setHours(10, 0, 0, 0); // Tomorrow 9 AM
+    } else if (event.id === 'evt2') {
+      event.startTime.setHours(14, 0, 0, 0);
+      event.endTime.setHours(15, 0, 0, 0); // Day after tomorrow 2 PM
+    } else if (event.id === 'evt3') {
+      event.startTime.setHours(11, 0, 0, 0);
+      event.endTime.setHours(11, 30, 0, 0); // 3 days from now 11 AM
+    } else if (event.id === 'evt4') {
+      event.startTime.setHours(12, 0, 0, 0);
+      event.endTime.setHours(13, 0, 0, 0); // Next week 12 PM
+    } else if (event.id === 'evt5') {
+      event.startTime.setHours(15, 0, 0, 0);
+      event.endTime.setHours(16, 0, 0, 0); // Last week 3 PM
+    } else if (event.id === 'evt6') {
+      event.startTime.setHours(14, 0, 0, 0);
+      event.endTime.setHours(15, 0, 0, 0); // Tomorrow 2 PM
+    } else if (event.id === 'evt7') {
+      event.startTime.setHours(10, 0, 0, 0);
+      event.endTime.setHours(12, 0, 0, 0); // 4 days from now 10 AM
+    }
   });
 
+  console.log(
+    `[mockFetchUserCalendarEvents] Mock UserID: ${userId}. Filtering events between ${startDate.toISOString()} and ${endDate.toISOString()}`
+  );
 
-  console.log(`[mockFetchUserCalendarEvents] Mock UserID: ${userId}. Filtering events between ${startDate.toISOString()} and ${endDate.toISOString()}`);
-
-  const filteredEvents = sampleEvents.filter(event => {
+  const filteredEvents = sampleEvents.filter((event) => {
     return event.startTime >= startDate && event.startTime <= endDate;
   });
 
-  console.log(`[mockFetchUserCalendarEvents] Returning ${filteredEvents.length} mock events after filtering.`);
+  console.log(
+    `[mockFetchUserCalendarEvents] Returning ${filteredEvents.length} mock events after filtering.`
+  );
   return Promise.resolve(filteredEvents);
 }

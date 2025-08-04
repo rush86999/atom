@@ -5,31 +5,31 @@
 // import { EmailCategory } from '../skills/emailTriageSkill';
 
 export type LLMTaskType =
-  | "categorize_email"
-  | "summarize_email"
-  | "suggest_reply_email"
-  | "extract_actions_email"
-  | "classify_guidance_query"
-  | "answer_from_text"
-  | "extract_steps_from_text"
-  | "summarize_for_explanation"
-  | "generate_followup_suggestions"
-  | "extract_document_snippets"
-  | "custom_lead_agent_synthesis"
-  | "summarize_document_snippets"
-  | "summarize_overall_answer"
-  | "parse_search_query"
-  | "custom_analytical_analysis"
-  | "custom_creative_analysis"
-  | "custom_practical_analysis"
-  | "custom_synthesis"
-  | "custom_advanced_research"
-  | "custom_social_media"
-  | "custom_content_creation"
-  | "custom_personalized_shopping"
-  | "custom_legal_document_analysis"
-  | "custom_recruitment_recommendation"
-  | "custom_vibe_hacking";
+  | 'categorize_email'
+  | 'summarize_email'
+  | 'suggest_reply_email'
+  | 'extract_actions_email'
+  | 'classify_guidance_query'
+  | 'answer_from_text'
+  | 'extract_steps_from_text'
+  | 'summarize_for_explanation'
+  | 'generate_followup_suggestions'
+  | 'extract_document_snippets'
+  | 'custom_lead_agent_synthesis'
+  | 'summarize_document_snippets'
+  | 'summarize_overall_answer'
+  | 'parse_search_query'
+  | 'custom_analytical_analysis'
+  | 'custom_creative_analysis'
+  | 'custom_practical_analysis'
+  | 'custom_synthesis'
+  | 'custom_advanced_research'
+  | 'custom_social_media'
+  | 'custom_content_creation'
+  | 'custom_personalized_shopping'
+  | 'custom_legal_document_analysis'
+  | 'custom_recruitment_recommendation'
+  | 'custom_vibe_hacking';
 
 // --- Data Payloads for specific tasks ---
 export interface EmailCategorizationData {
@@ -122,7 +122,7 @@ export interface LLMServiceInterface {
       temperature?: number;
       maxTokens?: number;
       isJsonOutput?: boolean;
-    },
+    }
   ): Promise<LLMServiceResponse>;
 }
 
@@ -130,123 +130,123 @@ export class MockLLMService implements LLMServiceInterface {
   public async generate(
     structuredPrompt: StructuredLLMPrompt,
     model: string,
-    options?: { temperature?: number; maxTokens?: number },
+    options?: { temperature?: number; maxTokens?: number }
   ): Promise<LLMServiceResponse> {
     console.log(
-      `[MockLLMService] Received task "${structuredPrompt.task}" for model "${model}". Data keys: ${Object.keys(structuredPrompt.data || {}).join(", ")}`,
+      `[MockLLMService] Received task "${structuredPrompt.task}" for model "${model}". Data keys: ${Object.keys(structuredPrompt.data || {}).join(', ')}`
     );
     await new Promise((resolve) =>
-      setTimeout(resolve, Math.random() * 100 + 50),
+      setTimeout(resolve, Math.random() * 100 + 50)
     );
 
     try {
       let content: string;
       switch (structuredPrompt.task) {
-        case "categorize_email": {
+        case 'categorize_email': {
           const data = structuredPrompt.data as EmailCategorizationData;
           const subjectLower = data.subject.toLowerCase();
           const bodySnippetLower = data.bodySnippet.toLowerCase();
           const textForCat = `${subjectLower} ${bodySnippetLower}`;
-          let category: string = "Other"; // Allow string for flexibility in mock
+          let category: string = 'Other'; // Allow string for flexibility in mock
           let confidence: number = parseFloat(
-            (Math.random() * 0.3 + 0.3).toFixed(2),
+            (Math.random() * 0.3 + 0.3).toFixed(2)
           );
 
           if (
-            subjectLower.includes("win a free") ||
-            textForCat.includes("limited time offer") ||
-            textForCat.includes("cialis") ||
-            textForCat.includes("viagra")
+            subjectLower.includes('win a free') ||
+            textForCat.includes('limited time offer') ||
+            textForCat.includes('cialis') ||
+            textForCat.includes('viagra')
           ) {
-            category = "Spam";
+            category = 'Spam';
             confidence = 0.99;
           } else if (
-            subjectLower.includes("meeting invite") ||
-            subjectLower.includes("calendar invite") ||
-            subjectLower.endsWith(".ics") ||
-            bodySnippetLower.includes("begin:vcalendar")
+            subjectLower.includes('meeting invite') ||
+            subjectLower.includes('calendar invite') ||
+            subjectLower.endsWith('.ics') ||
+            bodySnippetLower.includes('begin:vcalendar')
           ) {
-            category = "MeetingInvite";
+            category = 'MeetingInvite';
             confidence = 0.95;
           } else if (
-            textForCat.includes("urgent") ||
-            textForCat.includes("critical") ||
-            textForCat.includes("outage") ||
-            textForCat.includes("asap")
+            textForCat.includes('urgent') ||
+            textForCat.includes('critical') ||
+            textForCat.includes('outage') ||
+            textForCat.includes('asap')
           ) {
-            category = "Urgent";
+            category = 'Urgent';
             confidence = parseFloat((Math.random() * 0.15 + 0.8).toFixed(2));
           } else if (
-            textForCat.includes("action required") ||
-            textForCat.includes("please review") ||
-            textForCat.includes("task for you") ||
-            textForCat.includes("deadline")
+            textForCat.includes('action required') ||
+            textForCat.includes('please review') ||
+            textForCat.includes('task for you') ||
+            textForCat.includes('deadline')
           ) {
-            category = "ActionRequired";
+            category = 'ActionRequired';
             confidence = parseFloat((Math.random() * 0.2 + 0.7).toFixed(2));
           } else if (
-            textForCat.includes("fyi") ||
-            textForCat.includes("heads up") ||
-            textForCat.includes("update") ||
-            subjectLower.includes("newsletter")
+            textForCat.includes('fyi') ||
+            textForCat.includes('heads up') ||
+            textForCat.includes('update') ||
+            subjectLower.includes('newsletter')
           ) {
-            category = "FYI";
+            category = 'FYI';
             confidence = parseFloat((Math.random() * 0.2 + 0.6).toFixed(2));
           } else if (
             data.bodySnippet.length < 50 &&
             !textForCat.match(/(urgent|action|meeting|spam)/i)
           ) {
-            category = Math.random() < 0.5 ? "FYI" : "Other";
+            category = Math.random() < 0.5 ? 'FYI' : 'Other';
             confidence = parseFloat((Math.random() * 0.2 + 0.45).toFixed(2));
           } else if (Math.random() < 0.05) {
             // Chance of plausible miscategorization
-            const cats: string[] = ["ActionRequired", "FYI", "Other"];
+            const cats: string[] = ['ActionRequired', 'FYI', 'Other'];
             category = cats[Math.floor(Math.random() * cats.length)];
             confidence = parseFloat((Math.random() * 0.3 + 0.3).toFixed(2));
           }
           content = JSON.stringify({ category, confidence });
           break;
         }
-        case "summarize_email": {
+        case 'summarize_email': {
           const data = structuredPrompt.data as EmailSummarizationData;
           const subject = data.subject.trim();
           const bodySnippet = data.bodySnippet.trim();
           if (bodySnippet.length === 0)
             content = `The email with subject "${subject}" has no body content.`;
-          else if (bodySnippet.length < 70 && !bodySnippet.includes("."))
+          else if (bodySnippet.length < 70 && !bodySnippet.includes('.'))
             content = `Subject: "${subject}". Content: "${bodySnippet}"`;
           else {
             const firstSentence =
               bodySnippet.match(/[^.!?]+[.!?]+/g)?.[0]?.trim() ||
               bodySnippet.substring(0, 100);
-            content = `Regarding "${subject}", the email mentions: "${firstSentence.substring(0, 100)}${firstSentence.length > 100 ? "..." : ""}".`;
+            content = `Regarding "${subject}", the email mentions: "${firstSentence.substring(0, 100)}${firstSentence.length > 100 ? '...' : ''}".`;
           }
           if (
-            subject.toLowerCase().startsWith("re:") ||
-            subject.toLowerCase().startsWith("fwd:")
+            subject.toLowerCase().startsWith('re:') ||
+            subject.toLowerCase().startsWith('fwd:')
           )
             content = `This is part of a thread on "${subject}". ${content}`;
           if (Math.random() < 0.3)
-            content += " Further details might be important.";
+            content += ' Further details might be important.';
           break;
         }
-        case "suggest_reply_email": {
+        case 'suggest_reply_email': {
           const data = structuredPrompt.data as EmailReplySuggestionData;
           if (
-            data.category === "Spam" ||
-            (data.category === "FYI" && Math.random() < 0.7)
+            data.category === 'Spam' ||
+            (data.category === 'FYI' && Math.random() < 0.7)
           ) {
             // More likely no reply for FYI
-            content = "No reply needed.";
-          } else if (data.category === "Urgent") {
+            content = 'No reply needed.';
+          } else if (data.category === 'Urgent') {
             content =
-              "Acknowledged. Looking into this with high priority and will update shortly.";
-          } else if (data.category === "ActionRequired") {
+              'Acknowledged. Looking into this with high priority and will update shortly.';
+          } else if (data.category === 'ActionRequired') {
             content =
               data.actionItems && data.actionItems.length > 0
                 ? `Understood. I will start with: "${data.actionItems[0]}".`
                 : "Received. I'll take care of the necessary actions.";
-          } else if (data.category === "MeetingInvite") {
+          } else if (data.category === 'MeetingInvite') {
             content =
               "Thanks for the invite! I'll check my availability and respond via calendar.";
           } else {
@@ -254,34 +254,34 @@ export class MockLLMService implements LLMServiceInterface {
           }
           break;
         }
-        case "extract_actions_email": {
+        case 'extract_actions_email': {
           const data = structuredPrompt.data as EmailActionExtractionData;
           const bodyLower = data.emailBody.toLowerCase();
           const actions: string[] = [];
           if (
-            bodyLower.includes("please send") ||
-            bodyLower.includes("can you attach")
+            bodyLower.includes('please send') ||
+            bodyLower.includes('can you attach')
           )
-            actions.push("Send/attach requested document.");
+            actions.push('Send/attach requested document.');
           if (
-            bodyLower.includes("schedule a meeting") ||
-            bodyLower.includes("set up a call")
+            bodyLower.includes('schedule a meeting') ||
+            bodyLower.includes('set up a call')
           )
-            actions.push("Schedule a meeting.");
+            actions.push('Schedule a meeting.');
           if (
-            bodyLower.includes("confirm availability") ||
-            bodyLower.includes("are you free")
+            bodyLower.includes('confirm availability') ||
+            bodyLower.includes('are you free')
           )
-            actions.push("Confirm availability for something.");
+            actions.push('Confirm availability for something.');
           if (
-            bodyLower.includes("your thoughts on") ||
-            bodyLower.includes("feedback on")
+            bodyLower.includes('your thoughts on') ||
+            bodyLower.includes('feedback on')
           )
-            actions.push("Provide feedback/thoughts.");
+            actions.push('Provide feedback/thoughts.');
           content = JSON.stringify({ actionItems: actions.slice(0, 2) });
           break;
         }
-        case "extract_document_snippets": {
+        case 'extract_document_snippets': {
           const data = structuredPrompt.data as DocumentSnippetData;
           content = JSON.stringify({
             snippets: [
@@ -291,162 +291,196 @@ export class MockLLMService implements LLMServiceInterface {
           });
           break;
         }
-        case "summarize_document_snippets": {
+        case 'summarize_document_snippets': {
           const data = structuredPrompt.data as DocumentSummaryData;
-          content = `This is a mock ${data.targetLength || "medium"} summary about "${data.query}" from "${data.documentTitle}".`;
+          content = `This is a mock ${data.targetLength || 'medium'} summary about "${data.query}" from "${data.documentTitle}".`;
           break;
         }
-        case "summarize_overall_answer": {
+        case 'summarize_overall_answer': {
           const data = structuredPrompt.data as OverallSummaryData;
           content = `Overall mock summary for "${data.query}", combining ${data.individualSummaries.length} sources.`;
           break;
         }
-        case "classify_guidance_query": {
+        case 'classify_guidance_query': {
           const data = structuredPrompt.data as GuidanceQueryClassificationData;
           const qL = data.query.toLowerCase();
-          if (qL.includes("how to") || qL.includes("steps"))
-            content = JSON.stringify({ guidanceType: "find_tutorial" });
-          else if (qL.includes("what is") || qL.includes("explain"))
-            content = JSON.stringify({ guidanceType: "general_explanation" });
-          else if (qL.includes("guide") || qL.includes("workflow"))
-            content = JSON.stringify({ guidanceType: "guide_workflow" });
-          else content = JSON.stringify({ guidanceType: "answer_question" });
+          if (qL.includes('how to') || qL.includes('steps'))
+            content = JSON.stringify({ guidanceType: 'find_tutorial' });
+          else if (qL.includes('what is') || qL.includes('explain'))
+            content = JSON.stringify({ guidanceType: 'general_explanation' });
+          else if (qL.includes('guide') || qL.includes('workflow'))
+            content = JSON.stringify({ guidanceType: 'guide_workflow' });
+          else content = JSON.stringify({ guidanceType: 'answer_question' });
           break;
         }
-        case "answer_from_text": {
+        case 'answer_from_text': {
           const data = structuredPrompt.data as AnswerFromTextData;
-          content = `Mock answer for "${data.query}" from "${data.articleTitle || "the document"}": ${data.textContent.substring(0, 70)}...`;
+          content = `Mock answer for "${data.query}" from "${data.articleTitle || 'the document'}": ${data.textContent.substring(0, 70)}...`;
           break;
         }
-        case "extract_steps_from_text": {
+        case 'extract_steps_from_text': {
           const data = structuredPrompt.data as StepsFromTextData;
           content = JSON.stringify({
             steps: [
               {
-                title: "Mock Step 1 (from LLM)",
+                title: 'Mock Step 1 (from LLM)',
                 description: `Do this first for ${data.query}`,
               },
-              { title: "Mock Step 2", description: "Then do that." },
+              { title: 'Mock Step 2', description: 'Then do that.' },
             ],
           });
           break;
         }
-        case "summarize_for_explanation": {
+        case 'summarize_for_explanation': {
           const data = structuredPrompt.data as ExplanationData;
           content = `Mock explanation of "${data.query}" based on "${data.articleTitle}". It covers...`;
           break;
         }
-        case "generate_followup_suggestions": {
+        case 'generate_followup_suggestions': {
           const data = structuredPrompt.data as FollowupSuggestionData;
           content = JSON.stringify({
             suggestions: [
               `Advanced ${data.articleTitle || data.query}`,
-              "Related Topic B",
+              'Related Topic B',
             ],
           });
           break;
         }
-        case "custom_analytical_analysis": {
+        case 'custom_analytical_analysis': {
           content = JSON.stringify({
-            identifiedEntities: ["pivot table", "SpreadsheetApp"],
-            explicitTasks: ["create pivot table"],
+            identifiedEntities: ['pivot table', 'SpreadsheetApp'],
+            explicitTasks: ['create pivot table'],
             informationNeeded: [],
-            logicalConsistency: { isConsistent: true, reason: "" },
-            problemType: "how_to",
+            logicalConsistency: { isConsistent: true, reason: '' },
+            problemType: 'how_to',
           });
           break;
         }
-        case "custom_creative_analysis": {
+        case 'custom_creative_analysis': {
           content = JSON.stringify({
-            alternativeGoals: ["understand data better", "create a chart"],
-            novelSolutionsSuggested: ["use a pre-built template"],
-            unstatedAssumptions: ["user has data ready"],
-            potentialEnhancements: ["add conditional formatting"],
+            alternativeGoals: ['understand data better', 'create a chart'],
+            novelSolutionsSuggested: ['use a pre-built template'],
+            unstatedAssumptions: ['user has data ready'],
+            potentialEnhancements: ['add conditional formatting'],
             ambiguityFlags: [],
           });
           break;
         }
-        case "custom_practical_analysis": {
+        case 'custom_practical_analysis': {
           content = JSON.stringify({
             contextualFactors: [],
             feasibilityAssessment: {
-              rating: "High",
-              reason: "",
+              rating: 'High',
+              reason: '',
               dependencies: [],
             },
             efficiencyTips: ["use the 'Recommended PivotTables' feature"],
             resourceImplications: {
-              timeEstimate: "Quick",
-              toolsNeeded: ["SpreadsheetApp"],
+              timeEstimate: 'Quick',
+              toolsNeeded: ['SpreadsheetApp'],
             },
-            commonSenseValidation: { isValid: true, reason: "" },
+            commonSenseValidation: { isValid: true, reason: '' },
           });
           break;
         }
-        case "custom_synthesis": {
+        case 'custom_synthesis': {
           content = JSON.stringify({
-            primaryGoal: "create a pivot table",
+            primaryGoal: 'create a pivot table',
             primaryGoalConfidence: 0.9,
-            identifiedTasks: ["create pivot table"],
-            extractedParameters: { app: "SpreadsheetApp" },
+            identifiedTasks: ['create pivot table'],
+            extractedParameters: { app: 'SpreadsheetApp' },
             suggestedNextAction: {
-              actionType: "invoke_skill",
-              skillId: "LearningAndGuidanceSkill",
+              actionType: 'invoke_skill',
+              skillId: 'LearningAndGuidanceSkill',
               reason: "User is asking a 'how-to' question.",
             },
           });
           break;
         }
-        case "custom_advanced_research": {
-            content = JSON.stringify({
-                researchSummary: "This is a mock research summary.",
-                keyFindings: ["Mock finding 1", "Mock finding 2"],
-                sources: [{ title: "Mock Source", url: "https://example.com" }]
-            });
-            break;
+        case 'custom_advanced_research': {
+          content = JSON.stringify({
+            researchSummary: 'This is a mock research summary.',
+            keyFindings: ['Mock finding 1', 'Mock finding 2'],
+            sources: [{ title: 'Mock Source', url: 'https://example.com' }],
+          });
+          break;
         }
-        case "custom_social_media": {
-            content = JSON.stringify({
-                scheduledPosts: [{ platform: "Twitter", content: "This is a mock tweet.", scheduledTime: "2025-01-01T12:00:00Z" }],
-                engagementSummary: "This is a mock engagement summary."
-            });
-            break;
+        case 'custom_social_media': {
+          content = JSON.stringify({
+            scheduledPosts: [
+              {
+                platform: 'Twitter',
+                content: 'This is a mock tweet.',
+                scheduledTime: '2025-01-01T12:00:00Z',
+              },
+            ],
+            engagementSummary: 'This is a mock engagement summary.',
+          });
+          break;
         }
-        case "custom_content_creation": {
-            content = JSON.stringify({
-                generatedContent: "This is mock generated content.",
-                contentType: "blog post"
-            });
-            break;
+        case 'custom_content_creation': {
+          content = JSON.stringify({
+            generatedContent: 'This is mock generated content.',
+            contentType: 'blog post',
+          });
+          break;
         }
-        case "custom_personalized_shopping": {
-            content = JSON.stringify({
-                productRecommendations: [{ productName: "Mock Laptop", price: 999, url: "https://example.com/laptop", reasoning: "It's a great value for the price." }]
-            });
-            break;
+        case 'custom_personalized_shopping': {
+          content = JSON.stringify({
+            productRecommendations: [
+              {
+                productName: 'Mock Laptop',
+                price: 999,
+                url: 'https://example.com/laptop',
+                reasoning: "It's a great value for the price.",
+              },
+            ],
+          });
+          break;
         }
-        case "custom_legal_document_analysis": {
-            content = JSON.stringify({
-                riskAnalysis: [{ clause: "This is a mock clause.", riskLevel: "Medium", explanation: "This is a mock explanation." }],
-                summary: "This is a mock summary of the legal document."
-            });
-            break;
+        case 'custom_legal_document_analysis': {
+          content = JSON.stringify({
+            riskAnalysis: [
+              {
+                clause: 'This is a mock clause.',
+                riskLevel: 'Medium',
+                explanation: 'This is a mock explanation.',
+              },
+            ],
+            summary: 'This is a mock summary of the legal document.',
+          });
+          break;
         }
-        case "custom_recruitment_recommendation": {
-            content = JSON.stringify({
-                recommendedCandidates: [{ name: "Mock Candidate", resumeUrl: "https://example.com/resume", matchScore: 0.9, summary: "This is a mock summary of the candidate's qualifications." }]
-            });
-            break;
+        case 'custom_recruitment_recommendation': {
+          content = JSON.stringify({
+            recommendedCandidates: [
+              {
+                name: 'Mock Candidate',
+                resumeUrl: 'https://example.com/resume',
+                matchScore: 0.9,
+                summary:
+                  "This is a mock summary of the candidate's qualifications.",
+              },
+            ],
+          });
+          break;
         }
-        case "custom_vibe_hacking": {
-            content = JSON.stringify({
-                vulnerabilityReport: [{ vulnerability: "Mock Vulnerability", severity: "High", description: "This is a mock description of the vulnerability.", remediation: "This is a mock remediation." }]
-            });
-            break;
+        case 'custom_vibe_hacking': {
+          content = JSON.stringify({
+            vulnerabilityReport: [
+              {
+                vulnerability: 'Mock Vulnerability',
+                severity: 'High',
+                description: 'This is a mock description of the vulnerability.',
+                remediation: 'This is a mock remediation.',
+              },
+            ],
+          });
+          break;
         }
         default:
           console.warn(
-            `[MockLLMService] Unhandled task type: ${structuredPrompt.task}`,
+            `[MockLLMService] Unhandled task type: ${structuredPrompt.task}`
           );
           return {
             success: false,
@@ -457,11 +491,11 @@ export class MockLLMService implements LLMServiceInterface {
     } catch (error: any) {
       console.error(
         `[MockLLMService] Error during task ${structuredPrompt.task}:`,
-        error,
+        error
       );
       return {
         success: false,
-        error: error.message || "Unknown error in MockLLMService",
+        error: error.message || 'Unknown error in MockLLMService',
       };
     }
   }
@@ -485,16 +519,16 @@ export class RealLLMService implements LLMServiceInterface {
   constructor(
     apiKey: string,
     defaultModelName: string,
-    baseURL: string = "https://api.openai.com/v1", // Default to OpenAI, can be overridden for Groq etc.
+    baseURL: string = 'https://api.openai.com/v1' // Default to OpenAI, can be overridden for Groq etc.
   ) {
     if (
       !apiKey ||
-      apiKey === "YOUR_API_KEY_PLACEHOLDER" ||
+      apiKey === 'YOUR_API_KEY_PLACEHOLDER' ||
       apiKey.length < 10
     ) {
       // In a real app, this might throw an error or have a more robust check.
       console.error(
-        "RealLLMService: API Key is missing, a placeholder, or too short! Real calls will likely fail.",
+        'RealLLMService: API Key is missing, a placeholder, or too short! Real calls will likely fail.'
       );
       // Allow construction for testing/mocking purposes, but log a severe warning.
     }
@@ -516,15 +550,15 @@ export class RealLLMService implements LLMServiceInterface {
     this.openai = null;
     if (
       this.apiKey &&
-      this.apiKey !== "YOUR_API_KEY_PLACEHOLDER" &&
+      this.apiKey !== 'YOUR_API_KEY_PLACEHOLDER' &&
       this.apiKey.length >= 10
     ) {
       console.log(
-        `RealLLMService initialized for model ${this.defaultModelName} at ${this.baseURL}.`,
+        `RealLLMService initialized for model ${this.defaultModelName} at ${this.baseURL}.`
       );
     } else {
       console.warn(
-        `RealLLMService initialized with a placeholder API key for model ${this.defaultModelName}. API calls will be STUBBED.`,
+        `RealLLMService initialized with a placeholder API key for model ${this.defaultModelName}. API calls will be STUBBED.`
       );
     }
   }
@@ -532,7 +566,7 @@ export class RealLLMService implements LLMServiceInterface {
   // Helper to construct appropriate messages for different tasks
   private _constructMessages(
     structuredPrompt: StructuredLLMPrompt,
-    taskTypeOverride?: LLMTaskType | string,
+    taskTypeOverride?: LLMTaskType | string
   ): any[] {
     // Task type from the prompt itself, or an override (e.g. for agent-specific tasks)
     const task = taskTypeOverride || structuredPrompt.task;
@@ -541,70 +575,70 @@ export class RealLLMService implements LLMServiceInterface {
 
     // Customize system/user messages based on task for better real LLM performance
     switch (structuredPrompt.task) {
-      case "categorize_email":
+      case 'categorize_email':
         const catData = structuredPrompt.data as EmailCategorizationData;
         systemMessage = `Categorize the following email into one of: 'Urgent', 'ActionRequired', 'FYI', 'Spam', 'MeetingInvite', 'Other'. Return ONLY valid JSON: {"category": "CATEGORY_NAME", "confidence": 0.X}`;
         userMessageContent = `Subject: "${catData.subject}"\nBody Snippet: "${catData.bodySnippet}"`;
         break;
-      case "summarize_email":
+      case 'summarize_email':
         const sumData = structuredPrompt.data as EmailSummarizationData;
         systemMessage =
-          "Summarize the following email concisely in 1-2 sentences. Return only the summary text.";
+          'Summarize the following email concisely in 1-2 sentences. Return only the summary text.';
         userMessageContent = `Subject: "${sumData.subject}"\nBody Snippet: "${sumData.bodySnippet}"`;
         break;
-      case "suggest_reply_email":
+      case 'suggest_reply_email':
         const repData = structuredPrompt.data as EmailReplySuggestionData;
         systemMessage = `Suggest a brief, polite, professional reply for this email. If no reply is needed (e.g., Spam, some FYI), return "No reply needed.". Category: ${repData.category}.`;
-        userMessageContent = `Subject: "${repData.subject}"\nSummary: "${repData.summary}"\n${repData.actionItems && repData.actionItems.length > 0 ? `Identified Action Items: "${repData.actionItems.join("; ")}"` : ""}`;
+        userMessageContent = `Subject: "${repData.subject}"\nSummary: "${repData.summary}"\n${repData.actionItems && repData.actionItems.length > 0 ? `Identified Action Items: "${repData.actionItems.join('; ')}"` : ''}`;
         break;
-      case "extract_actions_email":
+      case 'extract_actions_email':
         const actData = structuredPrompt.data as EmailActionExtractionData;
         systemMessage = `Extract distinct action items from this email body. Return JSON: {"actionItems": ["Action 1", ...]}. If none, return {"actionItems": []}.`;
         userMessageContent = `Email Body: "${actData.emailBody}"`;
         break;
       // Add more cases for other LLMTaskTypes to customize prompts
-      case "extract_document_snippets":
+      case 'extract_document_snippets':
         const snipData = structuredPrompt.data as DocumentSnippetData;
         systemMessage = `Extract up to 3 relevant snippets (each ~${snipData.snippetLength || 150} chars) for the query from the document. Return JSON: {"snippets": ["...", ...]}. If none, return {"snippets": []}.`;
         userMessageContent = `Query: "${snipData.query}"\nDocument Title: "${snipData.documentTitle}"\nDocument Text: "${snipData.documentText}"`;
         break;
-      case "summarize_document_snippets":
+      case 'summarize_document_snippets':
         const docSumData = structuredPrompt.data as DocumentSummaryData;
-        systemMessage = `Summarize the provided snippets based on the query. Target length: ${docSumData.targetLength || "medium"}. Return only the summary.`;
-        userMessageContent = `Query: "${docSumData.query}"\nDocument Title: "${docSumData.documentTitle}"\nSnippets:\n${(docSumData.snippets || []).map((s) => `- ${s}`).join("\n")}`;
+        systemMessage = `Summarize the provided snippets based on the query. Target length: ${docSumData.targetLength || 'medium'}. Return only the summary.`;
+        userMessageContent = `Query: "${docSumData.query}"\nDocument Title: "${docSumData.documentTitle}"\nSnippets:\n${(docSumData.snippets || []).map((s) => `- ${s}`).join('\n')}`;
         break;
-      case "summarize_overall_answer":
+      case 'summarize_overall_answer':
         const overallData = structuredPrompt.data as OverallSummaryData;
         systemMessage = `Combine these individual summaries into one concise overall answer to the user's query. Return only the combined summary.`;
-        userMessageContent = `User's Query: "${overallData.query}"\nIndividual Summaries:\n${overallData.individualSummaries.map((s) => `From "${s.title}": ${s.summary}`).join("\n---\n")}`;
+        userMessageContent = `User's Query: "${overallData.query}"\nIndividual Summaries:\n${overallData.individualSummaries.map((s) => `From "${s.title}": ${s.summary}`).join('\n---\n')}`;
         break;
-      case "classify_guidance_query":
+      case 'classify_guidance_query':
         const gqClassData =
           structuredPrompt.data as GuidanceQueryClassificationData;
         systemMessage = `Classify the user query into one of: 'answer_question', 'find_tutorial', 'guide_workflow', 'general_explanation'. Return JSON: {"guidanceType": "TYPE"}.`;
         userMessageContent = `User Query: "${gqClassData.query}"`;
         break;
-      case "answer_from_text":
+      case 'answer_from_text':
         const ansTextData = structuredPrompt.data as AnswerFromTextData;
         systemMessage = `Using ONLY the provided text, answer the question. Return only the direct answer.`;
-        userMessageContent = `Question: '${ansTextData.query}'\nProvided text from "${ansTextData.articleTitle || "document"}": '${ansTextData.textContent}'`;
+        userMessageContent = `Question: '${ansTextData.query}'\nProvided text from "${ansTextData.articleTitle || 'document'}": '${ansTextData.textContent}'`;
         break;
-      case "extract_steps_from_text":
+      case 'extract_steps_from_text':
         const stepsTextData = structuredPrompt.data as StepsFromTextData;
         systemMessage = `Extract key steps for the query from the tutorial text. Return JSON: {"steps": [{"title":"Step Title", "description":"Step desc"}, ...]}. If none, return {"steps": []}.`;
-        userMessageContent = `Query: '${stepsTextData.query}'\nTutorial Text from "${stepsTextData.articleTitle || "document"}": '${stepsTextData.textContent}'`;
+        userMessageContent = `Query: '${stepsTextData.query}'\nTutorial Text from "${stepsTextData.articleTitle || 'document'}": '${stepsTextData.textContent}'`;
         break;
-      case "summarize_for_explanation":
+      case 'summarize_for_explanation':
         const explData = structuredPrompt.data as ExplanationData;
         systemMessage = `Provide a concise explanation for the query based on the text. Return only the explanation.`;
-        userMessageContent = `Query: '${explData.query}'\nText from "${explData.articleTitle || "document"}": '${explData.textContent}'`;
+        userMessageContent = `Query: '${explData.query}'\nText from "${explData.articleTitle || 'document'}": '${explData.textContent}'`;
         break;
-      case "generate_followup_suggestions":
+      case 'generate_followup_suggestions':
         const sugData = structuredPrompt.data as FollowupSuggestionData;
         systemMessage = `Given the user query and shown guidance, suggest two distinct, related topics or advanced features. Return JSON: {"suggestions": ["Sugg 1", "Sugg 2"]}. If none, return {"suggestions": []}.`;
-        userMessageContent = `User Query: '${sugData.query}'\nGuidance Shown (Title): '${sugData.articleTitle || "N/A"}'`;
+        userMessageContent = `User Query: '${sugData.query}'\nGuidance Shown (Title): '${sugData.articleTitle || 'N/A'}'`;
         break;
-      case "parse_search_query":
+      case 'parse_search_query':
         const parseData = structuredPrompt.data as SearchQueryParsingData;
         systemMessage = `You are an expert NLU (Natural Language Understanding) parser for a search engine. Your task is to analyze a user's raw search query and convert it into a structured JSON object.
 
@@ -644,8 +678,8 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
         break;
     }
     return [
-      { role: "system", content: systemMessage },
-      { role: "user", content: userMessageContent },
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: userMessageContent },
     ];
   }
 
@@ -656,21 +690,21 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
       temperature?: number;
       maxTokens?: number;
       isJsonOutput?: boolean;
-    }, // Added isJsonOutput
+    } // Added isJsonOutput
   ): Promise<LLMServiceResponse> {
     const targetModel = modelNameToUse || this.defaultModelName;
     const taskType = (structuredPrompt.data as any)?.system_prompt // Heuristic for NLU agent tasks
-      ? structuredPrompt.task || "custom_agent_task"
+      ? structuredPrompt.task || 'custom_agent_task'
       : structuredPrompt.task;
 
     // If API key is a placeholder, immediately fallback to mock to prevent actual call attempts.
     if (
       !this.apiKey ||
-      this.apiKey === "YOUR_API_KEY_PLACEHOLDER" ||
+      this.apiKey === 'YOUR_API_KEY_PLACEHOLDER' ||
       this.apiKey.length < 10
     ) {
       console.warn(
-        `[RealLLMService] API Key is a placeholder for model ${targetModel}. Falling back to MockLLMService for task: ${taskType}.`,
+        `[RealLLMService] API Key is a placeholder for model ${targetModel}. Falling back to MockLLMService for task: ${taskType}.`
       );
       const mockService = new MockLLMService();
       return mockService.generate(structuredPrompt, targetModel, options);
@@ -680,23 +714,23 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
     // Since 'this.openai' is null in this sandboxed environment, the following block is conceptual.
     if (!this.openai) {
       console.error(
-        "[RealLLMService] OpenAI client not initialized. THIS SHOULD NOT HAPPEN IN A REAL APP if API key is valid.",
+        '[RealLLMService] OpenAI client not initialized. THIS SHOULD NOT HAPPEN IN A REAL APP if API key is valid.'
       );
       console.log(
-        "[RealLLMService] STUBBING API call and returning mock response due to uninitialized client.",
+        '[RealLLMService] STUBBING API call and returning mock response due to uninitialized client.'
       );
       // Fallback to MockLLMService if openai client isn't initialized (e.g. in sandbox)
       const mockService = new MockLLMService();
       const mockResponse = await mockService.generate(
         structuredPrompt,
         targetModel,
-        options,
+        options
       );
       return {
         ...mockResponse,
         error: mockResponse.error
-          ? mockResponse.error + " (RealLLM Stub)"
-          : "RealLLM Stub: OpenAI client not initialized.",
+          ? mockResponse.error + ' (RealLLM Stub)'
+          : 'RealLLM Stub: OpenAI client not initialized.',
         success: mockResponse.success, // Can be true if mock is successful
       };
     }
@@ -705,7 +739,7 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
     let retries = 0;
 
     console.log(
-      `[RealLLMService] Attempting task "${taskType}" with model "${targetModel}". Attempt ${retries + 1}/${MAX_RETRIES}.`,
+      `[RealLLMService] Attempting task "${taskType}" with model "${targetModel}". Attempt ${retries + 1}/${MAX_RETRIES}.`
     );
 
     // --- CONCEPTUAL ACTUAL OPENAI SDK CODE ---
@@ -714,11 +748,11 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
       // const openai = this.openai as OpenAI; // Type assertion for conceptual use
       console.log(
         `[RealLLMService] Preparing API call to model: ${targetModel}. Messages:`,
-        JSON.stringify(messages, null, 2).substring(0, 500) + "...",
+        JSON.stringify(messages, null, 2).substring(0, 500) + '...'
       );
 
       const responseFormat = options?.isJsonOutput
-        ? { type: "json_object" as const }
+        ? { type: 'json_object' as const }
         : undefined;
       if (responseFormat) {
         console.log(`[RealLLMService] Requesting JSON output mode.`);
@@ -742,76 +776,76 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
 
       // Task-specific simulated content
       switch (taskType) {
-        case "custom_analytical_analysis":
+        case 'custom_analytical_analysis':
           simulatedApiContentObject = {
             ...simulatedApiContentObject,
             identifiedEntities: [
-              "sim_entity_analytical_1",
-              "sim_entity_analytical_2",
+              'sim_entity_analytical_1',
+              'sim_entity_analytical_2',
             ],
-            explicitTasks: ["sim_task_analytical"],
+            explicitTasks: ['sim_task_analytical'],
             logicalConsistency: {
               isConsistent: true,
-              reason: "Simulated by RealLLMService for AnalyticalAgent",
+              reason: 'Simulated by RealLLMService for AnalyticalAgent',
             },
-            problemType: "simulated_analytical_problem",
+            problemType: 'simulated_analytical_problem',
           };
           break;
-        case "custom_creative_analysis":
+        case 'custom_creative_analysis':
           simulatedApiContentObject = {
             ...simulatedApiContentObject,
-            alternativeGoals: ["sim_alt_goal_creative_1"],
-            novelSolutionsSuggested: ["sim_novel_solution_creative"],
-            unstatedAssumptions: ["sim_assumption_creative"],
-            potentialEnhancements: ["sim_enhancement_creative"],
+            alternativeGoals: ['sim_alt_goal_creative_1'],
+            novelSolutionsSuggested: ['sim_novel_solution_creative'],
+            unstatedAssumptions: ['sim_assumption_creative'],
+            potentialEnhancements: ['sim_enhancement_creative'],
             ambiguityFlags: [
               {
-                term: "sim_ambiguous_term_creative",
-                reason: "sim_reason_creative",
+                term: 'sim_ambiguous_term_creative',
+                reason: 'sim_reason_creative',
               },
             ],
           };
           break;
-        case "custom_practical_analysis":
+        case 'custom_practical_analysis':
           simulatedApiContentObject = {
             ...simulatedApiContentObject,
-            contextualFactors: ["sim_context_practical_1"],
+            contextualFactors: ['sim_context_practical_1'],
             feasibilityAssessment: {
-              rating: "Medium",
-              reason: "Simulated by RealLLMService for PracticalAgent",
-              dependencies: ["sim_dependency_practical"],
+              rating: 'Medium',
+              reason: 'Simulated by RealLLMService for PracticalAgent',
+              dependencies: ['sim_dependency_practical'],
             },
-            efficiencyTips: ["sim_tip_practical"],
+            efficiencyTips: ['sim_tip_practical'],
             resourceImplications: {
-              timeEstimate: "Moderate",
-              toolsNeeded: ["sim_tool_practical"],
+              timeEstimate: 'Moderate',
+              toolsNeeded: ['sim_tool_practical'],
             },
             commonSenseValidation: {
               isValid: true,
-              reason: "Simulated by RealLLMService for PracticalAgent",
+              reason: 'Simulated by RealLLMService for PracticalAgent',
             },
           };
           break;
-        case "custom_lead_agent_synthesis": // New case for NLULeadAgent's synthesis task
+        case 'custom_lead_agent_synthesis': // New case for NLULeadAgent's synthesis task
           simulatedApiContentObject = {
             ...simulatedApiContentObject,
-            primaryGoal: "Simulated: Schedule meeting about Project Alpha",
+            primaryGoal: 'Simulated: Schedule meeting about Project Alpha',
             primaryGoalConfidence: 0.85,
             identifiedTasks: [
-              "Check calendar for User A",
-              "Find common availability with User B",
-              "Send meeting invite",
+              'Check calendar for User A',
+              'Find common availability with User B',
+              'Send meeting invite',
             ],
             extractedParameters: {
-              project: "Project Alpha",
-              attendees: ["User A", "User B"],
-              reason_for_meeting: "Discuss Q4 roadmap",
+              project: 'Project Alpha',
+              attendees: ['User A', 'User B'],
+              reason_for_meeting: 'Discuss Q4 roadmap',
             },
             suggestedNextAction: {
-              actionType: "invoke_skill",
-              skillId: "CalendarSkill",
+              actionType: 'invoke_skill',
+              skillId: 'CalendarSkill',
               reason:
-                "High confidence goal to schedule a meeting, analytical tasks are clear, practical assessment is positive (simulated).",
+                'High confidence goal to schedule a meeting, analytical tasks are clear, practical assessment is positive (simulated).',
               directActionDetails: null, // Or provide if actionType was perform_direct_action
               clarificationQuestion: null, // Or provide if actionType was clarify_query
             },
@@ -821,7 +855,7 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
           simulatedApiContentObject = {
             ...simulatedApiContentObject,
             genericField:
-              "Generic simulated content for other tasks (e.g., email categorization)",
+              'Generic simulated content for other tasks (e.g., email categorization)',
           };
           break;
       }
@@ -845,7 +879,7 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
 
       if (content) {
         console.log(
-          `[RealLLMService] Task "${taskType}" successful for model "${targetModel}".`,
+          `[RealLLMService] Task "${taskType}" successful for model "${targetModel}".`
         );
         return {
           success: true,
@@ -860,30 +894,30 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
         };
       } else {
         console.error(
-          `[RealLLMService] Task "${taskType}" for model "${targetModel}" succeeded but content is missing.`,
+          `[RealLLMService] Task "${taskType}" for model "${targetModel}" succeeded but content is missing.`
         );
         return {
           success: false,
-          error: "API call succeeded but content is missing.",
+          error: 'API call succeeded but content is missing.',
         };
       }
     } catch (error: any) {
       console.error(
         `[RealLLMService] Error during API call for task "${taskType}", model "${targetModel}":`,
-        error.message,
+        error.message
       );
       // Conceptual retry logic
       if (
         error.status === 429 ||
-        error.code === "rate_limit_exceeded" ||
-        error.code === "insufficient_quota"
+        error.code === 'rate_limit_exceeded' ||
+        error.code === 'insufficient_quota'
       ) {
         // Example error codes
         if (retries < MAX_RETRIES) {
           retries++;
           const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, retries - 1);
           console.log(
-            `[RealLLMService] Rate limit / Quota error. Retrying attempt ${retries + 1}/${MAX_RETRIES} in ${delay}ms...`,
+            `[RealLLMService] Rate limit / Quota error. Retrying attempt ${retries + 1}/${MAX_RETRIES} in ${delay}ms...`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
           // In a real recursive/loop retry, you'd call this.generate or the core API logic again.
@@ -901,7 +935,7 @@ If a filter is not present, omit its key. If no filters are found, \`filters\` s
       // Non-retryable error
       return {
         success: false,
-        error: `API Error: ${error.message || "Unknown API error"}`,
+        error: `API Error: ${error.message || 'Unknown API error'}`,
       };
     }
     // --- END CONCEPTUAL ACTUAL OPENAI SDK CODE ---

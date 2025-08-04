@@ -1,7 +1,9 @@
-
 import { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method === 'GET') {
     return handleGetGoals(req, res);
   } else if (req.method === 'POST') {
@@ -37,7 +39,10 @@ async function handleGetGoals(req: NextApiRequest, res: NextApiResponse) {
         priority: 1,
         monthlyContribution: 500,
         daysLeft: 184,
-        tips: ['Consider setting up automatic transfers', 'Use a high-yield savings account']
+        tips: [
+          'Consider setting up automatic transfers',
+          'Use a high-yield savings account',
+        ],
       },
       {
         id: 'goal_002',
@@ -52,7 +57,7 @@ async function handleGetGoals(req: NextApiRequest, res: NextApiResponse) {
         priority: 2,
         monthlyContribution: 200,
         daysLeft: 380,
-        tips: ['Set aside tax refund', 'Use cashback credit towards flights']
+        tips: ['Set aside tax refund', 'Use cashback credit towards flights'],
       },
       {
         id: 'goal_003',
@@ -67,7 +72,10 @@ async function handleGetGoals(req: NextApiRequest, res: NextApiResponse) {
         priority: 3,
         monthlyContribution: 300,
         daysLeft: 250,
-        tips: ['Review car financing options', 'Consider Certified Pre-Owned vehicles']
+        tips: [
+          'Review car financing options',
+          'Consider Certified Pre-Owned vehicles',
+        ],
       },
       {
         id: 'goal_004',
@@ -82,25 +90,33 @@ async function handleGetGoals(req: NextApiRequest, res: NextApiResponse) {
         priority: 4,
         monthlyContribution: 600,
         daysLeft: 925,
-        tips: ['Explore first-time homebuyer programs', 'Consider FHA loans for lower down payment']
-      }
+        tips: [
+          'Explore first-time homebuyer programs',
+          'Consider FHA loans for lower down payment',
+        ],
+      },
     ];
 
     // Filter by goal type if provided
     let filteredGoals = mockGoals;
     if (goalType) {
-      filteredGoals = mockGoals.filter(goal => goal.goalType === goalType);
+      filteredGoals = mockGoals.filter((goal) => goal.goalType === goalType);
     }
 
     res.status(200).json({
       goals: filteredGoals,
       summary: {
         totalGoals: filteredGoals.length,
-        totalTarget: filteredGoals.reduce((sum, goal) => sum + goal.targetAmount, 0),
+        totalTarget: filteredGoals.reduce(
+          (sum, goal) => sum + goal.targetAmount,
+          0
+        ),
         totalSaved: filteredGoals.reduce((sum, goal) => sum + goal.current, 0),
-        totalProgress: (filteredGoals.reduce((sum, goal) => sum + goal.current, 0) /
-                      filteredGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)) * 100
-      }
+        totalProgress:
+          (filteredGoals.reduce((sum, goal) => sum + goal.current, 0) /
+            filteredGoals.reduce((sum, goal) => sum + goal.targetAmount, 0)) *
+          100,
+      },
     });
   } catch (error) {
     console.error('Goals fetch error:', error);
@@ -110,10 +126,24 @@ async function handleGetGoals(req: NextApiRequest, res: NextApiResponse) {
 
 async function handleCreateGoal(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { userId, name, targetAmount, goalType, currentAmount = 0, targetDate, description, priority = 3 } = req.body;
+    const {
+      userId,
+      name,
+      targetAmount,
+      goalType,
+      currentAmount = 0,
+      targetDate,
+      description,
+      priority = 3,
+    } = req.body;
 
     if (!userId || !name || !targetAmount || !goalType) {
-      return res.status(400).json({ error: 'Missing required fields: userId, name, targetAmount, goalType' });
+      return res
+        .status(400)
+        .json({
+          error:
+            'Missing required fields: userId, name, targetAmount, goalType',
+        });
     }
 
     // In a real implementation, this would insert into database
@@ -128,7 +158,7 @@ async function handleCreateGoal(req: NextApiRequest, res: NextApiResponse) {
       targetDate,
       status: 'active',
       priority,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     res.status(201).json({ data: newGoal });
@@ -140,7 +170,8 @@ async function handleCreateGoal(req: NextApiRequest, res: NextApiResponse) {
 
 async function handleUpdateGoal(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { goalId, userId, currentAmount, targetAmount, name, targetDate } = req.body;
+    const { goalId, userId, currentAmount, targetAmount, name, targetDate } =
+      req.body;
 
     if (!goalId || !userId) {
       return res.status(400).json({ error: 'Goal ID and User ID required' });
@@ -153,7 +184,7 @@ async function handleUpdateGoal(req: NextApiRequest, res: NextApiResponse) {
       targetAmount,
       current: currentAmount,
       progress: (currentAmount / targetAmount) * 100,
-      targetDate
+      targetDate,
     };
 
     res.status(200).json({ data: updatedGoal });

@@ -1,5 +1,3 @@
-
-
 import { dayjs } from '@lib/date-utils';
 // Unused import: hasuraApiUrl
 // import {
@@ -18,7 +16,7 @@ export const updateCalendarIntegration = async (
   token?: string,
   refreshToken?: string,
   expiresAt?: string,
-  clientType?: 'ios' | 'android' | 'web' | 'atomic-web',
+  clientType?: 'ios' | 'android' | 'web' | 'atomic-web'
 ) => {
   try {
     const updateCalendarIntegration = gql`
@@ -49,40 +47,45 @@ export const updateCalendarIntegration = async (
           clientType
         }
       }
-    `
+    `;
 
     let variables: any = {
       id: calIntegId,
       updatedAt: dayjs().toISOString(),
-    }
+    };
 
     if (enabled !== undefined) {
-      variables.enabled = enabled
+      variables.enabled = enabled;
     }
 
     if (expiresAt) {
-      variables.expiresAt = dayjs(expiresAt).toISOString()
+      variables.expiresAt = dayjs(expiresAt).toISOString();
     }
 
     if (refreshToken) {
-      variables.refreshToken = refreshToken
+      variables.refreshToken = refreshToken;
     }
 
     if (token) {
-      variables.token = token
+      variables.token = token;
     }
 
     if (clientType) {
-      variables.clientType = clientType
+      variables.clientType = clientType;
     }
 
-    const results = (await client.mutate<{ update_Calendar_Integration_by_pk: CalendarIntegrationType }>({
-      mutation: updateCalendarIntegration,
-      variables,
-    }))?.data?.update_Calendar_Integration_by_pk
+    const results = (
+      await client.mutate<{
+        update_Calendar_Integration_by_pk: CalendarIntegrationType;
+      }>({
+        mutation: updateCalendarIntegration,
+        variables,
+      })
+    )?.data?.update_Calendar_Integration_by_pk;
 
-    return results
-  } catch (e: any) { // Added type annotation for e
+    return results;
+  } catch (e: any) {
+    // Added type annotation for e
     appServiceLogger.error({
       message: 'Unable to update calendar_integration in api-helper',
       calIntegId,
@@ -93,9 +96,7 @@ export const updateCalendarIntegration = async (
     // Decide if to rethrow or return undefined/specific error structure
     // Original code implicitly returned undefined. Maintaining that for now.
   }
-}
-
-
+};
 
 /**
 end

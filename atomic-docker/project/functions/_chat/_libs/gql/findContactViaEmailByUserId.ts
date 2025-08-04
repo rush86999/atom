@@ -1,5 +1,3 @@
-
-
 export default `
 query FindContactByEmailGivenUserId($userId: uuid!, $emailFilter: jsonb) {
   Contact(where: {userId: {_eq: $userId}, emails: {_contains: $emailFilter}}) {
@@ -33,4 +31,4 @@ query FindContactByEmailGivenUserId($userId: uuid!, $emailFilter: jsonb) {
     userId
   }
 }
-`
+`;

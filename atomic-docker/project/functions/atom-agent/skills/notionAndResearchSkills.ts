@@ -112,8 +112,8 @@ export async function initiateResearch(
 
 
 // --- Hybrid Search Orchestration ---
-import { hybridSearch, HybridSearchOptions } from '../../../src/skills/lanceDbStorageSkills'; // Adjust path as needed
-import { parseSearchQueryWithLLM } from '../../../src/nlu_agents/nluSearchFilterSkill'; // Adjust path
+import { hybridSearch, HybridSearchOptions } from './lanceDbStorageSkills'; // Adjust path as needed
+import { parseSearchQueryWithLLM } from './nluSearchFilterSkill'; // Adjust path
 import { HybridSearchResultItem } from '../types';
 
 /**
@@ -169,7 +169,7 @@ export async function createNotionTask(
       ...params, // description, dueDate, status, priority, listName, notes
       user_id: userId,
       notion_api_token: notionApiKey,
-      notion_db_id: params.notionTasksDbId || ATOM_NOTION_TASKS_DATABASE_ID
+      notion_db_id: params.notionTasksDbId || ATOM_NOTION_TASKS_DATABASE_ID,
     };
 
     const response = await axios.post<PythonApiResponse<CreateTaskData>>(

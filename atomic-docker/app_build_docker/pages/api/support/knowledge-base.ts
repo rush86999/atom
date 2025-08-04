@@ -14,42 +14,48 @@ const allArticles: Article[] = [
   {
     id: 'kb-1',
     title: 'How to Set Up Your VPN',
-    content: 'To set up your VPN, please download the GlobalProtect client from the IT portal and follow the on-screen instructions. Contact IT support for any issues.',
+    content:
+      'To set up your VPN, please download the GlobalProtect client from the IT portal and follow the on-screen instructions. Contact IT support for any issues.',
     category: 'IT',
     lastUpdated: '2024-06-15',
   },
   {
     id: 'kb-2',
     title: 'Submitting Expense Reports',
-    content: 'All expense reports must be submitted through the "Expenses" app on your employee dashboard. Please ensure all receipts are attached.',
+    content:
+      'All expense reports must be submitted through the "Expenses" app on your employee dashboard. Please ensure all receipts are attached.',
     category: 'HR',
     lastUpdated: '2024-07-01',
   },
   {
     id: 'kb-3',
     title: 'Requesting Time Off',
-    content: 'Paid time off (PTO) can be requested via the Workday portal under the "Absence" section. Requests should be submitted at least two weeks in advance.',
+    content:
+      'Paid time off (PTO) can be requested via the Workday portal under the "Absence" section. Requests should be submitted at least two weeks in advance.',
     category: 'HR',
     lastUpdated: '2024-05-20',
   },
   {
     id: 'kb-4',
     title: 'Git Branching Strategy',
-    content: 'Our standard Git branching strategy is GitFlow. Please create feature branches from `develop` and submit pull requests for review.',
+    content:
+      'Our standard Git branching strategy is GitFlow. Please create feature branches from `develop` and submit pull requests for review.',
     category: 'Engineering',
     lastUpdated: '2024-07-25',
   },
   {
     id: 'kb-5',
     title: 'Accessing Staging Environments',
-    content: 'To access the staging environment, you must be connected to the VPN. The credentials can be found in the secure password vault.',
+    content:
+      'To access the staging environment, you must be connected to the VPN. The credentials can be found in the secure password vault.',
     category: 'Engineering',
     lastUpdated: '2024-07-18',
   },
   {
     id: 'kb-6',
     title: 'Resetting Your Corporate Password',
-    content: 'If you have forgotten your password, you can reset it by visiting the login page and clicking "Forgot Password". A reset link will be sent to your recovery email.',
+    content:
+      'If you have forgotten your password, you can reset it by visiting the login page and clicking "Forgot Password". A reset link will be sent to your recovery email.',
     category: 'IT',
     lastUpdated: '2024-07-28',
   },

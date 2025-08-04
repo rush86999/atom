@@ -1,4 +1,3 @@
-
 export default `
 mutation UpdateEventModifiable($id: String!, $modifiable: Boolean) {
     update_Event_by_pk(pk_columns: {id: $id}, _set: {modifiable: $modifiable}) {
@@ -118,4 +117,4 @@ mutation UpdateEventModifiable($id: String!, $modifiable: Boolean) {
       weeklyTaskList
     }
   }
-  `
+  `;

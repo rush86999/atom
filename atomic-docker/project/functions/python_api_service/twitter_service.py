@@ -142,7 +142,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-async def get_twitter_api(user_id: str, db_conn_pool) -> Optional['tweepy.API']:
+async def get_twitter_api(user_id: str, db_conn_pool) -> Optional[Any]:
     """
     Constructs and returns a Tweepy API object for a given user.
 
@@ -172,7 +172,7 @@ async def get_twitter_api(user_id: str, db_conn_pool) -> Optional['tweepy.API']:
         return None
 
 
-async def get_timeline(api: 'tweepy.API', count: int = 20) -> List[Dict[str, Any]]:
+async def get_timeline(api: Any, count: int = 20) -> List[Dict[str, Any]]:
     """Fetches the user's home timeline."""
     try:
         timeline = api.home_timeline(count=count)
@@ -182,7 +182,7 @@ async def get_timeline(api: 'tweepy.API', count: int = 20) -> List[Dict[str, Any
         return []
 
 
-async def post_tweet(api: 'tweepy.API', status: str) -> Optional[Dict[str, Any]]:
+async def post_tweet(api: Any, status: str) -> Optional[Dict[str, Any]]:
     """Posts a new tweet."""
     if not status:
         logger.error("Cannot post an empty tweet.")
@@ -195,7 +195,7 @@ async def post_tweet(api: 'tweepy.API', status: str) -> Optional[Dict[str, Any]]
         return None
 
 
-async def search_tweets(api: 'tweepy.API', query: str, count: int = 15) -> List[Dict[str, Any]]:
+async def search_tweets(api: Any, query: str, count: int = 15) -> List[Dict[str, Any]]:
     """Searches for recent tweets matching a query."""
     try:
         # Note: The attribute for accessing search results in tweepy v1 is just iterating the result.
@@ -207,7 +207,7 @@ async def search_tweets(api: 'tweepy.API', query: str, count: int = 15) -> List[
         return []
 
 
-async def get_tweet(api: 'tweepy.API', tweet_id: str) -> Optional[Dict[str, Any]]:
+async def get_tweet(api: Any, tweet_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves a single tweet by its ID."""
     try:
         tweet = api.get_status(tweet_id, tweet_mode="extended")

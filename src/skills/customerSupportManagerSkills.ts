@@ -1,7 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import {
-  SkillResponse,
-} from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
+import { SkillResponse } from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
 
@@ -25,17 +23,44 @@ function handlePythonApiResponse<T>(
 }
 
 // Helper to handle network/axios errors
-function handleAxiosError(error: AxiosError, operationName: string): SkillResponse<null> {
-    if (error.response) {
-      logger.error(`[${operationName}] Error: ${error.response.status}`, error.response.data);
-      const errData = error.response.data as any;
-      return { ok: false, error: { code: `HTTP_${error.response.status}`, message: errData?.error?.message || `Failed to ${operationName}.` } };
-    } else if (error.request) {
-      logger.error(`[${operationName}] Error: No response received`, error.request);
-      return { ok: false, error: { code: 'NETWORK_ERROR', message: `No response received for ${operationName}.` } };
-    }
-    logger.error(`[${operationName}] Error: ${error.message}`);
-    return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
+function handleAxiosError(
+  error: AxiosError,
+  operationName: string
+): SkillResponse<null> {
+  if (error.response) {
+    logger.error(
+      `[${operationName}] Error: ${error.response.status}`,
+      error.response.data
+    );
+    const errData = error.response.data as any;
+    return {
+      ok: false,
+      error: {
+        code: `HTTP_${error.response.status}`,
+        message: errData?.error?.message || `Failed to ${operationName}.`,
+      },
+    };
+  } else if (error.request) {
+    logger.error(
+      `[${operationName}] Error: No response received`,
+      error.request
+    );
+    return {
+      ok: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: `No response received for ${operationName}.`,
+      },
+    };
+  }
+  logger.error(`[${operationName}] Error: ${error.message}`);
+  return {
+    ok: false,
+    error: {
+      code: 'REQUEST_SETUP_ERROR',
+      message: `Error setting up request for ${operationName}: ${error.message}`,
+    },
+  };
 }
 
 export async function createZendeskTicketFromSalesforceCase(
@@ -43,7 +68,13 @@ export async function createZendeskTicketFromSalesforceCase(
   salesforceCaseId: string
 ): Promise<SkillResponse<any>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/customer-support/create-zendesk-ticket-from-salesforce-case`;
 
@@ -52,47 +83,71 @@ export async function createZendeskTicketFromSalesforceCase(
       user_id: userId,
       salesforce_case_id: salesforceCaseId,
     });
-    return handlePythonApiResponse(response, 'createZendeskTicketFromSalesforceCase');
+    return handlePythonApiResponse(
+      response,
+      'createZendeskTicketFromSalesforceCase'
+    );
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'createZendeskTicketFromSalesforceCase');
+    return handleAxiosError(
+      error as AxiosError,
+      'createZendeskTicketFromSalesforceCase'
+    );
   }
 }
 
 export async function getZendeskTicketSummary(
-    userId: string,
-    ticketId: string
+  userId: string,
+  ticketId: string
 ): Promise<SkillResponse<any>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/customer-support/zendesk-ticket-summary/${ticketId}?user_id=${userId}`;
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/customer-support/zendesk-ticket-summary/${ticketId}?user_id=${userId}`;
 
-    try {
-        const response = await axios.get(endpoint);
-        return handlePythonApiResponse(response, 'getZendeskTicketSummary');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'getZendeskTicketSummary');
-    }
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getZendeskTicketSummary');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getZendeskTicketSummary');
+  }
 }
 
 export async function createTrelloCardFromZendeskTicket(
-    userId: string,
-    ticketId: string,
-    trelloListId: string
+  userId: string,
+  ticketId: string,
+  trelloListId: string
 ): Promise<SkillResponse<any>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/customer-support/create-trello-card-from-zendesk-ticket`;
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/customer-support/create-trello-card-from-zendesk-ticket`;
 
-    try {
-        const response = await axios.post(endpoint, {
-            user_id: userId,
-            ticket_id: ticketId,
-            trello_list_id: trelloListId,
-        });
-        return handlePythonApiResponse(response, 'createTrelloCardFromZendeskTicket');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'createTrelloCardFromZendeskTicket');
-    }
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      ticket_id: ticketId,
+      trello_list_id: trelloListId,
+    });
+    return handlePythonApiResponse(
+      response,
+      'createTrelloCardFromZendeskTicket'
+    );
+  } catch (error) {
+    return handleAxiosError(
+      error as AxiosError,
+      'createTrelloCardFromZendeskTicket'
+    );
+  }
 }

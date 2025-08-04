@@ -1,8 +1,6 @@
-import {createTheme} from '@shopify/restyle'
+import { createTheme } from '@shopify/restyle';
 
-
-import SIZES from '@lib/theme/sizes'
-
+import SIZES from '@lib/theme/sizes';
 
 const palette = {
   offBlack: '#252525',
@@ -49,7 +47,6 @@ const palette = {
   disabled: '#EEE',
 };
 
-
 const theme = createTheme({
   colors: {
     mainBackground: palette.white,
@@ -92,13 +89,13 @@ const theme = createTheme({
   },
   spacing: {
     none: 0,
-      xxs: 2,
-      xs: 4,
-      s: 8,
-      m: 16,
-      l: 24,
-      xl: 40,
-      xxl: 80,
+    xxs: 2,
+    xs: 4,
+    s: 8,
+    m: 16,
+    l: 24,
+    xl: 40,
+    xxl: 80,
   },
   breakpoints: {
     phone: 0,
@@ -207,15 +204,15 @@ const theme = createTheme({
       // color: 'mainBackground',
       fontSize: 19,
       lineHeight: 24,
-      fontWeight: "500",
+      fontWeight: '500',
     },
     apple: {
       // color: 'mainBackground',
       // fontFamily: tokens.fontStackBase,
       fontSize: 19,
       lineHeight: 24,
-      fontWeight: "500",
-    }, 
+      fontWeight: '500',
+    },
     comment: {
       // fontFamily: tokens.fontStackBase,
       fontSize: 16,
@@ -270,13 +267,11 @@ const theme = createTheme({
       fontSize: 20,
       lineHeight: 24,
       padding: 'xs',
-
     },
     primaryOptionHeader: {
       // fontFamily: tokens.fontStackBase,
       fontSize: 20,
       lineHeight: 24,
-
     },
     menuHeader: {
       // fontFamily: tokens.fontStackBase,
@@ -352,35 +347,31 @@ const theme = createTheme({
     regular: {
       // We can refer to other values in the theme here, and use responsive props
       backgroundColor: 'regularCardBackground',
-      
     },
     elevated: {
       borderWidth: 0,
       shadowColor: 'shadowColor',
       shadowOpacity: SIZES.BLOCK_SHADOW_OPACITY,
-      shadowOffset: {width: 0, height: 3},
+      shadowOffset: { width: 0, height: 3 },
       shadowRadius: SIZES.BLOCK_SHADOW_RADIUS,
       elevation: SIZES.ANDROID_ELEVATION,
-      
     },
     primaryElevated: {
       borderWidth: 0,
       backgroundColor: 'primaryCardBackground',
       shadowColor: 'shadowColor',
       shadowOpacity: SIZES.BLOCK_SHADOW_OPACITY,
-      shadowOffset: {width: 0, height: 3},
+      shadowOffset: { width: 0, height: 3 },
       shadowRadius: SIZES.BLOCK_SHADOW_RADIUS,
       elevation: SIZES.ANDROID_ELEVATION,
-      
     },
     miniElevated: {
       borderWidth: 0,
       shadowColor: 'shadowColor',
       shadowOpacity: SIZES.BLOCK_SHADOW_OPACITY,
-      shadowOffset: {width: 0, height: 3},
+      shadowOffset: { width: 0, height: 3 },
       shadowRadius: SIZES.BLOCK_SHADOW_RADIUS,
       elevation: SIZES.ANDROID_ELEVATION,
-      
     },
   },
 });
@@ -425,13 +416,7 @@ const darkTheme: Theme = {
     commentPost: palette.white,
     transparent: palette.transparent,
   },
-}
-
-
+};
 
 // export default theme;
-export {
-  darkTheme,
-  theme,
-  palette,
- }
+export { darkTheme, theme, palette };

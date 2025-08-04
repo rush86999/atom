@@ -1,2 +1,1 @@
-
-export type ChatGPTRoleType = "function" | "system" | "user" | "assistant"
+export type ChatGPTRoleType = 'function' | 'system' | 'user' | 'assistant';

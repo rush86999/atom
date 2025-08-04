@@ -1,5 +1,5 @@
-import { getSinglePage } from "@lib/contentParser";
-import { slugify } from "./utils/textConverter";
+import { getSinglePage } from '@lib/contentParser';
+import { slugify } from './utils/textConverter';
 
 // get all taxonomies from frontmatter
 export const getTaxonomy = (folder: string, name: string | number) => {

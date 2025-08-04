@@ -1,4 +1,4 @@
-import raf from 'raf'
+import raf from 'raf';
 const polys: any = {};
 raf.polyfill(polys);
 

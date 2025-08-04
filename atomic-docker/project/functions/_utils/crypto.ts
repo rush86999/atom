@@ -11,8 +11,12 @@ export function encrypt(text: string, encryptionKey: string): string {
   }
   const key = Buffer.from(encryptionKey, 'hex');
   if (key.length !== 32) {
-    console.error(`Encryption key must be 32 bytes (64 hex characters), current length: ${key.length} bytes.`);
-    throw new Error('Server configuration error: Invalid encryption key length.');
+    console.error(
+      `Encryption key must be 32 bytes (64 hex characters), current length: ${key.length} bytes.`
+    );
+    throw new Error(
+      'Server configuration error: Invalid encryption key length.'
+    );
   }
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -25,16 +29,24 @@ export function encrypt(text: string, encryptionKey: string): string {
 export function decrypt(text: string, encryptionKey: string): string {
   if (!encryptionKey) {
     console.error('Encryption key is not set. Cannot decrypt token.');
-    throw new Error('Server configuration error: Encryption key not set for decryption.');
+    throw new Error(
+      'Server configuration error: Encryption key not set for decryption.'
+    );
   }
   const key = Buffer.from(encryptionKey, 'hex');
   if (key.length !== 32) {
-    console.error(`Encryption key must be 32 bytes (64 hex characters) for decryption. Current length: ${key.length} bytes.`);
-    throw new Error('Server configuration error: Invalid encryption key length for decryption.');
+    console.error(
+      `Encryption key must be 32 bytes (64 hex characters) for decryption. Current length: ${key.length} bytes.`
+    );
+    throw new Error(
+      'Server configuration error: Invalid encryption key length for decryption.'
+    );
   }
   const parts = text.split(':');
   if (parts.length !== 3) {
-    console.error('Invalid encrypted text format. Expected iv:authTag:encryptedText');
+    console.error(
+      'Invalid encrypted text format. Expected iv:authTag:encryptedText'
+    );
     throw new Error('Decryption error: Invalid encrypted text format.');
   }
   const iv = Buffer.from(parts[0], 'hex');

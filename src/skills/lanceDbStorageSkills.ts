@@ -4,9 +4,9 @@ import {
   NotionPageSummary,
   SkillResponse,
   SkillError,
-} from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path as needed
-import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants'; // Assuming this hosts the new endpoints
-import { logger } from '../../atomic-docker/project/functions/_utils/logger';
+} from '../types'; // Adjust path as needed
+import { PYTHON_API_SERVICE_BASE_URL } from '../libs/constants'; // Assuming this hosts the new endpoints
+import { logger } from '../utils/logger';
 
 const LANCE_DB_STORAGE_API_TIMEOUT = 15000; // 15 seconds timeout for these specific calls
 

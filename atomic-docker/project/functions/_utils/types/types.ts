@@ -1,4 +1,3 @@
-
 export type ClaimValueType =
   | string
   | string[]
@@ -59,7 +58,7 @@ export type UserRegistrationOptionsWithRedirect = UserRegistrationOptions & {
   redirectTo: string;
 };
 
-export type User = 
+export type User =
   | 'id'
   | 'createdAt'
   | 'displayName'
@@ -72,8 +71,7 @@ export type User =
   | 'emailVerified'
   | 'phoneNumber'
   | 'phoneNumberVerified'
-  | 'activeMfaType'
- & { roles: string[] };
+  | ('activeMfaType' & { roles: string[] });
 
 export type Session = {
   accessToken: string;
@@ -112,4 +110,4 @@ export const EMAIL_TYPES = {
   SIGNIN_PASSWORDLESS: 'signinPasswordless',
   PASSWORD_RESET: 'passwordReset',
 } as const;
-export type EmailType = typeof EMAIL_TYPES[keyof typeof EMAIL_TYPES];
+export type EmailType = (typeof EMAIL_TYPES)[keyof typeof EMAIL_TYPES];

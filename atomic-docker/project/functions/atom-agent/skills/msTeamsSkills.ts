@@ -1,9 +1,13 @@
 import { logger } from '../../_utils/logger';
 // Removed callHasuraActionGraphQL and GQL constants
-import { MSTeamsMessage, GraphSkillResponse, SkillError, GetMSTeamsMessageDetailInput } from '../types';
+import {
+  MSTeamsMessage,
+  GraphSkillResponse,
+  SkillError,
+  GetMSTeamsMessageDetailInput,
+} from '../types';
 // Direct import from msteams-service.ts
 import * as msTeamsService from '../../msteams-service/service';
-
 
 /**
  * Searches Microsoft Teams messages for the user by calling the msteams-service directly.
@@ -17,24 +21,33 @@ export async function searchMyMSTeamsMessages(
   kqlQuery: string,
   limit: number = 10
 ): Promise<MSTeamsMessage[]> {
-  logger.debug(`[MSTeamsSkills] searchMyMSTeamsMessages direct call for Atom user ${atomUserId}, KQL: "${kqlQuery}", limit: ${limit}`);
+  logger.debug(
+    `[MSTeamsSkills] searchMyMSTeamsMessages direct call for Atom user ${atomUserId}, KQL: "${kqlQuery}", limit: ${limit}`
+  );
 
   try {
     // Call the service function directly.
     // The service function `searchTeamsMessages` returns GraphSkillResponse<AgentMSTeamsMessage[]>
     // We need to adapt this to Promise<MSTeamsMessage[]> or handle the GraphSkillResponse structure.
     // For now, let's assume we adapt to MSTeamsMessage[] if successful.
-    const response = await msTeamsService.searchTeamsMessages(atomUserId, kqlQuery, limit);
+    const response = await msTeamsService.searchTeamsMessages(
+      atomUserId,
+      kqlQuery,
+      limit
+    );
 
     if (!response.ok || !response.data) {
-      logger.error(`[MSTeamsSkills] msteams-service.searchTeamsMessages failed for user ${atomUserId}: ${response.error?.message}`);
+      logger.error(
+        `[MSTeamsSkills] msteams-service.searchTeamsMessages failed for user ${atomUserId}: ${response.error?.message}`
+      );
       return [];
     }
     // Assuming AgentMSTeamsMessage is compatible with MSTeamsMessage for the fields we need.
     // If not, a mapping function would be required here.
     // MSTeamsMessage from types.ts is more detailed than AgentMSTeamsMessage in service.ts.
     // Let's ensure proper mapping.
-    return response.data.map((item: msTeamsService.AgentMSTeamsMessage): MSTeamsMessage => ({
+    return response.data.map(
+      (item: msTeamsService.AgentMSTeamsMessage): MSTeamsMessage => ({
         id: item.id,
         chatId: item.chatId,
         teamId: item.teamId,
@@ -48,12 +61,15 @@ export async function searchMyMSTeamsMessages(
         lastModifiedDateTime: item.lastModifiedDateTime,
         webUrl: item.webUrl,
         attachments: item.attachments, // Assuming structure matches
-        mentions: item.mentions,       // Assuming structure matches
+        mentions: item.mentions, // Assuming structure matches
         raw: item.raw,
-    }));
-
+      })
+    );
   } catch (error: any) {
-    logger.error(`[MSTeamsSkills] Error in searchMyMSTeamsMessages direct call for Atom user ${atomUserId}, KQL "${kqlQuery}":`, error);
+    logger.error(
+      `[MSTeamsSkills] Error in searchMyMSTeamsMessages direct call for Atom user ${atomUserId}, KQL "${kqlQuery}":`,
+      error
+    );
     return [];
   }
 }
@@ -64,25 +80,41 @@ export async function getRecentChatsAndMentionsForBriefing(
   atomUserId: string,
   targetDate: Date,
   count: number = 3
-): Promise<GraphSkillResponse<{ results: MSTeamsMessage[], query_executed?: string }>> {
-  logger.debug(`[MSTeamsSkills] getRecentChatsAndMentionsForBriefing for Atom user: ${atomUserId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`);
+): Promise<
+  GraphSkillResponse<{ results: MSTeamsMessage[]; query_executed?: string }>
+> {
+  logger.debug(
+    `[MSTeamsSkills] getRecentChatsAndMentionsForBriefing for Atom user: ${atomUserId}, TargetDate: ${targetDate.toISOString().split('T')[0]}, Count: ${count}`
+  );
 
   try {
     // 1. Get token and user AAD identifiers from msteams-service
-    const tokenDetailsResponse = await msTeamsService.getDelegatedMSGraphTokenForUser(atomUserId);
-    if (!tokenDetailsResponse.ok || !tokenDetailsResponse.data?.accessToken || !tokenDetailsResponse.data?.userAadObjectId) {
-      logger.error(`[MSTeamsSkills] Could not get valid token or user AAD Object ID for user ${atomUserId}. Error: ${tokenDetailsResponse.error?.message}`);
+    const tokenDetailsResponse =
+      await msTeamsService.getDelegatedMSGraphTokenForUser(atomUserId);
+    if (
+      !tokenDetailsResponse.ok ||
+      !tokenDetailsResponse.data?.accessToken ||
+      !tokenDetailsResponse.data?.userAadObjectId
+    ) {
+      logger.error(
+        `[MSTeamsSkills] Could not get valid token or user AAD Object ID for user ${atomUserId}. Error: ${tokenDetailsResponse.error?.message}`
+      );
       return {
         ok: false,
-        error: tokenDetailsResponse.error || { code: "MSTEAMS_AUTH_FAILED", message: "Authentication or user ID retrieval failed for MS Teams."}
+        error: tokenDetailsResponse.error || {
+          code: 'MSTEAMS_AUTH_FAILED',
+          message: 'Authentication or user ID retrieval failed for MS Teams.',
+        },
       };
     }
     const { userAadObjectId, userPrincipalName } = tokenDetailsResponse.data;
     // Note: accessToken is managed within msteams-service calls, not directly used here anymore.
 
     if (!userAadObjectId && !userPrincipalName) {
-        logger.warn(`[MSTeamsSkills] User AAD Object ID and UPN are both null for user ${atomUserId}. KQL query will be very broad.`);
-        // Fallback to a very generic query or return error, for now, proceed with broad query.
+      logger.warn(
+        `[MSTeamsSkills] User AAD Object ID and UPN are both null for user ${atomUserId}. KQL query will be very broad.`
+      );
+      // Fallback to a very generic query or return error, for now, proceed with broad query.
     }
 
     const startOfDay = new Date(targetDate);
@@ -94,7 +126,7 @@ export async function getRecentChatsAndMentionsForBriefing(
 
     // 2. Construct KQL query using AAD Object ID or UPN
     const dateFilterKQL = `createdDateTime>=${startOfDayISO} AND createdDateTime<=${endOfDayISO}`;
-    let userSpecificKQL = "";
+    let userSpecificKQL = '';
 
     if (userAadObjectId) {
       // Using AAD Object ID is generally more robust for mentions and identifying users.
@@ -106,9 +138,13 @@ export async function getRecentChatsAndMentionsForBriefing(
       // Fallback to UPN if AAD Object ID is not available.
       // UPN might work for `from` but can be less reliable for `mentions` if display names are used more often.
       userSpecificKQL = `(mentions:"${userPrincipalName}" OR from:"${userPrincipalName}")`;
-      logger.warn(`[MSTeamsSkills] Using UPN for KQL construction as AAD Object ID was not available for user ${atomUserId}. This might be less precise for mentions.`);
+      logger.warn(
+        `[MSTeamsSkills] Using UPN for KQL construction as AAD Object ID was not available for user ${atomUserId}. This might be less precise for mentions.`
+      );
     } else {
-      logger.warn(`[MSTeamsSkills] No user AAD ID or UPN available for user ${atomUserId}. KQL will only use date filters and be very broad. Results might not be relevant DMs/mentions.`);
+      logger.warn(
+        `[MSTeamsSkills] No user AAD ID or UPN available for user ${atomUserId}. KQL will only use date filters and be very broad. Results might not be relevant DMs/mentions.`
+      );
       // If no user identifier, the query will just be the date filter, relying on the user's token context.
       // This will fetch all messages accessible to the user in that time range.
     }
@@ -117,27 +153,42 @@ export async function getRecentChatsAndMentionsForBriefing(
       ? `${userSpecificKQL} AND ${dateFilterKQL}`
       : dateFilterKQL;
 
-    logger.info(`[MSTeamsSkills] Constructed KQL query for briefing: "${kqlQuery}"`);
+    logger.info(
+      `[MSTeamsSkills] Constructed KQL query for briefing: "${kqlQuery}"`
+    );
 
     // 3. Call the refactored searchMyMSTeamsMessages
     // The `searchMyMSTeamsMessages` will pass this KQL to the msteams-service,
     // which executes it against the Graph Search API.
-    const searchResponse = await searchMyMSTeamsMessages(atomUserId, kqlQuery, count);
+    const searchResponse = await searchMyMSTeamsMessages(
+      atomUserId,
+      kqlQuery,
+      count
+    );
 
     // searchMyMSTeamsMessages now returns MSTeamsMessage[] directly, not a GraphSkillResponse.
     // The error handling and transformation to GraphSkillResponse should happen here.
     // However, looking at the current searchMyMSTeamsMessages, it already returns MSTeamsMessage[] and logs errors.
     // For consistency, getRecentChatsAndMentionsForBriefing should also return GraphSkillResponse.
 
-    logger.info(`[MSTeamsSkills] Found ${searchResponse.length} MS Teams messages for briefing using KQL.`);
-    return { ok: true, data: { results: searchResponse, query_executed: kqlQuery } };
-
+    logger.info(
+      `[MSTeamsSkills] Found ${searchResponse.length} MS Teams messages for briefing using KQL.`
+    );
+    return {
+      ok: true,
+      data: { results: searchResponse, query_executed: kqlQuery },
+    };
   } catch (error: any) {
-    logger.error(`[MSTeamsSkills] Error in getRecentChatsAndMentionsForBriefing for Atom user ${atomUserId}: ${error.message}`, error);
+    logger.error(
+      `[MSTeamsSkills] Error in getRecentChatsAndMentionsForBriefing for Atom user ${atomUserId}: ${error.message}`,
+      error
+    );
     const skillError: SkillError = {
-        code: 'MSTEAMS_BRIEFING_FETCH_FAILED',
-        message: error.message || "Failed to fetch recent MS Teams messages for briefing.",
-        details: error
+      code: 'MSTEAMS_BRIEFING_FETCH_FAILED',
+      message:
+        error.message ||
+        'Failed to fetch recent MS Teams messages for briefing.',
+      details: error,
     };
     return { ok: false, error: skillError };
   }
@@ -149,7 +200,6 @@ export async function getRecentChatsAndMentionsForBriefing(
 // This interface is defined in types.ts, so no need to redefine here if imported.
 // export interface GetMSTeamsMessageWebUrlInput extends GetMSTeamsMessageDetailInput {}
 
-
 /**
  * Gets a permalink (webUrl) for a specific MS Teams message by calling the msteams-service.
  * @param atomUserId The Atom internal ID of the user.
@@ -160,10 +210,18 @@ export async function getMSTeamsMessageWebUrl(
   atomUserId: string,
   identifier: GetMSTeamsMessageDetailInput // Use the one from types.ts
 ): Promise<string | null> {
-  logger.debug(`[MSTeamsSkills] getMSTeamsMessageWebUrl direct call for Atom user ${atomUserId}, identifier:`, identifier);
+  logger.debug(
+    `[MSTeamsSkills] getMSTeamsMessageWebUrl direct call for Atom user ${atomUserId}, identifier:`,
+    identifier
+  );
 
-  if (!identifier.messageId || (!identifier.chatId && (!identifier.teamId || !identifier.channelId))) {
-    logger.error('[MSTeamsSkills] Invalid identifier for getMSTeamsMessageWebUrl.');
+  if (
+    !identifier.messageId ||
+    (!identifier.chatId && (!identifier.teamId || !identifier.channelId))
+  ) {
+    logger.error(
+      '[MSTeamsSkills] Invalid identifier for getMSTeamsMessageWebUrl.'
+    );
     return null;
   }
 
@@ -175,14 +233,22 @@ export async function getMSTeamsMessageWebUrl(
     if (message && message.webUrl) {
       return message.webUrl;
     } else if (message) {
-      logger.warn(`[MSTeamsSkills] Message found but webUrl is missing for message ID ${identifier.messageId}.`);
+      logger.warn(
+        `[MSTeamsSkills] Message found but webUrl is missing for message ID ${identifier.messageId}.`
+      );
       return null;
     } else {
-      logger.warn(`[MSTeamsSkills] Could not read message to get webUrl for ID ${identifier.messageId}.`);
+      logger.warn(
+        `[MSTeamsSkills] Could not read message to get webUrl for ID ${identifier.messageId}.`
+      );
       return null;
     }
   } catch (error) {
-    logger.error(`[MSTeamsSkills] Error in getMSTeamsMessageWebUrl for Atom user ${atomUserId}, identifier:`, identifier, error);
+    logger.error(
+      `[MSTeamsSkills] Error in getMSTeamsMessageWebUrl for Atom user ${atomUserId}, identifier:`,
+      identifier,
+      error
+    );
     return null;
   }
 }
@@ -199,11 +265,19 @@ function getMSTeamsExtractionOpenAIClient(): OpenAI {
     return openAIClientForMSTeamsExtraction;
   }
   if (!ATOM_OPENAI_API_KEY) {
-    logger.error('[MSTeamsSkills] OpenAI API Key not configured for LLM MS Teams Extractor.');
-    throw new Error('OpenAI API Key not configured for LLM MS Teams Extractor.');
+    logger.error(
+      '[MSTeamsSkills] OpenAI API Key not configured for LLM MS Teams Extractor.'
+    );
+    throw new Error(
+      'OpenAI API Key not configured for LLM MS Teams Extractor.'
+    );
   }
-  openAIClientForMSTeamsExtraction = new OpenAI({ apiKey: ATOM_OPENAI_API_KEY });
-  logger.info('[MSTeamsSkills] OpenAI client for MS Teams extraction initialized.');
+  openAIClientForMSTeamsExtraction = new OpenAI({
+    apiKey: ATOM_OPENAI_API_KEY,
+  });
+  logger.info(
+    '[MSTeamsSkills] OpenAI client for MS Teams extraction initialized.'
+  );
   return openAIClientForMSTeamsExtraction;
 }
 
@@ -243,35 +317,51 @@ export async function extractInformationFromMSTeamsMessage(
   infoKeywords: string[]
 ): Promise<Record<string, string | null>> {
   if (!infoKeywords || infoKeywords.length === 0) {
-    logger.debug('[MSTeamsSkills] extractInformationFromMSTeamsMessage: No infoKeywords provided.');
+    logger.debug(
+      '[MSTeamsSkills] extractInformationFromMSTeamsMessage: No infoKeywords provided.'
+    );
     return {};
   }
   if (!messageContent || messageContent.trim() === '') {
-    logger.debug('[MSTeamsSkills] extractInformationFromMSTeamsMessage: Empty messageContent provided.');
+    logger.debug(
+      '[MSTeamsSkills] extractInformationFromMSTeamsMessage: Empty messageContent provided.'
+    );
     const emptyResult: Record<string, string | null> = {};
-    infoKeywords.forEach(kw => emptyResult[kw] = null);
+    infoKeywords.forEach((kw) => (emptyResult[kw] = null));
     return emptyResult;
   }
 
-  logger.debug(`[MSTeamsSkills] LLM Extractor: Attempting to extract from MS Teams message for keywords: [${infoKeywords.join(', ')}]`);
+  logger.debug(
+    `[MSTeamsSkills] LLM Extractor: Attempting to extract from MS Teams message for keywords: [${infoKeywords.join(', ')}]`
+  );
   const client = getMSTeamsExtractionOpenAIClient();
 
   const keywordsJsonArrayString = JSON.stringify(infoKeywords);
-  const systemPrompt = MSTEAMS_EXTRACTION_SYSTEM_PROMPT_TEMPLATE.replace("{{KEYWORDS_JSON_ARRAY_STRING}}", keywordsJsonArrayString);
+  const systemPrompt = MSTEAMS_EXTRACTION_SYSTEM_PROMPT_TEMPLATE.replace(
+    '{{KEYWORDS_JSON_ARRAY_STRING}}',
+    keywordsJsonArrayString
+  );
 
   // Simple HTML to text conversion if content type is HTML, for cleaner input to LLM
   // More sophisticated stripping might be needed for complex HTML.
   let processedContent = messageContent;
   // Basic stripping of HTML tags for LLM processing if it's likely HTML
-  if (messageContent.includes("<") && messageContent.includes(">")) {
-      processedContent = messageContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      logger.debug('[MSTeamsSkills] LLM Extractor: Stripped HTML from message content.');
+  if (messageContent.includes('<') && messageContent.includes('>')) {
+    processedContent = messageContent
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    logger.debug(
+      '[MSTeamsSkills] LLM Extractor: Stripped HTML from message content.'
+    );
   }
-
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: `MS Teams Message Content:\n---\n${processedContent}\n---` },
+    {
+      role: 'user',
+      content: `MS Teams Message Content:\n---\n${processedContent}\n---`,
+    },
   ];
 
   try {
@@ -284,29 +374,45 @@ export async function extractInformationFromMSTeamsMessage(
 
     const llmResponse = completion.choices[0]?.message?.content;
     if (!llmResponse) {
-      logger.error('[MSTeamsSkills] LLM Extractor: Received an empty response from AI for MS Teams message.');
+      logger.error(
+        '[MSTeamsSkills] LLM Extractor: Received an empty response from AI for MS Teams message.'
+      );
       throw new Error('LLM Extractor (MS Teams): Empty response from AI.');
     }
 
-    logger.debug('[MSTeamsSkills] LLM Extractor: Raw LLM JSON response for MS Teams:', llmResponse);
+    logger.debug(
+      '[MSTeamsSkills] LLM Extractor: Raw LLM JSON response for MS Teams:',
+      llmResponse
+    );
     const parsedResponse = JSON.parse(llmResponse);
 
     const result: Record<string, string | null> = {};
     for (const keyword of infoKeywords) {
-      result[keyword] = parsedResponse.hasOwnProperty(keyword) ? parsedResponse[keyword] : null;
+      result[keyword] = parsedResponse.hasOwnProperty(keyword)
+        ? parsedResponse[keyword]
+        : null;
     }
 
-    logger.debug('[MSTeamsSkills] LLM Extractor: Parsed and reconciled extraction from MS Teams:', result);
+    logger.debug(
+      '[MSTeamsSkills] LLM Extractor: Parsed and reconciled extraction from MS Teams:',
+      result
+    );
     return result;
-
   } catch (error: any) {
-    logger.error('[MSTeamsSkills] LLM Extractor: Error processing information extraction from MS Teams message with OpenAI:', error.message);
+    logger.error(
+      '[MSTeamsSkills] LLM Extractor: Error processing information extraction from MS Teams message with OpenAI:',
+      error.message
+    );
     if (error instanceof SyntaxError) {
-        logger.error('[MSTeamsSkills] LLM Extractor: Failed to parse JSON response from LLM for MS Teams message.');
-        throw new Error('LLM Extractor (MS Teams): Failed to parse response from AI.');
+      logger.error(
+        '[MSTeamsSkills] LLM Extractor: Failed to parse JSON response from LLM for MS Teams message.'
+      );
+      throw new Error(
+        'LLM Extractor (MS Teams): Failed to parse response from AI.'
+      );
     }
     const fallbackResult: Record<string, string | null> = {};
-    infoKeywords.forEach(kw => fallbackResult[kw] = null);
+    infoKeywords.forEach((kw) => (fallbackResult[kw] = null));
     return fallbackResult;
   }
 }
@@ -335,7 +441,6 @@ export async function extractInformationFromMSTeamsMessage(
 //       return jsonResponse.data;
 //   } catch (error) { /* ... error handling ... */ throw error; }
 // }
-
 
 const GQL_GET_MS_TEAMS_MESSAGE_DETAIL = `
   mutation GetMSTeamsMessageDetail($input: GetMSTeamsMessageDetailInput!) {
@@ -376,7 +481,6 @@ export interface GetMSTeamsMessageDetailInput {
   channelId?: string; // Provide with teamId if it's a channel message
 }
 
-
 /**
  * Reads the detailed content of a specific MS Teams message.
  * @param userId The ID of the user.
@@ -387,53 +491,78 @@ export async function readMSTeamsMessage(
   userId: string,
   identifier: GetMSTeamsMessageDetailInput
 ): Promise<MSTeamsMessage | null> {
-  logger.debug(`[MSTeamsSkills] readMSTeamsMessage called for user ${userId}, identifier:`, identifier);
+  logger.debug(
+    `[MSTeamsSkills] readMSTeamsMessage called for user ${userId}, identifier:`,
+    identifier
+  );
 
-  if (!identifier.messageId || (!identifier.chatId && (!identifier.teamId || !identifier.channelId))) {
-    logger.error('[MSTeamsSkills] Invalid identifier for readMSTeamsMessage. Need messageId and (chatId or teamId+channelId).');
+  if (
+    !identifier.messageId ||
+    (!identifier.chatId && (!identifier.teamId || !identifier.channelId))
+  ) {
+    logger.error(
+      '[MSTeamsSkills] Invalid identifier for readMSTeamsMessage. Need messageId and (chatId or teamId+channelId).'
+    );
     return null;
   }
 
   try {
-    const responseData = await callHasuraActionGraphQL(userId, "GetMSTeamsMessageDetail", GQL_GET_MS_TEAMS_MESSAGE_DETAIL, {
-      input: identifier
-    });
+    const responseData = await callHasuraActionGraphQL(
+      userId,
+      'GetMSTeamsMessageDetail',
+      GQL_GET_MS_TEAMS_MESSAGE_DETAIL,
+      {
+        input: identifier,
+      }
+    );
 
     const getResult = responseData.getMSTeamsMessageDetail;
 
     if (!getResult.success || !getResult.msTeamsMessage) {
-      logger.warn(`[MSTeamsSkills] getMSTeamsMessageDetail action failed or message not found for user ${userId}: ${getResult.message}`, identifier);
+      logger.warn(
+        `[MSTeamsSkills] getMSTeamsMessageDetail action failed or message not found for user ${userId}: ${getResult.message}`,
+        identifier
+      );
       return null;
     }
 
     // Direct cast if GraphQL output matches agent's MSTeamsMessage type.
     // Ensure nested structures like attachments and mentions are also correctly typed/mapped if needed.
     const message: MSTeamsMessage = {
-        ...getResult.msTeamsMessage,
-        contentType: getResult.msTeamsMessage.contentType as 'html' | 'text', // Ensure enum type if not guaranteed by GQL
-         attachments: getResult.msTeamsMessage.attachments?.map((att: any) => ({
-            id: att.id,
-            name: att.name,
-            contentType: att.contentType,
-            contentUrl: att.contentUrl,
-            size: att.size,
+      ...getResult.msTeamsMessage,
+      contentType: getResult.msTeamsMessage.contentType as 'html' | 'text', // Ensure enum type if not guaranteed by GQL
+      attachments:
+        getResult.msTeamsMessage.attachments?.map((att: any) => ({
+          id: att.id,
+          name: att.name,
+          contentType: att.contentType,
+          contentUrl: att.contentUrl,
+          size: att.size,
         })) || [],
-        mentions: getResult.msTeamsMessage.mentions?.map((men: any) => ({
-            id: men.id,
-            mentionText: men.mentionText,
-            mentioned: men.mentioned ? {
-                user: men.mentioned.user ? {
-                    id: men.mentioned.user.id,
-                    displayName: men.mentioned.user.displayName,
-                    userIdentityType: men.mentioned.user.userIdentityType,
-                } : undefined,
-            } : undefined,
+      mentions:
+        getResult.msTeamsMessage.mentions?.map((men: any) => ({
+          id: men.id,
+          mentionText: men.mentionText,
+          mentioned: men.mentioned
+            ? {
+                user: men.mentioned.user
+                  ? {
+                      id: men.mentioned.user.id,
+                      displayName: men.mentioned.user.displayName,
+                      userIdentityType: men.mentioned.user.userIdentityType,
+                    }
+                  : undefined,
+              }
+            : undefined,
         })) || [],
     };
     return message;
-
   } catch (error) {
-    logger.error(`[MSTeamsSkills] Error in readMSTeamsMessage for user ${userId}, identifier:`, identifier, error);
+    logger.error(
+      `[MSTeamsSkills] Error in readMSTeamsMessage for user ${userId}, identifier:`,
+      identifier,
+      error
+    );
     return null;
   }
 }

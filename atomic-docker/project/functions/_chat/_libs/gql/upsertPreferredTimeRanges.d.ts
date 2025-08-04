@@ -1,0 +1,2 @@
+declare const _default: "\n    mutation UpsertPreferredTimeRanges($preferredTimeRanges: [PreferredTimeRange_insert_input!]!) {\n        insert_PreferredTimeRange(objects: $preferredTimeRanges, on_conflict: {constraint: PreferredTimeRange_pkey, update_columns: [\n        dayOfWeek,\n        endTime,\n        startTime,\n    ]}) {\n      affected_rows\n      returning {\n        createdDate\n        dayOfWeek\n        endTime\n        eventId\n        id\n        startTime\n        updatedAt\n        userId\n      }\n    }\n  }\n  ";
+export default _default;

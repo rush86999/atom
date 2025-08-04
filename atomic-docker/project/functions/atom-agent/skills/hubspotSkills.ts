@@ -12,33 +12,39 @@ import {
   GetContactActivitiesResponse,
 } from '../types';
 import {
-    ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID,
-    ATOM_HUBSPOT_PORTAL_ID,
+  ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID,
+  ATOM_HUBSPOT_PORTAL_ID,
 } from '../_libs/constants';
 import { sendSlackMessage } from './slackSkills';
-import { PublicObjectSearchRequest, CollectionResponseSimplePublicObjectForwardPaging, SimplePublicObjectInput } from '@hubspot/api-client/lib/codegen/crm/engagements/index.js';
+import {
+  PublicObjectSearchRequest,
+  CollectionResponseSimplePublicObjectForwardPaging,
+  SimplePublicObjectInput,
+} from '@hubspot/api-client/lib/codegen/crm/engagements/index.js';
 
 const CONTACT_TO_ENGAGEMENT_ASSOCIATION_TYPE_ID = 203;
-const CONTACT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = "0-1";
-const ENGAGEMENT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = "0-31";
+const CONTACT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = '0-1';
+const ENGAGEMENT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API = '0-31';
 
 async function getHubspotApiKey(userId: string): Promise<string | null> {
-    const query = `
+  const query = `
         query GetUserCredential($userId: String!, $serviceName: String!) {
             user_credentials(where: {user_id: {_eq: $userId}, service_name: {_eq: $serviceName}}) {
                 encrypted_secret
             }
         }
     `;
-    const variables = {
-        userId,
-        serviceName: 'hubspot_api_key',
-    };
-    const response = await executeGraphQLQuery<{ user_credentials: { encrypted_secret: string }[] }>(query, variables, 'GetUserCredential', userId);
-    if (response.user_credentials && response.user_credentials.length > 0) {
-        return decrypt(response.user_credentials[0].encrypted_secret);
-    }
-    return null;
+  const variables = {
+    userId,
+    serviceName: 'hubspot_api_key',
+  };
+  const response = await executeGraphQLQuery<{
+    user_credentials: { encrypted_secret: string }[];
+  }>(query, variables, 'GetUserCredential', userId);
+  if (response.user_credentials && response.user_credentials.length > 0) {
+    return decrypt(response.user_credentials[0].encrypted_secret);
+  }
+  return null;
 }
 
 const getHubspotClient = async (userId: string) => {
@@ -53,21 +59,44 @@ const getHubspotClient = async (userId: string) => {
 export async function getHubSpotContactByEmail(
   userId: string,
   email: string
-): Promise<HubSpotSkillResponse<HubSpotContact | null>> { // Return null in data if not found but no error
-  console.log(`getHubSpotContactByEmail called for userId: ${userId}, email: ${email}`);
+): Promise<HubSpotSkillResponse<HubSpotContact | null>> {
+  // Return null in data if not found but no error
+  console.log(
+    `getHubSpotContactByEmail called for userId: ${userId}, email: ${email}`
+  );
   const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'HubSpot API key not configured.',
+      },
+    };
   }
 
   if (!email || email.trim() === '') {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Email parameter is required.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Email parameter is required.',
+      },
+    };
   }
 
   try {
     const response = await hubspotClient.crm.contacts.searchApi.doSearch({
       query: email, // Note: Using email directly in query might be too broad. Specific property filter is better.
-      properties: ['email', 'firstname', 'lastname', 'company', 'hs_object_id', 'createdate', 'lastmodifieddate'],
+      properties: [
+        'email',
+        'firstname',
+        'lastname',
+        'company',
+        'hs_object_id',
+        'createdate',
+        'lastmodifieddate',
+      ],
       filterGroups: [
         {
           filters: [
@@ -105,37 +134,64 @@ export async function getHubSpotContactByEmail(
       return { ok: true, data: null }; // Success, but no contact found
     }
   } catch (error: any) {
-    console.error(`Error fetching HubSpot contact by email ${email} for userId ${userId}:`, error.message);
+    console.error(
+      `Error fetching HubSpot contact by email ${email} for userId ${userId}:`,
+      error.message
+    );
     let errorMessage = `Failed to fetch contact by email: ${error.message}`;
     let errorCode = 'HUBSPOT_API_ERROR';
     if (error.response && error.response.body) {
       console.error('HubSpot API Error Body:', error.response.body);
       try {
-        const errorBodyString = Buffer.isBuffer(error.response.body) ? error.response.body.toString() : error.response.body;
+        const errorBodyString = Buffer.isBuffer(error.response.body)
+          ? error.response.body.toString()
+          : error.response.body;
         const errorBody = JSON.parse(errorBodyString);
         if (errorBody && errorBody.message) {
           errorMessage = errorBody.message;
-          if (errorBody.category === 'VALIDATION_ERROR') errorCode = 'VALIDATION_ERROR';
+          if (errorBody.category === 'VALIDATION_ERROR')
+            errorCode = 'VALIDATION_ERROR';
         }
-      } catch (parseError) { /* Do nothing, use generic message */ }
+      } catch (parseError) {
+        /* Do nothing, use generic message */
+      }
     }
-    return { ok: false, error: { code: errorCode, message: errorMessage, details: error } };
+    return {
+      ok: false,
+      error: { code: errorCode, message: errorMessage, details: error },
+    };
   }
 }
 
 export async function createHubSpotContact(
   userId: string,
   contactProperties: HubSpotContactProperties
-): Promise<HubSpotSkillResponse<CreateHubSpotContactResponse>> { // Updated return type
-  console.log(`createHubSpotContact called for userId: ${userId} with properties:`, contactProperties);
+): Promise<HubSpotSkillResponse<CreateHubSpotContactResponse>> {
+  // Updated return type
+  console.log(
+    `createHubSpotContact called for userId: ${userId} with properties:`,
+    contactProperties
+  );
   const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
     // Consistent error structure
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'HubSpot API key not configured.',
+      },
+    };
   }
 
   if (!contactProperties.email) {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Email is required to create a HubSpot contact.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Email is required to create a HubSpot contact.',
+      },
+    };
   }
 
   try {
@@ -145,20 +201,20 @@ export async function createHubSpotContact(
 
     // Map the response to HubSpotContact, ensuring all fields are covered
     const createdContact: HubSpotContact = {
-        id: createResponse.id,
-        properties: {
-            hs_object_id: createResponse.properties.hs_object_id,
-            createdate: createResponse.properties.createdate,
-            lastmodifieddate: createResponse.properties.lastmodifieddate,
-            email: createResponse.properties.email,
-            firstname: createResponse.properties.firstname,
-            lastname: createResponse.properties.lastname,
-            company: createResponse.properties.company,
-            // Include any other custom properties you expect or that are returned
-        },
-        createdAt: createResponse.createdAt.toISOString(),
-        updatedAt: createResponse.updatedAt.toISOString(),
-        archived: createResponse.archived || false, // Default to false if undefined
+      id: createResponse.id,
+      properties: {
+        hs_object_id: createResponse.properties.hs_object_id,
+        createdate: createResponse.properties.createdate,
+        lastmodifieddate: createResponse.properties.lastmodifieddate,
+        email: createResponse.properties.email,
+        firstname: createResponse.properties.firstname,
+        lastname: createResponse.properties.lastname,
+        company: createResponse.properties.company,
+        // Include any other custom properties you expect or that are returned
+      },
+      createdAt: createResponse.createdAt.toISOString(),
+      updatedAt: createResponse.updatedAt.toISOString(),
+      archived: createResponse.archived || false, // Default to false if undefined
     };
 
     // Send Slack notification if channel ID is configured
@@ -176,30 +232,45 @@ export async function createHubSpotContact(
       }
 
       // Fire-and-forget Slack message, don't let its failure block the main response.
-      sendSlackMessage(userId, ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID, slackMessage)
-        .then(slackRes => {
+      sendSlackMessage(
+        userId,
+        ATOM_SLACK_HUBSPOT_NOTIFICATION_CHANNEL_ID,
+        slackMessage
+      )
+        .then((slackRes) => {
           if (!slackRes.ok) {
-            console.warn(`Failed to send Slack notification for new HubSpot contact ${createdContact.id}: ${slackRes.error}`);
+            console.warn(
+              `Failed to send Slack notification for new HubSpot contact ${createdContact.id}: ${slackRes.error}`
+            );
           } else {
-            console.log(`Slack notification sent for new HubSpot contact ${createdContact.id}. Message ts: ${slackRes.ts}`);
+            console.log(
+              `Slack notification sent for new HubSpot contact ${createdContact.id}. Message ts: ${slackRes.ts}`
+            );
           }
         })
-        .catch(slackErr => {
-          console.error(`Error sending Slack notification for new HubSpot contact ${createdContact.id}:`, slackErr);
+        .catch((slackErr) => {
+          console.error(
+            `Error sending Slack notification for new HubSpot contact ${createdContact.id}:`,
+            slackErr
+          );
         });
     }
 
     return {
       ok: true, // success
-      data: { // The actual payload as per CreateHubSpotContactResponse
+      data: {
+        // The actual payload as per CreateHubSpotContactResponse
         success: true,
         contactId: createResponse.id,
         message: 'Contact created successfully in HubSpot.',
         hubSpotContact: createdContact,
-      }
+      },
     };
   } catch (error: any) {
-    console.error(`Error creating HubSpot contact for userId ${userId} with email ${contactProperties.email}:`, error.message);
+    console.error(
+      `Error creating HubSpot contact for userId ${userId} with email ${contactProperties.email}:`,
+      error.message
+    );
     let errorMessage = `Failed to create contact in HubSpot: ${error.message}`;
     let errorCode = 'HUBSPOT_API_ERROR';
     let errorDetails = error;
@@ -207,7 +278,9 @@ export async function createHubSpotContact(
     if (error.response && error.response.body) {
       console.error('HubSpot API Error Body:', error.response.body);
       try {
-        const errorBodyString = Buffer.isBuffer(error.response.body) ? error.response.body.toString() : error.response.body;
+        const errorBodyString = Buffer.isBuffer(error.response.body)
+          ? error.response.body.toString()
+          : error.response.body;
         const errorBody = JSON.parse(errorBodyString);
         errorDetails = errorBody; // Store parsed body as details
         if (errorBody && errorBody.message) {
@@ -224,7 +297,10 @@ export async function createHubSpotContact(
         // errorDetails remains the original error object
       }
     }
-    return { ok: false, error: { code: errorCode, message: errorMessage, details: errorDetails } };
+    return {
+      ok: false,
+      error: { code: errorCode, message: errorMessage, details: errorDetails },
+    };
   }
 }
 
@@ -232,18 +308,45 @@ export async function logEmailToHubSpotContact(
   userId: string,
   contactId: string,
   emailDetails: HubSpotEmailEngagementProperties
-): Promise<HubSpotSkillResponse<LogEngagementResponse>> { // Updated return type
-  console.log(`logEmailToHubSpotContact called for userId: ${userId}, contactId: ${contactId}`);
+): Promise<HubSpotSkillResponse<LogEngagementResponse>> {
+  // Updated return type
+  console.log(
+    `logEmailToHubSpotContact called for userId: ${userId}, contactId: ${contactId}`
+  );
   const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'HubSpot API key not configured.',
+      },
+    };
   }
 
   if (!contactId) {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Contact ID is required to log an email.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Contact ID is required to log an email.',
+      },
+    };
   }
-  if (!emailDetails || !emailDetails.activityTimestamp || !emailDetails.subject || !emailDetails.htmlBody) {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Email details (activityTimestamp, subject, htmlBody) are required.' } };
+  if (
+    !emailDetails ||
+    !emailDetails.activityTimestamp ||
+    !emailDetails.subject ||
+    !emailDetails.htmlBody
+  ) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message:
+          'Email details (activityTimestamp, subject, htmlBody) are required.',
+      },
+    };
   }
 
   const engagementInput: SimplePublicObjectInput = {
@@ -274,29 +377,38 @@ export async function logEmailToHubSpotContact(
   }
 
   try {
-    const createResponse = await hubspotClient.crm.engagements.basicApi.create(engagementInput);
+    const createResponse =
+      await hubspotClient.crm.engagements.basicApi.create(engagementInput);
 
     // Map the response to HubSpotEngagement, ensuring all fields are covered
     // Note: The response from engagement creation might be simpler than a full engagement search result.
     // We might need to fetch the engagement separately if more details are needed immediately.
     const createdEngagement: HubSpotEngagement = {
-        id: createResponse.id,
-        properties: {
-            hs_object_id: createResponse.properties.hs_object_id || createResponse.id, // hs_object_id might not be in basic create response, use id
-            hs_engagement_type: createResponse.properties.hs_engagement_type as 'EMAIL' | 'MEETING', // Cast as needed
-            hs_timestamp: createResponse.properties.hs_timestamp,
-            hs_body_preview: createResponse.properties.hs_body_preview,
-            hs_email_subject: createResponse.properties.hs_email_subject,
-            hs_email_direction: createResponse.properties.hs_email_direction as 'INCOMING' | 'OUTGOING',
-            createdate: createResponse.properties.createdate || new Date(createResponse.createdAt).toISOString(),
-            lastmodifieddate: createResponse.properties.lastmodifieddate || new Date(createResponse.updatedAt).toISOString(),
-        },
-        associations: createResponse.associations as any, // Cast if necessary, or map structure
-        createdAt: createResponse.createdAt.toISOString(),
-        updatedAt: createResponse.updatedAt.toISOString(),
-        archived: createResponse.archived || false,
+      id: createResponse.id,
+      properties: {
+        hs_object_id:
+          createResponse.properties.hs_object_id || createResponse.id, // hs_object_id might not be in basic create response, use id
+        hs_engagement_type: createResponse.properties.hs_engagement_type as
+          | 'EMAIL'
+          | 'MEETING', // Cast as needed
+        hs_timestamp: createResponse.properties.hs_timestamp,
+        hs_body_preview: createResponse.properties.hs_body_preview,
+        hs_email_subject: createResponse.properties.hs_email_subject,
+        hs_email_direction: createResponse.properties.hs_email_direction as
+          | 'INCOMING'
+          | 'OUTGOING',
+        createdate:
+          createResponse.properties.createdate ||
+          new Date(createResponse.createdAt).toISOString(),
+        lastmodifieddate:
+          createResponse.properties.lastmodifieddate ||
+          new Date(createResponse.updatedAt).toISOString(),
+      },
+      associations: createResponse.associations as any, // Cast if necessary, or map structure
+      createdAt: createResponse.createdAt.toISOString(),
+      updatedAt: createResponse.updatedAt.toISOString(),
+      archived: createResponse.archived || false,
     };
-
 
     return {
       ok: true,
@@ -305,28 +417,37 @@ export async function logEmailToHubSpotContact(
         engagementId: createResponse.id,
         message: 'Email logged successfully to HubSpot contact.',
         hubSpotEngagement: createdEngagement,
-      }
+      },
     };
   } catch (error: any) {
-    console.error(`Error logging email to HubSpot contact ${contactId} for userId ${userId}:`, error.message);
+    console.error(
+      `Error logging email to HubSpot contact ${contactId} for userId ${userId}:`,
+      error.message
+    );
     let errorMessage = `Failed to log email to HubSpot: ${error.message}`;
     let errorCode = 'HUBSPOT_API_ERROR';
     let errorDetails = error;
     if (error.response && error.response.body) {
       console.error('HubSpot API Error Body:', error.response.body);
       try {
-        const errorBodyString = Buffer.isBuffer(error.response.body) ? error.response.body.toString() : error.response.body;
+        const errorBodyString = Buffer.isBuffer(error.response.body)
+          ? error.response.body.toString()
+          : error.response.body;
         const errorBody = JSON.parse(errorBodyString);
         errorDetails = errorBody;
         if (errorBody && errorBody.message) {
           errorMessage = errorBody.message;
-           if (errorBody.category === 'VALIDATION_ERROR') errorCode = 'VALIDATION_ERROR';
+          if (errorBody.category === 'VALIDATION_ERROR')
+            errorCode = 'VALIDATION_ERROR';
         }
       } catch (parseError) {
         console.error('Could not parse HubSpot error body:', parseError);
       }
     }
-    return { ok: false, error: { code: errorCode, message: errorMessage, details: errorDetails } };
+    return {
+      ok: false,
+      error: { code: errorCode, message: errorMessage, details: errorDetails },
+    };
   }
 }
 
@@ -340,14 +461,27 @@ export async function getHubSpotContactActivities(
     since?: string; // ISO Date string or epoch ms
     sort?: 'ASC' | 'DESC';
   }
-): Promise<HubSpotSkillResponse<GetContactActivitiesResponse>> { // Updated return type
-  console.log(`getHubSpotContactActivities called for userId: ${userId}, contactId: ${contactId}, filters:`, filters);
+): Promise<HubSpotSkillResponse<GetContactActivitiesResponse>> {
+  // Updated return type
+  console.log(
+    `getHubSpotContactActivities called for userId: ${userId}, contactId: ${contactId}, filters:`,
+    filters
+  );
   const hubspotClient = await getHubspotClient(userId);
   if (!hubspotClient) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'HubSpot API key not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'HubSpot API key not configured.',
+      },
+    };
   }
   if (!contactId) {
-    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Contact ID is required.' } };
+    return {
+      ok: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Contact ID is required.' },
+    };
   }
 
   const searchRequest: PublicObjectSearchRequest = {
@@ -386,25 +520,41 @@ export async function getHubSpotContactActivities(
         // Let's proceed with the direct search approach as per the prompt's structure, while noting its potential limitations.
         // The filter for contact association is tricky. HubSpot's standard search for engagements doesn't directly support `associations.contact.id`.
         // We'll add other filters and then discuss the association part.
-         filters: [
+        filters: [
           // This is the part that's hard with a single search.
           // To correctly filter by contact, you'd typically use the Associations API first.
           // For this exercise, we'll build the rest of the search.
           // If a direct property like 'hs_contact_id' existed on engagements, it would be:
           // { propertyName: 'hs_contact_id', operator: 'EQ', value: contactId }
           // Since it doesn't, this filter group might be ineffective for contact association by itself.
-        ]
-      }
+        ],
+      },
     ],
     limit: filters?.limit || 10,
     after: filters?.after,
-    sorts: [{ propertyName: 'hs_timestamp', direction: (filters?.sort === 'ASC' ? 'ASCENDING' : 'DESCENDING') }],
-    properties: ['hs_engagement_type', 'hs_timestamp', 'hs_body_preview', 'hs_email_subject', 'hs_meeting_title', 'hs_createdate', 'hs_lastmodifieddate', 'hs_object_id', 'hs_email_direction' /* any other relevant props */],
+    sorts: [
+      {
+        propertyName: 'hs_timestamp',
+        direction: filters?.sort === 'ASC' ? 'ASCENDING' : 'DESCENDING',
+      },
+    ],
+    properties: [
+      'hs_engagement_type',
+      'hs_timestamp',
+      'hs_body_preview',
+      'hs_email_subject',
+      'hs_meeting_title',
+      'hs_createdate',
+      'hs_lastmodifieddate',
+      'hs_object_id',
+      'hs_email_direction' /* any other relevant props */,
+    ],
   };
 
   // Add activity type filters if provided
   if (filters?.activityTypes && filters.activityTypes.length > 0) {
-    searchRequest.filterGroups[0].filters.push({ // Add to the first (and only) filter group
+    searchRequest.filterGroups[0].filters.push({
+      // Add to the first (and only) filter group
       propertyName: 'hs_engagement_type',
       operator: 'IN', // Use IN operator for multiple values
       values: filters.activityTypes,
@@ -415,10 +565,11 @@ export async function getHubSpotContactActivities(
   if (filters?.since) {
     let sinceTimestamp = filters.since;
     // HubSpot's hs_timestamp for search is usually epoch milliseconds
-    if (!/^\d+$/.test(filters.since)) { // If not already epoch ms
-        sinceTimestamp = new Date(filters.since).getTime().toString();
+    if (!/^\d+$/.test(filters.since)) {
+      // If not already epoch ms
+      sinceTimestamp = new Date(filters.since).getTime().toString();
     }
-     searchRequest.filterGroups[0].filters.push({
+    searchRequest.filterGroups[0].filters.push({
       propertyName: 'hs_timestamp',
       operator: 'GTE',
       value: sinceTimestamp,
@@ -428,63 +579,83 @@ export async function getHubSpotContactActivities(
   // The most reliable way to get engagements for a SPECIFIC contact is via the Associations API first.
   // Then use the returned engagement IDs in a search request.
   try {
-    const associationResults = await hubspotClient.crm.associations.v4.basicApi.getPage(
+    const associationResults =
+      await hubspotClient.crm.associations.v4.basicApi.getPage(
         CONTACT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API, // From Object Type (Contact)
         contactId,
         ENGAGEMENT_OBJECT_TYPE_ID_FOR_ASSOCIATIONS_API, // To Object Type (Engagement)
         filters?.after, // after for association pagination
         filters?.limit || 50 // limit for associations (can be different from final engagement limit)
-    );
+      );
 
-    if (!associationResults.results || associationResults.results.length === 0) {
-        return { success: true, activities: [], message: 'No activities found for this contact.' };
+    if (
+      !associationResults.results ||
+      associationResults.results.length === 0
+    ) {
+      return {
+        success: true,
+        activities: [],
+        message: 'No activities found for this contact.',
+      };
     }
-    const engagementIds = associationResults.results.map(assoc => assoc.toObjectId);
+    const engagementIds = associationResults.results.map(
+      (assoc) => assoc.toObjectId
+    );
 
     // Now search for these specific engagement IDs
     const idFilter = {
-        propertyName: 'hs_object_id',
-        operator: 'IN',
-        values: engagementIds
+      propertyName: 'hs_object_id',
+      operator: 'IN',
+      values: engagementIds,
     };
     // Add this ID filter to the existing filter group or a new one.
     // If the filter group is empty (e.g. no activityTypes or since filter), add it directly.
     if (searchRequest.filterGroups[0].filters.length === 0) {
-        searchRequest.filterGroups[0].filters.push(idFilter);
+      searchRequest.filterGroups[0].filters.push(idFilter);
     } else {
-        // If other filters exist, create a new filter group for IDs to ensure AND logic
-        // or add to existing if AND is desired for all conditions.
-        // For this case, all filters should apply, so add to existing.
-        searchRequest.filterGroups[0].filters.push(idFilter);
+      // If other filters exist, create a new filter group for IDs to ensure AND logic
+      // or add to existing if AND is desired for all conditions.
+      // For this case, all filters should apply, so add to existing.
+      searchRequest.filterGroups[0].filters.push(idFilter);
     }
 
+    const response: CollectionResponseSimplePublicObjectForwardPaging =
+      await hubspotClient.crm.engagements.searchApi.doSearch(searchRequest);
 
-    const response: CollectionResponseSimplePublicObjectForwardPaging = await hubspotClient.crm.engagements.searchApi.doSearch(searchRequest);
-
-    const activities: HubSpotEngagement[] = response.results ? response.results.map(eng => {
-      // Basic mapping, ensure all required fields from HubSpotEngagement are populated
-      return {
-        id: eng.id,
-        properties: {
-          hs_object_id: eng.properties.hs_object_id || eng.id,
-          hs_engagement_type: eng.properties.hs_engagement_type as 'EMAIL' | 'MEETING',
-          hs_timestamp: eng.properties.hs_timestamp,
-          hs_body_preview: eng.properties.hs_body_preview,
-          hs_email_subject: eng.properties.hs_email_subject,
-          hs_email_direction: eng.properties.hs_email_direction as 'INCOMING' | 'OUTGOING',
-          // hs_meeting_title: eng.properties.hs_meeting_title,
-          createdate: eng.properties.createdate || new Date(eng.createdAt).toISOString(),
-          lastmodifieddate: eng.properties.lastmodifieddate || new Date(eng.updatedAt).toISOString(),
-          ...eng.properties // include any other returned properties
-        },
-        // Associations are not typically returned in detail by engagement search,
-        // but if they were, you'd map them here.
-        // associations: eng.associations ? mapAssociations(eng.associations) : undefined,
-        createdAt: eng.createdAt.toISOString(),
-        updatedAt: eng.updatedAt.toISOString(),
-        archived: eng.archived || false,
-      };
-    }) : [];
+    const activities: HubSpotEngagement[] = response.results
+      ? response.results.map((eng) => {
+          // Basic mapping, ensure all required fields from HubSpotEngagement are populated
+          return {
+            id: eng.id,
+            properties: {
+              hs_object_id: eng.properties.hs_object_id || eng.id,
+              hs_engagement_type: eng.properties.hs_engagement_type as
+                | 'EMAIL'
+                | 'MEETING',
+              hs_timestamp: eng.properties.hs_timestamp,
+              hs_body_preview: eng.properties.hs_body_preview,
+              hs_email_subject: eng.properties.hs_email_subject,
+              hs_email_direction: eng.properties.hs_email_direction as
+                | 'INCOMING'
+                | 'OUTGOING',
+              // hs_meeting_title: eng.properties.hs_meeting_title,
+              createdate:
+                eng.properties.createdate ||
+                new Date(eng.createdAt).toISOString(),
+              lastmodifieddate:
+                eng.properties.lastmodifieddate ||
+                new Date(eng.updatedAt).toISOString(),
+              ...eng.properties, // include any other returned properties
+            },
+            // Associations are not typically returned in detail by engagement search,
+            // but if they were, you'd map them here.
+            // associations: eng.associations ? mapAssociations(eng.associations) : undefined,
+            createdAt: eng.createdAt.toISOString(),
+            updatedAt: eng.updatedAt.toISOString(),
+            archived: eng.archived || false,
+          };
+        })
+      : [];
 
     return {
       ok: true,
@@ -492,28 +663,40 @@ export async function getHubSpotContactActivities(
         success: true, // Retain success from original GetContactActivitiesResponse
         activities,
         nextPage: response.paging?.next?.after,
-        message: activities.length > 0 ? 'Activities retrieved.' : 'No activities found matching criteria.',
-      }
+        message:
+          activities.length > 0
+            ? 'Activities retrieved.'
+            : 'No activities found matching criteria.',
+      },
     };
   } catch (error: any) {
-    console.error(`Error fetching HubSpot contact activities for contact ${contactId}, userId ${userId}:`, error.message);
+    console.error(
+      `Error fetching HubSpot contact activities for contact ${contactId}, userId ${userId}:`,
+      error.message
+    );
     let errorMessage = `Failed to fetch contact activities: ${error.message}`;
     let errorCode = 'HUBSPOT_API_ERROR';
     let errorDetails = error;
-     if (error.response && error.response.body) {
+    if (error.response && error.response.body) {
       console.error('HubSpot API Error Body:', error.response.body);
       try {
-        const errorBodyString = Buffer.isBuffer(error.response.body) ? error.response.body.toString() : error.response.body;
+        const errorBodyString = Buffer.isBuffer(error.response.body)
+          ? error.response.body.toString()
+          : error.response.body;
         const errorBody = JSON.parse(errorBodyString);
         errorDetails = errorBody;
         if (errorBody && errorBody.message) {
           errorMessage = errorBody.message;
-          if (errorBody.category === 'VALIDATION_ERROR') errorCode = 'VALIDATION_ERROR';
+          if (errorBody.category === 'VALIDATION_ERROR')
+            errorCode = 'VALIDATION_ERROR';
         }
       } catch (parseError) {
         console.error('Could not parse HubSpot error body:', parseError);
       }
     }
-    return { ok: false, error: { code: errorCode, message: errorMessage, details: errorDetails } };
+    return {
+      ok: false,
+      error: { code: errorCode, message: errorMessage, details: errorDetails },
+    };
   }
 }

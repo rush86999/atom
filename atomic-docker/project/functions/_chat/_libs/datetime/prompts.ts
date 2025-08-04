@@ -1,6 +1,3 @@
-
-
-
 export const userInputToDateTimeJSONPrompt = `
     You are a date parser with a date-time language and user intent predictor with event in regards to time via "method" key. Convert user input provided to JSON type date-time language. Do not provide false values, replace placeholders with null if unknown. If exact time not provided, set unclear values as null. Do not make assumptions on time generally. Do not predict time. Predict only user intent with event in regards to time. Only act as a date parser and user intent predictor with event in regards to time. Provide precision values up to the minute if possible. 
     main date parsed is new start date of an event or task
@@ -120,11 +117,11 @@ export const userInputToDateTimeJSONPrompt = `
         }],
       "allDay": "[BOOLEAN]"
     }
-`
+`;
 
 export const userInputToDateTimeJSONExampleInput1 = `
 schedule a meeting with Joe on Tuesday for 2 pm for Marketing presentation
-`
+`;
 
 export const userInputToDateTimeJSONExampleOutput1 = `
 {
@@ -215,11 +212,11 @@ export const userInputToDateTimeJSONExampleOutput1 = `
   "timePreferences": null,
   "allDay": null
 }
-`
+`;
 
 export const userInputToDateTimeJSONExampleInput2 = `
   reschedule Joe's marketing presentation scheduled 1 week from now to 3 weeks from now
-`
+`;
 
 export const userInputToDateTimeJSONExampleOutput2 = `
  {
@@ -322,11 +319,11 @@ export const userInputToDateTimeJSONExampleOutput2 = `
 }
 
 
-`
+`;
 
 export const userInputToDateTimeJSONExampleInput3 = `
   Find an available time slot for a team meeting with Marget, John and Ellie between tomorrow till Friday this coming week for Marketing presentation
- `
+ `;
 
 export const userInputToDateTimeJSONExampleOutput3 = `
 {
@@ -427,11 +424,11 @@ export const userInputToDateTimeJSONExampleOutput3 = `
   "timePreferences": null,
   "allDay": null
 }
-`
+`;
 
 export const userInputToDateTimeJSONExampleInput4 = `
   create a task of building a basic user authentication system for an app. The length of the task is for 5 days and task starts tomorrow.
- `
+ `;
 
 export const userInputToDateTimeJSONExampleOutput4 = `
 {
@@ -534,7 +531,7 @@ export const userInputToDateTimeJSONExampleOutput4 = `
     "timePreferences": null,
     "allDay": null
 }
-`
+`;
 
 export const extractQueryUserInputTimeToJSONPrompt = `
   You are a date range interpreter for user intent in the context of a work calendar. Convert user input provided to JSON type date range for an API call. Replace placeholders with null if not applicable. If exact time not provided, infer unclear values based on user input, user current time and work context. Your job as a date range interpreter, infer a time window where appropriate. Provide precision values up to the minute to set clear date range boundaries. Take work day context into account when providing ranges. Follow this pseudo JSON format:
@@ -566,14 +563,13 @@ export const extractQueryUserInputTimeToJSONPrompt = `
         "time": "[24 hour 2-digits]:[minutes 2-digits] [STRING]"
     }
 }
-`
+`;
 
 export const extractQueryUserInputTimeToJSONTemplate = `
   User current time: {{userCurrentTime}}
   User work times: {{userWorkTimes}}
   User input: {{userInput}}
-`
-
+`;
 
 export const extractQueryUserInputTimeToJSONExampleInput1 = `
   User current time: Wednesday, 2023-06-21T18:56:37-04:00
@@ -585,7 +581,7 @@ export const extractQueryUserInputTimeToJSONExampleInput1 = `
   Saturday: 8:00 am - 6:30 pm
   Sunday: 8:00 am - 6:30 pm
   User input: Do I have any meetings scheduled for tomorrow?
-`
+`;
 export const extractQueryUserInputTimeToJSONExampleOutput1 = `
 {
   "start_date": {
@@ -619,7 +615,7 @@ export const extractQueryUserInputTimeToJSONExampleOutput1 = `
     "time": "18:30"
   }
 }
-`
+`;
 
 export const extractQueryUserInputTimeToJSONExampleInput2 = `
   User current time: Wednesday, 2023-06-21T18:56:37-04:00
@@ -631,7 +627,7 @@ export const extractQueryUserInputTimeToJSONExampleInput2 = `
   Saturday: 8:00 am - 6:30 pm
   Sunday: 8:00 am - 6:30 pm
   User input: When is my next appointment?
-`
+`;
 
 export const extractQueryUserInputTimeToJSONExampleOutput2 = `
 {
@@ -666,7 +662,7 @@ export const extractQueryUserInputTimeToJSONExampleOutput2 = `
     "time": "18:30"
   }
 }
-`
+`;
 
 export const extractQueryUserInputTimeToJSONExampleInput3 = `
   User current time: Wednesday, 2023-06-21T18:56:37-04:00
@@ -678,7 +674,7 @@ export const extractQueryUserInputTimeToJSONExampleInput3 = `
   Saturday: 8:00 am - 6:30 pm
   Sunday: 8:00 am - 6:30 pm
   User input: Is there anything scheduled for Friday afternoon?
-`
+`;
 
 export const extractQueryUserInputTimeToJSONExampleOutput3 = `
 {
@@ -714,4 +710,4 @@ export const extractQueryUserInputTimeToJSONExampleOutput3 = `
   }
 }
 
-`
+`;

@@ -1,5 +1,3 @@
+type ByMonthDayType = number;
 
-
-type ByMonthDayType = number
-
-export default ByMonthDayType
+export default ByMonthDayType;

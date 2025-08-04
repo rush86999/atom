@@ -1,7 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import {
-  SkillResponse,
-} from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
+import { SkillResponse } from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
 
@@ -25,17 +23,44 @@ function handlePythonApiResponse<T>(
 }
 
 // Helper to handle network/axios errors
-function handleAxiosError(error: AxiosError, operationName: string): SkillResponse<null> {
-    if (error.response) {
-      logger.error(`[${operationName}] Error: ${error.response.status}`, error.response.data);
-      const errData = error.response.data as any;
-      return { ok: false, error: { code: `HTTP_${error.response.status}`, message: errData?.error?.message || `Failed to ${operationName}.` } };
-    } else if (error.request) {
-      logger.error(`[${operationName}] Error: No response received`, error.request);
-      return { ok: false, error: { code: 'NETWORK_ERROR', message: `No response received for ${operationName}.` } };
-    }
-    logger.error(`[${operationName}] Error: ${error.message}`);
-    return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
+function handleAxiosError(
+  error: AxiosError,
+  operationName: string
+): SkillResponse<null> {
+  if (error.response) {
+    logger.error(
+      `[${operationName}] Error: ${error.response.status}`,
+      error.response.data
+    );
+    const errData = error.response.data as any;
+    return {
+      ok: false,
+      error: {
+        code: `HTTP_${error.response.status}`,
+        message: errData?.error?.message || `Failed to ${operationName}.`,
+      },
+    };
+  } else if (error.request) {
+    logger.error(
+      `[${operationName}] Error: No response received`,
+      error.request
+    );
+    return {
+      ok: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: `No response received for ${operationName}.`,
+      },
+    };
+  }
+  logger.error(`[${operationName}] Error: ${error.message}`);
+  return {
+    ok: false,
+    error: {
+      code: 'REQUEST_SETUP_ERROR',
+      message: `Error setting up request for ${operationName}: ${error.message}`,
+    },
+  };
 }
 
 export async function createMailchimpCampaignFromSalesforceCampaign(
@@ -43,7 +68,13 @@ export async function createMailchimpCampaignFromSalesforceCampaign(
   salesforceCampaignId: string
 ): Promise<SkillResponse<any>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/create-mailchimp-campaign-from-salesforce-campaign`;
 
@@ -52,47 +83,71 @@ export async function createMailchimpCampaignFromSalesforceCampaign(
       user_id: userId,
       salesforce_campaign_id: salesforceCampaignId,
     });
-    return handlePythonApiResponse(response, 'createMailchimpCampaignFromSalesforceCampaign');
+    return handlePythonApiResponse(
+      response,
+      'createMailchimpCampaignFromSalesforceCampaign'
+    );
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'createMailchimpCampaignFromSalesforceCampaign');
+    return handleAxiosError(
+      error as AxiosError,
+      'createMailchimpCampaignFromSalesforceCampaign'
+    );
   }
 }
 
 export async function getMailchimpCampaignSummary(
-    userId: string,
-    campaignId: string
+  userId: string,
+  campaignId: string
 ): Promise<SkillResponse<any>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/mailchimp-campaign-summary/${campaignId}?user_id=${userId}`;
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/mailchimp-campaign-summary/${campaignId}?user_id=${userId}`;
 
-    try {
-        const response = await axios.get(endpoint);
-        return handlePythonApiResponse(response, 'getMailchimpCampaignSummary');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'getMailchimpCampaignSummary');
-    }
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getMailchimpCampaignSummary');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getMailchimpCampaignSummary');
+  }
 }
 
 export async function createTrelloCardFromMailchimpCampaign(
-    userId: string,
-    campaignId: string,
-    trelloListId: string
+  userId: string,
+  campaignId: string,
+  trelloListId: string
 ): Promise<SkillResponse<any>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/create-trello-card-from-mailchimp-campaign`;
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/create-trello-card-from-mailchimp-campaign`;
 
-    try {
-        const response = await axios.post(endpoint, {
-            user_id: userId,
-            campaign_id: campaignId,
-            trello_list_id: trelloListId,
-        });
-        return handlePythonApiResponse(response, 'createTrelloCardFromMailchimpCampaign');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'createTrelloCardFromMailchimpCampaign');
-    }
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      campaign_id: campaignId,
+      trello_list_id: trelloListId,
+    });
+    return handlePythonApiResponse(
+      response,
+      'createTrelloCardFromMailchimpCampaign'
+    );
+  } catch (error) {
+    return handleAxiosError(
+      error as AxiosError,
+      'createTrelloCardFromMailchimpCampaign'
+    );
+  }
 }

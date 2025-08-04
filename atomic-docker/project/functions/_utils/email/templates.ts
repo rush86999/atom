@@ -118,7 +118,7 @@ export type EmailLocals = CommonLocals & {
   redirectTo: string;
   serverUrl: string;
   clientUrl: string;
-  [key: string]: string,
+  [key: string]: string;
 };
 
 export const renderTemplate = async (

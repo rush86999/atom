@@ -4,7 +4,11 @@
  * Integrates fully with wake word activation flow ➜ NLU processor ➜ finance agent
  */
 
-import { AgentContext, NLUHandler, skillExecutor } from '../services/agentNluSystem';
+import {
+  AgentContext,
+  NLUHandler,
+  skillExecutor,
+} from '../services/agentNluSystem';
 import { handleFinanceQuery } from './financeAgentSkills';
 import { processVoiceFinance } from './financeVoiceAgent';
 
@@ -23,16 +27,16 @@ export const financeNluHandler: NLUHandler = {
         /what.*net.*worth/i,
         /how.*much.*(am|do).*worth/i,
         /financial.*position/i,
-        /wealth.*summary/i
-      ]
+        /wealth.*summary/i,
+      ],
     },
     {
       name: 'budget_query',
       patterns: [
         /budget.*status/i,
         /spending.*limit/i,
-        /how.*much.*left.*for.*budget/i
-      ]
+        /how.*much.*left.*for.*budget/i,
+      ],
     },
     {
       name: 'spending_analysis',
@@ -40,16 +44,12 @@ export const financeNluHandler: NLUHandler = {
         /how.*much.*spent/i,
         /where.*money.*go/i,
         /spending.*breakdown/i,
-        /expenses.*this.*month/i
-      ]
+        /expenses.*this.*month/i,
+      ],
     },
     {
       name: 'create_budget',
-      patterns: [
-        /set.*budget/i,
-        /create.*budget/i,
-        /budget.*for.*\$(\d+)/i
-      ]
+      patterns: [/set.*budget/i, /create.*budget/i, /budget.*for.*\$(\d+)/i],
     },
     {
       name: 'financial_goals',
@@ -57,25 +57,25 @@ export const financeNluHandler: NLUHandler = {
         /show.*goals/i,
         /savings.*progress/i,
         /financial.*goals/i,
-        /retirement.*tracking/i
-      ]
+        /retirement.*tracking/i,
+      ],
     },
     {
       name: 'investment_overview',
       patterns: [
         /investment.*portfolio/i,
         /portfolio.*performance/i,
-        /stock.*investments/i
-      ]
+        /stock.*investments/i,
+      ],
     },
     {
       name: 'transaction_search',
       patterns: [
         /find.*transactions/i,
         /search.*purchases/i,
-        /show.*spending/i
-      ]
-    }
+        /show.*spending/i,
+      ],
+    },
   ],
 
   /**
@@ -94,7 +94,7 @@ export const financeNluHandler: NLUHandler = {
     return await handleFinanceQuery(userId, cleanText, {
       ...context,
       source: 'voice_wake',
-      interface: 'voice_nlu'
+      interface: 'voice_nlu',
     });
   },
 
@@ -104,14 +104,14 @@ export const financeNluHandler: NLUHandler = {
   voiceProcessing: {
     handleWakeActivation: async (context: AgentContext) => {
       return {
-        greeting: "💰 Finance mode activated! Say things like:",
+        greeting: '💰 Finance mode activated! Say things like:',
         examples: [
-          "What is my net worth?",
-          "Show my budget",
-          "How much did I spend on restaurants?",
-          "Create a savings goal",
-          "Investment portfolio"
-        ]
+          'What is my net worth?',
+          'Show my budget',
+          'How much did I spend on restaurants?',
+          'Create a savings goal',
+          'Investment portfolio',
+        ],
       };
     },
 
@@ -125,11 +125,11 @@ export const financeNluHandler: NLUHandler = {
         {
           ...context,
           interface: 'voice_wake_nlu',
-          timestamp: Date.now()
+          timestamp: Date.now(),
         }
       );
-    }
-  }
+    },
+  },
 };
 
 // Integration hook for existing Atom NLU system
@@ -147,9 +147,9 @@ export const activateFinanceThroughWakeWord = async () => {
       'create a budget for',
       'show my financial goals',
       'investment portfolio',
-      'compare this month to last'
+      'compare this month to last',
     ],
-    responseMode: 'conversational'
+    responseMode: 'conversational',
   };
 };
 
@@ -176,30 +176,30 @@ if (typeof window === 'undefined') {
 
 // Activation flow documentation
 export const FinanceWakeFlow = {
-  title: "Atom Finance Activation Flow",
-  description: "How wake word + finance works through NLU",
+  title: 'Atom Finance Activation Flow',
+  description: 'How wake word + finance works through NLU',
   flow: [
     "User: 'Atom show my net worth'",
-    "Wake Word Detector: Activates Atom agent",
-    "NLU System: Detects finance intent → routes to finance handler",
-    "Finance Agent: Processes query → returns formatted response",
-    "Atom: Speaks back via voice/TTS"
+    'Wake Word Detector: Activates Atom agent',
+    'NLU System: Detects finance intent → routes to finance handler',
+    'Finance Agent: Processes query → returns formatted response',
+    'Atom: Speaks back via voice/TTS',
   ],
   voiceCommands: [
-    "Atom what is my net worth",
-    "Atom show my budget for this month",
-    "Atom how much did I spend on dining",
-    "Atom create a travel goal of $2000",
-    "Atom investment portfolio performance",
-    "Atom help with budgets",
-    "Atom compare this month to last"
+    'Atom what is my net worth',
+    'Atom show my budget for this month',
+    'Atom how much did I spend on dining',
+    'Atom create a travel goal of $2000',
+    'Atom investment portfolio performance',
+    'Atom help with budgets',
+    'Atom compare this month to last',
   ],
-  integration: "Uses existing wake word system, no new wake words needed"
+  integration: 'Uses existing wake word system, no new wake words needed',
 };
 
 // Export for wake word system integration
 export default {
   handler: financeNluHandler,
   activate: activateFinanceThroughWakeWord,
-  processFinanceThroughNlu
+  processFinanceThroughNlu,
 };

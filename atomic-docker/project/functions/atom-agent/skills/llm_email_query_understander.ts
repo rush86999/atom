@@ -14,9 +14,13 @@ function getOpenAIClient(): OpenAI {
   }
   if (!ATOM_OPENAI_API_KEY) {
     console.error('OpenAI API Key not configured for LLM Query Understander.');
-    throw new Error('OpenAI API Key not configured for LLM Query Understander.');
+    throw new Error(
+      'OpenAI API Key not configured for LLM Query Understander.'
+    );
   }
-  openAIClientForQueryUnderstanding = new OpenAI({ apiKey: ATOM_OPENAI_API_KEY });
+  openAIClientForQueryUnderstanding = new OpenAI({
+    apiKey: ATOM_OPENAI_API_KEY,
+  });
   return openAIClientForQueryUnderstanding;
 }
 
@@ -67,7 +71,9 @@ If the user specifies "emails" or "mail", and not "chats", you can often infer "
  * @returns A Promise resolving to a Partial<StructuredEmailQuery> object.
  * @throws Error if LLM call fails or parsing is unsuccessful.
  */
-export async function understandEmailSearchQueryLLM(rawUserQuery: string): Promise<Partial<StructuredEmailQuery>> {
+export async function understandEmailSearchQueryLLM(
+  rawUserQuery: string
+): Promise<Partial<StructuredEmailQuery>> {
   const client = getOpenAIClient();
   // Get current date in YYYY-MM-DD format for the prompt
   const now = new Date();
@@ -76,14 +82,19 @@ export async function understandEmailSearchQueryLLM(rawUserQuery: string): Promi
   const day = now.getDate().toString().padStart(2, '0');
   const currentDate = `${year}/${month}/${day}`; // Use YYYY/MM/DD as requested in prompt
 
-  const systemPromptWithDate = QUERY_UNDERSTANDING_SYSTEM_PROMPT.replace(/{{CURRENT_DATE}}/g, currentDate);
+  const systemPromptWithDate = QUERY_UNDERSTANDING_SYSTEM_PROMPT.replace(
+    /{{CURRENT_DATE}}/g,
+    currentDate
+  );
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPromptWithDate },
     { role: 'user', content: rawUserQuery },
   ];
 
-  console.log(`LLM Query Understander: Processing query "${rawUserQuery}" with current date ${currentDate}`);
+  console.log(
+    `LLM Query Understander: Processing query "${rawUserQuery}" with current date ${currentDate}`
+  );
 
   try {
     const completion = await client.chat.completions.create({
@@ -95,7 +106,9 @@ export async function understandEmailSearchQueryLLM(rawUserQuery: string): Promi
 
     const llmResponse = completion.choices[0]?.message?.content;
     if (!llmResponse) {
-      console.error('LLM Query Understander: Received an empty response from AI.');
+      console.error(
+        'LLM Query Understander: Received an empty response from AI.'
+      );
       throw new Error('LLM Query Understander: Empty response from AI.');
     }
 
@@ -107,9 +120,11 @@ export async function understandEmailSearchQueryLLM(rawUserQuery: string): Promi
     // Remove any keys with null or empty string values, as our StructuredEmailQuery uses optional fields.
     const cleanedResponse: Partial<StructuredEmailQuery> = {};
     for (const key in parsedResponse) {
-      if (Object.prototype.hasOwnProperty.call(parsedResponse, key) &&
-          parsedResponse[key] !== null &&
-          parsedResponse[key] !== "") {
+      if (
+        Object.prototype.hasOwnProperty.call(parsedResponse, key) &&
+        parsedResponse[key] !== null &&
+        parsedResponse[key] !== ''
+      ) {
         // @ts-ignore
         cleanedResponse[key] = parsedResponse[key];
       }
@@ -123,19 +138,34 @@ export async function understandEmailSearchQueryLLM(rawUserQuery: string): Promi
     // }
     // Similar for 'before'
 
-    console.log('LLM Query Understander: Cleaned structured query:', cleanedResponse);
+    console.log(
+      'LLM Query Understander: Cleaned structured query:',
+      cleanedResponse
+    );
     return cleanedResponse;
-
   } catch (error: any) {
-    console.error('LLM Query Understander: Error processing email search query with OpenAI:', error.message);
-    if (error instanceof SyntaxError) { // JSON parsing error
-        console.error('LLM Query Understander: Failed to parse JSON response from LLM.');
-        throw new Error('LLM Query Understander: Failed to parse response from AI.');
+    console.error(
+      'LLM Query Understander: Error processing email search query with OpenAI:',
+      error.message
+    );
+    if (error instanceof SyntaxError) {
+      // JSON parsing error
+      console.error(
+        'LLM Query Understander: Failed to parse JSON response from LLM.'
+      );
+      throw new Error(
+        'LLM Query Understander: Failed to parse response from AI.'
+      );
     }
-    if (error.response?.data?.error?.message) { // OpenAI API error
-        throw new Error(`LLM Query Understander: API Error - ${error.response.data.error.message}`);
+    if (error.response?.data?.error?.message) {
+      // OpenAI API error
+      throw new Error(
+        `LLM Query Understander: API Error - ${error.response.data.error.message}`
+      );
     }
-    throw new Error(`LLM Query Understander: Failed to understand email search query. ${error.message}`);
+    throw new Error(
+      `LLM Query Understander: Failed to understand email search query. ${error.message}`
+    );
   }
 }
 
@@ -206,11 +236,13 @@ Guidelines:
  * @returns A Promise resolving to a Partial<EmailDetails> object.
  * @throws Error if LLM call fails or parsing is unsuccessful.
  */
-export async function understandEmailSendCommandLLM(rawUserQuery: string): Promise<Partial<EmailDetails>> {
+export async function understandEmailSendCommandLLM(
+  rawUserQuery: string
+): Promise<Partial<EmailDetails>> {
   console.warn(
     'Placeholder function understandEmailSendCommandLLM called. ' +
-    'This NLU capability needs to be fully implemented using an LLM with a proper prompt, ' +
-    'intent classification, and entity extraction for sending emails.'
+      'This NLU capability needs to be fully implemented using an LLM with a proper prompt, ' +
+      'intent classification, and entity extraction for sending emails.'
   );
 
   // --- ACTUAL LLM IMPLEMENTATION WOULD GO HERE ---
@@ -223,23 +255,35 @@ export async function understandEmailSendCommandLLM(rawUserQuery: string): Promi
 
   // For now, returning a mock based on a very simple keyword parse for demonstration.
   // This is NOT robust NLU.
-  if (rawUserQuery.toLowerCase().includes("email john subject test body hello")) {
+  if (
+    rawUserQuery.toLowerCase().includes('email john subject test body hello')
+  ) {
     return {
-      to: "john.doe@example.com",
-      subject: "Test Email from Agent",
-      body: "Hello John, this is a test email sent by the agent based on a command.",
+      to: 'john.doe@example.com',
+      subject: 'Test Email from Agent',
+      body: 'Hello John, this is a test email sent by the agent based on a command.',
     };
   }
-  if (rawUserQuery.toLowerCase().includes("send to jane@example.com subject important body check this out")) {
+  if (
+    rawUserQuery
+      .toLowerCase()
+      .includes(
+        'send to jane@example.com subject important body check this out'
+      )
+  ) {
     return {
-      to: "jane@example.com",
-      subject: "Important",
-      body: "Check this out",
+      to: 'jane@example.com',
+      subject: 'Important',
+      body: 'Check this out',
     };
   }
 
   // If no simple match, return empty or throw an error indicating NLU couldn't parse.
   // Throwing an error might be better to signal that the NLU part is missing.
-  console.error(`understandEmailSendCommandLLM: Could not parse for sending: "${rawUserQuery}". Needs full NLU implementation.`);
-  throw new Error(`Sorry, I couldn't understand the details for the email you want to send. Please try phrasing it clearly, for example: "Email user@example.com subject Your Subject body Your message."`);
+  console.error(
+    `understandEmailSendCommandLLM: Could not parse for sending: "${rawUserQuery}". Needs full NLU implementation.`
+  );
+  throw new Error(
+    `Sorry, I couldn't understand the details for the email you want to send. Please try phrasing it clearly, for example: "Email user@example.com subject Your Subject body Your message."`
+  );
 }

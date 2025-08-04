@@ -7,9 +7,11 @@ let openai: OpenAI | null = null;
 
 if (OPENAI_API_KEY) {
   openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-  console.log("[llmUtilities] OpenAI client initialized.");
+  console.log('[llmUtilities] OpenAI client initialized.');
 } else {
-  console.warn("[llmUtilities] OPENAI_API_KEY not found in environment variables. LLM calls will be skipped.");
+  console.warn(
+    '[llmUtilities] OPENAI_API_KEY not found in environment variables. LLM calls will be skipped.'
+  );
 }
 
 /**
@@ -26,22 +28,29 @@ export async function analyzeTextForFollowUps(
   textContent: string,
   contextDescription?: string
 ): Promise<{ extractedItems: ExtractedFollowUpItems; error?: string }> {
-  console.log(`[llmUtilities.analyzeTextForFollowUps] Analyzing text for context: ${contextDescription || 'General Text'}. Text length: ${textContent.length}`);
+  console.log(
+    `[llmUtilities.analyzeTextForFollowUps] Analyzing text for context: ${contextDescription || 'General Text'}. Text length: ${textContent.length}`
+  );
 
   if (!openai) {
-    console.warn("[llmUtilities.analyzeTextForFollowUps] OpenAI client not initialized (API key missing). Skipping LLM call.");
+    console.warn(
+      '[llmUtilities.analyzeTextForFollowUps] OpenAI client not initialized (API key missing). Skipping LLM call.'
+    );
     return {
       extractedItems: { action_items: [], decisions: [], questions: [] },
-      error: "OpenAI API key not configured. LLM analysis skipped."
+      error: 'OpenAI API key not configured. LLM analysis skipped.',
     };
   }
 
-  if (textContent.trim().length < 50) { // Avoid sending very short texts to LLM
-    console.log("[llmUtilities.analyzeTextForFollowUps] Text content is too short. Skipping LLM call.");
+  if (textContent.trim().length < 50) {
+    // Avoid sending very short texts to LLM
+    console.log(
+      '[llmUtilities.analyzeTextForFollowUps] Text content is too short. Skipping LLM call.'
+    );
     return {
-        extractedItems: { action_items: [], decisions: [], questions: [] },
-        error: "Text content too short for meaningful analysis."
-      };
+      extractedItems: { action_items: [], decisions: [], questions: [] },
+      error: 'Text content too short for meaningful analysis.',
+    };
   }
 
   // Construct the System and User Prompts for the LLM
@@ -83,14 +92,16 @@ ${textContent}
 Based *only* on the information within the document provided, identify action items, decisions, and questions according to the JSON structure I specified in my system instructions.`;
 
   try {
-    console.log("[llmUtilities.analyzeTextForFollowUps] Sending prompt to OpenAI API...");
+    console.log(
+      '[llmUtilities.analyzeTextForFollowUps] Sending prompt to OpenAI API...'
+    );
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-1106", // Using a model that supports JSON mode well
-      response_format: { type: "json_object" },
+      model: 'gpt-3.5-turbo-1106', // Using a model that supports JSON mode well
+      response_format: { type: 'json_object' },
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
       temperature: 0.2,
       max_tokens: 1500, // Increased max_tokens for potentially larger JSON responses
@@ -99,41 +110,57 @@ Based *only* on the information within the document provided, identify action it
     const rawResponse = completion.choices[0]?.message?.content;
 
     if (!rawResponse) {
-      console.error("[llmUtilities.analyzeTextForFollowUps] LLM response content is null or empty.");
+      console.error(
+        '[llmUtilities.analyzeTextForFollowUps] LLM response content is null or empty.'
+      );
       return {
         extractedItems: { action_items: [], decisions: [], questions: [] },
-        error: "LLM returned empty or null response content."
+        error: 'LLM returned empty or null response content.',
       };
     }
 
-    console.log("[llmUtilities.analyzeTextForFollowUps] LLM raw response received (first 500 chars):", rawResponse.substring(0, 500));
+    console.log(
+      '[llmUtilities.analyzeTextForFollowUps] LLM raw response received (first 500 chars):',
+      rawResponse.substring(0, 500)
+    );
 
     // Parse the LLM Response
     const parsedResponse = JSON.parse(rawResponse) as ExtractedFollowUpItems;
 
-    if (!parsedResponse || typeof parsedResponse !== 'object' ||
-        !Array.isArray(parsedResponse.action_items) ||
-        !Array.isArray(parsedResponse.decisions) ||
-        !Array.isArray(parsedResponse.questions)) {
-      console.error("[llmUtilities.analyzeTextForFollowUps] LLM response was not in the expected JSON format after parsing.");
+    if (
+      !parsedResponse ||
+      typeof parsedResponse !== 'object' ||
+      !Array.isArray(parsedResponse.action_items) ||
+      !Array.isArray(parsedResponse.decisions) ||
+      !Array.isArray(parsedResponse.questions)
+    ) {
+      console.error(
+        '[llmUtilities.analyzeTextForFollowUps] LLM response was not in the expected JSON format after parsing.'
+      );
       return {
         extractedItems: { action_items: [], decisions: [], questions: [] },
-        error: "LLM response format error after parsing."
+        error: 'LLM response format error after parsing.',
       };
     }
 
-    console.log("[llmUtilities.analyzeTextForFollowUps] Successfully parsed LLM response.");
+    console.log(
+      '[llmUtilities.analyzeTextForFollowUps] Successfully parsed LLM response.'
+    );
     return { extractedItems: parsedResponse };
-
   } catch (error: any) {
-    console.error("[llmUtilities.analyzeTextForFollowUps] Error during LLM interaction or parsing:", error.message, error.stack);
+    console.error(
+      '[llmUtilities.analyzeTextForFollowUps] Error during LLM interaction or parsing:',
+      error.message,
+      error.stack
+    );
     let errorMessage = `LLM interaction failed: ${error.message}`;
-    if (error.code) { // Specific OpenAI error codes
-        errorMessage += ` (Code: ${error.code})`;
+    if (error.code) {
+      // Specific OpenAI error codes
+      errorMessage += ` (Code: ${error.code})`;
     }
     return {
       extractedItems: { action_items: [], decisions: [], questions: [] },
-      error: errorMessage
+      error: errorMessage,
     };
   }
 }

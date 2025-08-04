@@ -129,7 +129,8 @@ export interface CreateNoteData {
 }
 
 // For searchNotionNotes (data field of PythonApiResponse)
-export interface NotionSearchResultData { // This is an item in the array returned by searchNotionNotes
+export interface NotionSearchResultData {
+  // This is an item in the array returned by searchNotionNotes
   id: string;
   title?: string; // Title property from Notion
   url?: string;
@@ -147,14 +148,13 @@ export interface NotionSimilarNoteResult {
   // Potentially add title or snippet if fetched by Python service in future
 }
 
-
 // --- Calendar Types ---
 export interface CalendarEvent {
   id: string;
   summary: string;
   description?: string;
   startTime: string; // ISO 8601 date-time string
-  endTime: string;   // ISO 8601 date-time string
+  endTime: string; // ISO 8601 date-time string
   location?: string;
   htmlLink?: string; // Link to the event in Google Calendar
   conferenceData?: ConferenceData; // Added for Google Meet details
@@ -163,7 +163,7 @@ export interface CalendarEvent {
 
 // --- Google Meet / Calendar Conference Types ---
 export interface ConferenceSolution {
-  key?: { type?: string; [key: string]: any; }; // e.g., { type: "hangoutsMeet" }
+  key?: { type?: string; [key: string]: any }; // e.g., { type: "hangoutsMeet" }
   name?: string; // e.g., "Google Meet"
   iconUri?: string;
   [key: string]: any;
@@ -184,8 +184,8 @@ export interface ConferenceEntryPoint {
 export interface ConferenceData {
   createRequest?: {
     requestId?: string;
-    conferenceSolutionKey?: { type?: string; };
-    status?: { statusCode?: 'success' | 'failure' | 'pending'; };
+    conferenceSolutionKey?: { type?: string };
+    status?: { statusCode?: 'success' | 'failure' | 'pending' };
     [key: string]: any;
   };
   entryPoints?: ConferenceEntryPoint[];
@@ -203,12 +203,12 @@ export interface CreateEventResponse {
   htmlLink?: string;
 }
 
-export interface SkillResponse<T = any> { // Default T to any if not specified
+export interface SkillResponse<T = any> {
+  // Default T to any if not specified
   ok: boolean;
   data?: T;
   error?: SkillError;
 }
-
 
 // --- Email Types ---
 export interface Email {
@@ -306,8 +306,8 @@ export interface HubSpotEngagement {
     [key: string]: any;
   };
   associations?: {
-    contacts?: { results: { id: string, type: string }[] };
-    companies?: { results: { id: string, type: string }[] };
+    contacts?: { results: { id: string; type: string }[] };
+    companies?: { results: { id: string; type: string }[] };
   };
   createdAt: string;
   updatedAt: string;
@@ -340,8 +340,8 @@ export interface SlackChannel {
   is_archived?: boolean;
   is_general?: boolean;
   num_members?: number;
-  topic?: { value: string; creator: string; last_set: number; };
-  purpose?: { value: string; creator: string; last_set: number; };
+  topic?: { value: string; creator: string; last_set: number };
+  purpose?: { value: string; creator: string; last_set: number };
   created?: number;
   creator?: string;
 }
@@ -360,13 +360,13 @@ export interface SlackMessageData {
   };
 }
 
-export interface SlackMessageResponse { // Added this type
+export interface SlackMessageResponse {
+  // Added this type
   ok: boolean;
   ts?: string;
   channel?: string;
   error?: string; // Matches WebClient's possible error response structure
 }
-
 
 export interface ListSlackChannelsData {
   channels?: SlackChannel[];
@@ -402,7 +402,16 @@ export interface CalendlyEventType {
 }
 
 export interface CalendlyScheduledEventLocation {
-  type: 'physical' | 'inbound_call' | 'outbound_call' | 'custom' | 'google_conference' | 'gotomeeting_conference' | 'microsoft_teams_conference' | 'zoom_conference' | string;
+  type:
+    | 'physical'
+    | 'inbound_call'
+    | 'outbound_call'
+    | 'custom'
+    | 'google_conference'
+    | 'gotomeeting_conference'
+    | 'microsoft_teams_conference'
+    | 'zoom_conference'
+    | string;
   location?: string | null;
 }
 
@@ -413,7 +422,11 @@ export interface CalendlyInvitee {
   first_name?: string | null;
   last_name?: string | null;
   status: 'active' | 'canceled';
-  questions_and_answers: { question: string; answer: string; position: number }[];
+  questions_and_answers: {
+    question: string;
+    answer: string;
+    position: number;
+  }[];
   timezone: string;
   event_uri: string;
   cancel_url: string;
@@ -450,7 +463,11 @@ export interface NLUResponseData {
   recognized_phrase?: string;
   clarification_question?: string;
   partially_understood_intent?: string;
-  sub_tasks?: Array<{intent: string; entities: Record<string, any>; summary_for_sub_task?: string;}>;
+  sub_tasks?: Array<{
+    intent: string;
+    entities: Record<string, any>;
+    summary_for_sub_task?: string;
+  }>;
   original_query?: string;
 }
 
@@ -460,7 +477,11 @@ export interface ProcessedNLUResponse extends NLUResponseData {
   requires_clarification?: boolean;
   clarification_question?: string;
   conversation_context?: any; // Consider making this more specific if possible
-  sub_tasks?: Array<{intent: string | null; entities: Record<string, any>; summary_for_sub_task?: string;}>;
+  sub_tasks?: Array<{
+    intent: string | null;
+    entities: Record<string, any>;
+    summary_for_sub_task?: string;
+  }>;
 }
 
 // --- QuickBooks Online (QBO) Types ---
@@ -473,7 +494,6 @@ export interface QuickBooksAuthTokens {
   tokenCreatedAt: number; // Milliseconds since epoch when these tokens (or the original ones they were refreshed from) were created
 }
 
-
 export interface ListQBInvoicesData {
   invoices: QuickBooksInvoice[];
   queryResponse?: any; // Raw response from QB for pagination etc.
@@ -483,12 +503,12 @@ export interface QuickBooksInvoice {
   Id: string;
   DocNumber?: string;
   TxnDate?: string; // YYYY-MM-DD
-  DueDate?: string;  // YYYY-MM-DD
-  CustomerRef?: { value: string; name?: string; };
-  BillEmail?: { Address: string; };
+  DueDate?: string; // YYYY-MM-DD
+  CustomerRef?: { value: string; name?: string };
+  BillEmail?: { Address: string };
   TotalAmt?: number;
   Balance?: number;
-  CurrencyRef?: { value: string; name?: string; }; // e.g., { value: "USD", name: "United States Dollar" }
+  CurrencyRef?: { value: string; name?: string }; // e.g., { value: "USD", name: "United States Dollar" }
   Line?: any[]; // Can be complex, define further if needed
   PrivateNote?: string;
   CustomerMemo?: string;
@@ -516,7 +536,13 @@ export interface StripePaymentIntent {
   id: string;
   amount: number;
   currency: string;
-  status: 'succeeded' | 'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'canceled';
+  status:
+    | 'succeeded'
+    | 'requires_payment_method'
+    | 'requires_confirmation'
+    | 'requires_action'
+    | 'processing'
+    | 'canceled';
   created: number; // Unix timestamp
   customer?: string | null; // Customer ID
   description?: string | null;
@@ -574,7 +600,8 @@ export interface SlackMessage {
 }
 
 // --- Microsoft Graph / Teams Types ---
-export interface ListMSTeamsMeetingsData { // Renamed from ListMSGraphEventsData for clarity
+export interface ListMSTeamsMeetingsData {
+  // Renamed from ListMSGraphEventsData for clarity
   events: MSGraphEvent[];
   nextLink?: string;
 }
@@ -595,17 +622,39 @@ export interface MSGraphEvent {
   id: string;
   subject?: string | null;
   bodyPreview?: string | null;
-  body?: { contentType?: 'html' | 'text'; content?: string | null; } | null;
+  body?: { contentType?: 'html' | 'text'; content?: string | null } | null;
   start?: MSGraphDateTimeTimeZone | null;
   end?: MSGraphDateTimeTimeZone | null;
   isOnlineMeeting?: boolean | null;
-  onlineMeetingProvider?: 'teamsForBusiness' | 'skypeForBusiness' | 'skypeForConsumer' | string | null;
+  onlineMeetingProvider?:
+    | 'teamsForBusiness'
+    | 'skypeForBusiness'
+    | 'skypeForConsumer'
+    | string
+    | null;
   onlineMeeting?: MSGraphOnlineMeetingInfo | null;
   webLink?: string | null;
-  attendees?: { emailAddress?: { address?: string | null; name?: string | null; }; type?: 'required' | 'optional' | 'resource'; status?: { response?: string; time?: string; }; }[];
-  location?: { displayName?: string | null; locationType?: 'default' | 'conferenceRoom' | 'homeAddress' | 'businessAddress' | string; uniqueId?: string | null; address?: any; coordinates?: any; } | null;
+  attendees?: {
+    emailAddress?: { address?: string | null; name?: string | null };
+    type?: 'required' | 'optional' | 'resource';
+    status?: { response?: string; time?: string };
+  }[];
+  location?: {
+    displayName?: string | null;
+    locationType?:
+      | 'default'
+      | 'conferenceRoom'
+      | 'homeAddress'
+      | 'businessAddress'
+      | string;
+    uniqueId?: string | null;
+    address?: any;
+    coordinates?: any;
+  } | null;
   locations?: any[];
-  organizer?: { emailAddress?: { name?: string | null; address?: string | null; }; } | null;
+  organizer?: {
+    emailAddress?: { name?: string | null; address?: string | null };
+  } | null;
   [key: string]: any; // Allow other properties
 }
 
@@ -634,7 +683,8 @@ export interface MSTeamsMessageMentionedUser {
 export interface MSTeamsMessageMention {
   id: number; // The ID of the mention in the message.
   mentionText?: string | null; // The display text of the mention.
-  mentioned?: { // Details of the entity mentioned.
+  mentioned?: {
+    // Details of the entity mentioned.
     user?: MSTeamsMessageMentionedUser | null;
     application?: any | null; // if an app is mentioned
     conversation?: any | null; // if a channel/chat is mentioned
@@ -659,7 +709,6 @@ export interface MSTeamsMessage {
   mentions?: MSTeamsMessageMention[] | null;
   raw?: any; // Store the original raw Graph API message object for extensibility
 }
-
 
 // --- Zoom Types ---
 export interface ZoomTokenResponse {
@@ -695,9 +744,14 @@ export interface ZoomMeeting {
 
 // --- Notion Task Management Types ---
 
-export type NotionTaskStatus = "To Do" | "In Progress" | "Done" | "Blocked" | "Cancelled";
+export type NotionTaskStatus =
+  | 'To Do'
+  | 'In Progress'
+  | 'Done'
+  | 'Blocked'
+  | 'Cancelled';
 
-export type NotionTaskPriority = "High" | "Medium" | "Low";
+export type NotionTaskPriority = 'High' | 'Medium' | 'Low';
 
 export interface NotionTask {
   id: string; // Notion Page ID
@@ -723,7 +777,8 @@ export interface CreateNotionTaskParams {
   parentId?: string | null;
 }
 
-export interface NotionTaskResponse { // Kept for potential direct Notion API calls, but Python responses are preferred
+export interface NotionTaskResponse {
+  // Kept for potential direct Notion API calls, but Python responses are preferred
   success: boolean;
   message: string;
   taskId?: string;
@@ -734,8 +789,8 @@ export interface NotionTaskResponse { // Kept for potential direct Notion API ca
 export interface QueryNotionTasksParams {
   status?: NotionTaskStatus | NotionTaskStatus[]; // Allow single or multiple statuses
   dueDateBefore?: string | null; // ISO Date string
-  dueDateAfter?: string | null;  // ISO Date string
-  dateQuery?: string | null;     // For NLU like "today", "next week" to be parsed by backend
+  dueDateAfter?: string | null; // ISO Date string
+  dateQuery?: string | null; // For NLU like "today", "next week" to be parsed by backend
   priority?: NotionTaskPriority | null;
   listName?: string | null;
   descriptionContains?: string | null;
@@ -743,7 +798,8 @@ export interface QueryNotionTasksParams {
   limit?: number;
 }
 
-export interface TaskQueryResponse { // This is returned by the queryNotionTasks skill
+export interface TaskQueryResponse {
+  // This is returned by the queryNotionTasks skill
   success: boolean;
   tasks: NotionTask[];
   message?: string;
@@ -777,20 +833,25 @@ export interface UpdateTaskData {
 }
 // Add EmailActionType if not already defined
 export type EmailActionType =
-  | "FIND_SPECIFIC_INFO"
-  | "GET_SENDER"
-  | "GET_SUBJECT"
-  | "GET_DATE"
-  | "GET_FULL_CONTENT"
-  | "SUMMARIZE_EMAIL";
+  | 'FIND_SPECIFIC_INFO'
+  | 'GET_SENDER'
+  | 'GET_SUBJECT'
+  | 'GET_DATE'
+  | 'GET_FULL_CONTENT'
+  | 'SUMMARIZE_EMAIL';
 
 // --- Contact / Attendee Resolution Types ---
 export interface ResolvedAttendee {
   email: string; // Mandatory
   name?: string;
   userId?: string; // Atom user ID, if applicable
-  source: "atom_user" | "google_contact" | "hubspot_contact" | "email_direct" | "unresolved";
-  status?: "found" | "not_found" | "error_resolving";
+  source:
+    | 'atom_user'
+    | 'google_contact'
+    | 'hubspot_contact'
+    | 'email_direct'
+    | 'unresolved';
+  status?: 'found' | 'not_found' | 'error_resolving';
   errorMessage?: string;
 }
 
@@ -802,9 +863,16 @@ export interface ContactSkillResponse<T> {
 
 // --- User Availability Types (for OptaPlanner) ---
 export interface UserWorkTime {
-  dayOfWeek: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+  dayOfWeek:
+    | 'MONDAY'
+    | 'TUESDAY'
+    | 'WEDNESDAY'
+    | 'THURSDAY'
+    | 'FRIDAY'
+    | 'SATURDAY'
+    | 'SUNDAY';
   startTime: string; // Format: HH:MM or HH:MM:SS
-  endTime: string;   // Format: HH:MM or HH:MM:SS
+  endTime: string; // Format: HH:MM or HH:MM:SS
   // userId?: string; // Link to user, might be implicit if nested under UserAvailability
 }
 
@@ -849,7 +917,8 @@ export interface MeetingPreparationData {
 }
 
 // Response for the PrepareForMeeting skill
-export interface PrepareForMeetingResponse extends SkillResponse<MeetingPreparationData> {}
+export interface PrepareForMeetingResponse
+  extends SkillResponse<MeetingPreparationData> {}
 
 // NLU Entities expected for the PrepareForMeeting intent
 export interface PrepareForMeetingEntities {
@@ -871,18 +940,23 @@ export interface WeeklyDigestData {
 }
 
 // Response for the GenerateWeeklyDigest skill
-export interface GenerateWeeklyDigestResponse extends SkillResponse<{
-  digest: WeeklyDigestData;
-  formattedSummary: string; // The user-facing text summary
-}> {}
+export interface GenerateWeeklyDigestResponse
+  extends SkillResponse<{
+    digest: WeeklyDigestData;
+    formattedSummary: string; // The user-facing text summary
+  }> {}
 
 // NLU Entities expected for the GenerateWeeklyDigest intent
 export interface GenerateWeeklyDigestEntities {
-  time_period?: "this week" | "last week" | string; // Allow specific date ranges in future if NLU supports
+  time_period?: 'this week' | 'last week' | string; // Allow specific date ranges in future if NLU supports
 }
 
 // --- Intelligent Follow-up Suggester Types ---
-export type PotentialFollowUpType = "action_item" | "decision" | "question" | "information";
+export type PotentialFollowUpType =
+  | 'action_item'
+  | 'decision'
+  | 'question'
+  | 'information';
 
 export interface PotentialFollowUp {
   type: PotentialFollowUpType;
@@ -903,7 +977,6 @@ export interface ExtractedFollowUpItems {
   // general_info_points?: Array<{ description: string }>; // Optional for other key info
 }
 
-
 export interface FollowUpSuggestionData {
   contextName: string; // e.g., "Project Phoenix Meeting - July 26" or "Client Onboarding Project"
   sourceDocumentSummary?: string; // Brief summary or link to the source document analyzed
@@ -912,12 +985,13 @@ export interface FollowUpSuggestionData {
 }
 
 // Response for the SuggestFollowUps skill
-export interface SuggestFollowUpsResponse extends SkillResponse<FollowUpSuggestionData> {}
+export interface SuggestFollowUpsResponse
+  extends SkillResponse<FollowUpSuggestionData> {}
 
 // NLU Entities expected for the SuggestFollowUps intent
 export interface SuggestFollowUpsEntities {
   context_identifier: string; // e.g., "Project Phoenix meeting", "Client Onboarding project", "my last meeting"
-  context_type?: "meeting" | "project" | string; // Helps skill narrow down search for context
+  context_type?: 'meeting' | 'project' | string; // Helps skill narrow down search for context
 }
 
 // --- Meeting Preparation Use Case Types ---
@@ -937,7 +1011,11 @@ export interface MeetingPrepNluEntities {
  */
 export interface InformationRequest {
   source: 'gmail' | 'slack' | 'notion' | 'calendar_events';
-  search_parameters: GmailSearchParameters | SlackSearchParameters | NotionSearchParameters | CalendarEventsSearchParameters;
+  search_parameters:
+    | GmailSearchParameters
+    | SlackSearchParameters
+    | NotionSearchParameters
+    | CalendarEventsSearchParameters;
 }
 
 // Parameter types for each source, aligning with NLU output for RequestMeetingPreparation
@@ -985,25 +1063,41 @@ export interface AggregatedPrepResults {
 
 export interface PrepResultSourceEntry {
   source: 'gmail' | 'slack' | 'notion' | 'calendar_events';
-  search_parameters_used: GmailSearchParameters | SlackSearchParameters | NotionSearchParameters | CalendarEventsSearchParameters;
+  search_parameters_used:
+    | GmailSearchParameters
+    | SlackSearchParameters
+    | NotionSearchParameters
+    | CalendarEventsSearchParameters;
   // Results can be an array of specific types based on the source.
   // Using more specific types than 'any[]' for better type safety.
-  results: GmailMessageSnippet[] | SlackMessageSnippet[] | NotionPageSummary[] | CalendarEventSummary[];
+  results:
+    | GmailMessageSnippet[]
+    | SlackMessageSnippet[]
+    | NotionPageSummary[]
+    | CalendarEventSummary[];
   error_message?: string; // If an error occurred fetching from this specific source
   count: number; // Number of items found
   search_query_executed?: string; // Optional: the actual query string run against the source API
 }
 
 export interface PrepErrorMessage {
-    source_attempted?: 'gmail' | 'slack' | 'notion' | 'calendar_events' | 'overall_process' | 'nlu_parsing' | 'calendar_lookup';
-    message: string;
-    details?: string; // Stringified version of any underlying error object or additional context
+  source_attempted?:
+    | 'gmail'
+    | 'slack'
+    | 'notion'
+    | 'calendar_events'
+    | 'overall_process'
+    | 'nlu_parsing'
+    | 'calendar_lookup';
+  message: string;
+  details?: string; // Stringified version of any underlying error object or additional context
 }
 
 // Specific result item types (re-declaring here for clarity if not already globally available or slightly different context)
 // If these are identical to global ones, they can be imported. Assuming for now they might have slight variations or are good to have co-located.
 
-export interface GmailMessageSnippet { // Consistent with previous definition if it exists
+export interface GmailMessageSnippet {
+  // Consistent with previous definition if it exists
   id: string;
   threadId?: string;
   subject?: string;
@@ -1013,7 +1107,8 @@ export interface GmailMessageSnippet { // Consistent with previous definition if
   link?: string;
 }
 
-export interface SlackMessageSnippet { // Consistent with previous definition
+export interface SlackMessageSnippet {
+  // Consistent with previous definition
   ts: string; // Using 'ts' as the primary ID for Slack messages
   channel?: { id: string; name?: string };
   user?: { id: string; name?: string };
@@ -1024,25 +1119,36 @@ export interface SlackMessageSnippet { // Consistent with previous definition
   thread_ts?: string; // To know if it's part of a thread
 }
 
-export interface NotionPageSummary { // Consistent with previous definition
+export interface NotionPageSummary {
+  // Consistent with previous definition
   id: string;
   title?: string;
   url?: string;
   last_edited_time?: string;
   created_time?: string;
   preview_text?: string;
-  icon?: { type: string; emoji?: string; external?: { url: string }; file?: { url: string; expiry_time: string } } | null;
+  icon?: {
+    type: string;
+    emoji?: string;
+    external?: { url: string };
+    file?: { url: string; expiry_time: string };
+  } | null;
 }
 
-export interface CalendarEventSummary { // Consistent with previous definition
+export interface CalendarEventSummary {
+  // Consistent with previous definition
   id: string;
   summary?: string;
   description?: string;
   start?: string; // ISO string
   end?: string; // ISO string
   htmlLink?: string;
-  attendees?: Array<{ email?: string; displayName?: string; responseStatus?: string }>;
-  organizer?: { email?: string; displayName?: string; };
+  attendees?: Array<{
+    email?: string;
+    displayName?: string;
+    responseStatus?: string;
+  }>;
+  organizer?: { email?: string; displayName?: string };
 }
 
 // --- Automated Post-Meeting Workflow Use Case Types ---
@@ -1054,8 +1160,16 @@ export interface CalendarEventSummary { // Consistent with previous definition
 export interface ProcessMeetingOutcomesNluEntities {
   meeting_reference: string;
   source_document_id?: string;
-  outcome_source_type?: 'transcript' | 'meeting_notes' | 'audio_recording_summary';
-  requested_actions: Array<'SUMMARIZE_KEY_DECISIONS' | 'EXTRACT_ACTION_ITEMS' | 'DRAFT_FOLLOW_UP_EMAIL' | 'CREATE_TASKS_IN_NOTION'>;
+  outcome_source_type?:
+    | 'transcript'
+    | 'meeting_notes'
+    | 'audio_recording_summary';
+  requested_actions: Array<
+    | 'SUMMARIZE_KEY_DECISIONS'
+    | 'EXTRACT_ACTION_ITEMS'
+    | 'DRAFT_FOLLOW_UP_EMAIL'
+    | 'CREATE_TASKS_IN_NOTION'
+  >;
   email_draft_details?: {
     recipients: string[] | string; // e.g., ["attendees", "manager@example.com"] or "all meeting attendees"
     additional_instructions?: string;
@@ -1103,14 +1217,20 @@ export interface PostMeetingActionsResults {
     dueDate?: string;
   }>;
   errors_encountered?: Array<{
-    action_attempted: 'SUMMARIZE_KEY_DECISIONS' | 'EXTRACT_ACTION_ITEMS' | 'DRAFT_FOLLOW_UP_EMAIL' | 'CREATE_TASKS_IN_NOTION' | 'SOURCE_PROCESSING';
+    action_attempted:
+      | 'SUMMARIZE_KEY_DECISIONS'
+      | 'EXTRACT_ACTION_ITEMS'
+      | 'DRAFT_FOLLOW_UP_EMAIL'
+      | 'CREATE_TASKS_IN_NOTION'
+      | 'SOURCE_PROCESSING';
     message: string;
     details?: string;
   }>;
 }
 
 // Potential structure for the skill's output
-export interface ProcessMeetingOutcomesSkillResponse extends SkillResponse<PostMeetingActionsResults> {}
+export interface ProcessMeetingOutcomesSkillResponse
+  extends SkillResponse<PostMeetingActionsResults> {}
 
 // --- Unified Priority Dashboard (Daily Briefing) Use Case Types ---
 
@@ -1120,7 +1240,13 @@ export interface ProcessMeetingOutcomesSkillResponse extends SkillResponse<PostM
  */
 export interface GetDailyPriorityBriefingNluEntities {
   date_context?: string; // e.g., "today", "tomorrow"
-  focus_areas?: Array<'tasks' | 'meetings' | 'urgent_emails' | 'urgent_slack_messages' | 'urgent_teams_messages'>;
+  focus_areas?: Array<
+    | 'tasks'
+    | 'meetings'
+    | 'urgent_emails'
+    | 'urgent_slack_messages'
+    | 'urgent_teams_messages'
+  >;
   project_filter?: string;
   urgency_level?: 'high' | 'critical' | 'all';
 }
@@ -1137,7 +1263,12 @@ export interface BriefingItem {
   source_id?: string; // Original ID from the source system
   link?: string; // Direct link to the item if available
   // Storing the original item allows for richer display or actions later
-  raw_item?: NotionTask | CalendarEventSummary | GmailMessageSnippet | SlackMessageSnippet | MSTeamsMessage;
+  raw_item?:
+    | NotionTask
+    | CalendarEventSummary
+    | GmailMessageSnippet
+    | SlackMessageSnippet
+    | MSTeamsMessage;
 }
 
 /**
@@ -1150,14 +1281,21 @@ export interface DailyBriefingData {
   priority_items: BriefingItem[];
   overall_summary_message?: string; // e.g., "You have 3 high-priority tasks and 2 important meetings today."
   errors_encountered?: Array<{
-    source_area: 'tasks' | 'meetings' | 'emails' | 'slack' | 'teams' | 'overall';
+    source_area:
+      | 'tasks'
+      | 'meetings'
+      | 'emails'
+      | 'slack'
+      | 'teams'
+      | 'overall';
     message: string;
     details?: string;
   }>;
 }
 
 // Potential structure for the skill's output
-export interface GetDailyPriorityBriefingSkillResponse extends SkillResponse<DailyBriefingData> {}
+export interface GetDailyPriorityBriefingSkillResponse
+  extends SkillResponse<DailyBriefingData> {}
 
 // --- Smart Task Creation from Chat Message Use Case Types ---
 
@@ -1207,7 +1345,8 @@ export interface TaskCreationResultFromMessage {
 }
 
 // Potential structure for the skill's output for this use case
-export interface CreateTaskFromChatMessageSkillResponse extends SkillResponse<TaskCreationResultFromMessage> {}
+export interface CreateTaskFromChatMessageSkillResponse
+  extends SkillResponse<TaskCreationResultFromMessage> {}
 
 // --- Complex Task Orchestration Types (e.g., for Use Case 5: Voice-Activated Info & Action Relay) ---
 
@@ -1240,7 +1379,11 @@ export interface ExecutedSubTaskResult {
  */
 export interface OrchestratedComplexTaskReport {
   original_user_query: string;
-  overall_status: 'completed_fully' | 'completed_partially' | 'failed_entirely' | 'clarification_needed_mid_sequence';
+  overall_status:
+    | 'completed_fully'
+    | 'completed_partially'
+    | 'failed_entirely'
+    | 'clarification_needed_mid_sequence';
   final_summary_message_for_user?: string; // Overall summary message for the user
   sub_task_results: ExecutedSubTaskResult[];
   // Optional context passed between tasks, managed by the orchestrator.
@@ -1256,7 +1399,10 @@ export interface OrchestratedComplexTaskReport {
  */
 export interface AgentClientCommand {
   command_id: string; // Unique ID for tracking the command
-  action: 'START_RECORDING_SESSION' | 'STOP_RECORDING_SESSION' | 'CANCEL_RECORDING_SESSION'; // Specific actions client can perform
+  action:
+    | 'START_RECORDING_SESSION'
+    | 'STOP_RECORDING_SESSION'
+    | 'CANCEL_RECORDING_SESSION'; // Specific actions client can perform
   payload?: {
     suggestedTitle?: string;
     linkedEventId?: string;
@@ -1272,7 +1418,10 @@ export interface AgentSkillContext {
   userId: string;
   // Function to send a command to the connected client.
   // The actual implementation of this function is expected to be injected by the calling environment (e.g., WebSocket handler in server.ts).
-  sendCommandToClient: (userId: string, command: AgentClientCommand) => Promise<boolean>;
+  sendCommandToClient: (
+    userId: string,
+    command: AgentClientCommand
+  ) => Promise<boolean>;
   // Potentially add other context items:
   // - Access to LTM/STM (though memoryManager functions are currently imported directly)
   // - User preferences relevant to skills
@@ -1280,7 +1429,10 @@ export interface AgentSkillContext {
 }
 
 // --- LanceDB Semantic Search Types ---
-export type SearchResultSourceType = "document_chunk" | "email_snippet" | "notion_summary";
+export type SearchResultSourceType =
+  | 'document_chunk'
+  | 'email_snippet'
+  | 'notion_summary';
 
 export interface UniversalSearchResultItem {
   // Common fields
@@ -1313,7 +1465,6 @@ export interface UniversalSearchResultItem {
   metadata_json?: string;
 }
 
-
 // --- Hybrid Search Types ---
 export type HybridMatchSource = 'semantic' | 'keyword';
 
@@ -1345,7 +1496,10 @@ export interface HybridSearchFilters {
   doc_types?: string[];
   date_after?: string; // ISO 8601 string
   date_before?: string; // ISO 8601 string
-  date_field_to_filter?: 'ingested_at' | 'created_at_source' | 'last_modified_source';
+  date_field_to_filter?:
+    | 'ingested_at'
+    | 'created_at_source'
+    | 'last_modified_source';
   metadata_properties?: Record<string, string>;
 }
 
@@ -1421,7 +1575,14 @@ export interface ShopifyOrder {
   name: string; // The order name, e.g., "#1001"
   email: string;
   total_price: string;
-  financial_status: 'pending' | 'authorized' | 'partially_paid' | 'paid' | 'partially_refunded' | 'refunded' | 'voided';
+  financial_status:
+    | 'pending'
+    | 'authorized'
+    | 'partially_paid'
+    | 'paid'
+    | 'partially_refunded'
+    | 'refunded'
+    | 'voided';
   fulfillment_status: 'fulfilled' | 'unfulfilled' | 'partial' | null;
   line_items: Array<{
     id: number;
@@ -1447,17 +1608,17 @@ export interface XeroInvoice {
 }
 
 export interface XeroBill {
-    InvoiceID: string;
-    InvoiceNumber?: string;
-    Contact: {
-      ContactID: string;
-      Name: string;
-    };
-    DateString: string;
-    DueDateString: string;
-    Total: number;
-    AmountDue: number;
-    Status: string;
+  InvoiceID: string;
+  InvoiceNumber?: string;
+  Contact: {
+    ContactID: string;
+    Name: string;
+  };
+  DateString: string;
+  DueDateString: string;
+  Total: number;
+  AmountDue: number;
+  Status: string;
 }
 
 export interface XeroContact {
@@ -1478,7 +1639,7 @@ export interface Tweet {
 
 // --- Schedule Skill Activation Types ---
 export interface ScheduleSkillActivationEntities {
-    skill_to_schedule: string;
-    activation_time: string;
-    skill_entities: Record<string, any>;
+  skill_to_schedule: string;
+  activation_time: string;
+  skill_entities: Record<string, any>;
 }

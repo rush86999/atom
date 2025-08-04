@@ -1,7 +1,6 @@
-import { time } from "@libs/skills/askCalendar/types";
-
+import { time } from '@libs/skills/askCalendar/types';
 
 export type FindASlotType = {
-    startTime: time,
-    endDatime: time,
-}
+  startTime: time;
+  endDatime: time;
+};

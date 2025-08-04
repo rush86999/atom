@@ -10,6 +10,7 @@ through dedicated worker threads to prevent blocking the main application thread
 """
 
 import os
+import logging
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 import urllib.parse
@@ -394,16 +395,18 @@ class LinkedInService:
 
 # --- Convenience Functions ---
 
-async def setup_linkedin_service(access_token: str) -> LinkedInService:
+async def setup_linkedin_service(access_token: str, client_id: Optional[str] = None, client_secret: Optional[str] = None) -> LinkedInService:
     """
     Convenience function to create and authenticate a LinkedInService instance.
 
     Args:
         access_token: LinkedIn OAuth access token
+        client_id: LinkedIn app client ID (optional)
+        client_secret: LinkedIn app client secret (optional)
 
     Returns:
         LinkedInService: Authenticated service instance
     """
-    service = LinkedInService()
+    service = LinkedInService(client_id=client_id, client_secret=client_secret)
     await service.authenticate_with_token(access_token)
     return service

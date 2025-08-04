@@ -24,14 +24,17 @@ export const zoomBaseUrl = 'https://api.zoom.us/v2';
 export const zoomBaseTokenUrl = 'https://zoom.us';
 export const googleColorUrl = 'https://www.googleapis.com/calendar/v3/colors';
 // CHANGE THIS!!!
-export const selfGoogleCalendarWebhookPublicUrl = process.env.GOOGLE_CALENDAR_WEBHOOK_URL;
+export const selfGoogleCalendarWebhookPublicUrl =
+  process.env.GOOGLE_CALENDAR_WEBHOOK_URL;
 // CHANGE THIS!!
-export const selfGooglePeopleAdminUrl = process.env.GOOGLE_PEOPLE_SYNC_ADMIN_URL;
+export const selfGooglePeopleAdminUrl =
+  process.env.GOOGLE_PEOPLE_SYNC_ADMIN_URL;
 export const zoomSaltForPass = process.env.ZOOM_SALT_FOR_PASS;
 export const zoomIVForPass = process.env.ZOOM_IV_FOR_PASS;
 export const zoomPassKey = process.env.ZOOM_PASS_KEY;
 // GOOGLE_CLIENT_SECRET_ATOMIC_WEB
-export const googleClientSecretAtomicWeb = process.env.GOOGLE_CLIENT_SECRET_ATOMIC_WEB;
+export const googleClientSecretAtomicWeb =
+  process.env.GOOGLE_CLIENT_SECRET_ATOMIC_WEB;
 export const bucketName = process.env.S3_BUCKET;
 export const defaultOpenAIAPIKey = process.env.OPENAI_API_KEY;
 export const openAllEventIndex = 'knn-open-all-event-index';
@@ -40,7 +43,8 @@ export const openAIChatGPT35Model = 'gpt-3.5-turbo';
 export const openAIChatGPT35LongModel = 'gpt-3.5-turbo-16k';
 export const openAIChatGPT4Model = 'gpt-4';
 export const openAllEventVectorName = 'embeddings';
-export const googleCalendarStopWatchUrl = 'https://www.googleapis.com/calendar/v3/channels/stop';
+export const googleCalendarStopWatchUrl =
+  'https://www.googleapis.com/calendar/v3/channels/stop';
 export const openTrainEventVectorName = 'embeddings';
 export const openTrainEventVectorDimensions = 1536;
 export const openTrainEventIndex = 'knn-open-train-event-index';

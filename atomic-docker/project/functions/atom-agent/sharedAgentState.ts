@@ -19,59 +19,84 @@ export interface PendingRequestInfo {
   originalQuery?: string; // Optional: the user's original natural language query
   submittedAt: Date;
   // status?: string; // Status is managed in the DB layer, not typically part of this app-level info object
-                    // when initially storing. It's more of a DB column.
+  // when initially storing. It's more of a DB column.
 }
 
 // Using console for logging within this file if no central logger is passed around.
 const logger = {
   info: console.log,
   error: console.error,
-  warn: console.warn
+  warn: console.warn,
 };
 
 // The in-memory map is now removed. Logic is delegated to dbService.
 
-export async function storePendingRequest(jobInfo: PendingRequestInfo): Promise<void> {
-  logger.info(`[sharedAgentState.storePendingRequest] Storing job with fileKey: ${jobInfo.fileKey}`);
+export async function storePendingRequest(
+  jobInfo: PendingRequestInfo
+): Promise<void> {
+  logger.info(
+    `[sharedAgentState.storePendingRequest] Storing job with fileKey: ${jobInfo.fileKey}`
+  );
   try {
     // The addPendingJob function in dbService expects a PendingRequestInfo object
     // that aligns with the DB schema (e.g., submittedAt should be Date or ISO string).
     // The status is handled by dbService internally (defaults to 'PENDING').
     await addPendingJob(jobInfo);
-    logger.info(`[sharedAgentState.storePendingRequest] Successfully stored job with fileKey: ${jobInfo.fileKey}`);
+    logger.info(
+      `[sharedAgentState.storePendingRequest] Successfully stored job with fileKey: ${jobInfo.fileKey}`
+    );
   } catch (error) {
-    logger.error(`[sharedAgentState.storePendingRequest] Error storing job with fileKey ${jobInfo.fileKey}:`, error);
+    logger.error(
+      `[sharedAgentState.storePendingRequest] Error storing job with fileKey ${jobInfo.fileKey}:`,
+      error
+    );
     // Re-throw or handle as appropriate for the application's error handling strategy
     throw error;
   }
 }
 
-export async function retrievePendingRequest(fileKey: string): Promise<PendingRequestInfo | null> {
-  logger.info(`[sharedAgentState.retrievePendingRequest] Retrieving job with fileKey: ${fileKey}`);
+export async function retrievePendingRequest(
+  fileKey: string
+): Promise<PendingRequestInfo | null> {
+  logger.info(
+    `[sharedAgentState.retrievePendingRequest] Retrieving job with fileKey: ${fileKey}`
+  );
   try {
     // getPendingJob from dbService returns PendingRequestInfo | null
     // and specifically fetches jobs with status = 'PENDING'.
     const jobInfo = await getPendingJob(fileKey);
     if (jobInfo) {
-      logger.info(`[sharedAgentState.retrievePendingRequest] Successfully retrieved job with fileKey: ${fileKey}`);
+      logger.info(
+        `[sharedAgentState.retrievePendingRequest] Successfully retrieved job with fileKey: ${fileKey}`
+      );
     } else {
-      logger.info(`[sharedAgentState.retrievePendingRequest] No 'PENDING' job found with fileKey: ${fileKey}`);
+      logger.info(
+        `[sharedAgentState.retrievePendingRequest] No 'PENDING' job found with fileKey: ${fileKey}`
+      );
     }
     return jobInfo;
   } catch (error) {
-    logger.error(`[sharedAgentState.retrievePendingRequest] Error retrieving job with fileKey ${fileKey}:`, error);
+    logger.error(
+      `[sharedAgentState.retrievePendingRequest] Error retrieving job with fileKey ${fileKey}:`,
+      error
+    );
     throw error;
   }
 }
 
 export async function removePendingRequest(fileKey: string): Promise<void> {
-  logger.info(`[sharedAgentState.removePendingRequest] Removing job with fileKey: ${fileKey}`);
+  logger.info(
+    `[sharedAgentState.removePendingRequest] Removing job with fileKey: ${fileKey}`
+  );
   try {
     await deletePendingJob(fileKey);
     // deletePendingJob in dbService already logs success/failure to delete.
     // No specific success confirmation needed here unless different logic is required.
   } catch (error) {
-    logger.error(`[sharedAgentState.removePendingRequest] Error removing job with fileKey ${fileKey}:`, error);
+    logger.error(
+      `[sharedAgentState.removePendingRequest] Error removing job with fileKey ${fileKey}:`,
+      error
+    );
     throw error;
   }
 }

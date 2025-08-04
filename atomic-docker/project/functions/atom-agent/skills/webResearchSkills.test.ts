@@ -24,17 +24,23 @@ describe('Web Research Skills', () => {
 
       const resultsForIANA = await webResearchSkills.searchWeb('iana');
       expect(resultsForIANA.length).toBe(1);
-      expect(resultsForIANA[0].title).toBe('Internet Assigned Numbers Authority (IANA)');
+      expect(resultsForIANA[0].title).toBe(
+        'Internet Assigned Numbers Authority (IANA)'
+      );
     });
 
     it('should filter results based on the query (case-insensitive in snippet)', async () => {
-      const resultsForDocuments = await webResearchSkills.searchWeb('documents'); // "illustrative examples in documents"
+      const resultsForDocuments =
+        await webResearchSkills.searchWeb('documents'); // "illustrative examples in documents"
       expect(resultsForDocuments.length).toBe(1);
       expect(resultsForDocuments[0].title).toBe('Example Domain');
 
-      const resultsForCoordinating = await webResearchSkills.searchWeb('coordinating'); // "coordinating some of the key elements"
+      const resultsForCoordinating =
+        await webResearchSkills.searchWeb('coordinating'); // "coordinating some of the key elements"
       expect(resultsForCoordinating.length).toBe(1);
-      expect(resultsForCoordinating[0].title).toBe('Internet Assigned Numbers Authority (IANA)');
+      expect(resultsForCoordinating[0].title).toBe(
+        'Internet Assigned Numbers Authority (IANA)'
+      );
     });
 
     it('should return a generic result if query does not match any mock data', async () => {

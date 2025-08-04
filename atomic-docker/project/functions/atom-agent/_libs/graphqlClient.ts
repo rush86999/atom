@@ -5,7 +5,11 @@ import { HASURA_GRAPHQL_URL, HASURA_ADMIN_SECRET } from './constants';
  * Represents a generic error from the GraphQL client.
  */
 class GraphQLError extends Error {
-  constructor(message: string, public code?: string, public details?: any) {
+  constructor(
+    message: string,
+    public code?: string,
+    public details?: any
+  ) {
     super(message);
     this.name = 'GraphQLError';
   }
@@ -83,7 +87,6 @@ export async function executeGraphQLQuery<T = any>(
       }
       // console.log(`GraphQL attempt ${attempt + 1} for ${operationName} successful.`); // For debugging
       return response.data.data as T;
-
     } catch (error) {
       lastError = error; // Store the last error
       // console.warn(`GraphQL attempt ${attempt + 1} for ${operationName} failed:`, error.message); // For debugging
@@ -97,9 +100,11 @@ export async function executeGraphQLQuery<T = any>(
           //   `HTTP error ${status} for GraphQL operation '${operationName}' (attempt ${attempt + 1}):`,
           //   JSON.stringify(axiosError.response.data, null, 2)
           // );
-          if (status >= 500 || status === 429) { // Retry on 5xx or 429 (Too Many Requests)
+          if (status >= 500 || status === 429) {
+            // Retry on 5xx or 429 (Too Many Requests)
             // Fall through to retry logic
-          } else { // Non-retryable client HTTP error (400, 401, 403, etc.)
+          } else {
+            // Non-retryable client HTTP error (400, 401, 403, etc.)
             lastError = new GraphQLError(
               `HTTP error ${status} executing operation '${operationName}'. Not retrying.`,
               `HTTP_${status}`,
@@ -120,14 +125,17 @@ export async function executeGraphQLQuery<T = any>(
           // Fall through to retry logic
         } else {
           // Other Axios error (e.g. config issue before request was made) - likely non-retryable
-           lastError = new GraphQLError(
-              `Axios setup error for operation '${operationName}': ${axiosError.message}. Not retrying.`,
-              'AXIOS_SETUP_ERROR',
-              axiosError.config
-            );
+          lastError = new GraphQLError(
+            `Axios setup error for operation '${operationName}': ${axiosError.message}. Not retrying.`,
+            'AXIOS_SETUP_ERROR',
+            axiosError.config
+          );
           break;
         }
-      } else if (error instanceof GraphQLError && error.code === 'GRAPHQL_EXECUTION_ERROR') {
+      } else if (
+        error instanceof GraphQLError &&
+        error.code === 'GRAPHQL_EXECUTION_ERROR'
+      ) {
         // This was thrown from the `response.data.errors` block above.
         // This simple retry logic will retry all GraphQL errors.
         // For a more robust system, inspect error.details[0].extensions.code
@@ -143,15 +151,19 @@ export async function executeGraphQLQuery<T = any>(
 
     attempt++;
     if (attempt < MAX_RETRIES) {
-      const delay = Math.pow(2, attempt - 1 ) * 1000; // Exponential backoff: 1s, 2s
+      const delay = Math.pow(2, attempt - 1) * 1000; // Exponential backoff: 1s, 2s
       // console.log(`Waiting ${delay}ms before GraphQL retry ${attempt + 1} for ${operationName}`); // For debugging
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   } // end while
 
   // All retries failed or a non-retryable error occurred
   const finalMessage = `Failed GraphQL operation '${operationName}' after ${attempt} attempts.`;
-  console.error(finalMessage, { code: (lastError as any)?.code, message: lastError?.message, details: (lastError as any)?.details || lastError });
+  console.error(finalMessage, {
+    code: (lastError as any)?.code,
+    message: lastError?.message,
+    details: (lastError as any)?.details || lastError,
+  });
 
   if (lastError instanceof GraphQLError) {
     // Re-throw the specific GraphQLError if it was set (e.g. for non-retryable HTTP or GraphQL specific errors)

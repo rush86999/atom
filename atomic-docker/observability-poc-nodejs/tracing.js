@@ -1,12 +1,28 @@
 const { NodeSDK } = require('@opentelemetry/sdk-node');
-const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
-const { OTLPMetricExporter } = require('@opentelemetry/exporter-metrics-otlp-http');
+const {
+  OTLPTraceExporter,
+} = require('@opentelemetry/exporter-trace-otlp-http');
+const {
+  OTLPMetricExporter,
+} = require('@opentelemetry/exporter-metrics-otlp-http');
 const { PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
-const { alibabaCloudEcsDetector } = require('@opentelemetry/resource-detector-alibaba-cloud');
-const { awsEc2Detector, awsEksDetector } = require('@opentelemetry/resource-detector-aws');
+const {
+  alibabaCloudEcsDetector,
+} = require('@opentelemetry/resource-detector-alibaba-cloud');
+const {
+  awsEc2Detector,
+  awsEksDetector,
+} = require('@opentelemetry/resource-detector-aws');
 const { gcpDetector } = require('@opentelemetry/resource-detector-gcp');
-const { envDetector, processDetector, osDetector, hostDetector } = require('@opentelemetry/resources');
-const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
+const {
+  envDetector,
+  processDetector,
+  osDetector,
+  hostDetector,
+} = require('@opentelemetry/resources');
+const {
+  getNodeAutoInstrumentations,
+} = require('@opentelemetry/auto-instrumentations-node');
 const { diag, DiagConsoleLogger, DiagLogLevel } = require('@opentelemetry/api');
 
 // For troubleshooting, set the log level to DiagLogLevel.DEBUG
@@ -18,13 +34,17 @@ const serviceVersion = process.env.OTEL_SERVICE_VERSION || '1.0.0';
 // Configure OTLP Exporters (default to localhost for easy local collector setup)
 // Traces
 const otlpTraceExporter = new OTLPTraceExporter({
-  url: process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || 'http://localhost:4318/v1/traces',
+  url:
+    process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+    'http://localhost:4318/v1/traces',
   // headers: {}, // Optional headers
 });
 
 // Metrics
 const otlpMetricExporter = new OTLPMetricExporter({
-  url: process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || 'http://localhost:4318/v1/metrics',
+  url:
+    process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT ||
+    'http://localhost:4318/v1/metrics',
   // headers: {}, // Optional headers
 });
 
@@ -60,9 +80,12 @@ const sdk = new NodeSDK({
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  sdk.shutdown()
+  sdk
+    .shutdown()
     .then(() => console.log('Tracing and Metrics terminated'))
-    .catch((error) => console.error('Error shutting down tracing and metrics', error))
+    .catch((error) =>
+      console.error('Error shutting down tracing and metrics', error)
+    )
     .finally(() => process.exit(0));
 });
 
@@ -82,10 +105,13 @@ const activeRequestsGauge = meter.createUpDownCounter('app_active_requests', {
   description: 'Gauge for active requests',
 });
 
-const requestLatencyHistogram = meter.createHistogram('app_request_latency_seconds', {
-  description: 'Request latency in seconds',
-  unit: 's',
-});
+const requestLatencyHistogram = meter.createHistogram(
+  'app_request_latency_seconds',
+  {
+    description: 'Request latency in seconds',
+    unit: 's',
+  }
+);
 
 const itemsProcessedCounter = meter.createCounter('app_items_processed_total', {
   description: 'Counts items processed',
@@ -96,5 +122,5 @@ module.exports = {
   activeRequestsGauge,
   requestLatencyHistogram,
   itemsProcessedCounter,
-  tracer: sdk.getTracer(serviceName) // Export a tracer for custom spans
+  tracer: sdk.getTracer(serviceName), // Export a tracer for custom spans
 };

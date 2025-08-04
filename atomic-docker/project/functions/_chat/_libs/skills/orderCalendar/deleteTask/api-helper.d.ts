@@ -1,0 +1,11 @@
+import DateTimeJSONType from '@chat/_libs/datetime/DateTimeJSONJSONType';
+import UserInputToJSONType from '@chat/_libs/types/UserInputToJSONType';
+import { TaskType } from '@chat/_libs/types/TaskType';
+import { DeleteTaskType } from './types';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+import OpenAI from 'openai';
+export declare const deleteTaskGivenId: (id: string) => Promise<TaskType>;
+export declare const finalStepDeleteTask: (body: DeleteTaskType, startDate: string, endDate: string, response: any) => Promise<any>;
+export declare const processDeleteTaskPending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string) => Promise<any>;
+export declare const processDeleteTaskMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const deleteTaskControlCenter: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;

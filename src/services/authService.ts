@@ -110,4 +110,3 @@ export const AuthService = {
   getGoogleDriveAccessToken,
   getGoogleDriveAuthInitiateUrl,
 };
-```

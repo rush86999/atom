@@ -1,5 +1,3 @@
-
-
 export const userRespondedMissingDataToJSONPrompt = `
     You are a calendar AI assistant. You requested some missing fields and the user responded back.
     Convert user input provided into JSON type language used to trigger an API call. Do not provide false values, replace placeholders with null if not available or unknown. JSON format:
@@ -42,11 +40,11 @@ export const userRespondedMissingDataToJSONPrompt = `
     }
 
     Given user input: {{userInput}} & user current time: {{userCurrentTime}}
-`
+`;
 
 export const userRespondedMissingDataToJSONExampleInput = `
     a meeting with Joe on Tuesday for Marketing presentation
-`
+`;
 
 export const userRespondedMissingDataToJSONExampleOutput = `
 {
@@ -83,4 +81,4 @@ export const userRespondedMissingDataToJSONExampleOutput = `
       "deadlineType": null
     }
   }
-`
+`;

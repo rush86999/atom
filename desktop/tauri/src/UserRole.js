@@ -1,0 +1,33 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const jsx_runtime_1 = require("react/jsx-runtime");
+/**
+ * A component for managing user roles and agent skills in the desktop app.
+ * It displays a list of available roles and allows the user to toggle them.
+ *
+ * @param {UserRoleProps} props - The component props.
+ * @param {Role[]} props.activeRoles - The currently active roles.
+ * @param {Role[]} props.availableRoles - All possible roles.
+ * @param {(role: Role) => void} props.onToggleRole - Callback function to toggle a role.
+ */
+const UserRole = ({ activeRoles, availableRoles, onToggleRole, }) => {
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "user-role-container", style: {
+            padding: "20px",
+            fontFamily: "Arial, sans-serif",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            marginTop: "20px",
+        }, children: [(0, jsx_runtime_1.jsx)("h2", { children: "Manage Your Roles & Agent Skills" }), (0, jsx_runtime_1.jsx)("p", { children: "Select the roles you want to activate to enable specific features." }), (0, jsx_runtime_1.jsx)("div", { style: {
+                    marginTop: "15px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                }, children: availableRoles.map((role) => ((0, jsx_runtime_1.jsx)("div", { children: (0, jsx_runtime_1.jsxs)("label", { style: {
+                            display: "flex",
+                            alignItems: "center",
+                            cursor: "pointer",
+                            textTransform: "capitalize",
+                        }, children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: activeRoles.includes(role), onChange: () => onToggleRole(role), style: { marginRight: "10px", height: "18px", width: "18px" } }), role.replace("_", " ")] }) }, role))) })] }));
+};
+exports.default = UserRole;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVXNlclJvbGUuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJVc2VyUm9sZS50c3giXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBcUJBOzs7Ozs7OztHQVFHO0FBQ0gsTUFBTSxRQUFRLEdBQTRCLENBQUMsRUFDekMsV0FBVyxFQUNYLGNBQWMsRUFDZCxZQUFZLEdBQ2IsRUFBRSxFQUFFO0lBQ0gsT0FBTyxDQUNMLGlDQUNFLFNBQVMsRUFBQyxxQkFBcUIsRUFDL0IsS0FBSyxFQUFFO1lBQ0wsT0FBTyxFQUFFLE1BQU07WUFDZixVQUFVLEVBQUUsbUJBQW1CO1lBQy9CLE1BQU0sRUFBRSxnQkFBZ0I7WUFDeEIsWUFBWSxFQUFFLEtBQUs7WUFDbkIsU0FBUyxFQUFFLE1BQU07U0FDbEIsYUFFRCw4RUFBeUMsRUFDekMsK0dBQXlFLEVBQ3pFLGdDQUNFLEtBQUssRUFBRTtvQkFDTCxTQUFTLEVBQUUsTUFBTTtvQkFDakIsT0FBTyxFQUFFLE1BQU07b0JBQ2YsYUFBYSxFQUFFLFFBQVE7b0JBQ3ZCLEdBQUcsRUFBRSxNQUFNO2lCQUNaLFlBRUEsY0FBYyxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksRUFBRSxFQUFFLENBQUMsQ0FDNUIsMENBQ0UsbUNBQ0UsS0FBSyxFQUFFOzRCQUNMLE9BQU8sRUFBRSxNQUFNOzRCQUNmLFVBQVUsRUFBRSxRQUFROzRCQUNwQixNQUFNLEVBQUUsU0FBUzs0QkFDakIsYUFBYSxFQUFFLFlBQVk7eUJBQzVCLGFBRUQsa0NBQ0UsSUFBSSxFQUFDLFVBQVUsRUFDZixPQUFPLEVBQUUsV0FBVyxDQUFDLFFBQVEsQ0FBQyxJQUFJLENBQUMsRUFDbkMsUUFBUSxFQUFFLEdBQUcsRUFBRSxDQUFDLFlBQVksQ0FBQyxJQUFJLENBQUMsRUFDbEMsS0FBSyxFQUFFLEVBQUUsV0FBVyxFQUFFLE1BQU0sRUFBRSxNQUFNLEVBQUUsTUFBTSxFQUFFLEtBQUssRUFBRSxNQUFNLEVBQUUsR0FDN0QsRUFDRCxJQUFJLENBQUMsT0FBTyxDQUFDLEdBQUcsRUFBRSxHQUFHLENBQUMsSUFDakIsSUFoQkEsSUFBSSxDQWlCUixDQUNQLENBQUMsR0FDRSxJQUNGLENBQ1AsQ0FBQztBQUNKLENBQUMsQ0FBQztBQUVGLGtCQUFlLFFBQVEsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tIFwicmVhY3RcIjtcblxuLy8gRGVmaW5lIHRoZSB0eXBlIGZvciBhIHJvbGUuIFRoaXMgY2FuIGJlIGV4cGFuZGVkIHdpdGggbW9yZSByb2xlcyBhcyBuZWVkZWQuXG5leHBvcnQgdHlwZSBSb2xlID1cbiAgfCBcInNhbGVzXCJcbiAgfCBcInN1cHBvcnRcIlxuICB8IFwiZGV2ZWxvcGVyXCJcbiAgfCBcInByb2plY3RfbWFuYWdlclwiXG4gIHwgXCJmaW5hbmNpYWxfYW5hbHlzdFwiXG4gIHwgXCJyZXNlYXJjaGVyXCJcbiAgfCBcInNvY2lhbF9tZWRpYV9tYW5hZ2VyXCJcbiAgfCBcImNvbnRlbnRfY3JlYXRvclwiXG4gIHwgXCJzaG9wcGVyXCI7XG5cbi8vIERlZmluZSB0aGUgcHJvcHMgZm9yIHRoZSBVc2VyUm9sZSBjb21wb25lbnRcbmludGVyZmFjZSBVc2VyUm9sZVByb3BzIHtcbiAgYWN0aXZlUm9sZXM6IFJvbGVbXTtcbiAgYXZhaWxhYmxlUm9sZXM6IFJvbGVbXTtcbiAgb25Ub2dnbGVSb2xlOiAocm9sZTogUm9sZSkgPT4gdm9pZDtcbn1cblxuLyoqXG4gKiBBIGNvbXBvbmVudCBmb3IgbWFuYWdpbmcgdXNlciByb2xlcyBhbmQgYWdlbnQgc2tpbGxzIGluIHRoZSBkZXNrdG9wIGFwcC5cbiAqIEl0IGRpc3BsYXlzIGEgbGlzdCBvZiBhdmFpbGFibGUgcm9sZXMgYW5kIGFsbG93cyB0aGUgdXNlciB0byB0b2dnbGUgdGhlbS5cbiAqXG4gKiBAcGFyYW0ge1VzZXJSb2xlUHJvcHN9IHByb3BzIC0gVGhlIGNvbXBvbmVudCBwcm9wcy5cbiAqIEBwYXJhbSB7Um9sZVtdfSBwcm9wcy5hY3RpdmVSb2xlcyAtIFRoZSBjdXJyZW50bHkgYWN0aXZlIHJvbGVzLlxuICogQHBhcmFtIHtSb2xlW119IHByb3BzLmF2YWlsYWJsZVJvbGVzIC0gQWxsIHBvc3NpYmxlIHJvbGVzLlxuICogQHBhcmFtIHsocm9sZTogUm9sZSkgPT4gdm9pZH0gcHJvcHMub25Ub2dnbGVSb2xlIC0gQ2FsbGJhY2sgZnVuY3Rpb24gdG8gdG9nZ2xlIGEgcm9sZS5cbiAqL1xuY29uc3QgVXNlclJvbGU6IFJlYWN0LkZDPFVzZXJSb2xlUHJvcHM+ID0gKHtcbiAgYWN0aXZlUm9sZXMsXG4gIGF2YWlsYWJsZVJvbGVzLFxuICBvblRvZ2dsZVJvbGUsXG59KSA9PiB7XG4gIHJldHVybiAoXG4gICAgPGRpdlxuICAgICAgY2xhc3NOYW1lPVwidXNlci1yb2xlLWNvbnRhaW5lclwiXG4gICAgICBzdHlsZT17e1xuICAgICAgICBwYWRkaW5nOiBcIjIwcHhcIixcbiAgICAgICAgZm9udEZhbWlseTogXCJBcmlhbCwgc2Fucy1zZXJpZlwiLFxuICAgICAgICBib3JkZXI6IFwiMXB4IHNvbGlkICNjY2NcIixcbiAgICAgICAgYm9yZGVyUmFkaXVzOiBcIjhweFwiLFxuICAgICAgICBtYXJnaW5Ub3A6IFwiMjBweFwiLFxuICAgICAgfX1cbiAgICA+XG4gICAgICA8aDI+TWFuYWdlIFlvdXIgUm9sZXMgJiBBZ2VudCBTa2lsbHM8L2gyPlxuICAgICAgPHA+U2VsZWN0IHRoZSByb2xlcyB5b3Ugd2FudCB0byBhY3RpdmF0ZSB0byBlbmFibGUgc3BlY2lmaWMgZmVhdHVyZXMuPC9wPlxuICAgICAgPGRpdlxuICAgICAgICBzdHlsZT17e1xuICAgICAgICAgIG1hcmdpblRvcDogXCIxNXB4XCIsXG4gICAgICAgICAgZGlzcGxheTogXCJmbGV4XCIsXG4gICAgICAgICAgZmxleERpcmVjdGlvbjogXCJjb2x1bW5cIixcbiAgICAgICAgICBnYXA6IFwiMTBweFwiLFxuICAgICAgICB9fVxuICAgICAgPlxuICAgICAgICB7YXZhaWxhYmxlUm9sZXMubWFwKChyb2xlKSA9PiAoXG4gICAgICAgICAgPGRpdiBrZXk9e3JvbGV9PlxuICAgICAgICAgICAgPGxhYmVsXG4gICAgICAgICAgICAgIHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgZGlzcGxheTogXCJmbGV4XCIsXG4gICAgICAgICAgICAgICAgYWxpZ25JdGVtczogXCJjZW50ZXJcIixcbiAgICAgICAgICAgICAgICBjdXJzb3I6IFwicG9pbnRlclwiLFxuICAgICAgICAgICAgICAgIHRleHRUcmFuc2Zvcm06IFwiY2FwaXRhbGl6ZVwiLFxuICAgICAgICAgICAgICB9fVxuICAgICAgICAgICAgPlxuICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxuICAgICAgICAgICAgICAgIGNoZWNrZWQ9e2FjdGl2ZVJvbGVzLmluY2x1ZGVzKHJvbGUpfVxuICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoKSA9PiBvblRvZ2dsZVJvbGUocm9sZSl9XG4gICAgICAgICAgICAgICAgc3R5bGU9e3sgbWFyZ2luUmlnaHQ6IFwiMTBweFwiLCBoZWlnaHQ6IFwiMThweFwiLCB3aWR0aDogXCIxOHB4XCIgfX1cbiAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAge3JvbGUucmVwbGFjZShcIl9cIiwgXCIgXCIpfVxuICAgICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgKSl9XG4gICAgICA8L2Rpdj5cbiAgICA8L2Rpdj5cbiAgKTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IFVzZXJSb2xlO1xuIl19

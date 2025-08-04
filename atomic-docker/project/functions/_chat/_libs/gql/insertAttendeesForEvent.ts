@@ -1,5 +1,3 @@
-
-
 export default `
     mutation InsertAttendeesForEvent($attendees: [Attendee_insert_input!]!) {
         insert_Attendee(objects: $attendees, on_conflict: {constraint: Attendee_pkey, update_columns: [
@@ -35,4 +33,4 @@ export default `
         }
     }
 
-`
+`;

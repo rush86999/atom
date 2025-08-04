@@ -7,170 +7,170 @@ import {
   ExplanationData,
   FollowupSuggestionData,
   LLMTaskType,
-} from "../lib/llmUtils";
+} from '../lib/llmUtils';
 
 // Mock Knowledge Base Data
 const MOCK_KB_ARTICLES: KnowledgeBaseArticle[] = [
   {
-    id: "kb_001",
-    title: "How to Create Pivot Tables in SpreadsheetApp",
-    contentType: "how-to",
-    application: "SpreadsheetApp",
-    keywords: ["pivot table", "spreadsheet", "data analysis", "report"],
+    id: 'kb_001',
+    title: 'How to Create Pivot Tables in SpreadsheetApp',
+    contentType: 'how-to',
+    application: 'SpreadsheetApp',
+    keywords: ['pivot table', 'spreadsheet', 'data analysis', 'report'],
     content:
-      "Pivot tables are a powerful tool for summarizing and analyzing large datasets. This guide explains how to create them in SpreadsheetApp.",
+      'Pivot tables are a powerful tool for summarizing and analyzing large datasets. This guide explains how to create them in SpreadsheetApp.',
     steps: [
       {
-        title: "Select Your Data",
+        title: 'Select Your Data',
         description:
-          "Click on any cell within the data range you want to analyze.",
+          'Click on any cell within the data range you want to analyze.',
       },
       {
-        title: "Insert Pivot Table",
+        title: 'Insert Pivot Table',
         description: "Go to the 'Insert' menu and choose 'PivotTable'.",
       },
       {
-        title: "Configure Fields",
+        title: 'Configure Fields',
         description:
-          "In the PivotTable editor pane, drag fields into Rows, Columns, Values, and Filters areas.",
+          'In the PivotTable editor pane, drag fields into Rows, Columns, Values, and Filters areas.',
       },
       {
-        title: "Customize",
+        title: 'Customize',
         description:
-          "Use options to sort, filter, and format your pivot table.",
+          'Use options to sort, filter, and format your pivot table.',
       },
     ],
-    difficulty: "intermediate",
+    difficulty: 'intermediate',
   },
   {
-    id: "kb_002",
-    title: "Tutorial: Email Merge with Attachments",
-    contentType: "tutorial",
-    application: "EmailClient",
+    id: 'kb_002',
+    title: 'Tutorial: Email Merge with Attachments',
+    contentType: 'tutorial',
+    application: 'EmailClient',
     keywords: [
-      "email merge",
-      "mail merge",
-      "attachments",
-      "bulk email",
-      "tutorial",
+      'email merge',
+      'mail merge',
+      'attachments',
+      'bulk email',
+      'tutorial',
     ],
     content:
-      "This tutorial walks you through performing an email merge operation with personalized attachments using EmailClient and SpreadsheetApp for data.",
+      'This tutorial walks you through performing an email merge operation with personalized attachments using EmailClient and SpreadsheetApp for data.',
     steps: [
       {
-        title: "Prepare Data Source",
+        title: 'Prepare Data Source',
         description:
-          "Create a spreadsheet with recipient emails, names, and attachment file paths.",
+          'Create a spreadsheet with recipient emails, names, and attachment file paths.',
       },
       {
-        title: "Open EmailClient Merge Tool",
+        title: 'Open EmailClient Merge Tool',
         description:
           "In EmailClient, find the 'Mail Merge Wizard' under 'Tools'.",
       },
       {
-        title: "Connect Data Source",
-        description: "Link your spreadsheet to the wizard.",
+        title: 'Connect Data Source',
+        description: 'Link your spreadsheet to the wizard.',
       },
       {
-        title: "Compose Template",
+        title: 'Compose Template',
         description:
-          "Write your email template using placeholders for personalized fields (e.g., {{FirstName}}).",
+          'Write your email template using placeholders for personalized fields (e.g., {{FirstName}}).',
       },
       {
-        title: "Configure Attachments",
+        title: 'Configure Attachments',
         description:
           "Specify the column in your spreadsheet that contains the path to each recipient's attachment.",
       },
       {
-        title: "Preview and Send",
-        description: "Review a few merged emails then start the send process.",
+        title: 'Preview and Send',
+        description: 'Review a few merged emails then start the send process.',
       },
     ],
-    difficulty: "intermediate",
+    difficulty: 'intermediate',
   },
   {
-    id: "kb_003",
-    title: "FAQ: Common Login Issues",
-    contentType: "faq",
-    application: "General",
-    keywords: ["login", "password", "access denied", "troubleshooting", "faq"],
+    id: 'kb_003',
+    title: 'FAQ: Common Login Issues',
+    contentType: 'faq',
+    application: 'General',
+    keywords: ['login', 'password', 'access denied', 'troubleshooting', 'faq'],
     content:
       "Q: I forgot my password. How do I reset it?\nA: Click the 'Forgot Password' link on the login page and follow the instructions sent to your email.\n\nQ: Why am I seeing 'Access Denied' errors?\nA: This could be due to incorrect credentials, insufficient permissions, or network issues. Please verify your username/password and contact support if the problem persists.\n\nQ: What are the password complexity requirements?\nA: Passwords must be at least 12 characters, include uppercase, lowercase, numbers, and symbols.",
-    difficulty: "beginner",
+    difficulty: 'beginner',
   },
   {
-    id: "kb_004",
-    title: "Understanding Conditional Formatting",
-    contentType: "explanation",
-    application: "SpreadsheetApp",
+    id: 'kb_004',
+    title: 'Understanding Conditional Formatting',
+    contentType: 'explanation',
+    application: 'SpreadsheetApp',
     keywords: [
-      "conditional formatting",
-      "spreadsheet",
-      "data visualization",
-      "rules",
+      'conditional formatting',
+      'spreadsheet',
+      'data visualization',
+      'rules',
     ],
     content:
-      "Conditional formatting allows you to automatically apply formatting (like colors, icons, and data bars) to cells that meet certain criteria. This helps in visualizing data, highlighting important information, and identifying trends. You can set up rules based on cell values, formulas, or dates. Common uses include highlighting cells greater than a certain number, color-coding sales performance, or identifying duplicate values.",
-    difficulty: "beginner",
+      'Conditional formatting allows you to automatically apply formatting (like colors, icons, and data bars) to cells that meet certain criteria. This helps in visualizing data, highlighting important information, and identifying trends. You can set up rules based on cell values, formulas, or dates. Common uses include highlighting cells greater than a certain number, color-coding sales performance, or identifying duplicate values.',
+    difficulty: 'beginner',
   },
   {
-    id: "kb_005",
-    title: "Workflow Guide: New Client Onboarding",
-    contentType: "workflow_guide",
-    application: "CRM_Platform",
+    id: 'kb_005',
+    title: 'Workflow Guide: New Client Onboarding',
+    contentType: 'workflow_guide',
+    application: 'CRM_Platform',
     keywords: [
-      "client onboarding",
-      "crm",
-      "workflow",
-      "new customer",
-      "process",
+      'client onboarding',
+      'crm',
+      'workflow',
+      'new customer',
+      'process',
     ],
     content:
-      "This guide outlines the standard procedure for onboarding new clients in the CRM_Platform.",
+      'This guide outlines the standard procedure for onboarding new clients in the CRM_Platform.',
     steps: [
       {
-        title: "Receive Lead",
-        description: "New lead is captured from web form or manual entry.",
+        title: 'Receive Lead',
+        description: 'New lead is captured from web form or manual entry.',
       },
       {
-        title: "Initial Contact & Qualification",
+        title: 'Initial Contact & Qualification',
         description:
-          "Sales rep makes initial contact within 24 hours to qualify the lead.",
+          'Sales rep makes initial contact within 24 hours to qualify the lead.',
       },
       {
-        title: "Needs Assessment Meeting",
+        title: 'Needs Assessment Meeting',
         description:
-          "Schedule and conduct a meeting to understand client requirements.",
+          'Schedule and conduct a meeting to understand client requirements.',
       },
       {
-        title: "Proposal Creation",
+        title: 'Proposal Creation',
         description:
-          "Generate a tailored proposal in the CRM using approved templates.",
+          'Generate a tailored proposal in the CRM using approved templates.',
       },
       {
-        title: "Contract & Signature",
-        description: "Send contract for e-signature via integrated tool.",
+        title: 'Contract & Signature',
+        description: 'Send contract for e-signature via integrated tool.',
       },
       {
-        title: "Project Kickoff",
+        title: 'Project Kickoff',
         description:
-          "Once signed, schedule internal and client kickoff meetings.",
+          'Once signed, schedule internal and client kickoff meetings.',
       },
       {
-        title: "CRM Record Update",
+        title: 'CRM Record Update',
         description:
           "Update client status to 'Active' and populate all relevant fields.",
       },
     ],
-    difficulty: "intermediate",
+    difficulty: 'intermediate',
   },
 ];
 
 async function _fetchMockKnowledgeBaseArticles(
   query: string,
-  contentTypeHint?: KnowledgeBaseArticle["contentType"],
+  contentTypeHint?: KnowledgeBaseArticle['contentType'],
   applicationContext?: string,
-  maxResults: number = 3,
+  maxResults: number = 3
 ): Promise<KnowledgeBaseArticle[]> {
   // console.log(`[_fetchMockKnowledgeBaseArticles] Query: "${query}", CT: ${contentTypeHint}, AppCtx: ${applicationContext}, Max: ${maxResults}`);
   const queryLower = query.toLowerCase();
@@ -182,7 +182,7 @@ async function _fetchMockKnowledgeBaseArticles(
       (a) =>
         !a.application ||
         a.application.toLowerCase() === applicationContext.toLowerCase() ||
-        a.application === "General",
+        a.application === 'General'
     );
   }
   if (contentTypeHint) {
@@ -211,19 +211,19 @@ async function _fetchMockKnowledgeBaseArticles(
 export interface KnowledgeBaseArticle {
   id: string;
   title: string;
-  contentType: "tutorial" | "how-to" | "faq" | "workflow_guide" | "explanation";
+  contentType: 'tutorial' | 'how-to' | 'faq' | 'workflow_guide' | 'explanation';
   application?: string;
   keywords?: string[];
   content: string;
   steps?: { title: string; description: string }[];
-  difficulty?: "beginner" | "intermediate" | "advanced";
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
 }
 
 export type GuidanceType =
-  | "answer_question"
-  | "find_tutorial"
-  | "guide_workflow"
-  | "general_explanation";
+  | 'answer_question'
+  | 'find_tutorial'
+  | 'guide_workflow'
+  | 'general_explanation';
 
 export interface LearningAndGuidanceInput {
   userId: string;
@@ -231,7 +231,7 @@ export interface LearningAndGuidanceInput {
   guidanceTypeHint?: GuidanceType;
   applicationContext?: string;
   options?: {
-    preferContentType?: KnowledgeBaseArticle["contentType"];
+    preferContentType?: KnowledgeBaseArticle['contentType'];
     maxResults?: number;
   };
 }
@@ -257,38 +257,38 @@ export class LearningAndGuidanceSkill {
 
   constructor(llmService: LLMServiceInterface) {
     this.llmService = llmService;
-    console.log("LearningAndGuidanceSkill initialized with LLMService.");
+    console.log('LearningAndGuidanceSkill initialized with LLMService.');
   }
 
   public async execute(
-    input: LearningAndGuidanceInput,
+    input: LearningAndGuidanceInput
   ): Promise<LearningAndGuidanceResult> {
     console.log(
-      `[LearningAndGuidanceSkill] Query: "${input.query}", User: ${input.userId}`,
+      `[LearningAndGuidanceSkill] Query: "${input.query}", User: ${input.userId}`
     );
 
     if (!input.query || !input.userId) {
-      throw new Error("Query and userId are required.");
+      throw new Error('Query and userId are required.');
     }
     const maxResults = input.options?.maxResults || 3;
     let effectiveGuidanceType: GuidanceType =
-      input.guidanceTypeHint || "answer_question";
+      input.guidanceTypeHint || 'answer_question';
 
     if (!input.guidanceTypeHint) {
       const classData: GuidanceQueryClassificationData = { query: input.query };
       const classPrompt: StructuredLLMPrompt = {
-        task: "classify_guidance_query",
+        task: 'classify_guidance_query',
         data: classData,
       };
       try {
-        const llmResp = await this.llmService.generate(classPrompt, "cheapest");
+        const llmResp = await this.llmService.generate(classPrompt, 'cheapest');
         if (llmResp.success && llmResp.content) {
           const parsed = JSON.parse(llmResp.content);
           const validTypes: GuidanceType[] = [
-            "answer_question",
-            "find_tutorial",
-            "guide_workflow",
-            "general_explanation",
+            'answer_question',
+            'find_tutorial',
+            'guide_workflow',
+            'general_explanation',
           ];
           if (
             parsed &&
@@ -298,29 +298,29 @@ export class LearningAndGuidanceSkill {
             effectiveGuidanceType = parsed.guidanceType;
           } else {
             console.warn(
-              `[LearningAndGuidanceSkill] LLM invalid guidanceType: ${llmResp.content}`,
+              `[LearningAndGuidanceSkill] LLM invalid guidanceType: ${llmResp.content}`
             );
           }
         } else {
           console.error(
-            `[LearningAndGuidanceSkill] LLM query classification failed: ${llmResp.error}`,
+            `[LearningAndGuidanceSkill] LLM query classification failed: ${llmResp.error}`
           );
         }
       } catch (e: any) {
         console.error(
-          `[LearningAndGuidanceSkill] Error in LLM query classification: ${e.message}`,
+          `[LearningAndGuidanceSkill] Error in LLM query classification: ${e.message}`
         );
       }
     }
     console.log(
-      `[LearningAndGuidanceSkill] Effective guidance type: ${effectiveGuidanceType}`,
+      `[LearningAndGuidanceSkill] Effective guidance type: ${effectiveGuidanceType}`
     );
 
     const relevantArticles = await _fetchMockKnowledgeBaseArticles(
       input.query,
       input.options?.preferContentType,
       input.applicationContext,
-      maxResults,
+      maxResults
     );
     const guidanceProvided: ProvidedGuidance[] = [];
 
@@ -335,8 +335,8 @@ export class LearningAndGuidanceSkill {
         let task: LLMTaskType;
 
         switch (effectiveGuidanceType) {
-          case "answer_question":
-            task = "answer_from_text";
+          case 'answer_question':
+            task = 'answer_from_text';
             const answerData: AnswerFromTextData = {
               query: input.query,
               textContent: article.content.substring(0, 1500),
@@ -344,8 +344,8 @@ export class LearningAndGuidanceSkill {
             };
             structuredArticlePrompt = { task, data: answerData };
             break;
-          case "general_explanation":
-            task = "summarize_for_explanation";
+          case 'general_explanation':
+            task = 'summarize_for_explanation';
             const explData: ExplanationData = {
               query: input.query,
               textContent: article.content.substring(0, 1500),
@@ -353,8 +353,8 @@ export class LearningAndGuidanceSkill {
             };
             structuredArticlePrompt = { task, data: explData };
             break;
-          case "find_tutorial":
-          case "guide_workflow":
+          case 'find_tutorial':
+          case 'guide_workflow':
             if (article.steps && article.steps.length > 0) {
               guidance.steps = article.steps;
               guidance.contentSnippet = `Found relevant steps in "${article.title}".`;
@@ -362,7 +362,7 @@ export class LearningAndGuidanceSkill {
               guidanceProvided.push(guidance); // Push early if predefined steps are used
               continue; // Skip LLM call for steps
             } else {
-              task = "extract_steps_from_text";
+              task = 'extract_steps_from_text';
               const stepsData: StepsFromTextData = {
                 query: input.query,
                 textContent: article.content.substring(0, 2000),
@@ -373,7 +373,7 @@ export class LearningAndGuidanceSkill {
             break;
           default:
             console.warn(
-              `[LearningAndGuidanceSkill] Unexpected guidance type: ${effectiveGuidanceType}. Defaulting to snippet.`,
+              `[LearningAndGuidanceSkill] Unexpected guidance type: ${effectiveGuidanceType}. Defaulting to snippet.`
             );
             guidance.contentSnippet = `Article: ${article.title}. Excerpt: ${article.content.substring(0, 200)}...`;
             guidanceProvided.push(guidance);
@@ -382,19 +382,19 @@ export class LearningAndGuidanceSkill {
 
         const llmResponse = await this.llmService.generate(
           structuredArticlePrompt,
-          "cheapest",
+          'cheapest'
         );
 
         if (llmResponse.success && llmResponse.content) {
           if (
-            effectiveGuidanceType === "answer_question" ||
-            effectiveGuidanceType === "general_explanation"
+            effectiveGuidanceType === 'answer_question' ||
+            effectiveGuidanceType === 'general_explanation'
           ) {
             if (
-              !llmResponse.content.toLowerCase().startsWith("llm fallback") &&
+              !llmResponse.content.toLowerCase().startsWith('llm fallback') &&
               !llmResponse.content
                 .toLowerCase()
-                .includes("not appear to contain")
+                .includes('not appear to contain')
             ) {
               guidance.contentSnippet = llmResponse.content;
               guidance.relevanceScore = 0.8;
@@ -402,8 +402,8 @@ export class LearningAndGuidanceSkill {
               guidance.contentSnippet = `Article "${article.title}" found, but specific info for "${input.query}" not extracted. LLM said: ${llmResponse.content}`;
             }
           } else if (
-            effectiveGuidanceType === "find_tutorial" ||
-            effectiveGuidanceType === "guide_workflow"
+            effectiveGuidanceType === 'find_tutorial' ||
+            effectiveGuidanceType === 'guide_workflow'
           ) {
             // Only if LLM was called for steps
             try {
@@ -414,7 +414,7 @@ export class LearningAndGuidanceSkill {
                 parsedSteps.steps.length > 0
               ) {
                 guidance.steps = parsedSteps.steps;
-                guidance.contentSnippet = "Extracted the following key steps:";
+                guidance.contentSnippet = 'Extracted the following key steps:';
                 guidance.relevanceScore = 0.8;
               } else {
                 guidance.contentSnippet = `"${article.title}" relevant, but specific steps for "${input.query}" not extracted.`;
@@ -422,20 +422,20 @@ export class LearningAndGuidanceSkill {
             } catch (e) {
               console.error(
                 `[LearningAndGuidanceSkill] Error parsing steps JSON from LLM for "${article.title}":`,
-                e,
+                e
               );
               guidance.contentSnippet = `Could not parse steps for "${article.title}". LLM response: ${llmResponse.content.substring(0, 100)}...`;
             }
           }
         } else {
           console.error(
-            `[LearningAndGuidanceSkill] LLM processing failed for article ${article.id}: ${llmResponse.error}`,
+            `[LearningAndGuidanceSkill] LLM processing failed for article ${article.id}: ${llmResponse.error}`
           );
           guidance.contentSnippet = `Error processing article "${article.title}" for your query.`;
         }
       } catch (e: any) {
         console.error(
-          `[LearningAndGuidanceSkill] Outer error processing article ${article.id}: ${e.message}`,
+          `[LearningAndGuidanceSkill] Outer error processing article ${article.id}: ${e.message}`
         );
         guidance.contentSnippet = `System error processing article "${article.title}".`;
       }
@@ -455,13 +455,13 @@ export class LearningAndGuidanceSkill {
         articleTitle: guidanceProvided[0].title,
       };
       const followupPrompt: StructuredLLMPrompt = {
-        task: "generate_followup_suggestions",
+        task: 'generate_followup_suggestions',
         data: followupData,
       };
       try {
         const followupResp = await this.llmService.generate(
           followupPrompt,
-          "cheapest",
+          'cheapest'
         );
         if (followupResp.success && followupResp.content) {
           const parsed = JSON.parse(followupResp.content);
@@ -471,17 +471,17 @@ export class LearningAndGuidanceSkill {
             parsed.suggestions.length > 0
           ) {
             followUpSuggestions = parsed.suggestions.filter(
-              (s: any): s is string => typeof s === "string",
+              (s: any): s is string => typeof s === 'string'
             );
           }
         } else {
           console.warn(
-            `[LearningAndGuidanceSkill] LLM follow-up suggestions failed: ${followupResp.error}`,
+            `[LearningAndGuidanceSkill] LLM follow-up suggestions failed: ${followupResp.error}`
           );
         }
       } catch (e: any) {
         console.error(
-          `[LearningAndGuidanceSkill] Error processing LLM follow-up suggestions: ${e.message}`,
+          `[LearningAndGuidanceSkill] Error processing LLM follow-up suggestions: ${e.message}`
         );
       }
     }
@@ -490,11 +490,11 @@ export class LearningAndGuidanceSkill {
       originalQuery: input.query,
       guidanceProvided: guidanceProvided,
       followUpSuggestions: followUpSuggestions,
-      searchPerformedOn: `${relevantArticles.length} articles from ${input.applicationContext || "General"} KB matching "${input.query.substring(0, 50)}..."`,
+      searchPerformedOn: `${relevantArticles.length} articles from ${input.applicationContext || 'General'} KB matching "${input.query.substring(0, 50)}..."`,
     };
 
     console.log(
-      `[LearningAndGuidanceSkill] Returning guidance for query: "${input.query}"`,
+      `[LearningAndGuidanceSkill] Returning guidance for query: "${input.query}"`
     );
     return finalResult;
   }

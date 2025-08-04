@@ -1,7 +1,10 @@
 import { event2VectorBody } from './index'; // Assuming index.ts is the entry point
 import * as lancedbHelper from '../_libs/lancedb_helper';
 import * as eventApiHelper from '../_libs/event2VectorsWorker/api-helper'; // For convertEventTitleToOpenAIVector
-import { Event2VectorBodyType, EventObject } from '../_libs/types/event2Vectors/types'; // Adjust path as needed
+import {
+  Event2VectorBodyType,
+  EventObject,
+} from '../_libs/types/event2Vectors/types'; // Adjust path as needed
 import { dayjs } from '@google_calendar_sync/_libs/date-utils'; // For date manipulations if needed in test data
 
 // Mock dependencies
@@ -14,7 +17,8 @@ jest.mock('../_libs/event2VectorsWorker/api-helper', () => ({
   convertEventTitleToOpenAIVector: jest.fn(),
 }));
 
-const mockConvertEventTitleToOpenAIVector = eventApiHelper.convertEventTitleToOpenAIVector as jest.Mock;
+const mockConvertEventTitleToOpenAIVector =
+  eventApiHelper.convertEventTitleToOpenAIVector as jest.Mock;
 const mockBulkUpsert = lancedbHelper.bulkUpsertToLanceDBEvents as jest.Mock;
 const mockBulkDelete = lancedbHelper.bulkDeleteFromLanceDBEvents as jest.Mock;
 
@@ -51,7 +55,9 @@ describe('event2VectorBody', () => {
     await event2VectorBody(body);
 
     expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledTimes(1);
-    expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledWith(`${baseEvent.summary}:${baseEvent.description}`);
+    expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledWith(
+      `${baseEvent.summary}:${baseEvent.description}`
+    );
 
     expect(mockBulkUpsert).toHaveBeenCalledTimes(1);
     expect(mockBulkUpsert).toHaveBeenCalledWith([
@@ -59,8 +65,12 @@ describe('event2VectorBody', () => {
         id: `${baseEvent.id}#${calendarId}`,
         userId,
         vector: mockVector,
-        start_date: dayjs(baseEvent.start.dateTime.slice(0, 19)).tz(baseEvent.start.timeZone, true).format(),
-        end_date: dayjs(baseEvent.end.dateTime.slice(0, 19)).tz(baseEvent.end.timeZone, true).format(),
+        start_date: dayjs(baseEvent.start.dateTime.slice(0, 19))
+          .tz(baseEvent.start.timeZone, true)
+          .format(),
+        end_date: dayjs(baseEvent.end.dateTime.slice(0, 19))
+          .tz(baseEvent.end.timeZone, true)
+          .format(),
         raw_event_text: `${baseEvent.summary}:${baseEvent.description}`,
       }),
     ]);
@@ -82,7 +92,9 @@ describe('event2VectorBody', () => {
     await event2VectorBody(body);
 
     expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledTimes(1);
-    expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledWith(eventWithoutDescription.summary);
+    expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledWith(
+      eventWithoutDescription.summary
+    );
 
     expect(mockBulkUpsert).toHaveBeenCalledTimes(1);
     expect(mockBulkUpsert).toHaveBeenCalledWith([
@@ -91,7 +103,6 @@ describe('event2VectorBody', () => {
       }),
     ]);
   });
-
 
   it('should handle delete operations correctly', async () => {
     const eventObject: EventObject = {
@@ -106,7 +117,9 @@ describe('event2VectorBody', () => {
     expect(mockConvertEventTitleToOpenAIVector).not.toHaveBeenCalled();
     expect(mockBulkUpsert).not.toHaveBeenCalled();
     expect(mockBulkDelete).toHaveBeenCalledTimes(1);
-    expect(mockBulkDelete).toHaveBeenCalledWith([`${eventObject.event.id}#${calendarId}`]);
+    expect(mockBulkDelete).toHaveBeenCalledWith([
+      `${eventObject.event.id}#${calendarId}`,
+    ]);
   });
 
   it('should handle mixed upsert and delete operations', async () => {
@@ -123,7 +136,10 @@ describe('event2VectorBody', () => {
       event: { id: 'eventToDelete2' },
       calendarId: 'calDelete',
     };
-    const body: Event2VectorBodyType = { userId, events: [upsertEventObject, deleteEventObject] };
+    const body: Event2VectorBodyType = {
+      userId,
+      events: [upsertEventObject, deleteEventObject],
+    };
 
     await event2VectorBody(body);
 
@@ -131,12 +147,16 @@ describe('event2VectorBody', () => {
     expect(mockConvertEventTitleToOpenAIVector).toHaveBeenCalledTimes(1);
     expect(mockBulkUpsert).toHaveBeenCalledTimes(1);
     expect(mockBulkUpsert).toHaveBeenCalledWith([
-      expect.objectContaining({ id: `${baseEvent.id}#${upsertEventObject.calendarId}` }),
+      expect.objectContaining({
+        id: `${baseEvent.id}#${upsertEventObject.calendarId}`,
+      }),
     ]);
 
     // Delete checks
     expect(mockBulkDelete).toHaveBeenCalledTimes(1);
-    expect(mockBulkDelete).toHaveBeenCalledWith([`${deleteEventObject.event.id}#${deleteEventObject.calendarId}`]);
+    expect(mockBulkDelete).toHaveBeenCalledWith([
+      `${deleteEventObject.event.id}#${deleteEventObject.calendarId}`,
+    ]);
   });
 
   it('should handle empty events array', async () => {
@@ -168,7 +188,7 @@ describe('event2VectorBody', () => {
 
     const eventWithSpecificEndTimeZone = {
       ...baseEvent,
-      end: { dateTime: '2024-01-01T12:00:00Z', timeZone: 'America/New_York' } // Different from start
+      end: { dateTime: '2024-01-01T12:00:00Z', timeZone: 'America/New_York' }, // Different from start
     };
     const eventObject: EventObject = {
       method: 'upsert',
@@ -180,7 +200,9 @@ describe('event2VectorBody', () => {
 
     expect(mockBulkUpsert).toHaveBeenCalledWith([
       expect.objectContaining({
-        end_date: dayjs(eventWithSpecificEndTimeZone.end.dateTime.slice(0, 19)).tz(eventWithSpecificEndTimeZone.end.timeZone, true).format(),
+        end_date: dayjs(eventWithSpecificEndTimeZone.end.dateTime.slice(0, 19))
+          .tz(eventWithSpecificEndTimeZone.end.timeZone, true)
+          .format(),
       }),
     ]);
 
@@ -188,7 +210,7 @@ describe('event2VectorBody', () => {
     mockBulkUpsert.mockClear();
     const eventWithoutEndTimeZone = {
       ...baseEvent,
-      end: { dateTime: '2024-01-01T11:00:00Z', timeZone: undefined } // end.timeZone is undefined
+      end: { dateTime: '2024-01-01T11:00:00Z', timeZone: undefined }, // end.timeZone is undefined
     };
     const eventObject2: EventObject = {
       method: 'upsert',
@@ -200,11 +222,10 @@ describe('event2VectorBody', () => {
 
     expect(mockBulkUpsert).toHaveBeenCalledWith([
       expect.objectContaining({
-        end_date: dayjs(eventWithoutEndTimeZone.end.dateTime.slice(0, 19)).tz(eventWithoutEndTimeZone.start.timeZone, true).format(),
+        end_date: dayjs(eventWithoutEndTimeZone.end.dateTime.slice(0, 19))
+          .tz(eventWithoutEndTimeZone.start.timeZone, true)
+          .format(),
       }),
     ]);
-
-
   });
-
 });

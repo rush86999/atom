@@ -31,7 +31,9 @@ describe('ScheduleHelper', () => {
         preferredStartTimeTo: mockPreferredStartTimeTo,
       };
 
-      (apiBackendHelper.scheduleMeeting as jest.Mock).mockResolvedValueOnce({ success: true });
+      (apiBackendHelper.scheduleMeeting as jest.Mock).mockResolvedValueOnce({
+        success: true,
+      });
 
       await requestScheduleMeeting(
         mockClient,
@@ -44,12 +46,16 @@ describe('ScheduleHelper', () => {
       );
 
       expect(apiBackendHelper.scheduleMeeting).toHaveBeenCalledTimes(1);
-      expect(apiBackendHelper.scheduleMeeting).toHaveBeenCalledWith(expectedPayload);
+      expect(apiBackendHelper.scheduleMeeting).toHaveBeenCalledWith(
+        expectedPayload
+      );
     });
 
     it('should return the response from callScheduleMeetingApi on success', async () => {
       const mockResponse = { meetingId: 'meeting-456', status: 'PENDING' };
-      (apiBackendHelper.scheduleMeeting as jest.Mock).mockResolvedValueOnce(mockResponse);
+      (apiBackendHelper.scheduleMeeting as jest.Mock).mockResolvedValueOnce(
+        mockResponse
+      );
 
       const result = await requestScheduleMeeting(
         mockClient,
@@ -66,7 +72,9 @@ describe('ScheduleHelper', () => {
 
     it('should throw an error if callScheduleMeetingApi throws an error', async () => {
       const mockError = new Error('API Failure');
-      (apiBackendHelper.scheduleMeeting as jest.Mock).mockRejectedValueOnce(mockError);
+      (apiBackendHelper.scheduleMeeting as jest.Mock).mockRejectedValueOnce(
+        mockError
+      );
 
       await expect(
         requestScheduleMeeting(

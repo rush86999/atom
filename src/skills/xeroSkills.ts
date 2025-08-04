@@ -3,7 +3,7 @@ import {
   SkillResponse,
   XeroInvoice,
   XeroBill,
-  XeroContact
+  XeroContact,
 } from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
@@ -28,24 +28,57 @@ function handlePythonApiResponse<T>(
 }
 
 // Helper to handle network/axios errors
-function handleAxiosError(error: AxiosError, operationName: string): SkillResponse<null> {
-    if (error.response) {
-      logger.error(`[${operationName}] Error: ${error.response.status}`, error.response.data);
-      const errData = error.response.data as any;
-      return { ok: false, error: { code: `HTTP_${error.response.status}`, message: errData?.error?.message || `Failed to ${operationName}.` } };
-    } else if (error.request) {
-      logger.error(`[${operationName}] Error: No response received`, error.request);
-      return { ok: false, error: { code: 'NETWORK_ERROR', message: `No response received for ${operationName}.` } };
-    }
-    logger.error(`[${operationName}] Error: ${error.message}`);
-    return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
+function handleAxiosError(
+  error: AxiosError,
+  operationName: string
+): SkillResponse<null> {
+  if (error.response) {
+    logger.error(
+      `[${operationName}] Error: ${error.response.status}`,
+      error.response.data
+    );
+    const errData = error.response.data as any;
+    return {
+      ok: false,
+      error: {
+        code: `HTTP_${error.response.status}`,
+        message: errData?.error?.message || `Failed to ${operationName}.`,
+      },
+    };
+  } else if (error.request) {
+    logger.error(
+      `[${operationName}] Error: No response received`,
+      error.request
+    );
+    return {
+      ok: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: `No response received for ${operationName}.`,
+      },
+    };
+  }
+  logger.error(`[${operationName}] Error: ${error.message}`);
+  return {
+    ok: false,
+    error: {
+      code: 'REQUEST_SETUP_ERROR',
+      message: `Error setting up request for ${operationName}: ${error.message}`,
+    },
+  };
 }
 
 export async function listXeroInvoices(
   userId: string
 ): Promise<SkillResponse<{ invoices: XeroInvoice[] }>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/invoices?user_id=${userId}`;
 
@@ -61,7 +94,13 @@ export async function listXeroBills(
   userId: string
 ): Promise<SkillResponse<{ bills: XeroBill[] }>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/bills?user_id=${userId}`;
 
@@ -77,7 +116,13 @@ export async function listXeroContacts(
   userId: string
 ): Promise<SkillResponse<{ contacts: XeroContact[] }>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts?user_id=${userId}`;
 
@@ -96,7 +141,13 @@ export async function createXeroInvoice(
   type: 'ACCREC' | 'ACCPAY' = 'ACCREC'
 ): Promise<SkillResponse<XeroInvoice>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/invoices`;
 
@@ -106,7 +157,7 @@ export async function createXeroInvoice(
       Contact: { ContactID: contactId },
       LineItems: lineItems,
       Type: type,
-      Status: 'DRAFT'
+      Status: 'DRAFT',
     });
     return handlePythonApiResponse(response, 'createXeroInvoice');
   } catch (error) {
@@ -115,29 +166,35 @@ export async function createXeroInvoice(
 }
 
 export async function createXeroBill(
-    userId: string,
-    contactId: string,
-    lineItems: any[], // Simplified for example
-    type: 'ACCREC' | 'ACCPAY' = 'ACCPAY'
-  ): Promise<SkillResponse<XeroBill>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-      return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/bills`;
-
-    try {
-      const response = await axios.post(endpoint, {
-        user_id: userId,
-        Contact: { ContactID: contactId },
-        LineItems: lineItems,
-        Type: type,
-        Status: 'DRAFT'
-      });
-      return handlePythonApiResponse(response, 'createXeroBill');
-    } catch (error) {
-      return handleAxiosError(error as AxiosError, 'createXeroBill');
-    }
+  userId: string,
+  contactId: string,
+  lineItems: any[], // Simplified for example
+  type: 'ACCREC' | 'ACCPAY' = 'ACCPAY'
+): Promise<SkillResponse<XeroBill>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/bills`;
+
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      Contact: { ContactID: contactId },
+      LineItems: lineItems,
+      Type: type,
+      Status: 'DRAFT',
+    });
+    return handlePythonApiResponse(response, 'createXeroBill');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'createXeroBill');
+  }
+}
 
 export async function createXeroContact(
   userId: string,
@@ -145,7 +202,13 @@ export async function createXeroContact(
   email?: string
 ): Promise<SkillResponse<XeroContact>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts`;
 
@@ -167,7 +230,13 @@ export async function updateXeroContact(
   fields: Partial<XeroContact>
 ): Promise<SkillResponse<XeroContact>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts/${contactId}`;
 
@@ -187,7 +256,13 @@ export async function getXeroContact(
   contactId: string
 ): Promise<SkillResponse<XeroContact>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/xero/contacts/${contactId}?user_id=${userId}`;
 

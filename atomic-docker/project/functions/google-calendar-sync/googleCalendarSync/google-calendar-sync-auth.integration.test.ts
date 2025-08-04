@@ -51,7 +51,7 @@ jest.mock('googleapis', () => ({
       },
       colors: {
         get: mockGoogleColorsGet,
-      }
+      },
     })),
   },
 }));
@@ -72,8 +72,8 @@ jest.mock('@google_calendar_sync/_libs/api-helper', () => ({
   insertCalendarWebhook: jest.fn(),
   addToQueueForVectorSearch: jest.fn(),
   addlocalItemsToEvent2VectorObjects: jest.fn(), // This is actually in sync-logic, but sync-logic calls it.
-                                               // The handler calls performCalendarSync which calls initialGoogleCalendarSync2, which calls this.
-                                               // So we mock it here as if it's a direct dependency for simplicity in integration test.
+  // The handler calls performCalendarSync which calls initialGoogleCalendarSync2, which calls this.
+  // So we mock it here as if it's a direct dependency for simplicity in integration test.
   deleteAttendees: jest.fn(),
   deleteReminders: jest.fn(),
   deleteEvents: jest.fn(),
@@ -96,8 +96,20 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
   };
 
   const mockEventItems = [
-    { id: 'event1', summary: 'Event 1', status: 'confirmed', start: { dateTime: '2024-01-01T10:00:00Z'}, end: { dateTime: '2024-01-01T11:00:00Z'} },
-    { id: 'event2', summary: 'Event 2', status: 'confirmed', start: { dateTime: '2024-01-02T10:00:00Z'}, end: { dateTime: '2024-01-02T11:00:00Z'} },
+    {
+      id: 'event1',
+      summary: 'Event 1',
+      status: 'confirmed',
+      start: { dateTime: '2024-01-01T10:00:00Z' },
+      end: { dateTime: '2024-01-01T11:00:00Z' },
+    },
+    {
+      id: 'event2',
+      summary: 'Event 2',
+      status: 'confirmed',
+      start: { dateTime: '2024-01-02T10:00:00Z' },
+      end: { dateTime: '2024-01-02T11:00:00Z' },
+    },
   ];
 
   beforeEach(() => {
@@ -107,20 +119,25 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
 
     // Default Mocks for successful flow
     (getGoogleIntegration as jest.Mock).mockResolvedValue({
-        id: defaultRequestBody.calendarIntegrationId,
-        clientType: 'web',
-        googleRefreshToken: 'refresh-token',
-        userId: defaultRequestBody.userId
+      id: defaultRequestBody.calendarIntegrationId,
+      clientType: 'web',
+      googleRefreshToken: 'refresh-token',
+      userId: defaultRequestBody.userId,
     });
     (getGoogleCalendarInDb as jest.Mock).mockResolvedValue({
-        id: defaultRequestBody.calendarId,
-        userId: defaultRequestBody.userId,
-        syncToken: null,
-        pageToken: null
+      id: defaultRequestBody.calendarId,
+      userId: defaultRequestBody.userId,
+      syncToken: null,
+      pageToken: null,
     });
     (getGoogleAPIToken as jest.Mock).mockResolvedValue('dummy-access-token');
-    (getGoogleColor as jest.Mock).mockResolvedValue({ calendar: {}, event: {} }); // Mock for getGoogleColor in sync-logic
-    mockGoogleColorsGet.mockResolvedValue({ data: { calendar: {}, event: {} } }); // Mock for google.colors.get
+    (getGoogleColor as jest.Mock).mockResolvedValue({
+      calendar: {},
+      event: {},
+    }); // Mock for getGoogleColor in sync-logic
+    mockGoogleColorsGet.mockResolvedValue({
+      data: { calendar: {}, event: {} },
+    }); // Mock for google.colors.get
 
     mockGoogleEventsList.mockResolvedValue({
       data: {
@@ -133,13 +150,20 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
     (updateGoogleCalendarTokensInDb as jest.Mock).mockResolvedValue(undefined);
     (upsertEvents2 as jest.Mock).mockResolvedValue(undefined);
     (upsertAttendees2 as jest.Mock).mockResolvedValue(undefined);
-    (insertRemindersGivenEventResource as jest.Mock).mockResolvedValue(undefined);
+    (insertRemindersGivenEventResource as jest.Mock).mockResolvedValue(
+      undefined
+    );
     (upsertConference2 as jest.Mock).mockResolvedValue(undefined);
     (getCalendarWebhookByCalendarId as jest.Mock).mockResolvedValue(null); // No existing webhook
-    (requestCalendarWatch as jest.Mock).mockResolvedValue({ id: 'watch-id-xyz', resourceId: 'resource-id-abc' });
+    (requestCalendarWatch as jest.Mock).mockResolvedValue({
+      id: 'watch-id-xyz',
+      resourceId: 'resource-id-abc',
+    });
     (insertCalendarWebhook as jest.Mock).mockResolvedValue(undefined);
     (addToQueueForVectorSearch as jest.Mock).mockResolvedValue(undefined);
-    (addlocalItemsToEvent2VectorObjects as jest.Mock).mockImplementation(() => {}); // Does not return promise
+    (addlocalItemsToEvent2VectorObjects as jest.Mock).mockImplementation(
+      () => {}
+    ); // Does not return promise
 
     (deleteAttendees as jest.Mock).mockResolvedValue(undefined);
     (deleteReminders as jest.Mock).mockResolvedValue(undefined);
@@ -168,9 +192,17 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
       event: defaultRequestBody,
     });
 
-    expect(getGoogleIntegration).toHaveBeenCalledWith(defaultRequestBody.calendarIntegrationId);
-    expect(getGoogleCalendarInDb).toHaveBeenCalledWith(defaultRequestBody.calendarId);
-    expect(getGoogleAPIToken).toHaveBeenCalledWith(defaultRequestBody.userId, 'google_calendar', 'web');
+    expect(getGoogleIntegration).toHaveBeenCalledWith(
+      defaultRequestBody.calendarIntegrationId
+    );
+    expect(getGoogleCalendarInDb).toHaveBeenCalledWith(
+      defaultRequestBody.calendarId
+    );
+    expect(getGoogleAPIToken).toHaveBeenCalledWith(
+      defaultRequestBody.userId,
+      'google_calendar',
+      'web'
+    );
     // getGoogleColor is called by performCalendarSync, which is called by the handler
     expect(getGoogleColor).toHaveBeenCalledWith('dummy-access-token');
 
@@ -179,25 +211,35 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
       showDeleted: true,
       singleEvents: true,
     });
-    expect(updateGoogleCalendarTokensInDb).toHaveBeenCalledWith(defaultRequestBody.calendarId, 'new-sync-token-123', null);
+    expect(updateGoogleCalendarTokensInDb).toHaveBeenCalledWith(
+      defaultRequestBody.calendarId,
+      'new-sync-token-123',
+      null
+    );
 
     // Check that upsertEvents2 was called with the events from the mock
     // The actual events passed to upsertEvents2 are transformed, so we check for key properties if transformation is complex
     // For now, assuming events are passed as is from the list.
     expect(upsertEvents2).toHaveBeenCalledWith(
-        expect.arrayContaining(mockEventItems.map(item => expect.objectContaining({id: item.id}))),
-        defaultRequestBody.userId,
-        defaultRequestBody.calendarId,
-        expect.any(Object) // colorItem
+      expect.arrayContaining(
+        mockEventItems.map((item) => expect.objectContaining({ id: item.id }))
+      ),
+      defaultRequestBody.userId,
+      defaultRequestBody.calendarId,
+      expect.any(Object) // colorItem
     );
 
-    expect(getCalendarWebhookByCalendarId).toHaveBeenCalledWith(defaultRequestBody.calendarId);
+    expect(getCalendarWebhookByCalendarId).toHaveBeenCalledWith(
+      defaultRequestBody.calendarId
+    );
     expect(requestCalendarWatch).toHaveBeenCalled();
-    expect(insertCalendarWebhook).toHaveBeenCalledWith(expect.objectContaining({
-      calendarId: defaultRequestBody.calendarId,
-      userId: defaultRequestBody.userId,
-      calendarIntegrationId: defaultRequestBody.calendarIntegrationId,
-    }));
+    expect(insertCalendarWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calendarId: defaultRequestBody.calendarId,
+        userId: defaultRequestBody.userId,
+        calendarIntegrationId: defaultRequestBody.calendarIntegrationId,
+      })
+    );
     expect(addToQueueForVectorSearch).toHaveBeenCalled();
     expect(addlocalItemsToEvent2VectorObjects).toHaveBeenCalled(); // Called by initialGoogleCalendarSync2
   });
@@ -210,7 +252,9 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
     // This should cause initialGoogleCalendarSync2 to return false,
     // then performCalendarSync to return { success: true, ..., syncDisabled: true }
     // and the handler to then call updateGoogleIntegration with 'false'
-    (getGoogleAPIToken as jest.Mock).mockRejectedValueOnce(new Error('Failed to get API token'));
+    (getGoogleAPIToken as jest.Mock).mockRejectedValueOnce(
+      new Error('Failed to get API token')
+    );
 
     await handler(mockReq, mockRes);
 
@@ -221,7 +265,10 @@ describe('Google Calendar Sync Auth Handler - Integration Tests', () => {
     });
 
     // performCalendarSync calls updateGoogleIntegration when initialGoogleCalendarSync2 returns false
-    expect(updateGoogleIntegration).toHaveBeenCalledWith(defaultRequestBody.calendarIntegrationId, false);
+    expect(updateGoogleIntegration).toHaveBeenCalledWith(
+      defaultRequestBody.calendarIntegrationId,
+      false
+    );
 
     expect(requestCalendarWatch).not.toHaveBeenCalled();
     expect(insertCalendarWebhook).not.toHaveBeenCalled();

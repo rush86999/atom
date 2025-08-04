@@ -1,5 +1,3 @@
-
-
 export default `
     query ListUserContactInfoByUserId($userId: uuid!) {
         User_Contact_Info(where: {userId: {_eq: $userId}}) {
@@ -12,4 +10,4 @@ export default `
             userId
         }
     }
-`
+`;

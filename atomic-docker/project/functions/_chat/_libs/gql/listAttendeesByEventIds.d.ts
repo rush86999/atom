@@ -1,0 +1,2 @@
+declare const _default: "\nquery listAttendeesByEventIds($eventIds: [String!]!) {\n  Attendee(where: {eventId: {_in: $eventIds}}) {\n    additionalGuests\n    comment\n    contactId\n    createdDate\n    deleted\n    emails\n    eventId\n    id\n    imAddresses\n    name\n    optional\n    phoneNumbers\n    resource\n    responseStatus\n    updatedAt\n    userId\n  }\n}\n";
+export default _default;

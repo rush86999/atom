@@ -15,13 +15,19 @@ const AUTH_TAG_LENGTH = 16; // GCM auth tag is typically 16 bytes
 
 function encrypt(text: string): string {
   if (!ENCRYPTION_KEY_HEX) {
-    console.error('GMAIL_TOKEN_ENCRYPTION_KEY is not set. Cannot encrypt token.');
+    console.error(
+      'GMAIL_TOKEN_ENCRYPTION_KEY is not set. Cannot encrypt token.'
+    );
     throw new Error('Server configuration error: Encryption key not set.');
   }
   const key = Buffer.from(ENCRYPTION_KEY_HEX, 'hex');
   if (key.length !== 32) {
-    console.error(`GMAIL_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters), current length: ${key.length} bytes.`);
-    throw new Error('Server configuration error: Invalid encryption key length.');
+    console.error(
+      `GMAIL_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters), current length: ${key.length} bytes.`
+    );
+    throw new Error(
+      'Server configuration error: Invalid encryption key length.'
+    );
   }
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -35,17 +41,27 @@ function encrypt(text: string): string {
 // Decryption function (for later use when retrieving tokens)
 export function decrypt(text: string): string {
   if (!ENCRYPTION_KEY_HEX) {
-    console.error('GMAIL_TOKEN_ENCRYPTION_KEY is not set. Cannot decrypt token.');
-    throw new Error('Server configuration error: Encryption key not set for decryption.');
+    console.error(
+      'GMAIL_TOKEN_ENCRYPTION_KEY is not set. Cannot decrypt token.'
+    );
+    throw new Error(
+      'Server configuration error: Encryption key not set for decryption.'
+    );
   }
   const key = Buffer.from(ENCRYPTION_KEY_HEX, 'hex');
-   if (key.length !== 32) {
-    console.error(`GMAIL_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters) for decryption. Current length: ${key.length} bytes.`);
-    throw new Error('Server configuration error: Invalid encryption key length for decryption.');
+  if (key.length !== 32) {
+    console.error(
+      `GMAIL_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters) for decryption. Current length: ${key.length} bytes.`
+    );
+    throw new Error(
+      'Server configuration error: Invalid encryption key length for decryption.'
+    );
   }
   const parts = text.split(':');
   if (parts.length !== 3) {
-    console.error('Invalid encrypted text format. Expected iv:authTag:encryptedText');
+    console.error(
+      'Invalid encrypted text format. Expected iv:authTag:encryptedText'
+    );
     throw new Error('Decryption error: Invalid encrypted text format.');
   }
   const iv = Buffer.from(parts[0], 'hex');
@@ -93,29 +109,55 @@ mutation UpsertUserGmailToken($userId: uuid!, $accessToken: String!, $refreshTok
 }
 `;
 
-const handler = async (req: Request<{}, {}, HandleGmailAuthCallbackRequestBody>, res: Response) => {
+const handler = async (
+  req: Request<{}, {}, HandleGmailAuthCallbackRequestBody>,
+  res: Response
+) => {
   const { code } = req.body.input;
   const userId = req.body.session_variables['x-hasura-user-id'];
 
   if (!code) {
-    return res.status(400).json({ success: false, message: 'Authorization code is missing.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Authorization code is missing.' });
   }
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'User ID is missing from session.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'User ID is missing from session.' });
   }
   if (!ENCRYPTION_KEY_HEX) {
-    console.error('GMAIL_TOKEN_ENCRYPTION_KEY is not set. Please configure a 64-character hex key (32 bytes).');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Encryption key not configured.' });
+    console.error(
+      'GMAIL_TOKEN_ENCRYPTION_KEY is not set. Please configure a 64-character hex key (32 bytes).'
+    );
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Encryption key not configured.',
+      });
   }
   try {
     Buffer.from(ENCRYPTION_KEY_HEX, 'hex'); // Validate hex format early
   } catch (e) {
     console.error('GMAIL_TOKEN_ENCRYPTION_KEY is not a valid hex string.');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Invalid encryption key format.'});
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Invalid encryption key format.',
+      });
   }
-   if (Buffer.from(ENCRYPTION_KEY_HEX, 'hex').length !== 32) {
-    console.error('GMAIL_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters).');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Invalid encryption key length.' });
+  if (Buffer.from(ENCRYPTION_KEY_HEX, 'hex').length !== 32) {
+    console.error(
+      'GMAIL_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters).'
+    );
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Invalid encryption key length.',
+      });
   }
 
   const adminGraphQLClient = createAdminGraphQLClient();
@@ -123,15 +165,31 @@ const handler = async (req: Request<{}, {}, HandleGmailAuthCallbackRequestBody>,
   try {
     const redirectUri = googleGmailRedirectUrl;
     if (!redirectUri) {
-      console.error('GOOGLE_GMAIL_REDIRECT_URL environment variable is not configured.');
-      return res.status(500).json({ success: false, message: 'Server configuration error: Missing redirect URL for Gmail integration.' });
+      console.error(
+        'GOOGLE_GMAIL_REDIRECT_URL environment variable is not configured.'
+      );
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message:
+            'Server configuration error: Missing redirect URL for Gmail integration.',
+        });
     }
 
-    const tokens: google.auth.Credentials = await getGmailUserTokens(code, redirectUri);
+    const tokens: google.auth.Credentials = await getGmailUserTokens(
+      code,
+      redirectUri
+    );
 
     if (!tokens.access_token) {
       console.error('Failed to obtain access token from Google.');
-      return res.status(500).json({ success: false, message: 'Failed to obtain access token from Google.' });
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Failed to obtain access token from Google.',
+        });
     }
 
     const encryptedAccessToken = encrypt(tokens.access_token);
@@ -140,7 +198,9 @@ const handler = async (req: Request<{}, {}, HandleGmailAuthCallbackRequestBody>,
       encryptedRefreshToken = encrypt(tokens.refresh_token);
     }
 
-    const expiryTimestamp = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
+    const expiryTimestamp = tokens.expiry_date
+      ? new Date(tokens.expiry_date).toISOString()
+      : null;
     // Scopes from Google are space-separated string. Convert to JSON array for storage.
     const scopesArray = tokens.scope ? tokens.scope.split(' ') : [];
 
@@ -152,19 +212,29 @@ const handler = async (req: Request<{}, {}, HandleGmailAuthCallbackRequestBody>,
       scopesArr: scopesArray, // Pass as JSON array
     });
 
-    return res.status(200).json({ success: true, message: 'Gmail account connected successfully.' });
-
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Gmail account connected successfully.',
+      });
   } catch (e: any) {
     console.error('Error handling Gmail auth callback:', e);
-    let clientMessage = 'Failed to connect Gmail account due to an unexpected error.';
+    let clientMessage =
+      'Failed to connect Gmail account due to an unexpected error.';
     if (e.message) {
-        if (e.message.includes('bad_verification_code') || e.message.includes('invalid_grant')) {
-            clientMessage = 'Invalid or expired authorization code. Please try connecting your Gmail account again.';
-        } else if (e.message.includes('redirect_uri_mismatch')) {
-            clientMessage = 'Redirect URI mismatch. Please contact support.';
-        } else if (e.message.toLowerCase().includes('encryption')) {
-            clientMessage = 'A security configuration error occurred. Please contact support.';
-        }
+      if (
+        e.message.includes('bad_verification_code') ||
+        e.message.includes('invalid_grant')
+      ) {
+        clientMessage =
+          'Invalid or expired authorization code. Please try connecting your Gmail account again.';
+      } else if (e.message.includes('redirect_uri_mismatch')) {
+        clientMessage = 'Redirect URI mismatch. Please contact support.';
+      } else if (e.message.toLowerCase().includes('encryption')) {
+        clientMessage =
+          'A security configuration error occurred. Please contact support.';
+      }
     }
 
     return res.status(500).json({

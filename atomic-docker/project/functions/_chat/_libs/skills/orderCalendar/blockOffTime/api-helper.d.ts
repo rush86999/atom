@@ -1,0 +1,10 @@
+import DateTimeJSONType from '@chat/_libs/datetime/DateTimeJSONJSONType';
+import UserInputToJSONType from '@chat/_libs/types/UserInputToJSONType';
+import { BlockOffTimeType } from './types';
+import ResponseActionType from '@chat/_libs/types/ResponseActionType';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+import OpenAI from 'openai';
+export declare const finalStepBlockOffTime: (body: BlockOffTimeType, timezone: string, blockTimeStartDate: string, response: any) => Promise<any>;
+export declare const processBlockOffTimePending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string) => Promise<ResponseActionType>;
+export declare const processBlockOffTimeMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const blockOffTimeControlCenter: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;

@@ -44,17 +44,17 @@ export interface SearchResponse {
 
 // For OpenAI client
 export interface OpenAIInterface {
-    apiKey: string;
+  apiKey: string;
 }
 
 // Schema for LanceDB, mirrors EventRecord but used for table interaction
 export interface EventSchema {
-    id: string;
-    userId: string;
+  id: string;
+  userId: string;
   vector: number[]; // Should be Float32Array or number[]
-    start_date: string;
-    end_date: string;
-    raw_event_text?: string;
+  start_date: string;
+  end_date: string;
+  raw_event_text?: string;
 }
 
 // Minimal representation of a user category
@@ -79,6 +79,6 @@ export interface AIQueryEnhancementResult {
   suggestedCategoryIds?: string[];
   identifiedDateRange?: {
     start?: string; // YYYY-MM-DD
-    end?: string;   // YYYY-MM-DD
+    end?: string; // YYYY-MM-DD
   };
 }

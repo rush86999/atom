@@ -1,0 +1,7 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const CONVERTOWEBAPIDEV = 'https://c37hjy7gm6.execute-api.us-east-1.amazonaws.com/dev/convert-to-webp';
+exports.default = {
+    CONVERTOWEBAPIDEV,
+};
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidXJscy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbInVybHMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxNQUFNLGlCQUFpQixHQUNyQiw0RUFBNEUsQ0FBQztBQUUvRSxrQkFBZTtJQUNiLGlCQUFpQjtDQUNsQixDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiY29uc3QgQ09OVkVSVE9XRUJBUElERVYgPVxuICAnaHR0cHM6Ly9jMzdoank3Z202LmV4ZWN1dGUtYXBpLnVzLWVhc3QtMS5hbWF6b25hd3MuY29tL2Rldi9jb252ZXJ0LXRvLXdlYnAnO1xuXG5leHBvcnQgZGVmYXVsdCB7XG4gIENPTlZFUlRPV0VCQVBJREVWLFxufTtcbiJdfQ==

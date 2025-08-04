@@ -1,0 +1,2 @@
+declare const _default: "\nquery GetChatMeetingPreferenceByUserId($userId: uuid!) {\n    Chat_Meeting_Preference(where: {userId: {_eq: $userId}}) {\n      anyoneCanAddSelf\n      bufferTime\n      conferenceApp\n      createdDate\n      duration\n      enableConference\n      guestsCanInviteOthers\n      guestsCanSeeOtherGuests\n      id\n      name\n      primaryEmail\n      reminders\n      sendUpdates\n      timezone\n      transparency\n      updatedAt\n      useDefaultAlarms\n      userId\n      visibility\n    }\n  }\n  ";
+export default _default;

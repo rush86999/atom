@@ -25,11 +25,14 @@ interface MeetingAssistAttendee {
 interface MeetingAssist {
   id: string;
   window_start_date: string; // Assuming column names are window_start_date
-  window_end_date: string;   // and window_end_date
+  window_end_date: string; // and window_end_date
 }
 
 // Helper function for Hasura requests
-async function callHasura<T = any>(query: string, variables: Record<string, any>): Promise<T> {
+async function callHasura<T = any>(
+  query: string,
+  variables: Record<string, any>
+): Promise<T> {
   const response = await got.post(HASURA_URL, {
     json: {
       query,
@@ -41,8 +44,13 @@ async function callHasura<T = any>(query: string, variables: Record<string, any>
     responseType: 'json',
   });
   if (response.body.errors) {
-    console.error('Hasura errors:', JSON.stringify(response.body.errors, null, 2));
-    throw new Error(`Hasura request failed: ${response.body.errors[0].message}`);
+    console.error(
+      'Hasura errors:',
+      JSON.stringify(response.body.errors, null, 2)
+    );
+    throw new Error(
+      `Hasura request failed: ${response.body.errors[0].message}`
+    );
   }
   return response.body.data;
 }
@@ -102,12 +110,16 @@ const INSERT_PREFERENCE = `
   }
 `;
 
-
 export default async (req: Request, res: Response): Promise<void> => {
-  const { preference_token, preferences } = req.body as SubmitExternalPreferenceRequestBody;
+  const { preference_token, preferences } =
+    req.body as SubmitExternalPreferenceRequestBody;
 
   if (!preference_token || !preferences || !Array.isArray(preferences)) {
-    res.status(400).json({ message: 'Missing preference_token or preferences in request body' });
+    res
+      .status(400)
+      .json({
+        message: 'Missing preference_token or preferences in request body',
+      });
     return;
   }
 
@@ -118,10 +130,9 @@ export default async (req: Request, res: Response): Promise<void> => {
 
   try {
     // 1. Token Validation
-    const attendeeData = await callHasura<{ Meeting_Assist_Attendee: MeetingAssistAttendee[] }>(
-      GET_ATTENDEE_BY_TOKEN,
-      { preference_token }
-    );
+    const attendeeData = await callHasura<{
+      Meeting_Assist_Attendee: MeetingAssistAttendee[];
+    }>(GET_ATTENDEE_BY_TOKEN, { preference_token });
 
     const attendee = attendeeData?.Meeting_Assist_Attendee?.[0];
 
@@ -130,7 +141,10 @@ export default async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (attendee.token_expires_at && new Date(attendee.token_expires_at) < new Date()) {
+    if (
+      attendee.token_expires_at &&
+      new Date(attendee.token_expires_at) < new Date()
+    ) {
       res.status(403).json({ message: 'Preference token has expired.' });
       return;
     }
@@ -138,10 +152,9 @@ export default async (req: Request, res: Response): Promise<void> => {
     const { meeting_assist_id, id: meeting_assist_attendee_id } = attendee;
 
     // 2. Meeting Window Validation
-    const meetingAssistData = await callHasura<{ Meeting_Assist_by_pk: MeetingAssist }>(
-      GET_MEETING_ASSIST,
-      { id: meeting_assist_id }
-    );
+    const meetingAssistData = await callHasura<{
+      Meeting_Assist_by_pk: MeetingAssist;
+    }>(GET_MEETING_ASSIST, { id: meeting_assist_id });
 
     const meetingAssist = meetingAssistData?.Meeting_Assist_by_pk;
 
@@ -158,12 +171,17 @@ export default async (req: Request, res: Response): Promise<void> => {
       const prefEnd = new Date(pref.preferred_end_datetime);
 
       if (prefEnd <= prefStart) {
-        res.status(400).json({ message: 'Preferred end datetime must be after preferred start datetime.' });
+        res
+          .status(400)
+          .json({
+            message:
+              'Preferred end datetime must be after preferred start datetime.',
+          });
         return;
       }
       if (prefStart < meetingWindowStart || prefEnd > meetingWindowEnd) {
         res.status(400).json({
-          message: `Preferences must be within the meeting window: ${meetingAssist.window_start_date} to ${meetingAssist.window_end_date}.`
+          message: `Preferences must be within the meeting window: ${meetingAssist.window_start_date} to ${meetingAssist.window_end_date}.`,
         });
         return;
       }
@@ -183,7 +201,9 @@ export default async (req: Request, res: Response): Promise<void> => {
     // Let's assume the `Meeting_Assist_External_Attendee_Preference.token_expires_at` refers to the expiry of the preference submission itself,
     // which can be set to a short duration or same as attendee's token expiry for simplicity here.
     // The DDL has token_expires_at as NOT NULL.
-    const preferenceTokenExpiresAt = attendee.token_expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // Default to 24h if not set on attendee
+    const preferenceTokenExpiresAt =
+      attendee.token_expires_at ||
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // Default to 24h if not set on attendee
 
     for (const pref of preferences) {
       await callHasura(INSERT_PREFERENCE, {
@@ -197,7 +217,6 @@ export default async (req: Request, res: Response): Promise<void> => {
     }
 
     res.status(201).json({ message: 'Preferences submitted successfully.' });
-
   } catch (error) {
     console.error('Error submitting external preference:', error);
     // Type guard for error
@@ -205,6 +224,8 @@ export default async (req: Request, res: Response): Promise<void> => {
     if (error instanceof Error) {
       errorMessage = error.message;
     }
-    res.status(500).json({ message: 'Failed to submit preferences.', error: errorMessage });
+    res
+      .status(500)
+      .json({ message: 'Failed to submit preferences.', error: errorMessage });
   }
 };

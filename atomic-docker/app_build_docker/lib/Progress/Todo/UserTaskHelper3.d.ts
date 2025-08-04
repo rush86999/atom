@@ -1,0 +1,10 @@
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import { TaskType } from '@lib/dataTypes/TaskType';
+export declare const getTaskGivenId: (client: ApolloClient<NormalizedCacheObject>, taskId: string) => Promise<any>;
+export declare const listTasksGivenUserId: (client: ApolloClient<NormalizedCacheObject>, userId: string, type?: string) => Promise<any>;
+export declare const listEventsGivenIds: (client: ApolloClient<NormalizedCacheObject>, eventIds: string[]) => Promise<any>;
+export declare const updateTaskByIdInDb: (client: ApolloClient<NormalizedCacheObject>, task: TaskType) => Promise<void>;
+export declare const insertTaskInDb: (client: ApolloClient<NormalizedCacheObject>, task: TaskType) => Promise<any>;
+export declare const upsertManyTasksInDb: (client: ApolloClient<NormalizedCacheObject>, tasks: TaskType[]) => Promise<void>;
+export declare const deleteTaskGivenId: (client: ApolloClient<NormalizedCacheObject>, taskId: string) => Promise<any>;
+export declare const deleteTasksGivenIds: (client: ApolloClient<NormalizedCacheObject>, taskIds: string[]) => Promise<void>;

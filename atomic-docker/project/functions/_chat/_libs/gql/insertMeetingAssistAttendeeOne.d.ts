@@ -1,0 +1,2 @@
+declare const _default: "\nmutation InsertMeetingAssistAttendee($attendee: Meeting_Assist_Attendee_insert_input!) {\n  insert_Meeting_Assist_Attendee_one(object: $attendee) {\n    createdDate\n    contactId\n    emails\n    externalAttendee\n    hostId\n    id\n    imAddresses\n    meetingId\n    name\n    phoneNumbers\n    primaryEmail\n    timezone\n    updatedAt\n    userId\n  }\n}\n";
+export default _default;

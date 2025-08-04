@@ -1,0 +1,14 @@
+export declare const IS_PRODUCTION: boolean;
+export declare const hasuraGraphUrl: string;
+export declare const hasuraAdminSecret: string | undefined;
+export declare const googleTokenUrl = "https://oauth2.googleapis.com/token";
+export declare const googleClientSecretWeb: string | undefined;
+export declare const googleClientIdWeb: string | undefined;
+export declare const googleRedirectUrl: string | undefined;
+export declare const zoomResourceName = "zoom";
+export declare const handshakeUrl: string | undefined;
+export declare const zoomAuthUrl = "https://zoom.us/oauth/authorize";
+export declare const appUrl: string | undefined;
+export declare const zoomSaltForPass: string;
+export declare const zoomIVForPass: string;
+export declare const zoomPassKey: string;

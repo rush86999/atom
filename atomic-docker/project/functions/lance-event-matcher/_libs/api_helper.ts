@@ -1,11 +1,11 @@
 import got from 'got';
 import OpenAI from 'openai';
 import {
-    OPENAI_API_KEY,
-    OPENAI_EMBEDDING_MODEL,
-    DEFAULT_SEARCH_LIMIT,
-    HASURA_GRAPHQL_URL,
-    // HASURA_ADMIN_SECRET is passed as an argument for security
+  OPENAI_API_KEY,
+  OPENAI_EMBEDDING_MODEL,
+  DEFAULT_SEARCH_LIMIT,
+  HASURA_GRAPHQL_URL,
+  // HASURA_ADMIN_SECRET is passed as an argument for security
 } from './constants';
 import { getEventTable } from './lancedb_connect';
 import { EventRecord, CategoryType } from './types'; // Added CategoryType
@@ -34,11 +34,15 @@ export async function convertTextToVector(text: string): Promise<number[]> {
     if (res?.data?.[0]?.embedding) {
       return res.data[0].embedding;
     } else {
-      throw new Error('Failed to generate embedding from OpenAI: No embedding data returned.');
+      throw new Error(
+        'Failed to generate embedding from OpenAI: No embedding data returned.'
+      );
     }
   } catch (error) {
     console.error('Error converting text to OpenAI vector:', error);
-    throw new Error(`OpenAI API error during vector conversion: ${error.message}`);
+    throw new Error(
+      `OpenAI API error during vector conversion: ${error.message}`
+    );
   }
 }
 
@@ -67,7 +71,9 @@ export async function searchEventsInLanceDB(
 
   try {
     const table = await getEventTable();
-    let query = table.search(searchVector).where(`userId = '${userId.replace(/'/g, "''")}'`); // Escape single quotes in userId
+    let query = table
+      .search(searchVector)
+      .where(`userId = '${userId.replace(/'/g, "''")}'`); // Escape single quotes in userId
 
     let dateFilter = '';
     if (startDate) {
@@ -141,21 +147,32 @@ export async function getUserCategories(
     });
 
     // Type assertion for the body
-    const body = response.body as { data?: { Category?: CategoryType[] }; errors?: any[] };
-
+    const body = response.body as {
+      data?: { Category?: CategoryType[] };
+      errors?: any[];
+    };
 
     if (body.errors) {
       console.error('Hasura errors:', body.errors);
-      throw new Error(`Error fetching categories from Hasura: ${body.errors.map((e: any) => e.message).join(', ')}`);
+      throw new Error(
+        `Error fetching categories from Hasura: ${body.errors.map((e: any) => e.message).join(', ')}`
+      );
     }
 
     return body.data?.Category || [];
   } catch (error) {
-    console.error('Error during getUserCategories:', error.response ? error.response.body : error.message);
+    console.error(
+      'Error during getUserCategories:',
+      error.response ? error.response.body : error.message
+    );
     // Check if it's a got HTTPError to get more details
     if (error.name === 'HTTPError' && error.response) {
-        throw new Error(`Failed to fetch categories from Hasura. Status: ${error.response.statusCode}, Body: ${JSON.stringify(error.response.body)}`);
+      throw new Error(
+        `Failed to fetch categories from Hasura. Status: ${error.response.statusCode}, Body: ${JSON.stringify(error.response.body)}`
+      );
     }
-    throw new Error(`Network or other error fetching categories: ${error.message}`);
+    throw new Error(
+      `Network or other error fetching categories: ${error.message}`
+    );
   }
 }

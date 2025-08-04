@@ -1,0 +1,15 @@
+export declare const googleClientIdWeb: string | undefined;
+export declare const googleTokenUrl = "https://oauth2.googleapis.com/token";
+export declare const googleClientSecretWeb: string | undefined;
+export declare const googleAuthRedirectUri: string | undefined;
+export declare const googleClientIdIos: string | undefined;
+export declare const googleClientIdAtomicWeb: string | undefined;
+export declare const googleClientSecretAtomicWeb: string | undefined;
+export declare const googleClientIdGmail: string | undefined;
+export declare const googleClientSecretGmail: string | undefined;
+export declare const googleGmailRedirectUrl: string | undefined;
+export declare const googleGmailScopes: string;
+export declare const googleClientIdMcp: string | undefined;
+export declare const googleClientSecretMcp: string | undefined;
+export declare const googleMcpRedirectUrl: string | undefined;
+export declare const googleMcpScopes: string;

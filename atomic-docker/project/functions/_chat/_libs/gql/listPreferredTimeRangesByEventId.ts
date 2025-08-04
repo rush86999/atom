@@ -1,5 +1,3 @@
-
-
 export default `
     query ListPreferredTimeRangesGivenEventId($eventId: String!) {
         PreferredTimeRange(where: {eventId: {_eq: $eventId}}) {
@@ -13,4 +11,4 @@ export default `
             userId
         }
     }
-`
+`;

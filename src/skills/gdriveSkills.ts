@@ -244,5 +244,3 @@ export async function disconnectGDrive(userId: string): Promise<SkillResponse<{ 
     return handleAxiosError(error as AxiosError, 'disconnectGDrive');
   }
 }
-
-```

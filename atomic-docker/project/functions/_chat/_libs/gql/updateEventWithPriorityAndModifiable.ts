@@ -1,4 +1,3 @@
-
 export default `
 mutation UpdateEventWithPriorityAndModifiable($id: String!, $modifiable: Boolean, $priority: Int!) {
   update_Event_by_pk(pk_columns: {id: $id}, _set: {modifiable: $modifiable, priority: $priority, userModifiedPriorityLevel: true}) {
@@ -118,4 +117,4 @@ mutation UpdateEventWithPriorityAndModifiable($id: String!, $modifiable: Boolean
     weeklyTaskList
   }
 }
-`
+`;

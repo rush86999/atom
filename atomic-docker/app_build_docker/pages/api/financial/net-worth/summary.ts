@@ -1,7 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -9,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const supabase = createServerSupabaseClient({ req, res });
     const {
-      data: { session }
+      data: { session },
     } = await supabase.auth.getSession();
 
     if (!session) {
@@ -35,19 +38,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let totalLiabilities = 0;
     const allAccounts = [...(plaidAccounts || []), ...(manualAccounts || [])];
 
-    allAccounts.forEach(account => {
+    allAccounts.forEach((account) => {
       const accountType = String(account.account_type).toLowerCase();
 
       // Define asset types
-      const assetTypes = ['savings', 'checking', 'current', 'investment', 'brokerage', 'retirement', 'IRA', '401k', 'money_market', 'bond', 'stock'];
-      const liabilityTypes = ['credit', 'loan', 'mortgage', 'liability', 'debt', 'line_of_credit'];
+      const assetTypes = [
+        'savings',
+        'checking',
+        'current',
+        'investment',
+        'brokerage',
+        'retirement',
+        'IRA',
+        '401k',
+        'money_market',
+        'bond',
+        'stock',
+      ];
+      const liabilityTypes = [
+        'credit',
+        'loan',
+        'mortgage',
+        'liability',
+        'debt',
+        'line_of_credit',
+      ];
 
       let isAsset = false;
       let isLiability = false;
 
       // Check if it's an asset
       for (const type of assetTypes) {
-        if (accountType.includes(type) || String(account.account_type || '').toLowerCase().includes(type)) {
+        if (
+          accountType.includes(type) ||
+          String(account.account_type || '')
+            .toLowerCase()
+            .includes(type)
+        ) {
           isAsset = true;
           break;
         }
@@ -55,7 +82,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Check if it's a liability
       for (const type of liabilityTypes) {
-        if (accountType.includes(type) || String(account.account_type || '').toLowerCase().includes(type)) {
+        if (
+          accountType.includes(type) ||
+          String(account.account_type || '')
+            .toLowerCase()
+            .includes(type)
+        ) {
           isLiability = true;
           break;
         }
@@ -86,17 +118,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .eq('user_id', userId)
         .order('snapshot_date', { ascending: true });
 
-      history = snapshots?.map(snap => ({
-        date: snap.snapshot_date,
-        netWorth: Number(snap.net_worth)
-      })) || [];
+      history =
+        snapshots?.map((snap) => ({
+          date: snap.snapshot_date,
+          netWorth: Number(snap.net_worth),
+        })) || [];
     }
 
     // Only include last 12 months for history
     if (history.length > 0) {
       const cutoffDate = new Date();
       cutoffDate.setMonth(cutoffDate.getMonth() - 12);
-      history = history.filter(h => new Date(h.date) >= cutoffDate);
+      history = history.filter((h) => new Date(h.date) >= cutoffDate);
     }
 
     // Calculate change (mock data if no history)
@@ -119,7 +152,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       changePercent,
       assets: totalAssets,
       liabilities: totalLiabilities,
-      history
+      history,
     };
 
     res.status(200).json({ data: result });

@@ -39,24 +39,65 @@ const mockProjectData: ProjectData = {
   project: {
     id: 'proj-apollo',
     name: 'Project Apollo',
-    description: 'A mission to revolutionize space travel through AI-driven logistics.',
+    description:
+      'A mission to revolutionize space travel through AI-driven logistics.',
     status: 'On Track',
   },
   tasks: [
-    { id: 'task-101', title: 'Develop propulsion system prototype', status: 'In Progress', assignee: 'Alex Ray' },
-    { id: 'task-102', title: 'Design user interface for mission control', status: 'In Progress', assignee: 'Casey Jordan' },
-    { id: 'task-103', title: 'Set up CI/CD pipeline for deployment', status: 'Done', assignee: 'Dev Team' },
-    { id: 'task-104', title: 'Perform initial risk assessment', status: 'Done', assignee: 'Alex Ray' },
-    { id: 'task-105', title: 'Finalize Q3 budget and resource allocation', status: 'To Do', assignee: 'Casey Jordan' },
+    {
+      id: 'task-101',
+      title: 'Develop propulsion system prototype',
+      status: 'In Progress',
+      assignee: 'Alex Ray',
+    },
+    {
+      id: 'task-102',
+      title: 'Design user interface for mission control',
+      status: 'In Progress',
+      assignee: 'Casey Jordan',
+    },
+    {
+      id: 'task-103',
+      title: 'Set up CI/CD pipeline for deployment',
+      status: 'Done',
+      assignee: 'Dev Team',
+    },
+    {
+      id: 'task-104',
+      title: 'Perform initial risk assessment',
+      status: 'Done',
+      assignee: 'Alex Ray',
+    },
+    {
+      id: 'task-105',
+      title: 'Finalize Q3 budget and resource allocation',
+      status: 'To Do',
+      assignee: 'Casey Jordan',
+    },
   ],
   team: [
     { id: 'team-1', name: 'Alex Ray', role: 'Lead Engineer' },
     { id: 'team-2', name: 'Casey Jordan', role: 'UX/UI Designer' },
   ],
   activityStream: [
-    { id: 'act-1', description: 'Casey Jordan updated the status of "Design user interface for mission control" to "In Progress".', timestamp: '2024-08-01T10:00:00Z' },
-    { id: 'act-2', description: 'Alex Ray completed the task "Perform initial risk assessment".', timestamp: '2024-07-31T15:30:00Z' },
-    { id: 'act-3', description: 'A new task "Finalize Q3 budget and resource allocation" was added to the project.', timestamp: '2024-07-30T11:00:00Z' },
+    {
+      id: 'act-1',
+      description:
+        'Casey Jordan updated the status of "Design user interface for mission control" to "In Progress".',
+      timestamp: '2024-08-01T10:00:00Z',
+    },
+    {
+      id: 'act-2',
+      description:
+        'Alex Ray completed the task "Perform initial risk assessment".',
+      timestamp: '2024-07-31T15:30:00Z',
+    },
+    {
+      id: 'act-3',
+      description:
+        'A new task "Finalize Q3 budget and resource allocation" was added to the project.',
+      timestamp: '2024-07-30T11:00:00Z',
+    },
   ],
 };
 

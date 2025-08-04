@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback } from 'react';
 
 /**
  * Defines the shape of the state object managed by the useDataFetching hook.
@@ -20,7 +20,7 @@ interface DataFetchingState<T> {
  * @returns An object containing the fetched data, loading and error states,
  *          and a function to trigger the data fetching.
  */
-export const useDataFetching = <T,>() => {
+export const useDataFetching = <T>() => {
   const [state, setState] = useState<DataFetchingState<T>>({
     data: null,
     loading: false,
@@ -45,7 +45,7 @@ export const useDataFetching = <T,>() => {
         error:
           err instanceof Error
             ? err
-            : new Error("An unknown error occurred during fetch."),
+            : new Error('An unknown error occurred during fetch.'),
       });
     }
   }, []);

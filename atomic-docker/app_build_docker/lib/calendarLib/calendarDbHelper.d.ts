@@ -1,0 +1,12 @@
+import { CalendarType } from '@lib/dataTypes/CalendarType';
+import { CalendarListItemResponseType } from '@lib/calendarLib/types';
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import { EventType } from '@lib/dataTypes/EventType';
+export declare const upsertCalendar: (client: ApolloClient<NormalizedCacheObject>, calendar: CalendarType) => Promise<any>;
+export declare const upsertGoogleCalendarInDb: (client: ApolloClient<NormalizedCacheObject>, calendarItemResponse: CalendarListItemResponseType, userId: string) => Promise<any>;
+export declare const deleteGoogleCalendarInDb: (client: ApolloClient<NormalizedCacheObject>, calendarId: string) => Promise<void>;
+export declare const deleteEventsByCalendarId: (client: ApolloClient<NormalizedCacheObject>, calendarId: string) => Promise<void>;
+export declare const bulkRemoveCalendarsInDb: (client: ApolloClient<NormalizedCacheObject>, items: string[]) => Promise<void>;
+export declare const bulkCreateCalendarsInDb: (client: ApolloClient<NormalizedCacheObject>, items: CalendarType[]) => Promise<any>;
+export declare const getItemsToRemove: (client: ApolloClient<NormalizedCacheObject>, userId: string, resource: string) => Promise<any>;
+export declare const getEventWithId: (client: ApolloClient<NormalizedCacheObject>, eventId: string) => Promise<EventType | undefined>;

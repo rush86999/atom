@@ -1,0 +1,10 @@
+export function getMsalConfig() {
+    return {
+        auth: {
+            clientId: process.env.OUTLOOK_CLIENT_ID || '',
+            authority: 'https://login.microsoftonline.com/common',
+            clientSecret: process.env.OUTLOOK_CLIENT_SECRET || '',
+        },
+    };
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXV0aF91dGlscy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImF1dGhfdXRpbHMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBRUEsTUFBTSxVQUFVLGFBQWE7SUFDM0IsT0FBTztRQUNMLElBQUksRUFBRTtZQUNKLFFBQVEsRUFBRSxPQUFPLENBQUMsR0FBRyxDQUFDLGlCQUFpQixJQUFJLEVBQUU7WUFDN0MsU0FBUyxFQUFFLDBDQUEwQztZQUNyRCxZQUFZLEVBQUUsT0FBTyxDQUFDLEdBQUcsQ0FBQyxxQkFBcUIsSUFBSSxFQUFFO1NBQ3REO0tBQ0YsQ0FBQztBQUNKLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBDb25maWd1cmF0aW9uIH0gZnJvbSAnQGF6dXJlL21zYWwtbm9kZSc7XG5cbmV4cG9ydCBmdW5jdGlvbiBnZXRNc2FsQ29uZmlnKCk6IENvbmZpZ3VyYXRpb24ge1xuICByZXR1cm4ge1xuICAgIGF1dGg6IHtcbiAgICAgIGNsaWVudElkOiBwcm9jZXNzLmVudi5PVVRMT09LX0NMSUVOVF9JRCB8fCAnJyxcbiAgICAgIGF1dGhvcml0eTogJ2h0dHBzOi8vbG9naW4ubWljcm9zb2Z0b25saW5lLmNvbS9jb21tb24nLFxuICAgICAgY2xpZW50U2VjcmV0OiBwcm9jZXNzLmVudi5PVVRMT09LX0NMSUVOVF9TRUNSRVQgfHwgJycsXG4gICAgfSxcbiAgfTtcbn1cbiJdfQ==

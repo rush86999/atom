@@ -1,0 +1,43 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SupportProvider = exports.useSupport = void 0;
+const jsx_runtime_1 = require("react/jsx-runtime");
+const react_1 = require("react");
+const useDataFetching_1 = require("../../lib/hooks/useDataFetching");
+// Create the context with a default undefined value.
+const SupportContext = (0, react_1.createContext)(undefined);
+/**
+ * Custom hook to access the SupportContext.
+ * Ensures that the context is used within a SupportProvider.
+ */
+const useSupport = () => {
+    const context = (0, react_1.useContext)(SupportContext);
+    if (!context) {
+        throw new Error("useSupport must be used within a SupportProvider");
+    }
+    return context;
+};
+exports.useSupport = useSupport;
+/**
+ * Provider component that wraps parts of the application to provide
+ * state management for the internal support agent feature.
+ */
+const SupportProvider = ({ children }) => {
+    const { data: articles, loading, error, fetchData, } = (0, useDataFetching_1.useDataFetching)();
+    /**
+     * Fetches articles from the knowledge base API based on a search query.
+     */
+    const searchArticles = (0, react_1.useCallback)(async (query) => {
+        const encodedQuery = encodeURIComponent(query);
+        await fetchData(`/api/support/knowledge-base?q=${encodedQuery}`);
+    }, [fetchData]);
+    const value = {
+        articles: articles || [], // Ensure articles is never null
+        loading,
+        error,
+        searchArticles,
+    };
+    return ((0, jsx_runtime_1.jsx)(SupportContext.Provider, { value: value, children: children }));
+};
+exports.SupportProvider = SupportProvider;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3VwcG9ydENvbnRleHQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJzdXBwb3J0Q29udGV4dC50c3giXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7OztBQUFBLGlDQUtlO0FBQ2YscUVBQWtFO0FBbUJsRSxxREFBcUQ7QUFDckQsTUFBTSxjQUFjLEdBQUcsSUFBQSxxQkFBYSxFQUFpQyxTQUFTLENBQUMsQ0FBQztBQUVoRjs7O0dBR0c7QUFDSSxNQUFNLFVBQVUsR0FBRyxHQUFHLEVBQUU7SUFDN0IsTUFBTSxPQUFPLEdBQUcsSUFBQSxrQkFBVSxFQUFDLGNBQWMsQ0FBQyxDQUFDO0lBQzNDLElBQUksQ0FBQyxPQUFPLEVBQUUsQ0FBQztRQUNiLE1BQU0sSUFBSSxLQUFLLENBQUMsa0RBQWtELENBQUMsQ0FBQztJQUN0RSxDQUFDO0lBQ0QsT0FBTyxPQUFPLENBQUM7QUFDakIsQ0FBQyxDQUFDO0FBTlcsUUFBQSxVQUFVLGNBTXJCO0FBRUY7OztHQUdHO0FBQ0ksTUFBTSxlQUFlLEdBQUcsQ0FBQyxFQUFFLFFBQVEsRUFBMkIsRUFBRSxFQUFFO0lBQ3ZFLE1BQU0sRUFDSixJQUFJLEVBQUUsUUFBUSxFQUNkLE9BQU8sRUFDUCxLQUFLLEVBQ0wsU0FBUyxHQUNWLEdBQUcsSUFBQSxpQ0FBZSxHQUFhLENBQUM7SUFFakM7O09BRUc7SUFDSCxNQUFNLGNBQWMsR0FBRyxJQUFBLG1CQUFXLEVBQ2hDLEtBQUssRUFBRSxLQUFhLEVBQUUsRUFBRTtRQUN0QixNQUFNLFlBQVksR0FBRyxrQkFBa0IsQ0FBQyxLQUFLLENBQUMsQ0FBQztRQUMvQyxNQUFNLFNBQVMsQ0FBQyxpQ0FBaUMsWUFBWSxFQUFFLENBQUMsQ0FBQztJQUNuRSxDQUFDLEVBQ0QsQ0FBQyxTQUFTLENBQUMsQ0FDWixDQUFDO0lBRUYsTUFBTSxLQUFLLEdBQUc7UUFDWixRQUFRLEVBQUUsUUFBUSxJQUFJLEVBQUUsRUFBRSxnQ0FBZ0M7UUFDMUQsT0FBTztRQUNQLEtBQUs7UUFDTCxjQUFjO0tBQ2YsQ0FBQztJQUVGLE9BQU8sQ0FDTCx1QkFBQyxjQUFjLENBQUMsUUFBUSxJQUFDLEtBQUssRUFBRSxLQUFLLFlBQUcsUUFBUSxHQUEyQixDQUM1RSxDQUFDO0FBQ0osQ0FBQyxDQUFDO0FBN0JXLFFBQUEsZUFBZSxtQkE2QjFCIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0LCB7XG4gIGNyZWF0ZUNvbnRleHQsXG4gIHVzZUNvbnRleHQsXG4gIFJlYWN0Tm9kZSxcbiAgdXNlQ2FsbGJhY2ssXG59IGZyb20gXCJyZWFjdFwiO1xuaW1wb3J0IHsgdXNlRGF0YUZldGNoaW5nIH0gZnJvbSBcIi4uLy4uL2xpYi9ob29rcy91c2VEYXRhRmV0Y2hpbmdcIjtcblxuLy8gRGVmaW5lIHRoZSBzdHJ1Y3R1cmUgZm9yIGEga25vd2xlZGdlIGJhc2UgYXJ0aWNsZSwgbWF0Y2hpbmcgdGhlIEFQSSByZXNwb25zZS5cbmV4cG9ydCBpbnRlcmZhY2UgQXJ0aWNsZSB7XG4gIGlkOiBzdHJpbmc7XG4gIHRpdGxlOiBzdHJpbmc7XG4gIGNvbnRlbnQ6IHN0cmluZztcbiAgY2F0ZWdvcnk6IFwiSFJcIiB8IFwiSVRcIiB8IFwiRW5naW5lZXJpbmdcIjtcbiAgbGFzdFVwZGF0ZWQ6IHN0cmluZztcbn1cblxuLy8gRGVmaW5lIHRoZSBzaGFwZSBvZiB0aGUgY29udGV4dCBkYXRhLlxuaW50ZXJmYWNlIFN1cHBvcnRDb250ZXh0VHlwZSB7XG4gIGFydGljbGVzOiBBcnRpY2xlW107XG4gIGxvYWRpbmc6IGJvb2xlYW47XG4gIGVycm9yOiBFcnJvciB8IG51bGw7XG4gIHNlYXJjaEFydGljbGVzOiAocXVlcnk6IHN0cmluZykgPT4gUHJvbWlzZTx2b2lkPjtcbn1cblxuLy8gQ3JlYXRlIHRoZSBjb250ZXh0IHdpdGggYSBkZWZhdWx0IHVuZGVmaW5lZCB2YWx1ZS5cbmNvbnN0IFN1cHBvcnRDb250ZXh0ID0gY3JlYXRlQ29udGV4dDxTdXBwb3J0Q29udGV4dFR5cGUgfCB1bmRlZmluZWQ+KHVuZGVmaW5lZCk7XG5cbi8qKlxuICogQ3VzdG9tIGhvb2sgdG8gYWNjZXNzIHRoZSBTdXBwb3J0Q29udGV4dC5cbiAqIEVuc3VyZXMgdGhhdCB0aGUgY29udGV4dCBpcyB1c2VkIHdpdGhpbiBhIFN1cHBvcnRQcm92aWRlci5cbiAqL1xuZXhwb3J0IGNvbnN0IHVzZVN1cHBvcnQgPSAoKSA9PiB7XG4gIGNvbnN0IGNvbnRleHQgPSB1c2VDb250ZXh0KFN1cHBvcnRDb250ZXh0KTtcbiAgaWYgKCFjb250ZXh0KSB7XG4gICAgdGhyb3cgbmV3IEVycm9yKFwidXNlU3VwcG9ydCBtdXN0IGJlIHVzZWQgd2l0aGluIGEgU3VwcG9ydFByb3ZpZGVyXCIpO1xuICB9XG4gIHJldHVybiBjb250ZXh0O1xufTtcblxuLyoqXG4gKiBQcm92aWRlciBjb21wb25lbnQgdGhhdCB3cmFwcyBwYXJ0cyBvZiB0aGUgYXBwbGljYXRpb24gdG8gcHJvdmlkZVxuICogc3RhdGUgbWFuYWdlbWVudCBmb3IgdGhlIGludGVybmFsIHN1cHBvcnQgYWdlbnQgZmVhdHVyZS5cbiAqL1xuZXhwb3J0IGNvbnN0IFN1cHBvcnRQcm92aWRlciA9ICh7IGNoaWxkcmVuIH06IHsgY2hpbGRyZW46IFJlYWN0Tm9kZSB9KSA9PiB7XG4gIGNvbnN0IHtcbiAgICBkYXRhOiBhcnRpY2xlcyxcbiAgICBsb2FkaW5nLFxuICAgIGVycm9yLFxuICAgIGZldGNoRGF0YSxcbiAgfSA9IHVzZURhdGFGZXRjaGluZzxBcnRpY2xlW10+KCk7XG5cbiAgLyoqXG4gICAqIEZldGNoZXMgYXJ0aWNsZXMgZnJvbSB0aGUga25vd2xlZGdlIGJhc2UgQVBJIGJhc2VkIG9uIGEgc2VhcmNoIHF1ZXJ5LlxuICAgKi9cbiAgY29uc3Qgc2VhcmNoQXJ0aWNsZXMgPSB1c2VDYWxsYmFjayhcbiAgICBhc3luYyAocXVlcnk6IHN0cmluZykgPT4ge1xuICAgICAgY29uc3QgZW5jb2RlZFF1ZXJ5ID0gZW5jb2RlVVJJQ29tcG9uZW50KHF1ZXJ5KTtcbiAgICAgIGF3YWl0IGZldGNoRGF0YShgL2FwaS9zdXBwb3J0L2tub3dsZWRnZS1iYXNlP3E9JHtlbmNvZGVkUXVlcnl9YCk7XG4gICAgfSxcbiAgICBbZmV0Y2hEYXRhXSxcbiAgKTtcblxuICBjb25zdCB2YWx1ZSA9IHtcbiAgICBhcnRpY2xlczogYXJ0aWNsZXMgfHwgW10sIC8vIEVuc3VyZSBhcnRpY2xlcyBpcyBuZXZlciBudWxsXG4gICAgbG9hZGluZyxcbiAgICBlcnJvcixcbiAgICBzZWFyY2hBcnRpY2xlcyxcbiAgfTtcblxuICByZXR1cm4gKFxuICAgIDxTdXBwb3J0Q29udGV4dC5Qcm92aWRlciB2YWx1ZT17dmFsdWV9PntjaGlsZHJlbn08L1N1cHBvcnRDb250ZXh0LlByb3ZpZGVyPlxuICApO1xufTtcbiJdfQ==

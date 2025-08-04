@@ -31,7 +31,9 @@ export async function getEventTable(): Promise<Table<EventSchema>> {
     // A more robust version might try to create it if not found,
     // but for a read-focused service, it might be better to ensure it's created elsewhere.
     console.error(`Failed to open table "${LANCEDB_EVENT_TABLE_NAME}":`, error);
-    throw new Error(`Table "${LANCEDB_EVENT_TABLE_NAME}" not found or could not be opened. Ensure it is created and populated by the google-calendar-sync service.`);
+    throw new Error(
+      `Table "${LANCEDB_EVENT_TABLE_NAME}" not found or could not be opened. Ensure it is created and populated by the google-calendar-sync service.`
+    );
   }
 }
 

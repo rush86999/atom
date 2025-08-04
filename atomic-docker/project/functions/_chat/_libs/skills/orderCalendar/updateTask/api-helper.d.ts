@@ -1,0 +1,17 @@
+import { TaskType } from '@chat/_libs/types/TaskType';
+import { TaskStatus } from './constants';
+import { RecurrenceRuleType, TransparencyType, VisibilityType } from '@chat/_libs/types/EventType';
+import DateTimeJSONType from '@chat/_libs/datetime/DateTimeJSONJSONType';
+import UserInputToJSONType from '@chat/_libs/types/UserInputToJSONType';
+import { UpdateTaskType } from './types';
+import { CalendarClientType } from '@chat/_libs/types/CalendarIntegrationType';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+import OpenAI from 'openai';
+export declare const patchGoogleEventForTaskList: (eventId: string, userId: string, clientType: CalendarClientType, calendarId: string, calendarResourceName: string, title?: string, duration?: number, timezone?: string, startDate?: string, oldStartDate?: string, allDay?: boolean, reminders?: number[], recurObject?: RecurrenceRuleType, transparency?: TransparencyType, visibility?: VisibilityType, location?: string) => Promise<void>;
+export declare const updateTaskInDb: (task: TaskType) => Promise<any>;
+export declare const updateTaskInDbAndEventInGoogle: (userId: string, taskId: string, clientType: CalendarClientType, calendarId: string, calendarResourceName: string, taskListName?: string, text?: string, timezone?: string, startDate?: string, oldStartDate?: string, important?: boolean, softDeadline?: string, hardDeadline?: string, status?: TaskStatus, eventId?: string, duration?: number, priority?: number, allDay?: boolean, reminders?: number[], recurObject?: RecurrenceRuleType, transparency?: TransparencyType, visibility?: VisibilityType, location?: string) => Promise<void>;
+export declare const getTaskStatus: (status: "todo" | "doing" | "done") => any;
+export declare const finalStepUpdateTask: (body: UpdateTaskType, startDate: string, endDate: string, response: any) => Promise<any>;
+export declare const processUpdateTaskPending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string) => Promise<any>;
+export declare const processUpdateTaskMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const updateTaskControlCenter: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;

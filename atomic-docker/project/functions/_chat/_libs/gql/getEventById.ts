@@ -1,5 +1,3 @@
-
-
 export default `
 query getEventFromPrimaryKey($eventId: String!) {
     Event_by_pk(id: $eventId) {
@@ -119,4 +117,4 @@ query getEventFromPrimaryKey($eventId: String!) {
       userModifiedMeetingModifiable
     }
   }          
-`
+`;

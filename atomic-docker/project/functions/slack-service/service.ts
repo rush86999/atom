@@ -1,4 +1,8 @@
-import { WebClient, ErrorCode as SlackErrorCode, SlackAPIError } from '@slack/web-api';
+import {
+  WebClient,
+  ErrorCode as SlackErrorCode,
+  SlackAPIError,
+} from '@slack/web-api';
 import { ATOM_SLACK_BOT_TOKEN } from '../atom-agent/_libs/constants'; // Assuming constants are in atom-agent/_libs
 import { logger } from '../_utils/logger'; // Assuming logger is in _utils
 
@@ -27,14 +31,18 @@ let slackWebClientInstance: WebClient | null = null;
  */
 export function getSlackClientForUser(userId: string): WebClient | null {
   // userId is logged for now, but could be used for user-specific tokens in the future
-  logger.debug(`[SlackService] getSlackClientForUser called for userId: ${userId}`);
+  logger.debug(
+    `[SlackService] getSlackClientForUser called for userId: ${userId}`
+  );
 
   if (slackWebClientInstance) {
     return slackWebClientInstance;
   }
 
   if (!ATOM_SLACK_BOT_TOKEN) {
-    logger.error('[SlackService] Slack Bot Token (ATOM_SLACK_BOT_TOKEN) is not configured.');
+    logger.error(
+      '[SlackService] Slack Bot Token (ATOM_SLACK_BOT_TOKEN) is not configured.'
+    );
     return null;
   }
 
@@ -62,10 +70,14 @@ export async function searchSlackMessages(
   query: string,
   maxResults: number = 20
 ): Promise<AgentSlackMessage[]> {
-  logger.debug(`[SlackService] searchSlackMessages called for userId: ${userId}, query: "${query}", maxResults: ${maxResults}`);
+  logger.debug(
+    `[SlackService] searchSlackMessages called for userId: ${userId}, query: "${query}", maxResults: ${maxResults}`
+  );
   const client = getSlackClientForUser(userId);
   if (!client) {
-    throw new Error('[SlackService] Slack client is not available. Check configuration.');
+    throw new Error(
+      '[SlackService] Slack client is not available. Check configuration.'
+    );
   }
 
   const messages: AgentSlackMessage[] = [];
@@ -79,7 +91,7 @@ export async function searchSlackMessages(
         count: countPerPage,
         page: currentPage,
         sort: 'timestamp', // Sort by relevance (score) or timestamp
-        sort_dir: 'desc',  // 'desc' for newest first if sorting by timestamp
+        sort_dir: 'desc', // 'desc' for newest first if sorting by timestamp
       });
 
       if (!response.ok || !response.messages?.matches) {
@@ -109,17 +121,28 @@ export async function searchSlackMessages(
       // Check for pagination: Slack's search.messages pagination is based on 'page' number.
       // We stop if we have enough messages, if there are no more results, or if we fetched fewer than requested (implies end).
       const totalPages = response.messages.paging?.total_pages || currentPage;
-      if (messages.length >= maxResults || currentPage >= totalPages || matches.length < countPerPage) {
+      if (
+        messages.length >= maxResults ||
+        currentPage >= totalPages ||
+        matches.length < countPerPage
+      ) {
         break;
       }
       currentPage++;
     }
-    logger.info(`[SlackService] Found ${messages.length} messages for query "${query}" for user ${userId}.`);
+    logger.info(
+      `[SlackService] Found ${messages.length} messages for query "${query}" for user ${userId}.`
+    );
     return messages;
   } catch (error: any) {
-    logger.error(`[SlackService] Error during searchSlackMessages for userId ${userId}, query "${query}":`, error);
+    logger.error(
+      `[SlackService] Error during searchSlackMessages for userId ${userId}, query "${query}":`,
+      error
+    );
     if (error instanceof SlackAPIError) {
-      throw new Error(`[SlackService] Slack API Error (${error.code}): ${error.data?.error || error.message}`);
+      throw new Error(
+        `[SlackService] Slack API Error (${error.code}): ${error.data?.error || error.message}`
+      );
     }
     throw error; // Re-throw other errors
   }
@@ -139,14 +162,20 @@ export async function getSlackMessageContent(
   channelId: string,
   messageTs: string
 ): Promise<AgentSlackMessage | null> {
-  logger.debug(`[SlackService] getSlackMessageContent called for userId: ${userId}, channelId: ${channelId}, messageTs: ${messageTs}`);
+  logger.debug(
+    `[SlackService] getSlackMessageContent called for userId: ${userId}, channelId: ${channelId}, messageTs: ${messageTs}`
+  );
   const client = getSlackClientForUser(userId);
   if (!client) {
-    throw new Error('[SlackService] Slack client is not available. Check configuration.');
+    throw new Error(
+      '[SlackService] Slack client is not available. Check configuration.'
+    );
   }
 
   if (!channelId || !messageTs) {
-    logger.warn('[SlackService] getSlackMessageContent: channelId or messageTs is missing.');
+    logger.warn(
+      '[SlackService] getSlackMessageContent: channelId or messageTs is missing.'
+    );
     return null;
   }
 
@@ -161,7 +190,10 @@ export async function getSlackMessageContent(
 
     if (!response.ok || !response.messages || response.messages.length === 0) {
       const errorMsg = `Slack API error fetching message content: ${response.error || 'Message not found or no content'}`;
-      logger.warn(`[SlackService] ${errorMsg} for channel ${channelId}, ts ${messageTs}`, response);
+      logger.warn(
+        `[SlackService] ${errorMsg} for channel ${channelId}, ts ${messageTs}`,
+        response
+      );
       return null;
     }
 
@@ -184,17 +216,26 @@ export async function getSlackMessageContent(
       // permalink: will be fetched by getSlackPermalink if needed
       raw: rawMessage,
     };
-    logger.debug(`[SlackService] Successfully fetched message content for ts ${messageTs} in channel ${channelId}`);
+    logger.debug(
+      `[SlackService] Successfully fetched message content for ts ${messageTs} in channel ${channelId}`
+    );
     return message;
-
   } catch (error: any) {
-    logger.error(`[SlackService] Error in getSlackMessageContent for channel ${channelId}, ts ${messageTs}:`, error);
+    logger.error(
+      `[SlackService] Error in getSlackMessageContent for channel ${channelId}, ts ${messageTs}:`,
+      error
+    );
     if (error instanceof SlackAPIError) {
       // Specific Slack errors like 'message_not_found', 'channel_not_found' can be handled here
-      if (error.code === SlackErrorCode.MessageNotFound || error.code === SlackErrorCode.ChannelNotFound) {
+      if (
+        error.code === SlackErrorCode.MessageNotFound ||
+        error.code === SlackErrorCode.ChannelNotFound
+      ) {
         return null;
       }
-      throw new Error(`[SlackService] Slack API Error (${error.code}) fetching message content: ${error.data?.error || error.message}`);
+      throw new Error(
+        `[SlackService] Slack API Error (${error.code}) fetching message content: ${error.data?.error || error.message}`
+      );
     }
     throw error; // Re-throw other errors
   }
@@ -213,14 +254,20 @@ export async function getSlackPermalink(
   channelId: string,
   messageTs: string
 ): Promise<string | null> {
-  logger.debug(`[SlackService] getSlackPermalink called for userId: ${userId}, channelId: ${channelId}, messageTs: ${messageTs}`);
+  logger.debug(
+    `[SlackService] getSlackPermalink called for userId: ${userId}, channelId: ${channelId}, messageTs: ${messageTs}`
+  );
   const client = getSlackClientForUser(userId);
   if (!client) {
-    throw new Error('[SlackService] Slack client is not available. Check configuration.');
+    throw new Error(
+      '[SlackService] Slack client is not available. Check configuration.'
+    );
   }
 
   if (!channelId || !messageTs) {
-    logger.warn('[SlackService] getSlackPermalink: channelId or messageTs is missing.');
+    logger.warn(
+      '[SlackService] getSlackPermalink: channelId or messageTs is missing.'
+    );
     return null;
   }
 
@@ -232,20 +279,32 @@ export async function getSlackPermalink(
 
     if (!response.ok || !response.permalink) {
       const errorMsg = `Slack API error fetching permalink: ${response.error || 'Permalink not found'}`;
-      logger.warn(`[SlackService] ${errorMsg} for channel ${channelId}, ts ${messageTs}`, response);
+      logger.warn(
+        `[SlackService] ${errorMsg} for channel ${channelId}, ts ${messageTs}`,
+        response
+      );
       return null;
     }
 
-    logger.debug(`[SlackService] Successfully fetched permalink for ts ${messageTs} in channel ${channelId}`);
+    logger.debug(
+      `[SlackService] Successfully fetched permalink for ts ${messageTs} in channel ${channelId}`
+    );
     return response.permalink as string;
-
   } catch (error: any) {
-    logger.error(`[SlackService] Error in getSlackPermalink for channel ${channelId}, ts ${messageTs}:`, error);
+    logger.error(
+      `[SlackService] Error in getSlackPermalink for channel ${channelId}, ts ${messageTs}:`,
+      error
+    );
     if (error instanceof SlackAPIError) {
-      if (error.code === SlackErrorCode.MessageNotFound || error.code === SlackErrorCode.ChannelNotFound) {
+      if (
+        error.code === SlackErrorCode.MessageNotFound ||
+        error.code === SlackErrorCode.ChannelNotFound
+      ) {
         return null;
       }
-      throw new Error(`[SlackService] Slack API Error (${error.code}) fetching permalink: ${error.data?.error || error.message}`);
+      throw new Error(
+        `[SlackService] Slack API Error (${error.code}) fetching permalink: ${error.data?.error || error.message}`
+      );
     }
     throw error; // Re-throw other errors
   }

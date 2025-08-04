@@ -1,5 +1,3 @@
-
-
 export default `
 query listTasksByIds($ids: [uuid!]!) {
   Task(where: {id: {_in: $ids}}) {
@@ -22,4 +20,4 @@ query listTasksByIds($ids: [uuid!]!) {
     userId
   }
 }
-`
+`;

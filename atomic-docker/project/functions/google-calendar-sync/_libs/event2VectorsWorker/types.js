@@ -1,1 +1,1 @@
-import { eventVectorName } from "./constants";
+import { eventVectorName } from './constants';

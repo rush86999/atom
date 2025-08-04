@@ -1,0 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const lodash_1 = __importDefault(require("lodash"));
+const commons_validator_js_1 = require("commons-validator-js");
+const urlRegEx = /^(?:(?:(?:https?|ftp):)?\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z0-9\u00a1-\uffff][a-z0-9\u00a1-\uffff_-]{0,62})?[a-z0-9\u00a1-\uffff]\.)+(?:[a-z\u00a1-\uffff]{2,}\.?))(?::\d{2,5})?(?:[/?#]\S*)?$/i; //eslint-disable-line
+const decimalNumberRegEx = /^-?\d+[.,]?\d+$/;
+const integerRegEx = /^-?\d*$/; // allows empty string
+const priceRegEx = /^[0-9]{1,9}([.][0-9]{1,2})?$/;
+const validators = {
+    required: (value = '') => !lodash_1.default.isEmpty(value),
+    email: (value = '') => new commons_validator_js_1.EmailValidator().isValid(value),
+    url: (value = '') => urlRegEx.test(value),
+    number: (value = '') => integerRegEx.test(value) || decimalNumberRegEx.test(value),
+    price: (value = '') => priceRegEx.test(value),
+};
+exports.default = validators;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidmFsaWRhdG9ycy5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbInZhbGlkYXRvcnMudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7QUFBQSxvREFBdUI7QUFDdkIsK0RBQXNEO0FBRXRELE1BQU0sUUFBUSxHQUNaLHlhQUF5YSxDQUFDLENBQUMscUJBQXFCO0FBQ2xjLE1BQU0sa0JBQWtCLEdBQUcsaUJBQWlCLENBQUM7QUFDN0MsTUFBTSxZQUFZLEdBQUcsU0FBUyxDQUFDLENBQUMsc0JBQXNCO0FBQ3RELE1BQU0sVUFBVSxHQUFHLDhCQUE4QixDQUFDO0FBRWxELE1BQU0sVUFBVSxHQUFRO0lBQ3RCLFFBQVEsRUFBRSxDQUFDLEtBQUssR0FBRyxFQUFFLEVBQUUsRUFBRSxDQUFDLENBQUMsZ0JBQUMsQ0FBQyxPQUFPLENBQUMsS0FBSyxDQUFDO0lBQzNDLEtBQUssRUFBRSxDQUFDLEtBQUssR0FBRyxFQUFFLEVBQUUsRUFBRSxDQUFDLElBQUkscUNBQWMsRUFBRSxDQUFDLE9BQU8sQ0FBQyxLQUFLLENBQUM7SUFDMUQsR0FBRyxFQUFFLENBQUMsS0FBSyxHQUFHLEVBQUUsRUFBRSxFQUFFLENBQUMsUUFBUSxDQUFDLElBQUksQ0FBQyxLQUFLLENBQUM7SUFDekMsTUFBTSxFQUFFLENBQUMsS0FBSyxHQUFHLEVBQUUsRUFBRSxFQUFFLENBQ3JCLFlBQVksQ0FBQyxJQUFJLENBQUMsS0FBSyxDQUFDLElBQUksa0JBQWtCLENBQUMsSUFBSSxDQUFDLEtBQUssQ0FBQztJQUM1RCxLQUFLLEVBQUUsQ0FBQyxLQUFLLEdBQUcsRUFBRSxFQUFFLEVBQUUsQ0FBQyxVQUFVLENBQUMsSUFBSSxDQUFDLEtBQUssQ0FBQztDQUM5QyxDQUFDO0FBRUYsa0JBQWUsVUFBVSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IF8gZnJvbSAnbG9kYXNoJztcbmltcG9ydCB7IEVtYWlsVmFsaWRhdG9yIH0gZnJvbSAnY29tbW9ucy12YWxpZGF0b3ItanMnO1xuXG5jb25zdCB1cmxSZWdFeCA9XG4gIC9eKD86KD86KD86aHR0cHM/fGZ0cCk6KT9cXC9cXC8pKD86XFxTKyg/OjpcXFMqKT9AKT8oPzooPyEoPzoxMHwxMjcpKD86XFwuXFxkezEsM30pezN9KSg/ISg/OjE2OVxcLjI1NHwxOTJcXC4xNjgpKD86XFwuXFxkezEsM30pezJ9KSg/ITE3MlxcLig/OjFbNi05XXwyXFxkfDNbMC0xXSkoPzpcXC5cXGR7MSwzfSl7Mn0pKD86WzEtOV1cXGQ/fDFcXGRcXGR8MlswMV1cXGR8MjJbMC0zXSkoPzpcXC4oPzoxP1xcZHsxLDJ9fDJbMC00XVxcZHwyNVswLTVdKSl7Mn0oPzpcXC4oPzpbMS05XVxcZD98MVxcZFxcZHwyWzAtNF1cXGR8MjVbMC00XSkpfCg/Oig/OlthLXowLTlcXHUwMGExLVxcdWZmZmZdW2EtejAtOVxcdTAwYTEtXFx1ZmZmZl8tXXswLDYyfSk/W2EtejAtOVxcdTAwYTEtXFx1ZmZmZl1cXC4pKyg/OlthLXpcXHUwMGExLVxcdWZmZmZdezIsfVxcLj8pKSg/OjpcXGR7Miw1fSk/KD86Wy8/I11cXFMqKT8kL2k7IC8vZXNsaW50LWRpc2FibGUtbGluZVxuY29uc3QgZGVjaW1hbE51bWJlclJlZ0V4ID0gL14tP1xcZCtbLixdP1xcZCskLztcbmNvbnN0IGludGVnZXJSZWdFeCA9IC9eLT9cXGQqJC87IC8vIGFsbG93cyBlbXB0eSBzdHJpbmdcbmNvbnN0IHByaWNlUmVnRXggPSAvXlswLTldezEsOX0oWy5dWzAtOV17MSwyfSk/JC87XG5cbmNvbnN0IHZhbGlkYXRvcnM6IGFueSA9IHtcbiAgcmVxdWlyZWQ6ICh2YWx1ZSA9ICcnKSA9PiAhXy5pc0VtcHR5KHZhbHVlKSxcbiAgZW1haWw6ICh2YWx1ZSA9ICcnKSA9PiBuZXcgRW1haWxWYWxpZGF0b3IoKS5pc1ZhbGlkKHZhbHVlKSxcbiAgdXJsOiAodmFsdWUgPSAnJykgPT4gdXJsUmVnRXgudGVzdCh2YWx1ZSksXG4gIG51bWJlcjogKHZhbHVlID0gJycpID0+XG4gICAgaW50ZWdlclJlZ0V4LnRlc3QodmFsdWUpIHx8IGRlY2ltYWxOdW1iZXJSZWdFeC50ZXN0KHZhbHVlKSxcbiAgcHJpY2U6ICh2YWx1ZSA9ICcnKSA9PiBwcmljZVJlZ0V4LnRlc3QodmFsdWUpLFxufTtcblxuZXhwb3J0IGRlZmF1bHQgdmFsaWRhdG9ycztcbiJdfQ==

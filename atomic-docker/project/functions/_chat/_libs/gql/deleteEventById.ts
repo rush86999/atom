@@ -1,5 +1,3 @@
-
-
 export default `
 mutation DeleteEventById($id: String!) {
   delete_Event_by_pk(id: $id) {
@@ -119,4 +117,4 @@ mutation DeleteEventById($id: String!) {
     weeklyTaskList
   }
 }
-`
+`;

@@ -1,0 +1,21 @@
+import { MeetingAssistInviteType } from '@chat/_libs/types/MeetingAssistInviteType';
+import { AttendeeDetailsForBulkMeetingInviteType, AttendeeDetailsType, FindMeetingTimeWithPermissionType } from './types';
+import DateTimeJSONType from '@chat/_libs/datetime/DateTimeJSONJSONType';
+import UserInputToJSONType, { MutatedCalendarExtractedJSONAttendeeType } from '@chat/_libs/types/UserInputToJSONType';
+import ResponseActionType from '@chat/_libs/types/ResponseActionType';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+import OpenAI from 'openai';
+import { ChatMeetingPreferencesType } from '@chat/_libs/types/ChatMeetingPreferencesType';
+import { UserType } from '@chat/_libs/types/UserType';
+export declare const generateInviteLink: (meetingId: string, attendeeId: string, primaryEmail?: string) => string;
+export declare const convertInviteeTypeToInviteEmailRecipients: (invitees: MeetingAssistInviteType[], meetingId: string) => {
+    email: any;
+    name: any;
+    link: string;
+}[];
+export declare const sendMeetingInfoToHostEmail: (attendees: AttendeeDetailsType[], hostEmail: string, hostName: string, title: string, notes: string, windowStartDate: string, windowEndDate: string, timezone: string) => Promise<void>;
+export declare const sendBulkMeetingInviteEmail: (attendees: AttendeeDetailsForBulkMeetingInviteType[], hostEmail: string, hostName: string) => Promise<void>;
+export declare const finalStepFMTWP: (body: FindMeetingTimeWithPermissionType, primaryHostAttendeeInfo: MutatedCalendarExtractedJSONAttendeeType, defaultMeetingPreferences: ChatMeetingPreferencesType, user: UserType, meetingId: string, windowStartDate: string, windowEndDate: string, response: any) => Promise<any>;
+export declare const processFMTWPPending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string) => Promise<ResponseActionType>;
+export declare const processFMTWPMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, dateJSONBody: DateTimeJSONType, currentTime: string, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const FMTWPControlCenter: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;
