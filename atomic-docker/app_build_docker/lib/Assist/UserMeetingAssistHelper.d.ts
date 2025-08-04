@@ -1,0 +1,46 @@
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import { MeetingAssistInviteType } from '@lib/dataTypes/MeetingAssistInviteType';
+import { MeetingAssistPreferredTimeRangeType } from '@lib/dataTypes/MeetingAssistPreferredTimeRangeType';
+import { MeetingAssistType } from '@lib/dataTypes/MeetingAssistType';
+import { AttendeeDetailsForBulkMeetingCancelledType, AttendeeDetailsForBulkMeetingInviteType, AttendeeDetailsType } from '@lib/Assist/types';
+import { MeetingAssistAttendeeType } from '@lib/dataTypes/MeetingAssistAttendeeType';
+import { SelectedContactType } from '@pages/Calendar/CreateEventWizard/CreateEventAttendees';
+import { RecurrenceFrequencyType } from '@lib/Calendar/types';
+import { Dispatch, SetStateAction } from 'react';
+export declare const listMeetingAssistInvitesGivenMeetingId: (client: ApolloClient<NormalizedCacheObject>, meetingId: string) => Promise<any>;
+export declare const getMeetingAssistGivenId: (client: ApolloClient<NormalizedCacheObject>, meetingId: string) => Promise<any>;
+export declare const listUserMeetingAssistsGivenUserId: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<any>;
+export declare const getUserGivenId: (client: ApolloClient<NormalizedCacheObject>, userId: string) => Promise<any>;
+export declare const deleteMeetingAssistGivenId: (client: ApolloClient<NormalizedCacheObject>, id: string) => Promise<void>;
+export declare const updateUserNameGivenId: (client: ApolloClient<NormalizedCacheObject>, userId: string, name: string) => Promise<void>;
+export declare const insertMeetingAssistAttendee: (client: ApolloClient<NormalizedCacheObject>, attendee: MeetingAssistAttendeeType) => Promise<any>;
+export declare const upsertMeetingAssistMany: (client: ApolloClient<NormalizedCacheObject>, meetingAssists: MeetingAssistType[]) => Promise<any>;
+export declare const upsertMeetingAssistOne: (client: ApolloClient<NormalizedCacheObject>, meetingAssist: MeetingAssistType) => Promise<any>;
+export declare const upsertMeetingAssistInviteMany: (client: ApolloClient<NormalizedCacheObject>, meetingAssistInvites: MeetingAssistInviteType[]) => Promise<any>;
+export declare const insertMeetingAssistPreferredTimeRanges: (client: ApolloClient<NormalizedCacheObject>, meetingAssistPreferredTimeRanges: MeetingAssistPreferredTimeRangeType[]) => Promise<any>;
+export declare const generateDatesForFutureMeetingAssistsUsingRrule: (windowStartDate: string, windowEndDate: string, frequency: RecurrenceFrequencyType, interval: number, until: string) => Promise<{
+    windowStartDate: any;
+    windowEndDate: any;
+}[] | undefined>;
+export declare const searchMeetingAssists: (client: ApolloClient<NormalizedCacheObject>, userId: string, summary: string) => Promise<MeetingAssistType[] | [] | undefined>;
+export declare const sendBulkMeetingCancelEmail: (attendees: AttendeeDetailsForBulkMeetingCancelledType[], hostEmail: string, hostName: string) => Promise<void>;
+export declare const sendBulkMeetingInviteEmail: (attendees: AttendeeDetailsForBulkMeetingInviteType[], hostEmail: string, hostName: string) => Promise<void>;
+export declare const convertInviteeTypeToCancelEmailRecipients: (invitees: MeetingAssistInviteType[]) => {
+    email: any;
+    name: any;
+}[];
+export declare const convertInviteeTypeToInviteEmailRecipients: (invitees: MeetingAssistInviteType[], meetingId: string) => {
+    email: any;
+    name: any;
+    link: string;
+}[];
+export declare const sendMeetingInfoToHostEmail: (attendees: AttendeeDetailsType[], hostEmail: string, hostName: string, title: string, notes: string, windowStartDate: string, windowEndDate: string, timezone: string) => Promise<void>;
+export declare const generateInviteLink: (meetingId: string, attendeeId: string, primaryEmail?: string) => string;
+export declare const addContactToInvitees: (c: SelectedContactType, invitees: MeetingAssistInviteType[], setI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, setParentI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, hostId: string, hostName: string, meetingId: string) => void;
+export declare const addOneToManualEntries: (i: MeetingAssistInviteType[], setI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, invitees: MeetingAssistInviteType[], setInvitees: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, setParentI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, hostId: string, hostName: string, meetingId: string) => void;
+export declare const removeContactFromInvitee: (c: SelectedContactType, invitees: MeetingAssistInviteType[], setInvitees: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, setParentI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>) => void;
+export declare const removeContactFromSearchInvitee: (c: SelectedContactType, invitees: MeetingAssistInviteType[], searchResults: SelectedContactType[], setInvitees: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, setSearchResults: Dispatch<SetStateAction<SelectedContactType[]>>, setParentI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>) => void;
+export declare const removeEntryFromManualEntries: (manualEntries: MeetingAssistInviteType[], setManualEntries: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, invitees: MeetingAssistInviteType[], setInvitees: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, setParentI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, index: number, parentIndex: number) => void;
+export declare const updateContactSelection: (value: boolean, selectedCo: SelectedContactType, a: SelectedContactType[], setA: Dispatch<SetStateAction<SelectedContactType[]>>, index: number) => void;
+export declare const updateSearchContactSelection: (value: boolean, selectedCo: SelectedContactType, a: SelectedContactType[], searchA: SelectedContactType[], setA: Dispatch<SetStateAction<SelectedContactType[]>>, setSearchA: Dispatch<SetStateAction<SelectedContactType[]>>, searchIndex: number) => void;
+export declare const updateEntryInManualEntries: (i: MeetingAssistInviteType[], setI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, index: number, invitees: MeetingAssistInviteType[], setInviteees: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, setParentI: Dispatch<SetStateAction<MeetingAssistInviteType[]>>, parentIndex: number, email?: string, displayName?: string) => void;

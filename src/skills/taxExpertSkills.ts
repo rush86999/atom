@@ -5,10 +5,18 @@ import { EnrichedIntent } from '../nlu_agents/nlu_types';
 
 // Define the structure of a tax query
 export interface TaxQuery {
-  intent: 'calculate_tax' | 'find_deductions' | 'get_tax_advice' | 'lookup_tax_law';
+  intent:
+    | 'calculate_tax'
+    | 'find_deductions'
+    | 'get_tax_advice'
+    | 'lookup_tax_law';
   parameters: {
     income?: number;
-    filingStatus?: 'single' | 'married_jointly' | 'married_separately' | 'head_of_household';
+    filingStatus?:
+      | 'single'
+      | 'married_jointly'
+      | 'married_separately'
+      | 'head_of_household';
     dependents?: number;
     query?: string;
   };
@@ -39,39 +47,52 @@ export async function handleTaxQuery(
       ok: false,
       error: {
         code: 'TAX_ERROR',
-        message: 'I encountered an issue processing your tax query. Please try rephrasing or contact support.'
-      }
+        message:
+          'I encountered an issue processing your tax query. Please try rephrasing or contact support.',
+      },
     };
   }
 }
 
 // --- Response Functions ---
 
-async function getTaxCalculation(userId: string, params: any): Promise<SkillResponse<string>> {
+async function getTaxCalculation(
+  userId: string,
+  params: any
+): Promise<SkillResponse<string>> {
   // In a real application, this would call a tax calculation API
   const estimatedTaxes = (params.income || 50000) * 0.2;
   const responseText = `Based on the information provided, your estimated tax liability is $${estimatedTaxes.toLocaleString()}. This is just an estimate. For a more accurate calculation, please consult a tax professional.`;
   return { ok: true, data: responseText };
 }
 
-async function findTaxDeductions(userId: string, params: any): Promise<SkillResponse<string>> {
+async function findTaxDeductions(
+  userId: string,
+  params: any
+): Promise<SkillResponse<string>> {
   const deductions = [
     'Student loan interest',
     'Charitable contributions',
     'Medical expenses',
     'State and local taxes (SALT)',
-    'Home office expenses'
+    'Home office expenses',
   ];
   const responseText = `Here are some common tax deductions you may be eligible for:\n\n- ${deductions.join('\n- ')}\n\nPlease consult a tax professional to see if you qualify.`;
   return { ok: true, data: responseText };
 }
 
-async function getTaxAdvice(userId: string, params: any): Promise<SkillResponse<string>> {
+async function getTaxAdvice(
+  userId: string,
+  params: any
+): Promise<SkillResponse<string>> {
   const advice = `I am not a certified tax professional and cannot provide tax advice. However, I can provide general information about taxes. For personalized advice, please consult a qualified tax professional.`;
   return { ok: true, data: advice };
 }
 
-async function lookupTaxLaw(userId: string, params: any): Promise<SkillResponse<string>> {
+async function lookupTaxLaw(
+  userId: string,
+  params: any
+): Promise<SkillResponse<string>> {
   const responseText = `I am sorry, but I am unable to look up specific tax laws at this time.`;
   return { ok: true, data: responseText };
 }
@@ -88,7 +109,14 @@ function extractIncome(query: string): number | undefined {
   return match ? parseFloat(match[1].replace(/,/g, '')) : undefined;
 }
 
-function extractFilingStatus(query: string): 'single' | 'married_jointly' | 'married_separately' | 'head_of_household' | undefined {
+function extractFilingStatus(
+  query: string
+):
+  | 'single'
+  | 'married_jointly'
+  | 'married_separately'
+  | 'head_of_household'
+  | undefined {
   if (query.includes('single')) return 'single';
   if (query.includes('married filing jointly')) return 'married_jointly';
   if (query.includes('married filing separately')) return 'married_separately';

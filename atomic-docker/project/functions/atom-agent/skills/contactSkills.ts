@@ -18,12 +18,21 @@ import {
   HubSpotContact, // From types.ts
 } from '../types';
 
-const GOOGLE_PEOPLE_API_SCOPES = ['https://www.googleapis.com/auth/contacts.readonly'];
+const GOOGLE_PEOPLE_API_SCOPES = [
+  'https://www.googleapis.com/auth/contacts.readonly',
+];
 
 // Helper to get an authenticated Google People API client
-async function getGooglePeopleClient(userId: string): Promise<{ client?: people_v1.People; error?: SkillError }> {
+async function getGooglePeopleClient(
+  userId: string
+): Promise<{ client?: people_v1.People; error?: SkillError }> {
   if (!ATOM_GOOGLE_CALENDAR_CLIENT_ID || !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET) {
-    return { error: { code: 'CONFIG_ERROR', message: 'Google client ID or secret not configured.' } };
+    return {
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Google client ID or secret not configured.',
+      },
+    };
   }
 
   // We need to ensure getGoogleUserTokens can fetch tokens for People API scopes.
@@ -32,13 +41,22 @@ async function getGooglePeopleClient(userId: string): Promise<{ client?: people_
   const tokenResponse = await getGoogleUserTokens(userId); // Pass 'google_people' if service_name specific
   if (!tokenResponse.ok || !tokenResponse.data) {
     return {
-        error: tokenResponse.error || { code: 'AUTH_REQUIRED', message: 'Google authentication tokens are missing or invalid for People API.' }
+      error: tokenResponse.error || {
+        code: 'AUTH_REQUIRED',
+        message:
+          'Google authentication tokens are missing or invalid for People API.',
+      },
     };
   }
   const currentTokens = tokenResponse.data;
 
   if (!currentTokens.access_token) {
-    return { error: { code: 'AUTH_TOKEN_INVALID', message: 'Fetched Google token is invalid (missing access_token).'}};
+    return {
+      error: {
+        code: 'AUTH_TOKEN_INVALID',
+        message: 'Fetched Google token is invalid (missing access_token).',
+      },
+    };
   }
 
   const oauth2Client = new google.auth.OAuth2(
@@ -53,11 +71,14 @@ async function getGooglePeopleClient(userId: string): Promise<{ client?: people_
   return { client: google.people({ version: 'v1', auth: oauth2Client }) };
 }
 
-
-async function _findAtomUser(identifier: string): Promise<ResolvedAttendee | null> {
-  console.log(`[_findAtomUser] Searching for Atom user with identifier: ${identifier}`);
+async function _findAtomUser(
+  identifier: string
+): Promise<ResolvedAttendee | null> {
+  console.log(
+    `[_findAtomUser] Searching for Atom user with identifier: ${identifier}`
+  );
   if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
-    console.error("[_findAtomUser] GraphQL client not configured.");
+    console.error('[_findAtomUser] GraphQL client not configured.');
     return null; // Or throw an error
   }
 
@@ -92,7 +113,9 @@ async function _findAtomUser(identifier: string): Promise<ResolvedAttendee | nul
   }
 
   try {
-    const response = await executeGraphQLQuery<{ users: Array<{ id: string; name?: string; email: string }> }>(
+    const response = await executeGraphQLQuery<{
+      users: Array<{ id: string; name?: string; email: string }>;
+    }>(
       query,
       variables,
       isEmail ? 'GetUserByEmail' : 'GetUserByName'
@@ -106,24 +129,43 @@ async function _findAtomUser(identifier: string): Promise<ResolvedAttendee | nul
         email: user.email,
         name: user.name || identifier,
         userId: user.id,
-        source: "atom_user",
-        status: "found",
+        source: 'atom_user',
+        status: 'found',
       };
     }
-    console.log(`[_findAtomUser] No Atom user found for identifier: ${identifier}`);
+    console.log(
+      `[_findAtomUser] No Atom user found for identifier: ${identifier}`
+    );
     return null;
   } catch (error: any) {
-    console.error(`[_findAtomUser] Error searching for Atom user ${identifier}:`, error);
+    console.error(
+      `[_findAtomUser] Error searching for Atom user ${identifier}:`,
+      error
+    );
     return null; // Or return an error status within ResolvedAttendee
   }
 }
 
-async function _findGoogleContact(nameOrEmail: string, requesterId: string): Promise<ResolvedAttendee | null> {
-  console.log(`[_findGoogleContact] Searching Google Contacts for: "${nameOrEmail}" for requester ${requesterId}`);
-  const { client: peopleClient, error: clientError } = await getGooglePeopleClient(requesterId);
+async function _findGoogleContact(
+  nameOrEmail: string,
+  requesterId: string
+): Promise<ResolvedAttendee | null> {
+  console.log(
+    `[_findGoogleContact] Searching Google Contacts for: "${nameOrEmail}" for requester ${requesterId}`
+  );
+  const { client: peopleClient, error: clientError } =
+    await getGooglePeopleClient(requesterId);
   if (clientError || !peopleClient) {
-    console.error(`[_findGoogleContact] Error getting People API client:`, clientError);
-    return { email: nameOrEmail, source: "google_contact", status: "error_resolving", errorMessage: clientError?.message || "Failed to get People API client" } as ResolvedAttendee;
+    console.error(
+      `[_findGoogleContact] Error getting People API client:`,
+      clientError
+    );
+    return {
+      email: nameOrEmail,
+      source: 'google_contact',
+      status: 'error_resolving',
+      errorMessage: clientError?.message || 'Failed to get People API client',
+    } as ResolvedAttendee;
   }
 
   try {
@@ -138,37 +180,67 @@ async function _findGoogleContact(nameOrEmail: string, requesterId: string): Pro
     if (connections && connections.length > 0) {
       // Prioritize exact matches or make a best guess. For simplicity, take the first one.
       const contact = connections[0];
-      const primaryName = contact.names?.find(n => n.metadata?.primary)?.displayName || contact.names?.[0]?.displayName;
-      const primaryEmail = contact.emailAddresses?.find(e => e.metadata?.primary)?.value || contact.emailAddresses?.[0]?.value;
+      const primaryName =
+        contact.names?.find((n) => n.metadata?.primary)?.displayName ||
+        contact.names?.[0]?.displayName;
+      const primaryEmail =
+        contact.emailAddresses?.find((e) => e.metadata?.primary)?.value ||
+        contact.emailAddresses?.[0]?.value;
 
       if (primaryEmail) {
-        console.log(`[_findGoogleContact] Found Google Contact: Name: ${primaryName}, Email: ${primaryEmail}`);
+        console.log(
+          `[_findGoogleContact] Found Google Contact: Name: ${primaryName}, Email: ${primaryEmail}`
+        );
         // Check if this Google Contact email also corresponds to an Atom user
         const atomUserMatch = await _findAtomUser(primaryEmail);
         if (atomUserMatch && atomUserMatch.userId) {
-          return { ...atomUserMatch, source: "google_contact", name: primaryName || atomUserMatch.name };
+          return {
+            ...atomUserMatch,
+            source: 'google_contact',
+            name: primaryName || atomUserMatch.name,
+          };
         }
         return {
           email: primaryEmail,
           name: primaryName || nameOrEmail,
-          source: "google_contact",
-          status: "found",
+          source: 'google_contact',
+          status: 'found',
         };
       }
     }
-    console.log(`[_findGoogleContact] No Google Contact found for: "${nameOrEmail}"`);
+    console.log(
+      `[_findGoogleContact] No Google Contact found for: "${nameOrEmail}"`
+    );
     return null;
   } catch (error: any) {
-    console.error(`[_findGoogleContact] Error searching Google Contacts for ${nameOrEmail}:`, error);
-    return { email: nameOrEmail, source: "google_contact", status: "error_resolving", errorMessage: error.message } as ResolvedAttendee;
+    console.error(
+      `[_findGoogleContact] Error searching Google Contacts for ${nameOrEmail}:`,
+      error
+    );
+    return {
+      email: nameOrEmail,
+      source: 'google_contact',
+      status: 'error_resolving',
+      errorMessage: error.message,
+    } as ResolvedAttendee;
   }
 }
 
-async function _findHubspotContact(nameOrEmail: string, requesterId: string): Promise<ResolvedAttendee | null> {
-  console.log(`[_findHubspotContact] Searching HubSpot for: "${nameOrEmail}" for requester ${requesterId}`);
+async function _findHubspotContact(
+  nameOrEmail: string,
+  requesterId: string
+): Promise<ResolvedAttendee | null> {
+  console.log(
+    `[_findHubspotContact] Searching HubSpot for: "${nameOrEmail}" for requester ${requesterId}`
+  );
   const hubspotClient = getHubSpotApiClient(); // This is synchronous
   if (!hubspotClient) {
-    return { email: nameOrEmail, source: "hubspot_contact", status: "error_resolving", errorMessage: "HubSpot client not configured." } as ResolvedAttendee;
+    return {
+      email: nameOrEmail,
+      source: 'hubspot_contact',
+      status: 'error_resolving',
+      errorMessage: 'HubSpot client not configured.',
+    } as ResolvedAttendee;
   }
 
   try {
@@ -176,65 +248,96 @@ async function _findHubspotContact(nameOrEmail: string, requesterId: string): Pr
       query: nameOrEmail, // General search query
       properties: ['email', 'firstname', 'lastname', 'hs_object_id'],
       limit: 5,
-      filterGroups: [{
-        filters: [
-          // Attempt to search by email first if it looks like one
-          nameOrEmail.includes('@') ?
-          { propertyName: 'email', operator: 'EQ', value: nameOrEmail } :
-          // Otherwise, try to search by name parts (this is simplified)
-          { propertyName: 'firstname', operator: 'CONTAINS_TOKEN', value: nameOrEmail.split(' ')[0] }
-          // More sophisticated name searching would involve multiple filters or better query construction
-        ]
-      }]
+      filterGroups: [
+        {
+          filters: [
+            // Attempt to search by email first if it looks like one
+            nameOrEmail.includes('@')
+              ? { propertyName: 'email', operator: 'EQ', value: nameOrEmail }
+              : // Otherwise, try to search by name parts (this is simplified)
+                {
+                  propertyName: 'firstname',
+                  operator: 'CONTAINS_TOKEN',
+                  value: nameOrEmail.split(' ')[0],
+                },
+            // More sophisticated name searching would involve multiple filters or better query construction
+          ],
+        },
+      ],
     };
 
-    const response = await hubspotClient.crm.contacts.searchApi.doSearch(searchRequest);
+    const response =
+      await hubspotClient.crm.contacts.searchApi.doSearch(searchRequest);
 
     if (response.results && response.results.length > 0) {
       const contact = response.results[0]; // Take the first result for simplicity
       const contactEmail = contact.properties.email;
-      const contactName = `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim();
+      const contactName =
+        `${contact.properties.firstname || ''} ${contact.properties.lastname || ''}`.trim();
 
       if (contactEmail) {
-        console.log(`[_findHubspotContact] Found HubSpot Contact: Name: ${contactName}, Email: ${contactEmail}`);
+        console.log(
+          `[_findHubspotContact] Found HubSpot Contact: Name: ${contactName}, Email: ${contactEmail}`
+        );
         // Check if this HubSpot Contact email also corresponds to an Atom user
         const atomUserMatch = await _findAtomUser(contactEmail);
         if (atomUserMatch && atomUserMatch.userId) {
-          return { ...atomUserMatch, source: "hubspot_contact", name: contactName || atomUserMatch.name };
+          return {
+            ...atomUserMatch,
+            source: 'hubspot_contact',
+            name: contactName || atomUserMatch.name,
+          };
         }
         return {
           email: contactEmail,
           name: contactName || nameOrEmail,
-          source: "hubspot_contact",
-          status: "found",
+          source: 'hubspot_contact',
+          status: 'found',
         };
       }
     }
-    console.log(`[_findHubspotContact] No HubSpot contact found for: "${nameOrEmail}"`);
+    console.log(
+      `[_findHubspotContact] No HubSpot contact found for: "${nameOrEmail}"`
+    );
     return null;
   } catch (error: any) {
-    console.error(`[_findHubspotContact] Error searching HubSpot contacts for ${nameOrEmail}:`, error);
-    return { email: nameOrEmail, source: "hubspot_contact", status: "error_resolving", errorMessage: error.message } as ResolvedAttendee;
+    console.error(
+      `[_findHubspotContact] Error searching HubSpot contacts for ${nameOrEmail}:`,
+      error
+    );
+    return {
+      email: nameOrEmail,
+      source: 'hubspot_contact',
+      status: 'error_resolving',
+      errorMessage: error.message,
+    } as ResolvedAttendee;
   }
 }
-
 
 export async function resolveAttendees(
   attendeeStrings: string[],
   requesterId: string
 ): Promise<ContactSkillResponse<ResolvedAttendee[]>> {
-  console.log(`[contactSkills] Resolving attendees: ${attendeeStrings.join(', ')} for requester ${requesterId}`);
+  console.log(
+    `[contactSkills] Resolving attendees: ${attendeeStrings.join(', ')} for requester ${requesterId}`
+  );
   const resolvedAttendees: ResolvedAttendee[] = [];
 
   for (const attendeeStr of attendeeStrings) {
     let resolved: ResolvedAttendee | null = null;
 
-    if (attendeeStr.includes('@')) { // Simple check for email
+    if (attendeeStr.includes('@')) {
+      // Simple check for email
       resolved = await _findAtomUser(attendeeStr); // Check if it's an Atom user first
       if (resolved) {
-        resolved.source = "atom_user"; // Correct source if found as Atom user by email
+        resolved.source = 'atom_user'; // Correct source if found as Atom user by email
       } else {
-        resolved = { email: attendeeStr, source: "email_direct", status: "found", name: attendeeStr.split('@')[0] }; // Assume it's a valid external email
+        resolved = {
+          email: attendeeStr,
+          source: 'email_direct',
+          status: 'found',
+          name: attendeeStr.split('@')[0],
+        }; // Assume it's a valid external email
       }
     } else {
       // It's likely a name, try resolving through different sources
@@ -253,18 +356,22 @@ export async function resolveAttendees(
       resolvedAttendees.push(resolved);
     } else {
       // Could not resolve by name, and it wasn't an email
-      console.warn(`[contactSkills] Could not resolve attendee: "${attendeeStr}"`);
+      console.warn(
+        `[contactSkills] Could not resolve attendee: "${attendeeStr}"`
+      );
       resolvedAttendees.push({
         email: attendeeStr, // Keep original string if cannot resolve to actual email
         name: attendeeStr,
-        source: "unresolved",
-        status: "not_found",
+        source: 'unresolved',
+        status: 'not_found',
       });
     }
   }
 
   // Filter out any nulls just in case, though logic above tries to push a placeholder
-  const finalAttendees = resolvedAttendees.filter(Boolean) as ResolvedAttendee[];
+  const finalAttendees = resolvedAttendees.filter(
+    Boolean
+  ) as ResolvedAttendee[];
   console.log('[contactSkills] Final resolved attendees:', finalAttendees);
 
   return { ok: true, data: finalAttendees };

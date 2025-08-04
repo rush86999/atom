@@ -1,4 +1,3 @@
-
 export default `
     mutation InsertMeetingAssistInvite($meetingAssistInvites: [Meeting_Assist_Invite_insert_input!]!) {
         insert_Meeting_Assist_Invite(
@@ -32,4 +31,4 @@ export default `
             }
         }
     }
-`
+`;

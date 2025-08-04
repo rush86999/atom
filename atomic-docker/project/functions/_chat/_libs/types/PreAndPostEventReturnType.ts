@@ -1,8 +1,9 @@
 import { EventType } from "./EventType";
 
-
 export type PreAndPostEventReturnType = {
-    afterEvent?: EventType,
-    newEvent: EventType,
-    beforeEvent?: EventType,
-}
+  preEvent?: EventType;
+  postEvent?: EventType;
+  newEvent?: EventType;
+  preEventId?: string;
+  postEventId?: string;
+};

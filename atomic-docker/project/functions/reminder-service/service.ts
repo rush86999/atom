@@ -37,7 +37,13 @@ mutation DeleteEmailReminder($id: uuid!) {
 }
 `;
 
-export async function createEmailReminder(userId: string, emailId: string, service: 'gmail' | 'outlook', remindAt: Date, recurrenceRule?: string) {
+export async function createEmailReminder(
+  userId: string,
+  emailId: string,
+  service: 'gmail' | 'outlook',
+  remindAt: Date,
+  recurrenceRule?: string
+) {
   const adminGraphQLClient = createAdminGraphQLClient();
   const response = await adminGraphQLClient.request(INSERT_REMINDER_MUTATION, {
     userId,
@@ -59,7 +65,9 @@ export async function getDueReminders() {
 
 export async function deleteReminder(id: string) {
   const adminGraphQLClient = createAdminGraphQLClient();
-  const response = await adminGraphQLClient.request(DELETE_REMINDER_MUTATION, { id });
+  const response = await adminGraphQLClient.request(DELETE_REMINDER_MUTATION, {
+    id,
+  });
   return response.delete_email_reminders_by_pk;
 }
 
@@ -77,7 +85,9 @@ export async function processDueReminders() {
   const dueReminders = await getDueReminders();
   for (const reminder of dueReminders) {
     // Send a notification to the user. This could be an email, a push notification, or a Slack message.
-    console.log(`Sending reminder for email ${reminder.email_id} to user ${reminder.user_id}`);
+    console.log(
+      `Sending reminder for email ${reminder.email_id} to user ${reminder.user_id}`
+    );
 
     if (reminder.recurrence_rule) {
       const rule = RRule.fromString(reminder.recurrence_rule);

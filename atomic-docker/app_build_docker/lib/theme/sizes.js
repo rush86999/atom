@@ -1,6 +1,6 @@
-import {Dimensions} from 'react-native';
+import { Dimensions } from 'react-native';
 
-const {height} = Dimensions.get('screen');
+const { height } = Dimensions.get('screen');
 
 export const BASE = 16;
 

@@ -47,7 +47,7 @@ export class FinanceVoiceAgent {
       const matchedCommand = Object.keys(voiceCommands).find(cmd =>
         normalizedText.includes(cmd) ||
         normalizedText.startsWith(cmd)
-n      );
+      );
 
       let financeQuery: string;
 

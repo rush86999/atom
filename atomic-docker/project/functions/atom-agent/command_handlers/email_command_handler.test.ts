@@ -1,4 +1,7 @@
-import { handleSendEmailRequest, ParsedNluSendEmailRequest } from './email_command_handler';
+import {
+  handleSendEmailRequest,
+  ParsedNluSendEmailRequest,
+} from './email_command_handler';
 import * as emailSkills from '../skills/emailSkills'; // To mock sendEmailSkill
 import { logger as mockLogger } from '../../_utils/logger'; // To mock logger
 
@@ -48,7 +51,9 @@ describe('Email Command Handler', () => {
       const responseMessage = await handleSendEmailRequest(baseRequest);
 
       expect(mockSendEmailSkill).toHaveBeenCalledWith(baseRequest.emailDetails);
-      expect(responseMessage).toContain('Okay, I\'ve sent the email to recipient@example.com');
+      expect(responseMessage).toContain(
+        "Okay, I've sent the email to recipient@example.com"
+      );
       expect(responseMessage).toContain('Message ID: test-email-id-123');
       expect(mockLogger.info).toHaveBeenCalledWith(
         `Agent: Attempting to send email for user ${baseRequest.userId} with details:`,
@@ -69,10 +74,15 @@ describe('Email Command Handler', () => {
       const responseMessage = await handleSendEmailRequest(baseRequest);
 
       expect(mockSendEmailSkill).toHaveBeenCalledWith(baseRequest.emailDetails);
-      expect(responseMessage).toContain('I tried to send the email, but something went wrong. SES specific error from skill.');
+      expect(responseMessage).toContain(
+        'I tried to send the email, but something went wrong. SES specific error from skill.'
+      );
       expect(mockLogger.error).toHaveBeenCalledWith(
         `Agent: Failed to send email for user ${baseRequest.userId}. Response:`,
-        expect.objectContaining({ success: false, message: 'SES specific error from skill.' })
+        expect.objectContaining({
+          success: false,
+          message: 'SES specific error from skill.',
+        })
       );
     });
 
@@ -82,7 +92,9 @@ describe('Email Command Handler', () => {
         emailDetails: { ...baseRequest.emailDetails, to: '' },
       };
       const responseMessage = await handleSendEmailRequest(invalidRequest);
-      expect(responseMessage).toContain("I'm sorry, but I'm missing some crucial information");
+      expect(responseMessage).toContain(
+        "I'm sorry, but I'm missing some crucial information"
+      );
       expect(mockSendEmailSkill).not.toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalled();
     });
@@ -93,22 +105,29 @@ describe('Email Command Handler', () => {
         emailDetails: { ...baseRequest.emailDetails, subject: '' },
       };
       const responseMessage = await handleSendEmailRequest(invalidRequest);
-      expect(responseMessage).toContain("I'm sorry, but I'm missing some crucial information");
+      expect(responseMessage).toContain(
+        "I'm sorry, but I'm missing some crucial information"
+      );
       expect(mockSendEmailSkill).not.toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalled();
     });
 
     it('should return validation error message if "body" and "htmlBody" are missing', async () => {
-        const invalidRequest: ParsedNluSendEmailRequest = {
-          ...baseRequest,
-          emailDetails: { to: 'recipient@example.com', subject: 'Valid Subject', body: '' }, // body is empty, htmlBody undefined
-        };
-        const responseMessage = await handleSendEmailRequest(invalidRequest);
-        expect(responseMessage).toContain("I'm sorry, but I'm missing some crucial information");
-        expect(mockSendEmailSkill).not.toHaveBeenCalled();
-        expect(mockLogger.warn).toHaveBeenCalled();
-      });
-
+      const invalidRequest: ParsedNluSendEmailRequest = {
+        ...baseRequest,
+        emailDetails: {
+          to: 'recipient@example.com',
+          subject: 'Valid Subject',
+          body: '',
+        }, // body is empty, htmlBody undefined
+      };
+      const responseMessage = await handleSendEmailRequest(invalidRequest);
+      expect(responseMessage).toContain(
+        "I'm sorry, but I'm missing some crucial information"
+      );
+      expect(mockSendEmailSkill).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
 
     it('should handle unexpected errors from sendEmailSkill', async () => {
       const errorMessage = 'Unexpected skill error';
@@ -117,7 +136,9 @@ describe('Email Command Handler', () => {
       const responseMessage = await handleSendEmailRequest(baseRequest);
 
       expect(mockSendEmailSkill).toHaveBeenCalledWith(baseRequest.emailDetails);
-      expect(responseMessage).toContain(`I encountered a critical error while trying to send the email: ${errorMessage}`);
+      expect(responseMessage).toContain(
+        `I encountered a critical error while trying to send the email: ${errorMessage}`
+      );
       expect(mockLogger.error).toHaveBeenCalledWith(
         `Agent: Critical error in handleSendEmailRequest for user ${baseRequest.userId}:`,
         expect.any(Error)

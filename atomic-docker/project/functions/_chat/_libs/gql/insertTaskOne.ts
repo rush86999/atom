@@ -1,6 +1,3 @@
-
-
-
 export default `
     mutation InsertTaskOne($task: Task_insert_input!) {
         insert_Task_one(object: $task) {
@@ -23,4 +20,4 @@ export default `
             userId
         }
     }
-`
+`;

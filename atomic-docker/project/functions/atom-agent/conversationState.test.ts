@@ -49,10 +49,13 @@ describe('Conversation State Manager', () => {
       expect(state.idleTimer).not.toBeNull();
 
       // Check if timer is set for the correct duration
-      const timerDetails = jest.getTimerSystem().findTimer(t => t.id === state.idleTimer);
-      if(timerDetails) { // Timer ID might not be directly comparable if it's an object
-          // This check is a bit fragile as it depends on Jest's internal timer representation
-          // A more robust way is to check if deactivate is called after timeout.
+      const timerDetails = jest
+        .getTimerSystem()
+        .findTimer((t) => t.id === state.idleTimer);
+      if (timerDetails) {
+        // Timer ID might not be directly comparable if it's an object
+        // This check is a bit fragile as it depends on Jest's internal timer representation
+        // A more robust way is to check if deactivate is called after timeout.
       }
       expect(jest.getTimerCount()).toBe(1);
     });
@@ -92,7 +95,7 @@ describe('Conversation State Manager', () => {
       const initialTime = getConversationStateSnapshot().lastInteractionTime;
       jest.advanceTimersByTime(IDLE_TIMEOUT_MS / 2); // Advance timer part way
 
-      recordUserInteraction("hello");
+      recordUserInteraction('hello');
       const state = getConversationStateSnapshot();
       expect(state.lastInteractionTime).toBeGreaterThan(initialTime!);
       expect(jest.getTimerCount()).toBe(1); // Timer reset
@@ -103,33 +106,35 @@ describe('Conversation State Manager', () => {
     });
 
     test('should not update interaction time or timer if conversation is inactive', () => {
-        const initialTime = getConversationStateSnapshot().lastInteractionTime; // Should be null
-        recordUserInteraction("hello");
-        const state = getConversationStateSnapshot();
-        expect(state.lastInteractionTime).toBe(initialTime); // Remains null
-        expect(jest.getTimerCount()).toBe(0); // No timer started
+      const initialTime = getConversationStateSnapshot().lastInteractionTime; // Should be null
+      recordUserInteraction('hello');
+      const state = getConversationStateSnapshot();
+      expect(state.lastInteractionTime).toBe(initialTime); // Remains null
+      expect(jest.getTimerCount()).toBe(0); // No timer started
     });
   });
 
   describe('recordAgentResponse', () => {
     test('should add agent response to conversation history', () => {
       activateConversation();
-      const userMessage = "Hello Atom";
-      const agentResponse: HandleMessageResponse = { text: "Hello user!" };
+      const userMessage = 'Hello Atom';
+      const agentResponse: HandleMessageResponse = { text: 'Hello user!' };
       recordUserInteraction(userMessage); // User speaks
       recordAgentResponse(userMessage, agentResponse); // Agent responds
 
       const history = getConversationHistory();
       expect(history.length).toBe(1);
       expect(history[0].user).toBe(userMessage);
-      expect(history[0].agent.text).toBe("Hello user!");
+      expect(history[0].agent.text).toBe('Hello user!');
       expect(history[0].timestamp).toBeDefined();
     });
 
-     test('should limit conversation history size', () => {
+    test('should limit conversation history size', () => {
       activateConversation();
       for (let i = 0; i < 25; i++) {
-        recordAgentResponse(`User message ${i}`, { text: `Agent response ${i}` });
+        recordAgentResponse(`User message ${i}`, {
+          text: `Agent response ${i}`,
+        });
       }
       const history = getConversationHistory();
       expect(history.length).toBe(20); // Assuming limit is 20 as in implementation
@@ -154,7 +159,7 @@ describe('Conversation State Manager', () => {
       activateConversation();
       jest.advanceTimersByTime(IDLE_TIMEOUT_MS / 2); // Almost timeout
 
-      recordUserInteraction("still here"); // Interaction resets timer
+      recordUserInteraction('still here'); // Interaction resets timer
       expect(getConversationStateSnapshot().isActive).toBe(true);
 
       jest.advanceTimersByTime(IDLE_TIMEOUT_MS / 2); // Advance again, but not enough for new timeout
@@ -194,29 +199,29 @@ describe('Conversation State Manager', () => {
     });
 
     test('setting agent responding to true should clear idle timer if active', () => {
-        activateConversation(); // Starts an idle timer
-        expect(jest.getTimerCount()).toBe(1);
+      activateConversation(); // Starts an idle timer
+      expect(jest.getTimerCount()).toBe(1);
 
-        // As per current implementation of setAgentResponding -> startIdleTimer,
-        // if agent is responding, timer is NOT started.
-        // If agent stops responding AND conversation is active, timer IS started.
-        setAgentResponding(true);
-        // The log in startIdleTimer says "Idle timer not started because agent is currently responding."
-        // This means any existing user idle timer should be cleared or effectively paused.
-        // The current `startIdleTimer` clears existing timers. If `!isAgentResponding` is false, it won't start a new one.
-        // So, if `setAgentResponding(true)` is called, and it calls `startIdleTimer`, the old timer is cleared,
-        // and no new one is set.
-        expect(jest.getTimerCount()).toBe(0);
+      // As per current implementation of setAgentResponding -> startIdleTimer,
+      // if agent is responding, timer is NOT started.
+      // If agent stops responding AND conversation is active, timer IS started.
+      setAgentResponding(true);
+      // The log in startIdleTimer says "Idle timer not started because agent is currently responding."
+      // This means any existing user idle timer should be cleared or effectively paused.
+      // The current `startIdleTimer` clears existing timers. If `!isAgentResponding` is false, it won't start a new one.
+      // So, if `setAgentResponding(true)` is called, and it calls `startIdleTimer`, the old timer is cleared,
+      // and no new one is set.
+      expect(jest.getTimerCount()).toBe(0);
     });
 
     test('setting agent responding to false should start idle timer if conversation is active', () => {
-        activateConversation();
-        setAgentResponding(true); // Timer count becomes 0
-        expect(jest.getTimerCount()).toBe(0);
+      activateConversation();
+      setAgentResponding(true); // Timer count becomes 0
+      expect(jest.getTimerCount()).toBe(0);
 
-        setAgentResponding(false); // Should start the timer
-        expect(jest.getTimerCount()).toBe(1);
-        expect(isConversationActive()).toBe(true); // Still active
+      setAgentResponding(false); // Should start the timer
+      expect(jest.getTimerCount()).toBe(1);
+      expect(isConversationActive()).toBe(true); // Still active
     });
   });
 

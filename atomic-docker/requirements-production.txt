@@ -1,0 +1,84 @@
+# Production Requirements for Real API Integrations
+# Install with: pip install -r requirements-production.txt
+
+# Core API Clients
+plaid-python>=11.0.0  # Banking and financial data
+google-api-python-client>=2.144.0  # Google services
+google-auth-httplib2>=0.2.0  # Google authentication
+google-auth-oauthlib>=1.2.0  # OAuth2 flow
+tweepy>=4.14.0  # Twitter API v2
+praw>=7.7.0  # Reddit API
+facebook-sdk>=3.1.0  # Facebook/Meta API
+
+# LinkedIn Integration
+python-linkedin-v2>=2.1.0  # LinkedIn API v2
+linkedin-api>=2.1.0  # Additional LinkedIn support
+
+# AWS Services
+boto3>=1.34.144  # AWS services
+botocore>=1.34.144  # AWS core
+
+# Communication APIs
+slack-sdk>=3.27.0  # Slack API
+mailchimp3>=3.0.30  # Email marketing
+sendgrid>=6.7.1  # Email services
+twilio>=8.1.0  # SMS and voice
+
+# Database
+psycopg2-binary>=2.9.9  # PostgreSQL
+redis>=5.0.0  # Redis caching
+mongoengine>=0.29.7  # MongoDB
+sqlalchemy>=2.0.25  # Database ORM
+
+# External Services
+stripe>=6.0.0  # Payment processing
+openai>=1.30.0  # OpenAI API
+anthropic>=0.26.0  # Claude API
+langchain>=0.1.0  # AI utilities
+
+# Web and HTTP
+requests>=2.31.0  # HTTP requests
+httpx>=0.27.0  # Async HTTP client
+fastapi>=0.109.0  # FastAPI framework
+uvicorn>=0.27.0  # ASGI server
+flask>=2.3.3  # Flask web framework
+flask-cors>=4.0.0  # CORS support
+gunicorn>=21.2.0  # WSGI server
+
+# Data Processing
+pandas>=2.0.3  # Data manipulation
+numpy>=1.25.2  # Numerical operations
+scikit-learn>=1.3.0  # Machine learning
+python-dateutil>=2.8.2  # Date utilities
+pytz>=2023.3  # Timezone support
+
+# Security
+cryptography>=41.0.7  # Encryption
+pyjwt>=2.8.0  # JWT tokens
+passlib>=1.7.4  # Password hashing
+bcrypt>=4.0.1  # Password hashing
+
+# File Storage
+minio>=7.2.0  # S3-compatible storage
+azure-storage-blob>=12.19.0  # Azure Blob Storage
+google-cloud-storage>=2.14.0  # Google Cloud Storage
+
+# Logging and Monitoring
+loguru>=0.7.2  # Better logging
+structlog>=23.2.0  # Structured logging
+prometheus-client>=0.19.0  # Metrics
+sentry-sdk>=1.39.2  # Error monitoring
+
+# Development and Testing
+pytest>=7.4.3  # Testing framework
+pytest-asyncio>=0.23.5  # Async testing
+httpx-mock>=0.22.0  # HTTP mocking
+factory-boy>=3.3.0  # Test factories
+faker>=20.1.0  # Fake data generation
+
+# Utilities and Helpers
+python-dotenv>=1.0.0  # Environment variables
+click>=8.1.7  # CLI framework
+rich>=13.7.0  # Rich text formatting
+tenacity>=8.2.3  # Retry mechanisms
+pyyaml>=6.0.1  # YAML parsing

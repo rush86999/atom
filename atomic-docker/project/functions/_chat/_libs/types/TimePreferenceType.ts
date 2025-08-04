@@ -1,14 +1,12 @@
-import DayOfWeekType from "./DayOfWeekType"
-import { Time } from "./EventType"
-
+import DayOfWeekType from './DayOfWeekType';
+import { Time } from './EventType';
 
 type TimePreferenceType = {
-    "dayOfWeek": DayOfWeekType[],
-    "timeRange": {
-      "startTime": Time,
-      "endTime": Time
-    }
-  }
+  dayOfWeek: DayOfWeekType[];
+  timeRange: {
+    startTime: Time;
+    endTime: Time;
+  };
+};
 
-export default TimePreferenceType
-
+export default TimePreferenceType;

@@ -6,8 +6,8 @@ export interface StructuredEmailQuery {
   subject?: string;
   bodyKeywords?: string; // Keywords to search in the email body
   label?: string;
-  after?: string;     // Expected format: YYYY/MM/DD
-  before?: string;    // Expected format: YYYY/MM/DD
+  after?: string; // Expected format: YYYY/MM/DD
+  before?: string; // Expected format: YYYY/MM/DD
   hasAttachment?: boolean;
   exactPhrase?: string; // For searching an exact phrase
   customQuery?: string; // Allow passing a raw query part to be appended
@@ -45,7 +45,9 @@ export function buildGmailSearchQuery(params: StructuredEmailQuery): string {
   if (params.label) {
     // Labels with spaces should be hyphenated or quoted, e.g., "my-label" or "\"my label\""
     // Assuming NLU provides clean label names.
-    queryParts.push(`label:${params.label.trim().replace(/\s+/g, '-').toLowerCase()}`);
+    queryParts.push(
+      `label:${params.label.trim().replace(/\s+/g, '-').toLowerCase()}`
+    );
   }
   if (params.after) {
     queryParts.push(`after:${params.after.trim()}`);
@@ -67,7 +69,10 @@ export function buildGmailSearchQuery(params: StructuredEmailQuery): string {
     queryParts.push(params.customQuery.trim());
   }
 
-  const builtQuery = queryParts.filter(part => part.length > 0).join(' ').trim();
+  const builtQuery = queryParts
+    .filter((part) => part.length > 0)
+    .join(' ')
+    .trim();
 
   // If structured parsing results in an empty query, but a raw query was provided (as fallback from skill), use raw.
   // The rawQueryFallback is an addition to the function signature.
@@ -87,18 +92,22 @@ export function buildGmailSearchQuery(params: StructuredEmailQuery): string {
  * @param currentDate The actual current date (YYYY/MM/DD)
  * @returns A string explanation for the LLM, or null if not a special relative term.
  */
-export function getRelativeDateInterpretationForLLM(dateConditionText: string, currentDate: string): string | null {
-    const lowerText = dateConditionText.toLowerCase();
-    // This is illustrative. More robust parsing would be needed for complex relative dates.
-    if (lowerText === "yesterday") return `Yesterday (day before ${currentDate})`;
-    if (lowerText === "today") return `Today (${currentDate})`;
-    if (lowerText === "tomorrow") return `Tomorrow (day after ${currentDate})`;
-    if (lowerText === "last week") return `The full calendar week before the week of ${currentDate}`;
-    if (lowerText === "this week") return `The current calendar week containing ${currentDate}`;
-    // Add more cases as needed by the LLM prompt for date inference.
-    return null;
+export function getRelativeDateInterpretationForLLM(
+  dateConditionText: string,
+  currentDate: string
+): string | null {
+  const lowerText = dateConditionText.toLowerCase();
+  // This is illustrative. More robust parsing would be needed for complex relative dates.
+  if (lowerText === 'yesterday') return `Yesterday (day before ${currentDate})`;
+  if (lowerText === 'today') return `Today (${currentDate})`;
+  if (lowerText === 'tomorrow') return `Tomorrow (day after ${currentDate})`;
+  if (lowerText === 'last week')
+    return `The full calendar week before the week of ${currentDate}`;
+  if (lowerText === 'this week')
+    return `The current calendar week containing ${currentDate}`;
+  // Add more cases as needed by the LLM prompt for date inference.
+  return null;
 }
-
 
 /*
 // Example Usage:
@@ -152,96 +161,104 @@ console.log(example5_empty);
  * @returns An object with 'after' and 'before' date strings, or undefined if parsing fails.
  */
 export function parseRelativeDateQuery(
-    dateQuery: string,
-    referenceDate: Date = new Date()
+  dateQuery: string,
+  referenceDate: Date = new Date()
 ): { after?: string; before?: string } | undefined {
-    const query = dateQuery.toLowerCase().trim();
-    const today = new Date(referenceDate); // Use a copy of referenceDate
-    today.setHours(0, 0, 0, 0); // Normalize to start of day
+  const query = dateQuery.toLowerCase().trim();
+  const today = new Date(referenceDate); // Use a copy of referenceDate
+  today.setHours(0, 0, 0, 0); // Normalize to start of day
 
-    const formatDate = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
-        return `${year}/${month}/${day}`;
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}/${month}/${day}`;
+  };
+
+  if (query === 'today') {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    return { after: formatDate(today), before: formatDate(tomorrow) };
+  }
+
+  if (query === 'yesterday') {
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    return { after: formatDate(yesterday), before: formatDate(today) };
+  }
+
+  if (query === 'tomorrow') {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
+    return {
+      after: formatDate(tomorrow),
+      before: formatDate(dayAfterTomorrow),
     };
+  }
 
-    if (query === 'today') {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        return { after: formatDate(today), before: formatDate(tomorrow) };
+  const lastNDaysMatch = query.match(/^last (\d+) days?$/);
+  if (lastNDaysMatch) {
+    const days = parseInt(lastNDaysMatch[1], 10);
+    if (days > 0) {
+      const pastDate = new Date(today);
+      pastDate.setDate(today.getDate() - days);
+      const dayAfterToday = new Date(today); // Search up to end of today
+      dayAfterToday.setDate(today.getDate() + 1);
+      return { after: formatDate(pastDate), before: formatDate(dayAfterToday) };
     }
+  }
 
-    if (query === 'yesterday') {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        return { after: formatDate(yesterday), before: formatDate(today) };
+  const nextNDaysMatch = query.match(/^next (\d+) days?$/);
+  if (nextNDaysMatch) {
+    const days = parseInt(nextNDaysMatch[1], 10);
+    if (days > 0) {
+      const futureDate = new Date(today);
+      futureDate.setDate(today.getDate() + days + 1); // +1 because 'before' is exclusive upper bound for the day
+      const dayOfQuery = new Date(today); // Search from start of today
+      return { after: formatDate(dayOfQuery), before: formatDate(futureDate) };
     }
+  }
 
-    if (query === 'tomorrow') {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const dayAfterTomorrow = new Date(tomorrow);
-        dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
-        return { after: formatDate(tomorrow), before: formatDate(dayAfterTomorrow) };
+  // Add more specific cases like "this week", "last week", "this month", "last month" as needed.
+  // For "this week" (assuming week starts on Sunday)
+  if (query === 'this week') {
+    const firstDayOfWeek = new Date(today);
+    firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+    const lastDayOfWeek = new Date(firstDayOfWeek);
+    lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 7); // Next Sunday
+    return {
+      after: formatDate(firstDayOfWeek),
+      before: formatDate(lastDayOfWeek),
+    };
+  }
+
+  if (query === 'last week') {
+    const firstDayOfLastWeek = new Date(today);
+    firstDayOfLastWeek.setDate(today.getDate() - today.getDay() - 7); // Previous Sunday
+    const lastDayOfLastWeek = new Date(firstDayOfLastWeek);
+    lastDayOfLastWeek.setDate(firstDayOfLastWeek.getDate() + 7); // End of last week (this Sunday)
+    return {
+      after: formatDate(firstDayOfLastWeek),
+      before: formatDate(lastDayOfLastWeek),
+    };
+  }
+
+  // If query is already in YYYY/MM/DD format for after/before, pass it through
+  // This is a simple check, could be more robust with regex
+  if (query.includes('after:') || query.includes('before:')) {
+    let afterDate, beforeDate;
+    const afterMatch = query.match(/after:(\d{4}\/\d{2}\/\d{2})/);
+    if (afterMatch) afterDate = afterMatch[1];
+    const beforeMatch = query.match(/before:(\d{4}\/\d{2}\/\d{2})/);
+    if (beforeMatch) beforeDate = beforeMatch[1];
+    if (afterDate || beforeDate) {
+      return { after: afterDate, before: beforeDate };
     }
+  }
 
-    const lastNDaysMatch = query.match(/^last (\d+) days?$/);
-    if (lastNDaysMatch) {
-        const days = parseInt(lastNDaysMatch[1], 10);
-        if (days > 0) {
-            const pastDate = new Date(today);
-            pastDate.setDate(today.getDate() - days);
-            const dayAfterToday = new Date(today); // Search up to end of today
-            dayAfterToday.setDate(today.getDate() + 1);
-            return { after: formatDate(pastDate), before: formatDate(dayAfterToday) };
-        }
-    }
-
-    const nextNDaysMatch = query.match(/^next (\d+) days?$/);
-    if (nextNDaysMatch) {
-        const days = parseInt(nextNDaysMatch[1], 10);
-        if (days > 0) {
-            const futureDate = new Date(today);
-            futureDate.setDate(today.getDate() + days + 1); // +1 because 'before' is exclusive upper bound for the day
-            const dayOfQuery = new Date(today); // Search from start of today
-            return { after: formatDate(dayOfQuery), before: formatDate(futureDate) };
-        }
-    }
-
-    // Add more specific cases like "this week", "last week", "this month", "last month" as needed.
-    // For "this week" (assuming week starts on Sunday)
-    if (query === "this week") {
-        const firstDayOfWeek = new Date(today);
-        firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
-        const lastDayOfWeek = new Date(firstDayOfWeek);
-        lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 7); // Next Sunday
-        return { after: formatDate(firstDayOfWeek), before: formatDate(lastDayOfWeek) };
-    }
-
-    if (query === "last week") {
-        const firstDayOfLastWeek = new Date(today);
-        firstDayOfLastWeek.setDate(today.getDate() - today.getDay() - 7); // Previous Sunday
-        const lastDayOfLastWeek = new Date(firstDayOfLastWeek);
-        lastDayOfLastWeek.setDate(firstDayOfLastWeek.getDate() + 7); // End of last week (this Sunday)
-        return { after: formatDate(firstDayOfLastWeek), before: formatDate(lastDayOfLastWeek) };
-    }
-
-
-    // If query is already in YYYY/MM/DD format for after/before, pass it through
-    // This is a simple check, could be more robust with regex
-    if (query.includes("after:") || query.includes("before:")) {
-        let afterDate, beforeDate;
-        const afterMatch = query.match(/after:(\d{4}\/\d{2}\/\d{2})/);
-        if (afterMatch) afterDate = afterMatch[1];
-        const beforeMatch = query.match(/before:(\d{4}\/\d{2}\/\d{2})/);
-        if (beforeMatch) beforeDate = beforeMatch[1];
-        if (afterDate || beforeDate) {
-            return { after: afterDate, before: beforeDate };
-        }
-    }
-
-    return undefined; // Query not recognized
+  return undefined; // Query not recognized
 }
 
 /*

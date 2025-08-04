@@ -1,3 +1,1 @@
-
-
-export const slotDuration = 30
+export const slotDuration = 30;

@@ -1,6 +1,3 @@
-
-
-
 export default `
 mutation DeleteConferenceById($id: String!) {
   delete_Conference_by_pk(id: $id) {
@@ -27,4 +24,4 @@ mutation DeleteConferenceById($id: String!) {
     zoomPrivateMeeting
   }
 }
-`
+`;

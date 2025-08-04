@@ -1,39 +1,39 @@
 import {
-    SubAgentInput,
-    AnalyticalAgentResponse,
-    CreativeAgentResponse,
-    PracticalAgentResponse,
-    TaxAgentResponse,
-    EnrichedIntent,
-    AgentLLMService,
-    DEFAULT_MODEL_LEAD_SYNTHESIS,
-    DEFAULT_TEMPERATURE_LEAD_SYNTHESIS,
-    safeParseJSON
+  SubAgentInput,
+  AnalyticalAgentResponse,
+  CreativeAgentResponse,
+  PracticalAgentResponse,
+  TaxAgentResponse,
+  EnrichedIntent,
+  AgentLLMService,
+  DEFAULT_MODEL_LEAD_SYNTHESIS,
+  DEFAULT_TEMPERATURE_LEAD_SYNTHESIS,
+  safeParseJSON,
 } from './nlu_types';
 import { StructuredLLMPrompt } from '../lib/llmUtils';
 
 export class SynthesizingAgent {
-    private llmService: AgentLLMService;
-    private agentName: string = "SynthesizingAgent";
+  private llmService: AgentLLMService;
+  private agentName: string = 'SynthesizingAgent';
 
-    constructor(llmService: AgentLLMService) {
-        this.llmService = llmService;
-    }
+  constructor(llmService: AgentLLMService) {
+    this.llmService = llmService;
+  }
 
-    private constructPrompt(
-        input: SubAgentInput,
-        analytical: AnalyticalAgentResponse | null,
-        creative: CreativeAgentResponse | null,
-        practical: PracticalAgentResponse | null,
-        socialMedia: any,
-        contentCreation: any,
-        personalizedShopping: any,
-        recruitmentRecommendation: any,
-        vibeHacking: any,
-        tax: TaxAgentResponse | null,
-        marketingAutomation: any
-    ): StructuredLLMPrompt {
-        const systemMessage = `
+  private constructPrompt(
+    input: SubAgentInput,
+    analytical: AnalyticalAgentResponse | null,
+    creative: CreativeAgentResponse | null,
+    practical: PracticalAgentResponse | null,
+    socialMedia: any,
+    contentCreation: any,
+    personalizedShopping: any,
+    recruitmentRecommendation: any,
+    vibeHacking: any,
+    tax: TaxAgentResponse | null,
+    marketingAutomation: any
+  ): StructuredLLMPrompt {
+    const systemMessage = `
 You are the Synthesizing Agent. Your task is to consolidate the analyses from three sub-agents (Analytical, Creative, Practical) into a single, actionable EnrichedIntent object.
 User's original query: "${input.userInput}"
 
@@ -101,70 +101,90 @@ Decision-Making Guidelines:
 Do NOT include any other fields from the full EnrichedIntent structure (like originalQuery, userId, rawSubAgentResponses, alternativeInterpretations, etc.) in your JSON output. These will be added by the calling system.
 Do not include any explanations, apologies, or conversational text outside this JSON object. Your entire response must be the JSON object itself.
 `;
-        return {
-            task: 'custom_synthesis',
-            data: { system_prompt: systemMessage, user_query: "" }
-        };
+    return {
+      task: 'custom_synthesis',
+      data: { system_prompt: systemMessage, user_query: '' },
+    };
+  }
+
+  public async synthesize(
+    input: SubAgentInput,
+    analytical: AnalyticalAgentResponse | null,
+    creative: CreativeAgentResponse | null,
+    practical: PracticalAgentResponse | null,
+    socialMedia: any,
+    contentCreation: any,
+    personalizedShopping: any,
+    recruitmentRecommendation: any,
+    vibeHacking: any,
+    tax: TaxAgentResponse | null,
+    marketingAutomation: any
+  ): Promise<Partial<EnrichedIntent>> {
+    const structuredPrompt = this.constructPrompt(
+      input,
+      analytical,
+      creative,
+      practical,
+      socialMedia,
+      contentCreation,
+      personalizedShopping,
+      recruitmentRecommendation,
+      vibeHacking,
+      tax,
+      marketingAutomation
+    );
+    const P_SYNTHESIZING_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
+
+    console.log(
+      `[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`
+    );
+    console.time(P_SYNTHESIZING_AGENT_TIMER_LABEL);
+    const llmResponse = await this.llmService.generate(
+      structuredPrompt,
+      DEFAULT_MODEL_LEAD_SYNTHESIS,
+      {
+        temperature: DEFAULT_TEMPERATURE_LEAD_SYNTHESIS,
+        isJsonOutput: true,
+      }
+    );
+    console.timeEnd(P_SYNTHESIZING_AGENT_TIMER_LABEL);
+
+    if (llmResponse.usage) {
+      console.log(
+        `[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`
+      );
     }
 
-    public async synthesize(
-        input: SubAgentInput,
-        analytical: AnalyticalAgentResponse | null,
-        creative: CreativeAgentResponse | null,
-        practical: PracticalAgentResponse | null,
-        socialMedia: any,
-        contentCreation: any,
-        personalizedShopping: any,
-        recruitmentRecommendation: any,
-        vibeHacking: any,
-        tax: TaxAgentResponse | null,
-        marketingAutomation: any
-    ): Promise<Partial<EnrichedIntent>> {
-        const structuredPrompt = this.constructPrompt(input, analytical, creative, practical, socialMedia, contentCreation, personalizedShopping, recruitmentRecommendation, vibeHacking, tax, marketingAutomation);
-        const P_SYNTHESIZING_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
-
-        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
-        console.time(P_SYNTHESIZING_AGENT_TIMER_LABEL);
-        const llmResponse = await this.llmService.generate(
-            structuredPrompt,
-            DEFAULT_MODEL_LEAD_SYNTHESIS,
-            {
-                temperature: DEFAULT_TEMPERATURE_LEAD_SYNTHESIS,
-                isJsonOutput: true
-            }
-        );
-        console.timeEnd(P_SYNTHESIZING_AGENT_TIMER_LABEL);
-
-        if (llmResponse.usage) {
-            console.log(`[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`);
-        }
-
-        if (!llmResponse.success || !llmResponse.content) {
-            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
-            return {
-                suggestedNextAction: {
-                    actionType: 'unable_to_determine',
-                    reason: `LLM synthesis failed: ${llmResponse.error || 'No content'}`
-                }
-            };
-        }
-
-        const parsedResponse = safeParseJSON<Partial<EnrichedIntent>>(
-            llmResponse.content,
-            this.agentName,
-            structuredPrompt.task
-        );
-
-        if (!parsedResponse) {
-            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
-            return {
-                suggestedNextAction: {
-                    actionType: 'unable_to_determine',
-                    reason: "Failed to parse LLM JSON response."
-                }
-            };
-        }
-
-        return parsedResponse;
+    if (!llmResponse.success || !llmResponse.content) {
+      console.error(
+        `[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`
+      );
+      return {
+        suggestedNextAction: {
+          actionType: 'unable_to_determine',
+          reason: `LLM synthesis failed: ${llmResponse.error || 'No content'}`,
+        },
+      };
     }
+
+    const parsedResponse = safeParseJSON<Partial<EnrichedIntent>>(
+      llmResponse.content,
+      this.agentName,
+      structuredPrompt.task
+    );
+
+    if (!parsedResponse) {
+      console.error(
+        `[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`
+      );
+      return {
+        suggestedNextAction: {
+          actionType: 'unable_to_determine',
+          reason: 'Failed to parse LLM JSON response.',
+        },
+      };
+    }
+
+    return parsedResponse;
+  }
 }

@@ -1,11 +1,19 @@
 import { sendSlackMessage, listSlackChannels } from './slackSkills';
-import { WebClient, ErrorCode as SlackErrorCode, SlackAPIError } from '@slack/web-api';
+import {
+  WebClient,
+  ErrorCode as SlackErrorCode,
+  SlackAPIError,
+} from '@slack/web-api';
 import * as constants from '../_libs/constants';
-import { SlackChannel, SlackMessageResponse, ListSlackChannelsResponse } from '../types';
+import {
+  SlackChannel,
+  SlackMessageResponse,
+  ListSlackChannelsResponse,
+} from '../types';
 
 jest.mock('@slack/web-api');
 jest.mock('../_libs/constants', () => ({
-    ATOM_SLACK_BOT_TOKEN: 'test-slack-bot-token', // Default mock value
+  ATOM_SLACK_BOT_TOKEN: 'test-slack-bot-token', // Default mock value
 }));
 
 // Define mock functions for Slack WebClient methods
@@ -23,8 +31,9 @@ describe('slackSkills', () => {
     // For this setup, we'll re-import or directly manipulate the mocked value if the test needs a different one.
     // Or, ensure the mock itself can be modified. Let's assume the jest.mock above handles this for subsequent changes.
     // The most robust way is to ensure the constants module is fully mockable.
-    jest.spyOn(constants, 'ATOM_SLACK_BOT_TOKEN', 'get').mockReturnValue('test-slack-bot-token');
-
+    jest
+      .spyOn(constants, 'ATOM_SLACK_BOT_TOKEN', 'get')
+      .mockReturnValue('test-slack-bot-token');
 
     mockChatPostMessage = jest.fn();
     mockConversationsList = jest.fn();
@@ -58,11 +67,18 @@ describe('slackSkills', () => {
     const text = 'Hello, Slack!';
 
     it('should send a message successfully', async () => {
-      const mockResponse: Partial<SlackMessageResponse> = { // Partial because the SDK might return more
+      const mockResponse: Partial<SlackMessageResponse> = {
+        // Partial because the SDK might return more
         ok: true,
         ts: '123456.789',
         channel: channelId,
-        message: { text: text, user: 'U0BOTID', bot_id: 'B0BOTID', ts: '123456.789', type: 'message' },
+        message: {
+          text: text,
+          user: 'U0BOTID',
+          bot_id: 'B0BOTID',
+          ts: '123456.789',
+          type: 'message',
+        },
       };
       mockChatPostMessage.mockResolvedValueOnce(mockResponse);
 
@@ -72,8 +88,13 @@ describe('slackSkills', () => {
       expect(result.ts).toBe('123456.789');
       expect(result.channel).toBe(channelId);
       expect(result.message?.text).toBe(text);
-      expect(mockChatPostMessage).toHaveBeenCalledWith({ channel: channelId, text: text });
-      expect(consoleLogSpy).toHaveBeenCalledWith(`sendSlackMessage called by userId: ${userId} to channel: ${channelId}`);
+      expect(mockChatPostMessage).toHaveBeenCalledWith({
+        channel: channelId,
+        text: text,
+      });
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `sendSlackMessage called by userId: ${userId} to channel: ${channelId}`
+      );
     });
 
     it('should return error if ATOM_SLACK_BOT_TOKEN is missing', async () => {
@@ -81,41 +102,68 @@ describe('slackSkills', () => {
 
       const result = await sendSlackMessage(userId, channelId, text);
 
-      expect(result).toEqual({ ok: false, error: 'Slack Bot Token not configured.' });
+      expect(result).toEqual({
+        ok: false,
+        error: 'Slack Bot Token not configured.',
+      });
       expect(mockChatPostMessage).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Slack Bot Token not configured.');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Slack Bot Token not configured.'
+      );
     });
 
     it('should return error if channel or text is missing', async () => {
-        let result = await sendSlackMessage(userId, '', text);
-        expect(result).toEqual({ ok: false, error: 'Channel and text are required to send a Slack message.' });
+      let result = await sendSlackMessage(userId, '', text);
+      expect(result).toEqual({
+        ok: false,
+        error: 'Channel and text are required to send a Slack message.',
+      });
 
-        result = await sendSlackMessage(userId, channelId, '');
-        expect(result).toEqual({ ok: false, error: 'Channel and text are required to send a Slack message.' });
+      result = await sendSlackMessage(userId, channelId, '');
+      expect(result).toEqual({
+        ok: false,
+        error: 'Channel and text are required to send a Slack message.',
+      });
 
-        expect(mockChatPostMessage).not.toHaveBeenCalled();
+      expect(mockChatPostMessage).not.toHaveBeenCalled();
     });
 
     it('should handle Slack API PlatformError', async () => {
-      const slackErrorData = { ok: false, error: 'channel_not_found', /* other data */ };
+      const slackErrorData = {
+        ok: false,
+        error: 'channel_not_found' /* other data */,
+      };
       // SlackAPIError constructor: message, code, httpStatusCode, data
-      const apiError = new SlackAPIError('platform_error_from_test', SlackErrorCode.PlatformError, undefined, slackErrorData);
+      const apiError = new SlackAPIError(
+        'platform_error_from_test',
+        SlackErrorCode.PlatformError,
+        undefined,
+        slackErrorData
+      );
 
       mockChatPostMessage.mockRejectedValueOnce(apiError);
       const result = await sendSlackMessage(userId, channelId, text);
 
       expect(result.ok).toBe(false);
       expect(result.error).toBe('channel_not_found');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error sending Slack message for userId ${userId} to channel ${channelId}:`, apiError);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error sending Slack message for userId ${userId} to channel ${channelId}:`,
+        apiError
+      );
     });
 
     it('should handle other SlackAPIErrors (e.g. network, rate limit)', async () => {
-        const errorMessage = "A different Slack API error occurred";
-        const apiError = new SlackAPIError(errorMessage, SlackErrorCode.RequestTimeout, undefined, { ok: false, error: 'timeout' });
-        mockChatPostMessage.mockRejectedValueOnce(apiError);
-        const result = await sendSlackMessage(userId, channelId, text);
-        expect(result.ok).toBe(false);
-        expect(result.error).toBe(errorMessage); // The message property of the error
+      const errorMessage = 'A different Slack API error occurred';
+      const apiError = new SlackAPIError(
+        errorMessage,
+        SlackErrorCode.RequestTimeout,
+        undefined,
+        { ok: false, error: 'timeout' }
+      );
+      mockChatPostMessage.mockRejectedValueOnce(apiError);
+      const result = await sendSlackMessage(userId, channelId, text);
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe(errorMessage); // The message property of the error
     });
 
     it('should handle other non-SlackAPIError errors', async () => {
@@ -125,8 +173,14 @@ describe('slackSkills', () => {
       const result = await sendSlackMessage(userId, channelId, text);
 
       // The actual implementation prepends a custom string, so we match that.
-      expect(result).toEqual({ ok: false, error: 'Failed to send Slack message due to an unexpected error.' });
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error sending Slack message for userId ${userId} to channel ${channelId}:`, genericError);
+      expect(result).toEqual({
+        ok: false,
+        error: 'Failed to send Slack message due to an unexpected error.',
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error sending Slack message for userId ${userId} to channel ${channelId}:`,
+        genericError
+      );
     });
   });
 
@@ -156,7 +210,9 @@ describe('slackSkills', () => {
         exclude_archived: true,
         cursor: undefined, // No cursor for first page
       });
-      expect(consoleLogSpy).toHaveBeenCalledWith(`listSlackChannels called by userId: ${userId}, limit: 100, cursor: undefined`);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `listSlackChannels called by userId: ${userId}, limit: 100, cursor: undefined`
+      );
     });
 
     it('should list channels successfully with specified limit and cursor', async () => {
@@ -175,16 +231,26 @@ describe('slackSkills', () => {
         types: 'public_channel,private_channel',
         exclude_archived: true,
       });
-       expect(consoleLogSpy).toHaveBeenCalledWith(`listSlackChannels called by userId: ${userId}, limit: 50, cursor: prevCursor123`);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `listSlackChannels called by userId: ${userId}, limit: 50, cursor: prevCursor123`
+      );
     });
 
     it('should return empty channels array if API returns null or undefined channels', async () => {
-      mockConversationsList.mockResolvedValueOnce({ ok: true, channels: null, response_metadata: { next_cursor: '' } });
+      mockConversationsList.mockResolvedValueOnce({
+        ok: true,
+        channels: null,
+        response_metadata: { next_cursor: '' },
+      });
       let result = await listSlackChannels(userId);
       expect(result.ok).toBe(true);
       expect(result.channels).toEqual([]);
 
-      mockConversationsList.mockResolvedValueOnce({ ok: true, channels: undefined, response_metadata: { next_cursor: '' } });
+      mockConversationsList.mockResolvedValueOnce({
+        ok: true,
+        channels: undefined,
+        response_metadata: { next_cursor: '' },
+      });
       result = await listSlackChannels(userId);
       expect(result.ok).toBe(true);
       expect(result.channels).toEqual([]);
@@ -193,37 +259,64 @@ describe('slackSkills', () => {
     it('should return error if ATOM_SLACK_BOT_TOKEN is missing', async () => {
       jest.spyOn(constants, 'ATOM_SLACK_BOT_TOKEN', 'get').mockReturnValue('');
       const result = await listSlackChannels(userId);
-      expect(result).toEqual({ ok: false, error: 'Slack Bot Token not configured.' });
+      expect(result).toEqual({
+        ok: false,
+        error: 'Slack Bot Token not configured.',
+      });
       expect(mockConversationsList).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Slack Bot Token not configured.');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Slack Bot Token not configured.'
+      );
     });
 
     it('should handle Slack API PlatformError when listing channels', async () => {
-      const slackErrorData = { ok: false, error: 'invalid_limit', /* other data */ };
-      const apiError = new SlackAPIError('platform_error_listing_test', SlackErrorCode.PlatformError, undefined, slackErrorData);
+      const slackErrorData = {
+        ok: false,
+        error: 'invalid_limit' /* other data */,
+      };
+      const apiError = new SlackAPIError(
+        'platform_error_listing_test',
+        SlackErrorCode.PlatformError,
+        undefined,
+        slackErrorData
+      );
       mockConversationsList.mockRejectedValueOnce(apiError);
 
       const result = await listSlackChannels(userId);
       expect(result.ok).toBe(false);
       expect(result.error).toBe('invalid_limit');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error listing Slack channels for userId ${userId}:`, apiError);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error listing Slack channels for userId ${userId}:`,
+        apiError
+      );
     });
 
     it('should handle other SlackAPIErrors when listing channels', async () => {
-        const errorMessage = "A different Slack API error occurred during list";
-        const apiError = new SlackAPIError(errorMessage, SlackErrorCode.TooManyRequests, undefined, { ok: false, error: 'ratelimited' });
-        mockConversationsList.mockRejectedValueOnce(apiError);
-        const result = await listSlackChannels(userId);
-        expect(result.ok).toBe(false);
-        expect(result.error).toBe(errorMessage);
+      const errorMessage = 'A different Slack API error occurred during list';
+      const apiError = new SlackAPIError(
+        errorMessage,
+        SlackErrorCode.TooManyRequests,
+        undefined,
+        { ok: false, error: 'ratelimited' }
+      );
+      mockConversationsList.mockRejectedValueOnce(apiError);
+      const result = await listSlackChannels(userId);
+      expect(result.ok).toBe(false);
+      expect(result.error).toBe(errorMessage);
     });
 
     it('should handle other non-SlackAPIError errors when listing channels', async () => {
       const genericError = new Error('DNS resolution failed');
       mockConversationsList.mockRejectedValueOnce(genericError);
       const result = await listSlackChannels(userId);
-      expect(result).toEqual({ ok: false, error: 'Failed to list Slack channels due to an unexpected error.' });
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error listing Slack channels for userId ${userId}:`, genericError);
+      expect(result).toEqual({
+        ok: false,
+        error: 'Failed to list Slack channels due to an unexpected error.',
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error listing Slack channels for userId ${userId}:`,
+        genericError
+      );
     });
   });
 });

@@ -5,17 +5,17 @@ import { logger } from '../../_utils/logger';
 
 // Interface for structured Microsoft Teams search queries
 export interface StructuredMSTeamsQuery {
-  fromUser?: string;          // Sender's name or email (Graph search can often resolve names)
-  inChatOrChannel?: string;   // Chat ID, Channel ID, or name (e.g., "General", "Project Alpha Chat with Bob")
-  mentionsUser?: string;      // User mentioned (name or email)
-  hasFile?: boolean;          // True if files/attachments are mentioned
-  hasLink?: boolean;          // True if links are mentioned (less common as direct KQL, might be part of textKeywords)
-  onDate?: string;            // Specific date in YYYY-MM-DD format.
-  beforeDate?: string;        // Before this date (YYYY-MM-DD).
-  afterDate?: string;         // After this date (YYYY-MM-DD).
-  textKeywords?: string;      // General keywords for message content.
-  subjectContains?: string;   // For channel messages that might have a subject.
-  exactPhrase?: string;       // An exact phrase to search for.
+  fromUser?: string; // Sender's name or email (Graph search can often resolve names)
+  inChatOrChannel?: string; // Chat ID, Channel ID, or name (e.g., "General", "Project Alpha Chat with Bob")
+  mentionsUser?: string; // User mentioned (name or email)
+  hasFile?: boolean; // True if files/attachments are mentioned
+  hasLink?: boolean; // True if links are mentioned (less common as direct KQL, might be part of textKeywords)
+  onDate?: string; // Specific date in YYYY-MM-DD format.
+  beforeDate?: string; // Before this date (YYYY-MM-DD).
+  afterDate?: string; // After this date (YYYY-MM-DD).
+  textKeywords?: string; // General keywords for message content.
+  subjectContains?: string; // For channel messages that might have a subject.
+  exactPhrase?: string; // An exact phrase to search for.
 }
 
 let openAIClientForMSTeamsQueryUnderstanding: OpenAI | null = null;
@@ -25,10 +25,16 @@ function getOpenAIClient(): OpenAI {
     return openAIClientForMSTeamsQueryUnderstanding;
   }
   if (!ATOM_OPENAI_API_KEY) {
-    logger.error('[LLMMSTeamsQueryUnderstander] OpenAI API Key (ATOM_OPENAI_API_KEY) is not configured.');
-    throw new Error('OpenAI API Key not configured for LLM MS Teams Query Understander.');
+    logger.error(
+      '[LLMMSTeamsQueryUnderstander] OpenAI API Key (ATOM_OPENAI_API_KEY) is not configured.'
+    );
+    throw new Error(
+      'OpenAI API Key not configured for LLM MS Teams Query Understander.'
+    );
   }
-  openAIClientForMSTeamsQueryUnderstanding = new OpenAI({ apiKey: ATOM_OPENAI_API_KEY });
+  openAIClientForMSTeamsQueryUnderstanding = new OpenAI({
+    apiKey: ATOM_OPENAI_API_KEY,
+  });
   logger.info('[LLMMSTeamsQueryUnderstander] OpenAI client initialized.');
   return openAIClientForMSTeamsQueryUnderstanding;
 }
@@ -85,7 +91,9 @@ If user says "mentioning me", use "me" for mentionsUser. The system will resolve
  * @param rawUserQuery The user's natural language query about finding Teams messages.
  * @returns A Promise resolving to a Partial<StructuredMSTeamsQuery> object.
  */
-export async function understandMSTeamsSearchQueryLLM(rawUserQuery: string): Promise<Partial<StructuredMSTeamsQuery>> {
+export async function understandMSTeamsSearchQueryLLM(
+  rawUserQuery: string
+): Promise<Partial<StructuredMSTeamsQuery>> {
   const client = getOpenAIClient();
   const now = new Date();
   const year = now.getFullYear();
@@ -93,14 +101,20 @@ export async function understandMSTeamsSearchQueryLLM(rawUserQuery: string): Pro
   const day = now.getDate().toString().padStart(2, '0');
   const currentDate = `${year}-${month}-${day}`; // YYYY-MM-DD
 
-  const systemPromptWithDate = MSTEAMS_QUERY_UNDERSTANDING_SYSTEM_PROMPT.replace(/{{CURRENT_DATE}}/g, currentDate);
+  const systemPromptWithDate =
+    MSTEAMS_QUERY_UNDERSTANDING_SYSTEM_PROMPT.replace(
+      /{{CURRENT_DATE}}/g,
+      currentDate
+    );
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPromptWithDate },
     { role: 'user', content: rawUserQuery },
   ];
 
-  logger.debug(`[LLMMSTeamsQueryUnderstander] Processing query: "${rawUserQuery}" with current date ${currentDate}`);
+  logger.debug(
+    `[LLMMSTeamsQueryUnderstander] Processing query: "${rawUserQuery}" with current date ${currentDate}`
+  );
 
   try {
     const completion = await client.chat.completions.create({
@@ -112,18 +126,27 @@ export async function understandMSTeamsSearchQueryLLM(rawUserQuery: string): Pro
 
     const llmResponse = completion.choices[0]?.message?.content;
     if (!llmResponse) {
-      logger.error('[LLMMSTeamsQueryUnderstander] Received an empty response from AI.');
-      throw new Error('LLM MS Teams Query Understander: Empty response from AI.');
+      logger.error(
+        '[LLMMSTeamsQueryUnderstander] Received an empty response from AI.'
+      );
+      throw new Error(
+        'LLM MS Teams Query Understander: Empty response from AI.'
+      );
     }
 
-    logger.debug('[LLMMSTeamsQueryUnderstander] Raw LLM JSON response:', llmResponse);
+    logger.debug(
+      '[LLMMSTeamsQueryUnderstander] Raw LLM JSON response:',
+      llmResponse
+    );
     let parsedResponse = JSON.parse(llmResponse);
 
     const cleanedResponse: Partial<StructuredMSTeamsQuery> = {};
     for (const key in parsedResponse) {
-      if (Object.prototype.hasOwnProperty.call(parsedResponse, key) &&
-          parsedResponse[key] !== null &&
-          parsedResponse[key] !== "") {
+      if (
+        Object.prototype.hasOwnProperty.call(parsedResponse, key) &&
+        parsedResponse[key] !== null &&
+        parsedResponse[key] !== ''
+      ) {
         // @ts-ignore
         cleanedResponse[key] = parsedResponse[key];
       }
@@ -131,30 +154,56 @@ export async function understandMSTeamsSearchQueryLLM(rawUserQuery: string): Pro
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (cleanedResponse.onDate && !dateRegex.test(cleanedResponse.onDate)) {
-        logger.warn(`[LLMMSTeamsQueryUnderstander] LLM provided 'onDate' in unexpected format: ${cleanedResponse.onDate}. Discarding.`);
-        delete cleanedResponse.onDate;
+      logger.warn(
+        `[LLMMSTeamsQueryUnderstander] LLM provided 'onDate' in unexpected format: ${cleanedResponse.onDate}. Discarding.`
+      );
+      delete cleanedResponse.onDate;
     }
-    if (cleanedResponse.beforeDate && !dateRegex.test(cleanedResponse.beforeDate)) {
-        logger.warn(`[LLMMSTeamsQueryUnderstander] LLM provided 'beforeDate' in unexpected format: ${cleanedResponse.beforeDate}. Discarding.`);
-        delete cleanedResponse.beforeDate;
+    if (
+      cleanedResponse.beforeDate &&
+      !dateRegex.test(cleanedResponse.beforeDate)
+    ) {
+      logger.warn(
+        `[LLMMSTeamsQueryUnderstander] LLM provided 'beforeDate' in unexpected format: ${cleanedResponse.beforeDate}. Discarding.`
+      );
+      delete cleanedResponse.beforeDate;
     }
-    if (cleanedResponse.afterDate && !dateRegex.test(cleanedResponse.afterDate)) {
-        logger.warn(`[LLMMSTeamsQueryUnderstander] LLM provided 'afterDate' in unexpected format: ${cleanedResponse.afterDate}. Discarding.`);
-        delete cleanedResponse.afterDate;
+    if (
+      cleanedResponse.afterDate &&
+      !dateRegex.test(cleanedResponse.afterDate)
+    ) {
+      logger.warn(
+        `[LLMMSTeamsQueryUnderstander] LLM provided 'afterDate' in unexpected format: ${cleanedResponse.afterDate}. Discarding.`
+      );
+      delete cleanedResponse.afterDate;
     }
 
-    logger.info('[LLMMSTeamsQueryUnderstander] Cleaned structured MS Teams query:', cleanedResponse);
+    logger.info(
+      '[LLMMSTeamsQueryUnderstander] Cleaned structured MS Teams query:',
+      cleanedResponse
+    );
     return cleanedResponse;
-
   } catch (error: any) {
-    logger.error('[LLMMSTeamsQueryUnderstander] Error processing MS Teams search query with OpenAI:', error.message);
+    logger.error(
+      '[LLMMSTeamsQueryUnderstander] Error processing MS Teams search query with OpenAI:',
+      error.message
+    );
     if (error instanceof SyntaxError) {
-        logger.error('[LLMMSTeamsQueryUnderstander] Failed to parse JSON response from LLM:', llmResponse);
-        throw new Error('LLM MS Teams Query Understander: Failed to parse response from AI.');
+      logger.error(
+        '[LLMMSTeamsQueryUnderstander] Failed to parse JSON response from LLM:',
+        llmResponse
+      );
+      throw new Error(
+        'LLM MS Teams Query Understander: Failed to parse response from AI.'
+      );
     }
     if (error.response?.data?.error?.message) {
-        throw new Error(`LLM MS Teams Query Understander: API Error - ${error.response.data.error.message}`);
+      throw new Error(
+        `LLM MS Teams Query Understander: API Error - ${error.response.data.error.message}`
+      );
     }
-    throw new Error(`LLM MS Teams Query Understander: Failed to understand MS Teams search query. ${error.message}`);
+    throw new Error(
+      `LLM MS Teams Query Understander: Failed to understand MS Teams search query. ${error.message}`
+    );
   }
 }

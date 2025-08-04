@@ -1,9 +1,9 @@
-import { connect, Connection, Table } from "@lancedb/lancedb";
+import { connect, Connection, Table } from '@lancedb/lancedb';
 
 // Environment variable for LanceDB path or a default
-const LANCEDB_DATA_PATH = process.env.LANCEDB_URI || "/data/lancedb";
-const EVENT_TABLE_NAME = "events_data"; // For general event search
-const TRAINING_TABLE_NAME = "training_data"; // For features-apply, schedule-event, and _chat training
+const LANCEDB_DATA_PATH = process.env.LANCEDB_URI || '/data/lancedb';
+const EVENT_TABLE_NAME = 'events_data'; // For general event search
+const TRAINING_TABLE_NAME = 'training_data'; // For features-apply, schedule-event, and _chat training
 
 let dbConnection: Connection | null = null;
 
@@ -21,7 +21,7 @@ export async function getDBConnection(): Promise<Connection> {
   } catch (error) {
     console.error(
       `Failed to connect to LanceDB at ${LANCEDB_DATA_PATH}:`,
-      error,
+      error
     );
     dbConnection = null; // Reset on failure to allow retry
     throw error;
@@ -73,7 +73,7 @@ export async function getOrCreateTable(
   tableName: string,
   // Provide a representative empty item for schema inference, especially for vector types.
   // e.g., { id: "", vector: [], ...other_fields_with_default_values }
-  representativeData: any[],
+  representativeData: any[]
 ): Promise<Table> {
   try {
     const table = await db.openTable(tableName);
@@ -87,7 +87,7 @@ export async function getOrCreateTable(
       // Ensure the representativeData includes a vector field if the schema requires one.
       const table = await db.createTable(tableName, representativeData);
       console.log(
-        `Table "${tableName}" created successfully with inferred schema.`,
+        `Table "${tableName}" created successfully with inferred schema.`
       );
       return table;
     } catch (creationError) {
@@ -109,7 +109,7 @@ export async function upsertItems(
   db: Connection, // Pass connection to avoid repeated calls to getDBConnection
   tableName: string,
   items: any[],
-  representativeItemSchema: any[], // Used if table needs to be created
+  representativeItemSchema: any[] // Used if table needs to be created
 ): Promise<void> {
   if (!items || items.length === 0) {
     console.log(`No items provided for upsert in table "${tableName}".`);
@@ -120,17 +120,17 @@ export async function upsertItems(
   // Extract IDs for deletion
   const ids = items.map((item) => item.id);
   if (ids.length > 0) {
-    const deleteQuery = `id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(",")})`;
+    const deleteQuery = `id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`;
     try {
       await table.delete(deleteQuery);
       console.log(
-        `Successfully pre-deleted existing items for upsert in "${tableName}" for IDs: ${ids.join(", ")}`,
+        `Successfully pre-deleted existing items for upsert in "${tableName}" for IDs: ${ids.join(', ')}`
       );
     } catch (deleteError) {
       // It's often okay if delete fails because items don't exist yet.
       console.warn(
         `Warning or error during pre-delete for upsert in "${tableName}" (some IDs might not exist):`,
-        deleteError.message,
+        deleteError.message
       );
     }
   }
@@ -138,12 +138,12 @@ export async function upsertItems(
   try {
     await table.add(items);
     console.log(
-      `Successfully added/updated ${items.length} items in table "${tableName}".`,
+      `Successfully added/updated ${items.length} items in table "${tableName}".`
     );
   } catch (error) {
     console.error(
       `Error during bulk add for upsert in table "${tableName}":`,
-      error,
+      error
     );
     throw error;
   }
@@ -159,7 +159,7 @@ export async function deleteItemsByIds(
   db: Connection,
   tableName: string,
   ids: string[],
-  representativeItemSchema: any[],
+  representativeItemSchema: any[]
 ): Promise<void> {
   if (!ids || ids.length === 0) {
     console.log(`No IDs provided for deletion in table "${tableName}".`);
@@ -169,11 +169,11 @@ export async function deleteItemsByIds(
   // but getOrCreateTable handles opening it.
   const table = await getOrCreateTable(db, tableName, representativeItemSchema);
 
-  const deleteQuery = `id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(",")})`;
+  const deleteQuery = `id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`;
   try {
     await table.delete(deleteQuery);
     console.log(
-      `Successfully deleted items from "${tableName}" for IDs: ${ids.join(", ")}`,
+      `Successfully deleted items from "${tableName}" for IDs: ${ids.join(', ')}`
     );
   } catch (error) {
     console.error(`Error during bulk delete from table "${tableName}":`, error);
@@ -196,15 +196,15 @@ export async function searchTableByVector(
   vector: number[],
   limit: number,
   representativeItemSchema: any[],
-  filterCondition?: string,
+  filterCondition?: string
 ): Promise<any[]> {
   if (!vector || vector.length === 0) {
-    throw new Error("Search vector must be provided.");
+    throw new Error('Search vector must be provided.');
   }
   const table = await getOrCreateTable(db, tableName, representativeItemSchema);
   let query = table.search(vector);
 
-  if (filterCondition && filterCondition.trim() !== "") {
+  if (filterCondition && filterCondition.trim() !== '') {
     query = query.where(filterCondition);
   }
 
@@ -230,10 +230,10 @@ export async function getItemById(
   db: Connection,
   tableName: string,
   id: string,
-  representativeItemSchema: any[],
+  representativeItemSchema: any[]
 ): Promise<any | null> {
   if (!id) {
-    throw new Error("ID must be provided to get an item.");
+    throw new Error('ID must be provided to get an item.');
   }
   const table = await getOrCreateTable(db, tableName, representativeItemSchema);
 
@@ -254,14 +254,14 @@ export async function upsertEvents(items: EventSchema[]): Promise<void> {
   const db = await getDBConnection();
   const sampleEventData: EventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      start_date: "",
-      end_date: "",
-      raw_event_text: "",
-      last_modified: "",
-      title: "",
+      start_date: '',
+      end_date: '',
+      raw_event_text: '',
+      last_modified: '',
+      title: '',
     },
   ];
   await upsertItems(db, EVENT_TABLE_NAME, items, sampleEventData);
@@ -271,14 +271,14 @@ export async function deleteEventsByIds(ids: string[]): Promise<void> {
   const db = await getDBConnection();
   const sampleEventData: EventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      start_date: "",
-      end_date: "",
-      raw_event_text: "",
-      last_modified: "",
-      title: "",
+      start_date: '',
+      end_date: '',
+      raw_event_text: '',
+      last_modified: '',
+      title: '',
     },
   ];
   await deleteItemsByIds(db, EVENT_TABLE_NAME, ids, sampleEventData);
@@ -287,19 +287,19 @@ export async function deleteEventsByIds(ids: string[]): Promise<void> {
 export async function searchEvents(
   vector: number[],
   limit: number,
-  filterCondition?: string,
+  filterCondition?: string
 ): Promise<EventSchema[]> {
   const db = await getDBConnection();
   const sampleEventData: EventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      start_date: "",
-      end_date: "",
-      raw_event_text: "",
-      last_modified: "",
-      title: "",
+      start_date: '',
+      end_date: '',
+      raw_event_text: '',
+      last_modified: '',
+      title: '',
     },
   ];
   return (await searchTableByVector(
@@ -308,7 +308,7 @@ export async function searchEvents(
     vector,
     limit,
     sampleEventData,
-    filterCondition,
+    filterCondition
   )) as EventSchema[];
 }
 
@@ -316,36 +316,36 @@ export async function getEventById(id: string): Promise<EventSchema | null> {
   const db = await getDBConnection();
   const sampleEventData: EventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      start_date: "",
-      end_date: "",
-      raw_event_text: "",
-      last_modified: "",
-      title: "",
+      start_date: '',
+      end_date: '',
+      raw_event_text: '',
+      last_modified: '',
+      title: '',
     },
   ];
   return (await getItemById(
     db,
     EVENT_TABLE_NAME,
     id,
-    sampleEventData,
+    sampleEventData
   )) as EventSchema | null;
 }
 
 // Similarly for TrainingData
 export async function upsertTrainingEvents(
-  items: TrainingEventSchema[],
+  items: TrainingEventSchema[]
 ): Promise<void> {
   const db = await getDBConnection();
   const sampleTrainingData: TrainingEventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      source_event_text: "",
-      created_at: "",
+      source_event_text: '',
+      created_at: '',
     },
   ];
   await upsertItems(db, TRAINING_TABLE_NAME, items, sampleTrainingData);
@@ -355,11 +355,11 @@ export async function deleteTrainingEventsByIds(ids: string[]): Promise<void> {
   const db = await getDBConnection();
   const sampleTrainingData: TrainingEventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      source_event_text: "",
-      created_at: "",
+      source_event_text: '',
+      created_at: '',
     },
   ];
   await deleteItemsByIds(db, TRAINING_TABLE_NAME, ids, sampleTrainingData);
@@ -368,16 +368,16 @@ export async function deleteTrainingEventsByIds(ids: string[]): Promise<void> {
 export async function searchTrainingEvents(
   vector: number[],
   limit: number,
-  filterCondition?: string,
+  filterCondition?: string
 ): Promise<TrainingEventSchema[]> {
   const db = await getDBConnection();
   const sampleTrainingData: TrainingEventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      source_event_text: "",
-      created_at: "",
+      source_event_text: '',
+      created_at: '',
     },
   ];
   return (await searchTableByVector(
@@ -386,28 +386,28 @@ export async function searchTrainingEvents(
     vector,
     limit,
     sampleTrainingData,
-    filterCondition,
+    filterCondition
   )) as TrainingEventSchema[];
 }
 
 export async function getTrainingEventById(
-  id: string,
+  id: string
 ): Promise<TrainingEventSchema | null> {
   const db = await getDBConnection();
   const sampleTrainingData: TrainingEventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      source_event_text: "",
-      created_at: "",
+      source_event_text: '',
+      created_at: '',
     },
   ];
   return (await getItemById(
     db,
     TRAINING_TABLE_NAME,
     id,
-    sampleTrainingData,
+    sampleTrainingData
   )) as TrainingEventSchema | null;
 }
 
@@ -418,14 +418,14 @@ export async function getEventDataTable(): Promise<Table> {
   // Crucially, vector field must be present.
   const sampleEventData: EventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      start_date: "",
-      end_date: "",
-      raw_event_text: "",
-      last_modified: "",
-      title: "",
+      start_date: '',
+      end_date: '',
+      raw_event_text: '',
+      last_modified: '',
+      title: '',
     },
   ];
   return getOrCreateTable(db, EVENT_TABLE_NAME, sampleEventData);
@@ -435,11 +435,11 @@ export async function getTrainingDataTable(): Promise<Table> {
   const db = await getDBConnection();
   const sampleTrainingData: TrainingEventSchema[] = [
     {
-      id: "",
-      userId: "",
+      id: '',
+      userId: '',
       vector: [],
-      source_event_text: "",
-      created_at: "",
+      source_event_text: '',
+      created_at: '',
     },
   ];
   return getOrCreateTable(db, TRAINING_TABLE_NAME, sampleTrainingData);

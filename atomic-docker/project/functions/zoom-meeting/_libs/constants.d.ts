@@ -1,0 +1,10 @@
+export declare const hasuraGraphUrl: string | undefined;
+export declare const hasuraAdminSecret: string | undefined;
+export declare const zoomResourceName = "zoom";
+export declare const zoomClientSecret: string | undefined;
+export declare const zoomClientId: string | undefined;
+export declare const zoomBaseUrl = "https://api.zoom.us/v2";
+export declare const zoomBaseTokenUrl = "https://zoom.us";
+export declare const zoomSaltForPass: string | undefined;
+export declare const zoomIVForPass: string | undefined;
+export declare const zoomPassKey: string | undefined;

@@ -165,6 +165,13 @@ export async function createTaskFromChatMessage(
       error: { code: "MESSAGE_FETCH_ERROR", message: `Failed to fetch message: ${error.message}` },
       data: { success: false, message: `Failed to fetch message: ${error.message}` }
     };
+  } catch (error: any) {
+    logger.error(`[taskFromChatSkill] Error creating task: ${error.message}`, error);
+    return {
+      ok: false,
+      error: { code: "TASK_CREATION_ERROR", message: `Failed to create task: ${error.message}` },
+      data: { success: false, message: `Failed to create task: ${error.message}`, taskTitle: taskDescription }
+    };
   }
 
   // Step 2: Determine task description

@@ -1,0 +1,19 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = handler;
+function handler(req, res) {
+    const msTeamsClientId = process.env.MSTEAMS_CLIENT_ID;
+    const redirectUri = process.env.MSTEAMS_REDIRECT_URI;
+    const scope = 'offline_access User.Read Mail.ReadWrite Calendars.ReadWrite';
+    const state = 'some-random-state'; // Should be a random, unguessable string
+    if (!msTeamsClientId || !redirectUri) {
+        return res
+            .status(500)
+            .json({
+            message: 'Microsoft Teams environment variables not configured.',
+        });
+    }
+    const authorizationUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${msTeamsClientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${scope}&state=${state}`;
+    res.redirect(authorizationUrl);
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3RhcnQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJzdGFydC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQUVBLDBCQWlCQztBQWpCRCxTQUF3QixPQUFPLENBQUMsR0FBbUIsRUFBRSxHQUFvQjtJQUN2RSxNQUFNLGVBQWUsR0FBRyxPQUFPLENBQUMsR0FBRyxDQUFDLGlCQUFpQixDQUFDO0lBQ3RELE1BQU0sV0FBVyxHQUFHLE9BQU8sQ0FBQyxHQUFHLENBQUMsb0JBQW9CLENBQUM7SUFDckQsTUFBTSxLQUFLLEdBQUcsNkRBQTZELENBQUM7SUFDNUUsTUFBTSxLQUFLLEdBQUcsbUJBQW1CLENBQUMsQ0FBQyx5Q0FBeUM7SUFFNUUsSUFBSSxDQUFDLGVBQWUsSUFBSSxDQUFDLFdBQVcsRUFBRSxDQUFDO1FBQ3JDLE9BQU8sR0FBRzthQUNQLE1BQU0sQ0FBQyxHQUFHLENBQUM7YUFDWCxJQUFJLENBQUM7WUFDSixPQUFPLEVBQUUsdURBQXVEO1NBQ2pFLENBQUMsQ0FBQztJQUNQLENBQUM7SUFFRCxNQUFNLGdCQUFnQixHQUFHLDRFQUE0RSxlQUFlLG9DQUFvQyxXQUFXLDhCQUE4QixLQUFLLFVBQVUsS0FBSyxFQUFFLENBQUM7SUFFeE4sR0FBRyxDQUFDLFFBQVEsQ0FBQyxnQkFBZ0IsQ0FBQyxDQUFDO0FBQ2pDLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOZXh0QXBpUmVxdWVzdCwgTmV4dEFwaVJlc3BvbnNlIH0gZnJvbSAnbmV4dCc7XG5cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGhhbmRsZXIocmVxOiBOZXh0QXBpUmVxdWVzdCwgcmVzOiBOZXh0QXBpUmVzcG9uc2UpIHtcbiAgY29uc3QgbXNUZWFtc0NsaWVudElkID0gcHJvY2Vzcy5lbnYuTVNURUFNU19DTElFTlRfSUQ7XG4gIGNvbnN0IHJlZGlyZWN0VXJpID0gcHJvY2Vzcy5lbnYuTVNURUFNU19SRURJUkVDVF9VUkk7XG4gIGNvbnN0IHNjb3BlID0gJ29mZmxpbmVfYWNjZXNzIFVzZXIuUmVhZCBNYWlsLlJlYWRXcml0ZSBDYWxlbmRhcnMuUmVhZFdyaXRlJztcbiAgY29uc3Qgc3RhdGUgPSAnc29tZS1yYW5kb20tc3RhdGUnOyAvLyBTaG91bGQgYmUgYSByYW5kb20sIHVuZ3Vlc3NhYmxlIHN0cmluZ1xuXG4gIGlmICghbXNUZWFtc0NsaWVudElkIHx8ICFyZWRpcmVjdFVyaSkge1xuICAgIHJldHVybiByZXNcbiAgICAgIC5zdGF0dXMoNTAwKVxuICAgICAgLmpzb24oe1xuICAgICAgICBtZXNzYWdlOiAnTWljcm9zb2Z0IFRlYW1zIGVudmlyb25tZW50IHZhcmlhYmxlcyBub3QgY29uZmlndXJlZC4nLFxuICAgICAgfSk7XG4gIH1cblxuICBjb25zdCBhdXRob3JpemF0aW9uVXJsID0gYGh0dHBzOi8vbG9naW4ubWljcm9zb2Z0b25saW5lLmNvbS9jb21tb24vb2F1dGgyL3YyLjAvYXV0aG9yaXplP2NsaWVudF9pZD0ke21zVGVhbXNDbGllbnRJZH0mcmVzcG9uc2VfdHlwZT1jb2RlJnJlZGlyZWN0X3VyaT0ke3JlZGlyZWN0VXJpfSZyZXNwb25zZV9tb2RlPXF1ZXJ5JnNjb3BlPSR7c2NvcGV9JnN0YXRlPSR7c3RhdGV9YDtcblxuICByZXMucmVkaXJlY3QoYXV0aG9yaXphdGlvblVybCk7XG59XG4iXX0=

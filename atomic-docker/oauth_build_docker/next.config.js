@@ -6,7 +6,7 @@ module.exports = {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback, // if you miss it, all the other options in fallback, specified
-          // by next.js will be dropped. Doesn't make much sense, but how it is
+        // by next.js will be dropped. Doesn't make much sense, but how it is
         fs: false, // the solution
         child_process: false,
         http2: false,
@@ -25,7 +25,7 @@ module.exports = {
       config.ignoreWarnings = [/Failed to parse source map/];
     }
 
-    return config
+    return config;
   },
-  output: "standalone"
-}
+  output: 'standalone',
+};

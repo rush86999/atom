@@ -1,61 +1,70 @@
-import { Request, Response } from 'express'
-import { Kafka, logLevel } from 'kafkajs'
-import ip from 'ip'
-import { kafkaScheduleEventGroupId, kafkaScheduleEventTopic } from '../_libs/constants'
-
-
+import { Request, Response } from 'express';
+import { Kafka, logLevel } from 'kafkajs';
+import ip from 'ip';
+import {
+  kafkaScheduleEventGroupId,
+  kafkaScheduleEventTopic,
+} from '../_libs/constants';
 
 const kafka = new Kafka({
-    logLevel: logLevel.DEBUG,
-    brokers: [`kafka1:29092`],
-    clientId: 'atomic',
-    // ssl: true,
-    sasl: {
-        mechanism: 'plain', // scram-sha-256 or scram-sha-512
-        username: process.env.KAFKA_USERNAME,
-        password: process.env.KAFKA_PASSWORD,
-      },
-})
-
+  logLevel: logLevel.DEBUG,
+  brokers: [`kafka1:29092`],
+  clientId: 'atomic',
+  // ssl: true,
+  sasl: {
+    mechanism: 'plain', // scram-sha-256 or scram-sha-512
+    username: process.env.KAFKA_USERNAME,
+    password: process.env.KAFKA_PASSWORD,
+  },
+});
 
 const publisher = async (req: Request, res: Response) => {
-    const producer = kafka.producer({ maxInFlightRequests: 1, idempotent: true })
-    await producer.connect()
+  const producer = kafka.producer({ maxInFlightRequests: 1, idempotent: true });
+  await producer.connect();
 
-    const  transaction = await producer.transaction()
+  const transaction = await producer.transaction();
   try {
+    const eventItem = req.body;
 
-    const eventItem = req.body
-  
-      const response = await transaction.send({
-        topic: kafkaScheduleEventTopic,
-        messages: [{ value: JSON.stringify(eventItem)}]
-      })
+    const response = await transaction.send({
+      topic: kafkaScheduleEventTopic,
+      messages: [{ value: JSON.stringify(eventItem) }],
+    });
 
-    const admin = kafka.admin()
+    const admin = kafka.admin();
 
-    await admin.connect()
-    const partitions = await admin.fetchOffsets({ groupId: kafkaScheduleEventGroupId, topics: [kafkaScheduleEventTopic] })
-    console.log(partitions)
-    await admin.disconnect()
+    await admin.connect();
+    const partitions = await admin.fetchOffsets({
+      groupId: kafkaScheduleEventGroupId,
+      topics: [kafkaScheduleEventTopic],
+    });
+    console.log(partitions);
+    await admin.disconnect();
 
     await transaction.sendOffsets({
-        consumerGroupId: kafkaScheduleEventGroupId, topics: [{ topic: kafkaScheduleEventTopic, partitions: partitions?.[0]?.partitions}]
-    })
+      consumerGroupId: kafkaScheduleEventGroupId,
+      topics: [
+        {
+          topic: kafkaScheduleEventTopic,
+          partitions: partitions?.[0]?.partitions,
+        },
+      ],
+    });
 
-    await transaction.commit()
-    
-    console.log(response, ' response successfully added to queue inside features-worker-queue-admin')
+    await transaction.commit();
 
-    res.status(202).send('succesfully created day schedule')
+    console.log(
+      response,
+      ' response successfully added to queue inside features-worker-queue-admin'
+    );
 
-    
-  } catch(e) {
+    res.status(202).send('succesfully created day schedule');
+  } catch (e) {
     console.log(e, ' unable to process message');
 
-    await transaction.abort()
-    res.status(400).json(e)
+    await transaction.abort();
+    res.status(400).json(e);
   }
-}
+};
 
 export default publisher;

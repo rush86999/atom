@@ -1,25 +1,29 @@
-import { v4 as uuid } from 'uuid'
+import { v4 as uuid } from 'uuid';
 
-import { dayjs } from '@lib/date-utils'
-
+import { dayjs } from '@lib/date-utils';
 
 // dayjs.extend(utc)
 
-import { ApolloClient, gql, NormalizedCacheObject } from '@apollo/client'
-import { EventType } from '@lib/dataTypes/EventType'
-import removeCategoriesForEvent from '@lib/apollo/gql/removeCategoriesForEvent'
-import { CategoryType, DefaultRemindersType, DefaultTimeBlockingType, DefaultTimePreferenceTypes } from '@lib/dataTypes/CategoryType';
-import createCategoryMutation from '@lib/apollo/gql/createCategoryMutation'
-import listCategoriesForUser from '@lib/apollo/gql/listCategoriesForUser'
-import updateCategoryForName from '@lib/apollo/gql/updateCategoryForName'
-import deleteCategoryById from '@lib/apollo/gql/deleteCategoryById'
-import removeEventConnectionsForCategoryMutation from '@lib/apollo/gql/removeEventConnectionsForCategoryMutation'
-import listCategoriesForEventId from '@lib/apollo/gql/listCategoriesForEventId'
-import listEventsForCategoryQuery from '@lib/apollo/gql/listEventsForCategoryQuery'
-import removeCategoryEventConnection from '@lib/apollo/gql/removeCategoryEventConnection'
-import getCategoryById from '@lib/apollo/gql/getCategoryById'
-import { CategoryEventType } from '@lib/dataTypes/Category_EventType'
-import _ from 'lodash'
+import { ApolloClient, gql, NormalizedCacheObject } from '@apollo/client';
+import { EventType } from '@lib/dataTypes/EventType';
+import removeCategoriesForEvent from '@lib/apollo/gql/removeCategoriesForEvent';
+import {
+  CategoryType,
+  DefaultRemindersType,
+  DefaultTimeBlockingType,
+  DefaultTimePreferenceTypes,
+} from '@lib/dataTypes/CategoryType';
+import createCategoryMutation from '@lib/apollo/gql/createCategoryMutation';
+import listCategoriesForUser from '@lib/apollo/gql/listCategoriesForUser';
+import updateCategoryForName from '@lib/apollo/gql/updateCategoryForName';
+import deleteCategoryById from '@lib/apollo/gql/deleteCategoryById';
+import removeEventConnectionsForCategoryMutation from '@lib/apollo/gql/removeEventConnectionsForCategoryMutation';
+import listCategoriesForEventId from '@lib/apollo/gql/listCategoriesForEventId';
+import listEventsForCategoryQuery from '@lib/apollo/gql/listEventsForCategoryQuery';
+import removeCategoryEventConnection from '@lib/apollo/gql/removeCategoryEventConnection';
+import getCategoryById from '@lib/apollo/gql/getCategoryById';
+import { CategoryEventType } from '@lib/dataTypes/Category_EventType';
+import _ from 'lodash';
 // import {
 //   category_eventType,
 // } from '@dataTypes/category_eventType'
@@ -27,11 +31,10 @@ import _ from 'lodash'
 //   CategoryType,
 // } from '@dataTypes/CategoryType'
 
-
 export const createCategory = async (
   client: ApolloClient<NormalizedCacheObject>,
   category: string,
-  userId: string,
+  userId: string
 ) => {
   try {
     const newCategoryValue = {
@@ -40,43 +43,43 @@ export const createCategory = async (
       name: category,
       updatedAt: dayjs().toISOString(),
       createdDate: dayjs().toISOString(),
-    }
+    };
 
-    const { data } = await client.mutate<{ insert_Category_one: CategoryType }>({
-      mutation: createCategoryMutation,
-      variables: newCategoryValue,
-    })
+    const { data } = await client.mutate<{ insert_Category_one: CategoryType }>(
+      {
+        mutation: createCategoryMutation,
+        variables: newCategoryValue,
+      }
+    );
 
-    console.log(data, ' successfully inserted category')
-    return data?.insert_Category_one
-
+    console.log(data, ' successfully inserted category');
+    return data?.insert_Category_one;
   } catch (e) {
-    console.log(e, ' unable to create category')
+    console.log(e, ' unable to create category');
   }
-}
+};
 
 export const listUserCategories = async (
   client: ApolloClient<NormalizedCacheObject>,
-  userId: string,
+  userId: string
 ) => {
   try {
     const { data } = await client.query<{
-      Category: CategoryType[]
+      Category: CategoryType[];
     }>({
       query: listCategoriesForUser,
       variables: {
         userId,
       },
-      fetchPolicy: 'no-cache'
-    })
+      fetchPolicy: 'no-cache',
+    });
 
-    console.log(data, ' successfully listed categories')
-    return data?.Category
-
+    console.log(data, ' successfully listed categories');
+    return data?.Category;
   } catch (e) {
-    console.log(e, ' unable to listUserCategories')
+    console.log(e, ' unable to listUserCategories');
   }
-}
+};
 
 export const updateCategoryName = async (
   client: ApolloClient<NormalizedCacheObject>,
@@ -85,7 +88,7 @@ export const updateCategoryName = async (
 ) => {
   try {
     const { data } = await client.mutate<{
-      update_Category_by_pk: CategoryType
+      update_Category_by_pk: CategoryType;
     }>({
       mutation: updateCategoryForName,
       variables: {
@@ -93,45 +96,46 @@ export const updateCategoryName = async (
         name: newName,
         updatedAt: dayjs().toISOString(),
       },
-    })
+    });
 
-    console.log(data, ' successfully updated category')
-    return data?.update_Category_by_pk
-
+    console.log(data, ' successfully updated category');
+    return data?.update_Category_by_pk;
   } catch (e) {
-    console.log(e, ' unable to update category')
+    console.log(e, ' unable to update category');
   }
-}
+};
 
 export const removeCategory = async (
   client: ApolloClient<NormalizedCacheObject>,
-  categoryId: string,
+  categoryId: string
 ) => {
   try {
     const { data } = await client.mutate<{
-      delete_Category_by_pk: CategoryType
+      delete_Category_by_pk: CategoryType;
     }>({
       mutation: deleteCategoryById,
       variables: {
         id: categoryId,
       },
-    })
+    });
 
-    console.log(data, ' successfully removed category')
-    return data?.delete_Category_by_pk
-
+    console.log(data, ' successfully removed category');
+    return data?.delete_Category_by_pk;
   } catch (e) {
-    console.log(e, ' unable to remove category')
+    console.log(e, ' unable to remove category');
   }
-}
+};
 
 export const removeEventConnectionsForCategory = async (
   client: ApolloClient<NormalizedCacheObject>,
-  categoryId: string,
+  categoryId: string
 ) => {
   try {
     const { data } = await client.mutate<{
-      delete_Category_Event: { affected_rows: number, returning: CategoryEventType[] }
+      delete_Category_Event: {
+        affected_rows: number;
+        returning: CategoryEventType[];
+      };
     }>({
       mutation: removeEventConnectionsForCategoryMutation,
       variables: {
@@ -142,28 +146,29 @@ export const removeEventConnectionsForCategory = async (
       //   'listCategoriesForEventId'
       // ],
       update(cache, { data }) {
-        const deletedCategoryEvents = data?.delete_Category_Event?.returning
-        const normalizedIds = deletedCategoryEvents.map(c => cache.identify({ id: c.id, __typename: c.__typename }))
-        normalizedIds.forEach(id => cache.evict({ id }))
-        cache.gc()
-      }
-    })
+        const deletedCategoryEvents = data?.delete_Category_Event?.returning;
+        const normalizedIds = deletedCategoryEvents.map((c) =>
+          cache.identify({ id: c.id, __typename: c.__typename })
+        );
+        normalizedIds.forEach((id) => cache.evict({ id }));
+        cache.gc();
+      },
+    });
 
-    console.log(data, ' successfully removed event connections for category')
-    return data?.delete_Category_Event
-
+    console.log(data, ' successfully removed event connections for category');
+    return data?.delete_Category_Event;
   } catch (e) {
-    console.log(e, ' unable to remove events for category')
+    console.log(e, ' unable to remove events for category');
   }
-}
+};
 export const upsertCategoryEventConnection = async (
   client: ApolloClient<NormalizedCacheObject>,
   userId: string,
   categoryId: string,
-  eventId: string,
+  eventId: string
 ) => {
   try {
-    console.log(categoryId, ' categoryId inside upsertCategoryEventConnection')
+    console.log(categoryId, ' categoryId inside upsertCategoryEventConnection');
     const upsertCategoryEvent = gql`
         mutation InsertCategory_Event($category_events: [Category_Event_insert_input!]!) {
           insert_Category_Event(
@@ -218,7 +223,7 @@ export const upsertCategoryEventConnection = async (
             affected_rows
           }
         } 
-      `
+      `;
 
     const variables = {
       category_events: [
@@ -230,97 +235,108 @@ export const upsertCategoryEventConnection = async (
           deleted: false,
           updatedAt: dayjs().toISOString(),
           createdDate: dayjs().toISOString(),
-        }
-      ]
-    }
+        },
+      ],
+    };
 
-    const { data } = await client.mutate<{ insert_Category_Event: { returning: CategoryEventType[], affected_rows: number } }>({
+    const { data } = await client.mutate<{
+      insert_Category_Event: {
+        returning: CategoryEventType[];
+        affected_rows: number;
+      };
+    }>({
       mutation: upsertCategoryEvent,
       variables,
       update(cache, { data }) {
         if (data?.insert_Category_Event?.affected_rows > 0) {
-          console.log('insert_Category_Event', data)
+          console.log('insert_Category_Event', data);
         }
 
         cache.modify({
           fields: {
             Category_Event(existingCategoryEvents = []) {
-              const newCategoryEventRefs = data?.insert_Category_Event?.returning.map(c => (cache.writeFragment({
-                data: c,
-                fragment: gql`
-                    fragment NewCategory_Event on Category_Event {
-                      id
-                      categoryId
-                      createdDate
-                      deleted
-                      eventId
-                      updatedAt
-                      userId
-                    }
-                  `
-              })))
+              const newCategoryEventRefs =
+                data?.insert_Category_Event?.returning.map((c) =>
+                  cache.writeFragment({
+                    data: c,
+                    fragment: gql`
+                      fragment NewCategory_Event on Category_Event {
+                        id
+                        categoryId
+                        createdDate
+                        deleted
+                        eventId
+                        updatedAt
+                        userId
+                      }
+                    `,
+                  })
+                );
               return [...existingCategoryEvents, ...newCategoryEventRefs];
-            }
-          }
-        })
-      }
-    })
+            },
+          },
+        });
+      },
+    });
 
-    console.log(data, ' successfully upserted category event connection')
+    console.log(data, ' successfully upserted category event connection');
   } catch (e) {
-    console.log(e, ' unable to create category event')
+    console.log(e, ' unable to create category event');
   }
-}
+};
 
 export const listEventsForCategory = async (
   client: ApolloClient<NormalizedCacheObject>,
-  categoryId: string,
+  categoryId: string
 ) => {
   try {
     const { data } = await client.query<{
-      Event: EventType[]
+      Event: EventType[];
     }>({
       query: listEventsForCategoryQuery,
       variables: {
         categoryId,
       },
-    })
+    });
 
-    console.log(data, ' successfully listed events for category')
-    return data?.Event
+    console.log(data, ' successfully listed events for category');
+    return data?.Event;
   } catch (e) {
-    console.log(e, ' unable to listEventsForCategory')
+    console.log(e, ' unable to listEventsForCategory');
   }
-}
+};
 
 export const listCategoriesForEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
-  eventId: string,
+  eventId: string
 ) => {
   try {
-    const categoryData = (await client.query<{ Category: CategoryType[] }>({
+    const categoryData = await client.query<{ Category: CategoryType[] }>({
       query: listCategoriesForEventId,
       variables: {
         eventId: eventId,
       },
-    }))
-    console.log(categoryData, ' categoryData inside listCategoriesForEvent')
-    const categories = categoryData?.data?.Category
-    console.log(categories, ' successfully listed categories for event')
-    return categories
+    });
+    console.log(categoryData, ' categoryData inside listCategoriesForEvent');
+    const categories = categoryData?.data?.Category;
+    console.log(categories, ' successfully listed categories for event');
+    return categories;
   } catch (e) {
-    console.log(e, ' unable to listCategoriesForEvent')
+    console.log(e, ' unable to listCategoriesForEvent');
   }
-}
+};
 
 export const removeCategoryConnectionForEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
   categoryId: string,
-  eventId: string,
+  eventId: string
 ) => {
   try {
     const { data } = await client.mutate<{
-      delete_Category_Event: { affected_rows: number, returning: CategoryEventType[] }
+      delete_Category_Event: {
+        affected_rows: number;
+        returning: CategoryEventType[];
+      };
     }>({
       mutation: removeCategoryEventConnection,
       variables: {
@@ -332,26 +348,32 @@ export const removeCategoryConnectionForEvent = async (
       //   'listCategoriesForEventId'
       // ],
       update(cache, { data }) {
-        const normalizedIds = data?.delete_Category_Event?.returning?.map(c => cache.identify({ id: c.id, __typename: c.__typename }))
-        normalizedIds.forEach(id => cache.evict({ id }))
-        cache.gc()
-      }
-    })
+        const normalizedIds = data?.delete_Category_Event?.returning?.map((c) =>
+          cache.identify({ id: c.id, __typename: c.__typename })
+        );
+        normalizedIds.forEach((id) => cache.evict({ id }));
+        cache.gc();
+      },
+    });
 
-    console.log(data, ' successfully removed category connection for event')
-    return data?.delete_Category_Event
-
+    console.log(data, ' successfully removed category connection for event');
+    return data?.delete_Category_Event;
   } catch (e) {
-    console.log(e, ' unable to remove category for event')
+    console.log(e, ' unable to remove category for event');
   }
-}
+};
 
 export const removeAllCategoriesForEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
-  eventId: string,
+  eventId: string
 ) => {
   try {
-    const { data } = await client.mutate<{ delete_Category_Event: { affected_rows: number, returning: CategoryEventType[] } }>({
+    const { data } = await client.mutate<{
+      delete_Category_Event: {
+        affected_rows: number;
+        returning: CategoryEventType[];
+      };
+    }>({
       mutation: removeCategoriesForEvent,
       variables: {
         eventId,
@@ -361,22 +383,24 @@ export const removeAllCategoriesForEvent = async (
       //   'listCategoriesForEventId'
       // ],
       update(cache, { data }) {
-        const normalizedIds = data?.delete_Category_Event?.returning?.map(c => cache.identify({ id: c.id, __typename: c.__typename }))
-        normalizedIds.forEach(id => cache.evict({ id }))
-        cache.gc()
-      }
-    })
+        const normalizedIds = data?.delete_Category_Event?.returning?.map((c) =>
+          cache.identify({ id: c.id, __typename: c.__typename })
+        );
+        normalizedIds.forEach((id) => cache.evict({ id }));
+        cache.gc();
+      },
+    });
 
-    console.log(data, ' successfully removed all categories for event')
+    console.log(data, ' successfully removed all categories for event');
   } catch (e) {
-    console.log(e, ' unable to remove all categories for event')
+    console.log(e, ' unable to remove all categories for event');
   }
-}
+};
 
 export const addCategoryToUser = async (
   client: ApolloClient<NormalizedCacheObject>,
   userId: string,
-  name: string,
+  name: string
 ) => {
   try {
     const newCategoryValue = {
@@ -385,40 +409,42 @@ export const addCategoryToUser = async (
       name,
       updatedAt: dayjs().toISOString(),
       createdDate: dayjs().toISOString(),
-    }
+    };
 
-    const { data } = await client.mutate<{ insert_Category_one: CategoryType }>({
-      mutation: createCategoryMutation,
-      variables: newCategoryValue,
-    })
+    const { data } = await client.mutate<{ insert_Category_one: CategoryType }>(
+      {
+        mutation: createCategoryMutation,
+        variables: newCategoryValue,
+      }
+    );
 
-    console.log(data, ' successfully inserted category')
-    return data?.insert_Category_one
+    console.log(data, ' successfully inserted category');
+    return data?.insert_Category_one;
   } catch (e) {
-    console.log(e, ' unable to add category to user')
+    console.log(e, ' unable to add category to user');
   }
-}
+};
 
 export const getCategoryWithId = async (
   client: ApolloClient<NormalizedCacheObject>,
-  categoryId: string,
+  categoryId: string
 ) => {
   try {
     const { data } = await client.query<{
-      Category_by_pk: CategoryType
+      Category_by_pk: CategoryType;
     }>({
       query: getCategoryById,
       variables: {
         id: categoryId,
       },
-    })
+    });
 
-    console.log(data, ' successfully got category with id')
-    return data?.Category_by_pk
+    console.log(data, ' successfully got category with id');
+    return data?.Category_by_pk;
   } catch (e) {
-    console.log(e, ' unable to get category with id')
+    console.log(e, ' unable to get category with id');
   }
-}
+};
 
 export const updateCategoryHelper = async (
   client: ApolloClient<NormalizedCacheObject>,
@@ -444,7 +470,7 @@ export const updateCategoryHelper = async (
   defaultIsMeeting?: boolean,
   defaultIsExternalMeeting?: boolean,
   defaultMeetingModifiable?: boolean,
-  defaultExternalMeetingModifiable?: boolean,
+  defaultExternalMeetingModifiable?: boolean
 ) => {
   try {
     const updateCategoryMutation = gql`
@@ -528,113 +554,114 @@ export const updateCategoryHelper = async (
           defaultExternalMeetingModifiable
         }
       }
-    `
+    `;
 
     const variables: any = {
       id: categoryId,
       updatedAt: new Date().toISOString(),
-    }
+    };
 
     if (name !== undefined) {
-      variables.name = name
+      variables.name = name;
     }
 
     if (color !== undefined) {
-      variables.color = color
+      variables.color = color;
     }
 
     if (copyAvailability !== undefined) {
-      variables.copyAvailability = copyAvailability
+      variables.copyAvailability = copyAvailability;
     }
 
     if (copyIsBreak !== undefined) {
-      variables.copyIsBreak = copyIsBreak
+      variables.copyIsBreak = copyIsBreak;
     }
 
     if (copyIsExternalMeeting !== undefined) {
-      variables.copyIsExternalMeeting = copyIsExternalMeeting
+      variables.copyIsExternalMeeting = copyIsExternalMeeting;
     }
 
     if (copyIsMeeting !== undefined) {
-      variables.copyIsMeeting = copyIsMeeting
+      variables.copyIsMeeting = copyIsMeeting;
     }
 
     if (copyModifiable !== undefined) {
-      variables.copyModifiable = copyModifiable
+      variables.copyModifiable = copyModifiable;
     }
 
     if (copyPriorityLevel !== undefined) {
-      variables.copyPriorityLevel = copyPriorityLevel
+      variables.copyPriorityLevel = copyPriorityLevel;
     }
 
     if (copyReminders !== undefined) {
-      variables.copyReminders = copyReminders
+      variables.copyReminders = copyReminders;
     }
 
     if (copyTimeBlocking !== undefined) {
-      variables.copyTimeBlocking = copyTimeBlocking
+      variables.copyTimeBlocking = copyTimeBlocking;
     }
 
     if (copyTimePreference !== undefined) {
-      variables.copyTimePreference = copyTimePreference
+      variables.copyTimePreference = copyTimePreference;
     }
 
     if (defaultAvailability !== undefined) {
-      variables.defaultAvailability = defaultAvailability
+      variables.defaultAvailability = defaultAvailability;
     }
 
     if (defaultExternalMeetingModifiable !== undefined) {
-      variables.defaultExternalMeetingModifiable = defaultExternalMeetingModifiable
+      variables.defaultExternalMeetingModifiable =
+        defaultExternalMeetingModifiable;
     }
 
     if (defaultIsBreak !== undefined) {
-      variables.defaultIsBreak = defaultIsBreak
+      variables.defaultIsBreak = defaultIsBreak;
     }
 
     if (defaultIsExternalMeeting !== undefined) {
-      variables.defaultIsExternalMeeting = defaultIsExternalMeeting
+      variables.defaultIsExternalMeeting = defaultIsExternalMeeting;
     }
 
     if (defaultIsMeeting !== undefined) {
-      variables.defaultIsMeeting = defaultIsMeeting
+      variables.defaultIsMeeting = defaultIsMeeting;
     }
 
     if (defaultMeetingModifiable !== undefined) {
-      variables.defaultMeetingModifiable = defaultMeetingModifiable
+      variables.defaultMeetingModifiable = defaultMeetingModifiable;
     }
 
     if (defaultModifiable !== undefined) {
-      variables.defaultModifiable = defaultModifiable
+      variables.defaultModifiable = defaultModifiable;
     }
 
     if (defaultPriorityLevel !== undefined) {
-      variables.defaultPriorityLevel = defaultPriorityLevel
+      variables.defaultPriorityLevel = defaultPriorityLevel;
     }
 
     if (defaultReminders !== undefined) {
-      variables.defaultReminders = defaultReminders
+      variables.defaultReminders = defaultReminders;
     }
 
     if (defaultTimeBlocking !== undefined) {
-      variables.defaultTimeBlocking = defaultTimeBlocking
+      variables.defaultTimeBlocking = defaultTimeBlocking;
     }
 
     if (defaultTimePreference !== undefined) {
-      variables.defaultTimePreference = defaultTimePreference
+      variables.defaultTimePreference = defaultTimePreference;
     }
 
     const { data } = await client.mutate<{
-      update_Category_by_pk: CategoryType
+      update_Category_by_pk: CategoryType;
     }>({
       mutation: updateCategoryMutation,
       variables,
-    })
+    });
 
-    return data.update_Category_by_pk
+    return data.update_Category_by_pk;
   } catch (e) {
-    console.log(e, ' unable to update category')
+    console.log(e, ' unable to update category');
   }
-}
+};
 
 /**
 End */

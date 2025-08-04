@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { handleMessage, HandleMessageResponse } from '../../../../project/functions/atom-agent/handler'; // Adjust path as necessary
+import {
+  handleMessage,
+  HandleMessageResponse,
+} from '../../../../project/functions/atom-agent/handler'; // Adjust path as necessary
 import pino from 'pino';
 import { trace, context as otelContext } from '@opentelemetry/api';
 
@@ -70,13 +73,23 @@ export default async function handler(
     const { message, userId, conversationId, intentName, entities } = req.body; // Assuming these might be passed
 
     logger.info(
-        { operation_name, body_message_present: !!message, user_id: userId, conversation_id: conversationId },
-        `Received request for ${operation_name}`
+      {
+        operation_name,
+        body_message_present: !!message,
+        user_id: userId,
+        conversation_id: conversationId,
+      },
+      `Received request for ${operation_name}`
     );
 
     if (!message) {
-      logger.warn({ operation_name, error_code: 'MISSING_MESSAGE', success: false }, 'Missing message in request body');
-      return res.status(400).json({ text: '', error: 'Missing message in request body' });
+      logger.warn(
+        { operation_name, error_code: 'MISSING_MESSAGE', success: false },
+        'Missing message in request body'
+      );
+      return res
+        .status(400)
+        .json({ text: '', error: 'Missing message in request body' });
     }
 
     try {
@@ -101,8 +114,13 @@ export default async function handler(
       // In a real app, it would likely come from an authenticated session.
 
       if (!userId) {
-        logger.warn({ operation_name, error_code: 'MISSING_USERID', success: false }, 'Missing userId in request body for handleMessage');
-        return res.status(400).json({ text: '', error: 'Missing userId in request body' });
+        logger.warn(
+          { operation_name, error_code: 'MISSING_USERID', success: false },
+          'Missing userId in request body for handleMessage'
+        );
+        return res
+          .status(400)
+          .json({ text: '', error: 'Missing userId in request body' });
       }
 
       const atomResponse: HandleMessageResponse = await handleMessage(
@@ -115,7 +133,6 @@ export default async function handler(
       // Note: res.on('finish') will log the final status and duration.
       // No need for explicit success log here if covered by finish event.
       return res.status(200).json(atomResponse);
-
     } catch (error: any) {
       logger.error(
         {
@@ -128,10 +145,18 @@ export default async function handler(
         'Error calling Atom agent handleMessage'
       );
       // res.on('finish') will log the 500 status.
-      return res.status(500).json({ text: '', error: error.message || 'Internal Server Error from Atom agent' });
+      return res
+        .status(500)
+        .json({
+          text: '',
+          error: error.message || 'Internal Server Error from Atom agent',
+        });
     }
   } else {
-    logger.warn({ operation_name, http_method: req.method, success: false }, `Method ${req.method} Not Allowed`);
+    logger.warn(
+      { operation_name, http_method: req.method, success: false },
+      `Method ${req.method} Not Allowed`
+    );
     res.setHeader('Allow', ['POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }

@@ -1,4 +1,4 @@
-import { TaxQuery } from "../skills/taxExpertSkills";
+import { TaxQuery } from '../skills/taxExpertSkills';
 
 export async function nlu(query: string, options: any): Promise<TaxQuery> {
   // In a real application, this would call an NLU service powered by an LLM.
@@ -8,7 +8,7 @@ export async function nlu(query: string, options: any): Promise<TaxQuery> {
     parameters: {
       income: 50000,
       filingStatus: 'single',
-      dependents: 0
-    }
+      dependents: 0,
+    },
   };
 }

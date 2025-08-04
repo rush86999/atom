@@ -22,7 +22,9 @@ async function connectToLanceDB(): Promise<Connection> {
   }
 }
 
-export async function getOrCreateEventTable(db: Connection): Promise<Table<EventSchema>> {
+export async function getOrCreateEventTable(
+  db: Connection
+): Promise<Table<EventSchema>> {
   const tableName = 'events';
   try {
     const table = await db.openTable<EventSchema>(tableName);
@@ -56,7 +58,9 @@ export async function getOrCreateEventTable(db: Connection): Promise<Table<Event
   }
 }
 
-export async function bulkUpsertToLanceDBEvents(data: EventSchema[]): Promise<void> {
+export async function bulkUpsertToLanceDBEvents(
+  data: EventSchema[]
+): Promise<void> {
   if (!data || data.length === 0) {
     console.log('No data provided for upsert.');
     return;
@@ -70,15 +74,20 @@ export async function bulkUpsertToLanceDBEvents(data: EventSchema[]): Promise<vo
     // However, a common explicit upsert pattern is delete then add.
     // For simplicity, we'll first delete existing records by ID, then add new ones.
     // This ensures idempotency for the upsert operation.
-    const existingIds = data.map(item => item.id);
+    const existingIds = data.map((item) => item.id);
     if (existingIds.length > 0) {
-      const deleteQuery = `id IN (${existingIds.map(id => `'${id}'`).join(',')})`;
+      const deleteQuery = `id IN (${existingIds.map((id) => `'${id}'`).join(',')})`;
       try {
         await table.delete(deleteQuery);
-        console.log(`Successfully deleted existing records for IDs: ${existingIds.join(', ')}`);
+        console.log(
+          `Successfully deleted existing records for IDs: ${existingIds.join(', ')}`
+        );
       } catch (deleteError) {
         // It's possible that delete fails if some IDs don't exist; often this is not a critical error for upsert.
-        console.warn(`Warning or error during pre-delete for upsert (some IDs might not exist):`, deleteError);
+        console.warn(
+          `Warning or error during pre-delete for upsert (some IDs might not exist):`,
+          deleteError
+        );
       }
     }
 
@@ -90,7 +99,9 @@ export async function bulkUpsertToLanceDBEvents(data: EventSchema[]): Promise<vo
   }
 }
 
-export async function bulkDeleteFromLanceDBEvents(ids: string[]): Promise<void> {
+export async function bulkDeleteFromLanceDBEvents(
+  ids: string[]
+): Promise<void> {
   if (!ids || ids.length === 0) {
     console.log('No IDs provided for deletion.');
     return;
@@ -99,7 +110,7 @@ export async function bulkDeleteFromLanceDBEvents(ids: string[]): Promise<void> 
   const table = await getOrCreateEventTable(db); // Ensure table exists
 
   try {
-    const deleteQuery = `id IN (${ids.map(id => `'${id.replace(/'/g, "''")}'`).join(',')})`; // Escape single quotes in IDs
+    const deleteQuery = `id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`; // Escape single quotes in IDs
     await table.delete(deleteQuery);
     console.log(`Successfully deleted records for IDs: ${ids.join(', ')}`);
   } catch (error) {

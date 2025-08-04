@@ -54,7 +54,11 @@ describe('Notion Task Management Skills', () => {
     it('should create a task successfully using specific notionTasksDbId', async () => {
       const mockApiResponse = {
         ok: true,
-        data: { taskId: 'newPage123', taskUrl: 'http://notion.so/newPage123', message: 'Task created' },
+        data: {
+          taskId: 'newPage123',
+          taskUrl: 'http://notion.so/newPage123',
+          message: 'Task created',
+        },
       };
       mockedAxios.post.mockResolvedValueOnce({ data: mockApiResponse });
 
@@ -76,7 +80,10 @@ describe('Notion Task Management Skills', () => {
     });
 
     it('should use ATOM_NOTION_TASKS_DATABASE_ID if params.notionTasksDbId is not provided', async () => {
-      const mockApiResponse = { ok: true, data: { taskId: 'newPage456', taskUrl: 'http://notion.so/newPage456' }};
+      const mockApiResponse = {
+        ok: true,
+        data: { taskId: 'newPage456', taskUrl: 'http://notion.so/newPage456' },
+      };
       mockedAxios.post.mockResolvedValueOnce({ data: mockApiResponse });
 
       const paramsWithoutDbId: CreateNotionTaskParams = {
@@ -110,7 +117,9 @@ describe('Notion Task Management Skills', () => {
       mockedAxios.post.mockRejectedValueOnce(new Error('Network Error'));
       const result = await createNotionTask(userId, params);
       expect(result.ok).toBe(false);
-      expect(result.error?.message).toContain('Failed to create Notion task: Network Error');
+      expect(result.error?.message).toContain(
+        'Failed to create Notion task: Network Error'
+      );
     });
 
     it('should return config error if PYTHON_NOTE_API_URL is not set', async () => {
@@ -121,20 +130,23 @@ describe('Notion Task Management Skills', () => {
       // For now, this test highlights the dependency. If constants were not module-level mocked, this would be easier.
       // Given the current jest.mock, this test might not reflect an actual scenario where only one const is missing.
       // However, the function's internal check is what's being "tested".
-      jest.isolateModules(() => { // To ensure a fresh mock for constants for this test
+      jest.isolateModules(() => {
+        // To ensure a fresh mock for constants for this test
         jest.mock('../../_libs/constants', () => ({
-            ...jest.requireActual('../../_libs/constants'),
-            PYTHON_NOTE_API_URL: '', // Mock as empty for this test
-            NOTION_API_TOKEN: 'mock_notion_token', // Keep others valid
-            ATOM_NOTION_TASKS_DATABASE_ID: 'mock_tasks_db_id_from_constant',
+          ...jest.requireActual('../../_libs/constants'),
+          PYTHON_NOTE_API_URL: '', // Mock as empty for this test
+          NOTION_API_TOKEN: 'mock_notion_token', // Keep others valid
+          ATOM_NOTION_TASKS_DATABASE_ID: 'mock_tasks_db_id_from_constant',
         }));
         // Need to re-import the skill to use the modified constants for this isolated test
         const skillWithMockedConst = require('../notionAndResearchSkills');
         const promise = skillWithMockedConst.createNotionTask(userId, params);
         promise.then((result: SkillResponse<CreateTaskData>) => {
-            expect(result.ok).toBe(false);
-            expect(result.error?.code).toBe('CONFIG_ERROR');
-            expect(result.error?.message).toContain('Python Note API URL is not configured');
+          expect(result.ok).toBe(false);
+          expect(result.error?.code).toBe('CONFIG_ERROR');
+          expect(result.error?.message).toContain(
+            'Python Note API URL is not configured'
+          );
         });
       });
     });
@@ -148,11 +160,23 @@ describe('Notion Task Management Skills', () => {
       notionTasksDbId: 'custom_query_db_id', // Specific DB for this query
     };
     const mockTasksResult: NotionTask[] = [
-      { id: 'task1', description: 'Query Task 1', status: 'To Do', createdDate: '2023-01-01T00:00:00Z', url: 'http://notion.so/task1', priority: 'High', listName: 'Personal' },
+      {
+        id: 'task1',
+        description: 'Query Task 1',
+        status: 'To Do',
+        createdDate: '2023-01-01T00:00:00Z',
+        url: 'http://notion.so/task1',
+        priority: 'High',
+        listName: 'Personal',
+      },
     ];
 
     it('should query tasks successfully', async () => {
-      const mockApiResponse = { ok: true, data: mockTasksResult, message: 'Tasks retrieved' };
+      const mockApiResponse = {
+        ok: true,
+        data: mockTasksResult,
+        message: 'Tasks retrieved',
+      };
       mockedAxios.post.mockResolvedValueOnce({ data: mockApiResponse });
 
       const result = await queryNotionTasks(userId, params);
@@ -172,16 +196,27 @@ describe('Notion Task Management Skills', () => {
     });
 
     it('should return empty array if no tasks found but API call is ok', async () => {
-        const mockApiResponse = { ok: true, data: [], message: 'No tasks found matching criteria' };
-        mockedAxios.post.mockResolvedValueOnce({ data: mockApiResponse });
-        const result = await queryNotionTasks(userId, params);
-        expect(result.success).toBe(true);
-        expect(result.tasks).toEqual([]);
-        expect(result.message).toBe('No tasks found matching criteria');
+      const mockApiResponse = {
+        ok: true,
+        data: [],
+        message: 'No tasks found matching criteria',
+      };
+      mockedAxios.post.mockResolvedValueOnce({ data: mockApiResponse });
+      const result = await queryNotionTasks(userId, params);
+      expect(result.success).toBe(true);
+      expect(result.tasks).toEqual([]);
+      expect(result.message).toBe('No tasks found matching criteria');
     });
 
     it('should adapt Python API error to TaskQueryResponse error', async () => {
-      const mockApiErrorResponse = { ok: false, error: { code: 'PYTHON_ERROR', message: 'DB query failed', details: 'Some detail' }};
+      const mockApiErrorResponse = {
+        ok: false,
+        error: {
+          code: 'PYTHON_ERROR',
+          message: 'DB query failed',
+          details: 'Some detail',
+        },
+      };
       mockedAxios.post.mockResolvedValueOnce({ data: mockApiErrorResponse });
       const result = await queryNotionTasks(userId, params);
       expect(result.success).toBe(false);
@@ -198,7 +233,11 @@ describe('Notion Task Management Skills', () => {
       status: 'Done' as NotionTaskStatus,
       notes: 'Updated notes.',
     };
-    const mockUpdateData: UpdateTaskData = { taskId: 'taskToUpdate123', updatedProperties: ['status', 'notes'], message: 'Task updated' };
+    const mockUpdateData: UpdateTaskData = {
+      taskId: 'taskToUpdate123',
+      updatedProperties: ['status', 'notes'],
+      message: 'Task updated',
+    };
 
     it('should update a task successfully', async () => {
       const mockApiResponse = { ok: true, data: mockUpdateData };
@@ -220,13 +259,18 @@ describe('Notion Task Management Skills', () => {
     });
 
     it('should return error if taskId is missing', async () => {
-        const paramsWithoutId = { ...params };
-        // Casting to any to delete a required property for testing purposes
-        delete (paramsWithoutId as any).taskId;
-        const result = await updateNotionTask(userId, paramsWithoutId as UpdateNotionTaskParams); // Cast back
-        expect(result.ok).toBe(false);
-        expect(result.error?.code).toBe('VALIDATION_ERROR');
-        expect(result.error?.message).toContain('Task ID (taskId) is required for update.');
+      const paramsWithoutId = { ...params };
+      // Casting to any to delete a required property for testing purposes
+      delete (paramsWithoutId as any).taskId;
+      const result = await updateNotionTask(
+        userId,
+        paramsWithoutId as UpdateNotionTaskParams
+      ); // Cast back
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.message).toContain(
+        'Task ID (taskId) is required for update.'
+      );
     });
   });
 });

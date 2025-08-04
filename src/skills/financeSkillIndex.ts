@@ -69,7 +69,7 @@ export const financeSkills: SkillDefinition[] = [
       return await handleFinanceQuery(
         userId,
         `What is my net worth${params.includeHistory ? ' including history' : ''}?`
-n      );
+      );
     }
   },
   {

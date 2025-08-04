@@ -1,0 +1,219 @@
+import formValidators from './validators';
+import React, { LegacyRef, PropsWithChildren, ReactElement } from 'react';
+export type TextInputProps = {
+    hint?: string;
+    label?: string;
+    labelColor?: string;
+    labelStyle?: React.CSSProperties;
+    labelClassNames?: string;
+    leadingAccessory?: string | React.ReactElement;
+    trailingAccessory?: string | React.ReactElement;
+    validate?: Validator | Validator[];
+    fieldStyle?: object;
+    className?: string;
+    containerStyle?: object;
+    containerClassNames?: string;
+    validationMessage?: string | string[];
+    multiline?: boolean;
+    numberOfLines?: number;
+    hintClassNames?: string;
+    innerRef?: React.Ref<HTMLTextAreaElement> | LegacyRef<HTMLInputElement>;
+};
+export type ColorType = string | {
+    default?: string;
+    focus?: string;
+    error?: string;
+    disabled?: string;
+};
+export declare enum ValidationMessagePosition {
+    TOP = "top",
+    BOTTOM = "bottom"
+}
+export type Validator = Function | keyof typeof formValidators;
+export interface FieldStateProps extends InputProps {
+    validateOnStart?: boolean;
+    validateOnChange?: boolean;
+    validateOnBlur?: boolean;
+    /**
+     * A single or multiple validator. Can be a string (required, email) or custom function.
+     */
+    validate?: Validator | Validator[];
+    /**
+     * The validation message to display when field is invalid (depends on validate)
+     */
+    validationMessage?: string | string[];
+    /**
+     * Callback for when field validity has changed
+     */
+    onChangeValidity?: (isValid: boolean) => void;
+}
+export interface LabelProps {
+    /**
+     * Field label
+     */
+    label?: string;
+    /**
+     * Field label color. Either a string or color by state map ({default, focus, error, disabled})
+     */
+    labelColor?: ColorType;
+    /**
+     * Custom style for the field label
+     */
+    labelStyle?: object;
+    /**
+     * Pass extra props to the label Text element
+     */
+    labelProps?: object;
+    validationMessagePosition?: ValidationMessagePosition;
+    floatingPlaceholder?: boolean;
+    testID?: string;
+}
+export interface FloatingPlaceholderProps {
+    /**
+     * The placeholder for the field
+     */
+    placeholder?: string;
+    /**
+     * The floating placeholder color
+     */
+    floatingPlaceholderColor?: ColorType;
+    /**
+     * Custom style to pass to the floating placeholder
+     */
+    floatingPlaceholderStyle?: object;
+    /**
+     * Should placeholder float on focus or when start typing
+     */
+    floatOnFocus?: boolean;
+    validationMessagePosition?: ValidationMessagePosition;
+    extraOffset?: number;
+    defaultValue?: string;
+    testID: string;
+}
+export interface ValidationMessageProps {
+    /**
+     * Should support showing validation error message
+     */
+    enableErrors?: boolean;
+    /**
+     * The validation message to display when field is invalid (depends on validate)
+     */
+    validationMessage?: string | string[];
+    /**
+     * Custom style for the validation message
+     */
+    validationMessageStyle?: object;
+    retainSpace?: boolean;
+    validate?: FieldStateProps['validate'];
+    testID?: string;
+}
+export interface InputProps {
+    /**
+     * A hint text to display when focusing the field
+     */
+    hint?: string;
+    /**
+     * Input color
+     */
+    color?: ColorType;
+    /**
+     * placeholder text color
+     */
+    placeholderTextColor?: ColorType;
+    /**
+     * Custom formatter for the input value (used only when input if not focused)
+     */
+    formatter?: (value?: string) => string | undefined;
+}
+export type TextFieldProps = InputProps & LabelProps & Omit<FloatingPlaceholderProps, 'testID'> & ValidationMessageProps & {
+    /**
+     * Pass to render a leading element
+     */
+    leadingAccessory?: ReactElement;
+    /**
+     * Pass to render a trailing element
+     */
+    trailingAccessory?: ReactElement;
+    /**
+     * Pass to render a bottom element below the input
+     */
+    bottomAccessory?: ReactElement;
+    /**
+     * Pass to add floating placeholder support
+     */
+    floatingPlaceholder?: boolean;
+    /**
+     * Custom style for the floating placeholder
+     */
+    floatingPlaceholderStyle?: object;
+    /**
+     * A single or multiple validator. Can be a string (required, email) or custom function.
+     */
+    validate?: Validator | Validator[];
+    /**
+     * Should validate when the TextField mounts
+     */
+    validateOnStart?: boolean;
+    /**
+     * Should validate when the TextField value changes
+     */
+    validateOnChange?: boolean;
+    /**
+     * Should validate when losing focus of TextField
+     */
+    validateOnBlur?: boolean;
+    /**
+     * Callback for when field validity has changed
+     */
+    onChangeValidity?: (isValid: boolean) => void;
+    /**
+     * The position of the validation message (top/bottom)
+     */
+    validationMessagePosition?: ValidationMessagePosition;
+    /**
+     * Internal style for the field container
+     */
+    fieldStyle?: object;
+    /**
+     * Internal dynamic style callback for the field container
+     */
+    dynamicFieldStyle?: (context: FieldContextType, props: {
+        preset: TextFieldProps['preset'];
+    }) => object;
+    /**
+     * Container style of the whole component
+     */
+    containerStyle?: object;
+    /**
+     * Predefined preset to use for styling the field
+     */
+    preset?: 'default' | null | string;
+    /**
+     * Whether to center the TextField - container and label
+     */
+    centered?: boolean;
+    /**
+     * @deprecated
+     * Set an alignment fit for inline behavior (when rendered inside a row container)
+     */
+    inline?: boolean;
+};
+export type InternalTextFieldProps = PropsWithChildren<TextFieldProps>;
+export type FieldContextType = {
+    value?: string;
+    isFocused: boolean;
+    hasValue: boolean;
+    isValid: boolean;
+    failingValidatorIndex?: number;
+    disabled: boolean;
+    validateField: () => void;
+    checkValidity: () => boolean;
+};
+export interface TextFieldMethods {
+    isFocused: () => void;
+    focus: () => void;
+    blur: () => void;
+    clear: () => void;
+    validate: () => boolean;
+    isValid: () => boolean;
+}

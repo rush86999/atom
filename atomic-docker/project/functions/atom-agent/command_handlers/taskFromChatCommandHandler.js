@@ -1,0 +1,43 @@
+import { createTaskFromChatMessage } from '../skills/taskFromChatSkill';
+import { logger } from '../../_utils/logger';
+/**
+ * Handles the "CreateTaskFromChatMessage" intent.
+ * Calls the skill to create a task from a chat message and formats the result for the user.
+ *
+ * @param userId The ID of the user.
+ * @param entities The NLU entities extracted for the CreateTaskFromChatMessage intent.
+ * @returns A promise that resolves to a user-facing string response.
+ */
+export async function handleCreateTaskFromChatMessageRequest(userId, entities) {
+    logger.info(`[TaskFromChatCmdHandler] Handling request for user ${userId} to create task from message: "${entities.chat_message_reference}" on ${entities.source_platform}`);
+    logger.debug(`[TaskFromChatCmdHandler] Received NLU entities: ${JSON.stringify(entities)}`);
+    if (!entities.chat_message_reference || !entities.source_platform) {
+        logger.warn(`[TaskFromChatCmdHandler] Missing chat_message_reference or source_platform.`);
+        return 'To create a task from a message, please tell me which message and from what platform (e.g., Slack, Teams).';
+    }
+    try {
+        const skillResponse = await createTaskFromChatMessage(userId, entities);
+        if (skillResponse.ok && skillResponse.data?.success) {
+            const taskResult = skillResponse.data;
+            logger.info(`[TaskFromChatCmdHandler] Task created successfully: ID ${taskResult.taskId}`);
+            let responseText = `Okay, I've created a task: "${taskResult.taskTitle || 'Untitled Task'}"`;
+            if (taskResult.taskUrl) {
+                responseText += ` (Link: ${taskResult.taskUrl})`;
+            }
+            responseText += `. ${taskResult.message}`;
+            return responseText;
+        }
+        else {
+            const errorMsg = skillResponse.error?.message ||
+                skillResponse.data?.message ||
+                'Unknown error from skill';
+            logger.error(`[TaskFromChatCmdHandler] Skill execution failed or task creation unsuccessful: ${errorMsg}`, skillResponse.error);
+            return `I couldn't create a task from that message. ${errorMsg}`;
+        }
+    }
+    catch (error) {
+        logger.error(`[TaskFromChatCmdHandler] Critical error handling request: ${error.message}`, error);
+        return `I encountered an unexpected critical error while trying to create a task from the message: ${error.message}.`;
+    }
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidGFza0Zyb21DaGF0Q29tbWFuZEhhbmRsZXIuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJ0YXNrRnJvbUNoYXRDb21tYW5kSGFuZGxlci50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFLQSxPQUFPLEVBQUUseUJBQXlCLEVBQUUsTUFBTSw2QkFBNkIsQ0FBQztBQUN4RSxPQUFPLEVBQUUsTUFBTSxFQUFFLE1BQU0scUJBQXFCLENBQUM7QUFFN0M7Ozs7Ozs7R0FPRztBQUNILE1BQU0sQ0FBQyxLQUFLLFVBQVUsc0NBQXNDLENBQzFELE1BQWMsRUFDZCxRQUE4QztJQUU5QyxNQUFNLENBQUMsSUFBSSxDQUNULHNEQUFzRCxNQUFNLGtDQUFrQyxRQUFRLENBQUMsc0JBQXNCLFFBQVEsUUFBUSxDQUFDLGVBQWUsRUFBRSxDQUNoSyxDQUFDO0lBQ0YsTUFBTSxDQUFDLEtBQUssQ0FDVixtREFBbUQsSUFBSSxDQUFDLFNBQVMsQ0FBQyxRQUFRLENBQUMsRUFBRSxDQUM5RSxDQUFDO0lBRUYsSUFBSSxDQUFDLFFBQVEsQ0FBQyxzQkFBc0IsSUFBSSxDQUFDLFFBQVEsQ0FBQyxlQUFlLEVBQUUsQ0FBQztRQUNsRSxNQUFNLENBQUMsSUFBSSxDQUNULDZFQUE2RSxDQUM5RSxDQUFDO1FBQ0YsT0FBTyw0R0FBNEcsQ0FBQztJQUN0SCxDQUFDO0lBRUQsSUFBSSxDQUFDO1FBQ0gsTUFBTSxhQUFhLEdBQ2pCLE1BQU0seUJBQXlCLENBQUMsTUFBTSxFQUFFLFFBQVEsQ0FBQyxDQUFDO1FBRXBELElBQUksYUFBYSxDQUFDLEVBQUUsSUFBSSxhQUFhLENBQUMsSUFBSSxFQUFFLE9BQU8sRUFBRSxDQUFDO1lBQ3BELE1BQU0sVUFBVSxHQUFHLGFBQWEsQ0FBQyxJQUFJLENBQUM7WUFDdEMsTUFBTSxDQUFDLElBQUksQ0FDVCwwREFBMEQsVUFBVSxDQUFDLE1BQU0sRUFBRSxDQUM5RSxDQUFDO1lBQ0YsSUFBSSxZQUFZLEdBQUcsK0JBQStCLFVBQVUsQ0FBQyxTQUFTLElBQUksZUFBZSxHQUFHLENBQUM7WUFDN0YsSUFBSSxVQUFVLENBQUMsT0FBTyxFQUFFLENBQUM7Z0JBQ3ZCLFlBQVksSUFBSSxXQUFXLFVBQVUsQ0FBQyxPQUFPLEdBQUcsQ0FBQztZQUNuRCxDQUFDO1lBQ0QsWUFBWSxJQUFJLEtBQUssVUFBVSxDQUFDLE9BQU8sRUFBRSxDQUFDO1lBQzFDLE9BQU8sWUFBWSxDQUFDO1FBQ3RCLENBQUM7YUFBTSxDQUFDO1lBQ04sTUFBTSxRQUFRLEdBQ1osYUFBYSxDQUFDLEtBQUssRUFBRSxPQUFPO2dCQUM1QixhQUFhLENBQUMsSUFBSSxFQUFFLE9BQU87Z0JBQzNCLDBCQUEwQixDQUFDO1lBQzdCLE1BQU0sQ0FBQyxLQUFLLENBQ1Ysa0ZBQWtGLFFBQVEsRUFBRSxFQUM1RixhQUFhLENBQUMsS0FBSyxDQUNwQixDQUFDO1lBQ0YsT0FBTywrQ0FBK0MsUUFBUSxFQUFFLENBQUM7UUFDbkUsQ0FBQztJQUNILENBQUM7SUFBQyxPQUFPLEtBQVUsRUFBRSxDQUFDO1FBQ3BCLE1BQU0sQ0FBQyxLQUFLLENBQ1YsNkRBQTZELEtBQUssQ0FBQyxPQUFPLEVBQUUsRUFDNUUsS0FBSyxDQUNOLENBQUM7UUFDRixPQUFPLDhGQUE4RixLQUFLLENBQUMsT0FBTyxHQUFHLENBQUM7SUFDeEgsQ0FBQztBQUNILENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQge1xuICBDcmVhdGVUYXNrRnJvbUNoYXRNZXNzYWdlTmx1RW50aXRpZXMsXG4gIFRhc2tDcmVhdGlvblJlc3VsdEZyb21NZXNzYWdlLFxuICBDcmVhdGVUYXNrRnJvbUNoYXRNZXNzYWdlU2tpbGxSZXNwb25zZSxcbn0gZnJvbSAnLi4vdHlwZXMnO1xuaW1wb3J0IHsgY3JlYXRlVGFza0Zyb21DaGF0TWVzc2FnZSB9IGZyb20gJy4uL3NraWxscy90YXNrRnJvbUNoYXRTa2lsbCc7XG5pbXBvcnQgeyBsb2dnZXIgfSBmcm9tICcuLi8uLi9fdXRpbHMvbG9nZ2VyJztcblxuLyoqXG4gKiBIYW5kbGVzIHRoZSBcIkNyZWF0ZVRhc2tGcm9tQ2hhdE1lc3NhZ2VcIiBpbnRlbnQuXG4gKiBDYWxscyB0aGUgc2tpbGwgdG8gY3JlYXRlIGEgdGFzayBmcm9tIGEgY2hhdCBtZXNzYWdlIGFuZCBmb3JtYXRzIHRoZSByZXN1bHQgZm9yIHRoZSB1c2VyLlxuICpcbiAqIEBwYXJhbSB1c2VySWQgVGhlIElEIG9mIHRoZSB1c2VyLlxuICogQHBhcmFtIGVudGl0aWVzIFRoZSBOTFUgZW50aXRpZXMgZXh0cmFjdGVkIGZvciB0aGUgQ3JlYXRlVGFza0Zyb21DaGF0TWVzc2FnZSBpbnRlbnQuXG4gKiBAcmV0dXJucyBBIHByb21pc2UgdGhhdCByZXNvbHZlcyB0byBhIHVzZXItZmFjaW5nIHN0cmluZyByZXNwb25zZS5cbiAqL1xuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGhhbmRsZUNyZWF0ZVRhc2tGcm9tQ2hhdE1lc3NhZ2VSZXF1ZXN0KFxuICB1c2VySWQ6IHN0cmluZyxcbiAgZW50aXRpZXM6IENyZWF0ZVRhc2tGcm9tQ2hhdE1lc3NhZ2VObHVFbnRpdGllc1xuKTogUHJvbWlzZTxzdHJpbmc+IHtcbiAgbG9nZ2VyLmluZm8oXG4gICAgYFtUYXNrRnJvbUNoYXRDbWRIYW5kbGVyXSBIYW5kbGluZyByZXF1ZXN0IGZvciB1c2VyICR7dXNlcklkfSB0byBjcmVhdGUgdGFzayBmcm9tIG1lc3NhZ2U6IFwiJHtlbnRpdGllcy5jaGF0X21lc3NhZ2VfcmVmZXJlbmNlfVwiIG9uICR7ZW50aXRpZXMuc291cmNlX3BsYXRmb3JtfWBcbiAgKTtcbiAgbG9nZ2VyLmRlYnVnKFxuICAgIGBbVGFza0Zyb21DaGF0Q21kSGFuZGxlcl0gUmVjZWl2ZWQgTkxVIGVudGl0aWVzOiAke0pTT04uc3RyaW5naWZ5KGVudGl0aWVzKX1gXG4gICk7XG5cbiAgaWYgKCFlbnRpdGllcy5jaGF0X21lc3NhZ2VfcmVmZXJlbmNlIHx8ICFlbnRpdGllcy5zb3VyY2VfcGxhdGZvcm0pIHtcbiAgICBsb2dnZXIud2FybihcbiAgICAgIGBbVGFza0Zyb21DaGF0Q21kSGFuZGxlcl0gTWlzc2luZyBjaGF0X21lc3NhZ2VfcmVmZXJlbmNlIG9yIHNvdXJjZV9wbGF0Zm9ybS5gXG4gICAgKTtcbiAgICByZXR1cm4gJ1RvIGNyZWF0ZSBhIHRhc2sgZnJvbSBhIG1lc3NhZ2UsIHBsZWFzZSB0ZWxsIG1lIHdoaWNoIG1lc3NhZ2UgYW5kIGZyb20gd2hhdCBwbGF0Zm9ybSAoZS5nLiwgU2xhY2ssIFRlYW1zKS4nO1xuICB9XG5cbiAgdHJ5IHtcbiAgICBjb25zdCBza2lsbFJlc3BvbnNlOiBDcmVhdGVUYXNrRnJvbUNoYXRNZXNzYWdlU2tpbGxSZXNwb25zZSA9XG4gICAgICBhd2FpdCBjcmVhdGVUYXNrRnJvbUNoYXRNZXNzYWdlKHVzZXJJZCwgZW50aXRpZXMpO1xuXG4gICAgaWYgKHNraWxsUmVzcG9uc2Uub2sgJiYgc2tpbGxSZXNwb25zZS5kYXRhPy5zdWNjZXNzKSB7XG4gICAgICBjb25zdCB0YXNrUmVzdWx0ID0gc2tpbGxSZXNwb25zZS5kYXRhO1xuICAgICAgbG9nZ2VyLmluZm8oXG4gICAgICAgIGBbVGFza0Zyb21DaGF0Q21kSGFuZGxlcl0gVGFzayBjcmVhdGVkIHN1Y2Nlc3NmdWxseTogSUQgJHt0YXNrUmVzdWx0LnRhc2tJZH1gXG4gICAgICApO1xuICAgICAgbGV0IHJlc3BvbnNlVGV4dCA9IGBPa2F5LCBJJ3ZlIGNyZWF0ZWQgYSB0YXNrOiBcIiR7dGFza1Jlc3VsdC50YXNrVGl0bGUgfHwgJ1VudGl0bGVkIFRhc2snfVwiYDtcbiAgICAgIGlmICh0YXNrUmVzdWx0LnRhc2tVcmwpIHtcbiAgICAgICAgcmVzcG9uc2VUZXh0ICs9IGAgKExpbms6ICR7dGFza1Jlc3VsdC50YXNrVXJsfSlgO1xuICAgICAgfVxuICAgICAgcmVzcG9uc2VUZXh0ICs9IGAuICR7dGFza1Jlc3VsdC5tZXNzYWdlfWA7XG4gICAgICByZXR1cm4gcmVzcG9uc2VUZXh0O1xuICAgIH0gZWxzZSB7XG4gICAgICBjb25zdCBlcnJvck1zZyA9XG4gICAgICAgIHNraWxsUmVzcG9uc2UuZXJyb3I/Lm1lc3NhZ2UgfHxcbiAgICAgICAgc2tpbGxSZXNwb25zZS5kYXRhPy5tZXNzYWdlIHx8XG4gICAgICAgICdVbmtub3duIGVycm9yIGZyb20gc2tpbGwnO1xuICAgICAgbG9nZ2VyLmVycm9yKFxuICAgICAgICBgW1Rhc2tGcm9tQ2hhdENtZEhhbmRsZXJdIFNraWxsIGV4ZWN1dGlvbiBmYWlsZWQgb3IgdGFzayBjcmVhdGlvbiB1bnN1Y2Nlc3NmdWw6ICR7ZXJyb3JNc2d9YCxcbiAgICAgICAgc2tpbGxSZXNwb25zZS5lcnJvclxuICAgICAgKTtcbiAgICAgIHJldHVybiBgSSBjb3VsZG4ndCBjcmVhdGUgYSB0YXNrIGZyb20gdGhhdCBtZXNzYWdlLiAke2Vycm9yTXNnfWA7XG4gICAgfVxuICB9IGNhdGNoIChlcnJvcjogYW55KSB7XG4gICAgbG9nZ2VyLmVycm9yKFxuICAgICAgYFtUYXNrRnJvbUNoYXRDbWRIYW5kbGVyXSBDcml0aWNhbCBlcnJvciBoYW5kbGluZyByZXF1ZXN0OiAke2Vycm9yLm1lc3NhZ2V9YCxcbiAgICAgIGVycm9yXG4gICAgKTtcbiAgICByZXR1cm4gYEkgZW5jb3VudGVyZWQgYW4gdW5leHBlY3RlZCBjcml0aWNhbCBlcnJvciB3aGlsZSB0cnlpbmcgdG8gY3JlYXRlIGEgdGFzayBmcm9tIHRoZSBtZXNzYWdlOiAke2Vycm9yLm1lc3NhZ2V9LmA7XG4gIH1cbn1cbiJdfQ==

@@ -1,7 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import {
-  SkillResponse,
-} from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
+import { SkillResponse } from '../../atomic-docker/project/functions/atom-agent/types'; // Adjust path
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
 import { logger } from '../../atomic-docker/project/functions/_utils/logger';
 
@@ -25,17 +23,44 @@ function handlePythonApiResponse<T>(
 }
 
 // Helper to handle network/axios errors
-function handleAxiosError(error: AxiosError, operationName: string): SkillResponse<null> {
-    if (error.response) {
-      logger.error(`[${operationName}] Error: ${error.response.status}`, error.response.data);
-      const errData = error.response.data as any;
-      return { ok: false, error: { code: `HTTP_${error.response.status}`, message: errData?.error?.message || `Failed to ${operationName}.` } };
-    } else if (error.request) {
-      logger.error(`[${operationName}] Error: No response received`, error.request);
-      return { ok: false, error: { code: 'NETWORK_ERROR', message: `No response received for ${operationName}.` } };
-    }
-    logger.error(`[${operationName}] Error: ${error.message}`);
-    return { ok: false, error: { code: 'REQUEST_SETUP_ERROR', message: `Error setting up request for ${operationName}: ${error.message}` } };
+function handleAxiosError(
+  error: AxiosError,
+  operationName: string
+): SkillResponse<null> {
+  if (error.response) {
+    logger.error(
+      `[${operationName}] Error: ${error.response.status}`,
+      error.response.data
+    );
+    const errData = error.response.data as any;
+    return {
+      ok: false,
+      error: {
+        code: `HTTP_${error.response.status}`,
+        message: errData?.error?.message || `Failed to ${operationName}.`,
+      },
+    };
+  } else if (error.request) {
+    logger.error(
+      `[${operationName}] Error: No response received`,
+      error.request
+    );
+    return {
+      ok: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: `No response received for ${operationName}.`,
+      },
+    };
+  }
+  logger.error(`[${operationName}] Error: ${error.message}`);
+  return {
+    ok: false,
+    error: {
+      code: 'REQUEST_SETUP_ERROR',
+      message: `Error setting up request for ${operationName}: ${error.message}`,
+    },
+  };
 }
 
 export async function createJiraIssueFromSalesforceCase(
@@ -43,7 +68,13 @@ export async function createJiraIssueFromSalesforceCase(
   salesforceCaseId: string
 ): Promise<SkillResponse<any>> {
   if (!PYTHON_API_SERVICE_BASE_URL) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
   }
   const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/it/create-jira-issue-from-salesforce-case`;
 
@@ -52,47 +83,68 @@ export async function createJiraIssueFromSalesforceCase(
       user_id: userId,
       salesforce_case_id: salesforceCaseId,
     });
-    return handlePythonApiResponse(response, 'createJiraIssueFromSalesforceCase');
+    return handlePythonApiResponse(
+      response,
+      'createJiraIssueFromSalesforceCase'
+    );
   } catch (error) {
-    return handleAxiosError(error as AxiosError, 'createJiraIssueFromSalesforceCase');
+    return handleAxiosError(
+      error as AxiosError,
+      'createJiraIssueFromSalesforceCase'
+    );
   }
 }
 
 export async function getJiraIssueSummary(
-    userId: string,
-    issueId: string
+  userId: string,
+  issueId: string
 ): Promise<SkillResponse<any>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/it/jira-issue-summary/${issueId}?user_id=${userId}`;
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/it/jira-issue-summary/${issueId}?user_id=${userId}`;
 
-    try {
-        const response = await axios.get(endpoint);
-        return handlePythonApiResponse(response, 'getJiraIssueSummary');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'getJiraIssueSummary');
-    }
+  try {
+    const response = await axios.get(endpoint);
+    return handlePythonApiResponse(response, 'getJiraIssueSummary');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getJiraIssueSummary');
+  }
 }
 
 export async function createTrelloCardFromJiraIssue(
-    userId: string,
-    issueId: string,
-    trelloListId: string
+  userId: string,
+  issueId: string,
+  trelloListId: string
 ): Promise<SkillResponse<any>> {
-    if (!PYTHON_API_SERVICE_BASE_URL) {
-        return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Python API service URL is not configured.' } };
-    }
-    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/it/create-trello-card-from-jira-issue`;
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/it/create-trello-card-from-jira-issue`;
 
-    try {
-        const response = await axios.post(endpoint, {
-            user_id: userId,
-            issue_id: issueId,
-            trello_list_id: trelloListId,
-        });
-        return handlePythonApiResponse(response, 'createTrelloCardFromJiraIssue');
-    } catch (error) {
-        return handleAxiosError(error as AxiosError, 'createTrelloCardFromJiraIssue');
-    }
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      issue_id: issueId,
+      trello_list_id: trelloListId,
+    });
+    return handlePythonApiResponse(response, 'createTrelloCardFromJiraIssue');
+  } catch (error) {
+    return handleAxiosError(
+      error as AxiosError,
+      'createTrelloCardFromJiraIssue'
+    );
+  }
 }

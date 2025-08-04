@@ -62,15 +62,19 @@ describe('sendEmail (Nodemailer via _utils/email/email.ts)', () => {
   };
 
   it('should send an email successfully on the first attempt', async () => {
-    mockEmailClientSend.mockResolvedValueOnce({ messageId: 'nodemailer-message-id-123' });
+    mockEmailClientSend.mockResolvedValueOnce({
+      messageId: 'nodemailer-message-id-123',
+    });
 
     await sendEmail(emailOptions);
 
     expect(mockEmailClientSend).toHaveBeenCalledTimes(1);
-    expect(mockEmailClientSend).toHaveBeenCalledWith(expect.objectContaining({
-      template: emailOptions.template,
-      message: expect.objectContaining({ to: emailOptions.message.to }),
-    }));
+    expect(mockEmailClientSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        template: emailOptions.template,
+        message: expect.objectContaining({ to: emailOptions.message.to }),
+      })
+    );
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining('Email sent successfully via SMTP on attempt 1'),
       expect.anything()
@@ -89,7 +93,9 @@ describe('sendEmail (Nodemailer via _utils/email/email.ts)', () => {
     expect(mockEmailClientSend).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Attempt 1 to send email via SMTP failed. Retrying...'),
+      expect.stringContaining(
+        'Attempt 1 to send email via SMTP failed. Retrying...'
+      ),
       expect.objectContaining({ errorMessage: 'SMTP Error Attempt 1' })
     );
     expect(logger.info).toHaveBeenCalledWith(
@@ -105,38 +111,55 @@ describe('sendEmail (Nodemailer via _utils/email/email.ts)', () => {
       .mockRejectedValueOnce(new Error('SMTP Error Attempt 2'))
       .mockRejectedValueOnce(new Error('SMTP Error Attempt 3'));
 
-    await expect(sendEmail(emailOptions)).rejects.toThrow('SMTP Error Attempt 3');
+    await expect(sendEmail(emailOptions)).rejects.toThrow(
+      'SMTP Error Attempt 3'
+    );
 
     expect(mockEmailClientSend).toHaveBeenCalledTimes(3);
     expect(logger.warn).toHaveBeenCalledTimes(3);
-    expect(logger.warn).toHaveBeenNthCalledWith(1, expect.stringContaining('Attempt 1'), expect.anything());
-    expect(logger.warn).toHaveBeenNthCalledWith(2, expect.stringContaining('Attempt 2'), expect.anything());
-    expect(logger.warn).toHaveBeenNthCalledWith(3, expect.stringContaining('Attempt 3'), expect.anything());
+    expect(logger.warn).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('Attempt 1'),
+      expect.anything()
+    );
+    expect(logger.warn).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('Attempt 2'),
+      expect.anything()
+    );
+    expect(logger.warn).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('Attempt 3'),
+      expect.anything()
+    );
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith(
       expect.stringContaining('SMTP error after 3 attempts'),
       expect.anything(), // The actual error object, which is hard to match exactly
-      expect.anything()  // The context object
+      expect.anything() // The context object
     );
   });
 
   it('should include X-SMTPAPI header if ENV var is set', async () => {
     const originalSmtpApiHeader = ENV.AUTH_SMTP_X_SMTPAPI_HEADER;
     ENV.AUTH_SMTP_X_SMTPAPI_HEADER = '{"category": "test"}';
-    mockEmailClientSend.mockResolvedValueOnce({ messageId: 'nodemailer-header-test' });
+    mockEmailClientSend.mockResolvedValueOnce({
+      messageId: 'nodemailer-header-test',
+    });
 
     await sendEmail(emailOptions);
 
     expect(mockEmailClientSend).toHaveBeenCalledTimes(1);
-    expect(mockEmailClientSend).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockEmailClientSend).toHaveBeenCalledWith(
+      expect.objectContaining({
         message: expect.objectContaining({
-            headers: expect.objectContaining({
-                'X-SMTPAPI': '{"category": "test"}'
-            })
-        })
-    }));
+          headers: expect.objectContaining({
+            'X-SMTPAPI': '{"category": "test"}',
+          }),
+        }),
+      })
+    );
     // Restore ENV var
     ENV.AUTH_SMTP_X_SMTPAPI_HEADER = originalSmtpApiHeader;
   });
-
 });

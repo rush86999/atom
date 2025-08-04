@@ -1,0 +1,26 @@
+import { googleCalendarIosRefreshToken } from '@google_api_auth/_libs/api-helper';
+const handler = async (req, res) => {
+    try {
+        const refreshToken = req.body.refreshToken;
+        if (!refreshToken) {
+            return res.status(400).json({
+                message: 'missing refreshToken',
+                event: req.body,
+            });
+        }
+        const tokens = await googleCalendarIosRefreshToken(refreshToken);
+        return res.status(200).json({
+            message: 'retrieved token successfully',
+            event: tokens,
+        });
+    }
+    catch (e) {
+        console.log(e, ' unable to retrieve token successfully');
+        return res.status(400).json({
+            message: 'something went wrong with getting token',
+            event: e,
+        });
+    }
+};
+export default handler;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZ29vZ2xlLWNhbGVuZGFyLWlvcy1hdXRoLXJlZnJlc2guanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJnb29nbGUtY2FsZW5kYXItaW9zLWF1dGgtcmVmcmVzaC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxPQUFPLEVBQUUsNkJBQTZCLEVBQUUsTUFBTSxtQ0FBbUMsQ0FBQztBQUVsRixNQUFNLE9BQU8sR0FBRyxLQUFLLEVBQUUsR0FBWSxFQUFFLEdBQWEsRUFBRSxFQUFFO0lBQ3BELElBQUksQ0FBQztRQUNILE1BQU0sWUFBWSxHQUFHLEdBQUcsQ0FBQyxJQUFJLENBQUMsWUFBWSxDQUFDO1FBRTNDLElBQUksQ0FBQyxZQUFZLEVBQUUsQ0FBQztZQUNsQixPQUFPLEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDO2dCQUMxQixPQUFPLEVBQUUsc0JBQXNCO2dCQUMvQixLQUFLLEVBQUUsR0FBRyxDQUFDLElBQUk7YUFDaEIsQ0FBQyxDQUFDO1FBQ0wsQ0FBQztRQUVELE1BQU0sTUFBTSxHQUFHLE1BQU0sNkJBQTZCLENBQUMsWUFBWSxDQUFDLENBQUM7UUFFakUsT0FBTyxHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQztZQUMxQixPQUFPLEVBQUUsOEJBQThCO1lBQ3ZDLEtBQUssRUFBRSxNQUFNO1NBQ2QsQ0FBQyxDQUFDO0lBQ0wsQ0FBQztJQUFDLE9BQU8sQ0FBQyxFQUFFLENBQUM7UUFDWCxPQUFPLENBQUMsR0FBRyxDQUFDLENBQUMsRUFBRSx3Q0FBd0MsQ0FBQyxDQUFDO1FBQ3pELE9BQU8sR0FBRyxDQUFDLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyxJQUFJLENBQUM7WUFDMUIsT0FBTyxFQUFFLHlDQUF5QztZQUNsRCxLQUFLLEVBQUUsQ0FBQztTQUNULENBQUMsQ0FBQztJQUNMLENBQUM7QUFDSCxDQUFDLENBQUM7QUFFRixlQUFlLE9BQU8sQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFJlcXVlc3QsIFJlc3BvbnNlIH0gZnJvbSAnZXhwcmVzcyc7XG5pbXBvcnQgeyBnb29nbGVDYWxlbmRhcklvc1JlZnJlc2hUb2tlbiB9IGZyb20gJ0Bnb29nbGVfYXBpX2F1dGgvX2xpYnMvYXBpLWhlbHBlcic7XG5cbmNvbnN0IGhhbmRsZXIgPSBhc3luYyAocmVxOiBSZXF1ZXN0LCByZXM6IFJlc3BvbnNlKSA9PiB7XG4gIHRyeSB7XG4gICAgY29uc3QgcmVmcmVzaFRva2VuID0gcmVxLmJvZHkucmVmcmVzaFRva2VuO1xuXG4gICAgaWYgKCFyZWZyZXNoVG9rZW4pIHtcbiAgICAgIHJldHVybiByZXMuc3RhdHVzKDQwMCkuanNvbih7XG4gICAgICAgIG1lc3NhZ2U6ICdtaXNzaW5nIHJlZnJlc2hUb2tlbicsXG4gICAgICAgIGV2ZW50OiByZXEuYm9keSxcbiAgICAgIH0pO1xuICAgIH1cblxuICAgIGNvbnN0IHRva2VucyA9IGF3YWl0IGdvb2dsZUNhbGVuZGFySW9zUmVmcmVzaFRva2VuKHJlZnJlc2hUb2tlbik7XG5cbiAgICByZXR1cm4gcmVzLnN0YXR1cygyMDApLmpzb24oe1xuICAgICAgbWVzc2FnZTogJ3JldHJpZXZlZCB0b2tlbiBzdWNjZXNzZnVsbHknLFxuICAgICAgZXZlbnQ6IHRva2VucyxcbiAgICB9KTtcbiAgfSBjYXRjaCAoZSkge1xuICAgIGNvbnNvbGUubG9nKGUsICcgdW5hYmxlIHRvIHJldHJpZXZlIHRva2VuIHN1Y2Nlc3NmdWxseScpO1xuICAgIHJldHVybiByZXMuc3RhdHVzKDQwMCkuanNvbih7XG4gICAgICBtZXNzYWdlOiAnc29tZXRoaW5nIHdlbnQgd3Jvbmcgd2l0aCBnZXR0aW5nIHRva2VuJyxcbiAgICAgIGV2ZW50OiBlLFxuICAgIH0pO1xuICB9XG59O1xuXG5leHBvcnQgZGVmYXVsdCBoYW5kbGVyO1xuIl19

@@ -1,5 +1,3 @@
-
-
 export default `
 mutation InsertMeetingAssistAttendee($attendee: Meeting_Assist_Attendee_insert_input!) {
   insert_Meeting_Assist_Attendee_one(object: $attendee) {
@@ -19,4 +17,4 @@ mutation InsertMeetingAssistAttendee($attendee: Meeting_Assist_Attendee_insert_i
     userId
   }
 }
-`
+`;

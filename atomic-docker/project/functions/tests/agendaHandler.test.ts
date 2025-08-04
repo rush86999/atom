@@ -9,8 +9,12 @@ import * as conversationManager from '../atom-agent/conversationState';
 // Mock agenda methods
 jest.mock('../agendaService', () => ({
   agenda: {
-    schedule: jest.fn().mockResolvedValue({ attrs: { _id: 'mockJobIdScheduled' } }),
-    every: jest.fn().mockResolvedValue({ attrs: { _id: 'mockJobIdRecurring' } }),
+    schedule: jest
+      .fn()
+      .mockResolvedValue({ attrs: { _id: 'mockJobIdScheduled' } }),
+    every: jest
+      .fn()
+      .mockResolvedValue({ attrs: { _id: 'mockJobIdRecurring' } }),
     // We might need to mock start/stop if they are called during test setup/teardown
     // For now, focusing on schedule/every.
     start: jest.fn().mockResolvedValue(undefined),
@@ -41,56 +45,61 @@ jest.mock('../atom-agent/conversationState', () => ({
   isConversationActive: jest.fn().mockReturnValue(true), // Assume active for tests
 }));
 
-
 // Mock NLU service if it's indirectly called, though SCHEDULE_TASK should use direct parameters
 jest.mock('../atom-agent/skills/nluService', () => ({
-  understandMessage: jest.fn().mockImplementation(async (message, _, ltmContext) => {
-    // Basic mock for NLU, specific to SCHEDULE_TASK entities
-    if (message.includes("schedule send email tomorrow 10am")) {
+  understandMessage: jest
+    .fn()
+    .mockImplementation(async (message, _, ltmContext) => {
+      // Basic mock for NLU, specific to SCHEDULE_TASK entities
+      if (message.includes('schedule send email tomorrow 10am')) {
+        return {
+          intent: 'SCHEDULE_TASK',
+          entities: {
+            when_value: 'tomorrow at 10am', // NLU would resolve this to a date/time string
+            task_intent: 'SEND_EMAIL',
+            task_entities: { to: 'test@example.com', subject: 'Hello' },
+            task_description: 'Send a test email',
+          },
+          user_id: 'test-user',
+          original_query: message,
+        };
+      }
+      if (message.includes('schedule recurring report every monday 9am')) {
+        return {
+          intent: 'SCHEDULE_TASK',
+          entities: {
+            when_value: 'every monday 9am', // NLU would resolve this
+            is_recurring: true,
+            repeat_interval: 'every Monday at 9am', // Or cron: "0 9 * * 1"
+            task_intent: 'GENERATE_REPORT',
+            task_entities: { type: 'sales' },
+            task_description: 'Generate weekly sales report',
+          },
+          user_id: 'test-user',
+          original_query: message,
+        };
+      }
+      // Default fallback if NLU is unexpectedly hit
       return {
-        intent: 'SCHEDULE_TASK',
-        entities: {
-          when_value: 'tomorrow at 10am', // NLU would resolve this to a date/time string
-          task_intent: 'SEND_EMAIL',
-          task_entities: { to: 'test@example.com', subject: 'Hello' },
-          task_description: 'Send a test email',
-        },
+        intent: 'Unknown',
+        entities: {},
         user_id: 'test-user',
         original_query: message,
       };
-    }
-    if (message.includes("schedule recurring report every monday 9am")) {
-        return {
-            intent: 'SCHEDULE_TASK',
-            entities: {
-              when_value: 'every monday 9am', // NLU would resolve this
-              is_recurring: true,
-              repeat_interval: 'every Monday at 9am', // Or cron: "0 9 * * 1"
-              task_intent: 'GENERATE_REPORT',
-              task_entities: { type: 'sales' },
-              task_description: 'Generate weekly sales report',
-            },
-            user_id: 'test-user',
-            original_query: message,
-          };
-    }
-    // Default fallback if NLU is unexpectedly hit
-    return { intent: 'Unknown', entities: {}, user_id: 'test-user', original_query: message };
-  }),
+    }),
 }));
 
 // Mock LTM/STM functions if they are called and might interfere
 jest.mock('../atom-agent/memoryManager', () => ({
-    retrieveRelevantLTM: jest.fn().mockResolvedValue([]),
-    loadLTMToSTM: jest.fn().mockResolvedValue(undefined),
-    processSTMToLTM: jest.fn().mockResolvedValue(undefined),
+  retrieveRelevantLTM: jest.fn().mockResolvedValue([]),
+  loadLTMToSTM: jest.fn().mockResolvedValue(undefined),
+  processSTMToLTM: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock lancedb if it's initialized or used
 jest.mock('../lanceDBManager', () => ({
-    initializeDB: jest.fn().mockResolvedValue(null), // Mock connection object or null
+  initializeDB: jest.fn().mockResolvedValue(null), // Mock connection object or null
 }));
-
 
 describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
   const userId = 'test-user-schedule';
@@ -114,16 +123,16 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
     // Simulate NLU resolving "tomorrow at 10am" to a specific date object for the test
     // We'll pass this directly via options for a more direct test of the scheduling logic
     const directOptions = {
-        requestSource: 'TestDirect', // Not ScheduledJobExecutor to allow NLU mock to run for SCHEDULE_TASK intent extraction
-        intentName: 'SCHEDULE_TASK',
-        entities: {
-            when_value: when, // Pass resolved Date object
-            task_intent: taskIntent,
-            task_entities: taskEntities,
-            task_description: taskDescription,
-            is_recurring: false,
-        },
-        conversationId: 'testConversationId123'
+      requestSource: 'TestDirect', // Not ScheduledJobExecutor to allow NLU mock to run for SCHEDULE_TASK intent extraction
+      intentName: 'SCHEDULE_TASK',
+      entities: {
+        when_value: when, // Pass resolved Date object
+        task_intent: taskIntent,
+        task_entities: taskEntities,
+        task_description: taskDescription,
+        is_recurring: false,
+      },
+      conversationId: 'testConversationId123',
     };
 
     // To test the SCHEDULE_TASK block directly, we need _internalHandleMessage to receive these options.
@@ -144,25 +153,33 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
     // Re-mock understandMessage for this specific test case for clarity if needed, or rely on global one.
     // For this path, we are testing the *scheduling* part.
     const nluOutputForThisTest = {
-        intent: 'SCHEDULE_TASK',
-        entities: {
-            when_value: when, // NLU has resolved this to a Date
-            task_intent: taskIntent,
-            task_entities: taskEntities,
-            task_description: taskDescription,
-            is_recurring: false,
-            // conversationId can also be an entity if passed by NLU
-        },
-        user_id: userId,
-        original_query: message,
+      intent: 'SCHEDULE_TASK',
+      entities: {
+        when_value: when, // NLU has resolved this to a Date
+        task_intent: taskIntent,
+        task_entities: taskEntities,
+        task_description: taskDescription,
+        is_recurring: false,
+        // conversationId can also be an entity if passed by NLU
+      },
+      user_id: userId,
+      original_query: message,
     };
 
     // Temporarily override the global mock for this specific test if it helps clarity
-    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(nluOutputForThisTest);
-    conversationManager.getConversationStateSnapshot.mockReturnValueOnce({ conversationId: 'testConvIdOneTime' });
+    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(
+      nluOutputForThisTest
+    );
+    conversationManager.getConversationStateSnapshot.mockReturnValueOnce({
+      conversationId: 'testConvIdOneTime',
+    });
 
-
-    const response = await _internalHandleMessage(interfaceType, message, userId, { conversationId: 'testConvIdOneTime' });
+    const response = await _internalHandleMessage(
+      interfaceType,
+      message,
+      userId,
+      { conversationId: 'testConvIdOneTime' }
+    );
 
     expect(agenda.schedule).toHaveBeenCalledTimes(1);
     expect(agenda.schedule).toHaveBeenCalledWith(
@@ -175,7 +192,9 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
         conversationId: 'testConvIdOneTime',
       })
     );
-    expect(response.text).toContain(`Task "${taskDescription}" scheduled for ${when.toLocaleString()}`);
+    expect(response.text).toContain(
+      `Task "${taskDescription}" scheduled for ${when.toLocaleString()}`
+    );
     expect(agenda.every).not.toHaveBeenCalled();
   });
 
@@ -187,25 +206,33 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
     const repeatInterval = 'every Monday at 9am'; // Or a cron string "0 9 * * 1"
     const repeatTimezone = 'America/New_York'; // Example timezone
 
-     const nluOutputForThisTest = {
-        intent: 'SCHEDULE_TASK',
-        entities: {
-            // when_value: undefined, // For a pure recurring, 'when' might be start date or undefined
-            is_recurring: true,
-            repeat_interval: repeatInterval,
-            repeat_timezone: repeatTimezone,
-            task_intent: taskIntent,
-            task_entities: taskEntities,
-            task_description: taskDescription,
-        },
-        user_id: userId,
-        original_query: message,
+    const nluOutputForThisTest = {
+      intent: 'SCHEDULE_TASK',
+      entities: {
+        // when_value: undefined, // For a pure recurring, 'when' might be start date or undefined
+        is_recurring: true,
+        repeat_interval: repeatInterval,
+        repeat_timezone: repeatTimezone,
+        task_intent: taskIntent,
+        task_entities: taskEntities,
+        task_description: taskDescription,
+      },
+      user_id: userId,
+      original_query: message,
     };
-    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(nluOutputForThisTest);
-    conversationManager.getConversationStateSnapshot.mockReturnValueOnce({ conversationId: 'testConvIdRecurring' });
+    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(
+      nluOutputForThisTest
+    );
+    conversationManager.getConversationStateSnapshot.mockReturnValueOnce({
+      conversationId: 'testConvIdRecurring',
+    });
 
-
-    const response = await _internalHandleMessage(interfaceType, message, userId, { conversationId: 'testConvIdRecurring' });
+    const response = await _internalHandleMessage(
+      interfaceType,
+      message,
+      userId,
+      { conversationId: 'testConvIdRecurring' }
+    );
 
     expect(agenda.every).toHaveBeenCalledTimes(1);
     expect(agenda.every).toHaveBeenCalledWith(
@@ -222,26 +249,36 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
         // startDate might be undefined if not provided by NLU via when_value
       })
     );
-    expect(response.text).toContain(`Recurring task "${taskDescription}" scheduled to run ${repeatInterval}`);
+    expect(response.text).toContain(
+      `Recurring task "${taskDescription}" scheduled to run ${repeatInterval}`
+    );
     expect(agenda.schedule).not.toHaveBeenCalled();
   });
 
   it('should return an error message if essential scheduling parameters are missing', async () => {
     const nluOutputForThisTest = {
-        intent: 'SCHEDULE_TASK',
-        entities: {
-            // Missing when_value for one-time, and repeat_interval for recurring
-            task_intent: 'SOME_ACTION',
-            task_entities: { foo: 'bar' },
-        },
-        user_id: userId,
-        original_query: "schedule this task",
+      intent: 'SCHEDULE_TASK',
+      entities: {
+        // Missing when_value for one-time, and repeat_interval for recurring
+        task_intent: 'SOME_ACTION',
+        task_entities: { foo: 'bar' },
+      },
+      user_id: userId,
+      original_query: 'schedule this task',
     };
-    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(nluOutputForThisTest);
+    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(
+      nluOutputForThisTest
+    );
 
-    const response = await _internalHandleMessage(interfaceType, "schedule this task", userId);
+    const response = await _internalHandleMessage(
+      interfaceType,
+      'schedule this task',
+      userId
+    );
 
-    expect(response.text).toContain("Cannot schedule task: 'when' must be provided for one-time tasks, or 'repeatInterval' for recurring tasks.");
+    expect(response.text).toContain(
+      "Cannot schedule task: 'when' must be provided for one-time tasks, or 'repeatInterval' for recurring tasks."
+    );
     expect(agenda.schedule).not.toHaveBeenCalled();
     expect(agenda.every).not.toHaveBeenCalled();
   });
@@ -250,17 +287,19 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
     const when = new Date('2024-03-16T12:00:00.000Z');
     const specificConversationId = 'specificConvIdForTest';
     const nluOutputForThisTest = {
-        intent: 'SCHEDULE_TASK',
-        entities: {
-            when_value: when,
-            task_intent: 'TEST_CONV_ID',
-            task_entities: { detail: 'testing conv id' },
-            is_recurring: false,
-        },
-        user_id: userId,
-        original_query: "schedule with specific conv id",
+      intent: 'SCHEDULE_TASK',
+      entities: {
+        when_value: when,
+        task_intent: 'TEST_CONV_ID',
+        task_entities: { detail: 'testing conv id' },
+        is_recurring: false,
+      },
+      user_id: userId,
+      original_query: 'schedule with specific conv id',
     };
-    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(nluOutputForThisTest);
+    require('../atom-agent/skills/nluService').understandMessage.mockResolvedValueOnce(
+      nluOutputForThisTest
+    );
     // Ensure getConversationStateSnapshot returns the specific ID if _internalHandleMessage tries to get it from there
     // However, the current implementation of SCHEDULE_TASK in handler.ts directly uses scheduleParams.conversationId,
     // which should come from the `options` passed to _internalHandleMessage if available.
@@ -275,9 +314,16 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
 
     // Let's ensure NLU provides it for this test.
     nluOutputForThisTest.entities.conversationId = specificConversationId;
-     conversationManager.getConversationStateSnapshot.mockReturnValueOnce({ conversationId: 'someDefaultConvId' }); // To see which one is picked
+    conversationManager.getConversationStateSnapshot.mockReturnValueOnce({
+      conversationId: 'someDefaultConvId',
+    }); // To see which one is picked
 
-    await _internalHandleMessage(interfaceType, "schedule with specific conv id", userId, { conversationId: specificConversationId });
+    await _internalHandleMessage(
+      interfaceType,
+      'schedule with specific conv id',
+      userId,
+      { conversationId: specificConversationId }
+    );
 
     expect(agenda.schedule).toHaveBeenCalledWith(
       expect.any(Date),
@@ -287,7 +333,6 @@ describe('_internalHandleMessage - SCHEDULE_TASK intent', () => {
       })
     );
   });
-
 });
 
 // Note: To run these tests, you'd need Jest installed and configured.

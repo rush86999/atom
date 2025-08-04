@@ -7,17 +7,23 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     const recordingsDir = path.join(process.cwd(), 'silent-audio-recordings');
     const files = fs.readdirSync(recordingsDir);
-    files.forEach(file => {
+    files.forEach((file) => {
       if (file.endsWith('.wav')) {
         const wavFilePath = path.join(recordingsDir, file);
-        const mp3FilePath = path.join(recordingsDir, file.replace('.wav', '.mp3'));
-        exec(`ffmpeg -i ${wavFilePath} ${mp3FilePath}`, (error, stdout, stderr) => {
-          if (error) {
-            console.error(`exec error: ${error}`);
-            return;
+        const mp3FilePath = path.join(
+          recordingsDir,
+          file.replace('.wav', '.mp3')
+        );
+        exec(
+          `ffmpeg -i ${wavFilePath} ${mp3FilePath}`,
+          (error, stdout, stderr) => {
+            if (error) {
+              console.error(`exec error: ${error}`);
+              return;
+            }
+            fs.unlinkSync(wavFilePath);
           }
-          fs.unlinkSync(wavFilePath);
-        });
+        );
       }
     });
     res.status(200).json({ message: 'Batch conversion started' });

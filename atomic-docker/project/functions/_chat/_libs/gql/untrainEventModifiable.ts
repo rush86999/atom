@@ -1,5 +1,3 @@
-
-
 export default `
 mutation UntrainEventModifiable($id: String!, $modifiable: Boolean) {
   update_Event_by_pk(pk_columns: {id: $id}, _set: {modifiable: $modifiable, copyPriorityLevel: false, copyTimePreference: false, unlink: true}) {
@@ -119,4 +117,4 @@ mutation UntrainEventModifiable($id: String!, $modifiable: Boolean) {
     weeklyTaskList
   }
 }
-`
+`;

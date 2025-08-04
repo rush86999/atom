@@ -100,7 +100,6 @@ const FinanceDashboard: React.FC = () => {
   const [investments, setInvestments] = useState<InvestmentHolding[]>([]);
   const [netWorth, setNetWorth] = useState<{ current: number; change: number; percent: number; history: any[] }>({ current: 0, change: 0, percent: 0, history: [] });
   const [loading, setLoading] = useState(true);
-+
   // Mock data for demo - equivalent to maybe-finance feature set
   const mockAccounts: Account[] = [
     { id: "wallet_checking", name: "Primary Checking", type: "checking", balance: 5234.56, institution: "Chase Bank", lastUpdate: "2024-12-20" },

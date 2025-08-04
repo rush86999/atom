@@ -1,23 +1,23 @@
 import {
-    SubAgentInput,
-    AnalyticalAgentResponse,
-    AgentLLMService,
-    DEFAULT_MODEL_FOR_AGENTS,
-    DEFAULT_TEMPERATURE_ANALYTICAL,
-    safeParseJSON
+  SubAgentInput,
+  AnalyticalAgentResponse,
+  AgentLLMService,
+  DEFAULT_MODEL_FOR_AGENTS,
+  DEFAULT_TEMPERATURE_ANALYTICAL,
+  safeParseJSON,
 } from './nlu_types';
 import { StructuredLLMPrompt, LLMServiceResponse } from '../lib/llmUtils';
 
 export class AnalyticalAgent {
-    private llmService: AgentLLMService;
-    private agentName: string = "AnalyticalAgent";
+  private llmService: AgentLLMService;
+  private agentName: string = 'AnalyticalAgent';
 
-    constructor(llmService: AgentLLMService) {
-        this.llmService = llmService;
-    }
+  constructor(llmService: AgentLLMService) {
+    this.llmService = llmService;
+  }
 
-    private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
-        const systemMessage = `
+  private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
+    const systemMessage = `
 You are the Analytical Intelligence Agent. Your role is to meticulously analyze the user's query to identify its core components.
 Focus on:
 1.  **Entities**: Key nouns, concepts, project names, dates, specific items mentioned.
@@ -43,67 +43,84 @@ User's environment context (if provided, use it to refine entity/task identifica
 UserId: ${input.userId || 'N/A'}
 `;
 
-        return {
-            task: 'custom_analytical_analysis', // Custom task type for LLM logging/differentiation if needed
-            data: {
-                system_prompt: systemMessage,
-                user_query: input.userInput,
-            }
-        };
+    return {
+      task: 'custom_analytical_analysis', // Custom task type for LLM logging/differentiation if needed
+      data: {
+        system_prompt: systemMessage,
+        user_query: input.userInput,
+      },
+    };
+  }
+
+  public async analyze(input: SubAgentInput): Promise<AnalyticalAgentResponse> {
+    const structuredPrompt = this.constructPrompt(input);
+    const P_ANALYTICAL_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
+
+    console.log(
+      `[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`
+    );
+    console.time(P_ANALYTICAL_AGENT_TIMER_LABEL);
+    const llmResponse = await this.llmService.generate(
+      structuredPrompt,
+      DEFAULT_MODEL_FOR_AGENTS,
+      {
+        temperature: DEFAULT_TEMPERATURE_ANALYTICAL,
+        isJsonOutput: true, // Crucial for ensuring RealLLMService requests JSON mode
+      }
+    );
+
+    if (!llmResponse.success || !llmResponse.content) {
+      console.error(
+        `[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`
+      );
+      return {
+        // Return a default/error response structure
+        logicalConsistency: {
+          isConsistent: false,
+          reason: `LLM analysis failed: ${llmResponse.error || 'No content'}`,
+        },
+        rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`,
+      };
     }
 
-    public async analyze(input: SubAgentInput): Promise<AnalyticalAgentResponse> {
-        const structuredPrompt = this.constructPrompt(input);
-        const P_ANALYTICAL_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
+    // Attempt to parse the JSON response from the LLM
+    const parsedResponse = safeParseJSON<Partial<AnalyticalAgentResponse>>( // Expecting a partial response that matches the structure
+      llmResponse.content,
+      this.agentName,
+      structuredPrompt.task
+    );
 
-        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
-        console.time(P_ANALYTICAL_AGENT_TIMER_LABEL);
-        const llmResponse = await this.llmService.generate(
-            structuredPrompt,
-            DEFAULT_MODEL_FOR_AGENTS,
-            {
-                temperature: DEFAULT_TEMPERATURE_ANALYTICAL,
-                isJsonOutput: true // Crucial for ensuring RealLLMService requests JSON mode
-            }
-        );
-
-        if (!llmResponse.success || !llmResponse.content) {
-            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
-            return { // Return a default/error response structure
-                logicalConsistency: { isConsistent: false, reason: `LLM analysis failed: ${llmResponse.error || 'No content'}` },
-                rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`
-            };
-        }
-
-        // Attempt to parse the JSON response from the LLM
-        const parsedResponse = safeParseJSON<Partial<AnalyticalAgentResponse>>( // Expecting a partial response that matches the structure
-            llmResponse.content,
-            this.agentName,
-            structuredPrompt.task
-        );
-
-        if (!parsedResponse) {
-            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
-            return { // Return a default/error response structure if parsing fails
-                logicalConsistency: { isConsistent: false, reason: "Failed to parse LLM JSON response." },
-                rawLLMResponse: llmResponse.content
-            };
-        }
-
-        // Construct the full response, providing defaults for any missing fields
-        // This also serves as a basic validation that the LLM is returning something usable.
-        // More advanced schema validation could be added here (e.g., using Zod or AJV).
-        const analyticalAgentResponse: AnalyticalAgentResponse = {
-            identifiedEntities: parsedResponse.identifiedEntities || [],
-            explicitTasks: parsedResponse.explicitTasks || [],
-            informationNeeded: parsedResponse.informationNeeded || [],
-            logicalConsistency: parsedResponse.logicalConsistency || { isConsistent: true, reason: "Consistency not specified by LLM." },
-            problemType: parsedResponse.problemType || "unknown",
-            rawLLMResponse: llmResponse.content, // Always include the raw response for debugging
-        };
-
-        return analyticalAgentResponse;
+    if (!parsedResponse) {
+      console.error(
+        `[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`
+      );
+      return {
+        // Return a default/error response structure if parsing fails
+        logicalConsistency: {
+          isConsistent: false,
+          reason: 'Failed to parse LLM JSON response.',
+        },
+        rawLLMResponse: llmResponse.content,
+      };
     }
+
+    // Construct the full response, providing defaults for any missing fields
+    // This also serves as a basic validation that the LLM is returning something usable.
+    // More advanced schema validation could be added here (e.g., using Zod or AJV).
+    const analyticalAgentResponse: AnalyticalAgentResponse = {
+      identifiedEntities: parsedResponse.identifiedEntities || [],
+      explicitTasks: parsedResponse.explicitTasks || [],
+      informationNeeded: parsedResponse.informationNeeded || [],
+      logicalConsistency: parsedResponse.logicalConsistency || {
+        isConsistent: true,
+        reason: 'Consistency not specified by LLM.',
+      },
+      problemType: parsedResponse.problemType || 'unknown',
+      rawLLMResponse: llmResponse.content, // Always include the raw response for debugging
+    };
+
+    return analyticalAgentResponse;
+  }
 }
 
 // Example Usage (for testing purposes, would be removed or in a test file)
@@ -142,4 +159,6 @@ async function testAnalyticalAgent() {
 // testAnalyticalAgent();
 */
 
-console.log("AnalyticalAgent class loaded. To test, uncomment and run testAnalyticalAgent().");
+console.log(
+  'AnalyticalAgent class loaded. To test, uncomment and run testAnalyticalAgent().'
+);

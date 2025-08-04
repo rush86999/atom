@@ -18,11 +18,16 @@ mutation UpdateUserLlmModel($userId: uuid!, $llmModel: String!) {
 
 export async function getUserLlmModel(userId: string): Promise<string | null> {
   const adminGraphQLClient = createAdminGraphQLClient();
-  const response = await adminGraphQLClient.request(GET_USER_LLM_MODEL_QUERY, { userId });
+  const response = await adminGraphQLClient.request(GET_USER_LLM_MODEL_QUERY, {
+    userId,
+  });
   return response.users_by_pk?.llm_model;
 }
 
 export async function updateUserLlmModel(userId: string, llmModel: string) {
   const adminGraphQLClient = createAdminGraphQLClient();
-  await adminGraphQLClient.request(UPDATE_USER_LLM_MODEL_MUTATION, { userId, llmModel });
+  await adminGraphQLClient.request(UPDATE_USER_LLM_MODEL_MUTATION, {
+    userId,
+    llmModel,
+  });
 }

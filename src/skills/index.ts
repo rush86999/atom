@@ -4,11 +4,19 @@
  */
 
 import { registerSkill, SkillDefinition } from '../services/agentSkillRegistry';
-import { allFinanceSkills, financeAgentTools, FinanceSkillRegistration } from './financeSkillIndex';
+import {
+  allFinanceSkills,
+  financeAgentTools,
+  FinanceSkillRegistration,
+} from './financeSkillIndex';
 import { processVoiceFinance } from './financeVoiceAgent';
 import { researchSkills } from './researchSkillIndex';
 import { legalSkills } from './legalSkillIndex';
-import { allTaxSkills, taxAgentTools, TaxSkillRegistration } from './taxSkillIndex';
+import {
+  allTaxSkills,
+  taxAgentTools,
+  TaxSkillRegistration,
+} from './taxSkillIndex';
 
 // Finance skill activation triggers
 const financeSkillConfig = {
@@ -21,7 +29,7 @@ const financeSkillConfig = {
     'investment',
     'goals',
     'savings',
-    'account'
+    'account',
   ],
 
   activationPatterns: [
@@ -32,7 +40,7 @@ const financeSkillConfig = {
     '^set.*goal',
     '^where.*money.*go',
     '^investment.*portfolio',
-    '^finance.*help'
+    '^finance.*help',
   ],
 
   naturalLanguagePatterns: [
@@ -44,8 +52,8 @@ const financeSkillConfig = {
     'investment performance this quarter',
     'show my financial goals',
     'budget breakdown',
-    'overspending detection'
-  ]
+    'overspending detection',
+  ],
 };
 
 // Register all finance skills with Atom agent
@@ -64,7 +72,7 @@ export async function registerFinanceSkills() {
         name: tool.name,
         description: tool.description || 'Finance tool',
         parameters: {}, // Tool-specific parameters assigned during registry
-        handler: tool.handler
+        handler: tool.handler,
       } as SkillDefinition);
     }
 
@@ -74,14 +82,13 @@ export async function registerFinanceSkills() {
       success: true,
       registeredSkills: allFinanceSkills.length + financeAgentTools.length,
       wakeWordTriggers: financeSkillConfig.wakeWordTriggers,
-      naturalLanguageSupport: true
+      naturalLanguageSupport: true,
     };
-
   } catch (error) {
     console.error('❌ Failed to register finance skills:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -94,9 +101,9 @@ export class FinanceVoiceHandler {
     this.isActive = true;
 
     return {
-      message: "💰 Finance agent activated. Ask me anything about your money!",
+      message: '💰 Finance agent activated. Ask me anything about your money!',
       examples: financeSkillConfig.naturalLanguagePatterns.slice(0, 6),
-      isFinanceMode: true
+      isFinanceMode: true,
     };
   }
 
@@ -113,15 +120,19 @@ export class FinanceVoiceHandler {
         {
           ...context,
           interface: 'voice',
-          transactionSource: 'wake_word'
+          transactionSource: 'wake_word',
         }
       );
-
     } catch (error) {
       return {
         ok: false,
-        response: "I couldn't process your finance request. Try rephrasing or type it out.",
-        suggestions: ["What's my net worth", "Show budget", "Spending this month"]
+        response:
+          "I couldn't process your finance request. Try rephrasing or type it out.",
+        suggestions: [
+          "What's my net worth",
+          'Show budget',
+          'Spending this month',
+        ],
       };
     }
   }
@@ -151,7 +162,6 @@ export async function registerResearchSkills() {
       registeredSkills: researchSkills.length,
       naturalLanguageSupport: true,
     };
-
   } catch (error) {
     console.error('❌ Failed to register research skills:', error);
     return {
@@ -178,7 +188,6 @@ export async function registerLegalSkills() {
       registeredSkills: legalSkills.length,
       naturalLanguageSupport: true,
     };
-
   } catch (error) {
     console.error('❌ Failed to register legal skills:', error);
     return {
@@ -204,7 +213,7 @@ export async function registerTaxSkills() {
         name: tool.name,
         description: tool.description || 'Tax tool',
         parameters: {}, // Tool-specific parameters assigned during registry
-        handler: tool.handler
+        handler: tool.handler,
       } as SkillDefinition);
     }
 
@@ -213,14 +222,13 @@ export async function registerTaxSkills() {
     return {
       success: true,
       registeredSkills: allTaxSkills.length + taxAgentTools.length,
-      naturalLanguageSupport: true
+      naturalLanguageSupport: true,
     };
-
   } catch (error) {
     console.error('❌ Failed to register tax skills:', error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -247,5 +255,5 @@ export default {
   financeVoiceHandler,
   financeSkillConfig,
   allFinanceSkills,
-  financeAgentTools
+  financeAgentTools,
 };

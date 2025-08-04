@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = handler;
+function handler(req, res) {
+    const slackClientId = process.env.SLACK_CLIENT_ID;
+    const redirectUri = process.env.SLACK_REDIRECT_URI;
+    const scope = 'chat:write,commands,users:read,users:read.email';
+    const state = 'some-random-state'; // Should be a random, unguessable string
+    if (!slackClientId || !redirectUri) {
+        return res
+            .status(500)
+            .json({ message: 'Slack environment variables not configured.' });
+    }
+    const authorizationUrl = `https://slack.com/oauth/v2/authorize?client_id=${slackClientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${state}`;
+    res.redirect(authorizationUrl);
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic3RhcnQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJzdGFydC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQUVBLDBCQWVDO0FBZkQsU0FBd0IsT0FBTyxDQUFDLEdBQW1CLEVBQUUsR0FBb0I7SUFDdkUsTUFBTSxhQUFhLEdBQUcsT0FBTyxDQUFDLEdBQUcsQ0FBQyxlQUFlLENBQUM7SUFDbEQsTUFBTSxXQUFXLEdBQUcsT0FBTyxDQUFDLEdBQUcsQ0FBQyxrQkFBa0IsQ0FBQztJQUNuRCxNQUFNLEtBQUssR0FBRyxpREFBaUQsQ0FBQztJQUNoRSxNQUFNLEtBQUssR0FBRyxtQkFBbUIsQ0FBQyxDQUFDLHlDQUF5QztJQUU1RSxJQUFJLENBQUMsYUFBYSxJQUFJLENBQUMsV0FBVyxFQUFFLENBQUM7UUFDbkMsT0FBTyxHQUFHO2FBQ1AsTUFBTSxDQUFDLEdBQUcsQ0FBQzthQUNYLElBQUksQ0FBQyxFQUFFLE9BQU8sRUFBRSw2Q0FBNkMsRUFBRSxDQUFDLENBQUM7SUFDdEUsQ0FBQztJQUVELE1BQU0sZ0JBQWdCLEdBQUcsa0RBQWtELGFBQWEsVUFBVSxLQUFLLGlCQUFpQixXQUFXLFVBQVUsS0FBSyxFQUFFLENBQUM7SUFFckosR0FBRyxDQUFDLFFBQVEsQ0FBQyxnQkFBZ0IsQ0FBQyxDQUFDO0FBQ2pDLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBOZXh0QXBpUmVxdWVzdCwgTmV4dEFwaVJlc3BvbnNlIH0gZnJvbSAnbmV4dCc7XG5cbmV4cG9ydCBkZWZhdWx0IGZ1bmN0aW9uIGhhbmRsZXIocmVxOiBOZXh0QXBpUmVxdWVzdCwgcmVzOiBOZXh0QXBpUmVzcG9uc2UpIHtcbiAgY29uc3Qgc2xhY2tDbGllbnRJZCA9IHByb2Nlc3MuZW52LlNMQUNLX0NMSUVOVF9JRDtcbiAgY29uc3QgcmVkaXJlY3RVcmkgPSBwcm9jZXNzLmVudi5TTEFDS19SRURJUkVDVF9VUkk7XG4gIGNvbnN0IHNjb3BlID0gJ2NoYXQ6d3JpdGUsY29tbWFuZHMsdXNlcnM6cmVhZCx1c2VyczpyZWFkLmVtYWlsJztcbiAgY29uc3Qgc3RhdGUgPSAnc29tZS1yYW5kb20tc3RhdGUnOyAvLyBTaG91bGQgYmUgYSByYW5kb20sIHVuZ3Vlc3NhYmxlIHN0cmluZ1xuXG4gIGlmICghc2xhY2tDbGllbnRJZCB8fCAhcmVkaXJlY3RVcmkpIHtcbiAgICByZXR1cm4gcmVzXG4gICAgICAuc3RhdHVzKDUwMClcbiAgICAgIC5qc29uKHsgbWVzc2FnZTogJ1NsYWNrIGVudmlyb25tZW50IHZhcmlhYmxlcyBub3QgY29uZmlndXJlZC4nIH0pO1xuICB9XG5cbiAgY29uc3QgYXV0aG9yaXphdGlvblVybCA9IGBodHRwczovL3NsYWNrLmNvbS9vYXV0aC92Mi9hdXRob3JpemU/Y2xpZW50X2lkPSR7c2xhY2tDbGllbnRJZH0mc2NvcGU9JHtzY29wZX0mcmVkaXJlY3RfdXJpPSR7cmVkaXJlY3RVcml9JnN0YXRlPSR7c3RhdGV9YDtcblxuICByZXMucmVkaXJlY3QoYXV0aG9yaXphdGlvblVybCk7XG59XG4iXX0=

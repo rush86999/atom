@@ -1,5 +1,3 @@
-
-
 export default `
 query GetTaskById($id: uuid!) {
   Task_by_pk(id: $id) {
@@ -22,4 +20,4 @@ query GetTaskById($id: uuid!) {
     userId
   }
 }
-`
+`;

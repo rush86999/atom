@@ -1,0 +1,32 @@
+import { PYTHON_API_SERVICE_BASE_URL } from '../../_libs/constants';
+import { handleError } from '../../_utils/errorHandler';
+export async function handleMeetingPrep(userId, entities) {
+    try {
+        const { meeting_title, attendees } = entities;
+        if (!meeting_title || typeof meeting_title !== 'string') {
+            return 'Meeting title is required to prepare a meeting briefing.';
+        }
+        const response = await fetch(`${PYTHON_API_SERVICE_BASE_URL}/meeting-prep`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                meeting_title,
+                attendees,
+            }),
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return data.briefing;
+        }
+        else {
+            const error = await response.json();
+            return `Failed to prepare meeting briefing: ${error.error}`;
+        }
+    }
+    catch (error) {
+        return handleError(error, "Sorry, I couldn't prepare the meeting briefing due to an error.");
+    }
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWVldGluZ1ByZXAuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJtZWV0aW5nUHJlcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDQSxPQUFPLEVBQUUsMkJBQTJCLEVBQUUsTUFBTSx1QkFBdUIsQ0FBQztBQUNwRSxPQUFPLEVBQUUsV0FBVyxFQUFFLE1BQU0sMkJBQTJCLENBQUM7QUFFeEQsTUFBTSxDQUFDLEtBQUssVUFBVSxpQkFBaUIsQ0FDckMsTUFBYyxFQUNkLFFBQWE7SUFFYixJQUFJLENBQUM7UUFDSCxNQUFNLEVBQUUsYUFBYSxFQUFFLFNBQVMsRUFBRSxHQUFHLFFBQVEsQ0FBQztRQUU5QyxJQUFJLENBQUMsYUFBYSxJQUFJLE9BQU8sYUFBYSxLQUFLLFFBQVEsRUFBRSxDQUFDO1lBQ3hELE9BQU8sMERBQTBELENBQUM7UUFDcEUsQ0FBQztRQUVELE1BQU0sUUFBUSxHQUFHLE1BQU0sS0FBSyxDQUMxQixHQUFHLDJCQUEyQixlQUFlLEVBQzdDO1lBQ0UsTUFBTSxFQUFFLE1BQU07WUFDZCxPQUFPLEVBQUU7Z0JBQ1AsY0FBYyxFQUFFLGtCQUFrQjthQUNuQztZQUNELElBQUksRUFBRSxJQUFJLENBQUMsU0FBUyxDQUFDO2dCQUNuQixhQUFhO2dCQUNiLFNBQVM7YUFDVixDQUFDO1NBQ0gsQ0FDRixDQUFDO1FBRUYsSUFBSSxRQUFRLENBQUMsRUFBRSxFQUFFLENBQUM7WUFDaEIsTUFBTSxJQUFJLEdBQUcsTUFBTSxRQUFRLENBQUMsSUFBSSxFQUFFLENBQUM7WUFDbkMsT0FBTyxJQUFJLENBQUMsUUFBUSxDQUFDO1FBQ3ZCLENBQUM7YUFBTSxDQUFDO1lBQ04sTUFBTSxLQUFLLEdBQUcsTUFBTSxRQUFRLENBQUMsSUFBSSxFQUFFLENBQUM7WUFDcEMsT0FBTyx1Q0FBdUMsS0FBSyxDQUFDLEtBQUssRUFBRSxDQUFDO1FBQzlELENBQUM7SUFDSCxDQUFDO0lBQUMsT0FBTyxLQUFVLEVBQUUsQ0FBQztRQUNwQixPQUFPLFdBQVcsQ0FDaEIsS0FBSyxFQUNMLGlFQUFpRSxDQUNsRSxDQUFDO0lBQ0osQ0FBQztBQUNILENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBTa2lsbFJlc3BvbnNlIH0gZnJvbSAnLi4vLi4vdHlwZXMnO1xuaW1wb3J0IHsgUFlUSE9OX0FQSV9TRVJWSUNFX0JBU0VfVVJMIH0gZnJvbSAnLi4vLi4vX2xpYnMvY29uc3RhbnRzJztcbmltcG9ydCB7IGhhbmRsZUVycm9yIH0gZnJvbSAnLi4vLi4vX3V0aWxzL2Vycm9ySGFuZGxlcic7XG5cbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBoYW5kbGVNZWV0aW5nUHJlcChcbiAgdXNlcklkOiBzdHJpbmcsXG4gIGVudGl0aWVzOiBhbnlcbik6IFByb21pc2U8c3RyaW5nPiB7XG4gIHRyeSB7XG4gICAgY29uc3QgeyBtZWV0aW5nX3RpdGxlLCBhdHRlbmRlZXMgfSA9IGVudGl0aWVzO1xuXG4gICAgaWYgKCFtZWV0aW5nX3RpdGxlIHx8IHR5cGVvZiBtZWV0aW5nX3RpdGxlICE9PSAnc3RyaW5nJykge1xuICAgICAgcmV0dXJuICdNZWV0aW5nIHRpdGxlIGlzIHJlcXVpcmVkIHRvIHByZXBhcmUgYSBtZWV0aW5nIGJyaWVmaW5nLic7XG4gICAgfVxuXG4gICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBmZXRjaChcbiAgICAgIGAke1BZVEhPTl9BUElfU0VSVklDRV9CQVNFX1VSTH0vbWVldGluZy1wcmVwYCxcbiAgICAgIHtcbiAgICAgICAgbWV0aG9kOiAnUE9TVCcsXG4gICAgICAgIGhlYWRlcnM6IHtcbiAgICAgICAgICAnQ29udGVudC1UeXBlJzogJ2FwcGxpY2F0aW9uL2pzb24nLFxuICAgICAgICB9LFxuICAgICAgICBib2R5OiBKU09OLnN0cmluZ2lmeSh7XG4gICAgICAgICAgbWVldGluZ190aXRsZSxcbiAgICAgICAgICBhdHRlbmRlZXMsXG4gICAgICAgIH0pLFxuICAgICAgfVxuICAgICk7XG5cbiAgICBpZiAocmVzcG9uc2Uub2spIHtcbiAgICAgIGNvbnN0IGRhdGEgPSBhd2FpdCByZXNwb25zZS5qc29uKCk7XG4gICAgICByZXR1cm4gZGF0YS5icmllZmluZztcbiAgICB9IGVsc2Uge1xuICAgICAgY29uc3QgZXJyb3IgPSBhd2FpdCByZXNwb25zZS5qc29uKCk7XG4gICAgICByZXR1cm4gYEZhaWxlZCB0byBwcmVwYXJlIG1lZXRpbmcgYnJpZWZpbmc6ICR7ZXJyb3IuZXJyb3J9YDtcbiAgICB9XG4gIH0gY2F0Y2ggKGVycm9yOiBhbnkpIHtcbiAgICByZXR1cm4gaGFuZGxlRXJyb3IoXG4gICAgICBlcnJvcixcbiAgICAgIFwiU29ycnksIEkgY291bGRuJ3QgcHJlcGFyZSB0aGUgbWVldGluZyBicmllZmluZyBkdWUgdG8gYW4gZXJyb3IuXCJcbiAgICApO1xuICB9XG59XG4iXX0=

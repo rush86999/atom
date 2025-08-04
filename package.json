@@ -5,5 +5,11 @@
     "aws-cdk-lib": "^2.206.0",
     "botbuilder": "^4.17.0-blobs1",
     "ts-jest": "^29.4.0"
+  },
+  "devDependencies": {
+    "@types/async-retry": "^1.4.9",
+    "@types/express": "^5.0.3",
+    "@types/lodash": "^4.17.20",
+    "@types/node": "^24.1.0"
   }
 }

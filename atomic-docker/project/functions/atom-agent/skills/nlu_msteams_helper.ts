@@ -10,7 +10,9 @@ import { logger } from '../../_utils/logger';
  * @param params StructuredMSTeamsQuery object containing various search criteria.
  * @returns A KQL string formatted for Microsoft Graph API's search query.
  */
-export function buildMSTeamsSearchQuery(params: StructuredMSTeamsQuery): string {
+export function buildMSTeamsSearchQuery(
+  params: StructuredMSTeamsQuery
+): string {
   const kqlParts: string[] = [];
 
   // Free-text keywords (these usually come first or without a specific property)
@@ -36,7 +38,7 @@ export function buildMSTeamsSearchQuery(params: StructuredMSTeamsQuery): string 
     // `mentions` isn't a standard KQL property for messages in the same way as `from`.
     // So, we might add it to the general text search or expect the LLM to have incorporated it.
     // Adding as a keyword for now:
-     kqlParts.push(`"${params.mentionsUser.trim()}"`); // Treat as part of text search
+    kqlParts.push(`"${params.mentionsUser.trim()}"`); // Treat as part of text search
   }
 
   if (params.inChatOrChannel) {
@@ -64,11 +66,14 @@ export function buildMSTeamsSearchQuery(params: StructuredMSTeamsQuery): string 
   }
 
   // Date filters
-// KQL date format is YYYY-MM-DD. Graph Search for messages uses 'lastModifiedDateTime'.
+  // KQL date format is YYYY-MM-DD. Graph Search for messages uses 'lastModifiedDateTime'.
   if (params.onDate) {
     // To cover the whole day, create a range.
-    kqlParts.push(`(lastModifiedDateTime>=${params.onDate}T00:00:00Z AND lastModifiedDateTime<=${params.onDate}T23:59:59Z)`);
-  } else { // if onDate is not present, then before/after can be used
+    kqlParts.push(
+      `(lastModifiedDateTime>=${params.onDate}T00:00:00Z AND lastModifiedDateTime<=${params.onDate}T23:59:59Z)`
+    );
+  } else {
+    // if onDate is not present, then before/after can be used
     if (params.afterDate) {
       kqlParts.push(`lastModifiedDateTime>=${params.afterDate}T00:00:00Z`);
     }
@@ -79,14 +84,17 @@ export function buildMSTeamsSearchQuery(params: StructuredMSTeamsQuery): string 
     }
   }
 
-  if (params.hasLink && !kqlParts.some(p => p.toLowerCase().includes("http"))) {
+  if (
+    params.hasLink &&
+    !kqlParts.some((p) => p.toLowerCase().includes('http'))
+  ) {
     // Add http/https as keywords if hasLink is true and not already part of textKeywords
     if (params.textKeywords && params.textKeywords.length > 0) {
-        if (!params.textKeywords.toLowerCase().includes("http")) {
-             kqlParts.push("(http OR https)");
-        }
+      if (!params.textKeywords.toLowerCase().includes('http')) {
+        kqlParts.push('(http OR https)');
+      }
     } else {
-        kqlParts.push("(http OR https)");
+      kqlParts.push('(http OR https)');
     }
   }
 
@@ -94,9 +102,15 @@ export function buildMSTeamsSearchQuery(params: StructuredMSTeamsQuery): string 
   // not usually in the KQL string for messages directly, but KQL might support `IsDocument:false` or similar.
   // For now, we assume the API call will scope to messages.
 
-  const finalKqlQuery = kqlParts.filter(part => part && part.length > 0).join(' AND ').trim();
+  const finalKqlQuery = kqlParts
+    .filter((part) => part && part.length > 0)
+    .join(' AND ')
+    .trim();
 
-  logger.debug(`[NluMSTeamsHelper] Built MS Teams KQL query: "${finalKqlQuery}" from params:`, params);
+  logger.debug(
+    `[NluMSTeamsHelper] Built MS Teams KQL query: "${finalKqlQuery}" from params:`,
+    params
+  );
   return finalKqlQuery;
 }
 

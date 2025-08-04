@@ -1,7 +1,7 @@
-import ThirdPartyEmailPasswordReact from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
-import SessionReact from 'supertokens-auth-react/recipe/session'
-import { appInfo } from './appInfo'
-import Router from 'next/router'
+import ThirdPartyEmailPasswordReact from 'supertokens-auth-react/recipe/thirdpartyemailpassword';
+import SessionReact from 'supertokens-auth-react/recipe/session';
+import { appInfo } from './appInfo';
+import Router from 'next/router';
 
 export const frontendConfig = () => {
   return {
@@ -25,10 +25,10 @@ export const frontendConfig = () => {
         location: {
           ...oI.location,
           setHref: (href: string) => {
-            Router.push(href)
+            Router.push(href);
           },
         },
-      }
+      };
     },
-  }
-}
+  };
+};

@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
-import { PublicClientApplication, ConfidentialClientApplication } from '@azure/msal-node';
+import {
+  PublicClientApplication,
+  ConfidentialClientApplication,
+} from '@azure/msal-node';
 import { getMsalConfig } from '../outlook-service/auth_utils';
 import { createAdminGraphQLClient } from '../_utils/dbService';
 import { encrypt } from './crypto_utils'; // Assuming a similar crypto utility exists

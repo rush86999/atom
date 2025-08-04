@@ -1,0 +1,26 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const jsx_runtime_1 = require("react/jsx-runtime");
+const link_1 = __importDefault(require("next/link"));
+const userRoleContext_1 = require("../../contexts/userRole/userRoleContext");
+/**
+ * A component that acts as a gatekeeper for feature pages.
+ * It checks if the user has the required role. If they do, it renders the child components.
+ * If not, it displays a standardized "Access Denied" message with a link to the settings page.
+ *
+ * @param {FeaturePageGuardProps} props - The component's props.
+ * @returns {React.ReactElement} The protected content or an access denied message.
+ */
+const FeaturePageGuard = ({ role, roleName, children }) => {
+    const { hasRole } = (0, userRoleContext_1.useUserRole)();
+    if (hasRole(role)) {
+        return (0, jsx_runtime_1.jsx)(jsx_runtime_1.Fragment, { children: children });
+    }
+    // Render an access denied message if the user does not have the required role.
+    return ((0, jsx_runtime_1.jsxs)("div", { style: { padding: '20px', fontFamily: 'Arial, sans-serif' }, children: [(0, jsx_runtime_1.jsx)("h1", { children: "Access Denied" }), (0, jsx_runtime_1.jsxs)("p", { children: ["You do not have the '", roleName, "' enabled."] }), (0, jsx_runtime_1.jsxs)("p", { children: ["Please go to", ' ', (0, jsx_runtime_1.jsx)(link_1.default, { href: "/Settings", children: (0, jsx_runtime_1.jsx)("a", { style: { color: 'purple', textDecoration: 'underline' }, children: "Settings" }) }), ' ', "to activate the ", roleName.toLowerCase(), "."] })] }));
+};
+exports.default = FeaturePageGuard;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiRmVhdHVyZVBhZ2VHdWFyZC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIkZlYXR1cmVQYWdlR3VhcmQudHN4Il0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7Ozs7OztBQUNBLHFEQUE2QjtBQUM3Qiw2RUFBNEU7QUFjNUU7Ozs7Ozs7R0FPRztBQUNILE1BQU0sZ0JBQWdCLEdBQW9DLENBQUMsRUFBRSxJQUFJLEVBQUUsUUFBUSxFQUFFLFFBQVEsRUFBRSxFQUFFLEVBQUU7SUFDekYsTUFBTSxFQUFFLE9BQU8sRUFBRSxHQUFHLElBQUEsNkJBQVcsR0FBRSxDQUFDO0lBRWxDLElBQUksT0FBTyxDQUFDLElBQUksQ0FBQyxFQUFFLENBQUM7UUFDbEIsT0FBTywyREFBRyxRQUFRLEdBQUksQ0FBQztJQUN6QixDQUFDO0lBRUQsK0VBQStFO0lBQy9FLE9BQU8sQ0FDTCxpQ0FBSyxLQUFLLEVBQUUsRUFBRSxPQUFPLEVBQUUsTUFBTSxFQUFFLFVBQVUsRUFBRSxtQkFBbUIsRUFBRSxhQUM5RCwyREFBc0IsRUFDdEIsbUVBQXlCLFFBQVEsa0JBQWUsRUFDaEQsMERBQ2UsR0FBRyxFQUNoQix1QkFBQyxjQUFJLElBQUMsSUFBSSxFQUFDLFdBQVcsWUFDcEIsOEJBQUcsS0FBSyxFQUFFLEVBQUUsS0FBSyxFQUFFLFFBQVEsRUFBRSxjQUFjLEVBQUUsV0FBVyxFQUFFLHlCQUV0RCxHQUNDLEVBQUMsR0FBRyxzQkFDTSxRQUFRLENBQUMsV0FBVyxFQUFFLFNBQ3JDLElBQ0EsQ0FDUCxDQUFDO0FBQ0osQ0FBQyxDQUFDO0FBRUYsa0JBQWUsZ0JBQWdCLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QsIHsgUmVhY3ROb2RlIH0gZnJvbSAncmVhY3QnO1xuaW1wb3J0IExpbmsgZnJvbSAnbmV4dC9saW5rJztcbmltcG9ydCB7IHVzZVVzZXJSb2xlLCBSb2xlIH0gZnJvbSAnLi4vLi4vY29udGV4dHMvdXNlclJvbGUvdXNlclJvbGVDb250ZXh0JztcblxuLyoqXG4gKiBQcm9wcyBmb3IgdGhlIEZlYXR1cmVQYWdlR3VhcmQgY29tcG9uZW50LlxuICovXG5pbnRlcmZhY2UgRmVhdHVyZVBhZ2VHdWFyZFByb3BzIHtcbiAgLyoqIFRoZSBzcGVjaWZpYyByb2xlIHJlcXVpcmVkIHRvIGFjY2VzcyB0aGUgY29udGVudC4gKi9cbiAgcm9sZTogUm9sZTtcbiAgLyoqIEEgdXNlci1mcmllbmRseSBuYW1lIGZvciB0aGUgcm9sZSB0byBiZSBkaXNwbGF5ZWQgaW4gbWVzc2FnZXMgKGUuZy4sIFwiU2FsZXMgQWdlbnQgU2tpbGxcIikuICovXG4gIHJvbGVOYW1lOiBzdHJpbmc7XG4gIC8qKiBUaGUgY29udGVudCB0byBiZSByZW5kZXJlZCBpZiB0aGUgdXNlciBoYXMgdGhlIHJlcXVpcmVkIHJvbGUuICovXG4gIGNoaWxkcmVuOiBSZWFjdE5vZGU7XG59XG5cbi8qKlxuICogQSBjb21wb25lbnQgdGhhdCBhY3RzIGFzIGEgZ2F0ZWtlZXBlciBmb3IgZmVhdHVyZSBwYWdlcy5cbiAqIEl0IGNoZWNrcyBpZiB0aGUgdXNlciBoYXMgdGhlIHJlcXVpcmVkIHJvbGUuIElmIHRoZXkgZG8sIGl0IHJlbmRlcnMgdGhlIGNoaWxkIGNvbXBvbmVudHMuXG4gKiBJZiBub3QsIGl0IGRpc3BsYXlzIGEgc3RhbmRhcmRpemVkIFwiQWNjZXNzIERlbmllZFwiIG1lc3NhZ2Ugd2l0aCBhIGxpbmsgdG8gdGhlIHNldHRpbmdzIHBhZ2UuXG4gKlxuICogQHBhcmFtIHtGZWF0dXJlUGFnZUd1YXJkUHJvcHN9IHByb3BzIC0gVGhlIGNvbXBvbmVudCdzIHByb3BzLlxuICogQHJldHVybnMge1JlYWN0LlJlYWN0RWxlbWVudH0gVGhlIHByb3RlY3RlZCBjb250ZW50IG9yIGFuIGFjY2VzcyBkZW5pZWQgbWVzc2FnZS5cbiAqL1xuY29uc3QgRmVhdHVyZVBhZ2VHdWFyZDogUmVhY3QuRkM8RmVhdHVyZVBhZ2VHdWFyZFByb3BzPiA9ICh7IHJvbGUsIHJvbGVOYW1lLCBjaGlsZHJlbiB9KSA9PiB7XG4gIGNvbnN0IHsgaGFzUm9sZSB9ID0gdXNlVXNlclJvbGUoKTtcblxuICBpZiAoaGFzUm9sZShyb2xlKSkge1xuICAgIHJldHVybiA8PntjaGlsZHJlbn08Lz47XG4gIH1cblxuICAvLyBSZW5kZXIgYW4gYWNjZXNzIGRlbmllZCBtZXNzYWdlIGlmIHRoZSB1c2VyIGRvZXMgbm90IGhhdmUgdGhlIHJlcXVpcmVkIHJvbGUuXG4gIHJldHVybiAoXG4gICAgPGRpdiBzdHlsZT17eyBwYWRkaW5nOiAnMjBweCcsIGZvbnRGYW1pbHk6ICdBcmlhbCwgc2Fucy1zZXJpZicgfX0+XG4gICAgICA8aDE+QWNjZXNzIERlbmllZDwvaDE+XG4gICAgICA8cD5Zb3UgZG8gbm90IGhhdmUgdGhlICd7cm9sZU5hbWV9JyBlbmFibGVkLjwvcD5cbiAgICAgIDxwPlxuICAgICAgICBQbGVhc2UgZ28gdG97JyAnfVxuICAgICAgICA8TGluayBocmVmPVwiL1NldHRpbmdzXCI+XG4gICAgICAgICAgPGEgc3R5bGU9e3sgY29sb3I6ICdwdXJwbGUnLCB0ZXh0RGVjb3JhdGlvbjogJ3VuZGVybGluZScgfX0+XG4gICAgICAgICAgICBTZXR0aW5nc1xuICAgICAgICAgIDwvYT5cbiAgICAgICAgPC9MaW5rPnsnICd9XG4gICAgICAgIHRvIGFjdGl2YXRlIHRoZSB7cm9sZU5hbWUudG9Mb3dlckNhc2UoKX0uXG4gICAgICA8L3A+XG4gICAgPC9kaXY+XG4gICk7XG59O1xuXG5leHBvcnQgZGVmYXVsdCBGZWF0dXJlUGFnZUd1YXJkO1xuIl19

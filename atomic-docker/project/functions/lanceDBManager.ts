@@ -4,8 +4,15 @@ import * as lancedb from '@lancedb/lancedb';
 // or directly from the main package if re-exported.
 // For now, assuming they are directly available or re-exported by '@lancedb/lancedb'
 // If not, this will need adjustment based on the actual package structure of '@lancedb/lancedb'.
-import { Schema, Field, Float32, Utf8, Timestamp, List, FixedSizeList } from '@lancedb/lancedb/arrow';
-
+import {
+  Schema,
+  Field,
+  Float32,
+  Utf8,
+  Timestamp,
+  List,
+  FixedSizeList,
+} from '@lancedb/lancedb/arrow';
 
 const DEFAULT_LTM_DB_PATH_PREFIX = './lance_db/'; // Default base path if LANCEDB_URI is not set
 const DEFAULT_VECTOR_DIMENSION = 1536;
@@ -31,9 +38,20 @@ function log(message: string, level: 'info' | 'error' = 'info') {
 const userProfilesSchema = new Schema([
   new Field('user_id', new Utf8(), false), // Not nullable (Primary Key)
   new Field('preferences', new Utf8(), true), // JSON string
-  new Field('interaction_summary_embeddings', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true), // Embedding of a holistic summary of all user interactions
+  new Field(
+    'interaction_summary_embeddings',
+    new FixedSizeList(
+      DEFAULT_VECTOR_DIMENSION,
+      new Field('item', new Float32(), true)
+    ),
+    true
+  ), // Embedding of a holistic summary of all user interactions
   // interaction_history_embeddings field removed as individual interaction history is stored in knowledge_base table
-  new Field('interaction_summaries', new List(new Field('item', new Utf8(), true)), true), // Curated list of key textual interaction summaries
+  new Field(
+    'interaction_summaries',
+    new List(new Field('item', new Utf8(), true)),
+    true
+  ), // Curated list of key textual interaction summaries
   new Field('created_at', new Timestamp('ms'), true),
   new Field('updated_at', new Timestamp('ms'), true),
 ]);
@@ -42,7 +60,14 @@ const userProfilesSchema = new Schema([
 const knowledgeBaseSchema = new Schema([
   new Field('fact_id', new Utf8(), false), // Not nullable (Primary Key)
   new Field('text_content', new Utf8(), true),
-  new Field('text_content_embedding', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true),
+  new Field(
+    'text_content_embedding',
+    new FixedSizeList(
+      DEFAULT_VECTOR_DIMENSION,
+      new Field('item', new Float32(), true)
+    ),
+    true
+  ),
   new Field('source', new Utf8(), true), // Origin of the information
   new Field('metadata', new Utf8(), true), // JSON string for tags, categories, etc.
   new Field('created_at', new Timestamp('ms'), true),
@@ -55,18 +80,35 @@ const knowledgeBaseSchema = new Schema([
 const researchFindingsSchema = new Schema([
   new Field('finding_id', new Utf8(), false), // Not nullable (Primary Key)
   new Field('query', new Utf8(), true),
-  new Field('query_embedding', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true),
+  new Field(
+    'query_embedding',
+    new FixedSizeList(
+      DEFAULT_VECTOR_DIMENSION,
+      new Field('item', new Float32(), true)
+    ),
+    true
+  ),
   new Field('summary', new Utf8(), true),
-  new Field('summary_embedding', new FixedSizeList(DEFAULT_VECTOR_DIMENSION, new Field('item', new Float32(), true)), true),
+  new Field(
+    'summary_embedding',
+    new FixedSizeList(
+      DEFAULT_VECTOR_DIMENSION,
+      new Field('item', new Float32(), true)
+    ),
+    true
+  ),
   new Field('details_text', new Utf8(), true), // Detailed findings
-  new Field('source_references', new List(new Field('item', new Utf8(), true)), true), // List of URLs or identifiers
+  new Field(
+    'source_references',
+    new List(new Field('item', new Utf8(), true)),
+    true
+  ), // List of URLs or identifiers
   new Field('project_page_id', new Utf8(), true), // Optional link to Notion page
   new Field('created_at', new Timestamp('ms'), true),
   new Field('updated_at', new Timestamp('ms'), true),
   new Field('feedback_status', new Utf8(), true), // e.g., 'verified', 'unreviewed', 'flagged_inaccurate', 'flagged_outdated'
   new Field('feedback_notes', new Utf8(), true), // Optional textual notes for feedback
 ]);
-
 
 /**
  * Initializes and connects to a LanceDB database using the LANCEDB_URI environment variable if set,
@@ -76,19 +118,26 @@ const researchFindingsSchema = new Schema([
  * @param dbName The name of the database (e.g., 'ltm_agent_data'). This is appended to the path.
  * @returns A promise that resolves to the database connection object or null if connection fails.
  */
-export async function initializeDB(dbName: string): Promise<lancedb.Connection | null> {
+export async function initializeDB(
+  dbName: string
+): Promise<lancedb.Connection | null> {
   const lanceDbUriFromEnv = process.env.LANCEDB_URI;
   let dbPath: string;
 
   if (lanceDbUriFromEnv) {
     // Assuming LANCEDB_URI is a directory path. Append dbName.lance to it.
     // Ensure it ends with a slash if it's a directory.
-    const baseUri = lanceDbUriFromEnv.endsWith('/') ? lanceDbUriFromEnv : `${lanceDbUriFromEnv}/`;
+    const baseUri = lanceDbUriFromEnv.endsWith('/')
+      ? lanceDbUriFromEnv
+      : `${lanceDbUriFromEnv}/`;
     dbPath = `${baseUri}${dbName}.lance`;
     log(`Using LANCEDB_URI from environment: ${baseUri}`);
   } else {
     dbPath = `${DEFAULT_LTM_DB_PATH_PREFIX}${dbName}.lance`;
-    log(`LANCEDB_URI not set in environment. Using default path prefix: ${DEFAULT_LTM_DB_PATH_PREFIX}`, 'info');
+    log(
+      `LANCEDB_URI not set in environment. Using default path prefix: ${DEFAULT_LTM_DB_PATH_PREFIX}`,
+      'info'
+    );
   }
 
   log(`Initializing LanceDB at path: ${dbPath}`);
@@ -102,7 +151,10 @@ export async function initializeDB(dbName: string): Promise<lancedb.Connection |
     await ensureTablesExist(db);
     return db;
   } catch (error: any) {
-    log(`Error connecting to or creating LanceDB at ${dbPath}: ${error.message || error}`, 'error');
+    log(
+      `Error connecting to or creating LanceDB at ${dbPath}: ${error.message || error}`,
+      'error'
+    );
     return null;
   }
 }
@@ -111,9 +163,14 @@ export async function initializeDB(dbName: string): Promise<lancedb.Connection |
  * Creates the UserProfiles table if it doesn't already exist.
  * @param db The LanceDB connection object.
  */
-export async function createUserProfilesTable(db: lancedb.Connection): Promise<void> {
+export async function createUserProfilesTable(
+  db: lancedb.Connection
+): Promise<void> {
   if (!db) {
-    log('Database connection not provided to createUserProfilesTable.', 'error');
+    log(
+      'Database connection not provided to createUserProfilesTable.',
+      'error'
+    );
     return;
   }
   const tableName = 'user_profiles';
@@ -126,17 +183,20 @@ export async function createUserProfilesTable(db: lancedb.Connection): Promise<v
     // `createTable` with mode 'create' should attempt to create.
     // If it fails because it exists, we catch that.
     try {
-        await db.openTable(tableName);
-        log(`Table '${tableName}' already exists. No action taken.`);
+      await db.openTable(tableName);
+      log(`Table '${tableName}' already exists. No action taken.`);
     } catch (e) {
-        // Assuming error means table does not exist
-        log(`Table '${tableName}' does not exist. Attempting to create.`);
-        await db.createTable(tableName, userProfilesSchema); // Removed mode, as it might not be supported or needed if openTable fails for non-existence
-        log(`Table '${tableName}' created successfully.`);
+      // Assuming error means table does not exist
+      log(`Table '${tableName}' does not exist. Attempting to create.`);
+      await db.createTable(tableName, userProfilesSchema); // Removed mode, as it might not be supported or needed if openTable fails for non-existence
+      log(`Table '${tableName}' created successfully.`);
     }
   } catch (error: any) {
     // This outer catch is for errors during the creation attempt itself, not for "already exists"
-    log(`Error during table creation process for '${tableName}': ${error.message || error}`, 'error');
+    log(
+      `Error during table creation process for '${tableName}': ${error.message || error}`,
+      'error'
+    );
   }
 }
 
@@ -144,24 +204,32 @@ export async function createUserProfilesTable(db: lancedb.Connection): Promise<v
  * Creates the KnowledgeBase table if it doesn't already exist.
  * @param db The LanceDB connection object.
  */
-export async function createKnowledgeBaseTable(db: lancedb.Connection): Promise<void> {
+export async function createKnowledgeBaseTable(
+  db: lancedb.Connection
+): Promise<void> {
   if (!db) {
-    log('Database connection not provided to createKnowledgeBaseTable.', 'error');
+    log(
+      'Database connection not provided to createKnowledgeBaseTable.',
+      'error'
+    );
     return;
   }
   const tableName = 'knowledge_base';
   try {
     log(`Attempting to create table: ${tableName}.`);
     try {
-        await db.openTable(tableName);
-        log(`Table '${tableName}' already exists. No action taken.`);
+      await db.openTable(tableName);
+      log(`Table '${tableName}' already exists. No action taken.`);
     } catch (e) {
-        log(`Table '${tableName}' does not exist. Attempting to create.`);
-        await db.createTable(tableName, knowledgeBaseSchema);
-        log(`Table '${tableName}' created successfully.`);
+      log(`Table '${tableName}' does not exist. Attempting to create.`);
+      await db.createTable(tableName, knowledgeBaseSchema);
+      log(`Table '${tableName}' created successfully.`);
     }
   } catch (error: any) {
-    log(`Error during table creation process for '${tableName}': ${error.message || error}`, 'error');
+    log(
+      `Error during table creation process for '${tableName}': ${error.message || error}`,
+      'error'
+    );
   }
 }
 
@@ -169,24 +237,32 @@ export async function createKnowledgeBaseTable(db: lancedb.Connection): Promise<
  * Creates the ResearchFindings table if it doesn't already exist.
  * @param db The LanceDB connection object.
  */
-export async function createResearchFindingsTable(db: lancedb.Connection): Promise<void> {
+export async function createResearchFindingsTable(
+  db: lancedb.Connection
+): Promise<void> {
   if (!db) {
-    log('Database connection not provided to createResearchFindingsTable.', 'error');
+    log(
+      'Database connection not provided to createResearchFindingsTable.',
+      'error'
+    );
     return;
   }
   const tableName = 'research_findings';
   try {
     log(`Attempting to create table: ${tableName}.`);
     try {
-        await db.openTable(tableName);
-        log(`Table '${tableName}' already exists. No action taken.`);
+      await db.openTable(tableName);
+      log(`Table '${tableName}' already exists. No action taken.`);
     } catch (e) {
-        log(`Table '${tableName}' does not exist. Attempting to create.`);
-        await db.createTable(tableName, researchFindingsSchema);
-        log(`Table '${tableName}' created successfully.`);
+      log(`Table '${tableName}' does not exist. Attempting to create.`);
+      await db.createTable(tableName, researchFindingsSchema);
+      log(`Table '${tableName}' created successfully.`);
     }
   } catch (error: any) {
-    log(`Error during table creation process for '${tableName}': ${error.message || error}`, 'error');
+    log(
+      `Error during table creation process for '${tableName}': ${error.message || error}`,
+      'error'
+    );
   }
 }
 
@@ -234,13 +310,22 @@ export async function addRecord(
   try {
     log(`Attempting to open table '${tableName}' for adding records.`);
     const table = await db.openTable(tableName);
-    log(`Table '${tableName}' opened. Adding ${Array.isArray(data) ? data.length : 1} record(s).`);
+    log(
+      `Table '${tableName}' opened. Adding ${Array.isArray(data) ? data.length : 1} record(s).`
+    );
     await table.add(data);
     log(`Successfully added record(s) to table '${tableName}'.`);
   } catch (error: any) {
-    log(`Error adding record(s) to table '${tableName}': ${error.message}`, 'error');
-    if (error.message && error.message.includes('does not exist')) { // Or similar error message
-      log(`Table '${tableName}' not found. Please ensure it is created before adding records.`, 'error');
+    log(
+      `Error adding record(s) to table '${tableName}': ${error.message}`,
+      'error'
+    );
+    if (error.message && error.message.includes('does not exist')) {
+      // Or similar error message
+      log(
+        `Table '${tableName}' not found. Please ensure it is created before adding records.`,
+        'error'
+      );
     }
     // console.error("Full error object:", error); // For debugging
     return Promise.reject(error); // Re-throw the error or a custom one
@@ -281,11 +366,14 @@ export async function searchTable(
   try {
     log(`Attempting to open table '${tableName}' for searching.`);
     const table = await db.openTable(tableName);
-    log(`Table '${tableName}' opened. Searching with vector column '${vectorColumnName}', limit ${limit}. Filter: '${filter || 'None'}'`);
+    log(
+      `Table '${tableName}' opened. Searching with vector column '${vectorColumnName}', limit ${limit}. Filter: '${filter || 'None'}'`
+    );
 
-    let searchQuery = table.search(queryVector, vectorColumnName) // Pass vectorColumnName to search if API supports it, else it uses default.
-                           .select(['*', '_distance']) // Select all columns and the distance
-                           .limit(limit);
+    let searchQuery = table
+      .search(queryVector, vectorColumnName) // Pass vectorColumnName to search if API supports it, else it uses default.
+      .select(['*', '_distance']) // Select all columns and the distance
+      .limit(limit);
 
     if (filter) {
       searchQuery = searchQuery.where(filter);
@@ -293,20 +381,25 @@ export async function searchTable(
     }
 
     const results = await searchQuery.execute();
-    log(`Search completed on table '${tableName}'. Found ${results.length} results.`);
+    log(
+      `Search completed on table '${tableName}'. Found ${results.length} results.`
+    );
     return results;
   } catch (error: any) {
     log(`Error searching table '${tableName}': ${error.message}`, 'error');
     if (error.message && error.message.includes('does not exist')) {
       log(`Table '${tableName}' not found. Cannot perform search.`, 'error');
-    } else if (error.message && error.message.includes('vector_column')) { // Example of a specific error
-       log(`Potential issue with vector column name '${vectorColumnName}' or its configuration in table '${tableName}'.`, 'error');
+    } else if (error.message && error.message.includes('vector_column')) {
+      // Example of a specific error
+      log(
+        `Potential issue with vector column name '${vectorColumnName}' or its configuration in table '${tableName}'.`,
+        'error'
+      );
     }
     // console.error("Full error object:", error); // For debugging
     return Promise.reject(error); // Re-throw the error or a custom one
   }
 }
-
 
 // Example usage (optional, for testing or direct invocation)
 /*
@@ -389,20 +482,34 @@ export async function updateRecord(
     return Promise.reject(new Error('Database connection not provided.'));
   }
   if (!tableName || !recordIdField || !recordIdValue) {
-    log('Table name, recordIdField, or recordIdValue not provided to updateRecord.', 'error');
-    return Promise.reject(new Error('Table name, recordIdField, or recordIdValue not provided.'));
+    log(
+      'Table name, recordIdField, or recordIdValue not provided to updateRecord.',
+      'error'
+    );
+    return Promise.reject(
+      new Error('Table name, recordIdField, or recordIdValue not provided.')
+    );
   }
   if (!updatedFields || Object.keys(updatedFields).length === 0) {
     log('No fields to update provided to updateRecord.', 'error');
     return Promise.reject(new Error('No fields to update provided.'));
   }
   if (updatedFields.hasOwnProperty(recordIdField)) {
-    log(`Cannot update the record ID field ('${recordIdField}') itself.`, 'error');
-    return Promise.reject(new Error(`Cannot update the record ID field ('${recordIdField}') itself.`));
+    log(
+      `Cannot update the record ID field ('${recordIdField}') itself.`,
+      'error'
+    );
+    return Promise.reject(
+      new Error(
+        `Cannot update the record ID field ('${recordIdField}') itself.`
+      )
+    );
   }
 
   const filter = `${recordIdField} = '${recordIdValue}'`;
-  log(`Attempting to update record(s) in table '${tableName}' where ${filter}.`);
+  log(
+    `Attempting to update record(s) in table '${tableName}' where ${filter}.`
+  );
 
   try {
     const table = await db.openTable(tableName);
@@ -423,27 +530,35 @@ export async function updateRecord(
     // 1. Fetch the records to be updated.
     const recordsToUpdate = await table.search().where(filter).execute();
     if (recordsToUpdate.length === 0) {
-      log(`No records found in table '${tableName}' matching filter '${filter}'. Nothing to update.`);
+      log(
+        `No records found in table '${tableName}' matching filter '${filter}'. Nothing to update.`
+      );
       return;
     }
-    log(`Found ${recordsToUpdate.length} record(s) to update. Performing delete and add.`);
+    log(
+      `Found ${recordsToUpdate.length} record(s) to update. Performing delete and add.`
+    );
 
     // 2. Delete the old records.
     await table.delete(filter);
     log(`Deleted ${recordsToUpdate.length} old record(s).`);
 
     // 3. Prepare new records with updated fields.
-    const newRecords = recordsToUpdate.map(record => {
+    const newRecords = recordsToUpdate.map((record) => {
       const { _distance, ...oldRecordFields } = record; // Remove _distance if present
       return { ...oldRecordFields, ...finalUpdatedFields };
     });
 
     // 4. Add the updated records.
     await table.add(newRecords);
-    log(`Added ${newRecords.length} updated record(s) to table '${tableName}'.`);
-
+    log(
+      `Added ${newRecords.length} updated record(s) to table '${tableName}'.`
+    );
   } catch (error: any) {
-    log(`Error updating record(s) in table '${tableName}': ${error.message}`, 'error');
+    log(
+      `Error updating record(s) in table '${tableName}': ${error.message}`,
+      'error'
+    );
     // console.error("Full error object:", error); // For debugging
     return Promise.reject(error);
   }
@@ -467,19 +582,31 @@ export async function deleteRecord(
     return Promise.reject(new Error('Database connection not provided.'));
   }
   if (!tableName || !recordIdField || !recordIdValue) {
-    log('Table name, recordIdField, or recordIdValue not provided to deleteRecord.', 'error');
-    return Promise.reject(new Error('Table name, recordIdField, or recordIdValue not provided.'));
+    log(
+      'Table name, recordIdField, or recordIdValue not provided to deleteRecord.',
+      'error'
+    );
+    return Promise.reject(
+      new Error('Table name, recordIdField, or recordIdValue not provided.')
+    );
   }
 
   const filter = `${recordIdField} = '${recordIdValue}'`;
-  log(`Attempting to delete record(s) from table '${tableName}' where ${filter}.`);
+  log(
+    `Attempting to delete record(s) from table '${tableName}' where ${filter}.`
+  );
 
   try {
     const table = await db.openTable(tableName);
     await table.delete(filter);
-    log(`Successfully deleted record(s) (if they existed) from table '${tableName}' where ${filter}.`);
+    log(
+      `Successfully deleted record(s) (if they existed) from table '${tableName}' where ${filter}.`
+    );
   } catch (error: any) {
-    log(`Error deleting record(s) from table '${tableName}': ${error.message}`, 'error');
+    log(
+      `Error deleting record(s) from table '${tableName}': ${error.message}`,
+      'error'
+    );
     // console.error("Full error object:", error); // For debugging
     return Promise.reject(error);
   }

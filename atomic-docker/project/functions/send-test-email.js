@@ -25,8 +25,12 @@ async function testEmail() {
       },
       locals: {}, // No locals needed without a template
     });
-    logger.info('Test email sent successfully (according to the sendEmail function).');
-    logger.info('Please check MailHog UI (usually http://localhost:8025) to verify receipt.');
+    logger.info(
+      'Test email sent successfully (according to the sendEmail function).'
+    );
+    logger.info(
+      'Please check MailHog UI (usually http://localhost:8025) to verify receipt.'
+    );
   } catch (error) {
     logger.error('Failed to send test email:', error);
     // Log specific details from the error if available
@@ -43,8 +47,10 @@ async function testEmail() {
 }
 
 // Run the test
-testEmail().then(() => {
-  logger.info('Test email script finished.');
-}).catch(e => {
-  logger.error('Unhandled error in testEmail script:', e);
-});
+testEmail()
+  .then(() => {
+    logger.info('Test email script finished.');
+  })
+  .catch((e) => {
+    logger.error('Unhandled error in testEmail script:', e);
+  });

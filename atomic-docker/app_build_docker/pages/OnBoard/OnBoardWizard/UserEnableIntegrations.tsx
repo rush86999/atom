@@ -1076,6 +1076,7 @@ function UserEnableIntegrations(props: Props) {
                     </Box>
                   {googleCalendarEnabled
                     ? (
+                    <Box>
                     {/* "View Google Calendars" button is hidden if list is already shown or will be shown automatically */}
                     { (googleCalendarEnabled && !isGoogleCalendarList && !googleToken) && // Show button only if enabled but list not yet shown (e.g. token fetch in progress)
                         <Box pt={{ phone: 'm', tablet: 's' }} justifyContent="center" alignItems="center">
@@ -1095,7 +1096,8 @@ function UserEnableIntegrations(props: Props) {
                             </Pressable>
                         </Box>
                     }
-                    { !googleCalendarEnabled && (
+                    </Box>
+                    ) : (
                         null // No button if Google Calendar is not enabled
                     )}
                 </Box>

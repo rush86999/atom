@@ -1,32 +1,27 @@
-
 const User = {
-  "title": "User schema",
-  "version": 0,
-  "description": "describes a User",
-  "primaryKey": "id",
-  "type": "object",
-  "properties": {
-    "id": {
-        "type": "string"
+  title: 'User schema',
+  version: 0,
+  description: 'describes a User',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: {
+      type: 'string',
     },
-    "email": {
-      "type": "string"
+    email: {
+      type: 'string',
     },
-    "name": {
-      "type": ["string", "null"]
+    name: {
+      type: ['string', 'null'],
     },
-    "updatedAt": {
-      "type": "string"
+    updatedAt: {
+      type: 'string',
     },
-    "createdDate": {
-      "type": "string"
-    }
+    createdDate: {
+      type: 'string',
+    },
   },
-  "required": [
-    "id",
-    "updatedAt",
-    "createdDate"
-  ]
-}
+  required: ['id', 'updatedAt', 'createdDate'],
+};
 
-export default User
+export default User;

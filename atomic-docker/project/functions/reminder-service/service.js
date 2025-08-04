@@ -1,0 +1,90 @@
+import { createAdminGraphQLClient } from '../_utils/dbService';
+import { RRule } from 'rrule';
+const INSERT_REMINDER_MUTATION = `
+mutation InsertEmailReminder($userId: uuid!, $emailId: String!, $service: String!, $remindAt: timestamptz!, $recurrenceRule: String) {
+  insert_email_reminders_one(object: {user_id: $userId, email_id: $emailId, service: $service, remind_at: $remindAt, recurrence_rule: $recurrenceRule}) {
+    id
+  }
+}
+`;
+const UPDATE_REMINDER_MUTATION = `
+mutation UpdateEmailReminder($id: uuid!, $remindAt: timestamptz!) {
+  update_email_reminders_by_pk(pk_columns: {id: $id}, _set: {remind_at: $remindAt}) {
+    id
+  }
+}
+`;
+const GET_DUE_REMINDERS_QUERY = `
+query GetDueReminders($now: timestamptz!) {
+  email_reminders(where: {remind_at: {_lte: $now}}) {
+    id
+    user_id
+    email_id
+    service
+    recurrence_rule
+  }
+}
+`;
+const DELETE_REMINDER_MUTATION = `
+mutation DeleteEmailReminder($id: uuid!) {
+  delete_email_reminders_by_pk(id: $id) {
+    id
+  }
+}
+`;
+export async function createEmailReminder(userId, emailId, service, remindAt, recurrenceRule) {
+    const adminGraphQLClient = createAdminGraphQLClient();
+    const response = await adminGraphQLClient.request(INSERT_REMINDER_MUTATION, {
+        userId,
+        emailId,
+        service,
+        remindAt: remindAt.toISOString(),
+        recurrenceRule,
+    });
+    return response.insert_email_reminders_one;
+}
+export async function getDueReminders() {
+    const adminGraphQLClient = createAdminGraphQLClient();
+    const response = await adminGraphQLClient.request(GET_DUE_REMINDERS_QUERY, {
+        now: new Date().toISOString(),
+    });
+    return response.email_reminders;
+}
+export async function deleteReminder(id) {
+    const adminGraphQLClient = createAdminGraphQLClient();
+    const response = await adminGraphQLClient.request(DELETE_REMINDER_MUTATION, {
+        id,
+    });
+    return response.delete_email_reminders_by_pk;
+}
+export async function updateReminder(id, remindAt) {
+    const adminGraphQLClient = createAdminGraphQLClient();
+    const response = await adminGraphQLClient.request(UPDATE_REMINDER_MUTATION, {
+        id,
+        remindAt: remindAt.toISOString(),
+    });
+    return response.update_email_reminders_by_pk;
+}
+// This function would be called by a cron job or a scheduler
+export async function processDueReminders() {
+    const dueReminders = await getDueReminders();
+    for (const reminder of dueReminders) {
+        // Send a notification to the user. This could be an email, a push notification, or a Slack message.
+        console.log(`Sending reminder for email ${reminder.email_id} to user ${reminder.user_id}`);
+        if (reminder.recurrence_rule) {
+            const rule = RRule.fromString(reminder.recurrence_rule);
+            const nextDate = rule.after(new Date());
+            if (nextDate) {
+                await updateReminder(reminder.id, nextDate);
+            }
+            else {
+                await deleteReminder(reminder.id);
+            }
+        }
+        else {
+            // After sending the notification, delete the reminder
+            await deleteReminder(reminder.id);
+        }
+    }
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoic2VydmljZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbInNlcnZpY2UudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsT0FBTyxFQUFFLHdCQUF3QixFQUFFLE1BQU0scUJBQXFCLENBQUM7QUFDL0QsT0FBTyxFQUFFLEtBQUssRUFBRSxNQUFNLE9BQU8sQ0FBQztBQUU5QixNQUFNLHdCQUF3QixHQUFHOzs7Ozs7Q0FNaEMsQ0FBQztBQUVGLE1BQU0sd0JBQXdCLEdBQUc7Ozs7OztDQU1oQyxDQUFDO0FBRUYsTUFBTSx1QkFBdUIsR0FBRzs7Ozs7Ozs7OztDQVUvQixDQUFDO0FBRUYsTUFBTSx3QkFBd0IsR0FBRzs7Ozs7O0NBTWhDLENBQUM7QUFFRixNQUFNLENBQUMsS0FBSyxVQUFVLG1CQUFtQixDQUN2QyxNQUFjLEVBQ2QsT0FBZSxFQUNmLE9BQTRCLEVBQzVCLFFBQWMsRUFDZCxjQUF1QjtJQUV2QixNQUFNLGtCQUFrQixHQUFHLHdCQUF3QixFQUFFLENBQUM7SUFDdEQsTUFBTSxRQUFRLEdBQUcsTUFBTSxrQkFBa0IsQ0FBQyxPQUFPLENBQUMsd0JBQXdCLEVBQUU7UUFDMUUsTUFBTTtRQUNOLE9BQU87UUFDUCxPQUFPO1FBQ1AsUUFBUSxFQUFFLFFBQVEsQ0FBQyxXQUFXLEVBQUU7UUFDaEMsY0FBYztLQUNmLENBQUMsQ0FBQztJQUNILE9BQU8sUUFBUSxDQUFDLDBCQUEwQixDQUFDO0FBQzdDLENBQUM7QUFFRCxNQUFNLENBQUMsS0FBSyxVQUFVLGVBQWU7SUFDbkMsTUFBTSxrQkFBa0IsR0FBRyx3QkFBd0IsRUFBRSxDQUFDO0lBQ3RELE1BQU0sUUFBUSxHQUFHLE1BQU0sa0JBQWtCLENBQUMsT0FBTyxDQUFDLHVCQUF1QixFQUFFO1FBQ3pFLEdBQUcsRUFBRSxJQUFJLElBQUksRUFBRSxDQUFDLFdBQVcsRUFBRTtLQUM5QixDQUFDLENBQUM7SUFDSCxPQUFPLFFBQVEsQ0FBQyxlQUFlLENBQUM7QUFDbEMsQ0FBQztBQUVELE1BQU0sQ0FBQyxLQUFLLFVBQVUsY0FBYyxDQUFDLEVBQVU7SUFDN0MsTUFBTSxrQkFBa0IsR0FBRyx3QkFBd0IsRUFBRSxDQUFDO0lBQ3RELE1BQU0sUUFBUSxHQUFHLE1BQU0sa0JBQWtCLENBQUMsT0FBTyxDQUFDLHdCQUF3QixFQUFFO1FBQzFFLEVBQUU7S0FDSCxDQUFDLENBQUM7SUFDSCxPQUFPLFFBQVEsQ0FBQyw0QkFBNEIsQ0FBQztBQUMvQyxDQUFDO0FBRUQsTUFBTSxDQUFDLEtBQUssVUFBVSxjQUFjLENBQUMsRUFBVSxFQUFFLFFBQWM7SUFDN0QsTUFBTSxrQkFBa0IsR0FBRyx3QkFBd0IsRUFBRSxDQUFDO0lBQ3RELE1BQU0sUUFBUSxHQUFHLE1BQU0sa0JBQWtCLENBQUMsT0FBTyxDQUFDLHdCQUF3QixFQUFFO1FBQzFFLEVBQUU7UUFDRixRQUFRLEVBQUUsUUFBUSxDQUFDLFdBQVcsRUFBRTtLQUNqQyxDQUFDLENBQUM7SUFDSCxPQUFPLFFBQVEsQ0FBQyw0QkFBNEIsQ0FBQztBQUMvQyxDQUFDO0FBRUQsNkRBQTZEO0FBQzdELE1BQU0sQ0FBQyxLQUFLLFVBQVUsbUJBQW1CO0lBQ3ZDLE1BQU0sWUFBWSxHQUFHLE1BQU0sZUFBZSxFQUFFLENBQUM7SUFDN0MsS0FBSyxNQUFNLFFBQVEsSUFBSSxZQUFZLEVBQUUsQ0FBQztRQUNwQyxvR0FBb0c7UUFDcEcsT0FBTyxDQUFDLEdBQUcsQ0FDVCw4QkFBOEIsUUFBUSxDQUFDLFFBQVEsWUFBWSxRQUFRLENBQUMsT0FBTyxFQUFFLENBQzlFLENBQUM7UUFFRixJQUFJLFFBQVEsQ0FBQyxlQUFlLEVBQUUsQ0FBQztZQUM3QixNQUFNLElBQUksR0FBRyxLQUFLLENBQUMsVUFBVSxDQUFDLFFBQVEsQ0FBQyxlQUFlLENBQUMsQ0FBQztZQUN4RCxNQUFNLFFBQVEsR0FBRyxJQUFJLENBQUMsS0FBSyxDQUFDLElBQUksSUFBSSxFQUFFLENBQUMsQ0FBQztZQUN4QyxJQUFJLFFBQVEsRUFBRSxDQUFDO2dCQUNiLE1BQU0sY0FBYyxDQUFDLFFBQVEsQ0FBQyxFQUFFLEVBQUUsUUFBUSxDQUFDLENBQUM7WUFDOUMsQ0FBQztpQkFBTSxDQUFDO2dCQUNOLE1BQU0sY0FBYyxDQUFDLFFBQVEsQ0FBQyxFQUFFLENBQUMsQ0FBQztZQUNwQyxDQUFDO1FBQ0gsQ0FBQzthQUFNLENBQUM7WUFDTixzREFBc0Q7WUFDdEQsTUFBTSxjQUFjLENBQUMsUUFBUSxDQUFDLEVBQUUsQ0FBQyxDQUFDO1FBQ3BDLENBQUM7SUFDSCxDQUFDO0FBQ0gsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IGNyZWF0ZUFkbWluR3JhcGhRTENsaWVudCB9IGZyb20gJy4uL191dGlscy9kYlNlcnZpY2UnO1xuaW1wb3J0IHsgUlJ1bGUgfSBmcm9tICdycnVsZSc7XG5cbmNvbnN0IElOU0VSVF9SRU1JTkRFUl9NVVRBVElPTiA9IGBcbm11dGF0aW9uIEluc2VydEVtYWlsUmVtaW5kZXIoJHVzZXJJZDogdXVpZCEsICRlbWFpbElkOiBTdHJpbmchLCAkc2VydmljZTogU3RyaW5nISwgJHJlbWluZEF0OiB0aW1lc3RhbXB0eiEsICRyZWN1cnJlbmNlUnVsZTogU3RyaW5nKSB7XG4gIGluc2VydF9lbWFpbF9yZW1pbmRlcnNfb25lKG9iamVjdDoge3VzZXJfaWQ6ICR1c2VySWQsIGVtYWlsX2lkOiAkZW1haWxJZCwgc2VydmljZTogJHNlcnZpY2UsIHJlbWluZF9hdDogJHJlbWluZEF0LCByZWN1cnJlbmNlX3J1bGU6ICRyZWN1cnJlbmNlUnVsZX0pIHtcbiAgICBpZFxuICB9XG59XG5gO1xuXG5jb25zdCBVUERBVEVfUkVNSU5ERVJfTVVUQVRJT04gPSBgXG5tdXRhdGlvbiBVcGRhdGVFbWFpbFJlbWluZGVyKCRpZDogdXVpZCEsICRyZW1pbmRBdDogdGltZXN0YW1wdHohKSB7XG4gIHVwZGF0ZV9lbWFpbF9yZW1pbmRlcnNfYnlfcGsocGtfY29sdW1uczoge2lkOiAkaWR9LCBfc2V0OiB7cmVtaW5kX2F0OiAkcmVtaW5kQXR9KSB7XG4gICAgaWRcbiAgfVxufVxuYDtcblxuY29uc3QgR0VUX0RVRV9SRU1JTkRFUlNfUVVFUlkgPSBgXG5xdWVyeSBHZXREdWVSZW1pbmRlcnMoJG5vdzogdGltZXN0YW1wdHohKSB7XG4gIGVtYWlsX3JlbWluZGVycyh3aGVyZToge3JlbWluZF9hdDoge19sdGU6ICRub3d9fSkge1xuICAgIGlkXG4gICAgdXNlcl9pZFxuICAgIGVtYWlsX2lkXG4gICAgc2VydmljZVxuICAgIHJlY3VycmVuY2VfcnVsZVxuICB9XG59XG5gO1xuXG5jb25zdCBERUxFVEVfUkVNSU5ERVJfTVVUQVRJT04gPSBgXG5tdXRhdGlvbiBEZWxldGVFbWFpbFJlbWluZGVyKCRpZDogdXVpZCEpIHtcbiAgZGVsZXRlX2VtYWlsX3JlbWluZGVyc19ieV9wayhpZDogJGlkKSB7XG4gICAgaWRcbiAgfVxufVxuYDtcblxuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIGNyZWF0ZUVtYWlsUmVtaW5kZXIoXG4gIHVzZXJJZDogc3RyaW5nLFxuICBlbWFpbElkOiBzdHJpbmcsXG4gIHNlcnZpY2U6ICdnbWFpbCcgfCAnb3V0bG9vaycsXG4gIHJlbWluZEF0OiBEYXRlLFxuICByZWN1cnJlbmNlUnVsZT86IHN0cmluZ1xuKSB7XG4gIGNvbnN0IGFkbWluR3JhcGhRTENsaWVudCA9IGNyZWF0ZUFkbWluR3JhcGhRTENsaWVudCgpO1xuICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGFkbWluR3JhcGhRTENsaWVudC5yZXF1ZXN0KElOU0VSVF9SRU1JTkRFUl9NVVRBVElPTiwge1xuICAgIHVzZXJJZCxcbiAgICBlbWFpbElkLFxuICAgIHNlcnZpY2UsXG4gICAgcmVtaW5kQXQ6IHJlbWluZEF0LnRvSVNPU3RyaW5nKCksXG4gICAgcmVjdXJyZW5jZVJ1bGUsXG4gIH0pO1xuICByZXR1cm4gcmVzcG9uc2UuaW5zZXJ0X2VtYWlsX3JlbWluZGVyc19vbmU7XG59XG5cbmV4cG9ydCBhc3luYyBmdW5jdGlvbiBnZXREdWVSZW1pbmRlcnMoKSB7XG4gIGNvbnN0IGFkbWluR3JhcGhRTENsaWVudCA9IGNyZWF0ZUFkbWluR3JhcGhRTENsaWVudCgpO1xuICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGFkbWluR3JhcGhRTENsaWVudC5yZXF1ZXN0KEdFVF9EVUVfUkVNSU5ERVJTX1FVRVJZLCB7XG4gICAgbm93OiBuZXcgRGF0ZSgpLnRvSVNPU3RyaW5nKCksXG4gIH0pO1xuICByZXR1cm4gcmVzcG9uc2UuZW1haWxfcmVtaW5kZXJzO1xufVxuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gZGVsZXRlUmVtaW5kZXIoaWQ6IHN0cmluZykge1xuICBjb25zdCBhZG1pbkdyYXBoUUxDbGllbnQgPSBjcmVhdGVBZG1pbkdyYXBoUUxDbGllbnQoKTtcbiAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBhZG1pbkdyYXBoUUxDbGllbnQucmVxdWVzdChERUxFVEVfUkVNSU5ERVJfTVVUQVRJT04sIHtcbiAgICBpZCxcbiAgfSk7XG4gIHJldHVybiByZXNwb25zZS5kZWxldGVfZW1haWxfcmVtaW5kZXJzX2J5X3BrO1xufVxuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gdXBkYXRlUmVtaW5kZXIoaWQ6IHN0cmluZywgcmVtaW5kQXQ6IERhdGUpIHtcbiAgY29uc3QgYWRtaW5HcmFwaFFMQ2xpZW50ID0gY3JlYXRlQWRtaW5HcmFwaFFMQ2xpZW50KCk7XG4gIGNvbnN0IHJlc3BvbnNlID0gYXdhaXQgYWRtaW5HcmFwaFFMQ2xpZW50LnJlcXVlc3QoVVBEQVRFX1JFTUlOREVSX01VVEFUSU9OLCB7XG4gICAgaWQsXG4gICAgcmVtaW5kQXQ6IHJlbWluZEF0LnRvSVNPU3RyaW5nKCksXG4gIH0pO1xuICByZXR1cm4gcmVzcG9uc2UudXBkYXRlX2VtYWlsX3JlbWluZGVyc19ieV9waztcbn1cblxuLy8gVGhpcyBmdW5jdGlvbiB3b3VsZCBiZSBjYWxsZWQgYnkgYSBjcm9uIGpvYiBvciBhIHNjaGVkdWxlclxuZXhwb3J0IGFzeW5jIGZ1bmN0aW9uIHByb2Nlc3NEdWVSZW1pbmRlcnMoKSB7XG4gIGNvbnN0IGR1ZVJlbWluZGVycyA9IGF3YWl0IGdldER1ZVJlbWluZGVycygpO1xuICBmb3IgKGNvbnN0IHJlbWluZGVyIG9mIGR1ZVJlbWluZGVycykge1xuICAgIC8vIFNlbmQgYSBub3RpZmljYXRpb24gdG8gdGhlIHVzZXIuIFRoaXMgY291bGQgYmUgYW4gZW1haWwsIGEgcHVzaCBub3RpZmljYXRpb24sIG9yIGEgU2xhY2sgbWVzc2FnZS5cbiAgICBjb25zb2xlLmxvZyhcbiAgICAgIGBTZW5kaW5nIHJlbWluZGVyIGZvciBlbWFpbCAke3JlbWluZGVyLmVtYWlsX2lkfSB0byB1c2VyICR7cmVtaW5kZXIudXNlcl9pZH1gXG4gICAgKTtcblxuICAgIGlmIChyZW1pbmRlci5yZWN1cnJlbmNlX3J1bGUpIHtcbiAgICAgIGNvbnN0IHJ1bGUgPSBSUnVsZS5mcm9tU3RyaW5nKHJlbWluZGVyLnJlY3VycmVuY2VfcnVsZSk7XG4gICAgICBjb25zdCBuZXh0RGF0ZSA9IHJ1bGUuYWZ0ZXIobmV3IERhdGUoKSk7XG4gICAgICBpZiAobmV4dERhdGUpIHtcbiAgICAgICAgYXdhaXQgdXBkYXRlUmVtaW5kZXIocmVtaW5kZXIuaWQsIG5leHREYXRlKTtcbiAgICAgIH0gZWxzZSB7XG4gICAgICAgIGF3YWl0IGRlbGV0ZVJlbWluZGVyKHJlbWluZGVyLmlkKTtcbiAgICAgIH1cbiAgICB9IGVsc2Uge1xuICAgICAgLy8gQWZ0ZXIgc2VuZGluZyB0aGUgbm90aWZpY2F0aW9uLCBkZWxldGUgdGhlIHJlbWluZGVyXG4gICAgICBhd2FpdCBkZWxldGVSZW1pbmRlcihyZW1pbmRlci5pZCk7XG4gICAgfVxuICB9XG59XG4iXX0=

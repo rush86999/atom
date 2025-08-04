@@ -1,5 +1,3 @@
-
-
 export default `
     mutation DeletePreferredTimeRangesWithIds($ids: [uuid!]!) {
         delete_PreferredTimeRange(where: {id: {_in: $ids}}) {
@@ -16,4 +14,4 @@ export default `
             }
         }
     }
-`
+`;

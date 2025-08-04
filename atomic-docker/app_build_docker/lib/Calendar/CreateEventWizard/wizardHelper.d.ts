@@ -1,0 +1,20 @@
+import { Dispatch, SetStateAction } from 'react';
+import { Person, email } from '@lib/Calendar/types';
+import { SelectedContactType } from '@pages/Calendar/CreateEventWizard/CreateEventAttendees';
+import { CategoryType } from '@lib/dataTypes/CategoryType';
+import { OptionType } from '../../../pages/Calendar/CreateEventWizard/CreateEventAddCategories';
+export declare const removeAttendeeFromAttendees: (a: Person[], setA: Dispatch<SetStateAction<Person[]>>, index: number, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const addAttendeeToAttendees: (a: Person[], p: Person, setA: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const addContactToAttendees: (c: SelectedContactType, attendees: Person[], setA: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const addEntryToManualEntries: (a: Person[], p: Person, setA: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const removeEntryFromManualEntries: (manualEntries: Person[], setManualEntries: Dispatch<SetStateAction<Person[]>>, attendees: Person[], setAttendees: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>, index: number, parentIndex: number) => void;
+export declare const removeContactFromAttendee: (c: SelectedContactType, attendees: Person[], setAttendees: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const updateContactSelection: (value: boolean, selectedCo: SelectedContactType, a: SelectedContactType[], setA: Dispatch<SetStateAction<SelectedContactType[]>>, index: number) => void;
+export declare const addSelectedContactsToAttendees: (cc: SelectedContactType[], setCC: Dispatch<SetStateAction<SelectedContactType[]>>, at: Person[], setAt: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const addOneToManualEntries: (me: Person[], setMe: Dispatch<SetStateAction<Person[]>>, attendees: Person[], setAttendees: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>) => void;
+export declare const updateEntryInManualEntries: (me: Person[], setMe: Dispatch<SetStateAction<Person[]>>, index: number, attendees: Person[], setAttendees: Dispatch<SetStateAction<Person[]>>, setParentA: Dispatch<SetStateAction<Person[]>>, parentIndex: number, emails?: email[], displayName?: string, additionalGuests?: number) => void;
+export declare const addItemToCategories: (setTag: Dispatch<SetStateAction<OptionType>>, item: CategoryType, setItem: Dispatch<SetStateAction<CategoryType>>, categories: CategoryType[] | undefined, setCategories: Dispatch<SetStateAction<CategoryType[]>>, setParentCategories: Dispatch<SetStateAction<CategoryType[]>>) => void;
+export declare const removeItemFromCategories: (categories: CategoryType[], setCategories: Dispatch<SetStateAction<CategoryType[]>>, setParentCategories: Dispatch<SetStateAction<CategoryType[]>>, index: number) => void;
+export declare const addItemToAlarms: (item: number, alarms: number[], setAlarms: Dispatch<SetStateAction<number[]>>, setParentAlarms: Dispatch<SetStateAction<number[]>>, setAlarm: Dispatch<SetStateAction<number>>) => void;
+export declare const removeItemFromAlarms: (index: number, alarms: number[], setAlarms: Dispatch<SetStateAction<number[]>>, setParentAlarms: Dispatch<SetStateAction<number[]>>) => void;
+/** end */

@@ -1,4 +1,3 @@
-
 export default `
 query listAttendeesByIds($ids: [String!]!) {
   Attendee(where: {id: {_in: $ids}}) {
@@ -20,4 +19,4 @@ query listAttendeesByIds($ids: [String!]!) {
     userId
   }
 }
-`
+`;

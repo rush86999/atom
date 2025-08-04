@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.AppContext = void 0;
+exports.useAppContext = useAppContext;
+const uuid_1 = require("uuid");
+const react_1 = require("react");
+const placeholder = (0, uuid_1.v4)();
+const client = null;
+// let globalSub = 'null'
+// let globalUserId1 = 'null'
+exports.AppContext = (0, react_1.createContext)({
+    sub: placeholder,
+    client,
+});
+function useAppContext() {
+    return (0, react_1.useContext)(exports.AppContext);
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidXNlci1jb250ZXh0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsidXNlci1jb250ZXh0LnRzeCJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFtQkEsc0NBRUM7QUFyQkQsK0JBQWlDO0FBQ2pDLGlDQUFrRDtBQUlsRCxNQUFNLFdBQVcsR0FBRyxJQUFBLFNBQUksR0FBRSxDQUFBO0FBRTFCLE1BQU0sTUFBTSxHQUErQyxJQUFJLENBQUE7QUFDL0QseUJBQXlCO0FBQ3pCLDZCQUE2QjtBQUVoQixRQUFBLFVBQVUsR0FBRyxJQUFBLHFCQUFhLEVBQUM7SUFDcEMsR0FBRyxFQUFFLFdBQVc7SUFDaEIsTUFBTTtDQUVULENBQUMsQ0FBQztBQUlILFNBQWdCLGFBQWE7SUFDekIsT0FBTyxJQUFBLGtCQUFVLEVBQUMsa0JBQVUsQ0FBQyxDQUFDO0FBQ2xDLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB2NCBhcyB1dWlkIH0gZnJvbSAndXVpZCdcbmltcG9ydCB7IGNyZWF0ZUNvbnRleHQsIHVzZUNvbnRleHQgfSBmcm9tICdyZWFjdCc7XG5cbmltcG9ydCB7IEFwb2xsb0NsaWVudCwgTm9ybWFsaXplZENhY2hlT2JqZWN0IH0gZnJvbSAnQGFwb2xsby9jbGllbnQnXG5cbmNvbnN0IHBsYWNlaG9sZGVyID0gdXVpZCgpXG5cbmNvbnN0IGNsaWVudDogQXBvbGxvQ2xpZW50PE5vcm1hbGl6ZWRDYWNoZU9iamVjdD4gfCBudWxsID0gbnVsbFxuLy8gbGV0IGdsb2JhbFN1YiA9ICdudWxsJ1xuLy8gbGV0IGdsb2JhbFVzZXJJZDEgPSAnbnVsbCdcblxuZXhwb3J0IGNvbnN0IEFwcENvbnRleHQgPSBjcmVhdGVDb250ZXh0KHtcbiAgICBzdWI6IHBsYWNlaG9sZGVyLFxuICAgIGNsaWVudCxcblxufSk7XG5cblxuXG5leHBvcnQgZnVuY3Rpb24gdXNlQXBwQ29udGV4dCgpIHtcbiAgICByZXR1cm4gdXNlQ29udGV4dChBcHBDb250ZXh0KTtcbn0iXX0=

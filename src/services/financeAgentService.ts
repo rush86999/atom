@@ -6,38 +6,44 @@ import { ChatCompletionTool } from 'openai/resources/chat/completions';
 const NetWorthParamsSchema = z.object({
   userId: z.string(),
   includeHistory: z.boolean().optional().default(false),
-  dateRange: z.object({
-    start: z.string().optional(),
-    end: z.string().optional()
-  }).optional()
+  dateRange: z
+    .object({
+      start: z.string().optional(),
+      end: z.string().optional(),
+    })
+    .optional(),
 });
 
 const BudgetQueryParamsSchema = z.object({
   userId: z.string(),
   period: z.enum(['current', 'last', 'future']).optional().default('current'),
   categories: z.array(z.string()).optional(),
-  month: z.string().optional()
+  month: z.string().optional(),
 });
 
 const TransactionSearchParamsSchema = z.object({
   userId: z.string(),
   query: z.string().optional(),
   category: z.string().optional(),
-  amountRange: z.object({
-    min: z.number().optional(),
-    max: z.number().optional()
-  }).optional(),
+  amountRange: z
+    .object({
+      min: z.number().optional(),
+      max: z.number().optional(),
+    })
+    .optional(),
   dateRange: z.object({
     start: z.string(),
-    end: z.string()
+    end: z.string(),
   }),
-  limit: z.number().optional().default(50)
+  limit: z.number().optional().default(50),
 });
 
 const GoalParamsSchema = z.object({
   userId: z.string(),
   goalId: z.string().optional(),
-  goalType: z.enum(['savings', 'retirement', 'debt', 'purchase', 'emergency']).optional()
+  goalType: z
+    .enum(['savings', 'retirement', 'debt', 'purchase', 'emergency'])
+    .optional(),
 });
 
 // Types
@@ -47,7 +53,7 @@ export type NetWorthSummary = {
   changePercent: number;
   assets: number;
   liabilities: number;
-  history?: Array<{date: string; netWorth: number}>;
+  history?: Array<{ date: string; netWorth: number }>;
 };
 
 export type BudgetSummary = {
@@ -65,7 +71,7 @@ export type BudgetSummary = {
 
 export type SpendingInsight = {
   totalSpent: number;
-  categories: Array<{category: string; amount: number; percentage: number}>;
+  categories: Array<{ category: string; amount: number; percentage: number }>;
   trends: {
     thisMonth: number;
     lastMonth: number;
@@ -94,18 +100,21 @@ export const financeTools: ChatCompletionTool[] = [
         type: 'object',
         properties: {
           userId: { type: 'string', description: 'User identifier' },
-          includeHistory: { type: 'boolean', description: 'Include historical net worth data' },
+          includeHistory: {
+            type: 'boolean',
+            description: 'Include historical net worth data',
+          },
           dateRange: {
             type: 'object',
             properties: {
               start: { type: 'string', format: 'date' },
-              end: { type: 'string', format: 'date' }
-            }
-          }
+              end: { type: 'string', format: 'date' },
+            },
+          },
         },
-        required: ['userId']
-      }
-    }
+        required: ['userId'],
+      },
+    },
   },
   {
     type: 'function',
@@ -116,13 +125,17 @@ export const financeTools: ChatCompletionTool[] = [
         type: 'object',
         properties: {
           userId: { type: 'string', description: 'User identifier' },
-          period: { type: 'string', enum: ['current', 'last', 'future'], default: 'current' },
+          period: {
+            type: 'string',
+            enum: ['current', 'last', 'future'],
+            default: 'current',
+          },
           month: { type: 'string', format: 'date' },
-          categories: { type: 'array', items: { type: 'string' } }
+          categories: { type: 'array', items: { type: 'string' } },
         },
-        required: ['userId']
-      }
-    }
+        required: ['userId'],
+      },
+    },
   },
   {
     type: 'function',
@@ -133,28 +146,31 @@ export const financeTools: ChatCompletionTool[] = [
         type: 'object',
         properties: {
           userId: { type: 'string', description: 'User identifier' },
-          query: { type: 'string', description: 'Search query for descriptions' },
+          query: {
+            type: 'string',
+            description: 'Search query for descriptions',
+          },
           category: { type: 'string', description: 'Filter by category' },
           amountRange: {
             type: 'object',
             properties: {
               min: { type: 'number' },
-              max: { type: 'number' }
-            }
+              max: { type: 'number' },
+            },
           },
           dateRange: {
             type: 'object',
             properties: {
               start: { type: 'string', format: 'date', required: true },
-              end: { type: 'string', format: 'date', required: true }
+              end: { type: 'string', format: 'date', required: true },
             },
-            required: ['start', 'end']
+            required: ['start', 'end'],
           },
-          limit: { type: 'number', default: 50 }
+          limit: { type: 'number', default: 50 },
         },
-        required: ['userId', 'dateRange']
-      }
-    }
+        required: ['userId', 'dateRange'],
+      },
+    },
   },
   {
     type: 'function',
@@ -165,12 +181,19 @@ export const financeTools: ChatCompletionTool[] = [
         type: 'object',
         properties: {
           userId: { type: 'string', description: 'User identifier' },
-          category: { type: 'string', description: 'Focus on specific category' },
-          period: { type: 'string', enum: ['current', 'last', 'quarter', 'year'], default: 'current' }
+          category: {
+            type: 'string',
+            description: 'Focus on specific category',
+          },
+          period: {
+            type: 'string',
+            enum: ['current', 'last', 'quarter', 'year'],
+            default: 'current',
+          },
         },
-        required: ['userId']
-      }
-    }
+        required: ['userId'],
+      },
+    },
   },
   {
     type: 'function',
@@ -181,11 +204,14 @@ export const financeTools: ChatCompletionTool[] = [
         type: 'object',
         properties: {
           userId: { type: 'string', description: 'User identifier' },
-          includeHistory: { type: 'boolean', description: 'Include historical performance' }
+          includeHistory: {
+            type: 'boolean',
+            description: 'Include historical performance',
+          },
         },
-        required: ['userId']
-      }
-    }
+        required: ['userId'],
+      },
+    },
   },
   {
     type: 'function',
@@ -197,11 +223,14 @@ export const financeTools: ChatCompletionTool[] = [
         properties: {
           userId: { type: 'string', description: 'User identifier' },
           goalId: { type: 'string', description: 'Specific goal ID' },
-          goalType: { type: 'string', enum: ['savings', 'retirement', 'debt', 'purchase', 'emergency'] }
+          goalType: {
+            type: 'string',
+            enum: ['savings', 'retirement', 'debt', 'purchase', 'emergency'],
+          },
         },
-        required: ['userId']
-      }
-    }
+        required: ['userId'],
+      },
+    },
   },
   {
     type: 'function',
@@ -214,11 +243,11 @@ export const financeTools: ChatCompletionTool[] = [
           userId: { type: 'string', description: 'User identifier' },
           category: { type: 'string', description: 'Budget category name' },
           amount: { type: 'number', description: 'Monthly budget amount' },
-          description: { type: 'string' }
+          description: { type: 'string' },
         },
-        required: ['userId', 'category', 'amount']
-      }
-    }
+        required: ['userId', 'category', 'amount'],
+      },
+    },
   },
   {
     type: 'function',
@@ -230,16 +259,30 @@ export const financeTools: ChatCompletionTool[] = [
         properties: {
           userId: { type: 'string', description: 'User identifier' },
           name: { type: 'string', description: 'Goal name' },
-          targetAmount: { type: 'number', description: 'Target amount to save' },
-          currentAmount: { type: 'number', default: 0, description: 'Current progress' },
-          targetDate: { type: 'string', format: 'date', description: 'Target completion date' },
-          goalType: { type: 'string', enum: ['savings', 'retirement', 'debt', 'purchase', 'emergency'] },
-          description: { type: 'string' }
+          targetAmount: {
+            type: 'number',
+            description: 'Target amount to save',
+          },
+          currentAmount: {
+            type: 'number',
+            default: 0,
+            description: 'Current progress',
+          },
+          targetDate: {
+            type: 'string',
+            format: 'date',
+            description: 'Target completion date',
+          },
+          goalType: {
+            type: 'string',
+            enum: ['savings', 'retirement', 'debt', 'purchase', 'emergency'],
+          },
+          description: { type: 'string' },
         },
-        required: ['userId', 'name', 'targetAmount', 'goalType']
-      }
-    }
-  }
+        required: ['userId', 'name', 'targetAmount', 'goalType'],
+      },
+    },
+  },
 ];
 
 export class FinanceAgentService {
@@ -251,11 +294,16 @@ export class FinanceAgentService {
     this.apiBaseUrl = apiBaseUrl;
   }
 
-  async getNetWorthSummary(params: z.infer<typeof NetWorthParamsSchema>): Promise<string> {
+  async getNetWorthSummary(
+    params: z.infer<typeof NetWorthParamsSchema>
+  ): Promise<string> {
     try {
-      const validated = NetWorthParamsSchema.parse({ ...params, userId: this.userId });
+      const validated = NetWorthParamsSchema.parse({
+        ...params,
+        userId: this.userId,
+      });
       const response = await axios.get(`${this.apiBaseUrl}/net-worth/summary`, {
-        params: validated
+        params: validated,
       });
 
       const data = response.data as NetWorthSummary;
@@ -264,7 +312,8 @@ export class FinanceAgentService {
 
       if (data.change >= 0) {
         responseText += `, up **$${Math.abs(data.change).toLocaleString()} (${data.changePercent.toFixed(1)}%)** from the last period.`;
-n      } else {
+        n;
+      } else {
         responseText += `, down **$${Math.abs(data.change).toLocaleString()} (${Math.abs(data.changePercent).toFixed(1)}%)** from the last period.`;
       }
 
@@ -272,7 +321,7 @@ n      } else {
 
       if (data.history && data.history.length > 1) {
         responseText += `\n\n📈 Recent trend:`;
-        data.history.slice(-3).forEach(snapshot => {
+        data.history.slice(-3).forEach((snapshot) => {
           responseText += `\n${new Date(snapshot.date).toLocaleDateString()}: $${snapshot.netWorth.toLocaleString()}`;
         });
       }
@@ -284,11 +333,16 @@ n      } else {
     }
   }
 
-  async getBudgetSummary(params: z.infer<typeof BudgetQueryParamsSchema>): Promise<string> {
+  async getBudgetSummary(
+    params: z.infer<typeof BudgetQueryParamsSchema>
+  ): Promise<string> {
     try {
-      const validated = BudgetQueryParamsSchema.parse({ ...params, userId: this.userId });
+      const validated = BudgetQueryParamsSchema.parse({
+        ...params,
+        userId: this.userId,
+      });
       const response = await axios.get(`${this.apiBaseUrl}/budgets/summary`, {
-        params: validated
+        params: validated,
       });
 
       const data = response.data as BudgetSummary;
@@ -297,12 +351,17 @@ n      } else {
         return "You haven't set up any budgets yet. Would you like me to help you create one?";
       }
 
-      let responseText = `💰 Budget Overview${validated.month ? ` for ${new Date(validated.month).toLocaleDateString('en-US', {month: 'long', year: 'numeric'})}` : ''}:\n`;
+      let responseText = `💰 Budget Overview${validated.month ? ` for ${new Date(validated.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` : ''}:\n`;
       responseText += `Total Budget: **$${data.totalBudget.toLocaleString()}** | Spent: **$${data.spent.toLocaleString()}** | Remaining: **$${data.remaining.toLocaleString()}**`;
 
       // Add category breakdowns
       data.categories.slice(0, 5).forEach((category) => {
-        const emoji = category.utilization >= 100 ? '⚠️' : category.utilization >= 80 ? '🟡' : '✅';
+        const emoji =
+          category.utilization >= 100
+            ? '⚠️'
+            : category.utilization >= 80
+              ? '🟡'
+              : '✅';
         const remainingEmoji = category.remaining < 0 ? '😟' : '';
         responseText += `\n${emoji} **${category.category}**: $${category.spent.toLocaleString()} / $${category.budgeted.toLocaleString()} (${category.utilization.toFixed(0)}%) ${remainingEmoji}`;
       });
@@ -318,10 +377,18 @@ n      } else {
     }
   }
 
-  async searchTransactions(params: z.infer<typeof TransactionSearchParamsSchema>): Promise<string> {
+  async searchTransactions(
+    params: z.infer<typeof TransactionSearchParamsSchema>
+  ): Promise<string> {
     try {
-      const validated = TransactionSearchParamsSchema.parse({ ...params, userId: this.userId });
-      const response = await axios.post(`${this.apiBaseUrl}/transactions/search`, validated);
+      const validated = TransactionSearchParamsSchema.parse({
+        ...params,
+        userId: this.userId,
+      });
+      const response = await axios.post(
+        `${this.apiBaseUrl}/transactions/search`,
+        validated
+      );
 
       const transactions = response.data.transactions;
 
@@ -339,7 +406,10 @@ n      } else {
         responseText += ` in ${params.category}`;
       }
 
-      const totalAmount = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      const totalAmount = transactions.reduce(
+        (sum, t) => sum + Math.abs(t.amount),
+        0
+      );
       responseText += ` totaling **$${totalAmount.toLocaleString()}**: \n\n`;
 
       // Show recent transactions with most relevant context
@@ -357,15 +427,20 @@ n      } else {
       return responseText;
     } catch (error) {
       console.error('Error searching transactions:', error);
-      return "I encountered an issue while searching your transactions. Please try again.";
+      return 'I encountered an issue while searching your transactions. Please try again.';
     }
   }
 
-  async getSpendingInsights(params: { category?: string; period?: string } = {}): Promise<string> {
+  async getSpendingInsights(
+    params: { category?: string; period?: string } = {}
+  ): Promise<string> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/analysis/spending-insights`, {
-        params: { userId: this.userId, ...params }
-      });
+      const response = await axios.get(
+        `${this.apiBaseUrl}/analysis/spending-insights`,
+        {
+          params: { userId: this.userId, ...params },
+        }
+      );
 
       const data = response.data as SpendingInsight;
 
@@ -396,9 +471,12 @@ n      } else {
 
   async getInvestmentSummary(includeHistory = false): Promise<string> {
     try {
-      const response = await axios.get(`${this.apiBaseUrl}/investments/summary`, {
-        params: { userId: this.userId, includeHistory }
-      });
+      const response = await axios.get(
+        `${this.apiBaseUrl}/investments/summary`,
+        {
+          params: { userId: this.userId, includeHistory },
+        }
+      );
 
       const data = response.data;
 
@@ -431,11 +509,16 @@ n      } else {
     }
   }
 
-  async getFinancialGoals(params: z.infer<typeof GoalParamsSchema> = {}): Promise<string> {
+  async getFinancialGoals(
+    params: z.infer<typeof GoalParamsSchema> = {}
+  ): Promise<string> {
     try {
-      const validated = GoalParamsSchema.parse({ ...params, userId: this.userId });
+      const validated = GoalParamsSchema.parse({
+        ...params,
+        userId: this.userId,
+      });
       const response = await axios.get(`${this.apiBaseUrl}/goals`, {
-        params: validated
+        params: validated,
       });
 
       const goals = response.data.goals as FinancialGoal[];
@@ -470,7 +553,12 @@ n      } else {
     }
   }
 
-  async createCategory(params: { userId: string; name: string; color?: string; icon?: string }): Promise<void> {
+  async createCategory(params: {
+    userId: string;
+    name: string;
+    color?: string;
+    icon?: string;
+  }): Promise<void> {
     try {
       await axios.post(`${this.apiBaseUrl}/categories/budget`, params);
     } catch (error) {
@@ -521,13 +609,13 @@ export const financeToolImplementations = {
   create_budget: async (params: any) => {
     const service = new FinanceAgentService(params.userId);
     // Implementation for budget creation would go here
-    return "Budget created successfully!";
+    return 'Budget created successfully!';
   },
 
   create_financial_goal: async (params: any) => {
     const service = new FinanceAgentService(params.userId);
     // Implementation for goal creation would go here
-    return "Financial goal created successfully!";
+    return 'Financial goal created successfully!';
   },
 
   disconnect_zoho_account: async (params: any) => {
@@ -545,11 +633,17 @@ export const financeToolImplementations = {
   },
 
   get_zoho_invoices: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/invoices?user_id=${user_id}&org_id=${organization_id}`);
+    const response = await fetch(
+      `/api/zoho/invoices?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_invoice: async (user_id: string, organization_id: string, invoice_data: any) => {
+  create_zoho_invoice: async (
+    user_id: string,
+    organization_id: string,
+    invoice_data: any
+  ) => {
     const response = await fetch('/api/zoho/invoices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -559,11 +653,17 @@ export const financeToolImplementations = {
   },
 
   get_zoho_customers: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/customers?user_id=${user_id}&org_id=${organization_id}`);
+    const response = await fetch(
+      `/api/zoho/customers?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_customer: async (user_id: string, organization_id: string, customer_data: any) => {
+  create_zoho_customer: async (
+    user_id: string,
+    organization_id: string,
+    customer_data: any
+  ) => {
     const response = await fetch('/api/zoho/customers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -573,11 +673,17 @@ export const financeToolImplementations = {
   },
 
   get_zoho_items: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/items?user_id=${user_id}&org_id=${organization_id}`);
+    const response = await fetch(
+      `/api/zoho/items?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_item: async (user_id: string, organization_id: string, item_data: any) => {
+  create_zoho_item: async (
+    user_id: string,
+    organization_id: string,
+    item_data: any
+  ) => {
     const response = await fetch('/api/zoho/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -587,11 +693,17 @@ export const financeToolImplementations = {
   },
 
   get_zoho_bills: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/bills?user_id=${user_id}&org_id=${organization_id}`);
+    const response = await fetch(
+      `/api/zoho/bills?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_bill: async (user_id: string, organization_id: string, bill_data: any) => {
+  create_zoho_bill: async (
+    user_id: string,
+    organization_id: string,
+    bill_data: any
+  ) => {
     const response = await fetch('/api/zoho/bills', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -601,11 +713,17 @@ export const financeToolImplementations = {
   },
 
   get_zoho_vendors: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/vendors?user_id=${user_id}&org_id=${organization_id}`);
+    const response = await fetch(
+      `/api/zoho/vendors?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_vendor: async (user_id: string, organization_id: string, vendor_data: any) => {
+  create_zoho_vendor: async (
+    user_id: string,
+    organization_id: string,
+    vendor_data: any
+  ) => {
     const response = await fetch('/api/zoho/vendors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -614,30 +732,53 @@ export const financeToolImplementations = {
     return await response.json();
   },
 
-  get_zoho_purchase_orders: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/purchaseorders?user_id=${user_id}&org_id=${organization_id}`);
+  get_zoho_purchase_orders: async (
+    user_id: string,
+    organization_id: string
+  ) => {
+    const response = await fetch(
+      `/api/zoho/purchaseorders?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_purchase_order: async (user_id: string, organization_id: string, purchase_order_data: any) => {
+  create_zoho_purchase_order: async (
+    user_id: string,
+    organization_id: string,
+    purchase_order_data: any
+  ) => {
     const response = await fetch('/api/zoho/purchaseorders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id, org_id: organization_id, purchase_order_data }),
+      body: JSON.stringify({
+        user_id,
+        org_id: organization_id,
+        purchase_order_data,
+      }),
     });
     return await response.json();
   },
 
   get_zoho_sales_orders: async (user_id: string, organization_id: string) => {
-    const response = await fetch(`/api/zoho/salesorders?user_id=${user_id}&org_id=${organization_id}`);
+    const response = await fetch(
+      `/api/zoho/salesorders?user_id=${user_id}&org_id=${organization_id}`
+    );
     return await response.json();
   },
 
-  create_zoho_sales_order: async (user_id: string, organization_id: string, sales_order_data: any) => {
+  create_zoho_sales_order: async (
+    user_id: string,
+    organization_id: string,
+    sales_order_data: any
+  ) => {
     const response = await fetch('/api/zoho/salesorders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id, org_id: organization_id, sales_order_data }),
+      body: JSON.stringify({
+        user_id,
+        org_id: organization_id,
+        sales_order_data,
+      }),
     });
     return await response.json();
   },

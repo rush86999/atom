@@ -1,0 +1,2 @@
+declare const _default: "\nquery GetConferenceById($id: String!) {\n  Conference_by_pk(id: $id) {\n    id\n    userId\n    requestId\n    type\n    status\n    calendarId\n    iconUri\n    name\n    notes\n    entryPoints\n    parameters\n    app\n    key\n    hangoutLink\n    joinUrl\n    startUrl\n    zoomPrivateMeeting\n    deleted\n    createdDate\n    updatedAt\n    isHost\n  }\n}\n";
+export default _default;

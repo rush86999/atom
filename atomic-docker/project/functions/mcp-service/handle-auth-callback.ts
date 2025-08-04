@@ -44,29 +44,55 @@ mutation UpsertUserMcpToken($userId: uuid!, $accessToken: String!, $refreshToken
 }
 `;
 
-const handler = async (req: Request<{}, {}, HandleMcpAuthCallbackRequestBody>, res: Response) => {
+const handler = async (
+  req: Request<{}, {}, HandleMcpAuthCallbackRequestBody>,
+  res: Response
+) => {
   const { code } = req.body.input;
   const userId = req.body.session_variables['x-hasura-user-id'];
 
   if (!code) {
-    return res.status(400).json({ success: false, message: 'Authorization code is missing.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Authorization code is missing.' });
   }
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'User ID is missing from session.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'User ID is missing from session.' });
   }
   if (!ENCRYPTION_KEY_HEX) {
-    console.error('MCP_TOKEN_ENCRYPTION_KEY is not set. Please configure a 64-character hex key (32 bytes).');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Encryption key not configured.' });
+    console.error(
+      'MCP_TOKEN_ENCRYPTION_KEY is not set. Please configure a 64-character hex key (32 bytes).'
+    );
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Encryption key not configured.',
+      });
   }
   try {
     Buffer.from(ENCRYPTION_KEY_HEX, 'hex'); // Validate hex format early
   } catch (e) {
     console.error('MCP_TOKEN_ENCRYPTION_KEY is not a valid hex string.');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Invalid encryption key format.'});
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Invalid encryption key format.',
+      });
   }
-   if (Buffer.from(ENCRYPTION_KEY_HEX, 'hex').length !== 32) {
-    console.error('MCP_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters).');
-    return res.status(500).json({ success: false, message: 'Server configuration error: Invalid encryption key length.' });
+  if (Buffer.from(ENCRYPTION_KEY_HEX, 'hex').length !== 32) {
+    console.error(
+      'MCP_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters).'
+    );
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Server configuration error: Invalid encryption key length.',
+      });
   }
 
   const adminGraphQLClient = createAdminGraphQLClient();
@@ -74,24 +100,45 @@ const handler = async (req: Request<{}, {}, HandleMcpAuthCallbackRequestBody>, r
   try {
     const redirectUri = googleMcpRedirectUrl;
     if (!redirectUri) {
-      console.error('GOOGLE_MCP_REDIRECT_URL environment variable is not configured.');
-      return res.status(500).json({ success: false, message: 'Server configuration error: Missing redirect URL for Mcp integration.' });
+      console.error(
+        'GOOGLE_MCP_REDIRECT_URL environment variable is not configured.'
+      );
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message:
+            'Server configuration error: Missing redirect URL for Mcp integration.',
+        });
     }
 
-    const tokens: google.auth.Credentials = await getMcpUserTokens(code, redirectUri);
+    const tokens: google.auth.Credentials = await getMcpUserTokens(
+      code,
+      redirectUri
+    );
 
     if (!tokens.access_token) {
       console.error('Failed to obtain access token from Google.');
-      return res.status(500).json({ success: false, message: 'Failed to obtain access token from Google.' });
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message: 'Failed to obtain access token from Google.',
+        });
     }
 
-    const encryptedAccessToken = encrypt(tokens.access_token, ENCRYPTION_KEY_HEX);
+    const encryptedAccessToken = encrypt(
+      tokens.access_token,
+      ENCRYPTION_KEY_HEX
+    );
     let encryptedRefreshToken: string | null = null;
     if (tokens.refresh_token) {
       encryptedRefreshToken = encrypt(tokens.refresh_token, ENCRYPTION_KEY_HEX);
     }
 
-    const expiryTimestamp = tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null;
+    const expiryTimestamp = tokens.expiry_date
+      ? new Date(tokens.expiry_date).toISOString()
+      : null;
     // Scopes from Google are space-separated string. Convert to JSON array for storage.
     const scopesArray = tokens.scope ? tokens.scope.split(' ') : [];
 
@@ -103,19 +150,26 @@ const handler = async (req: Request<{}, {}, HandleMcpAuthCallbackRequestBody>, r
       scopesArr: scopesArray, // Pass as JSON array
     });
 
-    return res.status(200).json({ success: true, message: 'Mcp account connected successfully.' });
-
+    return res
+      .status(200)
+      .json({ success: true, message: 'Mcp account connected successfully.' });
   } catch (e: any) {
     console.error('Error handling Mcp auth callback:', e);
-    let clientMessage = 'Failed to connect Mcp account due to an unexpected error.';
+    let clientMessage =
+      'Failed to connect Mcp account due to an unexpected error.';
     if (e.message) {
-        if (e.message.includes('bad_verification_code') || e.message.includes('invalid_grant')) {
-            clientMessage = 'Invalid or expired authorization code. Please try connecting your Mcp account again.';
-        } else if (e.message.includes('redirect_uri_mismatch')) {
-            clientMessage = 'Redirect URI mismatch. Please contact support.';
-        } else if (e.message.toLowerCase().includes('encryption')) {
-            clientMessage = 'A security configuration error occurred. Please contact support.';
-        }
+      if (
+        e.message.includes('bad_verification_code') ||
+        e.message.includes('invalid_grant')
+      ) {
+        clientMessage =
+          'Invalid or expired authorization code. Please try connecting your Mcp account again.';
+      } else if (e.message.includes('redirect_uri_mismatch')) {
+        clientMessage = 'Redirect URI mismatch. Please contact support.';
+      } else if (e.message.toLowerCase().includes('encryption')) {
+        clientMessage =
+          'A security configuration error occurred. Please contact support.';
+      }
     }
 
     return res.status(500).json({

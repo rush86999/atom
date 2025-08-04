@@ -67,12 +67,23 @@ describe('buildSlackSearchQuery', () => {
     // Order might vary for textKeywords if not handled specifically, but all parts should be present.
     // For predictability in tests, ensure a consistent order or use a matcher that ignores order of space-separated terms.
     // Current implementation joins in a specific order.
-    const expectedQuery = 'from:david in:#general has:file after:2024-01-01 important update client meeting';
-    expect(buildSlackSearchQuery(params)).toEqual(expect.stringContaining('from:david'));
-    expect(buildSlackSearchQuery(params)).toEqual(expect.stringContaining('in:#general'));
-    expect(buildSlackSearchQuery(params)).toEqual(expect.stringContaining('has:file'));
-    expect(buildSlackSearchQuery(params)).toEqual(expect.stringContaining('after:2024-01-01'));
-    expect(buildSlackSearchQuery(params)).toEqual(expect.stringContaining('important update client meeting'));
+    const expectedQuery =
+      'from:david in:#general has:file after:2024-01-01 important update client meeting';
+    expect(buildSlackSearchQuery(params)).toEqual(
+      expect.stringContaining('from:david')
+    );
+    expect(buildSlackSearchQuery(params)).toEqual(
+      expect.stringContaining('in:#general')
+    );
+    expect(buildSlackSearchQuery(params)).toEqual(
+      expect.stringContaining('has:file')
+    );
+    expect(buildSlackSearchQuery(params)).toEqual(
+      expect.stringContaining('after:2024-01-01')
+    );
+    expect(buildSlackSearchQuery(params)).toEqual(
+      expect.stringContaining('important update client meeting')
+    );
   });
 
   it('should return an empty string for empty params', () => {
@@ -98,7 +109,7 @@ describe('buildSlackSearchQuery', () => {
     expect(buildSlackSearchQuery(params2)).toBe('has::tada:');
   });
 
-   it('should not include onDate if afterDate or beforeDate is present', () => {
+  it('should not include onDate if afterDate or beforeDate is present', () => {
     const params: StructuredSlackQuery = {
       onDate: '2023-10-26',
       afterDate: '2023-10-25',
@@ -121,5 +132,4 @@ describe('buildSlackSearchQuery', () => {
     const expectedQuery3 = 'after:2023-10-25 before:2023-10-27'; // onDate should be ignored
     expect(buildSlackSearchQuery(params3)).toBe(expectedQuery3);
   });
-
 });

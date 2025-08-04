@@ -2,7 +2,11 @@ import { handleMessage } from './handler';
 import * as hubspotSkills from './skills/hubspotSkills';
 import * as slackSkills from './skills/slackSkills';
 import * as constants from './_libs/constants';
-import { CreateHubSpotContactResponse, HubSpotContact, HubSpotContactProperties } from '../types';
+import {
+  CreateHubSpotContactResponse,
+  HubSpotContact,
+  HubSpotContactProperties,
+} from '../types';
 
 // Mock skills and constants
 import { understandMessage } from './skills/nluService';
@@ -10,7 +14,6 @@ import * as calendarSkills from './skills/calendarSkills';
 import * as quickbooksSkills from './skills/quickbooksSkills';
 // ... other skill imports if needed for NLU testing
 import * as autopilotSkills from './skills/autopilotSkills'; // Added for Autopilot
-
 
 // Mock NLU Service
 const mockedUnderstandMessage = jest.fn();
@@ -21,7 +24,7 @@ jest.mock('./skills/nluService', () => ({
 // Mock individual skill functions that will be called by the handler based on NLU intent
 const mockedListUpcomingEvents = jest.fn();
 const mockedCreateHubSpotContact = jest.fn(); // Already defined in previous HubSpot tests, ensure it's captured here
-const mockedSendSlackMessage = jest.fn();   // Already defined
+const mockedSendSlackMessage = jest.fn(); // Already defined
 const mockedListQuickBooksInvoices = jest.fn();
 const mockedGetQuickBooksInvoiceDetails = jest.fn();
 const mockedEnableAutopilot = jest.fn(); // Added for Autopilot
@@ -47,7 +50,8 @@ jest.mock('./skills/quickbooksSkills', () => ({
   listQuickBooksInvoices: mockedListQuickBooksInvoices,
   getQuickBooksInvoiceDetails: mockedGetQuickBooksInvoiceDetails,
 }));
-jest.mock('./skills/autopilotSkills', () => ({ // Added for Autopilot
+jest.mock('./skills/autopilotSkills', () => ({
+  // Added for Autopilot
   ...jest.requireActual('./skills/autopilotSkills'),
   enableAutopilot: mockedEnableAutopilot,
   disableAutopilot: mockedDisableAutopilot,
@@ -64,19 +68,24 @@ jest.mock('../_libs/constants', () => ({
   ATOM_GOOGLE_CALENDAR_CLIENT_SECRET: 'mock_google_client_secret',
   ATOM_GOOGLE_CALENDAR_REDIRECT_URI: 'mock_google_redirect_uri',
   ATOM_OPENAI_API_KEY: 'mock_openai_key', // For NLU service itself
-  ATOM_NLU_MODEL_NAME: 'gpt-test-nlu',   // For NLU service
+  ATOM_NLU_MODEL_NAME: 'gpt-test-nlu', // For NLU service
 }));
-
 
 describe('handleMessage - NLU Intent Handling', () => {
   let consoleErrorSpy: jest.SpyInstance;
   let consoleLogSpy: jest.SpyInstance;
 
-  const userId = "mock_user_id_from_handler"; // As used in handler
-  const validContactDetails: HubSpotContactProperties = { email: 'test@example.com', firstname: 'TestF', lastname: 'UserL', company: 'TestCorp' };
+  const userId = 'mock_user_id_from_handler'; // As used in handler
+  const validContactDetails: HubSpotContactProperties = {
+    email: 'test@example.com',
+    firstname: 'TestF',
+    lastname: 'UserL',
+    company: 'TestCorp',
+  };
   const validContactDetailsJson = JSON.stringify(validContactDetails);
 
-  const mockSuccessfulHubSpotResponse: CreateHubSpotContactResponse = { // Renamed to avoid conflict
+  const mockSuccessfulHubSpotResponse: CreateHubSpotContactResponse = {
+    // Renamed to avoid conflict
     success: true,
     contactId: 'hs-123',
     message: 'Contact created',
@@ -101,7 +110,7 @@ describe('handleMessage - NLU Intent Handling', () => {
     mockedUnderstandMessage.mockReset();
     mockedListUpcomingEvents.mockReset();
     mockedCreateHubSpotContact.mockReset(); // Use the module-level mock
-    mockedSendSlackMessage.mockReset();   // Use the module-level mock
+    mockedSendSlackMessage.mockReset(); // Use the module-level mock
     mockedListQuickBooksInvoices.mockReset();
     mockedGetQuickBooksInvoiceDetails.mockReset();
     mockedEnableAutopilot.mockReset(); // Added for Autopilot
@@ -127,133 +136,205 @@ describe('handleMessage - NLU Intent Handling', () => {
   it('should handle GetCalendarEvents intent', async () => {
     mockedUnderstandMessage.mockResolvedValue({
       intent: 'GetCalendarEvents',
-      entities: { limit: 3, date_range: "today" }, // NLU might extract more
-      originalMessage: "show me 3 events for today",
-      error: undefined
+      entities: { limit: 3, date_range: 'today' }, // NLU might extract more
+      originalMessage: 'show me 3 events for today',
+      error: undefined,
     });
     mockedListUpcomingEvents.mockResolvedValue([
-      { id: '1', summary: 'Event 1', startTime: new Date().toISOString(), endTime: new Date().toISOString() },
-      { id: '2', summary: 'Event 2', startTime: new Date().toISOString(), endTime: new Date().toISOString() },
+      {
+        id: '1',
+        summary: 'Event 1',
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+      },
+      {
+        id: '2',
+        summary: 'Event 2',
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+      },
     ] as any);
 
-    const result = await handleMessage("show me 3 events for today");
-    expect(mockedUnderstandMessage).toHaveBeenCalledWith("show me 3 events for today");
-    expect(mockedListUpcomingEvents).toHaveBeenCalledWith(expect.any(String), 3);
+    const result = await handleMessage('show me 3 events for today');
+    expect(mockedUnderstandMessage).toHaveBeenCalledWith(
+      'show me 3 events for today'
+    );
+    expect(mockedListUpcomingEvents).toHaveBeenCalledWith(
+      expect.any(String),
+      3
+    );
     expect(result).toContain('Event 1');
     expect(result).toContain('Event 2');
   });
 
   it('should handle CreateHubSpotContact intent (basic)', async () => {
-    const contactEntities = { email: 'nlu.user@example.com', first_name: 'NLUFirstName', last_name: 'NLULastName', company_name: 'NLU Company' };
+    const contactEntities = {
+      email: 'nlu.user@example.com',
+      first_name: 'NLUFirstName',
+      last_name: 'NLULastName',
+      company_name: 'NLU Company',
+    };
     mockedUnderstandMessage.mockResolvedValue({
       intent: 'CreateHubSpotContact',
       entities: contactEntities,
-      originalMessage: "create contact for NLUFirstName NLULastName at nlu.user@example.com, company NLU Company",
-      error: undefined
+      originalMessage:
+        'create contact for NLUFirstName NLULastName at nlu.user@example.com, company NLU Company',
+      error: undefined,
     });
     mockedCreateHubSpotContact.mockResolvedValue({
       success: true,
       contactId: 'hs-nlu-123',
-      hubSpotContact: { properties: { email: 'nlu.user@example.com', firstname: 'NLUFirstName', lastname: 'NLULastName' } } as any,
-      message: 'Created via NLU'
+      hubSpotContact: {
+        properties: {
+          email: 'nlu.user@example.com',
+          firstname: 'NLUFirstName',
+          lastname: 'NLULastName',
+        },
+      } as any,
+      message: 'Created via NLU',
     });
 
-    const result = await handleMessage("create contact for NLUFirstName NLULastName at nlu.user@example.com, company NLU Company");
+    const result = await handleMessage(
+      'create contact for NLUFirstName NLULastName at nlu.user@example.com, company NLU Company'
+    );
     expect(mockedCreateHubSpotContact).toHaveBeenCalledWith(
       expect.any(String), // userId
       expect.objectContaining({
         email: 'nlu.user@example.com',
         firstname: 'NLUFirstName',
         lastname: 'NLULastName',
-        company: 'NLU Company'
+        company: 'NLU Company',
       })
     );
     expect(result).toContain('HubSpot contact created via NLU! ID: hs-nlu-123');
   });
 
-   it('should handle CreateHubSpotContact intent with contact_name only', async () => {
-    const contactEntities = { email: 'nlu.contact@example.com', contact_name: 'NLU Full Name', company_name: 'NLU Solutions' };
+  it('should handle CreateHubSpotContact intent with contact_name only', async () => {
+    const contactEntities = {
+      email: 'nlu.contact@example.com',
+      contact_name: 'NLU Full Name',
+      company_name: 'NLU Solutions',
+    };
     mockedUnderstandMessage.mockResolvedValue({
       intent: 'CreateHubSpotContact',
       entities: contactEntities,
-      originalMessage: "create contact NLU Full Name, nlu.contact@example.com, NLU Solutions",
-      error: undefined
+      originalMessage:
+        'create contact NLU Full Name, nlu.contact@example.com, NLU Solutions',
+      error: undefined,
     });
-     mockedCreateHubSpotContact.mockResolvedValue({
+    mockedCreateHubSpotContact.mockResolvedValue({
       success: true,
       contactId: 'hs-nlu-456',
-      hubSpotContact: { properties: { email: 'nlu.contact@example.com', firstname: 'NLU', lastname: 'Full Name' } } as any,
-      message: 'Created via NLU with contact_name'
+      hubSpotContact: {
+        properties: {
+          email: 'nlu.contact@example.com',
+          firstname: 'NLU',
+          lastname: 'Full Name',
+        },
+      } as any,
+      message: 'Created via NLU with contact_name',
     });
-    await handleMessage("create contact NLU Full Name, nlu.contact@example.com, NLU Solutions");
+    await handleMessage(
+      'create contact NLU Full Name, nlu.contact@example.com, NLU Solutions'
+    );
     expect(mockedCreateHubSpotContact).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         email: 'nlu.contact@example.com',
         firstname: 'NLU', // Derived from contact_name
         lastname: 'Full Name', // Derived from contact_name
-        company: 'NLU Solutions'
+        company: 'NLU Solutions',
       })
     );
   });
-
 
   it('should handle SendSlackMessage intent', async () => {
     mockedUnderstandMessage.mockResolvedValue({
       intent: 'SendSlackMessage',
       entities: { slack_channel: '#nlu-test', message_text: 'Hello from NLU' },
-      originalMessage: "send slack to #nlu-test saying Hello from NLU",
-      error: undefined
+      originalMessage: 'send slack to #nlu-test saying Hello from NLU',
+      error: undefined,
     });
     mockedSendSlackMessage.mockResolvedValue({ ok: true });
 
-    const result = await handleMessage("send slack to #nlu-test saying Hello from NLU");
-    expect(mockedSendSlackMessage).toHaveBeenCalledWith(expect.any(String), '#nlu-test', 'Hello from NLU');
+    const result = await handleMessage(
+      'send slack to #nlu-test saying Hello from NLU'
+    );
+    expect(mockedSendSlackMessage).toHaveBeenCalledWith(
+      expect.any(String),
+      '#nlu-test',
+      'Hello from NLU'
+    );
     expect(result).toContain('Message sent to Slack channel/user #nlu-test');
   });
 
   it('should handle ListInvoices intent (QuickBooks)', async () => {
     mockedUnderstandMessage.mockResolvedValue({
-        intent: 'ListInvoices',
-        entities: { limit: 5, status: "Open" },
-        originalMessage: "show me my last 5 open invoices",
-        error: undefined
+      intent: 'ListInvoices',
+      entities: { limit: 5, status: 'Open' },
+      originalMessage: 'show me my last 5 open invoices',
+      error: undefined,
     });
     mockedListQuickBooksInvoices.mockResolvedValue({
-        ok: true,
-        invoices: [{ Id: 'qb-inv-1', DocNumber: 'QB001', TotalAmt: 100, CurrencyRef: { value: 'USD' } } as any],
-        queryResponse: { totalCount: 1, maxResults: 5, startPosition: 1}
+      ok: true,
+      invoices: [
+        {
+          Id: 'qb-inv-1',
+          DocNumber: 'QB001',
+          TotalAmt: 100,
+          CurrencyRef: { value: 'USD' },
+        } as any,
+      ],
+      queryResponse: { totalCount: 1, maxResults: 5, startPosition: 1 },
     });
-    const result = await handleMessage("show me my last 5 open invoices");
-    expect(mockedListQuickBooksInvoices).toHaveBeenCalledWith(expect.objectContaining({ limit: 5, offset:1 })); // Status not passed yet
-    expect(result).toContain("QB001");
+    const result = await handleMessage('show me my last 5 open invoices');
+    expect(mockedListQuickBooksInvoices).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 5, offset: 1 })
+    ); // Status not passed yet
+    expect(result).toContain('QB001');
   });
 
   it('should handle GetInvoiceDetails intent (QuickBooks)', async () => {
     mockedUnderstandMessage.mockResolvedValue({
-        intent: 'GetInvoiceDetails',
-        entities: { invoice_id: "qb-inv-007" },
-        originalMessage: "get details for invoice qb-inv-007",
-        error: undefined
+      intent: 'GetInvoiceDetails',
+      entities: { invoice_id: 'qb-inv-007' },
+      originalMessage: 'get details for invoice qb-inv-007',
+      error: undefined,
     });
     mockedGetQuickBooksInvoiceDetails.mockResolvedValue({
-        ok: true,
-        invoice: { Id: 'qb-inv-007', DocNumber: 'QB007', TotalAmt: 700, CurrencyRef: {value: 'USD'} } as any
+      ok: true,
+      invoice: {
+        Id: 'qb-inv-007',
+        DocNumber: 'QB007',
+        TotalAmt: 700,
+        CurrencyRef: { value: 'USD' },
+      } as any,
     });
-    const result = await handleMessage("get details for invoice qb-inv-007");
-    expect(mockedGetQuickBooksInvoiceDetails).toHaveBeenCalledWith("qb-inv-007");
-    expect(result).toContain("Doc #: QB007");
+    const result = await handleMessage('get details for invoice qb-inv-007');
+    expect(mockedGetQuickBooksInvoiceDetails).toHaveBeenCalledWith(
+      'qb-inv-007'
+    );
+    expect(result).toContain('Doc #: QB007');
   });
 
-
   it('should fallback to specific command if NLU returns null intent (e.g., create hubspot contact and dm me details)', async () => {
-    const specificCommand = 'create hubspot contact and dm me details {"email":"fallback.dm@example.com", "firstname":"FallbackDM"}';
+    const specificCommand =
+      'create hubspot contact and dm me details {"email":"fallback.dm@example.com", "firstname":"FallbackDM"}';
     mockedUnderstandMessage.mockResolvedValue({
-      intent: null, entities: {}, originalMessage: specificCommand, error: undefined
+      intent: null,
+      entities: {},
+      originalMessage: specificCommand,
+      error: undefined,
     });
     mockedCreateHubSpotContact.mockResolvedValue({
-      success: true, contactId: 'hs-fallback-dm',
-      hubSpotContact: { properties: { email: 'fallback.dm@example.com', firstname: 'FallbackDM' } } as any
+      success: true,
+      contactId: 'hs-fallback-dm',
+      hubSpotContact: {
+        properties: {
+          email: 'fallback.dm@example.com',
+          firstname: 'FallbackDM',
+        },
+      } as any,
     });
     mockedSendSlackMessage.mockResolvedValue({ ok: true }); // For the DM part
 
@@ -263,69 +344,103 @@ describe('handleMessage - NLU Intent Handling', () => {
       { email: 'fallback.dm@example.com', firstname: 'FallbackDM' }
     );
     // Check the DM call (userId as channel for DM)
-    expect(mockedSendSlackMessage).toHaveBeenCalledWith(expect.any(String), expect.any(String), expect.stringContaining('HubSpot ID: hs-fallback-dm'));
+    expect(mockedSendSlackMessage).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.stringContaining('HubSpot ID: hs-fallback-dm')
+    );
     expect(result).toContain("I've sent the details to your Slack DM!");
   });
 
   it('should fallback to general help if NLU returns null intent and no specific command matches', async () => {
     mockedUnderstandMessage.mockResolvedValue({
-      intent: null, entities: {}, originalMessage: "gibberish unknown command", error: undefined
+      intent: null,
+      entities: {},
+      originalMessage: 'gibberish unknown command',
+      error: undefined,
     });
-    const result = await handleMessage("gibberish unknown command");
-    expect(result).toContain("Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help'");
+    const result = await handleMessage('gibberish unknown command');
+    expect(result).toContain(
+      "Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help'"
+    );
   });
 
   it('should return NLU critical error message if NLU service itself has an issue', async () => {
     mockedUnderstandMessage.mockResolvedValue({
-      error: 'NLU Service is down for maintenance.', intent: null, entities: {}, originalMessage: "any message"
+      error: 'NLU Service is down for maintenance.',
+      intent: null,
+      entities: {},
+      originalMessage: 'any message',
     });
-    const result = await handleMessage("any message");
-    expect(result.text).toContain("Sorry, I'm having trouble understanding requests right now. Please try again later.");
+    const result = await handleMessage('any message');
+    expect(result.text).toContain(
+      "Sorry, I'm having trouble understanding requests right now. Please try again later."
+    );
   });
 
   it('should return message for NLU recognized but not implemented intent', async () => {
     mockedUnderstandMessage.mockResolvedValue({
-      intent: 'OrderPizza', entities: { size: 'large', topping: 'pepperoni' }, originalMessage: "order a large pepperoni pizza", error: undefined
+      intent: 'OrderPizza',
+      entities: { size: 'large', topping: 'pepperoni' },
+      originalMessage: 'order a large pepperoni pizza',
+      error: undefined,
     });
-    const result = await handleMessage("order a large pepperoni pizza");
+    const result = await handleMessage('order a large pepperoni pizza');
     expect(result.text).toContain("I understood your intent as 'OrderPizza'");
-    expect(result.text).toContain("not fully set up to handle that specific request conversationally yet");
+    expect(result.text).toContain(
+      'not fully set up to handle that specific request conversationally yet'
+    );
   });
 
   // --- Autopilot Intent Tests ---
   describe('Autopilot Intents', () => {
-    const mockUserId = "mock_user_id_from_handler"; // Matching what handler's getCurrentUserId returns
-    const ttsAudioUrl = "http://tts.service/audio.mp3"; // Mock TTS response
+    const mockUserId = 'mock_user_id_from_handler'; // Matching what handler's getCurrentUserId returns
+    const ttsAudioUrl = 'http://tts.service/audio.mp3'; // Mock TTS response
 
     beforeEach(() => {
-        // Mock global fetch for TTS calls, assuming handleMessage will call TTS
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ audio_url: ttsAudioUrl, status: "success" }),
-        } as Response);
+      // Mock global fetch for TTS calls, assuming handleMessage will call TTS
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ audio_url: ttsAudioUrl, status: 'success' }),
+      } as Response);
     });
 
     afterEach(() => {
-        // delete global.fetch; // Or restore original fetch if saved
+      // delete global.fetch; // Or restore original fetch if saved
     });
 
     it('should handle EnableAutopilot intent successfully', async () => {
-      const nluEntities = { raw_query: "enable autopilot for daily tasks", autopilot_config_details: "daily tasks" };
+      const nluEntities = {
+        raw_query: 'enable autopilot for daily tasks',
+        autopilot_config_details: 'daily tasks',
+      };
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'EnableAutopilot',
         entities: nluEntities,
-        originalMessage: "enable autopilot for daily tasks",
-        error: undefined
+        originalMessage: 'enable autopilot for daily tasks',
+        error: undefined,
       });
       mockedEnableAutopilot.mockResolvedValue({
         ok: true,
-        data: { id: 'ap-123', userId: mockUserId, scheduleAt: 'tomorrow', payload: nluEntities.autopilot_config_details } as any
+        data: {
+          id: 'ap-123',
+          userId: mockUserId,
+          scheduleAt: 'tomorrow',
+          payload: nluEntities.autopilot_config_details,
+        } as any,
       });
 
-      const result = await handleMessage("enable autopilot for daily tasks");
+      const result = await handleMessage('enable autopilot for daily tasks');
 
-      expect(mockedUnderstandMessage).toHaveBeenCalledWith("enable autopilot for daily tasks", undefined, null); // LTM context is null by default in this test path
-      expect(mockedEnableAutopilot).toHaveBeenCalledWith(mockUserId, JSON.stringify(nluEntities));
+      expect(mockedUnderstandMessage).toHaveBeenCalledWith(
+        'enable autopilot for daily tasks',
+        undefined,
+        null
+      ); // LTM context is null by default in this test path
+      expect(mockedEnableAutopilot).toHaveBeenCalledWith(
+        mockUserId,
+        JSON.stringify(nluEntities)
+      );
       expect(result.text).toContain('Autopilot enabled successfully.');
       expect(result.text).toContain('ap-123');
     });
@@ -333,45 +448,53 @@ describe('handleMessage - NLU Intent Handling', () => {
     it('should handle EnableAutopilot intent failure', async () => {
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'EnableAutopilot',
-        entities: { raw_query: "enable autopilot" },
-        originalMessage: "enable autopilot",
-        error: undefined
+        entities: { raw_query: 'enable autopilot' },
+        originalMessage: 'enable autopilot',
+        error: undefined,
       });
       mockedEnableAutopilot.mockResolvedValue({
         ok: false,
-        error: { code: 'API_ERROR', message: 'Failed to create trigger' }
+        error: { code: 'API_ERROR', message: 'Failed to create trigger' },
       });
 
-      const result = await handleMessage("enable autopilot");
-      expect(mockedEnableAutopilot).toHaveBeenCalledWith(mockUserId, JSON.stringify({ raw_query: "enable autopilot" }));
-      expect(result.text).toContain('Failed to enable Autopilot. Error: Failed to create trigger');
+      const result = await handleMessage('enable autopilot');
+      expect(mockedEnableAutopilot).toHaveBeenCalledWith(
+        mockUserId,
+        JSON.stringify({ raw_query: 'enable autopilot' })
+      );
+      expect(result.text).toContain(
+        'Failed to enable Autopilot. Error: Failed to create trigger'
+      );
     });
 
     it('should handle DisableAutopilot intent successfully', async () => {
-      const nluEntities = { raw_query: "disable autopilot event ap-123", autopilot_id: "ap-123" };
+      const nluEntities = {
+        raw_query: 'disable autopilot event ap-123',
+        autopilot_id: 'ap-123',
+      };
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'DisableAutopilot',
         entities: nluEntities,
-        originalMessage: "disable autopilot event ap-123",
-        error: undefined
+        originalMessage: 'disable autopilot event ap-123',
+        error: undefined,
       });
       mockedDisableAutopilot.mockResolvedValue({
         ok: true,
-        data: { success: true }
+        data: { success: true },
       });
 
-      const result = await handleMessage("disable autopilot event ap-123");
-      expect(mockedDisableAutopilot).toHaveBeenCalledWith(mockUserId, "ap-123"); // Query becomes the ID
+      const result = await handleMessage('disable autopilot event ap-123');
+      expect(mockedDisableAutopilot).toHaveBeenCalledWith(mockUserId, 'ap-123'); // Query becomes the ID
       expect(result.text).toContain('Autopilot disabled successfully.');
     });
 
     it('should handle DisableAutopilot intent when autopilot_id is missing in NLU', async () => {
-      const nluEntities = { raw_query: "disable autopilot" }; // No ID provided
+      const nluEntities = { raw_query: 'disable autopilot' }; // No ID provided
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'DisableAutopilot',
         entities: nluEntities,
-        originalMessage: "disable autopilot",
-        error: undefined
+        originalMessage: 'disable autopilot',
+        error: undefined,
       });
       // The skill itself would return an error if ID is missing, handler passes empty query from stringified empty entities
       // Or, if we expect the handler to catch this (it currently doesn't explicitly, relies on skill)
@@ -380,85 +503,122 @@ describe('handleMessage - NLU Intent Handling', () => {
       // The skill's `parseQuery` will result in no eventId.
       mockedDisableAutopilot.mockResolvedValue({
         ok: false,
-        error: { code: 'VALIDATION_ERROR', message: 'eventId (autopilotId) is required in query to disable Autopilot.'}
+        error: {
+          code: 'VALIDATION_ERROR',
+          message:
+            'eventId (autopilotId) is required in query to disable Autopilot.',
+        },
       });
 
-
-      const result = await handleMessage("disable autopilot");
-      expect(mockedDisableAutopilot).toHaveBeenCalledWith(mockUserId, JSON.stringify(nluEntities));
-      expect(result.text).toContain('Failed to disable Autopilot. Error: eventId (autopilotId) is required');
+      const result = await handleMessage('disable autopilot');
+      expect(mockedDisableAutopilot).toHaveBeenCalledWith(
+        mockUserId,
+        JSON.stringify(nluEntities)
+      );
+      expect(result.text).toContain(
+        'Failed to disable Autopilot. Error: eventId (autopilotId) is required'
+      );
     });
 
-
     it('should handle GetAutopilotStatus intent for a specific ID', async () => {
-      const nluEntities = { raw_query: "status for autopilot ap-123", autopilot_id: "ap-123" };
+      const nluEntities = {
+        raw_query: 'status for autopilot ap-123',
+        autopilot_id: 'ap-123',
+      };
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'GetAutopilotStatus',
         entities: nluEntities,
-        originalMessage: "status for autopilot ap-123",
-        error: undefined
+        originalMessage: 'status for autopilot ap-123',
+        error: undefined,
       });
       mockedGetAutopilotStatus.mockResolvedValue({
         ok: true,
-        data: { id: 'ap-123', userId: mockUserId, scheduleAt: 'daily', payload: {} } as any
+        data: {
+          id: 'ap-123',
+          userId: mockUserId,
+          scheduleAt: 'daily',
+          payload: {},
+        } as any,
       });
 
-      const result = await handleMessage("status for autopilot ap-123");
-      expect(mockedGetAutopilotStatus).toHaveBeenCalledWith(mockUserId, "ap-123");
-      expect(result.text).toContain('Autopilot Status (ID: ap-123): Scheduled at daily');
+      const result = await handleMessage('status for autopilot ap-123');
+      expect(mockedGetAutopilotStatus).toHaveBeenCalledWith(
+        mockUserId,
+        'ap-123'
+      );
+      expect(result.text).toContain(
+        'Autopilot Status (ID: ap-123): Scheduled at daily'
+      );
     });
 
     it('should handle GetAutopilotStatus intent for all statuses for a user', async () => {
-      const nluEntities = { raw_query: "get my autopilot status" };
+      const nluEntities = { raw_query: 'get my autopilot status' };
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'GetAutopilotStatus',
         entities: nluEntities,
-        originalMessage: "get my autopilot status",
-        error: undefined
+        originalMessage: 'get my autopilot status',
+        error: undefined,
       });
       // Simulate skill returning a single status (as per current listAutopilotsGivenUserId behavior)
       mockedGetAutopilotStatus.mockResolvedValue({
         ok: true,
-        data: { id: 'ap-user-default', userId: mockUserId, scheduleAt: 'weekly', payload: {} } as any
+        data: {
+          id: 'ap-user-default',
+          userId: mockUserId,
+          scheduleAt: 'weekly',
+          payload: {},
+        } as any,
       });
 
-      const result = await handleMessage("get my autopilot status");
+      const result = await handleMessage('get my autopilot status');
       // Query will be empty string as autopilot_id is not in nluEntities after JSON.stringify and then parsed by skill.
       // The handler passes JSON.stringify(nluEntities) -> `{"raw_query":"get my autopilot status"}`
       // The skill's `parseQuery` will result in an empty autopilotId if not explicitly passed.
-      expect(mockedGetAutopilotStatus).toHaveBeenCalledWith(mockUserId, JSON.stringify(nluEntities));
-      expect(result.text).toContain('Autopilot Status (ID: ap-user-default): Scheduled at weekly');
+      expect(mockedGetAutopilotStatus).toHaveBeenCalledWith(
+        mockUserId,
+        JSON.stringify(nluEntities)
+      );
+      expect(result.text).toContain(
+        'Autopilot Status (ID: ap-user-default): Scheduled at weekly'
+      );
     });
-     it('should handle GetAutopilotStatus when no configurations are found', async () => {
+    it('should handle GetAutopilotStatus when no configurations are found', async () => {
       mockedUnderstandMessage.mockResolvedValue({
         intent: 'GetAutopilotStatus',
-        entities: { raw_query: "get my autopilot status" },
-        originalMessage: "get my autopilot status",
-        error: undefined
+        entities: { raw_query: 'get my autopilot status' },
+        originalMessage: 'get my autopilot status',
+        error: undefined,
       });
       mockedGetAutopilotStatus.mockResolvedValue({
         ok: true,
-        data: null // Simulate no data found
+        data: null, // Simulate no data found
       });
-      const result = await handleMessage("get my autopilot status");
-      expect(result.text).toContain("No specific Autopilot configuration found for the given query, or no configurations exist.");
+      const result = await handleMessage('get my autopilot status');
+      expect(result.text).toContain(
+        'No specific Autopilot configuration found for the given query, or no configurations exist.'
+      );
     });
-
   });
   // --- End Autopilot Intent Tests ---
 });
 
 // Keep the existing default fallback test, but ensure its expected message matches the new help text.
 describe('handleMessage - default fallback (no NLU match, no specific command match)', () => {
-    it('should return the updated help message for an unknown command if NLU returns null intent', async () => {
-        mockedUnderstandMessage.mockResolvedValue({ intent: null, entities: {}, originalMessage: "unknown command here", error: undefined });
-        const message = "unknown command here";
-        const result = await handleMessage(message);
-        const expectedHelpMessagePart = "Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help' to see what I can do.";
-        // The result from handleMessage is now an object {text: string, audioUrl?: string, error?: string}
-        // So, we should check result.text
-        expect(result.text).toBe(expectedHelpMessagePart);
+  it('should return the updated help message for an unknown command if NLU returns null intent', async () => {
+    mockedUnderstandMessage.mockResolvedValue({
+      intent: null,
+      entities: {},
+      originalMessage: 'unknown command here',
+      error: undefined,
     });
+    const message = 'unknown command here';
+    const result = await handleMessage(message);
+    const expectedHelpMessagePart =
+      "Sorry, I didn't quite understand your request. Please try rephrasing, or type 'help' to see what I can do.";
+    // The result from handleMessage is now an object {text: string, audioUrl?: string, error?: string}
+    // So, we should check result.text
+    expect(result.text).toBe(expectedHelpMessagePart);
+  });
 });
 
 // ---- New Tests for Conversation Management Wrappers ----
@@ -497,7 +657,6 @@ import {
   // _internalHandleMessage, // Not typically exported, but if it were for testing. For now, we mock it.
 } from './handler';
 
-
 describe('Conversation Handling Wrappers', () => {
   beforeEach(() => {
     mockIsConversationActive.mockReset();
@@ -535,19 +694,33 @@ describe('Conversation Handling Wrappers', () => {
 
   describe('activateConversationWrapper', () => {
     it('should call conversationManager.activateConversation and return success', async () => {
-      mockActivateConversation.mockReturnValue({ status: "activated", active: true });
+      mockActivateConversation.mockReturnValue({
+        status: 'activated',
+        active: true,
+      });
       const response = await activateConversationWrapper();
       expect(mockActivateConversation).toHaveBeenCalledTimes(1);
-      expect(response).toEqual({ status: "activated", active: true, message: "activated" });
+      expect(response).toEqual({
+        status: 'activated',
+        active: true,
+        message: 'activated',
+      });
     });
   });
 
   describe('deactivateConversationWrapper', () => {
     it('should call conversationManager.deactivateConversation and return success', async () => {
-      mockDeactivateConversation.mockReturnValue({ status: "deactivated", active: false }); // Mock its behavior
-      const response = await deactivateConversationWrapper("test_reason");
-      expect(mockDeactivateConversation).toHaveBeenCalledWith("test_reason");
-      expect(response).toEqual({ status: "Conversation deactivated due to test_reason.", active: false, message: "Conversation deactivated due to test_reason." });
+      mockDeactivateConversation.mockReturnValue({
+        status: 'deactivated',
+        active: false,
+      }); // Mock its behavior
+      const response = await deactivateConversationWrapper('test_reason');
+      expect(mockDeactivateConversation).toHaveBeenCalledWith('test_reason');
+      expect(response).toEqual({
+        status: 'Conversation deactivated due to test_reason.',
+        active: false,
+        message: 'Conversation deactivated due to test_reason.',
+      });
     });
   });
 
@@ -555,33 +728,41 @@ describe('Conversation Handling Wrappers', () => {
     it('should call conversationManager.setAgentResponding(false) and return success', async () => {
       const response = await handleInterruptWrapper();
       expect(mockSetAgentResponding).toHaveBeenCalledWith(false);
-      expect(response).toEqual({ status: "success", message: "Interrupt signal processed. Agent responding state set to false." });
+      expect(response).toEqual({
+        status: 'success',
+        message:
+          'Interrupt signal processed. Agent responding state set to false.',
+      });
     });
   });
 
   describe('handleConversationInputWrapper', () => {
-    const userInput = { text: "Hello Atom" };
-    const coreResponse = { text: "Hello User" };
-    const ttsAudioUrl = "http://tts.service/audio.mp3";
+    const userInput = { text: 'Hello Atom' };
+    const coreResponse = { text: 'Hello User' };
+    const ttsAudioUrl = 'http://tts.service/audio.mp3';
 
     beforeEach(() => {
-        // Setup _internalHandleMessage mock for this suite
-        // This is a simplified way; actual mocking depends on how _internalHandleMessage is defined/exported
-        // For this example, we'll assume it can be mocked like this:
-        jest.spyOn(require('./handler'), '_internalHandleMessage' as any).mockImplementation(mockInternalHandleMessage);
+      // Setup _internalHandleMessage mock for this suite
+      // This is a simplified way; actual mocking depends on how _internalHandleMessage is defined/exported
+      // For this example, we'll assume it can be mocked like this:
+      jest
+        .spyOn(require('./handler'), '_internalHandleMessage' as any)
+        .mockImplementation(mockInternalHandleMessage);
     });
 
     afterEach(() => {
-        jest.restoreAllMocks(); // Restore any spies
+      jest.restoreAllMocks(); // Restore any spies
     });
-
 
     it('should process input if conversation is active', async () => {
       mockIsConversationActive.mockReturnValue(true);
-      mockInternalHandleMessage.mockResolvedValue({ text: coreResponse.text, nluResponse: {} as any });
+      mockInternalHandleMessage.mockResolvedValue({
+        text: coreResponse.text,
+        nluResponse: {} as any,
+      });
       mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ audio_url: ttsAudioUrl, status: "success" }),
+        json: async () => ({ audio_url: ttsAudioUrl, status: 'success' }),
       } as Response);
 
       const response = await handleConversationInputWrapper(userInput);
@@ -592,12 +773,18 @@ describe('Conversation Handling Wrappers', () => {
       // The spyOn approach above is more robust for non-exported functions if it works with module system.
       // If not, testing through the public method and asserting effects is the way.
       // For now, trust that _internalHandleMessage was called if we get to TTS.
-      expect(mockFetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-        body: JSON.stringify({ text: coreResponse.text })
-      }));
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({ text: coreResponse.text }),
+        })
+      );
       // expect(mockRecordAgentResponse).toHaveBeenCalled(); // Need to mock this in conversationState mock
       expect(mockSetAgentResponding).toHaveBeenCalledWith(false); // Called after processing
-      expect(response).toEqual({ text: coreResponse.text, audioUrl: ttsAudioUrl });
+      expect(response).toEqual({
+        text: coreResponse.text,
+        audioUrl: ttsAudioUrl,
+      });
     });
 
     it('should return inactivity message if conversation is not active', async () => {
@@ -609,19 +796,26 @@ describe('Conversation Handling Wrappers', () => {
       expect(mockSetAgentResponding).toHaveBeenCalledWith(false); // Called to ensure it's false
       expect(mockInternalHandleMessage).not.toHaveBeenCalled();
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(response).toEqual(expect.objectContaining({
-        error: "Conversation not active. Please activate with wake word or activation command.",
-        active: false,
-      }));
+      expect(response).toEqual(
+        expect.objectContaining({
+          error:
+            'Conversation not active. Please activate with wake word or activation command.',
+          active: false,
+        })
+      );
     });
 
     it('should handle TTS failure gracefully', async () => {
       mockIsConversationActive.mockReturnValue(true);
-      mockInternalHandleMessage.mockResolvedValue({ text: coreResponse.text, nluResponse: {} as any });
-      mockFetch.mockResolvedValue({ // Simulate TTS API error
+      mockInternalHandleMessage.mockResolvedValue({
+        text: coreResponse.text,
+        nluResponse: {} as any,
+      });
+      mockFetch.mockResolvedValue({
+        // Simulate TTS API error
         ok: false,
         status: 500,
-        text: async () => "TTS Server Error",
+        text: async () => 'TTS Server Error',
       } as Response);
 
       const response = await handleConversationInputWrapper(userInput);
@@ -631,7 +825,7 @@ describe('Conversation Handling Wrappers', () => {
       expect(mockSetAgentResponding).toHaveBeenCalledWith(false); // Crucially, this should still be called
       expect(response).toEqual({
         text: coreResponse.text,
-        error: "Failed to synthesize audio. Status: 500",
+        error: 'Failed to synthesize audio. Status: 500',
       });
     });
 
@@ -639,28 +833,40 @@ describe('Conversation Handling Wrappers', () => {
       mockIsConversationActive.mockReturnValue(true);
       // Simulate error from _internalHandleMessage - e.g., NLU critical error
       mockInternalHandleMessage.mockResolvedValue({
-          text: "NLU service critical error",
-          nluResponse: { error: "NLU Down", intent: null, entities:{}, originalMessage: userInput.text } as any
+        text: 'NLU service critical error',
+        nluResponse: {
+          error: 'NLU Down',
+          intent: null,
+          entities: {},
+          originalMessage: userInput.text,
+        } as any,
       });
       // TTS should still be called with the error message from _internalHandleMessage
-       mockFetch.mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
-        json: async () => ({ audio_url: "http://tts.service/error_audio.mp3", status: "success" }),
+        json: async () => ({
+          audio_url: 'http://tts.service/error_audio.mp3',
+          status: 'success',
+        }),
       } as Response);
-
 
       const response = await handleConversationInputWrapper(userInput);
 
       expect(mockSetAgentResponding).toHaveBeenCalledWith(true);
-      expect(mockFetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-        body: JSON.stringify({ text: "NLU service critical error" })
-      }));
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({ text: 'NLU service critical error' }),
+        })
+      );
       expect(mockSetAgentResponding).toHaveBeenCalledWith(false);
-      expect(response).toEqual(expect.objectContaining({
-        text: "NLU service critical error",
-        audioUrl: "http://tts.service/error_audio.mp3"
-        // Error field might be absent if TTS succeeds for the error message
-      }));
+      expect(response).toEqual(
+        expect.objectContaining({
+          text: 'NLU service critical error',
+          audioUrl: 'http://tts.service/error_audio.mp3',
+          // Error field might be absent if TTS succeeds for the error message
+        })
+      );
     });
   });
 });

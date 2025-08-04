@@ -1,5 +1,3 @@
-
-
 export default `
 mutation DeleteTaskById($id: uuid!) {
   delete_Task_by_pk(id: $id) {
@@ -22,4 +20,4 @@ mutation DeleteTaskById($id: uuid!) {
     userId
   }
 }
-`
+`;

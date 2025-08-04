@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IEchoSkill = void 0;
+class IEchoSkill {
+    context;
+    memory;
+    functions;
+    constructor(context, memory, functions) {
+        this.context = context;
+        this.memory = memory;
+        this.functions = functions;
+    }
+}
+exports.IEchoSkill = IEchoSkill;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZWNob1NraWxsLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiZWNob1NraWxsLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUVBLE1BQXNCLFVBQVU7SUFDWCxPQUFPLENBQWM7SUFDckIsTUFBTSxDQUFNO0lBQ1osU0FBUyxDQUFNO0lBRWxDLFlBQVksT0FBb0IsRUFBRSxNQUFXLEVBQUUsU0FBYztRQUMzRCxJQUFJLENBQUMsT0FBTyxHQUFHLE9BQU8sQ0FBQztRQUN2QixJQUFJLENBQUMsTUFBTSxHQUFHLE1BQU0sQ0FBQztRQUNyQixJQUFJLENBQUMsU0FBUyxHQUFHLFNBQVMsQ0FBQztJQUM3QixDQUFDO0NBR0Y7QUFaRCxnQ0FZQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFR1cm5Db250ZXh0IH0gZnJvbSAnYm90YnVpbGRlcic7XG5cbmV4cG9ydCBhYnN0cmFjdCBjbGFzcyBJRWNob1NraWxsIHtcbiAgcHJvdGVjdGVkIHJlYWRvbmx5IGNvbnRleHQ6IFR1cm5Db250ZXh0O1xuICBwcm90ZWN0ZWQgcmVhZG9ubHkgbWVtb3J5OiBhbnk7XG4gIHByb3RlY3RlZCByZWFkb25seSBmdW5jdGlvbnM6IGFueTtcblxuICBjb25zdHJ1Y3Rvcihjb250ZXh0OiBUdXJuQ29udGV4dCwgbWVtb3J5OiBhbnksIGZ1bmN0aW9uczogYW55KSB7XG4gICAgdGhpcy5jb250ZXh0ID0gY29udGV4dDtcbiAgICB0aGlzLm1lbW9yeSA9IG1lbW9yeTtcbiAgICB0aGlzLmZ1bmN0aW9ucyA9IGZ1bmN0aW9ucztcbiAgfVxuXG4gIHB1YmxpYyBhYnN0cmFjdCBhbmFseXplRGF0YShxdWVyeTogc3RyaW5nKTogUHJvbWlzZTxzdHJpbmc+O1xufVxuIl19

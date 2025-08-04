@@ -1,0 +1,11 @@
+import QueryCalendarExtractedJSONType from '@chat/_libs/datetime/QueryCalendarExtractedDateJSONType';
+import UserInputToJSONType from '@chat/_libs/types/UserInputToJSONType';
+import { QueryCalendarExtractedAttributesType } from '@chat/_libs/skills/askCalendar/types';
+import ResponseActionType from '@chat/_libs/types/ResponseActionType';
+import { QueryEventType } from './types';
+import OpenAI from 'openai';
+import { SkillMessageHistoryType } from '@chat/_libs/types/Messaging/MessagingTypes';
+export declare const finalStepQueryEvent: (body: QueryEventType, windowStartDate: string, windowEndDate: string, timezone: string, response: any) => Promise<any>;
+export declare const processQueryEventPending: (userId: string, timezone: string, jsonBody: UserInputToJSONType, attributesObject: QueryCalendarExtractedAttributesType, queryDateJSONBody: QueryCalendarExtractedJSONType, currentTime: string) => Promise<ResponseActionType>;
+export declare const processQueryEventMissingFieldsReturned: (userId: string, timezone: string, jsonBody: UserInputToJSONType, attributesObject: QueryCalendarExtractedAttributesType, queryDateJSONBody: QueryCalendarExtractedJSONType, currentTime: string, messageHistoryObject: SkillMessageHistoryType) => Promise<any>;
+export declare const askEventControlCenter: (openai: OpenAI, userId: string, timezone: string, messageHistoryObject: SkillMessageHistoryType, userCurrentTime: string, query: "missing_fields" | "completed" | "event_not_found" | "pending") => Promise<any>;

@@ -1,23 +1,23 @@
 import {
-    SubAgentInput,
-    CreativeAgentResponse,
-    AgentLLMService,
-    DEFAULT_MODEL_FOR_AGENTS,
-    DEFAULT_TEMPERATURE_CREATIVE,
-    safeParseJSON
+  SubAgentInput,
+  CreativeAgentResponse,
+  AgentLLMService,
+  DEFAULT_MODEL_FOR_AGENTS,
+  DEFAULT_TEMPERATURE_CREATIVE,
+  safeParseJSON,
 } from './nlu_types';
 import { StructuredLLMPrompt, LLMServiceResponse } from '../lib/llmUtils';
 
 export class CreativeAgent {
-    private llmService: AgentLLMService;
-    private agentName: string = "CreativeAgent";
+  private llmService: AgentLLMService;
+  private agentName: string = 'CreativeAgent';
 
-    constructor(llmService: AgentLLMService) {
-        this.llmService = llmService;
-    }
+  constructor(llmService: AgentLLMService) {
+    this.llmService = llmService;
+  }
 
-    private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
-        const systemMessage = `
+  private constructPrompt(input: SubAgentInput): StructuredLLMPrompt {
+    const systemMessage = `
 You are the Creative Intelligence Agent. Your role is to think outside the box about the user's query.
 Focus on:
 1.  **Alternative Goals**: What might be the user's deeper, unstated goal, beyond the literal request?
@@ -39,66 +39,76 @@ Do not include any explanations, apologies, or conversational text outside the J
 User's query: "${input.userInput}"
 `;
 
-        return {
-            task: 'custom_creative_analysis', // Custom task type
-            data: {
-                system_prompt: systemMessage,
-                user_query: input.userInput, // User query is already in system prompt, but can be passed here too
-            }
-        };
+    return {
+      task: 'custom_creative_analysis', // Custom task type
+      data: {
+        system_prompt: systemMessage,
+        user_query: input.userInput, // User query is already in system prompt, but can be passed here too
+      },
+    };
+  }
+
+  public async analyze(input: SubAgentInput): Promise<CreativeAgentResponse> {
+    const structuredPrompt = this.constructPrompt(input);
+    const P_CREATIVE_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
+
+    console.log(
+      `[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`
+    );
+    console.time(P_CREATIVE_AGENT_TIMER_LABEL);
+    const llmResponse = await this.llmService.generate(
+      structuredPrompt,
+      DEFAULT_MODEL_FOR_AGENTS, // Or a model specifically chosen for creative tasks
+      {
+        temperature: DEFAULT_TEMPERATURE_CREATIVE, // Higher temperature for creativity
+        isJsonOutput: true,
+      }
+    );
+    console.timeEnd(P_CREATIVE_AGENT_TIMER_LABEL);
+
+    if (llmResponse.usage) {
+      console.log(
+        `[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`
+      );
     }
 
-    public async analyze(input: SubAgentInput): Promise<CreativeAgentResponse> {
-        const structuredPrompt = this.constructPrompt(input);
-        const P_CREATIVE_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
-
-        console.log(`[${this.agentName}] Calling LLM service for task: ${structuredPrompt.task}`);
-        console.time(P_CREATIVE_AGENT_TIMER_LABEL);
-        const llmResponse = await this.llmService.generate(
-            structuredPrompt,
-            DEFAULT_MODEL_FOR_AGENTS, // Or a model specifically chosen for creative tasks
-            {
-                temperature: DEFAULT_TEMPERATURE_CREATIVE, // Higher temperature for creativity
-                isJsonOutput: true
-            }
-        );
-        console.timeEnd(P_CREATIVE_AGENT_TIMER_LABEL);
-
-        if (llmResponse.usage) {
-            console.log(`[${this.agentName}] LLM Token Usage: ${JSON.stringify(llmResponse.usage)}`);
-        }
-
-        if (!llmResponse.success || !llmResponse.content) {
-            console.error(`[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`);
-            return { // Return a default/error response structure
-                alternativeGoals: ["Error: LLM analysis failed or no content."],
-                rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`
-            };
-        }
-
-        const parsedResponse = safeParseJSON<Partial<CreativeAgentResponse>>(
-            llmResponse.content,
-            this.agentName,
-            structuredPrompt.task
-        );
-
-        if (!parsedResponse) {
-            console.error(`[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`);
-            return { // Return a default/error response structure if parsing fails
-                alternativeGoals: ["Error: Failed to parse LLM JSON response."],
-                rawLLMResponse: llmResponse.content
-            };
-        }
-
-        return {
-            alternativeGoals: parsedResponse.alternativeGoals || [],
-            novelSolutionsSuggested: parsedResponse.novelSolutionsSuggested || [],
-            unstatedAssumptions: parsedResponse.unstatedAssumptions || [],
-            potentialEnhancements: parsedResponse.potentialEnhancements || [],
-            ambiguityFlags: parsedResponse.ambiguityFlags || [],
-            rawLLMResponse: llmResponse.content,
-        };
+    if (!llmResponse.success || !llmResponse.content) {
+      console.error(
+        `[${this.agentName}] LLM call failed or returned no content. Error: ${llmResponse.error}`
+      );
+      return {
+        // Return a default/error response structure
+        alternativeGoals: ['Error: LLM analysis failed or no content.'],
+        rawLLMResponse: llmResponse.content || `Error: ${llmResponse.error}`,
+      };
     }
+
+    const parsedResponse = safeParseJSON<Partial<CreativeAgentResponse>>(
+      llmResponse.content,
+      this.agentName,
+      structuredPrompt.task
+    );
+
+    if (!parsedResponse) {
+      console.error(
+        `[${this.agentName}] Failed to parse JSON response from LLM. Raw content: ${llmResponse.content.substring(0, 200)}...`
+      );
+      return {
+        // Return a default/error response structure if parsing fails
+        alternativeGoals: ['Error: Failed to parse LLM JSON response.'],
+        rawLLMResponse: llmResponse.content,
+      };
+    }
+
+    return {
+      alternativeGoals: parsedResponse.alternativeGoals || [],
+      novelSolutionsSuggested: parsedResponse.novelSolutionsSuggested || [],
+      unstatedAssumptions: parsedResponse.unstatedAssumptions || [],
+      potentialEnhancements: parsedResponse.potentialEnhancements || [],
+      ambiguityFlags: parsedResponse.ambiguityFlags || [],
+      rawLLMResponse: llmResponse.content,
+    };
+  }
 }
 
 // Example Usage (for testing purposes)
@@ -136,4 +146,6 @@ async function testCreativeAgent() {
 
 // testCreativeAgent();
 */
-console.log("CreativeAgent class loaded. To test, uncomment and run testCreativeAgent().");
+console.log(
+  'CreativeAgent class loaded. To test, uncomment and run testCreativeAgent().'
+);

@@ -1,5 +1,3 @@
-
-
 export default `
     mutation DeletePreferredTimeRangesGivenEventId($eventId: String!) {
         delete_PreferredTimeRange(where: {eventId: {_eq: $eventId}}) {
@@ -16,4 +14,4 @@ export default `
             }
         }
     }
-`
+`;

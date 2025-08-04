@@ -102,7 +102,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
       properties: {
         user_id: {
           type: 'string',
-          description: 'The ID of the user to send bookkeeping data to Zoho for',
+          description:
+            'The ID of the user to send bookkeeping data to Zoho for',
         },
         organization_id: {
           type: 'string',
@@ -120,7 +121,7 @@ export const bookkeepingSkills: SkillDefinition[] = [
   },
   {
     name: 'disconnect_zoho_account',
-    description: 'Disconnect a user\'s Zoho account',
+    description: "Disconnect a user's Zoho account",
     parameters: {
       type: 'object',
       properties: {
@@ -137,19 +138,22 @@ export const bookkeepingSkills: SkillDefinition[] = [
   },
   {
     name: 'get_zoho_integration_status',
-    description: 'Get the status of a user\'s Zoho integration',
+    description: "Get the status of a user's Zoho integration",
     parameters: {
       type: 'object',
       properties: {
         user_id: {
           type: 'string',
-          description: 'The ID of the user to get the Zoho integration status for',
+          description:
+            'The ID of the user to get the Zoho integration status for',
         },
       },
       required: ['user_id'],
     },
     handler: async (params: any) => {
-      return await bookkeeping_service.get_zoho_integration_status(params.user_id);
+      return await bookkeeping_service.get_zoho_integration_status(
+        params.user_id
+      );
     },
   },
   {
@@ -164,7 +168,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to get the invoices from',
+          description:
+            'The ID of the Zoho organization to get the invoices from',
         },
       },
       required: ['user_id', 'organization_id'],
@@ -188,7 +193,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to create the invoice in',
+          description:
+            'The ID of the Zoho organization to create the invoice in',
         },
         invoice_data: {
           type: 'object',
@@ -217,7 +223,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to get the customers from',
+          description:
+            'The ID of the Zoho organization to get the customers from',
         },
       },
       required: ['user_id', 'organization_id'],
@@ -241,7 +248,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to create the customer in',
+          description:
+            'The ID of the Zoho organization to create the customer in',
         },
         customer_data: {
           type: 'object',
@@ -376,7 +384,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to get the vendors from',
+          description:
+            'The ID of the Zoho organization to get the vendors from',
         },
       },
       required: ['user_id', 'organization_id'],
@@ -400,7 +409,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to create the vendor in',
+          description:
+            'The ID of the Zoho organization to create the vendor in',
         },
         vendor_data: {
           type: 'object',
@@ -429,7 +439,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to get the purchase orders from',
+          description:
+            'The ID of the Zoho organization to get the purchase orders from',
         },
       },
       required: ['user_id', 'organization_id'],
@@ -449,11 +460,13 @@ export const bookkeepingSkills: SkillDefinition[] = [
       properties: {
         user_id: {
           type: 'string',
-          description: 'The ID of the user to create the Zoho purchase order for',
+          description:
+            'The ID of the user to create the Zoho purchase order for',
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to create the purchase order in',
+          description:
+            'The ID of the Zoho organization to create the purchase order in',
         },
         purchase_order_data: {
           type: 'object',
@@ -482,7 +495,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to get the sales orders from',
+          description:
+            'The ID of the Zoho organization to get the sales orders from',
         },
       },
       required: ['user_id', 'organization_id'],
@@ -506,7 +520,8 @@ export const bookkeepingSkills: SkillDefinition[] = [
         },
         organization_id: {
           type: 'string',
-          description: 'The ID of the Zoho organization to create the sales order in',
+          description:
+            'The ID of the Zoho organization to create the sales order in',
         },
         sales_order_data: {
           type: 'object',

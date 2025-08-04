@@ -1,9 +1,6 @@
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import {
-  ATOM_OPENAI_API_KEY,
-  ATOM_NLU_MODEL_NAME,
-} from '../_libs/constants';
+import { ATOM_OPENAI_API_KEY, ATOM_NLU_MODEL_NAME } from '../_libs/constants';
 import {
   NLUResponseData,
   ProcessedNLUResponse,
@@ -584,14 +581,26 @@ export async function understandMessage(
 ): Promise<ProcessedNLUResponse> {
   const client = getOpenAIClient();
   if (!client) {
-    return { originalMessage: message, intent: null, entities: {}, error: 'NLU service not configured: OpenAI API Key is missing.' };
+    return {
+      originalMessage: message,
+      intent: null,
+      entities: {},
+      error: 'NLU service not configured: OpenAI API Key is missing.',
+    };
   }
   if (!message || message.trim() === '') {
-    return { originalMessage: message, intent: null, entities: {}, error: 'Input message is empty.' };
+    return {
+      originalMessage: message,
+      intent: null,
+      entities: {},
+      error: 'Input message is empty.',
+    };
   }
 
   if (ltmContext && ltmContext.length > 0) {
-    console.log(`[NLU Service] Received LTM context with ${ltmContext.length} items. First item (summary): ${JSON.stringify(ltmContext[0].text?.substring(0,100))}... Potential use: Augment prompts to NLU provider.`);
+    console.log(
+      `[NLU Service] Received LTM context with ${ltmContext.length} items. First item (summary): ${JSON.stringify(ltmContext[0].text?.substring(0, 100))}... Potential use: Augment prompts to NLU provider.`
+    );
     // console.log('[NLU Service] Full LTM Context:', JSON.stringify(ltmContext, null, 2)); // Optional: for more detail
   }
   // TODO: Future enhancement - incorporate ltmContext into the prompt for the NLU model.
@@ -600,7 +609,10 @@ export async function understandMessage(
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...(conversationHistory || []).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content || '' })),
+    ...(conversationHistory || []).map((h) => ({
+      role: h.role as 'user' | 'assistant',
+      content: h.content || '',
+    })),
     { role: 'user', content: message },
   ];
 
@@ -614,13 +626,26 @@ export async function understandMessage(
 
     const llmResponse = completion.choices[0]?.message?.content;
     if (!llmResponse) {
-      return { originalMessage: message, intent: null, entities: {}, error: 'NLU service received an empty response from AI.' };
+      return {
+        originalMessage: message,
+        intent: null,
+        entities: {},
+        error: 'NLU service received an empty response from AI.',
+      };
     }
 
     try {
       const parsedResponse = JSON.parse(llmResponse) as NLUResponseData;
-      if (typeof parsedResponse.intent === 'undefined' || typeof parsedResponse.entities !== 'object') {
-        return { originalMessage: message, intent: null, entities: {}, error: `NLU service received malformed JSON from AI: ${llmResponse}` };
+      if (
+        typeof parsedResponse.intent === 'undefined' ||
+        typeof parsedResponse.entities !== 'object'
+      ) {
+        return {
+          originalMessage: message,
+          intent: null,
+          entities: {},
+          error: `NLU service received malformed JSON from AI: ${llmResponse}`,
+        };
       }
 
       const processed: ProcessedNLUResponse = {
@@ -631,110 +656,172 @@ export async function understandMessage(
         recognized_phrase: parsedResponse.recognized_phrase,
       };
 
-      if (parsedResponse.intent === "NeedsClarification" && parsedResponse.clarification_question) {
+      if (
+        parsedResponse.intent === 'NeedsClarification' &&
+        parsedResponse.clarification_question
+      ) {
         processed.requires_clarification = true;
-        processed.clarification_question = parsedResponse.clarification_question;
+        processed.clarification_question =
+          parsedResponse.clarification_question;
         if (parsedResponse.partially_understood_intent) {
-          processed.entities.partially_understood_intent = parsedResponse.partially_understood_intent;
+          processed.entities.partially_understood_intent =
+            parsedResponse.partially_understood_intent;
         }
-      } else if (parsedResponse.intent === "ComplexTask" && parsedResponse.entities && parsedResponse.entities.sub_tasks) {
-        processed.sub_tasks = parsedResponse.entities.sub_tasks.map(st => ({
+      } else if (
+        parsedResponse.intent === 'ComplexTask' &&
+        parsedResponse.entities &&
+        parsedResponse.entities.sub_tasks
+      ) {
+        processed.sub_tasks = parsedResponse.entities.sub_tasks.map((st) => ({
           intent: st.intent || null,
           entities: st.entities || {},
-          summary_for_sub_task: st.summary_for_sub_task || ''
+          summary_for_sub_task: st.summary_for_sub_task || '',
         }));
         // Keep original_query if present in entities
         if (parsedResponse.entities.original_query) {
-          processed.entities.original_query = parsedResponse.entities.original_query;
+          processed.entities.original_query =
+            parsedResponse.entities.original_query;
         }
       }
 
       // Conceptual Post-Processing for QueryEmails intent:
-      if (processed.intent === "QueryEmails" && processed.entities) {
+      if (processed.intent === 'QueryEmails' && processed.entities) {
         const { date_query, ...otherEntities } = processed.entities;
         const resolvedDates: { after?: string; before?: string } = {};
 
         if (date_query && typeof date_query === 'string') {
           console.log(`[NLU Service] Raw date_query from LLM: "${date_query}"`);
           const now = new Date();
-          const formatDate = (d: Date) => `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
+          const formatDate = (d: Date) =>
+            `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
           const lcDateQuery = date_query.toLowerCase();
 
-          if (lcDateQuery === "today") {
-            resolvedDates.after = formatDate(new Date(now.setHours(0, 0, 0, 0)));
-            resolvedDates.before = formatDate(new Date(now.setHours(23, 59, 59, 999)));
-          } else if (lcDateQuery === "yesterday") {
+          if (lcDateQuery === 'today') {
+            resolvedDates.after = formatDate(
+              new Date(now.setHours(0, 0, 0, 0))
+            );
+            resolvedDates.before = formatDate(
+              new Date(now.setHours(23, 59, 59, 999))
+            );
+          } else if (lcDateQuery === 'yesterday') {
             const yesterday = new Date(now);
             yesterday.setDate(now.getDate() - 1);
-            resolvedDates.after = formatDate(new Date(yesterday.setHours(0, 0, 0, 0)));
-            resolvedDates.before = formatDate(new Date(yesterday.setHours(23, 59, 59, 999)));
-          } else if (lcDateQuery.includes("last week")) {
+            resolvedDates.after = formatDate(
+              new Date(yesterday.setHours(0, 0, 0, 0))
+            );
+            resolvedDates.before = formatDate(
+              new Date(yesterday.setHours(23, 59, 59, 999))
+            );
+          } else if (lcDateQuery.includes('last week')) {
             const dayOfWeek = now.getDay();
             const lastMonday = new Date(now);
             lastMonday.setDate(now.getDate() - dayOfWeek - 6);
-            lastMonday.setHours(0,0,0,0);
+            lastMonday.setHours(0, 0, 0, 0);
             const lastSunday = new Date(lastMonday);
             lastSunday.setDate(lastMonday.getDate() + 6);
-            lastSunday.setHours(23,59,59,999);
+            lastSunday.setHours(23, 59, 59, 999);
             resolvedDates.after = formatDate(lastMonday);
             resolvedDates.before = formatDate(lastSunday);
-          } else if (lcDateQuery.includes("this week")) {
+          } else if (lcDateQuery.includes('this week')) {
             const dayOfWeek = now.getDay();
             const currentMonday = new Date(now);
-            currentMonday.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) );
-            currentMonday.setHours(0,0,0,0);
+            currentMonday.setDate(
+              now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+            );
+            currentMonday.setHours(0, 0, 0, 0);
             const currentSunday = new Date(currentMonday);
             currentSunday.setDate(currentMonday.getDate() + 6);
-            currentSunday.setHours(23,59,59,999);
+            currentSunday.setHours(23, 59, 59, 999);
             resolvedDates.after = formatDate(currentMonday);
             resolvedDates.before = formatDate(currentSunday);
-          } else if (lcDateQuery.includes("last month")) {
-            const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+          } else if (lcDateQuery.includes('last month')) {
+            const firstDayLastMonth = new Date(
+              now.getFullYear(),
+              now.getMonth() - 1,
+              1
+            );
+            const lastDayLastMonth = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              0
+            );
             resolvedDates.after = formatDate(firstDayLastMonth);
             resolvedDates.before = formatDate(lastDayLastMonth);
-          } else if (lcDateQuery.includes("this month")) {
-            const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const lastDayThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          } else if (lcDateQuery.includes('this month')) {
+            const firstDayThisMonth = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              1
+            );
+            const lastDayThisMonth = new Date(
+              now.getFullYear(),
+              now.getMonth() + 1,
+              0
+            );
             resolvedDates.after = formatDate(firstDayThisMonth);
             resolvedDates.before = formatDate(lastDayThisMonth);
           }
 
           if (resolvedDates.after || resolvedDates.before) {
             processed.entities.resolved_date_range = resolvedDates;
-            console.log(`[NLU Service] Resolved date_query "${date_query}" to:`, resolvedDates);
+            console.log(
+              `[NLU Service] Resolved date_query "${date_query}" to:`,
+              resolvedDates
+            );
           } else {
-            console.log(`[NLU Service] Could not resolve date_query "${date_query}" with basic logic. Passing raw.`);
+            console.log(
+              `[NLU Service] Could not resolve date_query "${date_query}" with basic logic. Passing raw.`
+            );
           }
         }
 
-        if (processed.intent === "QueryEmails" && processed.entities) {
-            if (!processed.entities.raw_email_search_query && message) {
-                processed.entities.raw_email_search_query = message;
-                console.warn("[NLU Service] LLM did not explicitly return 'raw_email_search_query' for QueryEmails intent. Using original message as fallback.");
-            }
+        if (processed.intent === 'QueryEmails' && processed.entities) {
+          if (!processed.entities.raw_email_search_query && message) {
+            processed.entities.raw_email_search_query = message;
+            console.warn(
+              "[NLU Service] LLM did not explicitly return 'raw_email_search_query' for QueryEmails intent. Using original message as fallback."
+            );
+          }
 
-            const actionTypeFromLLM = processed.entities.action_on_email as (EmailActionType | undefined);
-            processed.entities.structured_action_request = {
-                actionType: actionTypeFromLLM || "GET_FULL_CONTENT",
-                infoKeywords: processed.entities.information_to_extract_keywords || undefined,
-                naturalLanguageQuestion: processed.entities.natural_language_question_about_email || undefined,
-            };
+          const actionTypeFromLLM = processed.entities.action_on_email as
+            | EmailActionType
+            | undefined;
+          processed.entities.structured_action_request = {
+            actionType: actionTypeFromLLM || 'GET_FULL_CONTENT',
+            infoKeywords:
+              processed.entities.information_to_extract_keywords || undefined,
+            naturalLanguageQuestion:
+              processed.entities.natural_language_question_about_email ||
+              undefined,
+          };
         }
       }
       return processed;
     } catch (jsonError: any) {
-      console.error(`Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`);
-      return { originalMessage: message, intent: null, entities: {}, error: `Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}` };
+      console.error(
+        `Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`
+      );
+      return {
+        originalMessage: message,
+        intent: null,
+        entities: {},
+        error: `Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`,
+      };
     }
   } catch (error: any) {
     console.error('Error calling OpenAI for NLU service:', error.message);
-    let errorMessage = 'Failed to understand message due to an NLU service error.';
+    let errorMessage =
+      'Failed to understand message due to an NLU service error.';
     if (error.response?.data?.error?.message) {
-        errorMessage += ` API Error: ${error.response.data.error.message}`;
+      errorMessage += ` API Error: ${error.response.data.error.message}`;
     } else if (error.message) {
-        errorMessage += ` Details: ${error.message}`;
+      errorMessage += ` Details: ${error.message}`;
     }
-    return { originalMessage: message, intent: null, entities: {}, error: errorMessage };
+    return {
+      originalMessage: message,
+      intent: null,
+      entities: {},
+      error: errorMessage,
+    };
   }
 }

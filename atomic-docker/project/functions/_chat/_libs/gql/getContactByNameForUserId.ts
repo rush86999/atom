@@ -1,5 +1,3 @@
-
-
 export default `
 query GetContactByNameForUserId($userId: uuid!, $name: String!) {
   Contact(where: {_or: {firstName: {_ilike: $name}, name: {_ilike: $name}, phoneticFirstName: {_ilike: $name}, nickname: {_ilike: $name}, phoneticLastName: {_ilike: $name}, phoneticMiddleName: {_ilike: $name}, lastName: {_ilike: $name}, jobTitle: {_ilike: $name}}, userId: {_eq: $userId}}) {
@@ -34,4 +32,4 @@ query GetContactByNameForUserId($userId: uuid!, $name: String!) {
   }
 }
 
-`
+`;

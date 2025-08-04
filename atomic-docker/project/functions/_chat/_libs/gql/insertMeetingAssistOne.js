@@ -1,0 +1,53 @@
+export default `
+    mutation InsertMeetingAssist($meetingAssist: Meeting_Assist_insert_input!) {
+        insert_Meeting_Assist_one(object: $meetingAssist, on_conflict: {constraint: Meeting_Assist_pkey, update_columns: [allowAttendeeUpdatePreferences, anyoneCanAddSelf, attendeeCanModify, attendeeCount, attendeeRespondedCount, backgroundColor, bufferTime, calendarId, cancelIfAnyRefuse, cancelled, colorId, conferenceApp, duration, enableAttendeePreferences, enableConference, enableHostPreferences, endDate, eventId, expireDate, foregroundColor, frequency, guaranteeAvailability, guestsCanInviteOthers, guestsCanSeeOtherGuests, interval, location, minThresholdCount, notes, originalMeetingId, priority, reminders, sendUpdates, startDate, summary, timezone, transparency, until, updatedAt, useDefaultAlarms, userId, visibility, windowEndDate, windowStartDate]}) {
+            allowAttendeeUpdatePreferences
+            anyoneCanAddSelf
+            attendeeCanModify
+            attendeeCount
+            attendeeRespondedCount
+            backgroundColor
+            bufferTime
+            calendarId
+            cancelIfAnyRefuse
+            cancelled
+            colorId
+            conferenceApp
+            createdDate
+            duration
+            enableAttendeePreferences
+            enableConference
+            enableHostPreferences
+            endDate
+            eventId
+            expireDate
+            foregroundColor
+            frequency
+            guaranteeAvailability
+            guestsCanInviteOthers
+            guestsCanSeeOtherGuests
+            id
+            interval
+            location
+            minThresholdCount
+            notes
+            originalMeetingId
+            priority
+            reminders
+            sendUpdates
+            startDate
+            summary
+            timezone
+            transparency
+            until
+            updatedAt
+            useDefaultAlarms
+            userId
+            visibility
+            windowEndDate
+            windowStartDate
+            lockAfter
+        }
+    }
+`;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5zZXJ0TWVldGluZ0Fzc2lzdE9uZS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImluc2VydE1lZXRpbmdBc3Npc3RPbmUudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsZUFBZTs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0NBbURkLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJleHBvcnQgZGVmYXVsdCBgXG4gICAgbXV0YXRpb24gSW5zZXJ0TWVldGluZ0Fzc2lzdCgkbWVldGluZ0Fzc2lzdDogTWVldGluZ19Bc3Npc3RfaW5zZXJ0X2lucHV0ISkge1xuICAgICAgICBpbnNlcnRfTWVldGluZ19Bc3Npc3Rfb25lKG9iamVjdDogJG1lZXRpbmdBc3Npc3QsIG9uX2NvbmZsaWN0OiB7Y29uc3RyYWludDogTWVldGluZ19Bc3Npc3RfcGtleSwgdXBkYXRlX2NvbHVtbnM6IFthbGxvd0F0dGVuZGVlVXBkYXRlUHJlZmVyZW5jZXMsIGFueW9uZUNhbkFkZFNlbGYsIGF0dGVuZGVlQ2FuTW9kaWZ5LCBhdHRlbmRlZUNvdW50LCBhdHRlbmRlZVJlc3BvbmRlZENvdW50LCBiYWNrZ3JvdW5kQ29sb3IsIGJ1ZmZlclRpbWUsIGNhbGVuZGFySWQsIGNhbmNlbElmQW55UmVmdXNlLCBjYW5jZWxsZWQsIGNvbG9ySWQsIGNvbmZlcmVuY2VBcHAsIGR1cmF0aW9uLCBlbmFibGVBdHRlbmRlZVByZWZlcmVuY2VzLCBlbmFibGVDb25mZXJlbmNlLCBlbmFibGVIb3N0UHJlZmVyZW5jZXMsIGVuZERhdGUsIGV2ZW50SWQsIGV4cGlyZURhdGUsIGZvcmVncm91bmRDb2xvciwgZnJlcXVlbmN5LCBndWFyYW50ZWVBdmFpbGFiaWxpdHksIGd1ZXN0c0Nhbkludml0ZU90aGVycywgZ3Vlc3RzQ2FuU2VlT3RoZXJHdWVzdHMsIGludGVydmFsLCBsb2NhdGlvbiwgbWluVGhyZXNob2xkQ291bnQsIG5vdGVzLCBvcmlnaW5hbE1lZXRpbmdJZCwgcHJpb3JpdHksIHJlbWluZGVycywgc2VuZFVwZGF0ZXMsIHN0YXJ0RGF0ZSwgc3VtbWFyeSwgdGltZXpvbmUsIHRyYW5zcGFyZW5jeSwgdW50aWwsIHVwZGF0ZWRBdCwgdXNlRGVmYXVsdEFsYXJtcywgdXNlcklkLCB2aXNpYmlsaXR5LCB3aW5kb3dFbmREYXRlLCB3aW5kb3dTdGFydERhdGVdfSkge1xuICAgICAgICAgICAgYWxsb3dBdHRlbmRlZVVwZGF0ZVByZWZlcmVuY2VzXG4gICAgICAgICAgICBhbnlvbmVDYW5BZGRTZWxmXG4gICAgICAgICAgICBhdHRlbmRlZUNhbk1vZGlmeVxuICAgICAgICAgICAgYXR0ZW5kZWVDb3VudFxuICAgICAgICAgICAgYXR0ZW5kZWVSZXNwb25kZWRDb3VudFxuICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yXG4gICAgICAgICAgICBidWZmZXJUaW1lXG4gICAgICAgICAgICBjYWxlbmRhcklkXG4gICAgICAgICAgICBjYW5jZWxJZkFueVJlZnVzZVxuICAgICAgICAgICAgY2FuY2VsbGVkXG4gICAgICAgICAgICBjb2xvcklkXG4gICAgICAgICAgICBjb25mZXJlbmNlQXBwXG4gICAgICAgICAgICBjcmVhdGVkRGF0ZVxuICAgICAgICAgICAgZHVyYXRpb25cbiAgICAgICAgICAgIGVuYWJsZUF0dGVuZGVlUHJlZmVyZW5jZXNcbiAgICAgICAgICAgIGVuYWJsZUNvbmZlcmVuY2VcbiAgICAgICAgICAgIGVuYWJsZUhvc3RQcmVmZXJlbmNlc1xuICAgICAgICAgICAgZW5kRGF0ZVxuICAgICAgICAgICAgZXZlbnRJZFxuICAgICAgICAgICAgZXhwaXJlRGF0ZVxuICAgICAgICAgICAgZm9yZWdyb3VuZENvbG9yXG4gICAgICAgICAgICBmcmVxdWVuY3lcbiAgICAgICAgICAgIGd1YXJhbnRlZUF2YWlsYWJpbGl0eVxuICAgICAgICAgICAgZ3Vlc3RzQ2FuSW52aXRlT3RoZXJzXG4gICAgICAgICAgICBndWVzdHNDYW5TZWVPdGhlckd1ZXN0c1xuICAgICAgICAgICAgaWRcbiAgICAgICAgICAgIGludGVydmFsXG4gICAgICAgICAgICBsb2NhdGlvblxuICAgICAgICAgICAgbWluVGhyZXNob2xkQ291bnRcbiAgICAgICAgICAgIG5vdGVzXG4gICAgICAgICAgICBvcmlnaW5hbE1lZXRpbmdJZFxuICAgICAgICAgICAgcHJpb3JpdHlcbiAgICAgICAgICAgIHJlbWluZGVyc1xuICAgICAgICAgICAgc2VuZFVwZGF0ZXNcbiAgICAgICAgICAgIHN0YXJ0RGF0ZVxuICAgICAgICAgICAgc3VtbWFyeVxuICAgICAgICAgICAgdGltZXpvbmVcbiAgICAgICAgICAgIHRyYW5zcGFyZW5jeVxuICAgICAgICAgICAgdW50aWxcbiAgICAgICAgICAgIHVwZGF0ZWRBdFxuICAgICAgICAgICAgdXNlRGVmYXVsdEFsYXJtc1xuICAgICAgICAgICAgdXNlcklkXG4gICAgICAgICAgICB2aXNpYmlsaXR5XG4gICAgICAgICAgICB3aW5kb3dFbmREYXRlXG4gICAgICAgICAgICB3aW5kb3dTdGFydERhdGVcbiAgICAgICAgICAgIGxvY2tBZnRlclxuICAgICAgICB9XG4gICAgfVxuYDtcbiJdfQ==

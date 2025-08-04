@@ -9,8 +9,8 @@ import {
 } from '@utils/config/utils';
 
 function onlyUnique(value, index, array) {
-    return array.indexOf(value) === index;
-  }
+  return array.indexOf(value) === index;
+}
 
 export const ENV = {
   get PWD() {
@@ -41,12 +41,12 @@ export const ENV = {
 
   // FUNCTION
   get FUNCTION_SERVER_URL() {
-    return castStringEnv('FUNCTION_SERVER_URL')
+    return castStringEnv('FUNCTION_SERVER_URL');
   },
 
   // APP
   get APP_CLIENT_URL() {
-    return castStringEnv('APP_CLIENT_URL')
+    return castStringEnv('APP_CLIENT_URL');
   },
 
   // SMTP
@@ -165,7 +165,7 @@ export const ENV = {
       ...castStringArrayEnv('AUTH_USER_DEFAULT_ALLOWED_ROLES'),
     ];
     // remove duplicates
-    return [...(allowedRoles?.filter(onlyUnique))];
+    return [...allowedRoles?.filter(onlyUnique)];
   },
   get AUTH_LOCALE_DEFAULT() {
     return castStringEnv('AUTH_LOCALE_DEFAULT', 'en');
@@ -176,7 +176,7 @@ export const ENV = {
       ...castStringArrayEnv('AUTH_LOCALE_ALLOWED_LOCALES'),
     ];
     // remove duplicates
-    return [...(locales?.filter(onlyUnique))];
+    return [...locales?.filter(onlyUnique)];
   },
 
   // SIGN IN

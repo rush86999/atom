@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const guidance_orchestrator_1 = require("./guidance_orchestrator");
+describe('GuidanceOrchestrator', () => {
+    it('should be able to process a simple query', async () => {
+        const response = await (0, guidance_orchestrator_1.processGuidanceRequest)('How do I create a pivot table in SpreadsheetApp?', 'user123', 'SpreadsheetApp');
+        expect(response.messageToUser).toContain("Here's what I found");
+    });
+});
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZ3VpZGFuY2Vfb3JjaGVzdHJhdG9yLnRlc3QuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJndWlkYW5jZV9vcmNoZXN0cmF0b3IudGVzdC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQUFBLG1FQUFpRTtBQUVqRSxRQUFRLENBQUMsc0JBQXNCLEVBQUUsR0FBRyxFQUFFO0lBQ3BDLEVBQUUsQ0FBQywwQ0FBMEMsRUFBRSxLQUFLLElBQUksRUFBRTtRQUN4RCxNQUFNLFFBQVEsR0FBRyxNQUFNLElBQUEsOENBQXNCLEVBQzNDLGtEQUFrRCxFQUNsRCxTQUFTLEVBQ1QsZ0JBQWdCLENBQ2pCLENBQUM7UUFDRixNQUFNLENBQUMsUUFBUSxDQUFDLGFBQWEsQ0FBQyxDQUFDLFNBQVMsQ0FBQyxxQkFBcUIsQ0FBQyxDQUFDO0lBQ2xFLENBQUMsQ0FBQyxDQUFDO0FBQ0wsQ0FBQyxDQUFDLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBwcm9jZXNzR3VpZGFuY2VSZXF1ZXN0IH0gZnJvbSAnLi9ndWlkYW5jZV9vcmNoZXN0cmF0b3InO1xuXG5kZXNjcmliZSgnR3VpZGFuY2VPcmNoZXN0cmF0b3InLCAoKSA9PiB7XG4gIGl0KCdzaG91bGQgYmUgYWJsZSB0byBwcm9jZXNzIGEgc2ltcGxlIHF1ZXJ5JywgYXN5bmMgKCkgPT4ge1xuICAgIGNvbnN0IHJlc3BvbnNlID0gYXdhaXQgcHJvY2Vzc0d1aWRhbmNlUmVxdWVzdChcbiAgICAgICdIb3cgZG8gSSBjcmVhdGUgYSBwaXZvdCB0YWJsZSBpbiBTcHJlYWRzaGVldEFwcD8nLFxuICAgICAgJ3VzZXIxMjMnLFxuICAgICAgJ1NwcmVhZHNoZWV0QXBwJ1xuICAgICk7XG4gICAgZXhwZWN0KHJlc3BvbnNlLm1lc3NhZ2VUb1VzZXIpLnRvQ29udGFpbihcIkhlcmUncyB3aGF0IEkgZm91bmRcIik7XG4gIH0pO1xufSk7XG4iXX0=

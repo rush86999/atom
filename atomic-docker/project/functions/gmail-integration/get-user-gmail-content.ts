@@ -59,7 +59,9 @@ interface GetUserGmailContentResponse {
 }
 
 // Helper function to recursively transform Google's MessagePart to our defined GmailMessagePart
-function transformGmailPart(part: gmail_v1.Schema$MessagePart | undefined | null): GmailMessagePart | null {
+function transformGmailPart(
+  part: gmail_v1.Schema$MessagePart | undefined | null
+): GmailMessagePart | null {
   if (!part) {
     return null;
   }
@@ -67,14 +69,23 @@ function transformGmailPart(part: gmail_v1.Schema$MessagePart | undefined | null
     partId: part.partId || undefined, // Ensure nulls become undefined if schema expects optional
     mimeType: part.mimeType || undefined,
     filename: part.filename || undefined,
-    headers: part.headers?.map(h => ({ name: h.name || undefined, value: h.value || undefined })) || [],
-    body: part.body ? {
-      size: part.body.size || undefined,
-      data: part.body.data || undefined,
-      attachmentId: part.body.attachmentId || undefined,
-    } : undefined, // Use undefined if body is null/undefined
+    headers:
+      part.headers?.map((h) => ({
+        name: h.name || undefined,
+        value: h.value || undefined,
+      })) || [],
+    body: part.body
+      ? {
+          size: part.body.size || undefined,
+          data: part.body.data || undefined,
+          attachmentId: part.body.attachmentId || undefined,
+        }
+      : undefined, // Use undefined if body is null/undefined
     // Ensure recursive call correctly handles null/undefined parts and maps to GmailMessagePart or null
-    parts: part.parts?.map(p => transformGmailPart(p)).filter(p => p !== null) as GmailMessagePart[] || [],
+    parts:
+      (part.parts
+        ?.map((p) => transformGmailPart(p))
+        .filter((p) => p !== null) as GmailMessagePart[]) || [],
   };
 }
 
@@ -86,10 +97,17 @@ const handler = async (
   const { emailId } = req.body.input;
 
   if (!userId) {
-    return res.status(401).json({ success: false, message: 'User ID is missing from session. Unauthorized.' });
+    return res
+      .status(401)
+      .json({
+        success: false,
+        message: 'User ID is missing from session. Unauthorized.',
+      });
   }
   if (!emailId || typeof emailId !== 'string' || emailId.trim() === '') {
-    return res.status(400).json({ success: false, message: 'Email ID is missing or invalid.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Email ID is missing or invalid.' });
   }
 
   try {
@@ -97,7 +115,12 @@ const handler = async (
       await fetchEmailContentFromService(userId, emailId);
 
     if (!rawEmailFromService || !rawEmailFromService.id) {
-      return res.status(404).json({ success: false, message: `Email with ID '${emailId}' not found or inaccessible.` });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: `Email with ID '${emailId}' not found or inaccessible.`,
+        });
     }
 
     // Transform the raw Gmail API message to our GmailMessageContent structure
@@ -117,19 +140,32 @@ const handler = async (
       success: true,
       email: transformedEmail,
     });
-
   } catch (e: any) {
-    console.error(`Error in getUserGmailContent handler for user ${userId}, emailId ${emailId}:`, e);
-    const errorMessage = e.message || 'An unexpected error occurred while fetching email content.';
+    console.error(
+      `Error in getUserGmailContent handler for user ${userId}, emailId ${emailId}:`,
+      e
+    );
+    const errorMessage =
+      e.message || 'An unexpected error occurred while fetching email content.';
 
-    if (errorMessage.includes('Failed to get authenticated Gmail client') ||
-        errorMessage.includes('User needs to authorize') ||
-        errorMessage.includes('token might be revoked') ||
-        errorMessage.includes('Gmail authentication failed')) { // Catch more specific auth errors
-        return res.status(401).json({ success: false, message: 'Gmail authentication error. Please connect or reconnect your Gmail account via settings.' });
+    if (
+      errorMessage.includes('Failed to get authenticated Gmail client') ||
+      errorMessage.includes('User needs to authorize') ||
+      errorMessage.includes('token might be revoked') ||
+      errorMessage.includes('Gmail authentication failed')
+    ) {
+      // Catch more specific auth errors
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message:
+            'Gmail authentication error. Please connect or reconnect your Gmail account via settings.',
+        });
     }
-    if (errorMessage.toLowerCase().includes('not found')) { // Catch "not found" from service layer
-        return res.status(404).json({ success: false, message: errorMessage });
+    if (errorMessage.toLowerCase().includes('not found')) {
+      // Catch "not found" from service layer
+      return res.status(404).json({ success: false, message: errorMessage });
     }
 
     return res.status(500).json({

@@ -1,52 +1,43 @@
-
 const Reminder = {
-  "title": "Reminder schema",
-  "version": 0,
-  "description": "describes a Reminder",
-  "primaryKey": "id",
-  "type": "object",
-  "properties": {
-    "id": {
-        "type": "string"
+  title: 'Reminder schema',
+  version: 0,
+  description: 'describes a Reminder',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: {
+      type: 'string',
     },
-    "eventId": {
-      "type": "string"
+    eventId: {
+      type: 'string',
     },
-    "userId": {
-      "type": "string"
+    userId: {
+      type: 'string',
     },
-    "reminderDate": {
-      "type": ["string", "null"]
+    reminderDate: {
+      type: ['string', 'null'],
     },
-    "timezone": {
-      "type": "string"
+    timezone: {
+      type: 'string',
     },
-    "minutes": {
-      "type": ["number", "null"]
+    minutes: {
+      type: ['number', 'null'],
     },
-    "method": {
-      "type": "string"
+    method: {
+      type: 'string',
     },
-    "useDefault": {
-      "type": "boolean"
+    useDefault: {
+      type: 'boolean',
     },
-    "updatedAt": {
-      "type": "string"
+    updatedAt: {
+      type: 'string',
     },
-    "createdDate": {
-      "type": "string"
-    }
+    createdDate: {
+      type: 'string',
+    },
   },
-  "required": [
-    "id",
-    "eventId",
-    "userId",
-    "updatedAt",
-    "createdDate"
-  ],
-  "indexes": [
-    "userId"
-  ]
-}
+  required: ['id', 'eventId', 'userId', 'updatedAt', 'createdDate'],
+  indexes: ['userId'],
+};
 
-export default Reminder
+export default Reminder;

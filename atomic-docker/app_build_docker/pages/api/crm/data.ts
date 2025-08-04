@@ -29,9 +29,24 @@ interface SalesData {
 // This is our mock database. In a real application, you would fetch this from a CRM like Salesforce or HubSpot.
 const mockCrmData: SalesData = {
   opportunities: [
-    { id: 'opp1', name: 'Synergy Corp Website Revamp', stage: 'Qualification', value: 120000 },
-    { id: 'opp2', name: 'Quantum Solutions Cloud Migration', stage: 'Proposal', value: 350000 },
-    { id: 'opp3', name: 'Innovate LLC AI Chatbot', stage: 'Negotiation', value: 75000 },
+    {
+      id: 'opp1',
+      name: 'Synergy Corp Website Revamp',
+      stage: 'Qualification',
+      value: 120000,
+    },
+    {
+      id: 'opp2',
+      name: 'Quantum Solutions Cloud Migration',
+      stage: 'Proposal',
+      value: 350000,
+    },
+    {
+      id: 'opp3',
+      name: 'Innovate LLC AI Chatbot',
+      stage: 'Negotiation',
+      value: 75000,
+    },
   ],
   contacts: [
     { id: 'cont1', name: 'Laura Chen', opportunityId: 'opp1' },
@@ -39,10 +54,22 @@ const mockCrmData: SalesData = {
     { id: 'cont3', name: 'Samantha Williams', opportunityId: 'opp3' },
   ],
   tasks: [
-      { id: 'task1', description: 'Schedule discovery call with Synergy Corp', dueDate: '2024-08-05' },
-      { id: 'task2', description: 'Finalize proposal for Quantum Solutions', dueDate: '2024-08-10' },
-      { id: 'task3', description: 'Send updated contract to Innovate LLC', dueDate: '2024-07-30' },
-  ]
+    {
+      id: 'task1',
+      description: 'Schedule discovery call with Synergy Corp',
+      dueDate: '2024-08-05',
+    },
+    {
+      id: 'task2',
+      description: 'Finalize proposal for Quantum Solutions',
+      dueDate: '2024-08-10',
+    },
+    {
+      id: 'task3',
+      description: 'Send updated contract to Innovate LLC',
+      dueDate: '2024-07-30',
+    },
+  ],
 };
 
 /**

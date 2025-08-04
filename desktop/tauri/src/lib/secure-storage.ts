@@ -1,4 +1,9 @@
-import { readTextFile, writeTextFile, createDir, exists } from '@tauri-apps/api/fs';
+import {
+  readTextFile,
+  writeTextFile,
+  createDir,
+  exists,
+} from '@tauri-apps/api/fs';
 import { appDataDir } from '@tauri-apps/api/path';
 import CryptoJS from 'crypto-js';
 
@@ -41,7 +46,10 @@ async function readSettingsFile(): Promise<Settings> {
     const content = await readTextFile(filePath);
     return JSON.parse(content) as Settings;
   } catch (error) {
-    console.error("Error reading settings file, returning empty settings:", error);
+    console.error(
+      'Error reading settings file, returning empty settings:',
+      error
+    );
     return {};
   }
 }
@@ -75,6 +83,6 @@ export async function getSetting(key: string): Promise<string | null> {
 }
 
 export async function getSettingStatus(key: string): Promise<boolean> {
-    const settings = await readSettingsFile();
-    return !!settings[key];
+  const settings = await readSettingsFile();
+  return !!settings[key];
 }

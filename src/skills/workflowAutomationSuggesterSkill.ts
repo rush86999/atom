@@ -8,7 +8,7 @@ export interface UserAction {
   timestamp: Date;
   userId: string;
   application: string; // e.g., "EmailClient", "SpreadsheetApp", "TextEditor", "Browser"
-  actionType: string;  // e.g., "COPY_CELL_RANGE", "PASTE_INTO_BODY", "CREATE_NEW_EMAIL", "NAVIGATE_URL"
+  actionType: string; // e.g., "COPY_CELL_RANGE", "PASTE_INTO_BODY", "CREATE_NEW_EMAIL", "NAVIGATE_URL"
   details?: Record<string, any>; // Specifics of the action, e.g., { range: 'A1:B10', url: 'http://...' }
 }
 
@@ -42,7 +42,7 @@ export interface WorkflowAutomationSuggesterSkillInput {
  */
 export class WorkflowAutomationSuggesterSkill {
   constructor() {
-    console.log("WorkflowAutomationSuggesterSkill initialized.");
+    console.log('WorkflowAutomationSuggesterSkill initialized.');
     // In a real system, this might connect to an action logging service or a pattern mining engine.
   }
 
@@ -51,21 +51,32 @@ export class WorkflowAutomationSuggesterSkill {
    * @param input The input containing the userId and a list of recent actions.
    * @returns A Promise resolving to an array of AutomationSuggestion objects.
    */
-  public async execute(input: WorkflowAutomationSuggesterSkillInput): Promise<AutomationSuggestion[]> {
-    console.log(`[WorkflowAutomationSuggesterSkill] Received ${input.recentActions.length} actions for user: ${input.userId}`);
+  public async execute(
+    input: WorkflowAutomationSuggesterSkillInput
+  ): Promise<AutomationSuggestion[]> {
+    console.log(
+      `[WorkflowAutomationSuggesterSkill] Received ${input.recentActions.length} actions for user: ${input.userId}`
+    );
 
     const suggestions: AutomationSuggestion[] = [];
 
     // 1. Validate input (userId, recentActions) - Basic check
     if (!input.userId || !input.recentActions) {
-      console.warn("[WorkflowAutomationSuggesterSkill] Missing userId or recentActions.");
+      console.warn(
+        '[WorkflowAutomationSuggesterSkill] Missing userId or recentActions.'
+      );
       return [];
     }
-    if (input.recentActions.length < 3) { // Need at least a few actions to find a pattern
-        console.log("[WorkflowAutomationSuggesterSkill] Not enough actions to detect patterns meaningfully.");
-        return [];
+    if (input.recentActions.length < 3) {
+      // Need at least a few actions to find a pattern
+      console.log(
+        '[WorkflowAutomationSuggesterSkill] Not enough actions to detect patterns meaningfully.'
+      );
+      return [];
     }
-    console.log(`[WorkflowAutomationSuggesterSkill] Analyzing ${input.recentActions.length} actions for user: ${input.userId}`);
+    console.log(
+      `[WorkflowAutomationSuggesterSkill] Analyzing ${input.recentActions.length} actions for user: ${input.userId}`
+    );
 
     // 2. Implement mock pattern detection:
     //    Define a simple target pattern, e.g., sequence:
@@ -76,26 +87,34 @@ export class WorkflowAutomationSuggesterSkill {
     //    (This is a very basic stand-in for complex pattern mining algorithms or LLM-based sequence analysis).
 
     const actions = input.recentActions;
-    for (let i = 0; i < actions.length - 3; i++) { // Need at least 4 actions for this specific pattern
-        const potentialPatternActions = actions.slice(i, i + 4);
+    for (let i = 0; i < actions.length - 3; i++) {
+      // Need at least 4 actions for this specific pattern
+      const potentialPatternActions = actions.slice(i, i + 4);
 
-        // Mock check for a specific hardcoded pattern: Copy from Spreadsheet, Create Email, Paste, Send.
-        if (
-            potentialPatternActions[0].application === 'SpreadsheetApp' && potentialPatternActions[0].actionType === 'COPY_CELL_RANGE' &&
-            potentialPatternActions[1].application === 'EmailClient' && potentialPatternActions[1].actionType === 'CREATE_NEW_EMAIL' &&
-            potentialPatternActions[2].application === 'EmailClient' && potentialPatternActions[2].actionType === 'PASTE_INTO_BODY' &&
-            potentialPatternActions[3].application === 'EmailClient' && potentialPatternActions[3].actionType === 'SEND_EMAIL'
-        ) {
-            console.log(`[WorkflowAutomationSuggesterSkill] Mock pattern "Copy-Paste-Send Report" detected starting at action ID ${potentialPatternActions[0].id}`);
+      // Mock check for a specific hardcoded pattern: Copy from Spreadsheet, Create Email, Paste, Send.
+      if (
+        potentialPatternActions[0].application === 'SpreadsheetApp' &&
+        potentialPatternActions[0].actionType === 'COPY_CELL_RANGE' &&
+        potentialPatternActions[1].application === 'EmailClient' &&
+        potentialPatternActions[1].actionType === 'CREATE_NEW_EMAIL' &&
+        potentialPatternActions[2].application === 'EmailClient' &&
+        potentialPatternActions[2].actionType === 'PASTE_INTO_BODY' &&
+        potentialPatternActions[3].application === 'EmailClient' &&
+        potentialPatternActions[3].actionType === 'SEND_EMAIL'
+      ) {
+        console.log(
+          `[WorkflowAutomationSuggesterSkill] Mock pattern "Copy-Paste-Send Report" detected starting at action ID ${potentialPatternActions[0].id}`
+        );
 
-            // 4. If mock pattern is detected:
-            //    a. Create a corresponding AutomationSuggestion object
-            const suggestion: AutomationSuggestion = {
-                id: `sugg-${Date.now()}-${Math.random().toString(36).substring(2,7)}`,
-                title: "Automate Sending Copied Spreadsheet Data via Email",
-                description: "Detected a pattern where you copy data from a spreadsheet, create a new email, paste the data, and send it. This could potentially be automated.",
-                basedOnActionIds: potentialPatternActions.map(a => a.id),
-                suggestedMacro: `
+        // 4. If mock pattern is detected:
+        //    a. Create a corresponding AutomationSuggestion object
+        const suggestion: AutomationSuggestion = {
+          id: `sugg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          title: 'Automate Sending Copied Spreadsheet Data via Email',
+          description:
+            'Detected a pattern where you copy data from a spreadsheet, create a new email, paste the data, and send it. This could potentially be automated.',
+          basedOnActionIds: potentialPatternActions.map((a) => a.id),
+          suggestedMacro: `
                   1. Get data from Spreadsheet (e.g., range specified in details: ${JSON.stringify(potentialPatternActions[0].details?.range || 'last copied range')}).
                   2. Create new Email.
                   3. (Optional) Set recipient (e.g., from details: ${JSON.stringify(potentialPatternActions[1].details?.to || 'common recipient')}).
@@ -103,22 +122,27 @@ export class WorkflowAutomationSuggesterSkill {
                   5. Paste/insert data into email body.
                   6. Send Email.
                 `,
-                userBenefit: "Could save a few minutes each time this task is performed.",
-                confidence: 0.7, // Mock confidence
-            };
-            suggestions.push(suggestion);
+          userBenefit:
+            'Could save a few minutes each time this task is performed.',
+          confidence: 0.7, // Mock confidence
+        };
+        suggestions.push(suggestion);
 
-            // For this mock, let's only find the first instance of the pattern to keep it simple.
-            // In a real system, you'd find all occurrences or use more sophisticated frequency analysis.
-            break;
-        }
+        // For this mock, let's only find the first instance of the pattern to keep it simple.
+        // In a real system, you'd find all occurrences or use more sophisticated frequency analysis.
+        break;
+      }
     }
 
     // 5. Return the suggestions array.
     if (suggestions.length > 0) {
-        console.log(`[WorkflowAutomationSuggesterSkill] Generated ${suggestions.length} automation suggestion(s).`);
+      console.log(
+        `[WorkflowAutomationSuggesterSkill] Generated ${suggestions.length} automation suggestion(s).`
+      );
     } else {
-        console.log("[WorkflowAutomationSuggesterSkill] No predefined mock patterns detected in the provided action sequence.");
+      console.log(
+        '[WorkflowAutomationSuggesterSkill] No predefined mock patterns detected in the provided action sequence.'
+      );
     }
     return suggestions;
   }

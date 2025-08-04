@@ -26,35 +26,60 @@ interface CreateTaskHandlerNluEntities {
  * @param entities The NLU entities extracted for the CreateTask intent.
  * @returns A promise that resolves to a user-facing string response.
  */
-export async function handleCreateTaskRequest(userId: string, nluEntities: CreateTaskHandlerNluEntities, integrations: any): Promise<string> {
-  logger.info(`[CreateNotionTaskCmdHandler] Handling request for user ${userId} to create task.`);
-  logger.debug(`[CreateNotionTaskCmdHandler] Received NLU entities: ${JSON.stringify(entities)}`);
+export async function handleCreateTaskRequest(
+  userId: string,
+  nluEntities: CreateTaskHandlerNluEntities,
+  integrations: any
+): Promise<string> {
+  logger.info(
+    `[CreateNotionTaskCmdHandler] Handling request for user ${userId} to create task.`
+  );
+  logger.debug(
+    `[CreateNotionTaskCmdHandler] Received NLU entities: ${JSON.stringify(entities)}`
+  );
 
   if (!entities.task_description) {
     logger.warn(`[CreateNotionTaskCmdHandler] Missing task_description.`);
-    return "Please provide a description for the task you want to create.";
+    return 'Please provide a description for the task you want to create.';
   }
 
   try {
     // The skill `handleCreateNotionTask` expects entities matching its internal CreateTaskNluEntities.
     // Ensure the structure passed matches.
-    const skillResponse: SkillResponse<CreateTaskData & { userMessage: string }> = await handleCreateNotionTask(userId, {
+    const skillResponse: SkillResponse<
+      CreateTaskData & { userMessage: string }
+    > = await handleCreateNotionTask(
+      userId,
+      {
         task_description: entities.task_description,
         due_date_text: entities.due_date_text,
         priority_text: entities.priority_text,
         list_name_text: entities.list_name_text,
-    }, integrations);
+      },
+      integrations
+    );
 
     if (skillResponse.ok && skillResponse.data?.userMessage) {
-      logger.info(`[CreateNotionTaskCmdHandler] Task creation successful: ${skillResponse.data.userMessage}`);
+      logger.info(
+        `[CreateNotionTaskCmdHandler] Task creation successful: ${skillResponse.data.userMessage}`
+      );
       return skillResponse.data.userMessage;
     } else {
-      const errorMsg = skillResponse.error?.message || skillResponse.data?.userMessage || 'Unknown error from skill';
-      logger.error(`[CreateNotionTaskCmdHandler] Skill execution failed or task creation unsuccessful: ${errorMsg}`, skillResponse.error);
+      const errorMsg =
+        skillResponse.error?.message ||
+        skillResponse.data?.userMessage ||
+        'Unknown error from skill';
+      logger.error(
+        `[CreateNotionTaskCmdHandler] Skill execution failed or task creation unsuccessful: ${errorMsg}`,
+        skillResponse.error
+      );
       return `I couldn't create the task. ${errorMsg}`;
     }
   } catch (error: any) {
-    logger.error(`[CreateNotionTaskCmdHandler] Critical error handling request: ${error.message}`, error);
+    logger.error(
+      `[CreateNotionTaskCmdHandler] Critical error handling request: ${error.message}`,
+      error
+    );
     return `I encountered an unexpected critical error while trying to create the task: ${error.message}.`;
   }
 }

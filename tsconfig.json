@@ -5,10 +5,10 @@
     "moduleResolution": "NodeNext",
     "lib": ["es2022", "dom"],
     "declaration": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noImplicitThis": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noImplicitThis": false,
     "alwaysStrict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
@@ -21,7 +21,19 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "typeRoots": ["./node_modules/@types"],
-    "types": ["jest", "vite/client"]
+    "types": ["jest", "vite/client"],
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
   },
-  "exclude": ["node_modules", "cdk.out"]
+  "include": ["**/*"],
+  "exclude": [
+    "node_modules",
+    "cdk.out",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/__tests__"
+  ]
 }

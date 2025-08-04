@@ -1,5 +1,3 @@
-
-
 export default `
 query GetChatMeetingPreferenceByUserId($userId: uuid!) {
     Chat_Meeting_Preference(where: {userId: {_eq: $userId}}) {
@@ -24,4 +22,4 @@ query GetChatMeetingPreferenceByUserId($userId: uuid!) {
       visibility
     }
   }
-  `
+  `;

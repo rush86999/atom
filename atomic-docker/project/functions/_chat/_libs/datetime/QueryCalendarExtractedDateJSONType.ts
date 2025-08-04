@@ -1,23 +1,25 @@
-import { Time } from "@chat/_libs/skills/askCalendar/types"
-import { RelativeTimeChangeFromNowType, RelativeTimeFromNowType } from "@chat/_libs/datetime/DateTimeJSONJSONType"
-
+import { Time } from '@chat/_libs/skills/askCalendar/types';
+import {
+  RelativeTimeChangeFromNowType,
+  RelativeTimeFromNowType,
+} from '@chat/_libs/datetime/DateTimeJSONJSONType';
 
 type ExtractedDateType = {
-    relativeTimeChangeFromNow: RelativeTimeChangeFromNowType,
-    relativeTimeFromNow: RelativeTimeFromNowType[],
-    year: string,
-    month: string,
-    day: string,
-    hour: number,
-    minute: number,
-    time: Time,
-}
+  relativeTimeChangeFromNow: RelativeTimeChangeFromNowType;
+  relativeTimeFromNow: RelativeTimeFromNowType[];
+  year: string;
+  month: string;
+  day: string;
+  hour: number;
+  minute: number;
+  time: Time;
+};
 type QueryCalendarExtractedJSONType = {
-    start_date: ExtractedDateType,
-    end_date: ExtractedDateType,
-}
+  start_date: ExtractedDateType;
+  end_date: ExtractedDateType;
+};
 
-export default QueryCalendarExtractedJSONType
+export default QueryCalendarExtractedJSONType;
 /**
  * {
     "start_date": {

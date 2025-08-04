@@ -1,4 +1,9 @@
-import { getHubSpotContactByEmail, createHubSpotContact, logEmailToHubSpotContact, getHubSpotContactActivities } from './hubspotSkills';
+import {
+  getHubSpotContactByEmail,
+  createHubSpotContact,
+  logEmailToHubSpotContact,
+  getHubSpotContactActivities,
+} from './hubspotSkills';
 import { ATOM_HUBSPOT_API_KEY } from '../_libs/constants';
 import { Client } from '@hubspot/api-client';
 import {
@@ -9,7 +14,7 @@ import {
   HubSpotEmailEngagementProperties,
   HubSpotEngagement,
   LogEngagementResponse,
-  GetContactActivitiesResponse
+  GetContactActivitiesResponse,
 } from '../types';
 import { CONTACT_TO_ENGAGEMENT_ASSOCIATION_TYPE_ID } from './hubspotSkills'; // Import the constant
 
@@ -47,7 +52,6 @@ const mockExpectedContact: HubSpotContact = {
   archived: false,
 };
 
-
 // Mock @hubspot/api-client
 jest.mock('@hubspot/api-client');
 
@@ -61,7 +65,6 @@ const mockEngagementsSearchApiDoSearch = jest.fn();
 
 // Associations API V4 mocks
 const mockAssociationsV4BasicApiGetPage = jest.fn();
-
 
 // Mock the Client constructor and its methods more comprehensively
 const mockHubSpotClientInstance = {
@@ -94,7 +97,6 @@ const resetAllCrmMocks = () => {
   mockAssociationsV4BasicApiGetPage.mockReset();
 };
 
-
 // Mock constants
 jest.mock('../_libs/constants', () => ({
   ATOM_HUBSPOT_API_KEY: 'test-api-key', // Default mock value
@@ -102,9 +104,10 @@ jest.mock('../_libs/constants', () => ({
 
 // Helper to change the mock API key for specific tests
 const setMockApiKey = (key: string | null) => {
-  jest.spyOn(require('../_libs/constants'), 'ATOM_HUBSPOT_API_KEY', 'get').mockReturnValue(key);
+  jest
+    .spyOn(require('../_libs/constants'), 'ATOM_HUBSPOT_API_KEY', 'get')
+    .mockReturnValue(key);
 };
-
 
 describe('hubspotSkills', () => {
   let consoleErrorSpy: jest.SpyInstance;
@@ -132,29 +135,51 @@ describe('hubspotSkills', () => {
     const testUserId = 'user123';
 
     it('should return a contact if found', async () => {
-      mockContactsSearchApi.mockResolvedValue({ results: [mockApiContactResult] });
+      mockContactsSearchApi.mockResolvedValue({
+        results: [mockApiContactResult],
+      });
       const result = await getHubSpotContactByEmail(testUserId, testEmail);
       expect(result).toEqual(mockExpectedContact);
       expect(mockContactsSearchApi).toHaveBeenCalledWith({
         query: testEmail,
-        properties: ['email', 'firstname', 'lastname', 'company', 'hs_object_id', 'createdate', 'lastmodifieddate'],
-        filterGroups: [{ filters: [{ propertyName: 'email', operator: 'EQ', value: testEmail }] }],
+        properties: [
+          'email',
+          'firstname',
+          'lastname',
+          'company',
+          'hs_object_id',
+          'createdate',
+          'lastmodifieddate',
+        ],
+        filterGroups: [
+          {
+            filters: [
+              { propertyName: 'email', operator: 'EQ', value: testEmail },
+            ],
+          },
+        ],
       });
-      expect(consoleLogSpy).toHaveBeenCalledWith(`getHubSpotContactByEmail called for userId: ${testUserId}, email: ${testEmail}`);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `getHubSpotContactByEmail called for userId: ${testUserId}, email: ${testEmail}`
+      );
     });
 
     it('should return null if contact not found', async () => {
       mockContactsSearchApi.mockResolvedValue({ results: [] });
       const result = await getHubSpotContactByEmail(testUserId, testEmail);
       expect(result).toBeNull();
-      expect(consoleLogSpy).toHaveBeenCalledWith(`No HubSpot contact found for email: ${testEmail}`);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `No HubSpot contact found for email: ${testEmail}`
+      );
     });
 
     it('should return null and log error if API key is missing', async () => {
       setMockApiKey(null); // Simulate missing API key
       const result = await getHubSpotContactByEmail(testUserId, testEmail);
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('HubSpot API key not configured.');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'HubSpot API key not configured.'
+      );
       expect(mockContactsSearchApi).not.toHaveBeenCalled();
     });
 
@@ -164,8 +189,14 @@ describe('hubspotSkills', () => {
       mockContactsSearchApi.mockRejectedValue(apiError);
       const result = await getHubSpotContactByEmail(testUserId, testEmail);
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error fetching HubSpot contact by email ${testEmail} for userId ${testUserId}:`, apiError.message);
-      expect(consoleErrorSpy).toHaveBeenCalledWith('HubSpot API Error Body:', 'Some error body');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error fetching HubSpot contact by email ${testEmail} for userId ${testUserId}:`,
+        apiError.message
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'HubSpot API Error Body:',
+        'Some error body'
+      );
     });
   });
 
@@ -179,7 +210,16 @@ describe('hubspotSkills', () => {
     };
 
     it('should create a contact and return success response', async () => {
-      const createdApiContact = { ...mockApiContactResult, id: '67890', properties: { ...mockApiContactResult.properties, ...contactProperties }, createdAt: new Date(), updatedAt: new Date() };
+      const createdApiContact = {
+        ...mockApiContactResult,
+        id: '67890',
+        properties: {
+          ...mockApiContactResult.properties,
+          ...contactProperties,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       mockContactsBasicApiCreate.mockResolvedValue(createdApiContact);
 
       const result = await createHubSpotContact(testUserId, contactProperties);
@@ -198,13 +238,24 @@ describe('hubspotSkills', () => {
         message: 'Contact created successfully in HubSpot.',
         hubSpotContact: expectedCreatedContact,
       });
-      expect(mockContactsBasicApiCreate).toHaveBeenCalledWith({ properties: contactProperties });
-      expect(consoleLogSpy).toHaveBeenCalledWith(`createHubSpotContact called for userId: ${testUserId} with properties:`, contactProperties);
+      expect(mockContactsBasicApiCreate).toHaveBeenCalledWith({
+        properties: contactProperties,
+      });
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `createHubSpotContact called for userId: ${testUserId} with properties:`,
+        contactProperties
+      );
     });
 
     it('should return error if email is missing', async () => {
-      const propertiesWithoutEmail: HubSpotContactProperties = { firstname: 'No', lastname: 'Email' };
-      const result = await createHubSpotContact(testUserId, propertiesWithoutEmail);
+      const propertiesWithoutEmail: HubSpotContactProperties = {
+        firstname: 'No',
+        lastname: 'Email',
+      };
+      const result = await createHubSpotContact(
+        testUserId,
+        propertiesWithoutEmail
+      );
       expect(result).toEqual({
         success: false,
         message: 'Email is required to create a HubSpot contact.',
@@ -220,27 +271,47 @@ describe('hubspotSkills', () => {
         message: 'HubSpot API key not configured.',
       });
       expect(mockContactsBasicApiCreate).not.toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('HubSpot API key not configured.');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'HubSpot API key not configured.'
+      );
     });
 
     it('should return error and log if HubSpot API call fails', async () => {
       const apiError = new Error('HubSpot Create Error');
-      (apiError as any).response = { body: Buffer.from(JSON.stringify({ message: "Detailed API error" })) };
+      (apiError as any).response = {
+        body: Buffer.from(JSON.stringify({ message: 'Detailed API error' })),
+      };
       mockContactsBasicApiCreate.mockRejectedValue(apiError);
       const result = await createHubSpotContact(testUserId, contactProperties);
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to create contact in HubSpot: Detailed API error');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error creating HubSpot contact for userId ${testUserId} with email ${contactProperties.email}:`, apiError.message);
-      expect(consoleErrorSpy).toHaveBeenCalledWith('HubSpot API Error Body:', {"message": "Detailed API error"});
+      expect(result.message).toBe(
+        'Failed to create contact in HubSpot: Detailed API error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error creating HubSpot contact for userId ${testUserId} with email ${contactProperties.email}:`,
+        apiError.message
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith('HubSpot API Error Body:', {
+        message: 'Detailed API error',
+      });
     });
 
-     it('should return specific message if contact already exists (CONFLICT)', async () => {
+    it('should return specific message if contact already exists (CONFLICT)', async () => {
       const apiConflictError = new Error('Conflict');
-      (apiConflictError as any).response = { body: Buffer.from(JSON.stringify({ message: "Contact already exists.", category: "CONFLICT" })) };
+      (apiConflictError as any).response = {
+        body: Buffer.from(
+          JSON.stringify({
+            message: 'Contact already exists.',
+            category: 'CONFLICT',
+          })
+        ),
+      };
       mockContactsBasicApiCreate.mockRejectedValue(apiConflictError);
       const result = await createHubSpotContact(testUserId, contactProperties);
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to create contact in HubSpot: A contact with this email already exists.');
+      expect(result.message).toBe(
+        'Failed to create contact in HubSpot: A contact with this email already exists.'
+      );
     });
   });
 
@@ -276,16 +347,26 @@ describe('hubspotSkills', () => {
     };
 
     it('should successfully log an email and return engagement details', async () => {
-      mockEngagementsBasicApiCreate.mockResolvedValue(mockEngagementApiResponse);
+      mockEngagementsBasicApiCreate.mockResolvedValue(
+        mockEngagementApiResponse
+      );
 
-      const result = await logEmailToHubSpotContact(userId, contactId, emailDetails);
+      const result = await logEmailToHubSpotContact(
+        userId,
+        contactId,
+        emailDetails
+      );
 
       expect(result.success).toBe(true);
       expect(result.engagementId).toBe(mockEngagementId);
-      expect(result.message).toBe('Email logged successfully to HubSpot contact.');
+      expect(result.message).toBe(
+        'Email logged successfully to HubSpot contact.'
+      );
       expect(result.hubSpotEngagement).toBeDefined();
       expect(result.hubSpotEngagement?.id).toBe(mockEngagementId);
-      expect(result.hubSpotEngagement?.properties.hs_email_subject).toBe(emailDetails.subject);
+      expect(result.hubSpotEngagement?.properties.hs_email_subject).toBe(
+        emailDetails.subject
+      );
 
       expect(mockEngagementsBasicApiCreate).toHaveBeenCalledWith({
         properties: {
@@ -298,16 +379,27 @@ describe('hubspotSkills', () => {
         associations: [
           {
             to: { id: contactId },
-            types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: CONTACT_TO_ENGAGEMENT_ASSOCIATION_TYPE_ID }],
+            types: [
+              {
+                associationCategory: 'HUBSPOT_DEFINED',
+                associationTypeId: CONTACT_TO_ENGAGEMENT_ASSOCIATION_TYPE_ID,
+              },
+            ],
           },
         ],
       });
-      expect(consoleLogSpy).toHaveBeenCalledWith(`logEmailToHubSpotContact called for userId: ${userId}, contactId: ${contactId}`);
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        `logEmailToHubSpotContact called for userId: ${userId}, contactId: ${contactId}`
+      );
     });
 
     it('should return error if API key is missing', async () => {
       setMockApiKey(null);
-      const result = await logEmailToHubSpotContact(userId, contactId, emailDetails);
+      const result = await logEmailToHubSpotContact(
+        userId,
+        contactId,
+        emailDetails
+      );
       expect(result.success).toBe(false);
       expect(result.message).toBe('HubSpot API key not configured.');
       expect(mockEngagementsBasicApiCreate).not.toHaveBeenCalled();
@@ -315,25 +407,47 @@ describe('hubspotSkills', () => {
 
     it('should return error if HubSpot API create call fails', async () => {
       const apiError = new Error('HubSpot API Create Engagement Error');
-       (apiError as any).response = { body: Buffer.from(JSON.stringify({ message: "Detailed creation error" })) };
+      (apiError as any).response = {
+        body: Buffer.from(
+          JSON.stringify({ message: 'Detailed creation error' })
+        ),
+      };
       mockEngagementsBasicApiCreate.mockRejectedValue(apiError);
 
-      const result = await logEmailToHubSpotContact(userId, contactId, emailDetails);
+      const result = await logEmailToHubSpotContact(
+        userId,
+        contactId,
+        emailDetails
+      );
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to log email to HubSpot: Detailed creation error');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error logging email to HubSpot contact ${contactId} for userId ${userId}:`, apiError.message);
+      expect(result.message).toBe(
+        'Failed to log email to HubSpot: Detailed creation error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error logging email to HubSpot contact ${contactId} for userId ${userId}:`,
+        apiError.message
+      );
     });
-     it('should return error if contactId is missing', async () => {
+    it('should return error if contactId is missing', async () => {
       const result = await logEmailToHubSpotContact(userId, '', emailDetails);
-      expect(result).toEqual({ success: false, message: 'Contact ID is required to log an email.' });
+      expect(result).toEqual({
+        success: false,
+        message: 'Contact ID is required to log an email.',
+      });
       expect(mockEngagementsBasicApiCreate).not.toHaveBeenCalled();
     });
 
     it('should return error if essential emailDetails are missing', async () => {
       // @ts-ignore
-      const result = await logEmailToHubSpotContact(userId, contactId, { subject: 'missing other fields' });
-      expect(result).toEqual({ success: false, message: 'Email details (activityTimestamp, subject, htmlBody) are required.' });
+      const result = await logEmailToHubSpotContact(userId, contactId, {
+        subject: 'missing other fields',
+      });
+      expect(result).toEqual({
+        success: false,
+        message:
+          'Email details (activityTimestamp, subject, htmlBody) are required.',
+      });
       expect(mockEngagementsBasicApiCreate).not.toHaveBeenCalled();
     });
   });
@@ -345,11 +459,19 @@ describe('hubspotSkills', () => {
     const mockEngagementId2 = 'eng-222';
 
     const mockAssociationPage = (ids: string[]) => ({
-      results: ids.map(id => ({ toObjectId: id, type: 'contact_to_engagement' })), // Simplified, check actual type string if needed
-      paging: { next: { after: ids.length > 0 ? 'nextpagecursor' : undefined } }
+      results: ids.map((id) => ({
+        toObjectId: id,
+        type: 'contact_to_engagement',
+      })), // Simplified, check actual type string if needed
+      paging: {
+        next: { after: ids.length > 0 ? 'nextpagecursor' : undefined },
+      },
     });
 
-    const mockEngagementSearchResult = (id: string, type: 'EMAIL' | 'MEETING' = 'EMAIL') => ({
+    const mockEngagementSearchResult = (
+      id: string,
+      type: 'EMAIL' | 'MEETING' = 'EMAIL'
+    ) => ({
       id,
       properties: {
         hs_object_id: id,
@@ -366,10 +488,15 @@ describe('hubspotSkills', () => {
     });
 
     it('should retrieve activities with default filters', async () => {
-      mockAssociationsV4BasicApiGetPage.mockResolvedValue(mockAssociationPage([mockEngagementId1, mockEngagementId2]));
+      mockAssociationsV4BasicApiGetPage.mockResolvedValue(
+        mockAssociationPage([mockEngagementId1, mockEngagementId2])
+      );
       mockEngagementsSearchApiDoSearch.mockResolvedValue({
-        results: [mockEngagementSearchResult(mockEngagementId1), mockEngagementSearchResult(mockEngagementId2)],
-        paging: { next: { after: 'nextSearchCursor' } }
+        results: [
+          mockEngagementSearchResult(mockEngagementId1),
+          mockEngagementSearchResult(mockEngagementId2),
+        ],
+        paging: { next: { after: 'nextSearchCursor' } },
       });
 
       const result = await getHubSpotContactActivities(userId, contactId);
@@ -378,23 +505,41 @@ describe('hubspotSkills', () => {
       expect(result.activities.length).toBe(2);
       expect(result.activities[0].id).toBe(mockEngagementId1);
       expect(result.nextPage).toBe('nextSearchCursor'); // This should be from searchApi.doSearch paging
-      expect(mockAssociationsV4BasicApiGetPage).toHaveBeenCalledWith("0-1", contactId, "0-31", undefined, 50);
-      expect(mockEngagementsSearchApiDoSearch).toHaveBeenCalledWith(expect.objectContaining({
-        filterGroups: [
-          { filters: [
-              { propertyName: 'hs_object_id', operator: 'IN', values: [mockEngagementId1, mockEngagementId2] }
-          ]}
-        ],
-        limit: 10,
-        sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
-      }));
+      expect(mockAssociationsV4BasicApiGetPage).toHaveBeenCalledWith(
+        '0-1',
+        contactId,
+        '0-31',
+        undefined,
+        50
+      );
+      expect(mockEngagementsSearchApiDoSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filterGroups: [
+            {
+              filters: [
+                {
+                  propertyName: 'hs_object_id',
+                  operator: 'IN',
+                  values: [mockEngagementId1, mockEngagementId2],
+                },
+              ],
+            },
+          ],
+          limit: 10,
+          sorts: [{ propertyName: 'hs_timestamp', direction: 'DESCENDING' }],
+        })
+      );
     });
 
     it('should retrieve activities with specific filters (EMAIL, limit 5, ASC, since)', async () => {
       const sinceDate = new Date('2023-01-01T00:00:00.000Z');
       const sinceTimestamp = sinceDate.getTime().toString();
-      mockAssociationsV4BasicApiGetPage.mockResolvedValue(mockAssociationPage([mockEngagementId1]));
-      mockEngagementsSearchApiDoSearch.mockResolvedValue({ results: [mockEngagementSearchResult(mockEngagementId1, 'EMAIL')] });
+      mockAssociationsV4BasicApiGetPage.mockResolvedValue(
+        mockAssociationPage([mockEngagementId1])
+      );
+      mockEngagementsSearchApiDoSearch.mockResolvedValue({
+        results: [mockEngagementSearchResult(mockEngagementId1, 'EMAIL')],
+      });
 
       await getHubSpotContactActivities(userId, contactId, {
         activityTypes: ['EMAIL'],
@@ -403,21 +548,39 @@ describe('hubspotSkills', () => {
         since: sinceDate.toISOString(),
       });
 
-      expect(mockEngagementsSearchApiDoSearch).toHaveBeenCalledWith(expect.objectContaining({
-        filterGroups: [
-          { filters: expect.arrayContaining([
-            { propertyName: 'hs_engagement_type', operator: 'IN', values: ['EMAIL'] },
-            { propertyName: 'hs_timestamp', operator: 'GTE', value: sinceTimestamp },
-            { propertyName: 'hs_object_id', operator: 'IN', values: [mockEngagementId1] }
-          ])}
-        ],
-        limit: 5,
-        sorts: [{ propertyName: 'hs_timestamp', direction: 'ASCENDING' }],
-      }));
+      expect(mockEngagementsSearchApiDoSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filterGroups: [
+            {
+              filters: expect.arrayContaining([
+                {
+                  propertyName: 'hs_engagement_type',
+                  operator: 'IN',
+                  values: ['EMAIL'],
+                },
+                {
+                  propertyName: 'hs_timestamp',
+                  operator: 'GTE',
+                  value: sinceTimestamp,
+                },
+                {
+                  propertyName: 'hs_object_id',
+                  operator: 'IN',
+                  values: [mockEngagementId1],
+                },
+              ]),
+            },
+          ],
+          limit: 5,
+          sorts: [{ propertyName: 'hs_timestamp', direction: 'ASCENDING' }],
+        })
+      );
     });
 
     it('should return empty activities if no associations found', async () => {
-      mockAssociationsV4BasicApiGetPage.mockResolvedValue(mockAssociationPage([])); // No associations
+      mockAssociationsV4BasicApiGetPage.mockResolvedValue(
+        mockAssociationPage([])
+      ); // No associations
       const result = await getHubSpotContactActivities(userId, contactId);
       expect(result.success).toBe(true);
       expect(result.activities.length).toBe(0);
@@ -426,7 +589,9 @@ describe('hubspotSkills', () => {
     });
 
     it('should return empty activities if associations found but search returns none', async () => {
-      mockAssociationsV4BasicApiGetPage.mockResolvedValue(mockAssociationPage([mockEngagementId1]));
+      mockAssociationsV4BasicApiGetPage.mockResolvedValue(
+        mockAssociationPage([mockEngagementId1])
+      );
       mockEngagementsSearchApiDoSearch.mockResolvedValue({ results: [] }); // Search returns no items
       const result = await getHubSpotContactActivities(userId, contactId);
       expect(result.success).toBe(true);
@@ -448,21 +613,34 @@ describe('hubspotSkills', () => {
       mockAssociationsV4BasicApiGetPage.mockRejectedValue(apiError);
       const result = await getHubSpotContactActivities(userId, contactId);
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to fetch contact activities: Assoc API Error');
-      expect(consoleErrorSpy).toHaveBeenCalledWith(`Error fetching HubSpot contact activities for contact ${contactId}, userId ${userId}:`, apiError.message);
+      expect(result.message).toContain(
+        'Failed to fetch contact activities: Assoc API Error'
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error fetching HubSpot contact activities for contact ${contactId}, userId ${userId}:`,
+        apiError.message
+      );
     });
 
     it('should return error if engagements search API call fails', async () => {
-      mockAssociationsV4BasicApiGetPage.mockResolvedValue(mockAssociationPage([mockEngagementId1]));
+      mockAssociationsV4BasicApiGetPage.mockResolvedValue(
+        mockAssociationPage([mockEngagementId1])
+      );
       const apiError = new Error('Search API Error');
       mockEngagementsSearchApiDoSearch.mockRejectedValue(apiError);
       const result = await getHubSpotContactActivities(userId, contactId);
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to fetch contact activities: Search API Error');
+      expect(result.message).toContain(
+        'Failed to fetch contact activities: Search API Error'
+      );
     });
-     it('should return error if contactId is missing', async () => {
+    it('should return error if contactId is missing', async () => {
       const result = await getHubSpotContactActivities(userId, '');
-      expect(result).toEqual({ success: false, activities: [], message: 'Contact ID is required.' });
+      expect(result).toEqual({
+        success: false,
+        activities: [],
+        message: 'Contact ID is required.',
+      });
       expect(mockAssociationsV4BasicApiGetPage).not.toHaveBeenCalled();
     });
   });

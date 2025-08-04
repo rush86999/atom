@@ -8,7 +8,8 @@ const functionsServiceLogger = pino({
   level: process.env.LOG_LEVEL || 'info',
   formatters: {
     level: (label) => ({ level: label.toUpperCase() }),
-    log: (object: Record<string, any>) => { // Explicitly type 'object'
+    log: (object: Record<string, any>) => {
+      // Explicitly type 'object'
       // Ensure object is not undefined and is an object
       if (object && typeof object === 'object') {
         object.service_name = serviceName;

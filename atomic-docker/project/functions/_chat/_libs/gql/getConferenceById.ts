@@ -1,5 +1,3 @@
-
-
 export default `
 query GetConferenceById($id: String!) {
   Conference_by_pk(id: $id) {
@@ -26,4 +24,4 @@ query GetConferenceById($id: String!) {
     isHost
   }
 }
-`
+`;

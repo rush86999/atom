@@ -1,28 +1,45 @@
-import RequiredFieldsType from "@chat/_libs/types/RequiredFieldsType"
+import RequiredFieldsType from '@chat/_libs/types/RequiredFieldsType';
 
 // userId and timezone are already provided
 
 const requiredFields: RequiredFieldsType = {
-    required: [
-        {value:'title', type:'chat'},
+  required: [{ value: 'title', type: 'chat' }],
+  optional: [],
+  dateTime: {
+    required: [],
+    optional: [
+      {
+        oneOf: [
+          { value: 'duration', type: 'chat' },
+          { value: 'endTime', type: 'chat' },
+        ],
+      },
+      {
+        oneOf: [
+          { value: 'day', type: 'chat' },
+          { value: 'isoWeekday', type: 'chat' },
+        ],
+      },
+      {
+        oneOf: [
+          {
+            and: [
+              { value: 'hour', type: 'chat' },
+              { value: 'minute', type: 'chat' },
+            ],
+          },
+          { value: 'startTime', type: 'chat' },
+        ],
+      },
+      { value: 'recur', type: 'chat' },
     ],
-    optional: [],
-    dateTime: {
-        required: [],
-        optional: [
-            { oneOf: [{value: 'duration', type:'chat'}, {value:'endTime', type:'chat'}] },
-            { oneOf: [{value:'day', type:'chat'}, {value:'isoWeekday', type:'chat'}] },
-            { oneOf: [{ and: [{value:'hour', type:'chat'}, {value:'minute', type:'chat'}] }, {value:'startTime', type:'chat'}] },
-            {value:'recur', type:'chat'}
-        ]
-        
-    },
-    attributes: {
-        required: [],
-    },
-    queryDate: {
-        required: []
-    }
-}
+  },
+  attributes: {
+    required: [],
+  },
+  queryDate: {
+    required: [],
+  },
+};
 
-export default requiredFields
+export default requiredFields;

@@ -1,0 +1,28 @@
+import { createRecurringMeetingAssists } from '@handshake_api/_libs/api-helper';
+const handler = async (req, res) => {
+    try {
+        const createRecurringMeetingBody = req.body;
+        const originalMeetingAssist = createRecurringMeetingBody?.originalMeetingAssist;
+        const originalPreferredTimes = createRecurringMeetingBody?.originalPreferredTimes;
+        if (!originalMeetingAssist?.id) {
+            return res.status(400).json({
+                message: 'no originalMeetingAssistt present',
+                event: req,
+            });
+        }
+        await createRecurringMeetingAssists(originalMeetingAssist, originalPreferredTimes);
+        return res.status(200).json({
+            message: `successfully created meeting assists`,
+            event: req,
+        });
+    }
+    catch (e) {
+        console.log(e, ' unable to create recurringMeetingAssists');
+        return res.status(400).json({
+            message: 'no originalMeetingAssistt present',
+            event: e,
+        });
+    }
+};
+export default handler;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiY3JlYXRlLXJlY3VyLW1lZXQtYXNzaXN0cy1wdWJsaWMuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJjcmVhdGUtcmVjdXItbWVldC1hc3Npc3RzLXB1YmxpYy50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFFQSxPQUFPLEVBQUUsNkJBQTZCLEVBQUUsTUFBTSxpQ0FBaUMsQ0FBQztBQUVoRixNQUFNLE9BQU8sR0FBRyxLQUFLLEVBQUUsR0FBWSxFQUFFLEdBQWEsRUFBRSxFQUFFO0lBQ3BELElBQUksQ0FBQztRQUNILE1BQU0sMEJBQTBCLEdBQzlCLEdBQUcsQ0FBQyxJQUFJLENBQUM7UUFFWCxNQUFNLHFCQUFxQixHQUN6QiwwQkFBMEIsRUFBRSxxQkFBcUIsQ0FBQztRQUNwRCxNQUFNLHNCQUFzQixHQUMxQiwwQkFBMEIsRUFBRSxzQkFBc0IsQ0FBQztRQUVyRCxJQUFJLENBQUMscUJBQXFCLEVBQUUsRUFBRSxFQUFFLENBQUM7WUFDL0IsT0FBTyxHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQztnQkFDMUIsT0FBTyxFQUFFLG1DQUFtQztnQkFDNUMsS0FBSyxFQUFFLEdBQUc7YUFDWCxDQUFDLENBQUM7UUFDTCxDQUFDO1FBRUQsTUFBTSw2QkFBNkIsQ0FDakMscUJBQXFCLEVBQ3JCLHNCQUFzQixDQUN2QixDQUFDO1FBRUYsT0FBTyxHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQztZQUMxQixPQUFPLEVBQUUsc0NBQXNDO1lBQy9DLEtBQUssRUFBRSxHQUFHO1NBQ1gsQ0FBQyxDQUFDO0lBQ0wsQ0FBQztJQUFDLE9BQU8sQ0FBQyxFQUFFLENBQUM7UUFDWCxPQUFPLENBQUMsR0FBRyxDQUFDLENBQUMsRUFBRSwyQ0FBMkMsQ0FBQyxDQUFDO1FBQzVELE9BQU8sR0FBRyxDQUFDLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyxJQUFJLENBQUM7WUFDMUIsT0FBTyxFQUFFLG1DQUFtQztZQUM1QyxLQUFLLEVBQUUsQ0FBQztTQUNULENBQUMsQ0FBQztJQUNMLENBQUM7QUFDSCxDQUFDLENBQUM7QUFFRixlQUFlLE9BQU8sQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IFJlcXVlc3QsIFJlc3BvbnNlIH0gZnJvbSAnZXhwcmVzcyc7XG5pbXBvcnQgeyBDcmVhdGVSZWN1cnJpbmdNZWV0aW5nQXNzaXN0VHlwZSB9IGZyb20gJ0BoYW5kc2hha2VfYXBpL19saWJzL3R5cGVzJztcbmltcG9ydCB7IGNyZWF0ZVJlY3VycmluZ01lZXRpbmdBc3Npc3RzIH0gZnJvbSAnQGhhbmRzaGFrZV9hcGkvX2xpYnMvYXBpLWhlbHBlcic7XG5cbmNvbnN0IGhhbmRsZXIgPSBhc3luYyAocmVxOiBSZXF1ZXN0LCByZXM6IFJlc3BvbnNlKSA9PiB7XG4gIHRyeSB7XG4gICAgY29uc3QgY3JlYXRlUmVjdXJyaW5nTWVldGluZ0JvZHk6IENyZWF0ZVJlY3VycmluZ01lZXRpbmdBc3Npc3RUeXBlID1cbiAgICAgIHJlcS5ib2R5O1xuXG4gICAgY29uc3Qgb3JpZ2luYWxNZWV0aW5nQXNzaXN0ID1cbiAgICAgIGNyZWF0ZVJlY3VycmluZ01lZXRpbmdCb2R5Py5vcmlnaW5hbE1lZXRpbmdBc3Npc3Q7XG4gICAgY29uc3Qgb3JpZ2luYWxQcmVmZXJyZWRUaW1lcyA9XG4gICAgICBjcmVhdGVSZWN1cnJpbmdNZWV0aW5nQm9keT8ub3JpZ2luYWxQcmVmZXJyZWRUaW1lcztcblxuICAgIGlmICghb3JpZ2luYWxNZWV0aW5nQXNzaXN0Py5pZCkge1xuICAgICAgcmV0dXJuIHJlcy5zdGF0dXMoNDAwKS5qc29uKHtcbiAgICAgICAgbWVzc2FnZTogJ25vIG9yaWdpbmFsTWVldGluZ0Fzc2lzdHQgcHJlc2VudCcsXG4gICAgICAgIGV2ZW50OiByZXEsXG4gICAgICB9KTtcbiAgICB9XG5cbiAgICBhd2FpdCBjcmVhdGVSZWN1cnJpbmdNZWV0aW5nQXNzaXN0cyhcbiAgICAgIG9yaWdpbmFsTWVldGluZ0Fzc2lzdCxcbiAgICAgIG9yaWdpbmFsUHJlZmVycmVkVGltZXNcbiAgICApO1xuXG4gICAgcmV0dXJuIHJlcy5zdGF0dXMoMjAwKS5qc29uKHtcbiAgICAgIG1lc3NhZ2U6IGBzdWNjZXNzZnVsbHkgY3JlYXRlZCBtZWV0aW5nIGFzc2lzdHNgLFxuICAgICAgZXZlbnQ6IHJlcSxcbiAgICB9KTtcbiAgfSBjYXRjaCAoZSkge1xuICAgIGNvbnNvbGUubG9nKGUsICcgdW5hYmxlIHRvIGNyZWF0ZSByZWN1cnJpbmdNZWV0aW5nQXNzaXN0cycpO1xuICAgIHJldHVybiByZXMuc3RhdHVzKDQwMCkuanNvbih7XG4gICAgICBtZXNzYWdlOiAnbm8gb3JpZ2luYWxNZWV0aW5nQXNzaXN0dCBwcmVzZW50JyxcbiAgICAgIGV2ZW50OiBlLFxuICAgIH0pO1xuICB9XG59O1xuXG5leHBvcnQgZGVmYXVsdCBoYW5kbGVyO1xuIl19

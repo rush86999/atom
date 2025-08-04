@@ -19,7 +19,7 @@ function getDbPool(): Pool {
     pool = new Pool({
       user: process.env.PG_USER || 'postgres', // Default for local dev
       host: process.env.PG_HOST || 'localhost', // Default for local dev
-      database: process.env.PG_DATABASE || 'atomic',   // Default for local dev
+      database: process.env.PG_DATABASE || 'atomic', // Default for local dev
       password: process.env.PG_PASSWORD || 'postgres', // Default for local dev
       port: parseInt(process.env.PG_PORT || '5432', 10), // Default for local dev
       // Other pool options:
@@ -34,7 +34,10 @@ function getDbPool(): Pool {
     });
 
     pool.on('error', (err, client) => {
-      logger.error('[dbService] Unexpected error on idle PostgreSQL client', err);
+      logger.error(
+        '[dbService] Unexpected error on idle PostgreSQL client',
+        err
+      );
       // Optionally, you might want to handle this more gracefully,
       // e.g., try to re-initialize the pool or exit the process.
       // For now, just logging.
@@ -49,7 +52,9 @@ function getDbPool(): Pool {
 // Let's initialize it here for simplicity.
 getDbPool();
 
-export async function addPendingJob(jobInfo: PendingRequestInfo): Promise<void> {
+export async function addPendingJob(
+  jobInfo: PendingRequestInfo
+): Promise<void> {
   const query = `
     INSERT INTO pending_scheduling_jobs (file_key, user_id, host_id, singleton_id, original_query, submitted_at, status)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -62,21 +67,30 @@ export async function addPendingJob(jobInfo: PendingRequestInfo): Promise<void> 
     jobInfo.hostId,
     jobInfo.singletonId,
     jobInfo.originalQuery || null, // Handle optional field
-    jobInfo.submittedAt,          // Should be a Date object or ISO string
-    'PENDING',                    // Default status
+    jobInfo.submittedAt, // Should be a Date object or ISO string
+    'PENDING', // Default status
   ];
 
   try {
-    logger.info(`[dbService.addPendingJob] Adding job with fileKey: ${jobInfo.fileKey}`);
+    logger.info(
+      `[dbService.addPendingJob] Adding job with fileKey: ${jobInfo.fileKey}`
+    );
     await getDbPool().query(query, values);
-    logger.info(`[dbService.addPendingJob] Successfully added/updated job with fileKey: ${jobInfo.fileKey}`);
+    logger.info(
+      `[dbService.addPendingJob] Successfully added/updated job with fileKey: ${jobInfo.fileKey}`
+    );
   } catch (error) {
-    logger.error(`[dbService.addPendingJob] Error adding job with fileKey ${jobInfo.fileKey}:`, error);
+    logger.error(
+      `[dbService.addPendingJob] Error adding job with fileKey ${jobInfo.fileKey}:`,
+      error
+    );
     throw error; // Re-throw to allow caller to handle
   }
 }
 
-export async function getPendingJob(fileKey: string): Promise<PendingRequestInfo | null> {
+export async function getPendingJob(
+  fileKey: string
+): Promise<PendingRequestInfo | null> {
   const query = `
     SELECT file_key, user_id, host_id, singleton_id, original_query, submitted_at
     FROM pending_scheduling_jobs
@@ -85,7 +99,9 @@ export async function getPendingJob(fileKey: string): Promise<PendingRequestInfo
   // Note: status is not part of PendingRequestInfo interface, but used in DB query
 
   try {
-    logger.info(`[dbService.getPendingJob] Getting job with fileKey: ${fileKey}`);
+    logger.info(
+      `[dbService.getPendingJob] Getting job with fileKey: ${fileKey}`
+    );
     const result: QueryResult = await getDbPool().query(query, [fileKey]);
     if (result.rows.length > 0) {
       const row = result.rows[0];
@@ -100,10 +116,15 @@ export async function getPendingJob(fileKey: string): Promise<PendingRequestInfo
         submittedAt: new Date(row.submitted_at), // Ensure it's a Date object
       };
     }
-    logger.info(`[dbService.getPendingJob] No 'PENDING' job found with fileKey: ${fileKey}`);
+    logger.info(
+      `[dbService.getPendingJob] No 'PENDING' job found with fileKey: ${fileKey}`
+    );
     return null;
   } catch (error) {
-    logger.error(`[dbService.getPendingJob] Error getting job with fileKey ${fileKey}:`, error);
+    logger.error(
+      `[dbService.getPendingJob] Error getting job with fileKey ${fileKey}:`,
+      error
+    );
     throw error;
   }
 }
@@ -112,32 +133,54 @@ export async function deletePendingJob(fileKey: string): Promise<void> {
   const query = 'DELETE FROM pending_scheduling_jobs WHERE file_key = $1;';
 
   try {
-    logger.info(`[dbService.deletePendingJob] Deleting job with fileKey: ${fileKey}`);
+    logger.info(
+      `[dbService.deletePendingJob] Deleting job with fileKey: ${fileKey}`
+    );
     const result = await getDbPool().query(query, [fileKey]);
     if (result.rowCount !== null && result.rowCount > 0) {
-        logger.info(`[dbService.deletePendingJob] Successfully deleted job with fileKey: ${fileKey}`);
+      logger.info(
+        `[dbService.deletePendingJob] Successfully deleted job with fileKey: ${fileKey}`
+      );
     } else {
-        logger.warn(`[dbService.deletePendingJob] No job found with fileKey ${fileKey} to delete, or delete operation had no effect.`);
+      logger.warn(
+        `[dbService.deletePendingJob] No job found with fileKey ${fileKey} to delete, or delete operation had no effect.`
+      );
     }
   } catch (error) {
-    logger.error(`[dbService.deletePendingJob] Error deleting job with fileKey ${fileKey}:`, error);
+    logger.error(
+      `[dbService.deletePendingJob] Error deleting job with fileKey ${fileKey}:`,
+      error
+    );
     throw error;
   }
 }
 
 // Optional: Function to update status, could be useful later
-export async function updatePendingJobStatus(fileKey: string, status: string): Promise<void> {
-  const query = 'UPDATE pending_scheduling_jobs SET status = $2 WHERE file_key = $1;';
+export async function updatePendingJobStatus(
+  fileKey: string,
+  status: string
+): Promise<void> {
+  const query =
+    'UPDATE pending_scheduling_jobs SET status = $2 WHERE file_key = $1;';
   try {
-    logger.info(`[dbService.updatePendingJobStatus] Updating status to '${status}' for fileKey: ${fileKey}`);
+    logger.info(
+      `[dbService.updatePendingJobStatus] Updating status to '${status}' for fileKey: ${fileKey}`
+    );
     const result = await getDbPool().query(query, [fileKey, status]);
-     if (result.rowCount !== null && result.rowCount > 0) {
-        logger.info(`[dbService.updatePendingJobStatus] Successfully updated status for fileKey: ${fileKey}`);
+    if (result.rowCount !== null && result.rowCount > 0) {
+      logger.info(
+        `[dbService.updatePendingJobStatus] Successfully updated status for fileKey: ${fileKey}`
+      );
     } else {
-        logger.warn(`[dbService.updatePendingJobStatus] No job found with fileKey ${fileKey} to update status, or status was already set.`);
+      logger.warn(
+        `[dbService.updatePendingJobStatus] No job found with fileKey ${fileKey} to update status, or status was already set.`
+      );
     }
   } catch (error) {
-    logger.error(`[dbService.updatePendingJobStatus] Error updating status for fileKey ${fileKey}:`, error);
+    logger.error(
+      `[dbService.updatePendingJobStatus] Error updating status for fileKey ${fileKey}:`,
+      error
+    );
     throw error;
   }
 }

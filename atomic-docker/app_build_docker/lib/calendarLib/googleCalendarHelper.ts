@@ -1,15 +1,17 @@
+import axios from 'axios';
+import Session from 'supertokens-web-js/recipe/session';
 
-
-import axios from 'axios'
-import Session from "supertokens-web-js/recipe/session"
-
-import { dayjs } from '@lib/date-utils'
-import qs from 'qs'
-import { v4 as uuid } from 'uuid'
-import { googleAtomicWebAuthRefreshUrl, googleCalendarAndroidAuthRefreshUrl, googleCalendarIosAuthRefreshUrl } from '@lib/constants'
+import { dayjs } from '@lib/date-utils';
+import qs from 'qs';
+import { v4 as uuid } from 'uuid';
+import {
+  googleAtomicWebAuthRefreshUrl,
+  googleCalendarAndroidAuthRefreshUrl,
+  googleCalendarIosAuthRefreshUrl,
+} from '@lib/constants';
 // dayjs.extend(utc)
 
-import { googleConfig } from '@lib/dataTypes/configs'
+import { googleConfig } from '@lib/dataTypes/configs';
 
 import {
   googleURL,
@@ -18,7 +20,7 @@ import {
   googleResourceName,
   googleColorUrl,
   selfGoogleCalendarWatchUrl,
-} from '@lib/calendarLib/constants'
+} from '@lib/calendarLib/constants';
 import {
   calendarResponse,
   eventResponse,
@@ -40,20 +42,18 @@ import {
   NotificationType,
   colorResponseType,
   RefreshTokenResponseBodyType,
-} from '@lib/calendarLib/types'
+} from '@lib/calendarLib/types';
 
-import {
-  updateCalendarIntegration,
-} from '@lib/api-helper'
+import { updateCalendarIntegration } from '@lib/api-helper';
 
-import { hasuraApiUrl } from '@lib/constants'
-import { ApolloClient, gql, NormalizedCacheObject } from '@apollo/client'
+import { hasuraApiUrl } from '@lib/constants';
+import { ApolloClient, gql, NormalizedCacheObject } from '@apollo/client';
 import getCalendarIntegrationByResource from '@lib/apollo/gql/getCalendarIntegrationByResourceAndName';
-import { CalendarIntegrationType } from '@lib/dataTypes/Calendar_IntegrationType'
-import getCalendarPushNotificationByCalendarId from '@lib/apollo/gql/getCalendarPushNotificationByCalendarId'
-import { CalendarWebhookType } from '@lib/dataTypes/CalendarWebhookType'
-import listCalendarPushNotificationsByUserId from '@lib/apollo/gql/listCalendarPushNotificationsByUserId'
-import deleteCalendarPushNotificationByCalendarId from '@lib/apollo/gql/deleteCalendarPushNotificationByCalendarId'
+import { CalendarIntegrationType } from '@lib/dataTypes/Calendar_IntegrationType';
+import getCalendarPushNotificationByCalendarId from '@lib/apollo/gql/getCalendarPushNotificationByCalendarId';
+import { CalendarWebhookType } from '@lib/dataTypes/CalendarWebhookType';
+import listCalendarPushNotificationsByUserId from '@lib/apollo/gql/listCalendarPushNotificationsByUserId';
+import deleteCalendarPushNotificationByCalendarId from '@lib/apollo/gql/deleteCalendarPushNotificationByCalendarId';
 
 // type Collections = {
 //     [key: string]: RxCollection;
@@ -63,61 +63,61 @@ import deleteCalendarPushNotificationByCalendarId from '@lib/apollo/gql/deleteCa
 
 // const result = await axios.post(url, data, config)
 
-
 export const checkIfCalendarWebhookExpired = async (
   client: ApolloClient<NormalizedCacheObject>,
-  userId: string,
+  userId: string
 ) => {
   try {
-    const calendarWebhooks = (await client.query<{ Calendar_Push_Notification: CalendarWebhookType[] }>({
-      query: listCalendarPushNotificationsByUserId,
-      variables: {
-        userId,
-      }
-    }))?.data?.Calendar_Push_Notification
+    const calendarWebhooks = (
+      await client.query<{ Calendar_Push_Notification: CalendarWebhookType[] }>(
+        {
+          query: listCalendarPushNotificationsByUserId,
+          variables: {
+            userId,
+          },
+        }
+      )
+    )?.data?.Calendar_Push_Notification;
 
     // loop through each and refresh expired webhooks
     for (let i = 0; i < calendarWebhooks.length; i++) {
       if (dayjs().isAfter(dayjs(calendarWebhooks[i]?.expiration))) {
-        await enableCalendarWebhook(calendarWebhooks[i])
+        await enableCalendarWebhook(calendarWebhooks[i]);
       }
     }
   } catch (e) {
-    console.log(e, ' unable to check if calendar webhook expired')
+    console.log(e, ' unable to check if calendar webhook expired');
   }
-}
+};
 
-export const enableCalendarWebhook = async (
-  webhook: CalendarWebhookType,
-) => {
+export const enableCalendarWebhook = async (webhook: CalendarWebhookType) => {
   try {
-    const token = await Session.getAccessToken()
-    const url = selfGoogleCalendarWatchUrl
+    const token = await Session.getAccessToken();
+    const url = selfGoogleCalendarWatchUrl;
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-    }
+    };
 
     const data = {
       calendarId: webhook?.calendarId,
       userId: webhook?.userId,
       channelId: webhook?.id,
-    }
-    const results = await axios.post(url, data, config)
-    console.log(results, ' results inside enableCalendarWebhook')
+    };
+    const results = await axios.post(url, data, config);
+    console.log(results, ' results inside enableCalendarWebhook');
   } catch (e) {
-    console.log(e, ' unable to enable calendar webhook')
+    console.log(e, ' unable to enable calendar webhook');
   }
-}
+};
 
 export const deleteCalendarWebhook = async (
   client: ApolloClient<NormalizedCacheObject>,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
-
     /**
      * const googleInteg = (await client.query<{ Calendar_Integration: CalendarIntegrationType[] }>({
       query: getCalendarIntegrationByResource,
@@ -128,51 +128,55 @@ export const deleteCalendarWebhook = async (
       }
     }))?.data?.Calendar_Integration?.[0]
      */
-    const res = await client.mutate<{ delete_Calendar_Push_Notification: { affected_rows: number } }>({
+    const res = await client.mutate<{
+      delete_Calendar_Push_Notification: { affected_rows: number };
+    }>({
       mutation: deleteCalendarPushNotificationByCalendarId,
       variables: {
         calendarId,
-      }
-    })
-    console.log(res, ' res inside deleteCalendarWebhookByCalendarId')
+      },
+    });
+    console.log(res, ' res inside deleteCalendarWebhookByCalendarId');
   } catch (e) {
-    console.log(e, ' unable to delete calendar web hook')
+    console.log(e, ' unable to delete calendar web hook');
   }
-}
+};
 
 export const getCalendarWebhook = async (
   client: ApolloClient<NormalizedCacheObject>,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
+    const calendarWebhook = (
+      await client.query<{ Calendar_Push_Notification: CalendarWebhookType[] }>(
+        {
+          query: getCalendarPushNotificationByCalendarId,
+          variables: {
+            calendarId,
+          },
+        }
+      )
+    )?.data?.Calendar_Push_Notification?.[0];
 
-    const calendarWebhook = (await client.query<{ Calendar_Push_Notification: CalendarWebhookType[] }>({
-      query: getCalendarPushNotificationByCalendarId,
-      variables: {
-        calendarId,
-      }
-    }))?.data?.Calendar_Push_Notification?.[0]
-
-    console.log(calendarWebhook, ' calendarWebhook')
-    return calendarWebhook
-
+    console.log(calendarWebhook, ' calendarWebhook');
+    return calendarWebhook;
   } catch (e) {
-    console.log(e, ' unable to get calendar webhook')
+    console.log(e, ' unable to get calendar webhook');
   }
-}
+};
 
 export const getGoogleCalendarSyncApiToken = async () => {
   try {
-    const token = await Session.getAccessToken()
-    const url = hasuraApiUrl
+    const token = await Session.getAccessToken();
+    const url = hasuraApiUrl;
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
-    const operationName = 'GetGoogleCalendarSyncToken'
+    };
+    const operationName = 'GetGoogleCalendarSyncToken';
     const query = `
       query GetGoogleCalendarSyncToken($name: String!, $resource: String!) {
         Admin(where: {name: {_eq: $name}, resource: {_eq: $resource}}) {
@@ -182,233 +186,249 @@ export const getGoogleCalendarSyncApiToken = async () => {
           resource
         }
       }
-    `
+    `;
     const variables = {
-      name: "googleCalendarSync",
-      resource: "aws"
-    }
+      name: 'googleCalendarSync',
+      resource: 'aws',
+    };
 
     const data = {
       operationName,
       query,
-      variables
-    }
-    const results = await axios.post(url, data, config)
+      variables,
+    };
+    const results = await axios.post(url, data, config);
 
     if (results?.data?.Admin?.[0]?.id) {
-      const token = results?.data?.Admin?.[0]?.token
-      return token
+      const token = results?.data?.Admin?.[0]?.token;
+      return token;
     }
   } catch (e) {
-    console.log(e, ' unable to get apiToken')
+    console.log(e, ' unable to get apiToken');
   }
-}
+};
 
 export const houseKeepSyncEnabledGoogleCalendar = async (
   client: ApolloClient<NormalizedCacheObject>,
-  userId: string,
+  userId: string
 ) => {
   try {
     // get token and expiresAt
-    const googleInteg = (await client.query<{ Calendar_Integration: CalendarIntegrationType[] }>({
-      query: getCalendarIntegrationByResource,
-      variables: {
-        userId,
-        name: googleCalendarName,
-        resource: googleResourceName,
-      }
-    }))?.data?.Calendar_Integration?.[0]
+    const googleInteg = (
+      await client.query<{ Calendar_Integration: CalendarIntegrationType[] }>({
+        query: getCalendarIntegrationByResource,
+        variables: {
+          userId,
+          name: googleCalendarName,
+          resource: googleResourceName,
+        },
+      })
+    )?.data?.Calendar_Integration?.[0];
 
-    const oldEnabled = googleInteg?.enabled
-    const oldSyncEnabled = googleInteg?.syncEnabled
-    const updatedAt = dayjs().toISOString()
+    const oldEnabled = googleInteg?.enabled;
+    const oldSyncEnabled = googleInteg?.syncEnabled;
+    const updatedAt = dayjs().toISOString();
 
     const updateIntegration = gql`
-    mutation UpdateCalendarIntegrationById($id: uuid!, $syncEnabled: Boolean) {
-      update_Calendar_Integration_by_pk(_set: {syncEnabled: $syncEnabled}, pk_columns: {id: $id}) {
-        appAccountId
-        appEmail
-        appId
-        colors
-        contactEmail
-        contactName
-        createdDate
-        deleted
-        enabled
-        expiresAt
-        id
-        name
-        pageToken
-        password
-        refreshToken
-        syncEnabled
-        resource
-        token
-        syncToken
-        updatedAt
-        userId
-        username
-        clientType
+      mutation UpdateCalendarIntegrationById(
+        $id: uuid!
+        $syncEnabled: Boolean
+      ) {
+        update_Calendar_Integration_by_pk(
+          _set: { syncEnabled: $syncEnabled }
+          pk_columns: { id: $id }
+        ) {
+          appAccountId
+          appEmail
+          appId
+          colors
+          contactEmail
+          contactName
+          createdDate
+          deleted
+          enabled
+          expiresAt
+          id
+          name
+          pageToken
+          password
+          refreshToken
+          syncEnabled
+          resource
+          token
+          syncToken
+          updatedAt
+          userId
+          username
+          clientType
+        }
       }
-    }
-    `
+    `;
     let variables: any = {
       id: googleInteg?.id,
-    }
+    };
 
     if (oldEnabled && !oldSyncEnabled) {
       variables = {
         ...variables,
         syncEnabled: true,
         updatedAt,
-      }
+      };
     } else if (!oldEnabled && oldSyncEnabled) {
       variables = {
         ...variables,
         syncEnabled: false,
         updatedAt,
-      }
+      };
     }
 
     if (variables?.updatedAt) {
       await client.mutate({
         mutation: updateIntegration,
         variables,
-      })
+      });
     }
     if (oldEnabled && !oldSyncEnabled) {
-      await getGoogleToken(client, userId)
+      await getGoogleToken(client, userId);
     }
-
   } catch (e) {
-    console.log(e, ' unable to housekeep sync enabled for google calendar integration')
+    console.log(
+      e,
+      ' unable to housekeep sync enabled for google calendar integration'
+    );
   }
-}
+};
 
 export const googleMeetAvailable = async (
   client: ApolloClient<NormalizedCacheObject>,
-  userId: string,
+  userId: string
 ) => {
   try {
+    const token = await getGoogleToken(client, userId);
 
-    const token = await getGoogleToken(client, userId)
-
-    if (token && (token?.length > 0)) {
-      return true
+    if (token && token?.length > 0) {
+      return true;
     }
-    return false
+    return false;
   } catch (e) {
-    console.log(e, ' google meet is not avilable')
+    console.log(e, ' google meet is not avilable');
   }
-}
+};
 
 export const getGoogleToken = async (
   client: ApolloClient<NormalizedCacheObject>,
-  userId: string,
+  userId: string
 ) => {
   try {
     // get token and expiresAt
-    const googleInteg = (await client.query<{ Calendar_Integration: CalendarIntegrationType[] }>({
-      query: getCalendarIntegrationByResource,
-      variables: {
-        userId,
-        name: googleCalendarName,
-        resource: googleResourceName,
-      }
-    }))?.data?.Calendar_Integration?.[0]
+    const googleInteg = (
+      await client.query<{ Calendar_Integration: CalendarIntegrationType[] }>({
+        query: getCalendarIntegrationByResource,
+        variables: {
+          userId,
+          name: googleCalendarName,
+          resource: googleResourceName,
+        },
+      })
+    )?.data?.Calendar_Integration?.[0];
 
-    const token = googleInteg?.token
-    const expiresAt = googleInteg?.expiresAt
-    const oldRefreshToken = googleInteg?.refreshToken
+    const token = googleInteg?.token;
+    const expiresAt = googleInteg?.expiresAt;
+    const oldRefreshToken = googleInteg?.refreshToken;
 
     if (dayjs().isAfter(dayjs(expiresAt))) {
+      let newAccessToken = '';
+      let newRefreshToken = '';
+      let newExpiresAt = '';
 
-      let newAccessToken = ''
-      let newRefreshToken = ''
-      let newExpiresAt = ''
-
-      if ((googleInteg?.clientType === 'ios') && oldRefreshToken) {
-
-        const url = googleCalendarIosAuthRefreshUrl
-        const token = await Session.getAccessToken()
+      if (googleInteg?.clientType === 'ios' && oldRefreshToken) {
+        const url = googleCalendarIosAuthRefreshUrl;
+        const token = await Session.getAccessToken();
         const config = {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        }
+        };
 
         const data = {
           refreshToken: oldRefreshToken,
-        }
+        };
 
         const results: {
           data: {
-            message: string,
-            event: RefreshTokenResponseBodyType
-          },
-        } = await axios.post(url, data, config)
-        console.log(results, ' results inside enableGoogleCalendarSync')
+            message: string;
+            event: RefreshTokenResponseBodyType;
+          };
+        } = await axios.post(url, data, config);
+        console.log(results, ' results inside enableGoogleCalendarSync');
 
-        newAccessToken = results?.data?.event?.access_token
-        newRefreshToken = oldRefreshToken
-        newExpiresAt = dayjs().add(results?.data?.event?.expires_in, 'seconds').toISOString()
-      } else if (((googleInteg?.clientType === 'web') || (googleInteg?.clientType === 'android')) && oldRefreshToken) {
-        const url = googleCalendarAndroidAuthRefreshUrl
-        const token = await Session.getAccessToken()
+        newAccessToken = results?.data?.event?.access_token;
+        newRefreshToken = oldRefreshToken;
+        newExpiresAt = dayjs()
+          .add(results?.data?.event?.expires_in, 'seconds')
+          .toISOString();
+      } else if (
+        (googleInteg?.clientType === 'web' ||
+          googleInteg?.clientType === 'android') &&
+        oldRefreshToken
+      ) {
+        const url = googleCalendarAndroidAuthRefreshUrl;
+        const token = await Session.getAccessToken();
         const config = {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        }
+        };
 
         const data = {
           refreshToken: oldRefreshToken,
-        }
+        };
 
         const results: {
           data: {
-            message: string,
-            event: RefreshTokenResponseBodyType
-          },
-        } = await axios.post(url, data, config)
-        console.log(results, ' results inside enableGoogleCalendarSync')
+            message: string;
+            event: RefreshTokenResponseBodyType;
+          };
+        } = await axios.post(url, data, config);
+        console.log(results, ' results inside enableGoogleCalendarSync');
 
-        newAccessToken = results?.data?.event?.access_token
-        newRefreshToken = oldRefreshToken
-        newExpiresAt = dayjs().add(results?.data?.event?.expires_in, 'seconds').toISOString()
-      } else if ((googleInteg?.clientType === 'atomic-web') && oldRefreshToken) {
-        const url = googleAtomicWebAuthRefreshUrl
-        const token = await Session.getAccessToken()
+        newAccessToken = results?.data?.event?.access_token;
+        newRefreshToken = oldRefreshToken;
+        newExpiresAt = dayjs()
+          .add(results?.data?.event?.expires_in, 'seconds')
+          .toISOString();
+      } else if (googleInteg?.clientType === 'atomic-web' && oldRefreshToken) {
+        const url = googleAtomicWebAuthRefreshUrl;
+        const token = await Session.getAccessToken();
         const config = {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        }
+        };
 
         const data = {
           refreshToken: oldRefreshToken,
-        }
+        };
 
         const results: {
           data: {
-            message: string,
-            event: RefreshTokenResponseBodyType
-          },
-        } = await axios.post(url, data, config)
-        console.log(results, ' results inside enableGoogleCalendarSync')
+            message: string;
+            event: RefreshTokenResponseBodyType;
+          };
+        } = await axios.post(url, data, config);
+        console.log(results, ' results inside enableGoogleCalendarSync');
 
-        newAccessToken = results?.data?.event?.access_token
-        newRefreshToken = oldRefreshToken
-        newExpiresAt = dayjs().add(results?.data?.event?.expires_in, 'seconds').toISOString()
+        newAccessToken = results?.data?.event?.access_token;
+        newRefreshToken = oldRefreshToken;
+        newExpiresAt = dayjs()
+          .add(results?.data?.event?.expires_in, 'seconds')
+          .toISOString();
       }
 
       //googleAtomicWebAuthRefreshUrl
-
-
-
 
       await updateCalendarIntegration(
         client,
@@ -417,17 +437,17 @@ export const getGoogleToken = async (
         newAccessToken,
         newRefreshToken,
         newExpiresAt,
-        googleInteg?.clientType === 'android' ? 'web' : googleInteg?.clientType,
-      )
+        googleInteg?.clientType === 'android' ? 'web' : googleInteg?.clientType
+      );
 
-      return newAccessToken
+      return newAccessToken;
     }
 
-    return token
+    return token;
   } catch (e) {
-    console.log(e, ' unable to getGoogleToken')
+    console.log(e, ' unable to getGoogleToken');
   }
-}
+};
 
 export const patchGoogleCalendar = async (
   client: ApolloClient<NormalizedCacheObject>,
@@ -437,56 +457,58 @@ export const patchGoogleCalendar = async (
   description?: string,
   location?: string,
   timeZone?: string,
-  allowedConferenceSolutionTypes?: allowedConferenceSolutionType[],
+  allowedConferenceSolutionTypes?: allowedConferenceSolutionType[]
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleCalendarURL}/${encodeURI(calendarId)}`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleCalendarURL}/${encodeURI(calendarId)}`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
-    let data: any = {}
+    let data: any = {};
 
     if (summary && summary?.length > 0) {
-      data = { ...data, summary }
+      data = { ...data, summary };
     }
 
     if (description && description?.length > 0) {
-      data = { ...data, description }
+      data = { ...data, description };
     }
 
     if (location && location?.length > 0) {
-      data = { ...data, location }
+      data = { ...data, location };
     }
 
     if (timeZone && timeZone?.length > 0) {
-      data = { ...data, timeZone }
+      data = { ...data, timeZone };
     }
 
-    if (allowedConferenceSolutionTypes && allowedConferenceSolutionTypes?.[0]?.length > 0) {
+    if (
+      allowedConferenceSolutionTypes &&
+      allowedConferenceSolutionTypes?.[0]?.length > 0
+    ) {
       data = {
         ...data,
         conferenceProperties: {
           allowedConferenceSolutionTypes,
         },
-      }
+      };
     }
 
-    const results = await axios.patch<calendarResponse>(url, data, config)
+    const results = await axios.patch<calendarResponse>(url, data, config);
 
-    console.log(results, ' results after patching calendar')
-
+    console.log(results, ' results after patching calendar');
   } catch (e) {
-    console.log(e, ' unable to patch google calendar')
+    console.log(e, ' unable to patch google calendar');
   }
-}
+};
 
 // create calendar
 export const createGoogleCalendar = async (
@@ -495,25 +517,25 @@ export const createGoogleCalendar = async (
   id: string,
   summary: string,
   defaultReminders?: DefaultReminderType[],
-  notifications?: NotificationType[],
+  notifications?: NotificationType[]
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = googleCalendarURL
+    const token = await getGoogleToken(client, userId);
+    let url = googleCalendarURL;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
-    let data: any = { id, summaryOverride: summary, selected: true }
+    let data: any = { id, summaryOverride: summary, selected: true };
 
     if (defaultReminders && defaultReminders?.[0]?.method?.length > 0) {
-      data = { ...data, defaultReminders }
+      data = { ...data, defaultReminders };
     }
 
     if (notifications && notifications?.[0]?.method?.length > 0) {
@@ -521,149 +543,147 @@ export const createGoogleCalendar = async (
         ...data,
         notificationSettings: {
           notifications,
-        }
-      }
+        },
+      };
     }
 
-    const result = await axios.post(url, data, config)
-    console.log(result, ' successfully created secondary google calendar')
+    const result = await axios.post(url, data, config);
+    console.log(result, ' successfully created secondary google calendar');
   } catch (e) {
-    console.log(e, ' unable to create google calendar')
+    console.log(e, ' unable to create google calendar');
   }
-}
+};
 
 // get calendar info
 export const getGoogleCalendar = async (
   client: ApolloClient<NormalizedCacheObject>,
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleCalendarURL}/${encodeURI(calendarId)}`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleCalendarURL}/${encodeURI(calendarId)}`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
-    const results = await axios.get(url, config)
-    console.log(results, ' results for get calendar')
-    return results
+    const results = await axios.get(url, config);
+    console.log(results, ' results for get calendar');
+    return results;
   } catch (e) {
-    console.log(e, ' unable to get calendar')
+    console.log(e, ' unable to get calendar');
   }
-}
+};
 
 export const deleteGoogleEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
   userId: string,
   calendarId: string,
   googleEventId: string,
-  sendUpdates: SendUpdatesType = 'all',
+  sendUpdates: SendUpdatesType = 'all'
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleURL}/${encodeURI(calendarId)}/events/${encodeURI(googleEventId)}`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleURL}/${encodeURI(calendarId)}/events/${encodeURI(googleEventId)}`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
     // path params
     if (sendUpdates) {
-      url = `${url}?`
-      let params = { sendUpdates }
+      url = `${url}?`;
+      let params = { sendUpdates };
 
-      url = `${url}${qs.stringify(params)}`
+      url = `${url}${qs.stringify(params)}`;
     }
 
-    const result = await axios.delete(url, config)
-    console.log(result, ' result after delete event')
+    const result = await axios.delete(url, config);
+    console.log(result, ' result after delete event');
   } catch (e) {
-    console.log(e, ' unable to delete google event')
+    console.log(e, ' unable to delete google event');
   }
-}
+};
 
 // delete secondary calendar
 export const deleteGoogleCalendar = async (
   client: ApolloClient<NormalizedCacheObject>,
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleCalendarURL}/${encodeURI(calendarId)}`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleCalendarURL}/${encodeURI(calendarId)}`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
-    const results = await axios.delete(url, config)
-    console.log(results, ' successfully deleted secondary calendar')
+    const results = await axios.delete(url, config);
+    console.log(results, ' successfully deleted secondary calendar');
   } catch (e) {
-    console.log(e, ' unable to catch google calendar')
+    console.log(e, ' unable to catch google calendar');
   }
-}
+};
 
-export const getGoogleColors = async (
-  token: string,
-) => {
+export const getGoogleColors = async (token: string) => {
   try {
-    const url = googleColorUrl
+    const url = googleColorUrl;
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
-    const { data } = await axios.get<colorResponseType>(url, config)
-    console.log(data, ' data for get colors')
-    return data
+    const { data } = await axios.get<colorResponseType>(url, config);
+    console.log(data, ' data for get colors');
+    return data;
   } catch (e) {
-    console.log(e, ' unable to get google colors')
+    console.log(e, ' unable to get google colors');
   }
-}
+};
 
 export const clearGoogleCalendar = async (
   client: ApolloClient<NormalizedCacheObject>,
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleURL}/${encodeURI(calendarId)}/clear`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleURL}/${encodeURI(calendarId)}/clear`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
-    const results = await axios.post(url, undefined, config)
-    console.log(results, ' results from post')
+    const results = await axios.post(url, undefined, config);
+    console.log(results, ' results from post');
   } catch (e) {
-    console.log(e, ' unable to delete google event')
+    console.log(e, ' unable to delete google event');
   }
-}
+};
 
 export const patchGoogleEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
@@ -702,110 +722,111 @@ export const patchGoogleEvent = async (
   locked?: boolean,
   attachments?: attachment[],
   eventType?: eventType1,
-  location?: string,
+  location?: string
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleURL}/${encodeURI(calendarId)}/events/${encodeURI(eventId)}`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleURL}/${encodeURI(calendarId)}/events/${encodeURI(eventId)}`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
     // if any query parameters build them
     if (
-      maxAttendees
-      || sendUpdates
-      || ((typeof conferenceDataVersion === 'number') && (conferenceDataVersion > -1))
+      maxAttendees ||
+      sendUpdates ||
+      (typeof conferenceDataVersion === 'number' && conferenceDataVersion > -1)
     ) {
-      url = `${url}?`
-      let params: any = {}
+      url = `${url}?`;
+      let params: any = {};
 
       if (maxAttendees) {
-        params.maxAttendees = maxAttendees
+        params.maxAttendees = maxAttendees;
       }
 
       if (sendUpdates) {
-        params.sendUpdates = sendUpdates
-      }
-
-      if ((typeof conferenceDataVersion === 'number') && (conferenceDataVersion > -1)) {
-        params.conferenceDataVersion = conferenceDataVersion
+        params.sendUpdates = sendUpdates;
       }
 
       if (
-        params?.maxAttendees
-        || params?.sendUpdates
-        || (params?.conferenceDataVersion > -1)
+        typeof conferenceDataVersion === 'number' &&
+        conferenceDataVersion > -1
       ) {
-        url = `${url}${qs.stringify(params)}`
+        params.conferenceDataVersion = conferenceDataVersion;
+      }
+
+      if (
+        params?.maxAttendees ||
+        params?.sendUpdates ||
+        params?.conferenceDataVersion > -1
+      ) {
+        url = `${url}${qs.stringify(params)}`;
       }
     }
 
-
     // create request body
-    let data: any = {}
+    let data: any = {};
 
     if (endDate && timezone && !endDateTime) {
       const end = {
         date: dayjs(endDate).format('YYYY-MM-DD'),
         timeZone: timezone,
-      }
-      data.end = end
+      };
+      data.end = end;
     }
 
     if (endDateTime && timezone && !endDate) {
       const end = {
-        dateTime: dayjs(endDateTime)
-          .format(),
-          timeZone: timezone
-      }
-      data.end = end
+        dateTime: dayjs(endDateTime).format(),
+        timeZone: timezone,
+      };
+      data.end = end;
     }
 
     if (startDate && timezone && !startDateTime) {
       const start = {
         date: dayjs(startDate).format('YYYY-MM-DD'),
         timeZone: timezone,
-      }
-      data.start = start
+      };
+      data.start = start;
     }
 
     if (startDateTime && timezone && !startDate) {
       const start = {
         dateTime: dayjs(startDateTime).format(),
         timeZone: timezone,
-      }
-      data.start = start
+      };
+      data.start = start;
     }
 
     if (originalStartDate && timezone && !originalStartDateTime) {
       const originalStartTime = {
         date: dayjs(originalStartDate).format('YYYY-MM-DD'),
         timeZone: timezone,
-      }
-      data.originalStartTime = originalStartTime
+      };
+      data.originalStartTime = originalStartTime;
     }
 
     if (originalStartDateTime && timezone && !originalStartDate) {
       const originalStartTime = {
         dateTime: dayjs(originalStartDateTime).format(),
         timeZone: timezone,
-      }
-      data.originalStartTime = originalStartTime
+      };
+      data.originalStartTime = originalStartTime;
     }
 
     if (anyoneCanAddSelf) {
-      data = { ...data, anyoneCanAddSelf }
+      data = { ...data, anyoneCanAddSelf };
     }
 
     if (attendees?.[0]?.email) {
-      data = { ...data, attendees }
+      data = { ...data, attendees };
     }
 
     if (conferenceData?.createRequest) {
@@ -814,12 +835,12 @@ export const patchGoogleEvent = async (
         conferenceData: {
           createRequest: {
             conferenceSolutionKey: {
-              type: conferenceData.type
+              type: conferenceData.type,
             },
             requestId: conferenceData?.requestId || uuid(),
-          }
-        }
-      }
+          },
+        },
+      };
     } else if (conferenceData?.entryPoints?.[0]) {
       data = {
         ...data,
@@ -833,95 +854,95 @@ export const patchGoogleEvent = async (
           },
           entryPoints: conferenceData?.entryPoints,
         },
-      }
+      };
     }
 
     if (description && description?.length > 0) {
-      data = { ...data, description }
+      data = { ...data, description };
     }
 
     if (extendedProperties?.private || extendedProperties?.shared) {
-      data = { ...data, extendedProperties }
+      data = { ...data, extendedProperties };
     }
 
     if (guestsCanInviteOthers) {
-      data = { ...data, guestsCanInviteOthers }
+      data = { ...data, guestsCanInviteOthers };
     }
 
     if (guestsCanModify) {
-      data = { ...data, guestsCanModify }
+      data = { ...data, guestsCanModify };
     }
 
     if (guestsCanSeeOtherGuests) {
-      data = { ...data, guestsCanSeeOtherGuests }
+      data = { ...data, guestsCanSeeOtherGuests };
     }
 
     if (locked) {
-      data = { ...data, locked }
+      data = { ...data, locked };
     }
 
     if (privateCopy) {
-      data = { ...data, privateCopy }
+      data = { ...data, privateCopy };
     }
 
     if (recurrence?.[0]) {
-      data = { ...data, recurrence }
+      data = { ...data, recurrence };
     }
 
     if (reminders) {
-      data = { ...data, reminders }
+      data = { ...data, reminders };
     }
 
     if (source?.title || source?.url) {
-      data = { ...data, source }
+      data = { ...data, source };
     }
 
     if (attachments?.[0]?.fileId) {
-      data = { ...data, attachments }
+      data = { ...data, attachments };
     }
 
     if (eventType && eventType?.length > 0) {
-      data = { ...data, eventType }
+      data = { ...data, eventType };
     }
 
     if (status) {
-      data = { ...data, status }
+      data = { ...data, status };
     }
 
     if (transparency) {
-      data = { ...data, transparency }
+      data = { ...data, transparency };
     }
 
     if (visibility) {
-      data = { ...data, visibility }
+      data = { ...data, visibility };
     }
 
     if (iCalUID && iCalUID?.length > 0) {
-      data = { ...data, iCalUID }
+      data = { ...data, iCalUID };
     }
 
     if (attendeesOmitted) {
-      data = { ...data, attendeesOmitted }
+      data = { ...data, attendeesOmitted };
     }
 
-    if (hangoutLink && (hangoutLink?.length > 0)) {
-      data = { ...data, hangoutLink }
+    if (hangoutLink && hangoutLink?.length > 0) {
+      data = { ...data, hangoutLink };
     }
 
     if (summary && summary?.length > 0) {
-      data = { ...data, summary }
+      data = { ...data, summary };
     }
 
     if (location && location?.length > 0) {
-      data = { ...data, location }
+      data = { ...data, location };
     }
-    console.log(url, data, ' url, data inside google patch')
-    const results = await axios.patch(url, data, config)
-    console.log(results, ' results from patch google event')
+    console.log(url, data, ' url, data inside google patch');
+    const results = await axios.patch(url, data, config);
+    console.log(results, ' results from patch google event');
   } catch (e) {
-    console.log(e, ' unable to patch google event')
+    console.log(e, ' unable to patch google event');
   }
-}
+};
 
 export const createGoogleEvent = async (
   client: ApolloClient<NormalizedCacheObject>,
@@ -959,113 +980,114 @@ export const createGoogleEvent = async (
   locked?: boolean,
   attachments?: attachment[],
   eventType?: eventType1,
-  location?: string,
+  location?: string
 ) => {
   try {
     // get token =
-    const token = await getGoogleToken(client, userId)
-    let url = `${googleURL}/${encodeURI(calendarId)}/events`
+    const token = await getGoogleToken(client, userId);
+    let url = `${googleURL}/${encodeURI(calendarId)}/events`;
 
     const config = {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
-    }
+    };
 
     // if any query parameters build them
     // first
     if (
-      maxAttendees
-      || sendUpdates
-      || ((typeof conferenceDataVersion === 'number') && (conferenceDataVersion > 0))
+      maxAttendees ||
+      sendUpdates ||
+      (typeof conferenceDataVersion === 'number' && conferenceDataVersion > 0)
     ) {
-      url = `${url}?`
-      let params: any = {}
+      url = `${url}?`;
+      let params: any = {};
 
       if (maxAttendees) {
-        params = { ...params, maxAttendees }
+        params = { ...params, maxAttendees };
       }
 
       if (sendUpdates) {
-        params = { ...params, sendUpdates }
-      }
-
-      if ((typeof conferenceDataVersion === 'number') && (conferenceDataVersion > -1)) {
-        params = { ...params, conferenceDataVersion }
+        params = { ...params, sendUpdates };
       }
 
       if (
-        params?.maxAttendees
-        || params?.sendUpdates
-        || (params?.conferenceDataVersion > -1)
+        typeof conferenceDataVersion === 'number' &&
+        conferenceDataVersion > -1
       ) {
-        url = `${url}${qs.stringify(params)}`
+        params = { ...params, conferenceDataVersion };
+      }
+
+      if (
+        params?.maxAttendees ||
+        params?.sendUpdates ||
+        params?.conferenceDataVersion > -1
+      ) {
+        url = `${url}${qs.stringify(params)}`;
       }
     }
 
-
     // create request body
-    let data: any = {}
+    let data: any = {};
 
     if (endDateTime && timezone && !endDate) {
       const end = {
-        dateTime: dayjs(endDateTime)
-          .format(),
-          timeZone: timezone,
-      }
+        dateTime: dayjs(endDateTime).format(),
+        timeZone: timezone,
+      };
 
-      data.end = end
+      data.end = end;
     }
 
     if (endDate && timezone && !endDateTime) {
       const end = {
         date: dayjs(endDate).format('YYYY-MM-DD'),
         timeZone: timezone,
-      }
+      };
 
-      data.end = end
+      data.end = end;
     }
 
     if (startDate && timezone && !startDateTime) {
       const start = {
         date: dayjs(startDate).format('YYYY-MM-DD'),
         timeZone: timezone,
-      }
-      data.start = start
+      };
+      data.start = start;
     }
 
     if (startDateTime && timezone && !startDate) {
       const start = {
         dateTime: dayjs(startDateTime).format(),
         timeZone: timezone,
-      }
-      data.start = start
+      };
+      data.start = start;
     }
 
     if (originalStartDate && timezone && !originalStartDateTime) {
       const originalStartTime = {
         date: dayjs(originalStartDate).format('YYYY-MM-DD'),
         timeZone: timezone,
-      }
-      data.originalStartTime = originalStartTime
+      };
+      data.originalStartTime = originalStartTime;
     }
 
     if (originalStartDateTime && timezone && !originalStartDate) {
       const originalStartTime = {
         dateTime: dayjs(originalStartDateTime).format(),
         timeZone: timezone,
-      }
-      data.originalStartTime = originalStartTime
+      };
+      data.originalStartTime = originalStartTime;
     }
 
     if (anyoneCanAddSelf) {
-      data = { ...data, anyoneCanAddSelf }
+      data = { ...data, anyoneCanAddSelf };
     }
 
     if (attendees?.[0]?.email) {
-      data = { ...data, attendees }
+      data = { ...data, attendees };
     }
 
     if (conferenceData?.createRequest) {
@@ -1074,12 +1096,12 @@ export const createGoogleEvent = async (
         conferenceData: {
           createRequest: {
             conferenceSolutionKey: {
-              type: conferenceData.type
+              type: conferenceData.type,
             },
             requestId: conferenceData?.requestId || uuid(),
-          }
-        }
-      }
+          },
+        },
+      };
     } else if (conferenceData?.entryPoints?.[0]) {
       data = {
         ...data,
@@ -1093,96 +1115,99 @@ export const createGoogleEvent = async (
           },
           entryPoints: conferenceData?.entryPoints,
         },
-      }
+      };
     }
 
     if (description && description?.length > 0) {
-      data = { ...data, description }
+      data = { ...data, description };
     }
 
     if (extendedProperties?.private || extendedProperties?.shared) {
-      data = { ...data, extendedProperties }
+      data = { ...data, extendedProperties };
     }
 
     if (guestsCanInviteOthers) {
-      data = { ...data, guestsCanInviteOthers }
+      data = { ...data, guestsCanInviteOthers };
     }
 
     if (guestsCanModify) {
-      data = { ...data, guestsCanModify }
+      data = { ...data, guestsCanModify };
     }
 
     if (guestsCanSeeOtherGuests) {
-      data = { ...data, guestsCanSeeOtherGuests }
+      data = { ...data, guestsCanSeeOtherGuests };
     }
 
     if (locked) {
-      data = { ...data, locked }
+      data = { ...data, locked };
     }
 
     if (privateCopy) {
-      data = { ...data, privateCopy }
+      data = { ...data, privateCopy };
     }
 
     if (recurrence?.[0]) {
-      data = { ...data, recurrence }
+      data = { ...data, recurrence };
     }
 
     if (reminders) {
-      data = { ...data, reminders }
+      data = { ...data, reminders };
     }
 
     if (source?.title || source?.url) {
-      data = { ...data, source }
+      data = { ...data, source };
     }
 
     if (attachments?.[0]?.fileId) {
-      data = { ...data, attachments }
+      data = { ...data, attachments };
     }
 
     if (eventType && eventType?.length > 0) {
-      data = { ...data, eventType }
+      data = { ...data, eventType };
     }
 
     if (status) {
-      data = { ...data, status }
+      data = { ...data, status };
     }
 
     if (transparency) {
-      data = { ...data, transparency }
+      data = { ...data, transparency };
     }
 
     if (visibility) {
-      data = { ...data, visibility }
+      data = { ...data, visibility };
     }
 
     if (iCalUID && iCalUID?.length > 0) {
-      data = { ...data, iCalUID }
+      data = { ...data, iCalUID };
     }
 
     if (attendeesOmitted) {
-      data = { ...data, attendeesOmitted }
+      data = { ...data, attendeesOmitted };
     }
 
     if (hangoutLink && hangoutLink?.length > 0) {
-      data = { ...data, hangoutLink }
+      data = { ...data, hangoutLink };
     }
 
     if (summary && summary?.length > 0) {
-      data = { ...data, summary }
+      data = { ...data, summary };
     }
 
     if (location && location?.length > 0) {
-      data = { ...data, location }
+      data = { ...data, location };
     }
 
-    const results = await axios.post<eventResponse>(url, data, config)
+    const results = await axios.post<eventResponse>(url, data, config);
 
-    console.log(results, ' results from googleCreateEvent')
-    return results?.data?.id
+    console.log(results, ' results from googleCreateEvent');
+    return results?.data?.id;
   } catch (e: any) {
-    console.log(e, ' createGoogleEvent')
-    console.log(e?.response?.data?.error?.message, ' error from googleCreateEvent')
-    console.log(e?.toJSON(), ' error from googleCreateEvent')
+    console.log(e, ' createGoogleEvent');
+    console.log(
+      e?.response?.data?.error?.message,
+      ' error from googleCreateEvent'
+    );
+    console.log(e?.toJSON(), ' error from googleCreateEvent');
   }
-}
+};

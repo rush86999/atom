@@ -15,7 +15,7 @@ import {
   optaPlannerPassword,
   optaPlannerUrl,
   optaPlannerUsername,
-} from "@schedule_event/_libs/constants"; // Removed OpenSearch constants
+} from '@schedule_event/_libs/constants'; // Removed OpenSearch constants
 import {
   BufferTimeNumberType,
   EventPlusType,
@@ -53,21 +53,21 @@ import {
   BufferTimeObjectType,
   ReminderType,
   CategoryEventType,
-} from "@schedule_event/_libs/types"; // Removed OpenSearchGetResponseBodyType
-import got from "got";
-import { v4 as uuid } from "uuid";
-import { getISODay, setISODay } from "date-fns";
-import dayjs from "dayjs";
+} from '@schedule_event/_libs/types'; // Removed OpenSearchGetResponseBodyType
+import got from 'got';
+import { v4 as uuid } from 'uuid';
+import { getISODay, setISODay } from 'date-fns';
+import dayjs from 'dayjs';
 // import isoWeek from 'dayjs/plugin/isoWeek'
-import duration from "dayjs/plugin/duration";
-import isBetween from "dayjs/plugin/isBetween";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
-import _ from "lodash";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import AWS from "aws-sdk";
+import duration from 'dayjs/plugin/duration';
+import isBetween from 'dayjs/plugin/isBetween';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import _ from 'lodash';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import AWS from 'aws-sdk';
 // Removed: import { OpenSearchResponseBodyType } from "./types/OpenSearchResponseType"
-import { Configuration, OpenAIApi } from "openai";
+import { Configuration, OpenAIApi } from 'openai';
 import {
   getEventById,
   searchTrainingEvents,
@@ -75,7 +75,7 @@ import {
   upsertTrainingEvents,
   TrainingEventSchema,
   EventSchema,
-} from "@functions/_utils/lancedb_service"; // Added LanceDB imports
+} from '@functions/_utils/lancedb_service'; // Added LanceDB imports
 
 // dayjs.extend(isoWeek)
 dayjs.extend(duration);
@@ -98,7 +98,7 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 
 export const getEventVectorById = async (
-  id: string,
+  id: string
 ): Promise<number[] | null> => {
   try {
     const event = await getEventById(id); // from lancedb_service
@@ -115,24 +115,24 @@ export const getEventVectorById = async (
 };
 
 export const convertEventToVectorSpace2 = async (
-  event: EventType,
+  event: EventType
 ): Promise<number[]> => {
   try {
     if (!event) {
-      throw new Error("no event provided to convertEventToVectorSpace2");
+      throw new Error('no event provided to convertEventToVectorSpace2');
     }
     const { summary, notes } = event;
-    const text = `${summary}${notes ? `: ${notes}` : ""}`;
+    const text = `${summary}${notes ? `: ${notes}` : ''}`;
 
-    if (!text || text.trim() === ":") {
+    if (!text || text.trim() === ':') {
       console.log(
-        "Empty or invalid text for embedding, returning empty array.",
+        'Empty or invalid text for embedding, returning empty array.'
       );
       return [];
     }
 
     const embeddingRequest: OpenAI.Embeddings.EmbeddingCreateParams = {
-      model: "text-embedding-ada-002",
+      model: 'text-embedding-ada-002',
       input: text,
     };
     const res = await openai.embeddings.create(embeddingRequest);
@@ -141,19 +141,19 @@ export const convertEventToVectorSpace2 = async (
     console.log(
       vector
         ? `Vector generated with length: ${vector.length}`
-        : "No vector generated",
-      " vector inside convertEventToVectorSpace2",
+        : 'No vector generated',
+      ' vector inside convertEventToVectorSpace2'
     );
     return vector;
   } catch (e) {
-    console.error(e, " unable to convertEventToVectorSpace using OpenAI");
+    console.error(e, ' unable to convertEventToVectorSpace using OpenAI');
     throw e;
   }
 };
 
 export const searchTrainingDataByVector = async (
   userId: string,
-  searchVector: number[],
+  searchVector: number[]
 ): Promise<TrainingEventSchema | null> => {
   try {
     // Assuming min_score logic is handled by LanceDB's search or not strictly needed,
@@ -162,7 +162,7 @@ export const searchTrainingDataByVector = async (
     const results = await searchTrainingEvents(
       searchVector,
       1, // We need only the top match
-      `userId = '${userId.replace(/'/g, "''")}'`,
+      `userId = '${userId.replace(/'/g, "''")}'`
     );
     if (results && results.length > 0) {
       // console.log(results[0], ' search data from LanceDB training_data');
@@ -170,7 +170,7 @@ export const searchTrainingDataByVector = async (
     }
     return null;
   } catch (e) {
-    console.error("Error searching training data in LanceDB:", e);
+    console.error('Error searching training data in LanceDB:', e);
     throw e; // Or return null based on desired error handling
   }
 };
@@ -179,7 +179,7 @@ export const deleteTrainingDataById = async (id: string): Promise<void> => {
   try {
     await deleteTrainingEventsByIds([id]);
     console.log(
-      `Successfully deleted training data for ID: ${id} from LanceDB.`,
+      `Successfully deleted training data for ID: ${id} from LanceDB.`
     );
   } catch (e) {
     console.error(`Error deleting training data for ID ${id} from LanceDB:`, e);
@@ -188,17 +188,17 @@ export const deleteTrainingDataById = async (id: string): Promise<void> => {
 };
 
 export const addTrainingData = async (
-  trainingEntry: TrainingEventSchema,
+  trainingEntry: TrainingEventSchema
 ): Promise<void> => {
   try {
     await upsertTrainingEvents([trainingEntry]);
     console.log(
-      `Successfully added/updated training data for ID: ${trainingEntry.id} in LanceDB.`,
+      `Successfully added/updated training data for ID: ${trainingEntry.id} in LanceDB.`
     );
   } catch (e) {
     console.error(
       `Error adding/updating training data for ID ${trainingEntry.id} in LanceDB:`,
-      e,
+      e
     );
     throw e;
   }
@@ -207,23 +207,23 @@ export const addTrainingData = async (
 export const convertEventTitleToOpenAIVector = async (title: string) => {
   try {
     const embeddingRequest: OpenAI.Embeddings.EmbeddingCreateParams = {
-      model: "text-embedding-ada-002",
+      model: 'text-embedding-ada-002',
       input: title,
     };
 
     const res = await openai.embeddings.create(embeddingRequest);
-    console.log(res, " res inside convertEventTitleToOpenAIVectors");
+    console.log(res, ' res inside convertEventTitleToOpenAIVectors');
     return res?.data?.[0]?.embedding;
   } catch (e) {
-    console.log(e, " unable to convert event title to openaivectors");
+    console.log(e, ' unable to convert event title to openaivectors');
   }
 };
 
 export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (
-  meetingId: string,
+  meetingId: string
 ) => {
   try {
-    const operationName = "ListMeetingAssistPrefereredTimeRangesByMeetingId";
+    const operationName = 'ListMeetingAssistPrefereredTimeRangesByMeetingId';
     const query = `
             query ListMeetingAssistPrefereredTimeRangesByMeetingId($meetingId: uuid!) {
                 Meeting_Assist_Preferred_Time_Range(where: {meetingId: {_eq: $meetingId}}) {
@@ -252,9 +252,9 @@ export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -264,19 +264,19 @@ export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (
       })
       .json();
 
-    console.log(res, " res from listMeetingAssistAttendees ");
+    console.log(res, ' res from listMeetingAssistAttendees ');
 
     return res?.data?.Meeting_Assist_Preferred_Time_Range;
   } catch (e) {
-    console.log(e, " uanble to list meeting assist preferred time ranges");
+    console.log(e, ' uanble to list meeting assist preferred time ranges');
   }
 };
 
 export const listMeetingAssistAttendeesGivenMeetingId = async (
-  meetingId: string,
+  meetingId: string
 ) => {
   try {
-    const operationName = "ListMeetingAssistAttendeesByMeetingId";
+    const operationName = 'ListMeetingAssistAttendeesByMeetingId';
     const query = `
             query ListMeetingAssistAttendeesByMeetingId($meetingId: uuid!) {
                 Meeting_Assist_Attendee(where: {meetingId: {_eq: $meetingId}}) {
@@ -307,9 +307,9 @@ export const listMeetingAssistAttendeesGivenMeetingId = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -319,17 +319,17 @@ export const listMeetingAssistAttendeesGivenMeetingId = async (
       })
       .json();
 
-    console.log(res, " res from listMeetingAssistAttendees ");
+    console.log(res, ' res from listMeetingAssistAttendees ');
 
     return res?.data?.Meeting_Assist_Attendee;
   } catch (e) {
-    console.log(e, " unable to list meeting assist attendees");
+    console.log(e, ' unable to list meeting assist attendees');
   }
 };
 
 export const getMeetingAssistAttendee = async (id: string) => {
   try {
-    const operationName = "GetMeetingAssistAttendeeById";
+    const operationName = 'GetMeetingAssistAttendeeById';
     const query = `
             query GetMeetingAssistAttendeeById($id: String!) {
                 Meeting_Assist_Attendee_by_pk(id: $id) {
@@ -360,9 +360,9 @@ export const getMeetingAssistAttendee = async (id: string) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -372,17 +372,17 @@ export const getMeetingAssistAttendee = async (id: string) => {
       })
       .json();
 
-    console.log(res, " res from getMeetingAssistAttendee");
+    console.log(res, ' res from getMeetingAssistAttendee');
 
     return res?.data?.Meeting_Assist_Attendee_by_pk;
   } catch (e) {
-    console.log(e, " unable to get meeting assist attendee");
+    console.log(e, ' unable to get meeting assist attendee');
   }
 };
 
 export const getMeetingAssist = async (id: string) => {
   try {
-    const operationName = "GetMeetingAssistById";
+    const operationName = 'GetMeetingAssistById';
     const query = `
             query GetMeetingAssistById($id: uuid!) {
                 Meeting_Assist_by_pk(id: $id) {
@@ -438,9 +438,9 @@ export const getMeetingAssist = async (id: string) => {
     const res: { data: { Meeting_Assist_by_pk: MeetingAssistType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -450,11 +450,11 @@ export const getMeetingAssist = async (id: string) => {
       })
       .json();
 
-    console.log(res, " res from getMeetingAssist");
+    console.log(res, ' res from getMeetingAssist');
 
     return res?.data?.Meeting_Assist_by_pk;
   } catch (e) {
-    console.log(e, " unable to get meeting assist from id");
+    console.log(e, ' unable to get meeting assist from id');
   }
 };
 
@@ -463,10 +463,10 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
   hostStartDate: string,
   hostEndDate: string,
   userTimezone: string,
-  hostTimezone: string,
+  hostTimezone: string
 ) => {
   try {
-    const operationName = "ListMeetingAssistEventsForAttendeeGivenDates";
+    const operationName = 'ListMeetingAssistEventsForAttendeeGivenDates';
     const query = `
             query ListMeetingAssistEventsForAttendeeGivenDates($attendeeId: String!, $startDate: timestamp!, $endDate: timestamp!) {
                 Meeting_Assist_Event(where: {attendeeId: {_eq: $attendeeId}, startDate: {_gte: $startDate}, endDate: {_lte: $endDate}}) {
@@ -516,11 +516,11 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
 
     const startDateInHostTimezone = dayjs(hostStartDate.slice(0, 19)).tz(
       hostTimezone,
-      true,
+      true
     );
     const endDateInHostTimezone = dayjs(hostEndDate.slice(0, 19)).tz(
       hostTimezone,
-      true,
+      true
     );
     const startDateInUserTimezone = dayjs(startDateInHostTimezone)
       .tz(userTimezone)
@@ -535,9 +535,9 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "Content-Type": "application/json",
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'Content-Type': 'application/json',
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -551,12 +551,12 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
         })
         .json();
 
-    console.log(res, " res from listMeetingAssistEventsForAttendeeGivenDates");
+    console.log(res, ' res from listMeetingAssistEventsForAttendeeGivenDates');
     return res?.data?.Meeting_Assist_Event;
   } catch (e) {
     console.log(
       e,
-      " unable to list meeting assist events for attendee given dates",
+      ' unable to list meeting assist events for attendee given dates'
     );
   }
 };
@@ -565,10 +565,10 @@ export const listEventsForDate = async (
   userId: string,
   startDate: string,
   endDate: string,
-  timezone: string,
+  timezone: string
 ) => {
   try {
-    const operationName = "listEventsForDate";
+    const operationName = 'listEventsForDate';
     const query = `
         query listEventsForDate($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
           Event(where: {userId: {_eq: $userId}, endDate: {_gte: $startDate}, startDate: {_lte: $endDate}, deleted: {_eq: false}}) {
@@ -691,9 +691,9 @@ export const listEventsForDate = async (
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -709,10 +709,10 @@ export const listEventsForDate = async (
       })
       .json();
 
-    console.log(res, " res from listEventsforUser");
+    console.log(res, ' res from listEventsforUser');
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " unable to list events for date");
+    console.log(e, ' unable to list events for date');
   }
 };
 
@@ -721,10 +721,10 @@ export const listEventsForUserGivenDates = async (
   hostStartDate: string,
   hostEndDate: string,
   userTimezone: string,
-  hostTimezone: string,
+  hostTimezone: string
 ) => {
   try {
-    const operationName = "listEventsForUser";
+    const operationName = 'listEventsForUser';
     const query = `
             query listEventsForUser($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
                 Event(where: {userId: {_eq: $userId}, endDate: {_gte: $startDate}, startDate: {_lte: $endDate}, deleted: {_neq: true}, allDay: {_neq: true}}) {
@@ -848,11 +848,11 @@ export const listEventsForUserGivenDates = async (
     // local date
     const startDateInHostTimezone = dayjs(hostStartDate.slice(0, 19)).tz(
       hostTimezone,
-      true,
+      true
     );
     const endDateInHostTimezone = dayjs(hostEndDate.slice(0, 19)).tz(
       hostTimezone,
-      true,
+      true
     );
     const startDateInUserTimezone = dayjs(startDateInHostTimezone)
       .tz(userTimezone)
@@ -866,9 +866,9 @@ export const listEventsForUserGivenDates = async (
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -882,17 +882,17 @@ export const listEventsForUserGivenDates = async (
       })
       .json();
 
-    console.log(res, " res from listEventsforUser");
+    console.log(res, ' res from listEventsforUser');
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " listEventsForUser");
+    console.log(e, ' listEventsForUser');
   }
 };
 
 export const processMeetingAssistForOptaplanner = async () => {
   try {
   } catch (e) {
-    console.log(e, " unable to process meeting assist for optaplanner");
+    console.log(e, ' unable to process meeting assist for optaplanner');
   }
 };
 
@@ -903,7 +903,7 @@ export const generateNewMeetingEventForAttendee = (
   windowEndDate: string,
   hostTimezone: string,
   calendarId?: string,
-  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType,
+  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType
 ): EventType => {
   let startDate = dayjs(windowStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -918,7 +918,7 @@ export const generateNewMeetingEventForAttendee = (
       .toDate();
     const dateObjectWithSetISODayPossible = setISODay(
       dateObject,
-      preferredStartTimeRange?.dayOfWeek,
+      preferredStartTimeRange?.dayOfWeek
     );
     const originalDateObjectWithSetISODay = dateObjectWithSetISODayPossible;
     let dateObjectWithSetISODay = originalDateObjectWithSetISODay;
@@ -926,14 +926,14 @@ export const generateNewMeetingEventForAttendee = (
     // try add
     if (!dayjs(dateObjectWithSetISODay).isBetween(startDate, endDate)) {
       dateObjectWithSetISODay = dayjs(originalDateObjectWithSetISODay)
-        .add(1, "week")
+        .add(1, 'week')
         .toDate();
     }
 
     // try subtract
     if (!dayjs(dateObjectWithSetISODay).isBetween(startDate, endDate)) {
       dateObjectWithSetISODay = dayjs(originalDateObjectWithSetISODay)
-        .subtract(1, "week")
+        .subtract(1, 'week')
         .toDate();
     }
 
@@ -955,10 +955,10 @@ export const generateNewMeetingEventForAttendee = (
   const eventId = uuid();
   const newEvent: EventType = {
     id: `${eventId}#${calendarId ?? meetingAssist.calendarId}`,
-    method: "create",
+    method: 'create',
     title: meetingAssist.summary,
     startDate,
-    endDate: dayjs(startDate).add(meetingAssist.duration, "m").format(),
+    endDate: dayjs(startDate).add(meetingAssist.duration, 'm').format(),
     allDay: false,
     notes: meetingAssist.notes,
     timezone: hostTimezone,
@@ -970,7 +970,7 @@ export const generateNewMeetingEventForAttendee = (
     isPostEvent: false,
     modifiable: true,
     sendUpdates: meetingAssist?.sendUpdates,
-    status: "confirmed",
+    status: 'confirmed',
     summary: meetingAssist.summary,
     transparency: meetingAssist?.transparency,
     visibility: meetingAssist?.visibility,
@@ -1003,7 +1003,7 @@ export const generateNewMeetingEventForHost = (
   meetingAssist: MeetingAssistType,
   windowStartDate: string,
   hostTimezone: string,
-  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType,
+  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType
 ): EventType => {
   let startDate = dayjs(windowStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -1025,10 +1025,10 @@ export const generateNewMeetingEventForHost = (
   const eventId = uuid();
   const newEvent: EventType = {
     id: `${eventId}#${meetingAssist.calendarId}`,
-    method: "create",
+    method: 'create',
     title: meetingAssist.summary,
     startDate,
-    endDate: dayjs(startDate).add(meetingAssist.duration, "m").format(),
+    endDate: dayjs(startDate).add(meetingAssist.duration, 'm').format(),
     allDay: false,
     notes: meetingAssist.notes,
     timezone: hostTimezone,
@@ -1040,7 +1040,7 @@ export const generateNewMeetingEventForHost = (
     isPostEvent: false,
     modifiable: true,
     sendUpdates: meetingAssist?.sendUpdates,
-    status: "confirmed",
+    status: 'confirmed',
     summary: meetingAssist.summary,
     transparency: meetingAssist?.transparency,
     visibility: meetingAssist?.visibility,
@@ -1074,10 +1074,10 @@ export const listPreferredTimeRangesForEvent = async (eventId: string) => {
     if (!eventId) {
       console.log(
         eventId,
-        " no eventId inside listPreferredTimeRangesForEvent",
+        ' no eventId inside listPreferredTimeRangesForEvent'
       );
     }
-    const operationName = "ListPreferredTimeRangesGivenEventId";
+    const operationName = 'ListPreferredTimeRangesGivenEventId';
     const query = `
       query ListPreferredTimeRangesGivenEventId($eventId: String!) {
         PreferredTimeRange(where: {eventId: {_eq: $eventId}}) {
@@ -1100,8 +1100,8 @@ export const listPreferredTimeRangesForEvent = async (eventId: string) => {
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -1111,17 +1111,17 @@ export const listPreferredTimeRangesForEvent = async (eventId: string) => {
         })
         .json();
 
-    console.log(res, " res inside  listPreferredTimeRangesForEvent");
+    console.log(res, ' res inside  listPreferredTimeRangesForEvent');
     res?.data?.PreferredTimeRange?.map((pt) =>
       console.log(
         pt,
-        " preferredTimeRange - res?.data?.PreferredTimeRange inside  listPreferredTimeRangesForEvent ",
-      ),
+        ' preferredTimeRange - res?.data?.PreferredTimeRange inside  listPreferredTimeRangesForEvent '
+      )
     );
 
     return res?.data?.PreferredTimeRange;
   } catch (e) {
-    console.log(e, " unable to list preferred time ranges for event");
+    console.log(e, ' unable to list preferred time ranges for event');
   }
 };
 
@@ -1130,7 +1130,7 @@ export const createRemindersFromMinutesAndEvent = (
   minutes: number[],
   timezone: string,
   useDefault: boolean,
-  userId: string,
+  userId: string
 ): RemindersForEventType => {
   return {
     eventId,
@@ -1150,7 +1150,7 @@ export const createRemindersFromMinutesAndEvent = (
 
 export const createBufferTimeForNewMeetingEvent = (
   event: EventMeetingPlusType,
-  bufferTime: BufferTimeNumberType,
+  bufferTime: BufferTimeNumberType
 ) => {
   let valuesToReturn: any = {};
   valuesToReturn.newEvent = event;
@@ -1164,16 +1164,16 @@ export const createBufferTimeForNewMeetingEvent = (
       id: preEventId,
       isPreEvent: true,
       forEventId: event.id,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: dayjs(event.startDate.slice(0, 19))
         .tz(event.timezone, true)
-        .subtract(bufferTime.beforeEvent, "m")
+        .subtract(bufferTime.beforeEvent, 'm')
         .format(),
       endDate: dayjs(event.startDate.slice(0, 19))
         .tz(event.timezone, true)
         .format(),
-      method: "create",
+      method: 'create',
       userId: event.userId,
       createdDate: dayjs().format(),
       deleted: false,
@@ -1189,7 +1189,7 @@ export const createBufferTimeForNewMeetingEvent = (
       timezone: event?.timezone,
       isFollowUp: false,
       isPostEvent: false,
-      eventId: preEventId.split("#")[0],
+      eventId: preEventId.split('#')[0],
     };
 
     valuesToReturn.beforeEvent = beforeEventOrEmpty;
@@ -1209,16 +1209,16 @@ export const createBufferTimeForNewMeetingEvent = (
       isPreEvent: false,
       forEventId: event.id,
       isPostEvent: true,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: dayjs(event.endDate.slice(0, 19))
         .tz(event.timezone, true)
         .format(),
       endDate: dayjs(event.endDate.slice(0, 19))
         .tz(event.timezone, true)
-        .add(bufferTime.afterEvent, "m")
+        .add(bufferTime.afterEvent, 'm')
         .format(),
-      method: "create",
+      method: 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -1233,7 +1233,7 @@ export const createBufferTimeForNewMeetingEvent = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: postEventId.split("#")[0],
+      eventId: postEventId.split('#')[0],
     };
 
     valuesToReturn.afterEvent = afterEventOrEmpty;
@@ -1251,14 +1251,14 @@ export const createBufferTimeForNewMeetingEvent = (
 };
 
 export const getUserPreferences = async (
-  userId: string,
+  userId: string
 ): Promise<UserPreferenceType> => {
   try {
     if (!userId) {
-      console.log("userId is null");
+      console.log('userId is null');
       return null;
     }
-    const operationName = "getUserPreferences";
+    const operationName = 'getUserPreferences';
     const query = `
     query getUserPreferences($userId: uuid!) {
       User_Preference(where: {userId: {_eq: $userId}}) {
@@ -1297,9 +1297,9 @@ export const getUserPreferences = async (
     const res: { data: { User_Preference: UserPreferenceType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1312,13 +1312,13 @@ export const getUserPreferences = async (
       .json();
     return res?.data?.User_Preference?.[0];
   } catch (e) {
-    console.log(e, " getUserPreferences");
+    console.log(e, ' getUserPreferences');
   }
 };
 
 export const getGlobalCalendar = async (userId: string) => {
   try {
-    const operationName = "getGlobalCalendar";
+    const operationName = 'getGlobalCalendar';
     const query = `
         query getGlobalCalendar($userId: uuid!) {
           Calendar(where: {globalPrimary: {_eq: true}, userId: {_eq: $userId}}) {
@@ -1344,9 +1344,9 @@ export const getGlobalCalendar = async (userId: string) => {
     const res: { data: { Calendar: CalendarType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1360,7 +1360,7 @@ export const getGlobalCalendar = async (userId: string) => {
 
     return res.data.Calendar?.[0];
   } catch (e) {
-    console.log(e, " unable to get global calendar");
+    console.log(e, ' unable to get global calendar');
   }
 };
 
@@ -1368,18 +1368,18 @@ export const adjustStartDatesForBreakEventsForDay = (
   allEvents: EventPlusType[],
   breakEvents: EventPlusType[],
   userPreference: UserPreferenceType,
-  timezone: string,
+  timezone: string
 ): EventPlusType[] => {
   // validate
   if (!allEvents?.[0]?.id) {
-    console.log("no allEvents inside adjustStartDatesForBreakEvents");
+    console.log('no allEvents inside adjustStartDatesForBreakEvents');
     return;
   }
 
   const startTimes = userPreference.startTimes;
   const endTimes = userPreference.endTimes;
   const dayOfWeekInt = getISODay(
-    dayjs(allEvents?.[0]?.startDate.slice(0, 19)).tz(timezone, true).toDate(),
+    dayjs(allEvents?.[0]?.startDate.slice(0, 19)).tz(timezone, true).toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -1410,12 +1410,12 @@ export const adjustStartDatesForBreakEventsForDay = (
       let index = 0;
       while (!foundSpace && index < filteredEvents.length) {
         const possibleEndDate = dayjs(
-          filteredEvents[index].startDate.slice(0, 19),
+          filteredEvents[index].startDate.slice(0, 19)
         ).tz(timezone, true);
 
         const possibleStartDate = dayjs(possibleEndDate.format().slice(0, 19))
           .tz(timezone, true)
-          .subtract(userPreference.breakLength, "minute");
+          .subtract(userPreference.breakLength, 'minute');
         let isBetweenStart = true;
         let isBetweenEnd = true;
         let betweenIndex = 0;
@@ -1436,56 +1436,56 @@ export const adjustStartDatesForBreakEventsForDay = (
           isBetweenStart = possibleStartDate.isBetween(
             dayjs(filteredEvents[betweenIndex].startDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
             dayjs(filteredEvents[betweenIndex].endDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           );
 
           isBetweenEnd = possibleEndDate.isBetween(
             dayjs(filteredEvents[betweenIndex].startDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
             dayjs(filteredEvents[betweenIndex].endDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
-            "minute",
-            "(]",
+            'minute',
+            '(]'
           );
 
           betweenWorkingDayStart = possibleStartDate.isBetween(
             startOfWorkingDay,
             endOfWorkingDay,
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           );
 
           betweenWorkingDayEnd = possibleEndDate.isBetween(
             startOfWorkingDay,
             endOfWorkingDay,
-            "minute",
-            "(]",
+            'minute',
+            '(]'
           );
 
           for (const breakEvent of breakEvents) {
             isBetweenBreakStart = possibleStartDate.isBetween(
               dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
               dayjs(breakEvent.endDate.slice(0, 19)).tz(timezone, true),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             );
 
             isBetweenBreakEnd = possibleEndDate.isBetween(
               dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
               dayjs(breakEvent.endDate.slice(0, 19)).tz(timezone, true),
-              "minute",
-              "(]",
+              'minute',
+              '(]'
             );
           }
 
@@ -1519,12 +1519,12 @@ export const adjustStartDatesForBreakEventsForDay = (
 export const convertToTotalWorkingHoursForInternalAttendee = (
   userPreference: UserPreferenceType,
   hostStartDate: string,
-  hostTimezone: string,
+  hostTimezone: string
 ) => {
   const startTimes = userPreference.startTimes;
   const endTimes = userPreference.endTimes;
   const dayOfWeekInt = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -1544,10 +1544,10 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
   attendeeEvents: EventPlusType[],
   hostStartDate: string,
   hostTimezone: string,
-  userTimezone: string,
+  userTimezone: string
 ) => {
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const sameDayEvents = attendeeEvents.filter(
     (e) =>
@@ -1555,20 +1555,20 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
         dayjs(e.startDate.slice(0, 19))
           .tz(e.timezone || userTimezone, true)
           .tz(hostTimezone)
-          .toDate(),
-      ) === dayOfWeekIntByHost,
+          .toDate()
+      ) === dayOfWeekIntByHost
   );
   const minStartDate = _.minBy(sameDayEvents, (e) =>
     dayjs(e.startDate.slice(0, 19))
       .tz(e.timezone || userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
   const maxEndDate = _.maxBy(sameDayEvents, (e) =>
     dayjs(e.endDate.slice(0, 19))
       .tz(e.timezone || userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
 
   let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -1587,8 +1587,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
         .tz(maxEndDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(15),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 15
     : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -1603,8 +1603,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
               .tz(maxEndDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(30),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 30
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -1619,8 +1619,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
                 .tz(maxEndDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(45),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 45
         : 0;
@@ -1646,8 +1646,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
         .tz(minStartDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(15),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 0
     : dayjs(minStartDate.startDate.slice(0, 19))
@@ -1662,8 +1662,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
               .tz(minStartDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(30),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 15
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -1678,8 +1678,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
                 .tz(minStartDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(45),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 45;
@@ -1688,7 +1688,7 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
     workStartHourByHost,
     workStartMinuteByHost,
     workEndHourByHost,
-    " workStartHourByHost, workStartMinuteByHost, workEndHourByHost for total working hours",
+    ' workStartHourByHost, workStartMinuteByHost, workEndHourByHost for total working hours'
   );
   const startDuration = dayjs.duration({
     hours: workStartHourByHost,
@@ -1706,47 +1706,47 @@ export const generateBreaks = (
   userPreferences: UserPreferenceType,
   numberOfBreaksToGenerate: number,
   eventMirror: EventPlusType,
-  globalCalendarId?: string,
+  globalCalendarId?: string
 ): EventPlusType[] => {
   const breaks = [];
   // validate
   if (!userPreferences?.breakLength) {
     console.log(
-      "no user preferences breakLength provided inside generateBreaks",
+      'no user preferences breakLength provided inside generateBreaks'
     );
     return breaks;
   }
 
   if (!numberOfBreaksToGenerate) {
     console.log(
-      "no number of breaks to generate provided inside generateBreaks",
+      'no number of breaks to generate provided inside generateBreaks'
     );
     return breaks;
   }
 
   if (!eventMirror) {
-    console.log("no event mirror provided inside generateBreaks");
+    console.log('no event mirror provided inside generateBreaks');
     return breaks;
   }
   console.log(
     numberOfBreaksToGenerate,
-    " numberOfBreaksToGenerate inside generateBreaks",
+    ' numberOfBreaksToGenerate inside generateBreaks'
   );
   for (let i = 0; i < numberOfBreaksToGenerate; i++) {
     const eventId = uuid();
     const breakEvent: EventPlusType = {
       id: `${eventId}#${globalCalendarId || eventMirror.calendarId}`,
       userId: userPreferences.userId,
-      title: "Break",
+      title: 'Break',
       startDate: dayjs(eventMirror.startDate.slice(0, 19))
         .tz(eventMirror.timezone, true)
         .format(),
       endDate: dayjs(eventMirror.startDate.slice(0, 19))
         .tz(eventMirror.timezone, true)
-        .add(userPreferences.breakLength, "minute")
+        .add(userPreferences.breakLength, 'minute')
         .format(),
       allDay: false,
-      notes: "Break",
+      notes: 'Break',
       timezone: eventMirror.timezone,
       createdDate: dayjs().toISOString(),
       updatedAt: dayjs().toISOString(),
@@ -1761,13 +1761,13 @@ export const generateBreaks = (
       originalStartDate: undefined,
       originalAllDay: false,
       calendarId: globalCalendarId || eventMirror.calendarId,
-      backgroundColor: userPreferences.breakColor || "#F7EBF7",
+      backgroundColor: userPreferences.breakColor || '#F7EBF7',
       isBreak: true,
       duration: userPreferences.breakLength,
       userModifiedDuration: true,
       userModifiedColor: true,
       isPostEvent: false,
-      method: "create",
+      method: 'create',
       eventId,
     };
     breaks.push(breakEvent);
@@ -1779,18 +1779,18 @@ export const generateBreaks = (
 export const shouldGenerateBreakEventsForDay = (
   workingHours: number,
   userPreferences: UserPreferenceType,
-  allEvents: EventPlusType[],
+  allEvents: EventPlusType[]
 ) => {
   // validate
   if (!userPreferences?.breakLength) {
     console.log(
-      "no user preferences breakLength provided inside shouldGenerateBreakEvents",
+      'no user preferences breakLength provided inside shouldGenerateBreakEvents'
     );
     return false;
   }
 
   if (!(allEvents?.length > 0)) {
-    console.log("no allEvents present inside shouldGenerateBreakEventsForDay");
+    console.log('no allEvents present inside shouldGenerateBreakEventsForDay');
     return false;
   }
 
@@ -1815,25 +1815,23 @@ export const shouldGenerateBreakEventsForDay = (
     const duration = dayjs
       .duration(
         dayjs(
-          dayjs(breakEvent.endDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
+          dayjs(breakEvent.endDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
         ).diff(
-          dayjs(breakEvent.startDate.slice(0, 19)).format(
-            "YYYY-MM-DDTHH:mm:ss",
-          ),
-        ),
+          dayjs(breakEvent.startDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
+        )
       )
       .asHours();
     breakHoursUsed += duration;
   }
 
   if (breakHoursUsed >= breakHoursAvailable) {
-    console.log("breakHoursUsed >= breakHoursAvailable");
+    console.log('breakHoursUsed >= breakHoursAvailable');
     return false;
   }
 
   if (!(allEvents?.length > 0)) {
     console.log(
-      "there are no events for this date inside shouldGenerateBreakEvents",
+      'there are no events for this date inside shouldGenerateBreakEvents'
     );
     return false;
   }
@@ -1847,36 +1845,36 @@ export const generateBreakEventsForDay = async (
   hostStartDate: string,
   hostTimezone: string,
   globalCalendarId?: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ) => {
   try {
     // validate
     if (!userPreferences?.breakLength) {
       console.log(
-        "no user preferences breakLength provided inside shouldGenerateBreakEvents",
+        'no user preferences breakLength provided inside shouldGenerateBreakEvents'
       );
       return null;
     }
 
     if (!userId) {
-      console.log("no userId provided inside shouldGenerateBreakEvents");
+      console.log('no userId provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (!hostStartDate) {
-      console.log("no startDate provided inside shouldGenerateBreakEvents");
+      console.log('no startDate provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (!hostTimezone) {
-      console.log("no timezone provided inside shouldGenerateBreakEvents");
+      console.log('no timezone provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (isFirstDay) {
       const endTimes = userPreferences.endTimes;
       const dayOfWeekInt = getISODay(
-        dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+        dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
       );
 
       let startHourByHost = dayjs(hostStartDate.slice(0, 19))
@@ -1892,12 +1890,12 @@ export const generateBreakEventsForDay = async (
       const startTimes = userPreferences.startTimes;
       const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
       const workStartMinute = startTimes.find(
-        (i) => i.day === dayOfWeekInt,
+        (i) => i.day === dayOfWeekInt
       ).minutes;
 
       if (
         dayjs(hostStartDate.slice(0, 19)).isAfter(
-          dayjs(hostStartDate.slice(0, 19)).hour(endHour).minute(endMinute),
+          dayjs(hostStartDate.slice(0, 19)).hour(endHour).minute(endMinute)
         )
       ) {
         // return empty as outside of work time
@@ -1912,7 +1910,7 @@ export const generateBreakEventsForDay = async (
             dayjs(hostStartDate.slice(0, 19))
               .tz(hostTimezone, true)
               .hour(workStartHour)
-              .minute(workStartMinute),
+              .minute(workStartMinute)
           )
       ) {
         startHourByHost = workStartHour;
@@ -1922,9 +1920,9 @@ export const generateBreakEventsForDay = async (
       const workingHours = convertToTotalWorkingHoursForInternalAttendee(
         userPreferences,
         hostStartDate,
-        hostTimezone,
+        hostTimezone
       );
-      console.log(workingHours, " workingHours");
+      console.log(workingHours, ' workingHours');
       const allEvents = await listEventsForDate(
         userId,
         dayjs(hostStartDate.slice(0, 19))
@@ -1937,12 +1935,12 @@ export const generateBreakEventsForDay = async (
           .hour(endHour)
           .minute(endMinute)
           .format(),
-        hostTimezone,
+        hostTimezone
       );
 
       if (!(allEvents?.length > 0)) {
         console.log(
-          "no allEvents present inside shouldGenerateBreakEventsForDay",
+          'no allEvents present inside shouldGenerateBreakEventsForDay'
         );
         return null;
       }
@@ -1950,14 +1948,14 @@ export const generateBreakEventsForDay = async (
       const shouldGenerateBreaks = shouldGenerateBreakEventsForDay(
         workingHours,
         userPreferences,
-        allEvents,
+        allEvents
       );
 
-      console.log(shouldGenerateBreaks, " shouldGenerateBreaks");
+      console.log(shouldGenerateBreaks, ' shouldGenerateBreaks');
 
       // validate
       if (!shouldGenerateBreaks) {
-        console.log("should not generate breaks");
+        console.log('should not generate breaks');
         return null;
       }
 
@@ -1970,32 +1968,32 @@ export const generateBreakEventsForDay = async (
               dayjs(allEvent.endDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .diff(
-                  dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true),
-                ),
+                  dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true)
+                )
             )
             .asHours();
           hoursUsed += duration;
         }
       }
 
-      console.log(hoursUsed, " hoursUsed");
+      console.log(hoursUsed, ' hoursUsed');
 
       let hoursAvailable = workingHours - hoursUsed;
 
-      console.log(hoursAvailable, " hoursAvailable");
+      console.log(hoursAvailable, ' hoursAvailable');
 
       // guarantee breaks
       const hoursMustBeBreak =
         workingHours * (1 - userPreferences.maxWorkLoadPercent / 100);
 
-      console.log(hoursMustBeBreak, " hoursMustBeBreak");
+      console.log(hoursMustBeBreak, ' hoursMustBeBreak');
 
       if (hoursAvailable < hoursMustBeBreak) {
         hoursAvailable = hoursMustBeBreak;
       }
       // no hours available
       if (hoursAvailable <= 0) {
-        console.log(hoursAvailable, " no hours available");
+        console.log(hoursAvailable, ' no hours available');
         return null;
       }
 
@@ -2006,8 +2004,8 @@ export const generateBreakEventsForDay = async (
             .tz(hostTimezone, true)
             .isSame(
               dayjs(e.startDate.slice(0, 19)).tz(hostTimezone, true),
-              "day",
-            ),
+              'day'
+            )
         );
 
       const breakEvents = oldBreakEvents;
@@ -2016,16 +2014,16 @@ export const generateBreakEventsForDay = async (
 
       console.log(
         numberOfBreaksPerDay,
-        " numberOfBreaksPerDay aka userPreferences.minNumberOfBreaks",
+        ' numberOfBreaksPerDay aka userPreferences.minNumberOfBreaks'
       );
-      console.log(userPreferences.breakLength, " userPreferences.breakLength");
+      console.log(userPreferences.breakLength, ' userPreferences.breakLength');
 
       const breakHoursToGenerateForMinBreaks =
         (userPreferences.breakLength / 60) * numberOfBreaksPerDay;
 
       console.log(
         breakHoursToGenerateForMinBreaks,
-        " breakHoursToGenerateForMinBreaks",
+        ' breakHoursToGenerateForMinBreaks'
       );
 
       let breakHoursToGenerate = 0;
@@ -2036,7 +2034,7 @@ export const generateBreakEventsForDay = async (
         breakHoursToGenerate = breakHoursToGenerateForMinBreaks;
       }
 
-      console.log(breakHoursToGenerate, " breakHoursToGenerate");
+      console.log(breakHoursToGenerate, ' breakHoursToGenerate');
 
       let breakHoursUsed = 0;
 
@@ -2049,9 +2047,9 @@ export const generateBreakEventsForDay = async (
                 .diff(
                   dayjs(breakEvent.startDate.slice(0, 19)).tz(
                     hostTimezone,
-                    true,
-                  ),
-                ),
+                    true
+                  )
+                )
             )
             .asHours();
           breakHoursUsed += duration;
@@ -2061,26 +2059,26 @@ export const generateBreakEventsForDay = async (
       const actualBreakHoursToGenerate = breakHoursToGenerate - breakHoursUsed;
 
       if (actualBreakHoursToGenerate > hoursAvailable) {
-        console.log(" no hours available to generate break");
+        console.log(' no hours available to generate break');
         return null;
       }
-      console.log(actualBreakHoursToGenerate, " actualBreakHoursToGenerate");
-      console.log(breakHoursUsed, " breakHoursUsed");
-      console.log(breakHoursToGenerateForMinBreaks, " breakHoursAvailable");
+      console.log(actualBreakHoursToGenerate, ' actualBreakHoursToGenerate');
+      console.log(breakHoursUsed, ' breakHoursUsed');
+      console.log(breakHoursToGenerateForMinBreaks, ' breakHoursAvailable');
       const breakLengthAsHours = userPreferences.breakLength / 60;
-      console.log(breakLengthAsHours, " breakLengthAsHours");
+      console.log(breakLengthAsHours, ' breakLengthAsHours');
       const numberOfBreaksToGenerate = Math.floor(
-        actualBreakHoursToGenerate / breakLengthAsHours,
+        actualBreakHoursToGenerate / breakLengthAsHours
       );
-      console.log(numberOfBreaksToGenerate, " numberOfBreaksToGenerate");
+      console.log(numberOfBreaksToGenerate, ' numberOfBreaksToGenerate');
 
       if (numberOfBreaksToGenerate < 1) {
-        console.log("should not generate breaks");
+        console.log('should not generate breaks');
         return null;
       }
 
       if (breakHoursToGenerate > 6) {
-        console.log("breakHoursToGenerate is > 6");
+        console.log('breakHoursToGenerate is > 6');
         return null;
       }
 
@@ -2090,7 +2088,7 @@ export const generateBreakEventsForDay = async (
         userPreferences,
         numberOfBreaksToGenerate,
         eventMirror,
-        globalCalendarId,
+        globalCalendarId
       );
 
       return newEvents;
@@ -2098,7 +2096,7 @@ export const generateBreakEventsForDay = async (
 
     const endTimes = userPreferences.endTimes;
     const dayOfWeekInt = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
 
     const endHour = endTimes.find((i) => i.day === dayOfWeekInt).hour;
@@ -2112,7 +2110,7 @@ export const generateBreakEventsForDay = async (
     const workingHours = convertToTotalWorkingHoursForInternalAttendee(
       userPreferences,
       hostStartDate,
-      hostTimezone,
+      hostTimezone
     );
     const allEvents = await listEventsForDate(
       userId,
@@ -2126,22 +2124,22 @@ export const generateBreakEventsForDay = async (
         .hour(endHour)
         .minute(endMinute)
         .format(),
-      hostTimezone,
+      hostTimezone
     );
     if (!(allEvents?.length > 0)) {
       console.log(
-        "no allEvents present inside shouldGenerateBreakEventsForDay",
+        'no allEvents present inside shouldGenerateBreakEventsForDay'
       );
       return null;
     }
     const shouldGenerateBreaks = shouldGenerateBreakEventsForDay(
       workingHours,
       userPreferences,
-      allEvents,
+      allEvents
     );
     // validate
     if (!shouldGenerateBreaks) {
-      console.log("should not generate breaks");
+      console.log('should not generate breaks');
       return null;
     }
 
@@ -2154,33 +2152,33 @@ export const generateBreakEventsForDay = async (
             dayjs(allEvent.endDate.slice(0, 19))
               .tz(hostTimezone, true)
               .diff(
-                dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true),
-              ),
+                dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true)
+              )
           )
           .asHours();
         hoursUsed += duration;
       }
     }
 
-    console.log(hoursUsed, " hoursUsed");
+    console.log(hoursUsed, ' hoursUsed');
 
     let hoursAvailable = workingHours - hoursUsed;
     // guarantee breaks
     const hoursMustBeBreak =
       workingHours * (1 - userPreferences.maxWorkLoadPercent / 100);
 
-    console.log(hoursMustBeBreak, " hoursMustBeBreak");
-    console.log(hoursAvailable, " hoursAvailable");
+    console.log(hoursMustBeBreak, ' hoursMustBeBreak');
+    console.log(hoursAvailable, ' hoursAvailable');
 
     if (hoursAvailable < hoursMustBeBreak) {
       hoursAvailable = hoursMustBeBreak;
     }
 
-    console.log(hoursAvailable, " hoursAvailable");
+    console.log(hoursAvailable, ' hoursAvailable');
 
     // no hours available
     if (hoursAvailable <= 0) {
-      console.log(hoursAvailable, " no hours available");
+      console.log(hoursAvailable, ' no hours available');
       return null;
     }
 
@@ -2189,16 +2187,13 @@ export const generateBreakEventsForDay = async (
       .filter((e) =>
         dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .isSame(
-            dayjs(e.startDate.slice(0, 19)).tz(hostTimezone, true),
-            "day",
-          ),
+          .isSame(dayjs(e.startDate.slice(0, 19)).tz(hostTimezone, true), 'day')
       );
 
     const breakEvents = oldBreakEvents;
 
     const numberOfBreaksPerDay = userPreferences.minNumberOfBreaks;
-    console.log(numberOfBreaksPerDay, " numberOfBreaksPerDay");
+    console.log(numberOfBreaksPerDay, ' numberOfBreaksPerDay');
     const breakHoursToGenerateForMinBreaks =
       (userPreferences.breakLength / 60) * numberOfBreaksPerDay;
     let breakHoursToGenerate = 0;
@@ -2209,7 +2204,7 @@ export const generateBreakEventsForDay = async (
       breakHoursToGenerate = breakHoursToGenerateForMinBreaks;
     }
 
-    console.log(breakHoursToGenerate, " breakHoursToGenerate");
+    console.log(breakHoursToGenerate, ' breakHoursToGenerate');
 
     let breakHoursUsed = 0;
 
@@ -2220,8 +2215,8 @@ export const generateBreakEventsForDay = async (
             dayjs(breakEvent.endDate.slice(0, 19))
               .tz(hostTimezone, true)
               .diff(
-                dayjs(breakEvent.startDate.slice(0, 19)).tz(hostTimezone, true),
-              ),
+                dayjs(breakEvent.startDate.slice(0, 19)).tz(hostTimezone, true)
+              )
           )
           .asHours();
         breakHoursUsed += duration;
@@ -2231,26 +2226,26 @@ export const generateBreakEventsForDay = async (
     const actualBreakHoursToGenerate = breakHoursToGenerate - breakHoursUsed;
 
     if (actualBreakHoursToGenerate > hoursAvailable) {
-      console.log(" no hours available to generate break");
+      console.log(' no hours available to generate break');
       return null;
     }
 
-    console.log(breakHoursUsed, " breakHoursUsed");
-    console.log(breakHoursToGenerate, " breakHoursAvailable");
+    console.log(breakHoursUsed, ' breakHoursUsed');
+    console.log(breakHoursToGenerate, ' breakHoursAvailable');
     const breakLengthAsHours = userPreferences.breakLength / 60;
-    console.log(breakLengthAsHours, " breakLengthAsHours");
+    console.log(breakLengthAsHours, ' breakLengthAsHours');
     const numberOfBreaksToGenerate = Math.floor(
-      actualBreakHoursToGenerate / breakLengthAsHours,
+      actualBreakHoursToGenerate / breakLengthAsHours
     );
-    console.log(numberOfBreaksToGenerate, " numberOfBreaksToGenerate");
+    console.log(numberOfBreaksToGenerate, ' numberOfBreaksToGenerate');
 
     if (numberOfBreaksToGenerate < 1) {
-      console.log("should not generate breaks");
+      console.log('should not generate breaks');
       return null;
     }
 
     if (breakHoursToGenerate > 6) {
-      console.log("breakHoursToGenerate is > 6");
+      console.log('breakHoursToGenerate is > 6');
       return null;
     }
 
@@ -2260,12 +2255,12 @@ export const generateBreakEventsForDay = async (
       userPreferences,
       numberOfBreaksToGenerate,
       eventMirror,
-      globalCalendarId,
+      globalCalendarId
     );
 
     return newEvents;
   } catch (e) {
-    console.log(e, " unable to generate breaks for day");
+    console.log(e, ' unable to generate breaks for day');
   }
 };
 
@@ -2275,18 +2270,18 @@ export const generateBreakEventsForDate = async (
   hostStartDate: string,
   hostEndDate: string,
   hostTimezone: string,
-  globalCalendarId?: string,
+  globalCalendarId?: string
 ): Promise<EventPlusType[] | []> => {
   try {
     const totalBreakEvents = [];
     const totalDays = dayjs(hostEndDate.slice(0, 19))
       .tz(hostTimezone, true)
-      .diff(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true), "day");
-    console.log(totalDays, " totalDays inside generateBreakEventsForDate");
+      .diff(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true), 'day');
+    console.log(totalDays, ' totalDays inside generateBreakEventsForDate');
     for (let i = 0; i < totalDays; i++) {
       const dayDate = dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
-        .add(i, "day")
+        .add(i, 'day')
         .format();
 
       const newBreakEvents = await generateBreakEventsForDay(
@@ -2295,13 +2290,13 @@ export const generateBreakEventsForDate = async (
         dayDate,
         hostTimezone,
         globalCalendarId,
-        i === 0,
+        i === 0
       );
 
       if (i === 0) {
         const endTimes = userPreferences.endTimes;
         const dayOfWeekInt = getISODay(
-          dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+          dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate()
         );
 
         let startHour = dayjs(dayDate.slice(0, 19))
@@ -2316,15 +2311,15 @@ export const generateBreakEventsForDate = async (
         // validate values before calculating
         const startTimes = userPreferences.startTimes;
         const workStartHour = startTimes.find(
-          (i) => i.day === dayOfWeekInt,
+          (i) => i.day === dayOfWeekInt
         ).hour;
         const workStartMinute = startTimes.find(
-          (i) => i.day === dayOfWeekInt,
+          (i) => i.day === dayOfWeekInt
         ).minutes;
 
         if (
           dayjs(dayDate.slice(0, 19)).isAfter(
-            dayjs(dayDate.slice(0, 19)).hour(endHour).minute(endMinute),
+            dayjs(dayDate.slice(0, 19)).hour(endHour).minute(endMinute)
           )
         ) {
           // return empty as outside of work time
@@ -2336,7 +2331,7 @@ export const generateBreakEventsForDate = async (
           dayjs(dayDate.slice(0, 19)).isBefore(
             dayjs(dayDate.slice(0, 19))
               .hour(workStartHour)
-              .minute(workStartMinute),
+              .minute(workStartMinute)
           )
         ) {
           startHour = workStartHour;
@@ -2355,18 +2350,18 @@ export const generateBreakEventsForDate = async (
             .hour(endHour)
             .minute(endMinute)
             .format(),
-          hostTimezone,
+          hostTimezone
         );
         const newBreakEventsAdjusted =
           await adjustStartDatesForBreakEventsForDay(
             allEvents,
             newBreakEvents,
             userPreferences,
-            hostTimezone,
+            hostTimezone
           );
         if (newBreakEventsAdjusted?.length > 0) {
           newBreakEventsAdjusted.forEach((b) =>
-            console.log(b, " newBreakEventsAdjusted"),
+            console.log(b, ' newBreakEventsAdjusted')
           );
           totalBreakEvents.push(...newBreakEventsAdjusted);
         }
@@ -2376,7 +2371,7 @@ export const generateBreakEventsForDate = async (
 
       const endTimes = userPreferences.endTimes;
       const dayOfWeekInt = getISODay(
-        dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+        dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate()
       );
 
       const endHour = endTimes.find((i) => i.day === dayOfWeekInt).hour;
@@ -2386,7 +2381,7 @@ export const generateBreakEventsForDate = async (
       const startTimes = userPreferences.startTimes;
       const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
       const startMinute = startTimes.find(
-        (i) => i.day === dayOfWeekInt,
+        (i) => i.day === dayOfWeekInt
       ).minutes;
 
       const allEvents = await listEventsForDate(
@@ -2401,17 +2396,17 @@ export const generateBreakEventsForDate = async (
           .hour(endHour)
           .minute(endMinute)
           .format(),
-        hostTimezone,
+        hostTimezone
       );
       const newBreakEventsAdjusted = await adjustStartDatesForBreakEventsForDay(
         allEvents,
         newBreakEvents,
         userPreferences,
-        hostTimezone,
+        hostTimezone
       );
       if (newBreakEventsAdjusted?.length > 0) {
         newBreakEventsAdjusted.forEach((b) =>
-          console.log(b, " newBreakEventsAdjusted"),
+          console.log(b, ' newBreakEventsAdjusted')
         );
         totalBreakEvents.push(...newBreakEventsAdjusted);
       }
@@ -2419,7 +2414,7 @@ export const generateBreakEventsForDate = async (
 
     return totalBreakEvents;
   } catch (e) {
-    console.log(e, " unable to generateBreakEventsForDate");
+    console.log(e, ' unable to generateBreakEventsForDate');
   }
 };
 
@@ -2428,7 +2423,7 @@ export const generateWorkTimesForInternalAttendee = (
   userId: string,
   userPreference: UserPreferenceType,
   hostTimezone: string,
-  userTimezone: string,
+  userTimezone: string
 ): WorkTimeType[] => {
   // 7 days in a week
   const daysInWeek = 7;
@@ -2452,11 +2447,11 @@ export const generateWorkTimesForInternalAttendee = (
             .minute(startMinute)
             .tz(userTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       endTime: dayjs(
         setISODay(
           dayjs()
@@ -2464,11 +2459,11 @@ export const generateWorkTimesForInternalAttendee = (
             .minute(endMinute)
             .tz(userTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       hostId,
       userId,
     });
@@ -2489,7 +2484,7 @@ export const generateTimeSlotsForInternalAttendee = (
   userPreference: UserPreferenceType,
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ): TimeSlotType[] => {
   if (isFirstDay) {
     // firstday can be started outside of work time
@@ -2500,10 +2495,10 @@ export const generateTimeSlotsForInternalAttendee = (
       dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .tz(userTimezone)
-        .toDate(),
+        .toDate()
     );
     const dayOfWeekIntByHost = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
     // month is zero-indexed
     // const month = dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).tz(userTimezone).month()
@@ -2527,8 +2522,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(hostTimezone, true)
           .tz(userTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2543,8 +2538,8 @@ export const generateTimeSlotsForInternalAttendee = (
                 .tz(hostTimezone, true)
                 .tz(userTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(hostStartDate.slice(0, 19))
@@ -2559,8 +2554,8 @@ export const generateTimeSlotsForInternalAttendee = (
                   .tz(hostTimezone, true)
                   .tz(userTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -2580,8 +2575,8 @@ export const generateTimeSlotsForInternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2593,8 +2588,8 @@ export const generateTimeSlotsForInternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(hostStartDate.slice(0, 19))
@@ -2606,8 +2601,8 @@ export const generateTimeSlotsForInternalAttendee = (
                 dayjs(hostStartDate.slice(0, 19))
                   .tz(hostTimezone, true)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -2621,8 +2616,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .hour(endHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2633,8 +2628,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -2642,7 +2637,7 @@ export const generateTimeSlotsForInternalAttendee = (
     const startTimes = userPreference.startTimes;
     const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
     const workStartMinute = startTimes.find(
-      (i) => i.day === dayOfWeekInt,
+      (i) => i.day === dayOfWeekInt
     ).minutes;
     const workStartHourByHost = dayjs(
       setISODay(
@@ -2651,8 +2646,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .hour(workStartHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2663,8 +2658,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -2676,7 +2671,7 @@ export const generateTimeSlotsForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(endHourByHost)
-            .minute(endMinuteByHost),
+            .minute(endMinuteByHost)
         )
     ) {
       // return empty as outside of work time
@@ -2691,7 +2686,7 @@ export const generateTimeSlotsForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -2715,7 +2710,7 @@ export const generateTimeSlotsForInternalAttendee = (
         endHour,
         endMinute,
         timezone,
-        `startDate, endTimes, dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+        `startDate, endTimes, dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
       );
       for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
@@ -2724,27 +2719,27 @@ export const generateTimeSlotsForInternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i, "minute")
-            .format("HH:mm:ss") as Time,
+            .add(i, 'minute')
+            .format('HH:mm:ss') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i + 15, "minute")
-            .format("HH:mm:ss") as Time,
+            .add(i + 15, 'minute')
+            .format('HH:mm:ss') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
           date: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
-            .format("YYYY-MM-DD"),
+            .format('YYYY-MM-DD'),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day where startDate is before work start time",
+        ' timeSlots inside generateTimeSlots for first day where startDate is before work start time'
       );
       return timeSlots;
     }
@@ -2767,7 +2762,7 @@ export const generateTimeSlotsForInternalAttendee = (
       endHourByHost,
       endMinuteByHost,
       hostTimezone,
-      `startDate, endTimes, dayOfWeekInt, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+      `startDate, endTimes, dayOfWeekInt, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
     );
     for (let i = 0; i < totalMinutes; i += 15) {
       timeSlots.push({
@@ -2776,25 +2771,25 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i, "minute")
-          .format("HH:mm:ss") as Time,
+          .add(i, 'minute')
+          .format('HH:mm:ss') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i + 15, "minute")
-          .format("HH:mm:ss") as Time,
+          .add(i + 15, 'minute')
+          .format('HH:mm:ss') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
         date: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
       });
     }
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
 
@@ -2808,7 +2803,7 @@ export const generateTimeSlotsForInternalAttendee = (
     dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
       .tz(userTimezone)
-      .toDate(),
+      .toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -2847,7 +2842,7 @@ export const generateTimeSlotsForInternalAttendee = (
     startHourByHost,
     startMinuteByHost,
     endHourByHost,
-    " monthByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost",
+    ' monthByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost'
   );
   const startDuration = dayjs.duration({
     hours: startHour,
@@ -2864,25 +2859,25 @@ export const generateTimeSlotsForInternalAttendee = (
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm:ss") as Time,
+        .add(i, 'minute')
+        .format('HH:mm:ss') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i + 15, "minute")
-        .format("HH:mm:ss") as Time,
+        .add(i + 15, 'minute')
+        .format('HH:mm:ss') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
       date: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
-        .format("YYYY-MM-DD"),
+        .format('YYYY-MM-DD'),
     });
   }
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
@@ -2892,13 +2887,13 @@ export const generateTimeSlotsLiteForInternalAttendee = (
   userPreference: UserPreferenceType,
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ): TimeSlotType[] => {
   if (isFirstDay) {
     const endTimes = userPreference.endTimes;
 
     const dayOfWeekInt = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
 
     const startHourOfHostDateByHost = dayjs(hostStartDate.slice(0, 19))
@@ -2909,8 +2904,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2922,8 +2917,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -2943,8 +2938,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2956,8 +2951,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -2971,8 +2966,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .hour(endHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2983,8 +2978,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -2993,7 +2988,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     const startTimes = userPreference.startTimes;
     const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
     const workStartMinute = startTimes.find(
-      (i) => i.day === dayOfWeekInt,
+      (i) => i.day === dayOfWeekInt
     ).minutes;
     const workStartHourByHost = dayjs(
       setISODay(
@@ -3002,8 +2997,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .hour(workStartHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -3014,8 +3009,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -3027,7 +3022,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(endHourByHost)
-            .minute(endMinuteByHost),
+            .minute(endMinuteByHost)
         )
     ) {
       // return empty as outside of work time
@@ -3042,7 +3037,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -3063,27 +3058,27 @@ export const generateTimeSlotsLiteForInternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i, "minute")
-            .format("HH:mm:ss") as Time,
+            .add(i, 'minute')
+            .format('HH:mm:ss') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i + 30, "minute")
-            .format("HH:mm:ss") as Time,
+            .add(i + 30, 'minute')
+            .format('HH:mm:ss') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
           date: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
-            .format("YYYY-MM-DD"),
+            .format('YYYY-MM-DD'),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day before start time",
+        ' timeSlots inside generateTimeSlots for first day before start time'
       );
       return timeSlots;
     }
@@ -3103,25 +3098,25 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i, "minute")
-          .format("HH:mm:ss") as Time,
+          .add(i, 'minute')
+          .format('HH:mm:ss') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i + 30, "minute")
-          .format("HH:mm:ss") as Time,
+          .add(i + 30, 'minute')
+          .format('HH:mm:ss') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
         date: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
       });
     }
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
   const startTimes = userPreference.startTimes;
@@ -3132,7 +3127,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
       .tz(userTimezone)
-      .toDate(),
+      .toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -3146,7 +3141,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     .tz(hostTimezone, true)
     .date();
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const startHourByHost = dayjs(hostStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -3177,31 +3172,31 @@ export const generateTimeSlotsLiteForInternalAttendee = (
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm:ss") as Time,
+        .add(i, 'minute')
+        .format('HH:mm:ss') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i + 30, "minute")
-        .format("HH:mm:ss") as Time,
+        .add(i + 30, 'minute')
+        .format('HH:mm:ss') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
       date: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
-        .format("YYYY-MM-DD"),
+        .format('YYYY-MM-DD'),
     });
   }
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
 export const validateEventDates = (
   event: EventPlusType,
-  userPreferences: UserPreferenceType,
+  userPreferences: UserPreferenceType
 ): boolean => {
   // if no timezone remove
   if (!event?.timezone) {
@@ -3210,28 +3205,28 @@ export const validateEventDates = (
 
   const diff = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   const diffDay = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "d");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'd');
   const diffHours = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "h");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'h');
 
   const isoWeekDay = getISODay(
-    dayjs(event?.startDate.slice(0, 19)).tz(event?.timezone, true).toDate(),
+    dayjs(event?.startDate.slice(0, 19)).tz(event?.timezone, true).toDate()
   );
   const endHour = userPreferences.endTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.hour;
   const endMinutes = userPreferences.endTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.minutes;
   const startHour = userPreferences.startTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.hour;
   const startMinutes = userPreferences.startTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.minutes;
 
   if (
@@ -3241,7 +3236,7 @@ export const validateEventDates = (
         dayjs(event?.startDate.slice(0, 19))
           .tz(event.timezone, true)
           .hour(endHour)
-          .minute(endMinutes),
+          .minute(endMinutes)
       )
   ) {
     return false;
@@ -3254,7 +3249,7 @@ export const validateEventDates = (
         dayjs(event?.startDate.slice(0, 19))
           .tz(event.timezone, true)
           .hour(startHour)
-          .minute(startMinutes),
+          .minute(startMinutes)
       )
   ) {
     return false;
@@ -3265,7 +3260,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are the same",
+      ' the start date and end date are the same'
     );
     return false;
   }
@@ -3275,7 +3270,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date is after end date",
+      ' the start date is after end date'
     );
     return false;
   }
@@ -3285,7 +3280,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 1 day apart",
+      ' the start date and end date are more than 1 day apart'
     );
     return false;
   }
@@ -3296,7 +3291,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 23 hours apart",
+      ' the start date and end date are more than 23 hours apart'
     );
     return false;
   }
@@ -3305,7 +3300,7 @@ export const validateEventDates = (
 };
 
 export const validateEventDatesForExternalAttendee = (
-  event: EventPlusType,
+  event: EventPlusType
 ): boolean => {
   // if no timezone remove
   if (!event?.timezone) {
@@ -3314,20 +3309,20 @@ export const validateEventDatesForExternalAttendee = (
 
   const diff = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   const diffDay = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "d");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'd');
   const diffHours = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "h");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'h');
 
   if (diff === 0) {
     console.log(
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are the same",
+      ' the start date and end date are the same'
     );
     return false;
   }
@@ -3337,7 +3332,7 @@ export const validateEventDatesForExternalAttendee = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date is after end date",
+      ' the start date is after end date'
     );
     return false;
   }
@@ -3347,7 +3342,7 @@ export const validateEventDatesForExternalAttendee = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 1 day apart",
+      ' the start date and end date are more than 1 day apart'
     );
     return false;
   }
@@ -3358,7 +3353,7 @@ export const validateEventDatesForExternalAttendee = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 23 hours apart",
+      ' the start date and end date are more than 23 hours apart'
     );
     return false;
   }
@@ -3368,21 +3363,21 @@ export const validateEventDatesForExternalAttendee = (
 
 export const generateEventParts = (
   event: EventPlusType,
-  hostId: string,
+  hostId: string
 ): InitialEventPartType[] => {
   console.log(
     event.id,
     event.startDate.slice(0, 19),
     event.endDate.slice(0, 19),
-    " event.id, event.startDate.slice(0, 19), event.endDate.slice(0, 19) inside generateEventParts",
+    ' event.id, event.startDate.slice(0, 19), event.endDate.slice(0, 19) inside generateEventParts'
   );
   const minutes = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   console.log(
     event.id,
     minutes,
-    "event.id,  minutes inside generateEventParts",
+    'event.id,  minutes inside generateEventParts'
   );
   const parts = Math.floor(minutes / 15);
   const remainder = minutes % 15;
@@ -3422,18 +3417,18 @@ export const generateEventParts = (
     eventParts?.[0]?.endDate,
     eventParts?.[0]?.part,
     eventParts?.[0]?.lastPart,
-    "event.id,  eventParts?.[0]?.startDate, eventParts?.[0]?.endDate, eventParts?.[0]?.part, eventParts?.[0]?.lastPart,",
+    'event.id,  eventParts?.[0]?.startDate, eventParts?.[0]?.endDate, eventParts?.[0]?.part, eventParts?.[0]?.lastPart,'
   );
   return eventParts;
 };
 
 export const generateEventPartsLite = (
   event: EventPlusType,
-  hostId: string,
+  hostId: string
 ): InitialEventPartType[] => {
   const minutes = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   const parts = Math.floor(minutes / 30);
   const remainder = minutes % 30;
   const eventParts: InitialEventPartType[] = [];
@@ -3472,7 +3467,7 @@ export const generateEventPartsLite = (
     eventParts?.[0]?.endDate,
     eventParts?.[0]?.part,
     eventParts?.[0]?.lastPart,
-    "event.id,  eventParts?.[0]?.startDate, eventParts?.[0]?.endDate, eventParts?.[0]?.part, eventParts?.[0]?.lastPart,",
+    'event.id,  eventParts?.[0]?.startDate, eventParts?.[0]?.endDate, eventParts?.[0]?.part, eventParts?.[0]?.lastPart,'
   );
 
   return eventParts;
@@ -3480,7 +3475,7 @@ export const generateEventPartsLite = (
 
 export const modifyEventPartsForSingularPreBufferTime = (
   eventParts: InitialEventPartType[],
-  forEventId: string,
+  forEventId: string
 ): InitialEventPartType[] => {
   const preBufferBeforeEventParts: InitialEventPartType[] = [];
   const preBufferActualEventParts: InitialEventPartType[] = [];
@@ -3492,7 +3487,7 @@ export const modifyEventPartsForSingularPreBufferTime = (
       console.log(
         eventParts[i].forEventId,
         forEventId,
-        " eventParts[i].forEventId === forEventId  inside modifyEventPartsForSingularPreBufferTime",
+        ' eventParts[i].forEventId === forEventId  inside modifyEventPartsForSingularPreBufferTime'
       );
       preBufferBeforeEventParts.push({
         ...eventParts[i],
@@ -3506,7 +3501,7 @@ export const modifyEventPartsForSingularPreBufferTime = (
       console.log(
         eventParts[i].id,
         forEventId,
-        "eventParts[i].id === forEventId inside modifyEventPartsForSingularPreBufferTime",
+        'eventParts[i].id === forEventId inside modifyEventPartsForSingularPreBufferTime'
       );
       preBufferActualEventParts.push({
         ...eventParts[i],
@@ -3516,14 +3511,14 @@ export const modifyEventPartsForSingularPreBufferTime = (
   }
 
   const preBufferBeforeEventPartsSorted = preBufferBeforeEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
   const preBufferActualEventPartsSorted = preBufferActualEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
 
   const preBufferEventPartsTotal = preBufferBeforeEventPartsSorted.concat(
-    preBufferActualEventPartsSorted,
+    preBufferActualEventPartsSorted
   );
 
   for (let i = 0; i < preBufferEventPartsTotal.length; i++) {
@@ -3539,13 +3534,13 @@ export const modifyEventPartsForSingularPreBufferTime = (
       e.lastPart,
       e.startDate,
       e.endDate,
-      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, inside modifyEventPartsForSingularPreBufferTime`,
-    ),
+      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, inside modifyEventPartsForSingularPreBufferTime`
+    )
   );
   return preBufferEventPartsTotal;
 };
 export const modifyEventPartsForMultiplePreBufferTime = (
-  eventParts: InitialEventPartType[],
+  eventParts: InitialEventPartType[]
 ): InitialEventPartType[] => {
   const uniquePreBufferPartForEventIds: string[] = [];
   const preBufferEventPartsTotal: InitialEventPartType[] = [];
@@ -3553,7 +3548,7 @@ export const modifyEventPartsForMultiplePreBufferTime = (
   for (let i = 0; i < eventParts.length; i++) {
     if (eventParts[i].forEventId && eventParts[i].isPreEvent) {
       const foundPart = uniquePreBufferPartForEventIds.find(
-        (e) => e === eventParts[i].forEventId,
+        (e) => e === eventParts[i].forEventId
       );
       // if found skip
       if (foundPart) {
@@ -3568,7 +3563,7 @@ export const modifyEventPartsForMultiplePreBufferTime = (
   for (let i = 0; i < uniquePreBufferPartForEventIds.length; i++) {
     const returnedEventPartTotal = modifyEventPartsForSingularPreBufferTime(
       eventParts,
-      uniquePreBufferPartForEventIds[i],
+      uniquePreBufferPartForEventIds[i]
     );
     preBufferEventPartsTotal.push(...returnedEventPartTotal);
   }
@@ -3577,10 +3572,10 @@ export const modifyEventPartsForMultiplePreBufferTime = (
   const eventPartsFiltered = _.differenceBy(
     eventParts,
     preBufferEventPartsTotal,
-    "id",
+    'id'
   );
   const concatenatedValues = eventPartsFiltered.concat(
-    preBufferEventPartsTotal,
+    preBufferEventPartsTotal
   );
   concatenatedValues.forEach((e) =>
     console.log(
@@ -3592,14 +3587,14 @@ export const modifyEventPartsForMultiplePreBufferTime = (
       e.startDate,
       e.endDate,
       e?.forEventId,
-      `e.id, e.eventId, e.actualId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePreBufferTime`,
-    ),
+      `e.id, e.eventId, e.actualId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePreBufferTime`
+    )
   );
   return concatenatedValues;
 };
 
 export const modifyEventPartsForMultiplePostBufferTime = (
-  eventParts: InitialEventPartType[],
+  eventParts: InitialEventPartType[]
 ): InitialEventPartType[] => {
   const uniquePostBufferPartForEventIds: string[] = [];
   const postBufferEventPartsTotal: InitialEventPartType[] = [];
@@ -3607,7 +3602,7 @@ export const modifyEventPartsForMultiplePostBufferTime = (
   for (let i = 0; i < eventParts.length; i++) {
     if (eventParts[i].forEventId && eventParts[i].isPostEvent) {
       const foundPart = uniquePostBufferPartForEventIds.find(
-        (e) => e === eventParts[i].forEventId,
+        (e) => e === eventParts[i].forEventId
       );
       // if found skip
       if (foundPart) {
@@ -3622,7 +3617,7 @@ export const modifyEventPartsForMultiplePostBufferTime = (
   for (let i = 0; i < uniquePostBufferPartForEventIds.length; i++) {
     const returnedEventPartTotal = modifyEventPartsForSingularPostBufferTime(
       eventParts,
-      uniquePostBufferPartForEventIds[i],
+      uniquePostBufferPartForEventIds[i]
     );
     postBufferEventPartsTotal.push(...returnedEventPartTotal);
   }
@@ -3631,11 +3626,11 @@ export const modifyEventPartsForMultiplePostBufferTime = (
   const eventPartsFiltered = _.differenceBy(
     eventParts,
     postBufferEventPartsTotal,
-    "id",
+    'id'
   );
   // add new values
   const concatenatedValues = eventPartsFiltered.concat(
-    postBufferEventPartsTotal,
+    postBufferEventPartsTotal
   );
 
   concatenatedValues.forEach((e) =>
@@ -3648,15 +3643,15 @@ export const modifyEventPartsForMultiplePostBufferTime = (
       e.startDate,
       e.endDate,
       e?.forEventId,
-      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePostBufferTime`,
-    ),
+      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePostBufferTime`
+    )
   );
   return concatenatedValues;
 };
 
 export const modifyEventPartsForSingularPostBufferTime = (
   eventParts: InitialEventPartType[],
-  forEventId: string,
+  forEventId: string
 ): InitialEventPartType[] => {
   const postBufferAfterEventParts: InitialEventPartType[] = [];
   const postBufferActualEventParts: InitialEventPartType[] = [];
@@ -3682,14 +3677,14 @@ export const modifyEventPartsForSingularPostBufferTime = (
   }
 
   const postBufferActualEventPartsSorted = postBufferActualEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
   const postBufferAfterEventPartsSorted = postBufferAfterEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
 
   const postBufferEventPartsTotal = postBufferActualEventPartsSorted.concat(
-    postBufferAfterEventPartsSorted,
+    postBufferAfterEventPartsSorted
   );
 
   const preEventId = postBufferEventPartsTotal?.[0]?.preEventId;
@@ -3725,7 +3720,7 @@ export const modifyEventPartsForSingularPostBufferTime = (
       actualEventPreviousLastPart + postBufferAfterEventPartsSorted.length,
   }));
   const concatenatedValues = preBufferEventParts.concat(
-    postBufferEventPartsTotal,
+    postBufferEventPartsTotal
   );
   concatenatedValues.forEach((e) =>
     console.log(
@@ -3737,8 +3732,8 @@ export const modifyEventPartsForSingularPostBufferTime = (
       e.startDate,
       e.endDate,
       e?.forEventId,
-      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForSinglularPostBufferTime`,
-    ),
+      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForSinglularPostBufferTime`
+    )
   );
   return concatenatedValues;
 };
@@ -3747,7 +3742,7 @@ export const formatEventTypeToPlannerEvent = (
   event: InitialEventPartTypePlus,
   userPreference: UserPreferenceType,
   workTimes: WorkTimeType[],
-  hostTimezone: string,
+  hostTimezone: string
 ): EventPartPlannerRequestBodyType => {
   const {
     allDay,
@@ -3802,7 +3797,7 @@ export const formatEventTypeToPlannerEvent = (
       .tz(event.timezone, true)
       .tz(hostTimezone)
       .format(),
-    hostTimezone,
+    hostTimezone
   );
 
   const user: UserPlannerRequestBodyType = {
@@ -3822,7 +3817,7 @@ export const formatEventTypeToPlannerEvent = (
         .hour(parseInt(positiveImpactTime.slice(0, 2), 10))
         .minute(parseInt(positiveImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedNegativeImpactTime =
@@ -3832,7 +3827,7 @@ export const formatEventTypeToPlannerEvent = (
         .hour(parseInt(negativeImpactTime.slice(0, 2), 10))
         .minute(parseInt(negativeImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredTime =
@@ -3842,7 +3837,7 @@ export const formatEventTypeToPlannerEvent = (
         .hour(parseInt(preferredTime.slice(0, 2), 10))
         .minute(parseInt(preferredTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredStartTimeRange =
@@ -3852,7 +3847,7 @@ export const formatEventTypeToPlannerEvent = (
         .hour(parseInt(preferredStartTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredStartTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredEndTimeRange =
@@ -3862,7 +3857,7 @@ export const formatEventTypeToPlannerEvent = (
         .hour(parseInt(preferredEndTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredEndTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredTimeRanges =
@@ -3873,13 +3868,13 @@ export const formatEventTypeToPlannerEvent = (
         .hour(parseInt(e?.startTime.slice(0, 2), 10))
         .minute(parseInt(e?.startTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       endTime: dayjs()
         .tz(timezone)
         .hour(parseInt(e?.endTime.slice(0, 2), 10))
         .minute(parseInt(e?.endTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       eventId,
       userId,
       hostId,
@@ -3894,10 +3889,10 @@ export const formatEventTypeToPlannerEvent = (
     meetingLastPart,
     startDate: dayjs(event.startDate.slice(0, 19))
       .tz(event.timezone, true)
-      .format("YYYY-MM-DDTHH:mm:ss"),
+      .format('YYYY-MM-DDTHH:mm:ss'),
     endDate: dayjs(event.endDate.slice(0, 19))
       .tz(event.timezone, true)
-      .format("YYYY-MM-DDTHH:mm:ss"),
+      .format('YYYY-MM-DDTHH:mm:ss'),
     taskId,
     hardDeadline,
     softDeadline,
@@ -3946,7 +3941,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
   event: InitialEventPartTypePlus,
   workTimes: WorkTimeType[],
   attendeeEvents: EventPlusType[],
-  hostTimezone: string,
+  hostTimezone: string
 ): EventPartPlannerRequestBodyType => {
   const {
     allDay,
@@ -4002,7 +3997,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
       .tz(hostTimezone)
       .format(),
     hostTimezone,
-    event?.timezone,
+    event?.timezone
   );
 
   const user: UserPlannerRequestBodyType = {
@@ -4022,7 +4017,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
         .hour(parseInt(positiveImpactTime.slice(0, 2), 10))
         .minute(parseInt(positiveImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedNegativeImpactTime =
@@ -4032,7 +4027,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
         .hour(parseInt(negativeImpactTime.slice(0, 2), 10))
         .minute(parseInt(negativeImpactTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredTime =
@@ -4042,7 +4037,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
         .hour(parseInt(preferredTime.slice(0, 2), 10))
         .minute(parseInt(preferredTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredStartTimeRange =
@@ -4052,7 +4047,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
         .hour(parseInt(preferredStartTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredStartTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredEndTimeRange =
@@ -4062,7 +4057,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
         .hour(parseInt(preferredEndTimeRange.slice(0, 2), 10))
         .minute(parseInt(preferredEndTimeRange.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time)) ||
+        .format('HH:mm:ss') as Time)) ||
     undefined;
 
   const adjustedPreferredTimeRanges =
@@ -4073,13 +4068,13 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
         .hour(parseInt(e?.startTime.slice(0, 2), 10))
         .minute(parseInt(e?.startTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       endTime: dayjs()
         .tz(timezone)
         .hour(parseInt(e?.endTime.slice(0, 2), 10))
         .minute(parseInt(e?.endTime.slice(3), 10))
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       eventId,
       userId,
       hostId,
@@ -4094,10 +4089,10 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
     meetingLastPart,
     startDate: dayjs(event.startDate.slice(0, 19))
       .tz(event.timezone, true)
-      .format("YYYY-MM-DDTHH:mm:ss"),
+      .format('YYYY-MM-DDTHH:mm:ss'),
     endDate: dayjs(event.endDate.slice(0, 19))
       .tz(event.timezone, true)
-      .format("YYYY-MM-DDTHH:mm:ss"),
+      .format('YYYY-MM-DDTHH:mm:ss'),
     taskId,
     hardDeadline,
     softDeadline,
@@ -4143,7 +4138,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
 };
 
 export const convertMeetingPlusTypeToEventPlusType = (
-  event: EventMeetingPlusType,
+  event: EventMeetingPlusType
 ): EventPlusType => {
   const newEvent: EventPlusType = {
     ...event,
@@ -4165,7 +4160,7 @@ export const convertMeetingPlusTypeToEventPlusType = (
 
 export const setPreferredTimeForUnModifiableEvent = (
   event: EventPartPlannerRequestBodyType,
-  timezone: string,
+  timezone: string
 ): EventPartPlannerRequestBodyType => {
   // set preferred DayOfWeek and Time if not set
   if (!event?.modifiable) {
@@ -4175,12 +4170,12 @@ export const setPreferredTimeForUnModifiableEvent = (
         preferredDayOfWeek:
           dayOfWeekIntToString[
             getISODay(
-              dayjs(event.startDate.slice(0, 19)).tz(timezone, true).toDate(),
+              dayjs(event.startDate.slice(0, 19)).tz(timezone, true).toDate()
             )
           ],
         preferredTime: dayjs(event.startDate.slice(0, 19))
           .tz(timezone, true)
-          .format("HH:mm:ss") as Time,
+          .format('HH:mm:ss') as Time,
       };
       return newEvent;
     }
@@ -4191,7 +4186,7 @@ export const setPreferredTimeForUnModifiableEvent = (
 
 export const listEventsWithIds = async (ids: string[]) => {
   try {
-    const operationName = "listEventsWithIds";
+    const operationName = 'listEventsWithIds';
 
     const query = `
     query listEventsWithIds($ids: [String!]!) {
@@ -4312,9 +4307,9 @@ export const listEventsWithIds = async (ids: string[]) => {
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -4328,31 +4323,31 @@ export const listEventsWithIds = async (ids: string[]) => {
 
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " unable to list ids with ids");
+    console.log(e, ' unable to list ids with ids');
   }
 };
 
 export const tagEventsForDailyOrWeeklyTask = async (
-  events: EventPartPlannerRequestBodyType[],
+  events: EventPartPlannerRequestBodyType[]
 ): Promise<EventPartPlannerRequestBodyType[] | null> => {
   try {
     const filteredEvents = events.filter((e) => e.recurringEventId);
     if (filteredEvents?.length > 0) {
       const originalEvents = await listEventsWithIds(
-        _.uniq(filteredEvents.map((e) => e?.recurringEventId)),
+        _.uniq(filteredEvents.map((e) => e?.recurringEventId))
       );
       if (originalEvents?.length > 0) {
         const taggedFilteredEvents = filteredEvents.map((e) =>
           tagEventForDailyOrWeeklyTask(
             e,
-            originalEvents.find((oe) => oe.id === e.recurringEventId),
-          ),
+            originalEvents.find((oe) => oe.id === e.recurringEventId)
+          )
         );
         // reconstruct events
         const newEvents = events.map((e) => {
           if (e?.recurringEventId) {
             const taggedFilteredEvent = taggedFilteredEvents.find(
-              (te) => te?.eventId === e?.eventId,
+              (te) => te?.eventId === e?.eventId
             );
             if (taggedFilteredEvent?.eventId) {
               return taggedFilteredEvent;
@@ -4364,28 +4359,28 @@ export const tagEventsForDailyOrWeeklyTask = async (
         });
         return newEvents;
       }
-      console.log("tagEventsForDailyorWeeklyTask: originalEvents is empty");
+      console.log('tagEventsForDailyorWeeklyTask: originalEvents is empty');
       return events;
     }
     return events;
   } catch (e) {
-    console.log(e, " unable to to tag events for daily or weekly task");
+    console.log(e, ' unable to to tag events for daily or weekly task');
   }
 };
 
 // recurring events are not tagged with weekly or daily task boolean so need to be done manually
 export const tagEventForDailyOrWeeklyTask = (
   eventToSubmit: EventPartPlannerRequestBodyType,
-  event: EventPlusType,
+  event: EventPlusType
 ) => {
   // validate
   if (!event?.id) {
-    console.log("no original event inside tagEventForDailysOrWeeklyTask");
+    console.log('no original event inside tagEventForDailysOrWeeklyTask');
     return null;
   }
 
   if (!eventToSubmit?.eventId) {
-    console.log("no eventToSubmit inside tagEventForDailyOrWeeklyTask");
+    console.log('no eventToSubmit inside tagEventForDailyOrWeeklyTask');
     return null;
   }
 
@@ -4412,7 +4407,7 @@ export const generateUserPlannerRequestBody = (
   userPreference: UserPreferenceType,
   userId: string,
   workTimes: WorkTimeType[],
-  hostId: string,
+  hostId: string
 ): UserPlannerRequestBodyType => {
   const {
     maxWorkLoadPercent,
@@ -4435,7 +4430,7 @@ export const generateUserPlannerRequestBody = (
 export const generateUserPlannerRequestBodyForExternalAttendee = (
   userId: string,
   workTimes: WorkTimeType[],
-  hostId: string,
+  hostId: string
 ): UserPlannerRequestBodyType => {
   // add default values for user request body
   const user: UserPlannerRequestBodyType = {
@@ -4457,7 +4452,7 @@ export const processEventsForOptaPlannerForMainHost = async (
   windowEndDate: string,
   hostTimezone: string,
   oldHostEvents: EventPlusType[],
-  newHostBufferTimes?: BufferTimeObjectType[],
+  newHostBufferTimes?: BufferTimeObjectType[]
 ): Promise<ReturnBodyForHostForOptaplannerPrepType> => {
   try {
     const newBufferTimeArray: EventPlusType[] = [];
@@ -4466,7 +4461,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       if (newHostBufferTime?.beforeEvent?.id) {
         console.log(
           newHostBufferTime?.beforeEvent,
-          " newTimeBlocking?.beforeEvent",
+          ' newTimeBlocking?.beforeEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.beforeEvent);
       }
@@ -4474,7 +4469,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       if (newHostBufferTime?.afterEvent?.id) {
         console.log(
           newHostBufferTime?.afterEvent,
-          " newTimeBlocking?.afterEvent",
+          ' newTimeBlocking?.afterEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.afterEvent);
       }
@@ -4484,7 +4479,7 @@ export const processEventsForOptaPlannerForMainHost = async (
 
     console.log(
       modifiedAllHostEvents,
-      " modifiedAllHostEvents inside processEventsForOptaPlannerForMainHost",
+      ' modifiedAllHostEvents inside processEventsForOptaPlannerForMainHost'
     );
 
     if (newBufferTimeArray?.length > 0) {
@@ -4501,7 +4496,7 @@ export const processEventsForOptaPlannerForMainHost = async (
 
     const diffDays = dayjs(windowEndDate.slice(0, 19)).diff(
       dayjs(windowStartDate.slice(0, 19)),
-      "day",
+      'day'
     );
 
     const modifiedAllEventsWithBreaks: EventPlusType[] = [];
@@ -4512,8 +4507,8 @@ export const processEventsForOptaPlannerForMainHost = async (
       startDatesForEachDay.push(
         dayjs(windowStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .add(i, "day")
-          .format(),
+          .add(i, 'day')
+          .format()
       );
     }
 
@@ -4526,17 +4521,17 @@ export const processEventsForOptaPlannerForMainHost = async (
       windowStartDate,
       windowEndDate,
       hostTimezone,
-      globalPrimaryCalendar?.id,
+      globalPrimaryCalendar?.id
     );
 
-    breaks.forEach((b) => console.log(b, " generatedBreaks"));
+    breaks.forEach((b) => console.log(b, ' generatedBreaks'));
 
     if (breaks?.length > 0) {
       // modifiedAllEvents.push(...breaks)
       const allEventsWithDuplicateFreeBreaks = _.differenceBy(
         modifiedAllHostEvents,
         breaks,
-        "id",
+        'id'
       );
       modifiedAllEventsWithBreaks.push(...allEventsWithDuplicateFreeBreaks);
       modifiedAllEventsWithBreaks.push(...breaks);
@@ -4550,7 +4545,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       mainHostId,
       userPreferences,
       hostTimezone,
-      hostTimezone,
+      hostTimezone
     );
     const timeslots = [];
 
@@ -4563,7 +4558,7 @@ export const processEventsForOptaPlannerForMainHost = async (
           userPreferences,
           hostTimezone,
           hostTimezone,
-          true,
+          true
         );
         timeslots.push(...timeslotsForDay);
         continue;
@@ -4574,7 +4569,7 @@ export const processEventsForOptaPlannerForMainHost = async (
         userPreferences,
         hostTimezone,
         hostTimezone,
-        false,
+        false
       );
       timeslots.push(...timeslotsForDay);
     }
@@ -4582,13 +4577,13 @@ export const processEventsForOptaPlannerForMainHost = async (
     // generate event parts
     const filteredAllEvents = _.uniqBy(
       modifiedAllEventsWithBreaks.filter((e) =>
-        validateEventDates(e, userPreferences),
+        validateEventDates(e, userPreferences)
       ),
-      "id",
+      'id'
     );
     console.log(
       filteredAllEvents,
-      " filteredAllEvents inside processEventsForOptaPlannerForMainHost",
+      ' filteredAllEvents inside processEventsForOptaPlannerForMainHost'
     );
     let eventParts: EventPartPlannerRequestBodyType[] = [];
 
@@ -4599,27 +4594,27 @@ export const processEventsForOptaPlannerForMainHost = async (
     }
     console.log(
       eventPartMinisAccumulated,
-      " eventPartMinisAccumulated inside processEventsForOptaPlannerForMainHost",
+      ' eventPartMinisAccumulated inside processEventsForOptaPlannerForMainHost'
     );
     const modifiedEventPartMinisPreBuffer =
       modifyEventPartsForMultiplePreBufferTime(eventPartMinisAccumulated);
     console.log(
       modifiedEventPartMinisPreBuffer,
-      " modifiedEventPartMinisPreBuffer inside processEventsForOptaPlannerForMainHost",
+      ' modifiedEventPartMinisPreBuffer inside processEventsForOptaPlannerForMainHost'
     );
     const modifiedEventPartMinisPreAndPostBuffer =
       modifyEventPartsForMultiplePostBufferTime(
-        modifiedEventPartMinisPreBuffer,
+        modifiedEventPartMinisPreBuffer
       );
     console.log(
       modifiedEventPartMinisPreAndPostBuffer,
-      " modifiedEventPartMinisPreAndPostBuffer inside processEventsForOptaPlannerForMainHost",
+      ' modifiedEventPartMinisPreAndPostBuffer inside processEventsForOptaPlannerForMainHost'
     );
     console.log(
       userPreferences,
       workTimes,
       hostTimezone,
-      " userPreferences, workTimes, hostTimezone inside processEventsForOptaPlannerForMainHost",
+      ' userPreferences, workTimes, hostTimezone inside processEventsForOptaPlannerForMainHost'
     );
     const formattedEventParts: EventPartPlannerRequestBodyType[] =
       modifiedEventPartMinisPreAndPostBuffer.map((e) =>
@@ -4627,12 +4622,12 @@ export const processEventsForOptaPlannerForMainHost = async (
           e,
           userPreferences,
           workTimes,
-          hostTimezone,
-        ),
+          hostTimezone
+        )
       );
     console.log(
       formattedEventParts,
-      " formattedEventParts inside processEventsForOptaPlannerForMainHost",
+      ' formattedEventParts inside processEventsForOptaPlannerForMainHost'
     );
     if (formattedEventParts?.length > 0) {
       eventParts.push(...formattedEventParts);
@@ -4640,38 +4635,38 @@ export const processEventsForOptaPlannerForMainHost = async (
 
     console.log(
       eventParts,
-      " eventParts inside processEventsForOptaPlannerForMainHost",
+      ' eventParts inside processEventsForOptaPlannerForMainHost'
     );
 
     if (eventParts?.length > 0) {
-      eventParts.forEach((e) => console.log(e, " eventParts after formatting"));
+      eventParts.forEach((e) => console.log(e, ' eventParts after formatting'));
       const newEventPartsWithPreferredTimeSet = eventParts.map((e) =>
         setPreferredTimeForUnModifiableEvent(
           e,
-          allHostEvents.find((f) => f.id === e.eventId)?.timezone,
-        ),
+          allHostEvents.find((f) => f.id === e.eventId)?.timezone
+        )
       );
       newEventPartsWithPreferredTimeSet.forEach((e) =>
-        console.log(e, " newEventPartsWithPreferredTimeSet"),
+        console.log(e, ' newEventPartsWithPreferredTimeSet')
       );
       const newEventParts = await tagEventsForDailyOrWeeklyTask(
-        newEventPartsWithPreferredTimeSet,
+        newEventPartsWithPreferredTimeSet
       );
       newEventParts.forEach((e) =>
-        console.log(e, " newEventParts after tagEventsForDailyOrWeeklyTask"),
+        console.log(e, ' newEventParts after tagEventsForDailyOrWeeklyTask')
       );
       const userPlannerRequestBody = generateUserPlannerRequestBody(
         userPreferences,
         userPreferences.userId,
         workTimes,
-        mainHostId,
+        mainHostId
       );
-      console.log(userPlannerRequestBody, " userPlannerRequestBody");
+      console.log(userPlannerRequestBody, ' userPlannerRequestBody');
 
       const modifiedNewEventParts: EventPartPlannerRequestBodyType[] =
         newEventParts.map((eventPart) => {
           const oldEvent = filteredAllEvents.find(
-            (event) => event.id === eventPart.eventId,
+            (event) => event.id === eventPart.eventId
           );
           return {
             groupId: eventPart?.groupId,
@@ -4684,10 +4679,10 @@ export const processEventsForOptaPlannerForMainHost = async (
             hostId: mainHostId,
             startDate: dayjs(eventPart?.startDate.slice(0, 19))
               .tz(oldEvent.timezone, true)
-              .format("YYYY-MM-DDTHH:mm:ss"),
+              .format('YYYY-MM-DDTHH:mm:ss'),
             endDate: dayjs(eventPart?.endDate.slice(0, 19))
               .tz(oldEvent.timezone, true)
-              .format("YYYY-MM-DDTHH:mm:ss"),
+              .format('YYYY-MM-DDTHH:mm:ss'),
             userId: eventPart?.userId,
             user: eventPart?.user,
             priority: eventPart?.priority,
@@ -4735,7 +4730,7 @@ export const processEventsForOptaPlannerForMainHost = async (
   } catch (e) {
     console.log(
       e,
-      " unable to process events for optaplanner for host attendee",
+      ' unable to process events for optaplanner for host attendee'
     );
   }
 };
@@ -4750,7 +4745,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
   oldEvents: EventPlusType[],
   oldMeetingEvents?: EventMeetingPlusType[],
   newMeetingEvents?: EventMeetingPlusType[],
-  newHostBufferTimes?: BufferTimeObjectType[],
+  newHostBufferTimes?: BufferTimeObjectType[]
 ): Promise<ReturnBodyForAttendeeForOptaplannerPrepType> => {
   try {
     const newBufferTimeArray: EventPlusType[] = [];
@@ -4759,7 +4754,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       if (newHostBufferTime?.beforeEvent?.id) {
         console.log(
           newHostBufferTime?.beforeEvent,
-          " newTimeBlocking?.beforeEvent",
+          ' newTimeBlocking?.beforeEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.beforeEvent);
       }
@@ -4767,18 +4762,18 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       if (newHostBufferTime?.afterEvent?.id) {
         console.log(
           newHostBufferTime?.afterEvent,
-          " newTimeBlocking?.afterEvent",
+          ' newTimeBlocking?.afterEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.afterEvent);
       }
     }
 
-    oldMeetingEvents?.forEach((o) => console.log(o, " oldMeetingEvents"));
+    oldMeetingEvents?.forEach((o) => console.log(o, ' oldMeetingEvents'));
     internalAttendees?.forEach((i) =>
       console.log(
         i,
-        " internalAttendees inside processEventsForOptaPlannerForInternalAttendees",
-      ),
+        ' internalAttendees inside processEventsForOptaPlannerForInternalAttendees'
+      )
     );
     const filteredOldMeetingEvents = oldMeetingEvents
       ?.map((m) => {
@@ -4792,12 +4787,12 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       ?.filter((e) => !!e);
 
     filteredOldMeetingEvents?.forEach((e) =>
-      console.log(e, " filteredOldMeetingEvents"),
+      console.log(e, ' filteredOldMeetingEvents')
     );
     const modifiedAllEvents = _.cloneDeep(allEvents)?.filter((e) => {
       if (filteredOldMeetingEvents?.[0]?.id) {
         const foundIndex = filteredOldMeetingEvents?.findIndex(
-          (m) => m?.id === e?.id,
+          (m) => m?.id === e?.id
         );
         if (foundIndex > -1) {
           return false;
@@ -4811,8 +4806,8 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     if (filteredOldMeetingEvents?.[0]?.id) {
       modifiedAllEvents.push(
         ...filteredOldMeetingEvents?.map((a) =>
-          convertMeetingPlusTypeToEventPlusType(a),
-        ),
+          convertMeetingPlusTypeToEventPlusType(a)
+        )
       );
     }
 
@@ -4824,12 +4819,12 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       // add newly generated host event to rest
       modifiedAllEvents.push(
         ...newMeetingEvents?.map((m) =>
-          convertMeetingPlusTypeToEventPlusType(m),
-        ),
+          convertMeetingPlusTypeToEventPlusType(m)
+        )
       );
     }
 
-    modifiedAllEvents?.forEach((e) => console.log(e, " modifiedAllEvents"));
+    modifiedAllEvents?.forEach((e) => console.log(e, ' modifiedAllEvents'));
 
     // get user preferences
     const unfilteredUserPreferences: UserPreferenceType[] = [];
@@ -4840,7 +4835,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
 
     const userPreferences: UserPreferenceType[] = _.uniqWith(
       unfilteredUserPreferences,
-      _.isEqual,
+      _.isEqual
     );
 
     // global primary calendars
@@ -4848,18 +4843,18 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
 
     for (const internalAttendee of internalAttendees) {
       const globalPrimaryCalendar = await getGlobalCalendar(
-        internalAttendee?.userId,
+        internalAttendee?.userId
       );
       unfilteredGlobalPrimaryCalendars.push(globalPrimaryCalendar);
     }
 
     const globalPrimaryCalendars = _.uniqWith(
       unfilteredGlobalPrimaryCalendars,
-      _.isEqual,
+      _.isEqual
     );
 
     globalPrimaryCalendars?.forEach((c) =>
-      console.log(c, " globalPrimaryCalendars"),
+      console.log(c, ' globalPrimaryCalendars')
     );
 
     const modifiedAllEventsWithBreaks: EventPlusType[] = [];
@@ -4868,10 +4863,10 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     let parentBreaks: EventPlusType[] = [];
     for (const userPreference of userPreferences) {
       const globalPrimaryCalendar = globalPrimaryCalendars?.find(
-        (g) => g?.userId === userPreference?.userId,
+        (g) => g?.userId === userPreference?.userId
       );
       if (!globalPrimaryCalendar) {
-        throw new Error("no global primary calendar found");
+        throw new Error('no global primary calendar found');
       }
       const userId = userPreference?.userId;
 
@@ -4881,47 +4876,47 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
         windowStartDate,
         windowEndDate,
         hostTimezone,
-        globalPrimaryCalendar?.id,
+        globalPrimaryCalendar?.id
       );
 
-      breaks.forEach((b) => console.log(b, " generatedBreaks"));
+      breaks.forEach((b) => console.log(b, ' generatedBreaks'));
 
       if (breaks?.length > 0) {
         // modifiedAllEvents.push(...breaks)
         const allEventsWithDuplicateFreeBreaks = _.differenceBy(
           modifiedAllEvents,
           breaks,
-          "id",
+          'id'
         );
         modifiedAllEventsWithBreaks.push(
           ...allEventsWithDuplicateFreeBreaks?.filter(
-            (e) => e?.userId === userId,
-          ),
+            (e) => e?.userId === userId
+          )
         );
         modifiedAllEventsWithBreaks.push(...breaks);
         parentBreaks.push(...breaks);
       } else {
         modifiedAllEventsWithBreaks.push(
-          ...modifiedAllEvents?.filter((e) => e?.userId === userId),
+          ...modifiedAllEvents?.filter((e) => e?.userId === userId)
         );
       }
     }
 
     modifiedAllEventsWithBreaks?.forEach((m) =>
-      console.log(m, " modifiedAllEventsWithBreaks"),
+      console.log(m, ' modifiedAllEventsWithBreaks')
     );
 
     // generate timeslots
 
     const diffDays = dayjs(windowEndDate.slice(0, 19)).diff(
       dayjs(windowStartDate.slice(0, 19)),
-      "day",
+      'day'
     );
     console.log(
       diffDays,
       windowEndDate,
       windowStartDate,
-      " diffDays, windowEndDate, windowStartDate",
+      ' diffDays, windowEndDate, windowStartDate'
     );
     const startDatesForEachDay = [];
 
@@ -4929,17 +4924,17 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       startDatesForEachDay.push(
         dayjs(windowStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .add(i, "day")
-          .format(),
+          .add(i, 'day')
+          .format()
       );
     }
 
-    console.log(startDatesForEachDay, " startDatesForEachDay");
+    console.log(startDatesForEachDay, ' startDatesForEachDay');
 
     const unfilteredWorkTimes: WorkTimeType[] = [];
     for (const internalAttendee of internalAttendees) {
       const userPreference = userPreferences.find(
-        (u) => u.userId === internalAttendee.userId,
+        (u) => u.userId === internalAttendee.userId
       );
       const attendeeTimezone = internalAttendee?.timezone;
       const workTimesForAttendee = generateWorkTimesForInternalAttendee(
@@ -4947,15 +4942,15 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
         internalAttendee.userId,
         userPreference,
         hostTimezone,
-        attendeeTimezone,
+        attendeeTimezone
       );
       unfilteredWorkTimes.push(...workTimesForAttendee);
     }
 
-    console.log(unfilteredWorkTimes, "unfilteredWorkTimes");
+    console.log(unfilteredWorkTimes, 'unfilteredWorkTimes');
     const workTimes: WorkTimeType[] = _.uniqWith(
       unfilteredWorkTimes,
-      _.isEqual,
+      _.isEqual
     );
 
     const unfilteredTimeslots = [];
@@ -4965,7 +4960,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       if (i === 0) {
         for (const internalAttendee of internalAttendees) {
           const userPreference = userPreferences.find(
-            (u) => u.userId === internalAttendee.userId,
+            (u) => u.userId === internalAttendee.userId
           );
           // const mostRecentEvent = _.minBy(modifiedAllEventsWithBreaks, (e) => dayjs(e?.startDate).unix())
           const timeslotsForDay =
@@ -4975,7 +4970,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
               userPreference,
               hostTimezone,
               internalAttendee?.timezone,
-              true,
+              true
             );
           unfilteredTimeslots.push(...timeslotsForDay);
         }
@@ -4983,7 +4978,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       }
       for (const internalAttendee of internalAttendees) {
         const userPreference = userPreferences.find(
-          (u) => u.userId === internalAttendee.userId,
+          (u) => u.userId === internalAttendee.userId
         );
         const timeslotsForDay = await generateTimeSlotsLiteForInternalAttendee(
           startDatesForEachDay?.[i],
@@ -4991,7 +4986,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
           userPreference,
           hostTimezone,
           internalAttendee?.timezone,
-          false,
+          false
         );
         unfilteredTimeslots.push(...timeslotsForDay);
       }
@@ -5003,22 +4998,22 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     const unfilteredAllEvents: EventPlusType[] = [];
     for (const internalAttendee of internalAttendees) {
       const userPreference = userPreferences.find(
-        (u) => u.userId === internalAttendee.userId,
+        (u) => u.userId === internalAttendee.userId
       );
       const modifiedAllEventsWithBreaksWithUser =
         modifiedAllEventsWithBreaks.filter(
-          (e) => e.userId === internalAttendee.userId,
+          (e) => e.userId === internalAttendee.userId
         );
       const events = modifiedAllEventsWithBreaksWithUser.filter((e) =>
-        validateEventDates(e, userPreference),
+        validateEventDates(e, userPreference)
       );
       unfilteredAllEvents.push(...events);
     }
-    unfilteredAllEvents?.forEach((e) => console.log(e, " unfilteredAllEvents"));
+    unfilteredAllEvents?.forEach((e) => console.log(e, ' unfilteredAllEvents'));
 
-    const filteredAllEvents = _.uniqBy(unfilteredAllEvents, "id");
+    const filteredAllEvents = _.uniqBy(unfilteredAllEvents, 'id');
 
-    filteredAllEvents?.forEach((e) => console.log(e, " filteredAllEvents"));
+    filteredAllEvents?.forEach((e) => console.log(e, ' filteredAllEvents'));
 
     let eventParts: EventPartPlannerRequestBodyType[] = [];
 
@@ -5031,17 +5026,17 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     }
 
     eventPartMinisAccumulated?.forEach((e) =>
-      console.log(e, " eventPartMinisAccumulated"),
+      console.log(e, ' eventPartMinisAccumulated')
     );
     const modifiedEventPartMinisPreBuffer =
       modifyEventPartsForMultiplePreBufferTime(eventPartMinisAccumulated);
     const modifiedEventPartMinisPreAndPostBuffer =
       modifyEventPartsForMultiplePostBufferTime(
-        modifiedEventPartMinisPreBuffer,
+        modifiedEventPartMinisPreBuffer
       );
 
     modifiedEventPartMinisPreAndPostBuffer?.forEach((e) =>
-      console.log(e, " modifiedEventPartMinisPreAndPostBuffer"),
+      console.log(e, ' modifiedEventPartMinisPreAndPostBuffer')
     );
 
     const formattedEventParts: EventPartPlannerRequestBodyType[] = [];
@@ -5054,39 +5049,39 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
               e,
               userPreference,
               workTimes,
-              hostTimezone,
-            ),
+              hostTimezone
+            )
           );
 
       formattedEventPartsForUser?.forEach((e) =>
-        console.log(e, " formattedEventPartsForUser"),
+        console.log(e, ' formattedEventPartsForUser')
       );
 
       formattedEventParts.push(...formattedEventPartsForUser);
     }
 
-    formattedEventParts?.forEach((e) => console.log(e, " formattedEventParts"));
+    formattedEventParts?.forEach((e) => console.log(e, ' formattedEventParts'));
 
     if (formattedEventParts.length > 0) {
       eventParts.push(..._.uniqWith(formattedEventParts, _.isEqual));
     }
 
     if (eventParts.length > 0) {
-      eventParts.forEach((e) => console.log(e, " eventParts after formatting"));
+      eventParts.forEach((e) => console.log(e, ' eventParts after formatting'));
       const newEventPartsWithPreferredTimeSet = eventParts.map((e) =>
         setPreferredTimeForUnModifiableEvent(
           e,
-          allEvents.find((f) => f.id === e.eventId)?.timezone,
-        ),
+          allEvents.find((f) => f.id === e.eventId)?.timezone
+        )
       );
       newEventPartsWithPreferredTimeSet.forEach((e) =>
-        console.log(e, " newEventPartsWithPreferredTimeSet"),
+        console.log(e, ' newEventPartsWithPreferredTimeSet')
       );
       const newEventParts = await tagEventsForDailyOrWeeklyTask(
-        newEventPartsWithPreferredTimeSet,
+        newEventPartsWithPreferredTimeSet
       );
       newEventParts.forEach((e) =>
-        console.log(e, " newEventParts after tagEventsForDailyOrWeeklyTask"),
+        console.log(e, ' newEventParts after tagEventsForDailyOrWeeklyTask')
       );
       const unfilteredUserList: UserPlannerRequestBodyType[] = [];
       for (const userPreference of userPreferences) {
@@ -5094,21 +5089,21 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
           userPreference,
           userPreference?.userId,
           workTimes,
-          mainHostId,
+          mainHostId
         );
-        console.log(userPlannerRequestBody, " userPlannerRequestBody");
+        console.log(userPlannerRequestBody, ' userPlannerRequestBody');
         unfilteredUserList.push(userPlannerRequestBody);
       }
 
       const userList: UserPlannerRequestBodyType[] = _.uniqWith(
         unfilteredUserList,
-        _.isEqual,
+        _.isEqual
       );
 
       const modifiedNewEventParts: EventPartPlannerRequestBodyType[] =
         newEventParts.map((eventPart) => {
           const oldEvent = filteredAllEvents.find(
-            (event) => event.id === eventPart.eventId,
+            (event) => event.id === eventPart.eventId
           );
           return {
             groupId: eventPart?.groupId,
@@ -5122,11 +5117,11 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
             startDate: dayjs(eventPart?.startDate.slice(0, 19))
               .tz(oldEvent.timezone, true)
               .tz(hostTimezone)
-              .format("YYYY-MM-DDTHH:mm:ss"),
+              .format('YYYY-MM-DDTHH:mm:ss'),
             endDate: dayjs(eventPart?.endDate.slice(0, 19))
               .tz(oldEvent.timezone, true)
               .tz(hostTimezone)
-              .format("YYYY-MM-DDTHH:mm:ss"),
+              .format('YYYY-MM-DDTHH:mm:ss'),
             userId: eventPart?.userId,
             user: eventPart?.user,
             priority: eventPart?.priority,
@@ -5159,7 +5154,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
         });
 
       modifiedNewEventParts?.forEach((e) =>
-        console.log(e, " modifiedNewEventParts"),
+        console.log(e, ' modifiedNewEventParts')
       );
 
       return modifiedNewEventParts?.length > 0
@@ -5178,14 +5173,14 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
   } catch (e) {
     console.log(
       e,
-      " unable to process events for optaplanner for each attendee",
+      ' unable to process events for optaplanner for each attendee'
     );
   }
 };
 
 export const convertMeetingAssistEventTypeToEventPlusType = (
   event: MeetingAssistEventType,
-  userId: string,
+  userId: string
 ): EventPlusType => {
   return {
     ...event,
@@ -5246,7 +5241,7 @@ export const generateWorkTimesForExternalAttendee = (
   userId: string,
   attendeeEvents: EventPlusType[],
   hostTimezone: string,
-  userTimezone: string,
+  userTimezone: string
 ) => {
   // 7 days in a week
   const daysInWeek = 7;
@@ -5262,21 +5257,21 @@ export const generateWorkTimesForExternalAttendee = (
           dayjs(e.startDate.slice(0, 19))
             .tz(e.timezone || userTimezone, true)
             .tz(hostTimezone)
-            .toDate(),
+            .toDate()
         ) ===
-        i + 1,
+        i + 1
     );
     const minStartDate = _.minBy(sameDayEvents, (e) =>
       dayjs(e.startDate.slice(0, 19))
         .tz(e.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
     const maxEndDate = _.maxBy(sameDayEvents, (e) =>
       dayjs(e.endDate.slice(0, 19))
         .tz(e.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
     const startHour = dayjs(minStartDate.startDate.slice(0, 19))
       .tz(minStartDate.timezone || userTimezone, true)
@@ -5294,8 +5289,8 @@ export const generateWorkTimesForExternalAttendee = (
           .tz(minStartDate.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5310,8 +5305,8 @@ export const generateWorkTimesForExternalAttendee = (
                 .tz(minStartDate.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5326,8 +5321,8 @@ export const generateWorkTimesForExternalAttendee = (
                   .tz(minStartDate.timezone || userTimezone, true)
                   .tz(hostTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -5348,8 +5343,8 @@ export const generateWorkTimesForExternalAttendee = (
           .tz(maxEndDate.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 15
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5364,8 +5359,8 @@ export const generateWorkTimesForExternalAttendee = (
                 .tz(maxEndDate.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5380,8 +5375,8 @@ export const generateWorkTimesForExternalAttendee = (
                   .tz(maxEndDate.timezone || userTimezone, true)
                   .tz(hostTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 45
           : 0;
@@ -5400,11 +5395,11 @@ export const generateWorkTimesForExternalAttendee = (
             .minute(startMinute)
             .tz(hostTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       endTime: dayjs(
         setISODay(
           dayjs()
@@ -5412,11 +5407,11 @@ export const generateWorkTimesForExternalAttendee = (
             .minute(endMinute)
             .tz(hostTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm:ss") as Time,
+        .format('HH:mm:ss') as Time,
       hostId,
       userId,
     });
@@ -5431,11 +5426,11 @@ export const generateTimeSlotsForExternalAttendee = (
   attendeeEvents: EventPlusType[],
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ) => {
   if (isFirstDay) {
     const dayOfWeekIntByHost = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
     // convert to host timezone so everything is linked to host timezone
     const monthByHost = dayjs(hostStartDate.slice(0, 19))
@@ -5452,8 +5447,8 @@ export const generateTimeSlotsForExternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -5465,8 +5460,8 @@ export const generateTimeSlotsForExternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -5477,15 +5472,15 @@ export const generateTimeSlotsForExternalAttendee = (
           dayjs(e.startDate.slice(0, 19))
             .tz(e?.timezone || userTimezone, true)
             .tz(hostTimezone)
-            .toDate(),
-        ) === dayOfWeekIntByHost,
+            .toDate()
+        ) === dayOfWeekIntByHost
     );
     // const minStartDate = _.minBy(sameDayEvents, (e) => dayjs(e.startDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).unix())
     const maxEndDate = _.maxBy(sameDayEvents, (e) =>
       dayjs(e.endDate.slice(0, 19))
         .tz(e?.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
 
     let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5504,8 +5499,8 @@ export const generateTimeSlotsForExternalAttendee = (
           .tz(maxEndDate?.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 30
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5520,8 +5515,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 .tz(maxEndDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 0
         : 30;
@@ -5535,7 +5530,7 @@ export const generateTimeSlotsForExternalAttendee = (
       dayjs(e.startDate.slice(0, 19))
         .tz(e?.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
 
     const workStartHourByHost = dayjs(minStartDate.startDate.slice(0, 19))
@@ -5554,8 +5549,8 @@ export const generateTimeSlotsForExternalAttendee = (
           .tz(minStartDate?.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5570,8 +5565,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 .tz(minStartDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -5584,7 +5579,7 @@ export const generateTimeSlotsForExternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -5609,7 +5604,7 @@ export const generateTimeSlotsForExternalAttendee = (
         workEndHourByHost,
         workEndMinuteByHost,
         timezone,
-        `startDate,  dayOfWeekIntByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost, endMinuteByHost totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+        `startDate,  dayOfWeekIntByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost, endMinuteByHost totalMinutes, timezone, inside firstDay inside generateTimeslots`
       );
       for (let i = 0; i < totalMinutes; i += 30) {
         timeSlots.push({
@@ -5618,27 +5613,27 @@ export const generateTimeSlotsForExternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourOfHostDateByHost)
             .minute(startMinuteOfHostDateByHost)
-            .add(i, "minute")
-            .format("HH:mm:ss") as Time,
+            .add(i, 'minute')
+            .format('HH:mm:ss') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourOfHostDateByHost)
             .minute(startMinuteOfHostDateByHost)
-            .add(i + 30, "minute")
-            .format("HH:mm:ss") as Time,
+            .add(i + 30, 'minute')
+            .format('HH:mm:ss') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
           date: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
-            .format("YYYY-MM-DD"),
+            .format('YYYY-MM-DD'),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day where startDate is before work start time",
+        ' timeSlots inside generateTimeSlots for first day where startDate is before work start time'
       );
       return timeSlots;
     }
@@ -5664,7 +5659,7 @@ export const generateTimeSlotsForExternalAttendee = (
       workEndHourByHost,
       workEndMinuteByHost,
       hostTimezone,
-      `startDate,  dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+      `startDate,  dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
     );
     for (let i = 0; i < totalMinutes; i += 30) {
       timeSlots.push({
@@ -5673,33 +5668,33 @@ export const generateTimeSlotsForExternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourOfHostDateByHost)
           .minute(startMinuteOfHostDateByHost)
-          .add(i, "minute")
-          .format("HH:mm:ss") as Time,
+          .add(i, 'minute')
+          .format('HH:mm:ss') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourOfHostDateByHost)
           .minute(startMinuteOfHostDateByHost)
-          .add(i + 30, "minute")
-          .format("HH:mm:ss") as Time,
+          .add(i + 30, 'minute')
+          .format('HH:mm:ss') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
         date: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
       });
     }
 
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
 
   // not first day start from work start time schedule
 
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   // convert to host timezone so everything is linked to host timezone
   const monthByHost = dayjs(hostStartDate.slice(0, 19))
@@ -5715,20 +5710,17 @@ export const generateTimeSlotsForExternalAttendee = (
         dayjs(e.startDate.slice(0, 19))
           .tz(userTimezone, true)
           .tz(hostTimezone)
-          .toDate(),
-      ) === dayOfWeekIntByHost,
+          .toDate()
+      ) === dayOfWeekIntByHost
   );
   const minStartDate = _.minBy(sameDayEvents, (e) =>
     dayjs(e.startDate.slice(0, 19))
       .tz(userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
   const maxEndDate = _.maxBy(sameDayEvents, (e) =>
-    dayjs(e.endDate.slice(0, 19))
-      .tz(userTimezone, true)
-      .tz(hostTimezone)
-      .unix(),
+    dayjs(e.endDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).unix()
   );
 
   let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5747,8 +5739,8 @@ export const generateTimeSlotsForExternalAttendee = (
         .tz(maxEndDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(30),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 30
     : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5763,8 +5755,8 @@ export const generateTimeSlotsForExternalAttendee = (
               .tz(maxEndDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(59),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 0
       : 30;
@@ -5790,8 +5782,8 @@ export const generateTimeSlotsForExternalAttendee = (
         .tz(minStartDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(30),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 0
     : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5806,8 +5798,8 @@ export const generateTimeSlotsForExternalAttendee = (
               .tz(minStartDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(59),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 30
       : 0;
@@ -5818,7 +5810,7 @@ export const generateTimeSlotsForExternalAttendee = (
     workStartHourByHost,
     workStartMinuteByHost,
     workEndHourByHost,
-    " monthByHost, dayOfMonthByHost, workStartHourByHost, workStartMinuteByHost, workEndHourByHost",
+    ' monthByHost, dayOfMonthByHost, workStartHourByHost, workStartMinuteByHost, workEndHourByHost'
   );
   const startDuration = dayjs.duration({
     hours: workStartHourByHost,
@@ -5838,26 +5830,26 @@ export const generateTimeSlotsForExternalAttendee = (
         .tz(hostTimezone, true)
         .hour(workStartHourByHost)
         .minute(workStartMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm:ss") as Time,
+        .add(i, 'minute')
+        .format('HH:mm:ss') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(workStartHourByHost)
         .minute(workStartMinuteByHost)
-        .add(i + 30, "minute")
-        .format("HH:mm:ss") as Time,
+        .add(i + 30, 'minute')
+        .format('HH:mm:ss') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
       date: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
-        .format("YYYY-MM-DD"),
+        .format('YYYY-MM-DD'),
     });
   }
 
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
@@ -5870,14 +5862,14 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
   hostTimezone: string,
   externalAttendees: MeetingAssistAttendeeType[],
   oldExternalMeetingEvents?: EventMeetingPlusType[], // converted from external events
-  newMeetingEvents?: EventMeetingPlusType[],
+  newMeetingEvents?: EventMeetingPlusType[]
 ): Promise<ReturnBodyForExternalAttendeeForOptaplannerPrepType> => {
   try {
     const modifiedAllExternalEvents = allExternalEvents?.map((e) =>
       convertMeetingAssistEventTypeToEventPlusType(
         e,
-        externalAttendees?.find((a) => a?.id === e?.attendeeId)?.userId,
-      ),
+        externalAttendees?.find((a) => a?.id === e?.attendeeId)?.userId
+      )
     );
 
     const oldConvertedMeetingEvents = oldExternalMeetingEvents
@@ -5891,8 +5883,8 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
       // add newly generated host event to rest
       modifiedAllExternalEvents.push(
         ...newMeetingEvents?.map((m) =>
-          convertMeetingPlusTypeToEventPlusType(m),
-        ),
+          convertMeetingPlusTypeToEventPlusType(m)
+        )
       );
     }
 
@@ -5900,7 +5892,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
 
     const diffDays = dayjs(windowEndDate.slice(0, 19)).diff(
       dayjs(windowStartDate.slice(0, 19)),
-      "day",
+      'day'
     );
 
     const startDatesForEachDay = [];
@@ -5909,8 +5901,8 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
       startDatesForEachDay.push(
         dayjs(windowStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .add(i, "day")
-          .format(),
+          .add(i, 'day')
+          .format()
       );
     }
 
@@ -5922,14 +5914,14 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
         externalAttendee?.userId,
         modifiedAllExternalEvents,
         hostTimezone,
-        externalAttendee?.timezone,
+        externalAttendee?.timezone
       );
       unfilteredWorkTimes.push(...workTimesForAttendee);
     }
 
     const workTimes: WorkTimeType[] = _.uniqWith(
       unfilteredWorkTimes,
-      _.isEqual,
+      _.isEqual
     );
 
     const unfilteredTimeslots: TimeSlotType[] = [];
@@ -5946,7 +5938,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
               modifiedAllExternalEvents,
               hostTimezone,
               externalAttendee?.timezone,
-              true,
+              true
             );
           unfilteredTimeslots.push(...timeslotsForDay);
         }
@@ -5960,7 +5952,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
           modifiedAllExternalEvents,
           hostTimezone,
           externalAttendee?.timezone,
-          false,
+          false
         );
         unfilteredTimeslots.push(...timeslotsForDay);
       }
@@ -5970,9 +5962,9 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
     // generate event parts
     const filteredAllEvents = _.uniqBy(
       modifiedAllExternalEvents.filter((e) =>
-        validateEventDatesForExternalAttendee(e),
+        validateEventDatesForExternalAttendee(e)
       ),
-      "id",
+      'id'
     );
     let eventParts: EventPartPlannerRequestBodyType[] = [];
 
@@ -5986,7 +5978,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
       modifyEventPartsForMultiplePreBufferTime(eventPartMinisAccumulated);
     const modifiedEventPartMinisPreAndPostBuffer =
       modifyEventPartsForMultiplePostBufferTime(
-        modifiedEventPartMinisPreBuffer,
+        modifiedEventPartMinisPreBuffer
       );
     const formattedEventParts: EventPartPlannerRequestBodyType[] =
       modifiedEventPartMinisPreAndPostBuffer?.map((e) =>
@@ -5994,29 +5986,29 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
           e,
           workTimes,
           filteredAllEvents,
-          hostTimezone,
-        ),
+          hostTimezone
+        )
       );
     if (formattedEventParts?.length > 0) {
       eventParts.push(...formattedEventParts);
     }
 
     if (eventParts.length > 0) {
-      eventParts.forEach((e) => console.log(e, " eventParts after formatting"));
+      eventParts.forEach((e) => console.log(e, ' eventParts after formatting'));
       const newEventPartsWithPreferredTimeSet = eventParts.map((e) =>
         setPreferredTimeForUnModifiableEvent(
           e,
-          allExternalEvents.find((f) => f.id === e.eventId)?.timezone,
-        ),
+          allExternalEvents.find((f) => f.id === e.eventId)?.timezone
+        )
       );
       newEventPartsWithPreferredTimeSet.forEach((e) =>
-        console.log(e, " newEventPartsWithPreferredTimeSet"),
+        console.log(e, ' newEventPartsWithPreferredTimeSet')
       );
       const newEventParts = await tagEventsForDailyOrWeeklyTask(
-        newEventPartsWithPreferredTimeSet,
+        newEventPartsWithPreferredTimeSet
       );
       newEventParts.forEach((e) =>
-        console.log(e, " newEventParts after tagEventsForDailyOrWeeklyTask"),
+        console.log(e, ' newEventParts after tagEventsForDailyOrWeeklyTask')
       );
       const userList: UserPlannerRequestBodyType[] = [];
       for (const externalAttendee of externalAttendees) {
@@ -6024,16 +6016,16 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
           generateUserPlannerRequestBodyForExternalAttendee(
             externalAttendee?.userId,
             workTimes,
-            mainHostId,
+            mainHostId
           );
-        console.log(userPlannerRequestBody, " userPlannerRequestBody");
+        console.log(userPlannerRequestBody, ' userPlannerRequestBody');
         userList.push(userPlannerRequestBody);
       }
 
       const modifiedNewEventParts: EventPartPlannerRequestBodyType[] =
         newEventParts.map((eventPart) => {
           const oldEvent = filteredAllEvents.find(
-            (event) => event.id === eventPart.eventId,
+            (event) => event.id === eventPart.eventId
           );
           return {
             groupId: eventPart?.groupId,
@@ -6047,11 +6039,11 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
             startDate: dayjs(eventPart?.startDate.slice(0, 19))
               .tz(oldEvent.timezone, true)
               .tz(hostTimezone)
-              .format("YYYY-MM-DDTHH:mm:ss"),
+              .format('YYYY-MM-DDTHH:mm:ss'),
             endDate: dayjs(eventPart?.endDate.slice(0, 19))
               .tz(oldEvent.timezone, true)
               .tz(hostTimezone)
-              .format("YYYY-MM-DDTHH:mm:ss"),
+              .format('YYYY-MM-DDTHH:mm:ss'),
             userId: eventPart?.userId,
             user: eventPart?.user,
             priority: eventPart?.priority,
@@ -6098,7 +6090,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
   } catch (e) {
     console.log(
       e,
-      " unable to process events for optaplanner for external attendee",
+      ' unable to process events for optaplanner for external attendee'
     );
   }
 };
@@ -6111,7 +6103,7 @@ export const optaPlanWeekly = async (
   hostId: string,
   fileKey: string,
   delay: number,
-  callBackUrl: string,
+  callBackUrl: string
 ) => {
   try {
     // populate timeslots with events
@@ -6129,22 +6121,22 @@ export const optaPlanWeekly = async (
     await got
       .post(`${optaPlannerUrl}/timeTable/admin/solve-day`, {
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${Buffer.from(`${optaPlannerUsername}:${optaPlannerPassword}`).toString("base64")}`,
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${optaPlannerUsername}:${optaPlannerPassword}`).toString('base64')}`,
         },
         json: requestBody,
       })
       .json();
 
-    console.log(" optaPlanWeekly called");
+    console.log(' optaPlanWeekly called');
   } catch (e) {
-    console.log(e, " optaPlanWeekly");
+    console.log(e, ' optaPlanWeekly');
   }
 };
 
 export const updateFreemiumById = async (id: string, usage: number) => {
   try {
-    const operationName = "UpdateFreemiumById";
+    const operationName = 'UpdateFreemiumById';
     const query = `
             mutation UpdateFreemiumById($id: uuid!, $usage: Int!) {
                 update_Freemium_by_pk(pk_columns: {id: $id}, _set: {usage: $usage}) {
@@ -6167,8 +6159,8 @@ export const updateFreemiumById = async (id: string, usage: number) => {
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -6180,18 +6172,18 @@ export const updateFreemiumById = async (id: string, usage: number) => {
     console.log(
       response,
       response?.data?.update_Freemium_by_pk,
-      " response after updating update_Freemium_by_pk",
+      ' response after updating update_Freemium_by_pk'
     );
 
     return response?.data?.update_Freemium_by_pk;
   } catch (e) {
-    console.log(e, " unable to update freemium");
+    console.log(e, ' unable to update freemium');
   }
 };
 
 export const getFreemiumByUserId = async (userId: string) => {
   try {
-    const operationName = "GetFreemiumByUserId";
+    const operationName = 'GetFreemiumByUserId';
     const query = `
             query GetFreemiumByUserId($userId: uuid!) {
                 Freemium(where: {userId: {_eq: $userId}}) {
@@ -6212,9 +6204,9 @@ export const getFreemiumByUserId = async (userId: string) => {
     const res: { data: { Freemium: FreemiumType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -6224,11 +6216,11 @@ export const getFreemiumByUserId = async (userId: string) => {
       })
       .json();
 
-    console.log(res, " res from getFreemiumByUserId ");
+    console.log(res, ' res from getFreemiumByUserId ');
 
     return res?.data?.Freemium?.[0];
   } catch (e) {
-    console.log(" unable to get freemium by user id");
+    console.log(' unable to get freemium by user id');
   }
 };
 
@@ -6246,7 +6238,7 @@ export const processEventsForOptaPlanner = async (
   externalAttendees?: MeetingAssistAttendeeType[],
   meetingAssistEvents?: MeetingAssistEventType[],
   newHostReminders?: RemindersForEventType[],
-  newHostBufferTimes?: BufferTimeObjectType[],
+  newHostBufferTimes?: BufferTimeObjectType[]
 ) => {
   try {
     /**
@@ -6262,7 +6254,7 @@ export const processEventsForOptaPlanner = async (
     const newInternalMeetingEventsPlus = newMeetingEventPlus
       ?.map((e) => {
         const foundIndex = externalAttendees?.findIndex(
-          (a) => a?.userId === e?.userId,
+          (a) => a?.userId === e?.userId
         );
 
         if (foundIndex > -1) {
@@ -6275,7 +6267,7 @@ export const processEventsForOptaPlanner = async (
     const newExternalMeetingEventsPlus = newMeetingEventPlus
       ?.map((e) => {
         const foundIndex = externalAttendees?.findIndex(
-          (a) => a?.userId === e?.userId,
+          (a) => a?.userId === e?.userId
         );
 
         if (foundIndex > -1) {
@@ -6293,7 +6285,7 @@ export const processEventsForOptaPlanner = async (
     // or main host is not part of internal attendees
 
     const hostIsInternalAttendee = internalAttendees.some(
-      (ia) => ia?.userId === mainHostId,
+      (ia) => ia?.userId === mainHostId
     );
 
     let returnValuesFromInternalAttendees:
@@ -6301,7 +6293,7 @@ export const processEventsForOptaPlanner = async (
       | {} = {};
     let returnValuesFromHost: ReturnBodyForHostForOptaplannerPrepType | {} = {};
 
-    console.log(hostIsInternalAttendee, " hostIsInternalAttendee");
+    console.log(hostIsInternalAttendee, ' hostIsInternalAttendee');
 
     if (hostIsInternalAttendee) {
       returnValuesFromInternalAttendees =
@@ -6315,7 +6307,7 @@ export const processEventsForOptaPlanner = async (
           oldEvents,
           meetingEventPlus,
           newInternalMeetingEventsPlus,
-          newHostBufferTimes,
+          newHostBufferTimes
         );
     } else {
       // host is not part of internal attendees
@@ -6326,18 +6318,18 @@ export const processEventsForOptaPlanner = async (
         windowEndDate,
         hostTimezone,
         oldHostEvents,
-        newHostBufferTimes,
+        newHostBufferTimes
       );
     }
 
     console.log(
       returnValuesFromInternalAttendees,
-      " returnValuesFromInternalAttendees",
+      ' returnValuesFromInternalAttendees'
     );
     const externalMeetingEventPlus = meetingEventPlus
       .map((e) => {
         const foundIndex = externalAttendees.findIndex(
-          (a) => a?.userId === e?.userId,
+          (a) => a?.userId === e?.userId
         );
         if (foundIndex > -1) {
           return e;
@@ -6357,7 +6349,7 @@ export const processEventsForOptaPlanner = async (
             hostTimezone,
             externalAttendees,
             externalMeetingEventPlus, // events with meetingId
-            newExternalMeetingEventsPlus,
+            newExternalMeetingEventsPlus
           )
         : null;
 
@@ -6376,7 +6368,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       eventParts.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.eventParts,
+          ?.eventParts
       );
     }
 
@@ -6386,7 +6378,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       allEventsForPlanner.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.allEvents,
+          ?.allEvents
       );
     }
 
@@ -6396,7 +6388,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       breaks.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.breaks,
+          ?.breaks
       );
     }
 
@@ -6406,7 +6398,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       oldEventsForPlanner.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.oldEvents,
+          ?.oldEvents
       );
     }
 
@@ -6416,7 +6408,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       unfilteredTimeslots.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.timeslots,
+          ?.timeslots
       );
     }
 
@@ -6426,7 +6418,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       unfilteredUserList.push(
         (returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.userPlannerRequestBody,
+          ?.userPlannerRequestBody
       );
     }
 
@@ -6438,7 +6430,7 @@ export const processEventsForOptaPlanner = async (
       unfilteredUserList.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.userList,
+        )?.userList
       );
     }
 
@@ -6447,8 +6439,8 @@ export const processEventsForOptaPlanner = async (
     )?.eventParts?.forEach((e) =>
       console.log(
         e,
-        " (returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType)?.eventParts",
-      ),
+        ' (returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType)?.eventParts'
+      )
     );
 
     if (
@@ -6459,7 +6451,7 @@ export const processEventsForOptaPlanner = async (
       eventParts.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.eventParts,
+        )?.eventParts
       );
     }
 
@@ -6471,7 +6463,7 @@ export const processEventsForOptaPlanner = async (
       allEventsForPlanner.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.allEvents,
+        )?.allEvents
       );
     }
 
@@ -6480,8 +6472,8 @@ export const processEventsForOptaPlanner = async (
     )?.breaks?.forEach((e) =>
       console.log(
         e,
-        " (returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType)?.breaks",
-      ),
+        ' (returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType)?.breaks'
+      )
     );
 
     if (
@@ -6492,7 +6484,7 @@ export const processEventsForOptaPlanner = async (
       breaks.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.breaks,
+        )?.breaks
       );
     }
 
@@ -6504,7 +6496,7 @@ export const processEventsForOptaPlanner = async (
       oldEventsForPlanner.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.oldEvents,
+        )?.oldEvents
       );
     }
 
@@ -6516,7 +6508,7 @@ export const processEventsForOptaPlanner = async (
       unfilteredTimeslots.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.timeslots,
+        )?.timeslots
       );
     }
 
@@ -6530,7 +6522,7 @@ export const processEventsForOptaPlanner = async (
 
     if (returnValuesFromExternalAttendees?.oldAttendeeEvents?.length > 0) {
       oldAttendeeEvents.push(
-        ...returnValuesFromExternalAttendees?.oldAttendeeEvents,
+        ...returnValuesFromExternalAttendees?.oldAttendeeEvents
       );
     }
 
@@ -6542,7 +6534,7 @@ export const processEventsForOptaPlanner = async (
       unfilteredUserList.push(...returnValuesFromExternalAttendees?.userList);
     }
 
-    console.log(oldEvents, " oldEvents before saving to s3");
+    console.log(oldEvents, ' oldEvents before saving to s3');
 
     // create duplicate free data
     const duplicateFreeEventParts = _.uniqWith(eventParts, _.isEqual);
@@ -6551,41 +6543,41 @@ export const processEventsForOptaPlanner = async (
     const duplicateFreeOldEvents = _.uniqWith(oldEvents, _.isEqual);
     const duplicateFreeOldAttendeeEvents = _.uniqWith(
       oldAttendeeEvents,
-      _.isEqual,
+      _.isEqual
     );
     const duplicateFreeTimeslots: TimeSlotType[] = _.uniqWith(
       unfilteredTimeslots,
-      _.isEqual,
+      _.isEqual
     );
     const singletonId = uuid();
 
-    console.log(eventParts, " eventParts before validation");
+    console.log(eventParts, ' eventParts before validation');
     console.log(
       duplicateFreeEventParts,
-      " duplicateFreeEventParts before validation",
+      ' duplicateFreeEventParts before validation'
     );
-    console.log(duplicateFreeAllEvents, " duplicateFreeAllEvents");
-    console.log(duplicateFreeOldEvents, " duplicateFreeOldEvents");
-    console.log(duplicateFreeTimeslots, " duplicateFreeTimeslots");
+    console.log(duplicateFreeAllEvents, ' duplicateFreeAllEvents');
+    console.log(duplicateFreeOldEvents, ' duplicateFreeOldEvents');
+    console.log(duplicateFreeTimeslots, ' duplicateFreeTimeslots');
     // validate eventParts
     if (!duplicateFreeEventParts || duplicateFreeEventParts?.length === 0) {
-      throw new Error("Event Parts length is 0 or do not exist");
+      throw new Error('Event Parts length is 0 or do not exist');
     }
 
     if (!duplicateFreeTimeslots || !(duplicateFreeTimeslots?.length > 0)) {
-      throw new Error(" duplicateFreeTimeslots is empty");
+      throw new Error(' duplicateFreeTimeslots is empty');
     }
 
     if (!unfilteredUserList || !(unfilteredUserList?.length > 0)) {
-      throw new Error("unfilteredUserList is empty");
+      throw new Error('unfilteredUserList is empty');
     }
 
     duplicateFreeTimeslots?.forEach((d) =>
-      console.log(d, " duplicateFreeTimeslots"),
+      console.log(d, ' duplicateFreeTimeslots')
     );
-    unfilteredUserList?.forEach((u) => console.log(u, " unfilteredUserList"));
+    unfilteredUserList?.forEach((u) => console.log(u, ' unfilteredUserList'));
     newHostBufferTimes?.forEach((b) =>
-      console.log(b.beforeEvent, b.afterEvent, " b.beforeEvent b.afterEvent "),
+      console.log(b.beforeEvent, b.afterEvent, ' b.beforeEvent b.afterEvent ')
     );
 
     const params = {
@@ -6603,16 +6595,16 @@ export const processEventsForOptaPlanner = async (
       }),
       Bucket: bucketName,
       Key: `${mainHostId}/${singletonId}.json`,
-      ContentType: "application/json",
+      ContentType: 'application/json',
     };
 
     const s3Command = new PutObjectCommand(params);
 
     const s3Response = await s3Client.send(s3Command);
 
-    console.log(s3Response, " s3Response");
+    console.log(s3Response, ' s3Response');
 
-    const diffDays = dayjs(windowEndDate).diff(windowStartDate, "d");
+    const diffDays = dayjs(windowEndDate).diff(windowStartDate, 'd');
 
     if (diffDays < 2) {
       await optaPlanWeekly(
@@ -6623,7 +6615,7 @@ export const processEventsForOptaPlanner = async (
         mainHostId,
         `${mainHostId}/${singletonId}.json`,
         optaplannerShortDuration,
-        onOptaPlanCalendarAdminCallBackUrl,
+        onOptaPlanCalendarAdminCallBackUrl
       );
     } else {
       await optaPlanWeekly(
@@ -6634,24 +6626,24 @@ export const processEventsForOptaPlanner = async (
         mainHostId,
         `${mainHostId}/${singletonId}.json`,
         optaplannerDuration,
-        onOptaPlanCalendarAdminCallBackUrl,
+        onOptaPlanCalendarAdminCallBackUrl
       );
     }
 
-    console.log("optaplanner request sent");
+    console.log('optaplanner request sent');
     // update freemium if not active subscription
 
     // if (!(activeSubscriptions?.length > 0)) {
     //     await updateFreemiumById(freemiumOfUser?.id, freemiumOfUser?.usage - 1 || 0)
     // }
   } catch (e) {
-    console.log(e, " unable to process events for optaplanner");
+    console.log(e, ' unable to process events for optaplanner');
   }
 };
 
 export const getUserCategories = async (userId) => {
   try {
-    const operationName = "getUserCategories";
+    const operationName = 'getUserCategories';
     const query = `
       query getUserCategories($userId: uuid!) {
         Category(where: {userId: {_eq: $userId}}) {
@@ -6689,43 +6681,43 @@ export const getUserCategories = async (userId) => {
           variables,
         },
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
       })
       .json();
 
     return res?.data?.Category;
   } catch (e) {
-    console.log(e, " unable to get user categories");
+    console.log(e, ' unable to get user categories');
   }
 };
 
 export const findBestMatchCategory2 = async (
   event: EventPlusType,
-  possibleLabels: CategoryType[],
+  possibleLabels: CategoryType[]
 ): Promise<ClassificationResponseBodyType> => {
   try {
     // validate
     if (!event) {
-      throw new Error("no event passed inside findBestMatchCategory2");
+      throw new Error('no event passed inside findBestMatchCategory2');
     }
 
     if (!possibleLabels) {
       throw new Error(
-        "no possible labels passed inside findBestMatchCategory2",
+        'no possible labels passed inside findBestMatchCategory2'
       );
     }
 
     const { summary, notes } = event;
-    const sentence = `${summary}${notes ? `: ${notes}` : ""}`;
+    const sentence = `${summary}${notes ? `: ${notes}` : ''}`;
 
     const res: ClassificationResponseBodyType = await got
       .post(classificationUrl, {
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${Buffer.from(`admin:${authApiToken}`).toString("base64")}`,
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`admin:${authApiToken}`).toString('base64')}`,
         },
         json: {
           sentence,
@@ -6736,20 +6728,20 @@ export const findBestMatchCategory2 = async (
     console.log(
       res,
       event?.id,
-      " res, event?.id inside findBestMatchCategory2",
+      ' res, event?.id inside findBestMatchCategory2'
     );
     return res;
   } catch (e) {
-    console.log(e, " unable to find categories");
+    console.log(e, ' unable to find categories');
   }
 };
 
 export const processBestMatchCategories = (
   body: ClassificationResponseBodyType,
-  newPossibleLabels: string[],
+  newPossibleLabels: string[]
 ) => {
   const { scores } = body;
-  let bestMatchCategory = "";
+  let bestMatchCategory = '';
   let bestMatchScore = 0;
   for (let i = 0; i < newPossibleLabels.length; i++) {
     const label = newPossibleLabels[i];
@@ -6769,7 +6761,7 @@ const addToBestMatchCategories = (
   newEvent: EventPlusType,
   newPossibleLabels: string[],
   scores: number[],
-  categories: CategoryType[],
+  categories: CategoryType[]
 ): CategoryType[] | [] => {
   const bestMatchCategories = [];
 
@@ -6779,7 +6771,7 @@ const addToBestMatchCategories = (
 
   if (meetingIndex > -1 && scores[meetingIndex] > minThresholdScore) {
     bestMatchCategories.push(
-      categories.find((category) => category.name === meetingLabel),
+      categories.find((category) => category.name === meetingLabel)
     );
   }
 
@@ -6788,20 +6780,20 @@ const addToBestMatchCategories = (
     scores[externalMeetingIndex] > minThresholdScore
   ) {
     bestMatchCategories.push(
-      categories.find((category) => category.name === externalMeetingLabel),
+      categories.find((category) => category.name === externalMeetingLabel)
     );
   }
 
   // if event is classified as meeting type or external type then also copy over
   if (newEvent.isMeeting && meetingIndex > -1) {
     bestMatchCategories.push(
-      categories.find((category) => category.name === meetingLabel),
+      categories.find((category) => category.name === meetingLabel)
     );
   }
 
   if (newEvent.isExternalMeeting && externalMeetingIndex > -1) {
     bestMatchCategories.push(
-      categories.find((category) => category.name === externalMeetingLabel),
+      categories.find((category) => category.name === externalMeetingLabel)
     );
   }
 
@@ -6813,7 +6805,7 @@ export const processEventForMeetingTypeCategories = (
   bestMatchCategory: CategoryType,
   newPossibleLabels: string[],
   scores: number[],
-  categories: CategoryType[],
+  categories: CategoryType[]
 ): CategoryType[] | [] => {
   // include meeting and conference types if any
 
@@ -6821,7 +6813,7 @@ export const processEventForMeetingTypeCategories = (
     newEvent,
     newPossibleLabels,
     scores,
-    categories,
+    categories
   );
 
   if (bestMatchCategories?.length > 0) {
@@ -6832,20 +6824,20 @@ export const processEventForMeetingTypeCategories = (
 };
 
 export const getUniqueLabels = (labels: CategoryType[]) => {
-  const uniqueLabels = _.uniqBy(labels, "id");
+  const uniqueLabels = _.uniqBy(labels, 'id');
   return uniqueLabels;
 };
 
 export const copyOverCategoryDefaults = (
   event: EventPlusType,
-  category: CategoryType,
+  category: CategoryType
 ): EventPlusType => {
   return {
     ...event,
     transparency: !event?.userModifiedAvailability
       ? category?.defaultAvailability
-        ? "transparent"
-        : "opaque"
+        ? 'transparent'
+        : 'opaque'
       : event.transparency,
     // preferredDayOfWeek: !event?.userModifiedTimePreference ? (category?.defaultTimePreference?.preferredDayOfWeek) : event.preferredDayOfWeek,
     // preferredTime: !event?.userModifiedTimePreference ? (category?.defaultTimePreference?.preferredTime) : event.preferredTime,
@@ -6902,23 +6894,23 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
   bestMatchCategory: CategoryType,
   newReminders1?: ReminderType[],
   newTimeBlocking1?: BufferTimeObjectType,
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   try {
     // validate
     if (!bestMatchCategory?.id) {
-      throw new Error("bestMatchCategory is required");
+      throw new Error('bestMatchCategory is required');
     }
     if (!newEvent?.id) {
-      throw new Error("newEvent is required");
+      throw new Error('newEvent is required');
     }
 
     if (!id) {
-      throw new Error("id is required");
+      throw new Error('id is required');
     }
 
     if (!userId) {
-      throw new Error("userId is required");
+      throw new Error('userId is required');
     }
 
     let newBufferTimes = newTimeBlocking1 || {};
@@ -6929,9 +6921,9 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
       newEvent,
       bestMatchCategory,
       oldReminders,
-      previousEvent,
+      previousEvent
     );
-    console.log(reminders, " reminders");
+    console.log(reminders, ' reminders');
     if (
       reminders?.length > 0 &&
       bestMatchCategory?.copyReminders &&
@@ -6948,9 +6940,9 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
       const bufferTimes = createPreAndPostEventsForCategoryDefaults(
         bestMatchCategory,
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(bufferTimes, " timeBlocking");
+      console.log(bufferTimes, ' timeBlocking');
       if (bufferTimes?.beforeEvent) {
         (newBufferTimes as BufferTimeObjectType).beforeEvent =
           bufferTimes.beforeEvent;
@@ -6972,13 +6964,13 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
   } catch (e) {
     console.log(
       e,
-      " unable to create reminders and time blocking for best match category",
+      ' unable to create reminders and time blocking for best match category'
     );
   }
 };
 
 export const createCategoryEvents = async (
-  categoryEvents: CategoryEventType[],
+  categoryEvents: CategoryEventType[]
 ) => {
   try {
     for (const categoryEvent of categoryEvents) {
@@ -6986,7 +6978,7 @@ export const createCategoryEvents = async (
         categoryId: categoryEvent?.categoryId,
         eventId: categoryEvent?.eventId,
       };
-      const operationName = "ConnectionByCategoryIdAndEventId";
+      const operationName = 'ConnectionByCategoryIdAndEventId';
       const query = `
         query ConnectionByCategoryIdAndEventId($categoryId: uuid!, $eventId: String!) {
           Category_Event(where: {categoryId: {_eq: $categoryId}, eventId: {_eq: $eventId}}) {
@@ -7005,8 +6997,8 @@ export const createCategoryEvents = async (
       const res: { data: { Category_Event: CategoryEventType[] } } = await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -7025,7 +7017,7 @@ export const createCategoryEvents = async (
           updatedAt: categoryEvent?.updatedAt,
           userId: categoryEvent?.userId,
         };
-        const operationName2 = "InsertCategory_Event";
+        const operationName2 = 'InsertCategory_Event';
         const query2 = `
           mutation InsertCategory_Event($id: uuid!, $categoryId: uuid!, $createdDate: timestamptz, $eventId: String!, $updatedAt: timestamptz, $userId: uuid!) {
             insert_Category_Event_one(object: {categoryId: $categoryId, createdDate: $createdDate, deleted: false, eventId: $eventId, id: $id, updatedAt: $updatedAt, userId: $userId}) {
@@ -7042,8 +7034,8 @@ export const createCategoryEvents = async (
         const res2 = await got
           .post(hasuraGraphUrl, {
             headers: {
-              "X-Hasura-Admin-Secret": hasuraAdminSecret,
-              "X-Hasura-Role": "admin",
+              'X-Hasura-Admin-Secret': hasuraAdminSecret,
+              'X-Hasura-Role': 'admin',
             },
             json: {
               operationName: operationName2,
@@ -7053,23 +7045,23 @@ export const createCategoryEvents = async (
           })
           .json();
 
-        console.log(res2, " response after inserting category event");
+        console.log(res2, ' response after inserting category event');
       }
     }
   } catch (e) {
-    console.log(e, " unable to upsert category events");
+    console.log(e, ' unable to upsert category events');
   }
 };
 
 const copyOverCategoryDefaultsForMeetingType = (
   event,
-  categories: CategoryType[],
+  categories: CategoryType[]
 ) => {
   const meetingCategory = categories.find(
-    (category) => category.name === meetingLabel,
+    (category) => category.name === meetingLabel
   );
   const externalCategory = categories.find(
-    (category) => category.name === externalMeetingLabel,
+    (category) => category.name === externalMeetingLabel
   );
 
   let newEventMeeting = null;
@@ -7088,22 +7080,22 @@ const copyOverCategoryDefaultsForMeetingType = (
 
 export const listRemindersForEvent = async (
   eventId: string,
-  userId: string,
+  userId: string
 ) => {
   try {
     // validate
     if (!eventId) {
-      console.log(eventId, " no eventId present inside listRemindersForEvent");
+      console.log(eventId, ' no eventId present inside listRemindersForEvent');
       return;
     }
 
     if (!userId) {
-      console.log(userId, " no userId present inside listRemindersForEvent");
+      console.log(userId, ' no userId present inside listRemindersForEvent');
       return;
     }
     // get reminders
-    console.log(" listRemindersForEvent called");
-    const operationName = "listRemindersForEvent";
+    console.log(' listRemindersForEvent called');
+    const operationName = 'listRemindersForEvent';
     const query = `
     query listRemindersForEvent($userId: uuid!, $eventId: String!) {
       Reminder(where: {userId: {_eq: $userId}, eventId: {_eq: $eventId}, deleted: {_neq: true}}) {
@@ -7123,9 +7115,9 @@ export const listRemindersForEvent = async (
     const res: { data: { Reminder: ReminderType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -7138,10 +7130,10 @@ export const listRemindersForEvent = async (
       })
       .json();
 
-    console.log(res, " res from listRemindersForEvent");
+    console.log(res, ' res from listRemindersForEvent');
     return res?.data?.Reminder;
   } catch (e) {
-    console.log(e, " listRemindersForEvent");
+    console.log(e, ' listRemindersForEvent');
   }
 };
 
@@ -7149,7 +7141,7 @@ export const createRemindersUsingCategoryDefaultsForEvent = (
   event: EventPlusType,
   bestMatchCategory: CategoryType,
   oldReminders: ReminderType[],
-  previousEvent: EventPlusType,
+  previousEvent: EventPlusType
 ): ReminderType[] => {
   // validate time blocking
   if (event.userModifiedReminders) {
@@ -7188,7 +7180,7 @@ export const createRemindersUsingCategoryDefaultsForEvent = (
 export const createPreAndPostEventsForCategoryDefaults = (
   bestMatchCategory: CategoryType,
   event: EventPlusType,
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   //  validate time blocking
   if (previousEvent?.copyTimeBlocking) {
@@ -7218,7 +7210,7 @@ export const createPreAndPostEventsForCategoryDefaults = (
 
     const formattedZoneAfterEventEndDate = dayjs(event.endDate.slice(0, 19))
       .tz(event?.timezone, true)
-      .add(bestMatchCategory.defaultTimeBlocking.afterEvent, "m")
+      .add(bestMatchCategory.defaultTimeBlocking.afterEvent, 'm')
       .format();
     const formattedZoneAfterEventStartDate = dayjs(event.endDate.slice(0, 19))
       .tz(event?.timezone, true)
@@ -7229,11 +7221,11 @@ export const createPreAndPostEventsForCategoryDefaults = (
       isPreEvent: false,
       forEventId: event.id,
       isPostEvent: true,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: formattedZoneAfterEventStartDate,
       endDate: formattedZoneAfterEventEndDate,
-      method: event?.postEventId ? "update" : "create",
+      method: event?.postEventId ? 'update' : 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -7248,7 +7240,7 @@ export const createPreAndPostEventsForCategoryDefaults = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: postEventId.split("#")[0],
+      eventId: postEventId.split('#')[0],
     };
     valuesToReturn.afterEvent = afterEvent;
     valuesToReturn.newEvent = {
@@ -7266,10 +7258,10 @@ export const createPreAndPostEventsForCategoryDefaults = (
     // const formattedZoneBeforeEventEndDate = formatInTimeZone(zonedTimeToUtc(event.startDate.slice(0, 19), event.timezone).toISOString(), event.timezone, "yyyy-MM-dd'T'HH:mm:ssXXX")
 
     const formattedZoneBeforeEventStartDate = dayjs(
-      event.startDate.slice(0, 19),
+      event.startDate.slice(0, 19)
     )
       .tz(event.timezone, true)
-      .subtract(bestMatchCategory.defaultTimeBlocking.beforeEvent, "m")
+      .subtract(bestMatchCategory.defaultTimeBlocking.beforeEvent, 'm')
       .format();
     const formattedZoneBeforeEventEndDate = dayjs(event.startDate.slice(0, 19))
       .tz(event.timezone, true)
@@ -7280,11 +7272,11 @@ export const createPreAndPostEventsForCategoryDefaults = (
       isPreEvent: true,
       isPostEvent: false,
       forEventId: event.id,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: formattedZoneBeforeEventStartDate,
       endDate: formattedZoneBeforeEventEndDate,
-      method: event?.preEventId ? "update" : "create",
+      method: event?.preEventId ? 'update' : 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -7299,7 +7291,7 @@ export const createPreAndPostEventsForCategoryDefaults = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: preEventId.split("#")[0],
+      eventId: preEventId.split('#')[0],
     };
     valuesToReturn.beforeEvent = beforeEvent;
     valuesToReturn.newEvent = {
@@ -7325,12 +7317,12 @@ export const updateValuesForMeetingTypeCategories = async (
     beforeEvent?: EventPlusType;
     afterEvent?: EventPlusType;
   },
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   try {
     if (!(bestMatchCategories?.length > 0)) {
       throw new Error(
-        "bestMatchCategories cannot be empty inside updateValuesForMeetingTypeCategories ",
+        'bestMatchCategories cannot be empty inside updateValuesForMeetingTypeCategories '
       );
     }
     let newEvent = newEvent1;
@@ -7338,40 +7330,40 @@ export const updateValuesForMeetingTypeCategories = async (
     let newBufferTime = newTimeBlocking1 || {};
     const newCategoryConstantEvents = copyOverCategoryDefaultsForMeetingType(
       event,
-      bestMatchCategories,
+      bestMatchCategories
     );
-    console.log(newCategoryConstantEvents, " newCategoryConstantEvents");
+    console.log(newCategoryConstantEvents, ' newCategoryConstantEvents');
 
     if (newCategoryConstantEvents?.newEventMeeting?.id) {
       newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventMeeting };
       const meetingCategory = bestMatchCategories.find(
-        (category) => category.name === meetingLabel,
+        (category) => category.name === meetingLabel
       );
 
       // create reminders
       const oldReminders = await listRemindersForEvent(
         newCategoryConstantEvents.newEventMeeting.id,
-        userId,
+        userId
       );
       const reminders = createRemindersUsingCategoryDefaultsForEvent(
         newEvent,
         meetingCategory,
         oldReminders,
-        previousEvent,
+        previousEvent
       );
-      console.log(reminders, " reminders");
+      console.log(reminders, ' reminders');
       if (reminders?.length > 0) {
         newReminders.push(...reminders);
-        newReminders = _.uniqBy(newReminders, "minutes");
+        newReminders = _.uniqBy(newReminders, 'minutes');
       }
 
       // create time blocking
       const bufferTime = createPreAndPostEventsForCategoryDefaults(
         meetingCategory,
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(bufferTime, " timeBlocking");
+      console.log(bufferTime, ' timeBlocking');
       if (bufferTime?.beforeEvent) {
         newBufferTime.beforeEvent = bufferTime.beforeEvent;
       }
@@ -7391,33 +7383,33 @@ export const updateValuesForMeetingTypeCategories = async (
     if (newCategoryConstantEvents?.newEventExternal?.id) {
       newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventExternal };
       const externalCategory = bestMatchCategories.find(
-        (category) => category.name === externalMeetingLabel,
+        (category) => category.name === externalMeetingLabel
       );
 
       // create reminders
       const oldReminders = await listRemindersForEvent(
         newCategoryConstantEvents.newEventExternal.id,
-        userId,
+        userId
       );
       const reminders = createRemindersUsingCategoryDefaultsForEvent(
         newEvent,
         externalCategory,
         oldReminders,
-        previousEvent,
+        previousEvent
       );
-      console.log(reminders, " reminders");
+      console.log(reminders, ' reminders');
       if (reminders?.length > 0) {
         newReminders.push(...reminders);
-        newReminders = _.uniqBy(newReminders, "minutes");
+        newReminders = _.uniqBy(newReminders, 'minutes');
       }
 
       // create time blocking
       const timeBlocking = createPreAndPostEventsForCategoryDefaults(
         externalCategory,
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(timeBlocking, " timeBlocking");
+      console.log(timeBlocking, ' timeBlocking');
       if (timeBlocking?.beforeEvent) {
         newBufferTime.beforeEvent = timeBlocking.beforeEvent;
       }
@@ -7435,17 +7427,17 @@ export const updateValuesForMeetingTypeCategories = async (
     }
     return { newEvent, newReminders, newTimeBlocking: newBufferTime };
   } catch (e) {
-    console.log(e, " unable to update values for default categories");
+    console.log(e, ' unable to update values for default categories');
   }
 };
 
 export const processUserEventForCategoryDefaults = async (
   event: EventPlusType,
-  vector: number[],
+  vector: number[]
 ) => {
   try {
     const { id, userId } = event;
-    console.log(id, " id inside processUserEventForCategoryDefaults");
+    console.log(id, ' id inside processUserEventForCategoryDefaults');
     //  create new event datatype in elastic search
     // await putDataInSearch(id, vector, userId)
 
@@ -7454,7 +7446,7 @@ export const processUserEventForCategoryDefaults = async (
 
     if (!categories?.[0]?.id) {
       throw new Error(
-        "categories is not available processUserEventForCategoryDefaults",
+        'categories is not available processUserEventForCategoryDefaults'
       );
     }
 
@@ -7462,22 +7454,22 @@ export const processUserEventForCategoryDefaults = async (
     console.log(
       categories,
       id,
-      " categories, id processUserEventForCategoryDefaults",
+      ' categories, id processUserEventForCategoryDefaults'
     );
     const body = await findBestMatchCategory2(event, categories);
-    console.log(body, id, " body, id processUserEventForCategoryDefaults");
+    console.log(body, id, ' body, id processUserEventForCategoryDefaults');
     const { labels, scores } = body;
 
     const bestMatchLabel = processBestMatchCategories(body, labels);
     console.log(
       bestMatchLabel,
       id,
-      " bestMatchLabel, id processUserEventForCategoryDefaults",
+      ' bestMatchLabel, id processUserEventForCategoryDefaults'
     );
 
     if (bestMatchLabel) {
       const bestMatchCategory = categories.find(
-        (category) => category.name === bestMatchLabel,
+        (category) => category.name === bestMatchLabel
       );
       let bestMatchPlusMeetingCategories =
         await processEventForMeetingTypeCategories(
@@ -7485,32 +7477,32 @@ export const processUserEventForCategoryDefaults = async (
           bestMatchCategory,
           labels,
           scores,
-          categories,
+          categories
         );
       if (bestMatchPlusMeetingCategories?.length > 0) {
         bestMatchPlusMeetingCategories = getUniqueLabels(
-          bestMatchPlusMeetingCategories,
+          bestMatchPlusMeetingCategories
         );
         console.log(
           bestMatchPlusMeetingCategories,
           id,
-          " bestMatchAndMeetingCategories, id processUserEventForCategoryDefaults",
+          ' bestMatchAndMeetingCategories, id processUserEventForCategoryDefaults'
         );
       }
       //  copy over category defaults
       const newCategoryDefaultEvent = copyOverCategoryDefaults(
         event,
-        bestMatchCategory,
+        bestMatchCategory
       );
       console.log(
         newCategoryDefaultEvent,
         id,
-        " newCategoryDefaultEvent, id processUserEventForCategoryDefaults",
+        ' newCategoryDefaultEvent, id processUserEventForCategoryDefaults'
       );
 
       // create new event
       let newEvent: EventPlusType = newCategoryDefaultEvent ?? event;
-      console.log(newEvent, " newEvent processUserEventForCategoryDefaults");
+      console.log(newEvent, ' newEvent processUserEventForCategoryDefaults');
       let newReminders: ReminderType[] = [];
       let newTimeBlocking: BufferTimeObjectType = {};
 
@@ -7524,7 +7516,7 @@ export const processUserEventForCategoryDefaults = async (
         newEvent,
         bestMatchCategory,
         newReminders,
-        newTimeBlocking,
+        newTimeBlocking
       );
       newEvent = newEvent1;
       newReminders = newReminders1;
@@ -7546,7 +7538,7 @@ export const processUserEventForCategoryDefaults = async (
         console.log(
           categoryEvents,
           id,
-          " categoryEvents, id processUserEventForCategoryDefaults",
+          ' categoryEvents, id processUserEventForCategoryDefaults'
         );
         await createCategoryEvents(categoryEvents);
         const {
@@ -7559,7 +7551,7 @@ export const processUserEventForCategoryDefaults = async (
           bestMatchPlusMeetingCategories,
           userId,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         newEvent = newEvent1;
         newReminders = newReminders1;
@@ -7568,14 +7560,14 @@ export const processUserEventForCategoryDefaults = async (
 
       newEvent.vector = vector;
 
-      console.log(newEvent, " newEvent processUserEventForCategoryDefaults");
+      console.log(newEvent, ' newEvent processUserEventForCategoryDefaults');
       console.log(
         newReminders,
-        " newReminders processUserEventForCategoryDefaults",
+        ' newReminders processUserEventForCategoryDefaults'
       );
       console.log(
         newTimeBlocking,
-        " newTimeBlocking processUserEventForCategoryDefaults",
+        ' newTimeBlocking processUserEventForCategoryDefaults'
       );
 
       return {
@@ -7592,15 +7584,15 @@ export const processUserEventForCategoryDefaults = async (
       newEvent: event,
     };
   } catch (e) {
-    console.log(e, " e");
+    console.log(e, ' e');
   }
 };
 
 export const getEventFromPrimaryKey = async (
-  eventId: string,
+  eventId: string
 ): Promise<EventPlusType> => {
   try {
-    const operationName = "getEventFromPrimaryKey";
+    const operationName = 'getEventFromPrimaryKey';
     const query = `
     query getEventFromPrimaryKey($eventId: String!) {
       Event_by_pk(id: $eventId) {
@@ -7719,9 +7711,9 @@ export const getEventFromPrimaryKey = async (
     const res: { data: { Event_by_pk: EventPlusType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -7732,10 +7724,10 @@ export const getEventFromPrimaryKey = async (
         },
       })
       .json();
-    console.log(res, " res from getEventFromPrimaryKey");
+    console.log(res, ' res from getEventFromPrimaryKey');
     return res?.data?.Event_by_pk;
   } catch (e) {
-    console.log(e, " getEventFromPrimaryKey");
+    console.log(e, ' getEventFromPrimaryKey');
   }
 };
 
@@ -7746,10 +7738,10 @@ export const deleteDocInSearch3 = async (id: string) => {
       id,
       index: searchIndex,
     });
-    console.log("Deleting document in search:");
+    console.log('Deleting document in search:');
     console.log(response.body);
   } catch (e) {
-    console.log(e, " unable to delete doc");
+    console.log(e, ' unable to delete doc');
   }
 };
 
@@ -7757,7 +7749,7 @@ export const copyOverPreviousEventDefaults = (
   event: EventPlusType,
   previousEvent: EventPlusType,
   category?: CategoryType,
-  userPreferences?: UserPreferenceType,
+  userPreferences?: UserPreferenceType
 ): EventPlusType => {
   const previousDuration = dayjs
     .duration(
@@ -7766,9 +7758,9 @@ export const copyOverPreviousEventDefaults = (
         .diff(
           dayjs(previousEvent.startDate.slice(0, 19)).tz(
             previousEvent?.timezone,
-            true,
-          ),
-        ),
+            true
+          )
+        )
     )
     .asMinutes();
   return {
@@ -7779,7 +7771,7 @@ export const copyOverPreviousEventDefaults = (
         : category?.copyAvailability
           ? previousEvent?.transparency
           : category?.defaultAvailability
-            ? "transparent"
+            ? 'transparent'
             : userPreferences?.copyAvailability
               ? previousEvent?.transparency
               : event?.transparency
@@ -7916,7 +7908,7 @@ export const copyOverPreviousEventDefaults = (
       ? previousEvent?.copyDuration
         ? dayjs(event.startDate.slice(0, 19))
             .tz(event.timezone, true)
-            .add(previousEvent.duration || previousDuration, "minutes")
+            .add(previousEvent.duration || previousDuration, 'minutes')
             .format()
         : event?.endDate
       : event.endDate,

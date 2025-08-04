@@ -1,0 +1,60 @@
+import { ConfidentialClientApplication, } from '@azure/msal-node';
+import { getMsalConfig } from '../outlook-service/auth_utils';
+import { createAdminGraphQLClient } from '../_utils/dbService';
+import { encrypt } from './crypto_utils'; // Assuming a similar crypto utility exists
+const UPSERT_OUTLOOK_TOKENS_MUTATION = `
+mutation UpsertUserOutlookTokens($userId: uuid!, $encryptedAccessToken: String!, $encryptedRefreshToken: String!, $tokenExpiryTimestamp: timestamptz!) {
+  insert_user_outlook_tokens(
+    objects: {
+      user_id: $userId,
+      encrypted_access_token: $encryptedAccessToken,
+      encrypted_refresh_token: $encryptedRefreshToken,
+      token_expiry_timestamp: $tokenExpiryTimestamp
+    },
+    on_conflict: {
+      constraint: user_outlook_tokens_pkey,
+      update_columns: [encrypted_access_token, encrypted_refresh_token, token_expiry_timestamp, updated_at]
+    }
+  ) {
+    affected_rows
+  }
+}
+`;
+const handler = async (req, res) => {
+    const { code, state } = req.query;
+    const userId = state;
+    if (!code) {
+        return res.status(400).send('Authorization code is missing.');
+    }
+    if (!userId) {
+        return res.status(400).send('State (User ID) is missing.');
+    }
+    const msalConfig = getMsalConfig();
+    const pca = new ConfidentialClientApplication(msalConfig);
+    const tokenRequest = {
+        code: code,
+        scopes: ['https://graph.microsoft.com/.default'],
+        redirectUri: 'http://localhost:3000/outlook-callback',
+    };
+    try {
+        const response = await pca.acquireTokenByCode(tokenRequest);
+        const { accessToken, refreshToken, expiresOn } = response;
+        const encryptedAccessToken = encrypt(accessToken);
+        const encryptedRefreshToken = encrypt(refreshToken);
+        const tokenExpiryTimestamp = expiresOn.toISOString();
+        const adminGraphQLClient = createAdminGraphQLClient();
+        await adminGraphQLClient.request(UPSERT_OUTLOOK_TOKENS_MUTATION, {
+            userId,
+            encryptedAccessToken,
+            encryptedRefreshToken,
+            tokenExpiryTimestamp,
+        });
+        return res.status(200).send('Outlook account connected successfully!');
+    }
+    catch (error) {
+        console.error('Error handling Outlook auth callback:', error);
+        return res.status(500).send('Error connecting Outlook account.');
+    }
+};
+export default handler;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaGFuZGxlLW91dGxvb2stYXV0aC1jYWxsYmFjay5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImhhbmRsZS1vdXRsb29rLWF1dGgtY2FsbGJhY2sudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0EsT0FBTyxFQUVMLDZCQUE2QixHQUM5QixNQUFNLGtCQUFrQixDQUFDO0FBQzFCLE9BQU8sRUFBRSxhQUFhLEVBQUUsTUFBTSwrQkFBK0IsQ0FBQztBQUM5RCxPQUFPLEVBQUUsd0JBQXdCLEVBQUUsTUFBTSxxQkFBcUIsQ0FBQztBQUMvRCxPQUFPLEVBQUUsT0FBTyxFQUFFLE1BQU0sZ0JBQWdCLENBQUMsQ0FBQywyQ0FBMkM7QUFFckYsTUFBTSw4QkFBOEIsR0FBRzs7Ozs7Ozs7Ozs7Ozs7Ozs7Q0FpQnRDLENBQUM7QUFFRixNQUFNLE9BQU8sR0FBRyxLQUFLLEVBQUUsR0FBWSxFQUFFLEdBQWEsRUFBRSxFQUFFO0lBQ3BELE1BQU0sRUFBRSxJQUFJLEVBQUUsS0FBSyxFQUFFLEdBQUcsR0FBRyxDQUFDLEtBQUssQ0FBQztJQUNsQyxNQUFNLE1BQU0sR0FBRyxLQUFlLENBQUM7SUFFL0IsSUFBSSxDQUFDLElBQUksRUFBRSxDQUFDO1FBQ1YsT0FBTyxHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQyxnQ0FBZ0MsQ0FBQyxDQUFDO0lBQ2hFLENBQUM7SUFDRCxJQUFJLENBQUMsTUFBTSxFQUFFLENBQUM7UUFDWixPQUFPLEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDLDZCQUE2QixDQUFDLENBQUM7SUFDN0QsQ0FBQztJQUVELE1BQU0sVUFBVSxHQUFHLGFBQWEsRUFBRSxDQUFDO0lBQ25DLE1BQU0sR0FBRyxHQUFHLElBQUksNkJBQTZCLENBQUMsVUFBVSxDQUFDLENBQUM7SUFFMUQsTUFBTSxZQUFZLEdBQUc7UUFDbkIsSUFBSSxFQUFFLElBQWM7UUFDcEIsTUFBTSxFQUFFLENBQUMsc0NBQXNDLENBQUM7UUFDaEQsV0FBVyxFQUFFLHdDQUF3QztLQUN0RCxDQUFDO0lBRUYsSUFBSSxDQUFDO1FBQ0gsTUFBTSxRQUFRLEdBQUcsTUFBTSxHQUFHLENBQUMsa0JBQWtCLENBQUMsWUFBWSxDQUFDLENBQUM7UUFDNUQsTUFBTSxFQUFFLFdBQVcsRUFBRSxZQUFZLEVBQUUsU0FBUyxFQUFFLEdBQUcsUUFBUSxDQUFDO1FBRTFELE1BQU0sb0JBQW9CLEdBQUcsT0FBTyxDQUFDLFdBQVcsQ0FBQyxDQUFDO1FBQ2xELE1BQU0scUJBQXFCLEdBQUcsT0FBTyxDQUFDLFlBQVksQ0FBQyxDQUFDO1FBQ3BELE1BQU0sb0JBQW9CLEdBQUcsU0FBUyxDQUFDLFdBQVcsRUFBRSxDQUFDO1FBRXJELE1BQU0sa0JBQWtCLEdBQUcsd0JBQXdCLEVBQUUsQ0FBQztRQUN0RCxNQUFNLGtCQUFrQixDQUFDLE9BQU8sQ0FBQyw4QkFBOEIsRUFBRTtZQUMvRCxNQUFNO1lBQ04sb0JBQW9CO1lBQ3BCLHFCQUFxQjtZQUNyQixvQkFBb0I7U0FDckIsQ0FBQyxDQUFDO1FBRUgsT0FBTyxHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQyx5Q0FBeUMsQ0FBQyxDQUFDO0lBQ3pFLENBQUM7SUFBQyxPQUFPLEtBQUssRUFBRSxDQUFDO1FBQ2YsT0FBTyxDQUFDLEtBQUssQ0FBQyx1Q0FBdUMsRUFBRSxLQUFLLENBQUMsQ0FBQztRQUM5RCxPQUFPLEdBQUcsQ0FBQyxNQUFNLENBQUMsR0FBRyxDQUFDLENBQUMsSUFBSSxDQUFDLG1DQUFtQyxDQUFDLENBQUM7SUFDbkUsQ0FBQztBQUNILENBQUMsQ0FBQztBQUVGLGVBQWUsT0FBTyxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgUmVxdWVzdCwgUmVzcG9uc2UgfSBmcm9tICdleHByZXNzJztcbmltcG9ydCB7XG4gIFB1YmxpY0NsaWVudEFwcGxpY2F0aW9uLFxuICBDb25maWRlbnRpYWxDbGllbnRBcHBsaWNhdGlvbixcbn0gZnJvbSAnQGF6dXJlL21zYWwtbm9kZSc7XG5pbXBvcnQgeyBnZXRNc2FsQ29uZmlnIH0gZnJvbSAnLi4vb3V0bG9vay1zZXJ2aWNlL2F1dGhfdXRpbHMnO1xuaW1wb3J0IHsgY3JlYXRlQWRtaW5HcmFwaFFMQ2xpZW50IH0gZnJvbSAnLi4vX3V0aWxzL2RiU2VydmljZSc7XG5pbXBvcnQgeyBlbmNyeXB0IH0gZnJvbSAnLi9jcnlwdG9fdXRpbHMnOyAvLyBBc3N1bWluZyBhIHNpbWlsYXIgY3J5cHRvIHV0aWxpdHkgZXhpc3RzXG5cbmNvbnN0IFVQU0VSVF9PVVRMT09LX1RPS0VOU19NVVRBVElPTiA9IGBcbm11dGF0aW9uIFVwc2VydFVzZXJPdXRsb29rVG9rZW5zKCR1c2VySWQ6IHV1aWQhLCAkZW5jcnlwdGVkQWNjZXNzVG9rZW46IFN0cmluZyEsICRlbmNyeXB0ZWRSZWZyZXNoVG9rZW46IFN0cmluZyEsICR0b2tlbkV4cGlyeVRpbWVzdGFtcDogdGltZXN0YW1wdHohKSB7XG4gIGluc2VydF91c2VyX291dGxvb2tfdG9rZW5zKFxuICAgIG9iamVjdHM6IHtcbiAgICAgIHVzZXJfaWQ6ICR1c2VySWQsXG4gICAgICBlbmNyeXB0ZWRfYWNjZXNzX3Rva2VuOiAkZW5jcnlwdGVkQWNjZXNzVG9rZW4sXG4gICAgICBlbmNyeXB0ZWRfcmVmcmVzaF90b2tlbjogJGVuY3J5cHRlZFJlZnJlc2hUb2tlbixcbiAgICAgIHRva2VuX2V4cGlyeV90aW1lc3RhbXA6ICR0b2tlbkV4cGlyeVRpbWVzdGFtcFxuICAgIH0sXG4gICAgb25fY29uZmxpY3Q6IHtcbiAgICAgIGNvbnN0cmFpbnQ6IHVzZXJfb3V0bG9va190b2tlbnNfcGtleSxcbiAgICAgIHVwZGF0ZV9jb2x1bW5zOiBbZW5jcnlwdGVkX2FjY2Vzc190b2tlbiwgZW5jcnlwdGVkX3JlZnJlc2hfdG9rZW4sIHRva2VuX2V4cGlyeV90aW1lc3RhbXAsIHVwZGF0ZWRfYXRdXG4gICAgfVxuICApIHtcbiAgICBhZmZlY3RlZF9yb3dzXG4gIH1cbn1cbmA7XG5cbmNvbnN0IGhhbmRsZXIgPSBhc3luYyAocmVxOiBSZXF1ZXN0LCByZXM6IFJlc3BvbnNlKSA9PiB7XG4gIGNvbnN0IHsgY29kZSwgc3RhdGUgfSA9IHJlcS5xdWVyeTtcbiAgY29uc3QgdXNlcklkID0gc3RhdGUgYXMgc3RyaW5nO1xuXG4gIGlmICghY29kZSkge1xuICAgIHJldHVybiByZXMuc3RhdHVzKDQwMCkuc2VuZCgnQXV0aG9yaXphdGlvbiBjb2RlIGlzIG1pc3NpbmcuJyk7XG4gIH1cbiAgaWYgKCF1c2VySWQpIHtcbiAgICByZXR1cm4gcmVzLnN0YXR1cyg0MDApLnNlbmQoJ1N0YXRlIChVc2VyIElEKSBpcyBtaXNzaW5nLicpO1xuICB9XG5cbiAgY29uc3QgbXNhbENvbmZpZyA9IGdldE1zYWxDb25maWcoKTtcbiAgY29uc3QgcGNhID0gbmV3IENvbmZpZGVudGlhbENsaWVudEFwcGxpY2F0aW9uKG1zYWxDb25maWcpO1xuXG4gIGNvbnN0IHRva2VuUmVxdWVzdCA9IHtcbiAgICBjb2RlOiBjb2RlIGFzIHN0cmluZyxcbiAgICBzY29wZXM6IFsnaHR0cHM6Ly9ncmFwaC5taWNyb3NvZnQuY29tLy5kZWZhdWx0J10sXG4gICAgcmVkaXJlY3RVcmk6ICdodHRwOi8vbG9jYWxob3N0OjMwMDAvb3V0bG9vay1jYWxsYmFjaycsXG4gIH07XG5cbiAgdHJ5IHtcbiAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IHBjYS5hY3F1aXJlVG9rZW5CeUNvZGUodG9rZW5SZXF1ZXN0KTtcbiAgICBjb25zdCB7IGFjY2Vzc1Rva2VuLCByZWZyZXNoVG9rZW4sIGV4cGlyZXNPbiB9ID0gcmVzcG9uc2U7XG5cbiAgICBjb25zdCBlbmNyeXB0ZWRBY2Nlc3NUb2tlbiA9IGVuY3J5cHQoYWNjZXNzVG9rZW4pO1xuICAgIGNvbnN0IGVuY3J5cHRlZFJlZnJlc2hUb2tlbiA9IGVuY3J5cHQocmVmcmVzaFRva2VuKTtcbiAgICBjb25zdCB0b2tlbkV4cGlyeVRpbWVzdGFtcCA9IGV4cGlyZXNPbi50b0lTT1N0cmluZygpO1xuXG4gICAgY29uc3QgYWRtaW5HcmFwaFFMQ2xpZW50ID0gY3JlYXRlQWRtaW5HcmFwaFFMQ2xpZW50KCk7XG4gICAgYXdhaXQgYWRtaW5HcmFwaFFMQ2xpZW50LnJlcXVlc3QoVVBTRVJUX09VVExPT0tfVE9LRU5TX01VVEFUSU9OLCB7XG4gICAgICB1c2VySWQsXG4gICAgICBlbmNyeXB0ZWRBY2Nlc3NUb2tlbixcbiAgICAgIGVuY3J5cHRlZFJlZnJlc2hUb2tlbixcbiAgICAgIHRva2VuRXhwaXJ5VGltZXN0YW1wLFxuICAgIH0pO1xuXG4gICAgcmV0dXJuIHJlcy5zdGF0dXMoMjAwKS5zZW5kKCdPdXRsb29rIGFjY291bnQgY29ubmVjdGVkIHN1Y2Nlc3NmdWxseSEnKTtcbiAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICBjb25zb2xlLmVycm9yKCdFcnJvciBoYW5kbGluZyBPdXRsb29rIGF1dGggY2FsbGJhY2s6JywgZXJyb3IpO1xuICAgIHJldHVybiByZXMuc3RhdHVzKDUwMCkuc2VuZCgnRXJyb3IgY29ubmVjdGluZyBPdXRsb29rIGFjY291bnQuJyk7XG4gIH1cbn07XG5cbmV4cG9ydCBkZWZhdWx0IGhhbmRsZXI7XG4iXX0=

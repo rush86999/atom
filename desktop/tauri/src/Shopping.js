@@ -1,0 +1,8 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const jsx_runtime_1 = require("react/jsx-runtime");
+const Shopping = () => {
+    return ((0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("h1", { children: "Shopping" }), (0, jsx_runtime_1.jsx)("p", { children: "This is the shopping page." }), (0, jsx_runtime_1.jsx)("input", { type: "text", placeholder: "Search for products" }), (0, jsx_runtime_1.jsx)("button", { children: "Search" }), (0, jsx_runtime_1.jsxs)("div", { children: [(0, jsx_runtime_1.jsx)("h2", { children: "Results" }), (0, jsx_runtime_1.jsx)("p", { children: "Product results will appear here." })] })] }));
+};
+exports.default = Shopping;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiU2hvcHBpbmcuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJTaG9wcGluZy50c3giXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBRUEsTUFBTSxRQUFRLEdBQUcsR0FBRyxFQUFFO0lBQ3BCLE9BQU8sQ0FDTCw0Q0FDRSxzREFBaUIsRUFDakIsdUVBQWlDLEVBQ2pDLGtDQUFPLElBQUksRUFBQyxNQUFNLEVBQUMsV0FBVyxFQUFDLHFCQUFxQixHQUFHLEVBQ3ZELHdEQUF1QixFQUN2Qiw0Q0FDRSxxREFBZ0IsRUFDaEIsOEVBQXdDLElBQ3BDLElBQ0YsQ0FDUCxDQUFDO0FBQ0osQ0FBQyxDQUFDO0FBRUYsa0JBQWUsUUFBUSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IFJlYWN0IGZyb20gXCJyZWFjdFwiO1xuXG5jb25zdCBTaG9wcGluZyA9ICgpID0+IHtcbiAgcmV0dXJuIChcbiAgICA8ZGl2PlxuICAgICAgPGgxPlNob3BwaW5nPC9oMT5cbiAgICAgIDxwPlRoaXMgaXMgdGhlIHNob3BwaW5nIHBhZ2UuPC9wPlxuICAgICAgPGlucHV0IHR5cGU9XCJ0ZXh0XCIgcGxhY2Vob2xkZXI9XCJTZWFyY2ggZm9yIHByb2R1Y3RzXCIgLz5cbiAgICAgIDxidXR0b24+U2VhcmNoPC9idXR0b24+XG4gICAgICA8ZGl2PlxuICAgICAgICA8aDI+UmVzdWx0czwvaDI+XG4gICAgICAgIDxwPlByb2R1Y3QgcmVzdWx0cyB3aWxsIGFwcGVhciBoZXJlLjwvcD5cbiAgICAgIDwvZGl2PlxuICAgIDwvZGl2PlxuICApO1xufTtcblxuZXhwb3J0IGRlZmF1bHQgU2hvcHBpbmc7XG4iXX0=

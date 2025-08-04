@@ -33,7 +33,7 @@ import {
   zoomPassKey,
   zoomResourceName,
   zoomSaltForPass,
-} from "@post_process_calendar/_libs/constants";
+} from '@post_process_calendar/_libs/constants';
 import {
   BufferTimeNumberType,
   EventPlusType,
@@ -90,26 +90,26 @@ import {
   CreateGoogleEventResponseType,
   CreateZoomMeetingRequestBodyType,
   AttendeeType,
-} from "@post_process_calendar/_libs/types";
-import got from "got";
-import { v4 as uuid } from "uuid";
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import isBetween from "dayjs/plugin/isBetween";
-import timezone from "dayjs/plugin/timezone";
-import utc from "dayjs/plugin/utc";
-import _ from "lodash";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { Client } from "@opensearch-project/opensearch";
-import AWS from "aws-sdk";
-import { getISODay, setISODay } from "date-fns";
-import { Configuration, OpenAIApi } from "openai";
-import { Readable } from "stream";
-import { google } from "googleapis";
-import axios from "axios";
-import { URLSearchParams } from "node:url";
-import crypto from "crypto";
-import { bucketName } from "@/gpt/_libs/constants";
+} from '@post_process_calendar/_libs/types';
+import got from 'got';
+import { v4 as uuid } from 'uuid';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import isBetween from 'dayjs/plugin/isBetween';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import _ from 'lodash';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Client } from '@opensearch-project/opensearch';
+import AWS from 'aws-sdk';
+import { getISODay, setISODay } from 'date-fns';
+import { Configuration, OpenAIApi } from 'openai';
+import { Readable } from 'stream';
+import { google } from 'googleapis';
+import axios from 'axios';
+import { URLSearchParams } from 'node:url';
+import crypto from 'crypto';
+import { bucketName } from '@/gpt/_libs/constants';
 
 dayjs.extend(duration);
 dayjs.extend(isBetween);
@@ -134,9 +134,9 @@ defaultOpenAIAPIKey = apiKey;
 export async function streamToString(stream: Readable): Promise<string> {
   return await new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
-    stream.on("data", (chunk) => chunks.push(chunk));
-    stream.on("error", reject);
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
   });
 }
 
@@ -150,12 +150,12 @@ export const getSearchClient = async () => {
       },
     });
   } catch (e) {
-    console.log(e, " unable to get search client");
+    console.log(e, ' unable to get search client');
   }
 };
 export const searchData3 = async (
   userId: string,
-  searchVector: number[],
+  searchVector: number[]
 ): Promise<esResponseBody> => {
   try {
     const client = await getSearchClient();
@@ -175,12 +175,12 @@ export const searchData3 = async (
               },
             },
             script: {
-              lang: "knn",
-              source: "knn_score",
+              lang: 'knn',
+              source: 'knn_score',
               params: {
                 field: eventVectorName,
                 query_value: searchVector,
-                space_type: "cosinesimil",
+                space_type: 'cosinesimil',
               },
             },
           },
@@ -188,33 +188,33 @@ export const searchData3 = async (
         min_score: 1.2,
       },
     });
-    console.log(response, " search data in search engine");
+    console.log(response, ' search data in search engine');
     return response.body;
   } catch (e) {
-    console.log(e, " unable to search data");
+    console.log(e, ' unable to search data');
   }
 };
 
 export const convertEventToVectorSpace2 = async (
-  event: EventType,
+  event: EventType
 ): Promise<number[]> => {
   try {
     if (!event) {
-      throw new Error("no event provided to convertEventToVectorSpace2");
+      throw new Error('no event provided to convertEventToVectorSpace2');
     }
     const { summary, notes } = event;
-    const text = `${summary}${notes ? `: ${notes}` : ""}`;
+    const text = `${summary}${notes ? `: ${notes}` : ''}`;
 
-    if (!text || text.trim() === ":") {
+    if (!text || text.trim() === ':') {
       // Handle cases where summary and notes might be empty or just ":"
       console.log(
-        "Empty or invalid text for embedding, returning null or empty array.",
+        'Empty or invalid text for embedding, returning null or empty array.'
       );
       return []; // Or handle as per existing error patterns if any
     }
 
     const embeddingRequest: OpenAI.Embeddings.EmbeddingCreateParams = {
-      model: "text-embedding-ada-002",
+      model: 'text-embedding-ada-002',
       input: text,
     };
     const res = await openai.embeddings.create(embeddingRequest);
@@ -223,21 +223,21 @@ export const convertEventToVectorSpace2 = async (
     console.log(
       vector
         ? `Vector generated with length: ${vector.length}`
-        : "No vector generated",
-      " vector inside convertEventToVectorSpace2",
+        : 'No vector generated',
+      ' vector inside convertEventToVectorSpace2'
     );
     return vector;
   } catch (e) {
-    console.error(e, " unable to convertEventToVectorSpace using OpenAI");
+    console.error(e, ' unable to convertEventToVectorSpace using OpenAI');
     // Consider re-throwing or returning a specific error/value based on how callers handle it
     throw e;
   }
 };
 export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (
-  meetingId: string,
+  meetingId: string
 ) => {
   try {
-    const operationName = "ListMeetingAssistPrefereredTimeRangesByMeetingId";
+    const operationName = 'ListMeetingAssistPrefereredTimeRangesByMeetingId';
     const query = `
             query ListMeetingAssistPrefereredTimeRangesByMeetingId($meetingId: uuid!) {
                 Meeting_Assist_Preferred_Time_Range(where: {meetingId: {_eq: $meetingId}}) {
@@ -266,9 +266,9 @@ export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -278,19 +278,19 @@ export const listMeetingAssistPreferredTimeRangesGivenMeetingId = async (
       })
       .json();
 
-    console.log(res, " res from listMeetingAssistAttendees ");
+    console.log(res, ' res from listMeetingAssistAttendees ');
 
     return res?.data?.Meeting_Assist_Preferred_Time_Range;
   } catch (e) {
-    console.log(e, " uanble to list meeting assist preferred time ranges");
+    console.log(e, ' uanble to list meeting assist preferred time ranges');
   }
 };
 
 export const listMeetingAssistAttendeesGivenMeetingId = async (
-  meetingId: string,
+  meetingId: string
 ) => {
   try {
-    const operationName = "ListMeetingAssistAttendeesByMeetingId";
+    const operationName = 'ListMeetingAssistAttendeesByMeetingId';
     const query = `
             query ListMeetingAssistAttendeesByMeetingId($meetingId: uuid!) {
                 Meeting_Assist_Attendee(where: {meetingId: {_eq: $meetingId}}) {
@@ -321,9 +321,9 @@ export const listMeetingAssistAttendeesGivenMeetingId = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -333,17 +333,17 @@ export const listMeetingAssistAttendeesGivenMeetingId = async (
       })
       .json();
 
-    console.log(res, " res from listMeetingAssistAttendees ");
+    console.log(res, ' res from listMeetingAssistAttendees ');
 
     return res?.data?.Meeting_Assist_Attendee;
   } catch (e) {
-    console.log(e, " unable to list meeting assist attendees");
+    console.log(e, ' unable to list meeting assist attendees');
   }
 };
 
 export const getMeetingAssistAttendee = async (id: string) => {
   try {
-    const operationName = "GetMeetingAssistAttendeeById";
+    const operationName = 'GetMeetingAssistAttendeeById';
     const query = `
             query GetMeetingAssistAttendeeById($id: String!) {
                 Meeting_Assist_Attendee_by_pk(id: $id) {
@@ -374,9 +374,9 @@ export const getMeetingAssistAttendee = async (id: string) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -386,17 +386,17 @@ export const getMeetingAssistAttendee = async (id: string) => {
       })
       .json();
 
-    console.log(res, " res from getMeetingAssistAttendee");
+    console.log(res, ' res from getMeetingAssistAttendee');
 
     return res?.data?.Meeting_Assist_Attendee_by_pk;
   } catch (e) {
-    console.log(e, " unable to get meeting assist attendee");
+    console.log(e, ' unable to get meeting assist attendee');
   }
 };
 
 export const getMeetingAssist = async (id: string) => {
   try {
-    const operationName = "GetMeetingAssistById";
+    const operationName = 'GetMeetingAssistById';
     const query = `
             query GetMeetingAssistById($id: uuid!) {
                 Meeting_Assist_by_pk(id: $id) {
@@ -452,9 +452,9 @@ export const getMeetingAssist = async (id: string) => {
     const res: { data: { Meeting_Assist_by_pk: MeetingAssistType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -464,11 +464,11 @@ export const getMeetingAssist = async (id: string) => {
       })
       .json();
 
-    console.log(res, " res from getMeetingAssist");
+    console.log(res, ' res from getMeetingAssist');
 
     return res?.data?.Meeting_Assist_by_pk;
   } catch (e) {
-    console.log(e, " unable to get meeting assist from id");
+    console.log(e, ' unable to get meeting assist from id');
   }
 };
 
@@ -477,10 +477,10 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
   hostStartDate: string,
   hostEndDate: string,
   userTimezone: string,
-  hostTimezone: string,
+  hostTimezone: string
 ) => {
   try {
-    const operationName = "ListMeetingAssistEventsForAttendeeGivenDates";
+    const operationName = 'ListMeetingAssistEventsForAttendeeGivenDates';
     const query = `
             query ListMeetingAssistEventsForAttendeeGivenDates($attendeeId: String!, $startDate: timestamp!, $endDate: timestamp!) {
                 Meeting_Assist_Event(where: {attendeeId: {_eq: $attendeeId}, endDate: {_gte: $startDate}, startDate: {_lte: $endDate}}) {
@@ -529,11 +529,11 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
 
     const startDateInHostTimezone = dayjs(hostStartDate.slice(0, 19)).tz(
       hostTimezone,
-      true,
+      true
     );
     const endDateInHostTimezone = dayjs(hostEndDate.slice(0, 19)).tz(
       hostTimezone,
-      true,
+      true
     );
     const startDateInUserTimezone = dayjs(startDateInHostTimezone)
       .tz(userTimezone)
@@ -548,9 +548,9 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "Content-Type": "application/json",
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'Content-Type': 'application/json',
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -564,12 +564,12 @@ export const listMeetingAssistEventsForAttendeeGivenDates = async (
         })
         .json();
 
-    console.log(res, " res from listMeetingAssistEventsForAttendeeGivenDates");
+    console.log(res, ' res from listMeetingAssistEventsForAttendeeGivenDates');
     return res?.data?.Meeting_Assist_Event;
   } catch (e) {
     console.log(
       e,
-      " unable to list meeting assist events for attendee given dates",
+      ' unable to list meeting assist events for attendee given dates'
     );
   }
 };
@@ -578,10 +578,10 @@ export const listEventsForDate = async (
   userId: string,
   startDate: string,
   endDate: string,
-  timezone: string,
+  timezone: string
 ) => {
   try {
-    const operationName = "listEventsForDate";
+    const operationName = 'listEventsForDate';
     const query = `
         query listEventsForDate($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
           Event(where: {userId: {_eq: $userId}, endDate: {_gte: $startDate, _lt: $endDate}, deleted: {_eq: false}}) {
@@ -704,9 +704,9 @@ export const listEventsForDate = async (
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -722,17 +722,17 @@ export const listEventsForDate = async (
       })
       .json();
 
-    console.log(res, " res from listEventsforUser");
+    console.log(res, ' res from listEventsforUser');
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " unable to list events for date");
+    console.log(e, ' unable to list events for date');
   }
 };
 
 export const processMeetingAssistForOptaplanner = async () => {
   try {
   } catch (e) {
-    console.log(e, " unable to process meeting assist for optaplanner");
+    console.log(e, ' unable to process meeting assist for optaplanner');
   }
 };
 
@@ -741,7 +741,7 @@ export const generateNewMeetingEventForAttendee = (
   meetingAssist: MeetingAssistType,
   windowStartDate: string,
   hostTimezone: string,
-  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType,
+  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType
 ): EventType => {
   let startDate = dayjs(windowStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -769,12 +769,12 @@ export const generateNewMeetingEventForAttendee = (
 
   const newEvent: EventType = {
     id: `${eventId}#${meetingAssist.calendarId}`,
-    method: "create",
+    method: 'create',
     title: meetingAssist.summary,
     startDate,
     endDate: dayjs(startDate)
       .tz(hostTimezone)
-      .add(meetingAssist.duration, "m")
+      .add(meetingAssist.duration, 'm')
       .format(),
     allDay: false,
     notes: meetingAssist.notes,
@@ -787,7 +787,7 @@ export const generateNewMeetingEventForAttendee = (
     isPostEvent: false,
     modifiable: true,
     sendUpdates: meetingAssist?.sendUpdates,
-    status: "confirmed",
+    status: 'confirmed',
     summary: meetingAssist.summary,
     transparency: meetingAssist?.transparency,
     visibility: meetingAssist?.visibility,
@@ -820,7 +820,7 @@ export const generateNewMeetingEventForHost = (
   meetingAssist: MeetingAssistType,
   windowStartDate: string,
   hostTimezone: string,
-  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType,
+  preferredStartTimeRange?: MeetingAssistPreferredTimeRangeType
 ): EventType => {
   let startDate = dayjs(windowStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -848,12 +848,12 @@ export const generateNewMeetingEventForHost = (
 
   const newEvent: EventType = {
     id: `${eventId}#${meetingAssist?.calendarId}`,
-    method: "create",
+    method: 'create',
     title: meetingAssist.summary,
     startDate,
     endDate: dayjs(startDate)
       .tz(hostTimezone)
-      .add(meetingAssist.duration, "m")
+      .add(meetingAssist.duration, 'm')
       .format(),
     allDay: false,
     notes: meetingAssist.notes,
@@ -866,7 +866,7 @@ export const generateNewMeetingEventForHost = (
     isPostEvent: false,
     modifiable: true,
     sendUpdates: meetingAssist?.sendUpdates,
-    status: "confirmed",
+    status: 'confirmed',
     summary: meetingAssist.summary,
     transparency: meetingAssist?.transparency,
     visibility: meetingAssist?.visibility,
@@ -899,10 +899,10 @@ export const listPreferredTimeRangesForEvent = async (eventId: string) => {
     if (!eventId) {
       console.log(
         eventId,
-        " no eventId inside listPreferredTimeRangesForEvent",
+        ' no eventId inside listPreferredTimeRangesForEvent'
       );
     }
-    const operationName = "ListPreferredTimeRangesGivenEventId";
+    const operationName = 'ListPreferredTimeRangesGivenEventId';
     const query = `
       query ListPreferredTimeRangesGivenEventId($eventId: String!) {
         PreferredTimeRange(where: {eventId: {_eq: $eventId}}) {
@@ -925,8 +925,8 @@ export const listPreferredTimeRangesForEvent = async (eventId: string) => {
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -936,17 +936,17 @@ export const listPreferredTimeRangesForEvent = async (eventId: string) => {
         })
         .json();
 
-    console.log(res, " res inside  listPreferredTimeRangesForEvent");
+    console.log(res, ' res inside  listPreferredTimeRangesForEvent');
     res?.data?.PreferredTimeRange?.map((pt) =>
       console.log(
         pt,
-        " preferredTimeRange - res?.data?.PreferredTimeRange inside  listPreferredTimeRangesForEvent ",
-      ),
+        ' preferredTimeRange - res?.data?.PreferredTimeRange inside  listPreferredTimeRangesForEvent '
+      )
     );
 
     return res?.data?.PreferredTimeRange;
   } catch (e) {
-    console.log(e, " unable to list preferred time ranges for event");
+    console.log(e, ' unable to list preferred time ranges for event');
   }
 };
 
@@ -955,7 +955,7 @@ export const createRemindersFromMinutesAndEvent = (
   minutes: number[],
   timezone: string,
   useDefault: boolean,
-  userId: string,
+  userId: string
 ): RemindersForEventType => {
   return {
     eventId,
@@ -975,7 +975,7 @@ export const createRemindersFromMinutesAndEvent = (
 
 export const createBufferTimeForNewMeetingEvent = (
   event: EventMeetingPlusType,
-  bufferTime: BufferTimeNumberType,
+  bufferTime: BufferTimeNumberType
 ) => {
   let valuesToReturn: any = {};
   valuesToReturn.newEvent = event;
@@ -989,16 +989,16 @@ export const createBufferTimeForNewMeetingEvent = (
       id: preEventId,
       isPreEvent: true,
       forEventId: event.id,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: dayjs(event.startDate.slice(0, 19))
         .tz(event.timezone, true)
-        .subtract(bufferTime.beforeEvent, "m")
+        .subtract(bufferTime.beforeEvent, 'm')
         .format(),
       endDate: dayjs(event.startDate.slice(0, 19))
         .tz(event.timezone, true)
         .format(),
-      method: "create",
+      method: 'create',
       userId: event.userId,
       createdDate: dayjs().format(),
       deleted: false,
@@ -1014,7 +1014,7 @@ export const createBufferTimeForNewMeetingEvent = (
       timezone: event?.timezone,
       isFollowUp: false,
       isPostEvent: false,
-      eventId: preEventId.split("#")[0],
+      eventId: preEventId.split('#')[0],
     };
 
     valuesToReturn.beforeEvent = beforeEventOrEmpty;
@@ -1034,16 +1034,16 @@ export const createBufferTimeForNewMeetingEvent = (
       isPreEvent: false,
       forEventId: event.id,
       isPostEvent: true,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: dayjs(event.endDate.slice(0, 19))
         .tz(event.timezone, true)
         .format(),
       endDate: dayjs(event.endDate.slice(0, 19))
         .tz(event.timezone, true)
-        .add(bufferTime.afterEvent, "m")
+        .add(bufferTime.afterEvent, 'm')
         .format(),
-      method: "create",
+      method: 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -1058,7 +1058,7 @@ export const createBufferTimeForNewMeetingEvent = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: postEventId.split("#")[0],
+      eventId: postEventId.split('#')[0],
     };
 
     valuesToReturn.afterEvent = afterEventOrEmpty;
@@ -1076,14 +1076,14 @@ export const createBufferTimeForNewMeetingEvent = (
 };
 
 export const getUserPreferences = async (
-  userId: string,
+  userId: string
 ): Promise<UserPreferenceType> => {
   try {
     if (!userId) {
-      console.log("userId is null");
+      console.log('userId is null');
       return null;
     }
-    const operationName = "getUserPreferences";
+    const operationName = 'getUserPreferences';
     const query = `
     query getUserPreferences($userId: uuid!) {
       User_Preference(where: {userId: {_eq: $userId}}) {
@@ -1122,9 +1122,9 @@ export const getUserPreferences = async (
     const res: { data: { User_Preference: UserPreferenceType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1137,13 +1137,13 @@ export const getUserPreferences = async (
       .json();
     return res?.data?.User_Preference?.[0];
   } catch (e) {
-    console.log(e, " getUserPreferences");
+    console.log(e, ' getUserPreferences');
   }
 };
 
 export const getGlobalCalendar = async (userId: string) => {
   try {
-    const operationName = "getGlobalCalendar";
+    const operationName = 'getGlobalCalendar';
     const query = `
         query getGlobalCalendar($userId: uuid!) {
           Calendar(where: {globalPrimary: {_eq: true}, userId: {_eq: $userId}}) {
@@ -1169,9 +1169,9 @@ export const getGlobalCalendar = async (userId: string) => {
     const res: { data: { Calendar: CalendarType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1185,7 +1185,7 @@ export const getGlobalCalendar = async (userId: string) => {
 
     return res.data.Calendar?.[0];
   } catch (e) {
-    console.log(e, " unable to get global calendar");
+    console.log(e, ' unable to get global calendar');
   }
 };
 
@@ -1193,17 +1193,17 @@ export const adjustStartDatesForBreakEventsForDay = (
   allEvents: EventPlusType[],
   breakEvents: EventPlusType[],
   userPreference: UserPreferenceType,
-  timezone: string,
+  timezone: string
 ): EventPlusType[] => {
   if (!allEvents?.[0]?.id) {
-    console.log("no allEvents inside adjustStartDatesForBreakEvents");
+    console.log('no allEvents inside adjustStartDatesForBreakEvents');
     return;
   }
 
   const startTimes = userPreference.startTimes;
   const endTimes = userPreference.endTimes;
   const dayOfWeekInt = getISODay(
-    dayjs(allEvents?.[0]?.startDate.slice(0, 19)).tz(timezone, true).toDate(),
+    dayjs(allEvents?.[0]?.startDate.slice(0, 19)).tz(timezone, true).toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -1228,12 +1228,12 @@ export const adjustStartDatesForBreakEventsForDay = (
       let index = 0;
       while (!foundSpace && index < filteredEvents.length) {
         const possibleEndDate = dayjs(
-          filteredEvents[index].startDate.slice(0, 19),
+          filteredEvents[index].startDate.slice(0, 19)
         ).tz(timezone, true);
 
         const possibleStartDate = dayjs(possibleEndDate.format().slice(0, 19))
           .tz(timezone, true)
-          .subtract(userPreference.breakLength, "minute");
+          .subtract(userPreference.breakLength, 'minute');
         let isBetweenStart = true;
         let isBetweenEnd = true;
         let betweenIndex = 0;
@@ -1254,56 +1254,56 @@ export const adjustStartDatesForBreakEventsForDay = (
           isBetweenStart = possibleStartDate.isBetween(
             dayjs(filteredEvents[betweenIndex].startDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
             dayjs(filteredEvents[betweenIndex].endDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           );
 
           isBetweenEnd = possibleEndDate.isBetween(
             dayjs(filteredEvents[betweenIndex].startDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
             dayjs(filteredEvents[betweenIndex].endDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
-            "minute",
-            "(]",
+            'minute',
+            '(]'
           );
 
           betweenWorkingDayStart = possibleStartDate.isBetween(
             startOfWorkingDay,
             endOfWorkingDay,
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           );
 
           betweenWorkingDayEnd = possibleEndDate.isBetween(
             startOfWorkingDay,
             endOfWorkingDay,
-            "minute",
-            "(]",
+            'minute',
+            '(]'
           );
 
           for (const breakEvent of breakEvents) {
             isBetweenBreakStart = possibleStartDate.isBetween(
               dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
               dayjs(breakEvent.endDate.slice(0, 19)).tz(timezone, true),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             );
 
             isBetweenBreakEnd = possibleEndDate.isBetween(
               dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
               dayjs(breakEvent.endDate.slice(0, 19)).tz(timezone, true),
-              "minute",
-              "(]",
+              'minute',
+              '(]'
             );
           }
 
@@ -1337,12 +1337,12 @@ export const adjustStartDatesForBreakEventsForDay = (
 export const convertToTotalWorkingHoursForInternalAttendee = (
   userPreference: UserPreferenceType,
   hostStartDate: string,
-  hostTimezone: string,
+  hostTimezone: string
 ) => {
   const startTimes = userPreference.startTimes;
   const endTimes = userPreference.endTimes;
   const dayOfWeekInt = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -1362,10 +1362,10 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
   attendeeEvents: EventPlusType[],
   hostStartDate: string,
   hostTimezone: string,
-  userTimezone: string,
+  userTimezone: string
 ) => {
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const sameDayEvents = attendeeEvents.filter(
     (e) =>
@@ -1373,20 +1373,20 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
         dayjs(e.startDate.slice(0, 19))
           .tz(e.timezone || userTimezone, true)
           .tz(hostTimezone)
-          .toDate(),
-      ) === dayOfWeekIntByHost,
+          .toDate()
+      ) === dayOfWeekIntByHost
   );
   const minStartDate = _.minBy(sameDayEvents, (e) =>
     dayjs(e.startDate.slice(0, 19))
       .tz(e.timezone || userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
   const maxEndDate = _.maxBy(sameDayEvents, (e) =>
     dayjs(e.endDate.slice(0, 19))
       .tz(e.timezone || userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
 
   let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -1405,8 +1405,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
         .tz(maxEndDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(15),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 15
     : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -1421,8 +1421,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
               .tz(maxEndDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(30),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 30
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -1437,8 +1437,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
                 .tz(maxEndDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(45),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 45
         : 0;
@@ -1464,8 +1464,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
         .tz(minStartDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(15),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 0
     : dayjs(minStartDate.startDate.slice(0, 19))
@@ -1480,8 +1480,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
               .tz(minStartDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(30),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 15
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -1496,8 +1496,8 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
                 .tz(minStartDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(45),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 45;
@@ -1506,7 +1506,7 @@ export const convertToTotalWorkingHoursForExternalAttendee = (
     workStartHourByHost,
     workStartMinuteByHost,
     workEndHourByHost,
-    " workStartHourByHost, workStartMinuteByHost, workEndHourByHost for total working hours",
+    ' workStartHourByHost, workStartMinuteByHost, workEndHourByHost for total working hours'
   );
   const startDuration = dayjs.duration({
     hours: workStartHourByHost,
@@ -1524,30 +1524,30 @@ export const generateBreaks = (
   userPreferences: UserPreferenceType,
   numberOfBreaksToGenerate: number,
   eventMirror: EventPlusType,
-  globalCalendarId?: string,
+  globalCalendarId?: string
 ): EventPlusType[] => {
   const breaks = [];
   if (!userPreferences?.breakLength) {
     console.log(
-      "no user preferences breakLength provided inside generateBreaks",
+      'no user preferences breakLength provided inside generateBreaks'
     );
     return breaks;
   }
 
   if (!numberOfBreaksToGenerate) {
     console.log(
-      "no number of breaks to generate provided inside generateBreaks",
+      'no number of breaks to generate provided inside generateBreaks'
     );
     return breaks;
   }
 
   if (!eventMirror) {
-    console.log("no event mirror provided inside generateBreaks");
+    console.log('no event mirror provided inside generateBreaks');
     return breaks;
   }
   console.log(
     numberOfBreaksToGenerate,
-    " numberOfBreaksToGenerate inside generateBreaks",
+    ' numberOfBreaksToGenerate inside generateBreaks'
   );
 
   const breakLength =
@@ -1558,16 +1558,16 @@ export const generateBreaks = (
     const breakEvent: EventPlusType = {
       id: `${eventId}#${globalCalendarId || eventMirror.calendarId}`,
       userId: userPreferences.userId,
-      title: "Break",
+      title: 'Break',
       startDate: dayjs(eventMirror.startDate.slice(0, 19))
         .tz(eventMirror.timezone, true)
         .format(),
       endDate: dayjs(eventMirror.startDate.slice(0, 19))
         .tz(eventMirror.timezone, true)
-        .add(breakLength, "minute")
+        .add(breakLength, 'minute')
         .format(),
       allDay: false,
-      notes: "Break",
+      notes: 'Break',
       timezone: eventMirror.timezone,
       createdDate: dayjs().toISOString(),
       updatedAt: dayjs().toISOString(),
@@ -1582,13 +1582,13 @@ export const generateBreaks = (
       originalStartDate: undefined,
       originalAllDay: false,
       calendarId: globalCalendarId || eventMirror.calendarId,
-      backgroundColor: userPreferences.breakColor || "#F7EBF7",
+      backgroundColor: userPreferences.breakColor || '#F7EBF7',
       isBreak: true,
       duration: breakLength,
       userModifiedDuration: true,
       userModifiedColor: true,
       isPostEvent: false,
-      method: "create",
+      method: 'create',
       eventId,
     };
     breaks.push(breakEvent);
@@ -1600,17 +1600,17 @@ export const generateBreaks = (
 export const shouldGenerateBreakEventsForDay = (
   workingHours: number,
   userPreferences: UserPreferenceType,
-  allEvents: EventPlusType[],
+  allEvents: EventPlusType[]
 ) => {
   if (!userPreferences?.breakLength) {
     console.log(
-      "no user preferences breakLength provided inside shouldGenerateBreakEvents",
+      'no user preferences breakLength provided inside shouldGenerateBreakEvents'
     );
     return false;
   }
 
   if (!(allEvents?.length > 0)) {
-    console.log("no allEvents present inside shouldGenerateBreakEventsForDay");
+    console.log('no allEvents present inside shouldGenerateBreakEventsForDay');
     return false;
   }
 
@@ -1626,25 +1626,23 @@ export const shouldGenerateBreakEventsForDay = (
     const duration = dayjs
       .duration(
         dayjs(
-          dayjs(breakEvent.endDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
+          dayjs(breakEvent.endDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
         ).diff(
-          dayjs(breakEvent.startDate.slice(0, 19)).format(
-            "YYYY-MM-DDTHH:mm:ss",
-          ),
-        ),
+          dayjs(breakEvent.startDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
+        )
       )
       .asHours();
     breakHoursUsed += duration;
   }
 
   if (breakHoursUsed >= breakHoursAvailable) {
-    console.log("breakHoursUsed >= breakHoursAvailable");
+    console.log('breakHoursUsed >= breakHoursAvailable');
     return false;
   }
 
   if (!(allEvents?.length > 0)) {
     console.log(
-      "there are no events for this date inside shouldGenerateBreakEvents",
+      'there are no events for this date inside shouldGenerateBreakEvents'
     );
     return false;
   }
@@ -1653,17 +1651,17 @@ export const shouldGenerateBreakEventsForDay = (
     const duration = dayjs
       .duration(
         dayjs(
-          dayjs(event.endDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
+          dayjs(event.endDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
         ).diff(
-          dayjs(event.startDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
-        ),
+          dayjs(event.startDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
+        )
       )
       .asHours();
     hoursUsed += duration;
   }
 
   if (hoursUsed >= workingHours) {
-    console.log("hoursUsed >= workingHours");
+    console.log('hoursUsed >= workingHours');
     return false;
   }
 
@@ -1676,35 +1674,35 @@ export const generateBreakEventsForDay = async (
   hostStartDate: string,
   hostTimezone: string,
   globalCalendarId?: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ) => {
   try {
     if (!userPreferences?.breakLength) {
       console.log(
-        "no user preferences breakLength provided inside shouldGenerateBreakEvents",
+        'no user preferences breakLength provided inside shouldGenerateBreakEvents'
       );
       return null;
     }
 
     if (!userId) {
-      console.log("no userId provided inside shouldGenerateBreakEvents");
+      console.log('no userId provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (!hostStartDate) {
-      console.log("no startDate provided inside shouldGenerateBreakEvents");
+      console.log('no startDate provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (!hostTimezone) {
-      console.log("no timezone provided inside shouldGenerateBreakEvents");
+      console.log('no timezone provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (isFirstDay) {
       const endTimes = userPreferences.endTimes;
       const dayOfWeekInt = getISODay(
-        dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+        dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
       );
 
       let startHourByHost = dayjs(hostStartDate.slice(0, 19))
@@ -1719,12 +1717,12 @@ export const generateBreakEventsForDay = async (
       const startTimes = userPreferences.startTimes;
       const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
       const workStartMinute = startTimes.find(
-        (i) => i.day === dayOfWeekInt,
+        (i) => i.day === dayOfWeekInt
       ).minutes;
 
       if (
         dayjs(hostStartDate.slice(0, 19)).isAfter(
-          dayjs(hostStartDate.slice(0, 19)).hour(endHour).minute(endMinute),
+          dayjs(hostStartDate.slice(0, 19)).hour(endHour).minute(endMinute)
         )
       ) {
         return null;
@@ -1737,7 +1735,7 @@ export const generateBreakEventsForDay = async (
             dayjs(hostStartDate.slice(0, 19))
               .tz(hostTimezone, true)
               .hour(workStartHour)
-              .minute(workStartMinute),
+              .minute(workStartMinute)
           )
       ) {
         startHourByHost = workStartHour;
@@ -1747,7 +1745,7 @@ export const generateBreakEventsForDay = async (
       const workingHours = convertToTotalWorkingHoursForInternalAttendee(
         userPreferences,
         hostStartDate,
-        hostTimezone,
+        hostTimezone
       );
       const allEvents = await listEventsForDate(
         userId,
@@ -1761,21 +1759,21 @@ export const generateBreakEventsForDay = async (
           .hour(endHour)
           .minute(endMinute)
           .format(),
-        hostTimezone,
+        hostTimezone
       );
       if (!(allEvents?.length > 0)) {
         console.log(
-          "no allEvents present inside shouldGenerateBreakEventsForDay",
+          'no allEvents present inside shouldGenerateBreakEventsForDay'
         );
         return null;
       }
       const shouldGenerateBreaks = shouldGenerateBreakEventsForDay(
         workingHours,
         userPreferences,
-        allEvents,
+        allEvents
       );
       if (!shouldGenerateBreaks) {
-        console.log("should not generate breaks");
+        console.log('should not generate breaks');
         return null;
       }
 
@@ -1788,8 +1786,8 @@ export const generateBreakEventsForDay = async (
               dayjs(allEvent.endDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .diff(
-                  dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true),
-                ),
+                  dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true)
+                )
             )
             .asHours();
           hoursUsed += duration;
@@ -1799,7 +1797,7 @@ export const generateBreakEventsForDay = async (
       let hoursAvailable = workingHours - hoursUsed;
       hoursAvailable -= workingHours * userPreferences.maxWorkLoadPercent;
       if (hoursAvailable <= 0) {
-        console.log(hoursAvailable, " no hours available");
+        console.log(hoursAvailable, ' no hours available');
         return null;
       }
 
@@ -1810,14 +1808,14 @@ export const generateBreakEventsForDay = async (
             .tz(hostTimezone, true)
             .isSame(
               dayjs(e.startDate.slice(0, 19)).tz(hostTimezone, true),
-              "day",
-            ),
+              'day'
+            )
         );
 
       const breakEvents = oldBreakEvents;
 
       const numberOfBreaksPerDay = userPreferences.minNumberOfBreaks;
-      console.log(numberOfBreaksPerDay, " numberOfBreaksPerDay");
+      console.log(numberOfBreaksPerDay, ' numberOfBreaksPerDay');
       const breakHoursToGenerate =
         (userPreferences.breakLength / 60) * numberOfBreaksPerDay;
       let breakHoursUsed = 0;
@@ -1831,9 +1829,9 @@ export const generateBreakEventsForDay = async (
                 .diff(
                   dayjs(breakEvent.startDate.slice(0, 19)).tz(
                     hostTimezone,
-                    true,
-                  ),
-                ),
+                    true
+                  )
+                )
             )
             .asHours();
           breakHoursUsed += duration;
@@ -1843,21 +1841,21 @@ export const generateBreakEventsForDay = async (
       const actualBreakHoursToGenerate = breakHoursToGenerate - breakHoursUsed;
 
       if (actualBreakHoursToGenerate > hoursAvailable) {
-        console.log(" no hours available to generate break");
+        console.log(' no hours available to generate break');
         return null;
       }
 
-      console.log(breakHoursUsed, " breakHoursUsed");
-      console.log(breakHoursToGenerate, " breakHoursAvailable");
+      console.log(breakHoursUsed, ' breakHoursUsed');
+      console.log(breakHoursToGenerate, ' breakHoursAvailable');
       const breakLengthAsHours = userPreferences.breakLength / 60;
-      console.log(breakLengthAsHours, " breakLengthAsHours");
+      console.log(breakLengthAsHours, ' breakLengthAsHours');
       const numberOfBreaksToGenerate = Math.floor(
-        actualBreakHoursToGenerate / breakLengthAsHours,
+        actualBreakHoursToGenerate / breakLengthAsHours
       );
-      console.log(numberOfBreaksToGenerate, " numberOfBreaksToGenerate");
+      console.log(numberOfBreaksToGenerate, ' numberOfBreaksToGenerate');
 
       if (numberOfBreaksToGenerate < 1) {
-        console.log("should not generate breaks");
+        console.log('should not generate breaks');
         return null;
       }
 
@@ -1867,7 +1865,7 @@ export const generateBreakEventsForDay = async (
         userPreferences,
         numberOfBreaksToGenerate,
         eventMirror,
-        globalCalendarId,
+        globalCalendarId
       );
 
       return newEvents;
@@ -1875,7 +1873,7 @@ export const generateBreakEventsForDay = async (
 
     const endTimes = userPreferences.endTimes;
     const dayOfWeekInt = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
 
     const endHour = endTimes.find((i) => i.day === dayOfWeekInt).hour;
@@ -1888,7 +1886,7 @@ export const generateBreakEventsForDay = async (
     const workingHours = convertToTotalWorkingHoursForInternalAttendee(
       userPreferences,
       hostStartDate,
-      hostTimezone,
+      hostTimezone
     );
     const allEvents = await listEventsForDate(
       userId,
@@ -1902,21 +1900,21 @@ export const generateBreakEventsForDay = async (
         .hour(endHour)
         .minute(endMinute)
         .format(),
-      hostTimezone,
+      hostTimezone
     );
     if (!(allEvents?.length > 0)) {
       console.log(
-        "no allEvents present inside shouldGenerateBreakEventsForDay",
+        'no allEvents present inside shouldGenerateBreakEventsForDay'
       );
       return null;
     }
     const shouldGenerateBreaks = shouldGenerateBreakEventsForDay(
       workingHours,
       userPreferences,
-      allEvents,
+      allEvents
     );
     if (!shouldGenerateBreaks) {
-      console.log("should not generate breaks");
+      console.log('should not generate breaks');
       return null;
     }
 
@@ -1929,8 +1927,8 @@ export const generateBreakEventsForDay = async (
             dayjs(allEvent.endDate.slice(0, 19))
               .tz(hostTimezone, true)
               .diff(
-                dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true),
-              ),
+                dayjs(allEvent.startDate.slice(0, 19)).tz(hostTimezone, true)
+              )
           )
           .asHours();
         hoursUsed += duration;
@@ -1941,7 +1939,7 @@ export const generateBreakEventsForDay = async (
     hoursAvailable -= workingHours * userPreferences.maxWorkLoadPercent;
 
     if (hoursAvailable <= 0) {
-      console.log(hoursAvailable, " no hours available");
+      console.log(hoursAvailable, ' no hours available');
       return null;
     }
 
@@ -1950,16 +1948,13 @@ export const generateBreakEventsForDay = async (
       .filter((e) =>
         dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .isSame(
-            dayjs(e.startDate.slice(0, 19)).tz(hostTimezone, true),
-            "day",
-          ),
+          .isSame(dayjs(e.startDate.slice(0, 19)).tz(hostTimezone, true), 'day')
       );
 
     const breakEvents = oldBreakEvents;
 
     const numberOfBreaksPerDay = userPreferences.minNumberOfBreaks;
-    console.log(numberOfBreaksPerDay, " numberOfBreaksPerDay");
+    console.log(numberOfBreaksPerDay, ' numberOfBreaksPerDay');
     const breakHoursToGenerate =
       (userPreferences.breakLength / 60) * numberOfBreaksPerDay;
     let breakHoursUsed = 0;
@@ -1971,8 +1966,8 @@ export const generateBreakEventsForDay = async (
             dayjs(breakEvent.endDate.slice(0, 19))
               .tz(hostTimezone, true)
               .diff(
-                dayjs(breakEvent.startDate.slice(0, 19)).tz(hostTimezone, true),
-              ),
+                dayjs(breakEvent.startDate.slice(0, 19)).tz(hostTimezone, true)
+              )
           )
           .asHours();
         breakHoursUsed += duration;
@@ -1982,21 +1977,21 @@ export const generateBreakEventsForDay = async (
     const actualBreakHoursToGenerate = breakHoursToGenerate - breakHoursUsed;
 
     if (actualBreakHoursToGenerate > hoursAvailable) {
-      console.log(" no hours available to generate break");
+      console.log(' no hours available to generate break');
       return null;
     }
 
-    console.log(breakHoursUsed, " breakHoursUsed");
-    console.log(breakHoursToGenerate, " breakHoursAvailable");
+    console.log(breakHoursUsed, ' breakHoursUsed');
+    console.log(breakHoursToGenerate, ' breakHoursAvailable');
     const breakLengthAsHours = userPreferences.breakLength / 60;
-    console.log(breakLengthAsHours, " breakLengthAsHours");
+    console.log(breakLengthAsHours, ' breakLengthAsHours');
     const numberOfBreaksToGenerate = Math.floor(
-      actualBreakHoursToGenerate / breakLengthAsHours,
+      actualBreakHoursToGenerate / breakLengthAsHours
     );
-    console.log(numberOfBreaksToGenerate, " numberOfBreaksToGenerate");
+    console.log(numberOfBreaksToGenerate, ' numberOfBreaksToGenerate');
 
     if (numberOfBreaksToGenerate < 1) {
-      console.log("should not generate breaks");
+      console.log('should not generate breaks');
       return null;
     }
 
@@ -2006,12 +2001,12 @@ export const generateBreakEventsForDay = async (
       userPreferences,
       numberOfBreaksToGenerate,
       eventMirror,
-      globalCalendarId,
+      globalCalendarId
     );
 
     return newEvents;
   } catch (e) {
-    console.log(e, " unable to generate breaks for day");
+    console.log(e, ' unable to generate breaks for day');
   }
 };
 
@@ -2021,18 +2016,18 @@ export const generateBreakEventsForDate = async (
   hostStartDate: string,
   hostEndDate: string,
   hostTimezone: string,
-  globalCalendarId?: string,
+  globalCalendarId?: string
 ): Promise<EventPlusType[] | []> => {
   try {
     const totalBreakEvents = [];
     const totalDays = dayjs(hostEndDate.slice(0, 19))
       .tz(hostTimezone, true)
-      .diff(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true), "day");
-    console.log(totalDays, " totalDays inside generateBreakEventsForDate");
+      .diff(dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true), 'day');
+    console.log(totalDays, ' totalDays inside generateBreakEventsForDate');
     for (let i = 0; i < totalDays; i++) {
       const dayDate = dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
-        .add(i, "day")
+        .add(i, 'day')
         .format();
 
       const newBreakEvents = await generateBreakEventsForDay(
@@ -2041,13 +2036,13 @@ export const generateBreakEventsForDate = async (
         dayDate,
         hostTimezone,
         globalCalendarId,
-        i === 0,
+        i === 0
       );
 
       if (i === 0) {
         const endTimes = userPreferences.endTimes;
         const dayOfWeekInt = getISODay(
-          dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+          dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate()
         );
 
         let startHour = dayjs(dayDate.slice(0, 19))
@@ -2061,15 +2056,15 @@ export const generateBreakEventsForDate = async (
 
         const startTimes = userPreferences.startTimes;
         const workStartHour = startTimes.find(
-          (i) => i.day === dayOfWeekInt,
+          (i) => i.day === dayOfWeekInt
         ).hour;
         const workStartMinute = startTimes.find(
-          (i) => i.day === dayOfWeekInt,
+          (i) => i.day === dayOfWeekInt
         ).minutes;
 
         if (
           dayjs(dayDate.slice(0, 19)).isAfter(
-            dayjs(dayDate.slice(0, 19)).hour(endHour).minute(endMinute),
+            dayjs(dayDate.slice(0, 19)).hour(endHour).minute(endMinute)
           )
         ) {
           continue;
@@ -2079,7 +2074,7 @@ export const generateBreakEventsForDate = async (
           dayjs(dayDate.slice(0, 19)).isBefore(
             dayjs(dayDate.slice(0, 19))
               .hour(workStartHour)
-              .minute(workStartMinute),
+              .minute(workStartMinute)
           )
         ) {
           startHour = workStartHour;
@@ -2098,18 +2093,18 @@ export const generateBreakEventsForDate = async (
             .hour(endHour)
             .minute(endMinute)
             .format(),
-          hostTimezone,
+          hostTimezone
         );
         const newBreakEventsAdjusted =
           await adjustStartDatesForBreakEventsForDay(
             allEvents,
             newBreakEvents,
             userPreferences,
-            hostTimezone,
+            hostTimezone
           );
         if (newBreakEventsAdjusted?.length > 0) {
           newBreakEventsAdjusted.forEach((b) =>
-            console.log(b, " newBreakEventsAdjusted"),
+            console.log(b, ' newBreakEventsAdjusted')
           );
           totalBreakEvents.push(...newBreakEventsAdjusted);
         }
@@ -2119,7 +2114,7 @@ export const generateBreakEventsForDate = async (
 
       const endTimes = userPreferences.endTimes;
       const dayOfWeekInt = getISODay(
-        dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+        dayjs(dayDate.slice(0, 19)).tz(hostTimezone, true).toDate()
       );
 
       const endHour = endTimes.find((i) => i.day === dayOfWeekInt).hour;
@@ -2128,7 +2123,7 @@ export const generateBreakEventsForDate = async (
       const startTimes = userPreferences.startTimes;
       const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
       const startMinute = startTimes.find(
-        (i) => i.day === dayOfWeekInt,
+        (i) => i.day === dayOfWeekInt
       ).minutes;
 
       const allEvents = await listEventsForDate(
@@ -2143,17 +2138,17 @@ export const generateBreakEventsForDate = async (
           .hour(endHour)
           .minute(endMinute)
           .format(),
-        hostTimezone,
+        hostTimezone
       );
       const newBreakEventsAdjusted = await adjustStartDatesForBreakEventsForDay(
         allEvents,
         newBreakEvents,
         userPreferences,
-        hostTimezone,
+        hostTimezone
       );
       if (newBreakEventsAdjusted?.length > 0) {
         newBreakEventsAdjusted.forEach((b) =>
-          console.log(b, " newBreakEventsAdjusted"),
+          console.log(b, ' newBreakEventsAdjusted')
         );
         totalBreakEvents.push(...newBreakEventsAdjusted);
       }
@@ -2161,7 +2156,7 @@ export const generateBreakEventsForDate = async (
 
     return totalBreakEvents;
   } catch (e) {
-    console.log(e, " unable to generateBreakEventsForDate");
+    console.log(e, ' unable to generateBreakEventsForDate');
   }
 };
 
@@ -2170,7 +2165,7 @@ export const generateWorkTimesForInternalAttendee = (
   userId: string,
   userPreference: UserPreferenceType,
   hostTimezone: string,
-  userTimezone: string,
+  userTimezone: string
 ): WorkTimeType[] => {
   const daysInWeek = 7;
   const startTimes = userPreference.startTimes;
@@ -2193,11 +2188,11 @@ export const generateWorkTimesForInternalAttendee = (
             .minute(startMinute)
             .tz(userTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm") as Time,
+        .format('HH:mm') as Time,
       endTime: dayjs(
         setISODay(
           dayjs()
@@ -2205,11 +2200,11 @@ export const generateWorkTimesForInternalAttendee = (
             .minute(endMinute)
             .tz(userTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm") as Time,
+        .format('HH:mm') as Time,
       hostId,
       userId,
     });
@@ -2230,7 +2225,7 @@ export const generateTimeSlotsForInternalAttendee = (
   userPreference: UserPreferenceType,
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ): TimeSlotType[] => {
   if (isFirstDay) {
     const endTimes = userPreference.endTimes;
@@ -2238,10 +2233,10 @@ export const generateTimeSlotsForInternalAttendee = (
       dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .tz(userTimezone)
-        .toDate(),
+        .toDate()
     );
     const dayOfWeekIntByHost = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
     const dayOfMonth = dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
@@ -2263,8 +2258,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(hostTimezone, true)
           .tz(userTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2279,8 +2274,8 @@ export const generateTimeSlotsForInternalAttendee = (
                 .tz(hostTimezone, true)
                 .tz(userTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(hostStartDate.slice(0, 19))
@@ -2295,8 +2290,8 @@ export const generateTimeSlotsForInternalAttendee = (
                   .tz(hostTimezone, true)
                   .tz(userTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -2315,8 +2310,8 @@ export const generateTimeSlotsForInternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2328,8 +2323,8 @@ export const generateTimeSlotsForInternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(hostStartDate.slice(0, 19))
@@ -2341,8 +2336,8 @@ export const generateTimeSlotsForInternalAttendee = (
                 dayjs(hostStartDate.slice(0, 19))
                   .tz(hostTimezone, true)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -2356,8 +2351,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .hour(endHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2368,15 +2363,15 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
     const startTimes = userPreference.startTimes;
     const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
     const workStartMinute = startTimes.find(
-      (i) => i.day === dayOfWeekInt,
+      (i) => i.day === dayOfWeekInt
     ).minutes;
     const workStartHourByHost = dayjs(
       setISODay(
@@ -2385,8 +2380,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .hour(workStartHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2397,8 +2392,8 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -2410,7 +2405,7 @@ export const generateTimeSlotsForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(endHourByHost)
-            .minute(endMinuteByHost),
+            .minute(endMinuteByHost)
         )
     ) {
       return [];
@@ -2423,7 +2418,7 @@ export const generateTimeSlotsForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -2447,7 +2442,7 @@ export const generateTimeSlotsForInternalAttendee = (
         endHour,
         endMinute,
         timezone,
-        `startDate, endTimes, dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+        `startDate, endTimes, dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
       );
       for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
@@ -2456,24 +2451,24 @@ export const generateTimeSlotsForInternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i, "minute")
-            .format("HH:mm") as Time,
+            .add(i, 'minute')
+            .format('HH:mm') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i + 15, "minute")
-            .format("HH:mm") as Time,
+            .add(i + 15, 'minute')
+            .format('HH:mm') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day where startDate is before work start time",
+        ' timeSlots inside generateTimeSlots for first day where startDate is before work start time'
       );
       return timeSlots;
     }
@@ -2496,7 +2491,7 @@ export const generateTimeSlotsForInternalAttendee = (
       endHourByHost,
       endMinuteByHost,
       hostTimezone,
-      `startDate, endTimes, dayOfWeekInt, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+      `startDate, endTimes, dayOfWeekInt, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
     );
     for (let i = 0; i < totalMinutes; i += 15) {
       timeSlots.push({
@@ -2505,22 +2500,22 @@ export const generateTimeSlotsForInternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i, "minute")
-          .format("HH:mm") as Time,
+          .add(i, 'minute')
+          .format('HH:mm') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i + 15, "minute")
-          .format("HH:mm") as Time,
+          .add(i + 15, 'minute')
+          .format('HH:mm') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
       });
     }
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
 
@@ -2530,7 +2525,7 @@ export const generateTimeSlotsForInternalAttendee = (
     dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
       .tz(userTimezone)
-      .toDate(),
+      .toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -2569,7 +2564,7 @@ export const generateTimeSlotsForInternalAttendee = (
     startHourByHost,
     startMinuteByHost,
     endHourByHost,
-    " monthByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost",
+    ' monthByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost'
   );
   const startDuration = dayjs.duration({
     hours: startHour,
@@ -2586,22 +2581,22 @@ export const generateTimeSlotsForInternalAttendee = (
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm") as Time,
+        .add(i, 'minute')
+        .format('HH:mm') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i + 15, "minute")
-        .format("HH:mm") as Time,
+        .add(i + 15, 'minute')
+        .format('HH:mm') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
     });
   }
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
@@ -2611,13 +2606,13 @@ export const generateTimeSlotsLiteForInternalAttendee = (
   userPreference: UserPreferenceType,
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ): TimeSlotType[] => {
   if (isFirstDay) {
     const endTimes = userPreference.endTimes;
 
     const dayOfWeekInt = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
 
     const startHourOfHostDateByHost = dayjs(hostStartDate.slice(0, 19))
@@ -2628,8 +2623,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2641,8 +2636,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -2661,8 +2656,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -2674,8 +2669,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -2689,8 +2684,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .hour(endHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2701,8 +2696,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -2710,7 +2705,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     const startTimes = userPreference.startTimes;
     const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
     const workStartMinute = startTimes.find(
-      (i) => i.day === dayOfWeekInt,
+      (i) => i.day === dayOfWeekInt
     ).minutes;
     const workStartHourByHost = dayjs(
       setISODay(
@@ -2719,8 +2714,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .hour(workStartHour)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .hour();
@@ -2731,8 +2726,8 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(userTimezone)
           .minute(endMinute)
           .toDate(),
-        dayOfWeekInt,
-      ),
+        dayOfWeekInt
+      )
     )
       .tz(hostTimezone)
       .minute();
@@ -2744,7 +2739,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(endHourByHost)
-            .minute(endMinuteByHost),
+            .minute(endMinuteByHost)
         )
     ) {
       return [];
@@ -2757,7 +2752,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -2778,24 +2773,24 @@ export const generateTimeSlotsLiteForInternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i, "minute")
-            .format("HH:mm") as Time,
+            .add(i, 'minute')
+            .format('HH:mm') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourByHost)
             .minute(startMinuteByHost)
-            .add(i + 30, "minute")
-            .format("HH:mm") as Time,
+            .add(i + 30, 'minute')
+            .format('HH:mm') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day before start time",
+        ' timeSlots inside generateTimeSlots for first day before start time'
       );
       return timeSlots;
     }
@@ -2815,22 +2810,22 @@ export const generateTimeSlotsLiteForInternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i, "minute")
-          .format("HH:mm") as Time,
+          .add(i, 'minute')
+          .format('HH:mm') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourByHost)
           .minute(startMinuteByHost)
-          .add(i + 30, "minute")
-          .format("HH:mm") as Time,
+          .add(i + 30, 'minute')
+          .format('HH:mm') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
       });
     }
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
   const startTimes = userPreference.startTimes;
@@ -2840,7 +2835,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
       .tz(userTimezone)
-      .toDate(),
+      .toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -2854,7 +2849,7 @@ export const generateTimeSlotsLiteForInternalAttendee = (
     .tz(hostTimezone, true)
     .date();
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const startHourByHost = dayjs(hostStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -2884,28 +2879,28 @@ export const generateTimeSlotsLiteForInternalAttendee = (
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm") as Time,
+        .add(i, 'minute')
+        .format('HH:mm') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(startHourByHost)
         .minute(startMinuteByHost)
-        .add(i + 30, "minute")
-        .format("HH:mm") as Time,
+        .add(i + 30, 'minute')
+        .format('HH:mm') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
     });
   }
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
 export const validateEventDates = (
   event: EventPlusType,
-  userPreferences: UserPreferenceType,
+  userPreferences: UserPreferenceType
 ): boolean => {
   if (!event?.timezone) {
     return false;
@@ -2913,28 +2908,28 @@ export const validateEventDates = (
 
   const diff = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   const diffDay = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "d");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'd');
   const diffHours = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "h");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'h');
 
   const isoWeekDay = getISODay(
-    dayjs(event?.startDate.slice(0, 19)).tz(event?.timezone, true).toDate(),
+    dayjs(event?.startDate.slice(0, 19)).tz(event?.timezone, true).toDate()
   );
   const endHour = userPreferences.endTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.hour;
   const endMinutes = userPreferences.endTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.minutes;
   const startHour = userPreferences.startTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.hour;
   const startMinutes = userPreferences.startTimes.find(
-    (e) => e?.day === isoWeekDay,
+    (e) => e?.day === isoWeekDay
   )?.minutes;
 
   if (
@@ -2944,7 +2939,7 @@ export const validateEventDates = (
         dayjs(event?.startDate.slice(0, 19))
           .tz(event.timezone, true)
           .hour(endHour)
-          .minute(endMinutes),
+          .minute(endMinutes)
       )
   ) {
     return false;
@@ -2957,7 +2952,7 @@ export const validateEventDates = (
         dayjs(event?.startDate.slice(0, 19))
           .tz(event.timezone, true)
           .hour(startHour)
-          .minute(startMinutes),
+          .minute(startMinutes)
       )
   ) {
     return false;
@@ -2968,7 +2963,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are the same",
+      ' the start date and end date are the same'
     );
     return false;
   }
@@ -2978,7 +2973,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date is after end date",
+      ' the start date is after end date'
     );
     return false;
   }
@@ -2988,7 +2983,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 1 day apart",
+      ' the start date and end date are more than 1 day apart'
     );
     return false;
   }
@@ -2998,7 +2993,7 @@ export const validateEventDates = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 23 hours apart",
+      ' the start date and end date are more than 23 hours apart'
     );
     return false;
   }
@@ -3007,7 +3002,7 @@ export const validateEventDates = (
 };
 
 export const validateEventDatesForExternalAttendee = (
-  event: EventPlusType,
+  event: EventPlusType
 ): boolean => {
   if (!event?.timezone) {
     return false;
@@ -3015,20 +3010,20 @@ export const validateEventDatesForExternalAttendee = (
 
   const diff = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   const diffDay = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "d");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'd');
   const diffHours = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "h");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'h');
 
   if (diff === 0) {
     console.log(
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are the same",
+      ' the start date and end date are the same'
     );
     return false;
   }
@@ -3038,7 +3033,7 @@ export const validateEventDatesForExternalAttendee = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date is after end date",
+      ' the start date is after end date'
     );
     return false;
   }
@@ -3048,7 +3043,7 @@ export const validateEventDatesForExternalAttendee = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 1 day apart",
+      ' the start date and end date are more than 1 day apart'
     );
     return false;
   }
@@ -3058,7 +3053,7 @@ export const validateEventDatesForExternalAttendee = (
       event.id,
       event.startDate,
       event.endDate,
-      " the start date and end date are more than 23 hours apart",
+      ' the start date and end date are more than 23 hours apart'
     );
     return false;
   }
@@ -3068,21 +3063,21 @@ export const validateEventDatesForExternalAttendee = (
 
 export const generateEventParts = (
   event: EventPlusType,
-  hostId: string,
+  hostId: string
 ): InitialEventPartType[] => {
   console.log(
     event.id,
     event.startDate.slice(0, 19),
     event.endDate.slice(0, 19),
-    " event.id, event.startDate.slice(0, 19), event.endDate.slice(0, 19) inside generateEventParts",
+    ' event.id, event.startDate.slice(0, 19), event.endDate.slice(0, 19) inside generateEventParts'
   );
   const minutes = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   console.log(
     event.id,
     minutes,
-    "event.id,  minutes inside generateEventParts",
+    'event.id,  minutes inside generateEventParts'
   );
   const parts = Math.floor(minutes / 15);
   const remainder = minutes % 15;
@@ -3118,18 +3113,18 @@ export const generateEventParts = (
     eventParts?.[0]?.endDate,
     eventParts?.[0]?.part,
     eventParts?.[0]?.lastPart,
-    "event.id,  eventParts?.[0]?.startDate, eventParts?.[0]?.endDate, eventParts?.[0]?.part, eventParts?.[0]?.lastPart,",
+    'event.id,  eventParts?.[0]?.startDate, eventParts?.[0]?.endDate, eventParts?.[0]?.part, eventParts?.[0]?.lastPart,'
   );
   return eventParts;
 };
 
 export const generateEventPartsLite = (
   event: EventPlusType,
-  hostId: string,
+  hostId: string
 ): InitialEventPartType[] => {
   const minutes = dayjs(event.endDate.slice(0, 19))
     .tz(event.timezone, true)
-    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), "m");
+    .diff(dayjs(event.startDate.slice(0, 19)).tz(event.timezone, true), 'm');
   const parts = Math.floor(minutes / 30);
   const remainder = minutes % 30;
   const eventParts: InitialEventPartType[] = [];
@@ -3163,7 +3158,7 @@ export const generateEventPartsLite = (
 
 export const modifyEventPartsForSingularPreBufferTime = (
   eventParts: InitialEventPartType[],
-  forEventId: string,
+  forEventId: string
 ): InitialEventPartType[] => {
   const preBufferBeforeEventParts: InitialEventPartType[] = [];
   const preBufferActualEventParts: InitialEventPartType[] = [];
@@ -3175,7 +3170,7 @@ export const modifyEventPartsForSingularPreBufferTime = (
       console.log(
         eventParts[i].forEventId,
         forEventId,
-        " eventParts[i].forEventId === forEventId  inside modifyEventPartsForSingularPreBufferTime",
+        ' eventParts[i].forEventId === forEventId  inside modifyEventPartsForSingularPreBufferTime'
       );
       preBufferBeforeEventParts.push({
         ...eventParts[i],
@@ -3189,7 +3184,7 @@ export const modifyEventPartsForSingularPreBufferTime = (
       console.log(
         eventParts[i].id,
         forEventId,
-        "eventParts[i].id === forEventId inside modifyEventPartsForSingularPreBufferTime",
+        'eventParts[i].id === forEventId inside modifyEventPartsForSingularPreBufferTime'
       );
       preBufferActualEventParts.push({
         ...eventParts[i],
@@ -3199,14 +3194,14 @@ export const modifyEventPartsForSingularPreBufferTime = (
   }
 
   const preBufferBeforeEventPartsSorted = preBufferBeforeEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
   const preBufferActualEventPartsSorted = preBufferActualEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
 
   const preBufferEventPartsTotal = preBufferBeforeEventPartsSorted.concat(
-    preBufferActualEventPartsSorted,
+    preBufferActualEventPartsSorted
   );
 
   for (let i = 0; i < preBufferEventPartsTotal.length; i++) {
@@ -3222,13 +3217,13 @@ export const modifyEventPartsForSingularPreBufferTime = (
       e.lastPart,
       e.startDate,
       e.endDate,
-      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, inside modifyEventPartsForSingularPreBufferTime`,
-    ),
+      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, inside modifyEventPartsForSingularPreBufferTime`
+    )
   );
   return preBufferEventPartsTotal;
 };
 export const modifyEventPartsForMultiplePreBufferTime = (
-  eventParts: InitialEventPartType[],
+  eventParts: InitialEventPartType[]
 ): InitialEventPartType[] => {
   const uniquePreBufferPartForEventIds: string[] = [];
   const preBufferEventPartsTotal: InitialEventPartType[] = [];
@@ -3236,7 +3231,7 @@ export const modifyEventPartsForMultiplePreBufferTime = (
   for (let i = 0; i < eventParts.length; i++) {
     if (eventParts[i].forEventId && eventParts[i].isPreEvent) {
       const foundPart = uniquePreBufferPartForEventIds.find(
-        (e) => e === eventParts[i].forEventId,
+        (e) => e === eventParts[i].forEventId
       );
       if (foundPart) {
         continue;
@@ -3249,7 +3244,7 @@ export const modifyEventPartsForMultiplePreBufferTime = (
   for (let i = 0; i < uniquePreBufferPartForEventIds.length; i++) {
     const returnedEventPartTotal = modifyEventPartsForSingularPreBufferTime(
       eventParts,
-      uniquePreBufferPartForEventIds[i],
+      uniquePreBufferPartForEventIds[i]
     );
     preBufferEventPartsTotal.push(...returnedEventPartTotal);
   }
@@ -3257,10 +3252,10 @@ export const modifyEventPartsForMultiplePreBufferTime = (
   const eventPartsFiltered = _.differenceBy(
     eventParts,
     preBufferEventPartsTotal,
-    "id",
+    'id'
   );
   const concatenatedValues = eventPartsFiltered.concat(
-    preBufferEventPartsTotal,
+    preBufferEventPartsTotal
   );
   concatenatedValues.forEach((e) =>
     console.log(
@@ -3272,14 +3267,14 @@ export const modifyEventPartsForMultiplePreBufferTime = (
       e.startDate,
       e.endDate,
       e?.forEventId,
-      `e.id, e.eventId, e.actualId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePreBufferTime`,
-    ),
+      `e.id, e.eventId, e.actualId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePreBufferTime`
+    )
   );
   return concatenatedValues;
 };
 
 export const modifyEventPartsForMultiplePostBufferTime = (
-  eventParts: InitialEventPartType[],
+  eventParts: InitialEventPartType[]
 ): InitialEventPartType[] => {
   const uniquePostBufferPartForEventIds: string[] = [];
   const postBufferEventPartsTotal: InitialEventPartType[] = [];
@@ -3287,7 +3282,7 @@ export const modifyEventPartsForMultiplePostBufferTime = (
   for (let i = 0; i < eventParts.length; i++) {
     if (eventParts[i].forEventId && eventParts[i].isPostEvent) {
       const foundPart = uniquePostBufferPartForEventIds.find(
-        (e) => e === eventParts[i].forEventId,
+        (e) => e === eventParts[i].forEventId
       );
       if (foundPart) {
         continue;
@@ -3300,7 +3295,7 @@ export const modifyEventPartsForMultiplePostBufferTime = (
   for (let i = 0; i < uniquePostBufferPartForEventIds.length; i++) {
     const returnedEventPartTotal = modifyEventPartsForSingularPostBufferTime(
       eventParts,
-      uniquePostBufferPartForEventIds[i],
+      uniquePostBufferPartForEventIds[i]
     );
     postBufferEventPartsTotal.push(...returnedEventPartTotal);
   }
@@ -3308,10 +3303,10 @@ export const modifyEventPartsForMultiplePostBufferTime = (
   const eventPartsFiltered = _.differenceBy(
     eventParts,
     postBufferEventPartsTotal,
-    "id",
+    'id'
   );
   const concatenatedValues = eventPartsFiltered.concat(
-    postBufferEventPartsTotal,
+    postBufferEventPartsTotal
   );
 
   concatenatedValues.forEach((e) =>
@@ -3324,15 +3319,15 @@ export const modifyEventPartsForMultiplePostBufferTime = (
       e.startDate,
       e.endDate,
       e?.forEventId,
-      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePostBufferTime`,
-    ),
+      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForMultiplePostBufferTime`
+    )
   );
   return concatenatedValues;
 };
 
 export const modifyEventPartsForSingularPostBufferTime = (
   eventParts: InitialEventPartType[],
-  forEventId: string,
+  forEventId: string
 ): InitialEventPartType[] => {
   const postBufferAfterEventParts: InitialEventPartType[] = [];
   const postBufferActualEventParts: InitialEventPartType[] = [];
@@ -3358,14 +3353,14 @@ export const modifyEventPartsForSingularPostBufferTime = (
   }
 
   const postBufferActualEventPartsSorted = postBufferActualEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
   const postBufferAfterEventPartsSorted = postBufferAfterEventParts.sort(
-    (a, b) => a.part - b.part,
+    (a, b) => a.part - b.part
   );
 
   const postBufferEventPartsTotal = postBufferActualEventPartsSorted.concat(
-    postBufferAfterEventPartsSorted,
+    postBufferAfterEventPartsSorted
   );
 
   const preEventId = postBufferEventPartsTotal?.[0]?.preEventId;
@@ -3399,7 +3394,7 @@ export const modifyEventPartsForSingularPostBufferTime = (
       actualEventPreviousLastPart + postBufferAfterEventPartsSorted.length,
   }));
   const concatenatedValues = preBufferEventParts.concat(
-    postBufferEventPartsTotal,
+    postBufferEventPartsTotal
   );
   concatenatedValues.forEach((e) =>
     console.log(
@@ -3411,8 +3406,8 @@ export const modifyEventPartsForSingularPostBufferTime = (
       e.startDate,
       e.endDate,
       e?.forEventId,
-      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForSinglularPostBufferTime`,
-    ),
+      `e.id, e.groupId, e.eventId, e.part, e.lastPart, e.startDate, e.endDate, e?.forEventId,  inside modifyEventPartsForSinglularPostBufferTime`
+    )
   );
   return concatenatedValues;
 };
@@ -3421,7 +3416,7 @@ export const formatEventTypeToPlannerEvent = (
   event: InitialEventPartTypePlus,
   userPreference: UserPreferenceType,
   workTimes: WorkTimeType[],
-  hostTimezone: string,
+  hostTimezone: string
 ): EventPartPlannerRequestBodyType => {
   const {
     allDay,
@@ -3473,7 +3468,7 @@ export const formatEventTypeToPlannerEvent = (
       .tz(event.timezone, true)
       .tz(hostTimezone)
       .format(),
-    hostTimezone,
+    hostTimezone
   );
 
   const user: UserPlannerRequestBodyType = {
@@ -3548,7 +3543,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
   event: InitialEventPartTypePlus,
   workTimes: WorkTimeType[],
   attendeeEvents: EventPlusType[],
-  hostTimezone: string,
+  hostTimezone: string
 ): EventPartPlannerRequestBodyType => {
   const {
     allDay,
@@ -3601,7 +3596,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
       .tz(hostTimezone)
       .format(),
     hostTimezone,
-    event?.timezone,
+    event?.timezone
   );
 
   const user: UserPlannerRequestBodyType = {
@@ -3673,7 +3668,7 @@ export const formatEventTypeToPlannerEventForExternalAttendee = (
 };
 
 export const convertMeetingPlusTypeToEventPlusType = (
-  event: EventMeetingPlusType,
+  event: EventMeetingPlusType
 ): EventPlusType => {
   const newEvent: EventPlusType = {
     ...event,
@@ -3695,7 +3690,7 @@ export const convertMeetingPlusTypeToEventPlusType = (
 
 export const setPreferredTimeForUnModifiableEvent = (
   event: EventPartPlannerRequestBodyType,
-  timezone: string,
+  timezone: string
 ): EventPartPlannerRequestBodyType => {
   if (!event?.modifiable) {
     if (!event?.preferredDayOfWeek && !event?.preferredTime) {
@@ -3704,12 +3699,12 @@ export const setPreferredTimeForUnModifiableEvent = (
         preferredDayOfWeek:
           dayOfWeekIntToString[
             getISODay(
-              dayjs(event.startDate.slice(0, 19)).tz(timezone, true).toDate(),
+              dayjs(event.startDate.slice(0, 19)).tz(timezone, true).toDate()
             )
           ],
         preferredTime: dayjs(event.startDate.slice(0, 19))
           .tz(timezone, true)
-          .format("HH:mm") as Time,
+          .format('HH:mm') as Time,
       };
       return newEvent;
     }
@@ -3720,7 +3715,7 @@ export const setPreferredTimeForUnModifiableEvent = (
 
 export const listEventsWithIds = async (ids: string[]) => {
   try {
-    const operationName = "listEventsWithIds";
+    const operationName = 'listEventsWithIds';
 
     const query = `
     query listEventsWithIds($ids: [String!]!) {
@@ -3842,9 +3837,9 @@ export const listEventsWithIds = async (ids: string[]) => {
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -3858,30 +3853,30 @@ export const listEventsWithIds = async (ids: string[]) => {
 
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " unable to list ids with ids");
+    console.log(e, ' unable to list ids with ids');
   }
 };
 
 export const tagEventsForDailyOrWeeklyTask = async (
-  events: EventPartPlannerRequestBodyType[],
+  events: EventPartPlannerRequestBodyType[]
 ): Promise<EventPartPlannerRequestBodyType[] | null> => {
   try {
     const filteredEvents = events.filter((e) => e.recurringEventId);
     if (filteredEvents?.length > 0) {
       const originalEvents = await listEventsWithIds(
-        _.uniq(filteredEvents.map((e) => e?.recurringEventId)),
+        _.uniq(filteredEvents.map((e) => e?.recurringEventId))
       );
       if (originalEvents?.length > 0) {
         const taggedFilteredEvents = filteredEvents.map((e) =>
           tagEventForDailyOrWeeklyTask(
             e,
-            originalEvents.find((oe) => oe.id === e.recurringEventId),
-          ),
+            originalEvents.find((oe) => oe.id === e.recurringEventId)
+          )
         );
         const newEvents = events.map((e) => {
           if (e?.recurringEventId) {
             const taggedFilteredEvent = taggedFilteredEvents.find(
-              (te) => te?.eventId === e?.eventId,
+              (te) => te?.eventId === e?.eventId
             );
             if (taggedFilteredEvent?.eventId) {
               return taggedFilteredEvent;
@@ -3893,26 +3888,26 @@ export const tagEventsForDailyOrWeeklyTask = async (
         });
         return newEvents;
       }
-      console.log("tagEventsForDailyorWeeklyTask: originalEvents is empty");
+      console.log('tagEventsForDailyorWeeklyTask: originalEvents is empty');
       return events;
     }
     return events;
   } catch (e) {
-    console.log(e, " unable to to tag events for daily or weekly task");
+    console.log(e, ' unable to to tag events for daily or weekly task');
   }
 };
 
 export const tagEventForDailyOrWeeklyTask = (
   eventToSubmit: EventPartPlannerRequestBodyType,
-  event: EventPlusType,
+  event: EventPlusType
 ) => {
   if (!event?.id) {
-    console.log("no original event inside tagEventForDailysOrWeeklyTask");
+    console.log('no original event inside tagEventForDailysOrWeeklyTask');
     return null;
   }
 
   if (!eventToSubmit?.eventId) {
-    console.log("no eventToSubmit inside tagEventForDailyOrWeeklyTask");
+    console.log('no eventToSubmit inside tagEventForDailyOrWeeklyTask');
     return null;
   }
 
@@ -3938,7 +3933,7 @@ export const generateUserPlannerRequestBody = (
   userPreference: UserPreferenceType,
   userId: string,
   workTimes: WorkTimeType[],
-  hostId: string,
+  hostId: string
 ): UserPlannerRequestBodyType => {
   const {
     maxWorkLoadPercent,
@@ -3961,7 +3956,7 @@ export const generateUserPlannerRequestBody = (
 export const generateUserPlannerRequestBodyForExternalAttendee = (
   userId: string,
   workTimes: WorkTimeType[],
-  hostId: string,
+  hostId: string
 ): UserPlannerRequestBodyType => {
   const user: UserPlannerRequestBodyType = {
     id: userId,
@@ -3983,7 +3978,7 @@ export const processEventsForOptaPlannerForMainHost = async (
   hostTimezone: string,
   oldHostEvents: EventPlusType[],
   newHostReminders?: RemindersForEventType[],
-  newHostBufferTimes?: BufferTimeObjectType[],
+  newHostBufferTimes?: BufferTimeObjectType[]
 ): Promise<ReturnBodyForHostForOptaplannerPrepType> => {
   try {
     const newBufferTimeArray: EventPlusType[] = [];
@@ -3991,7 +3986,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       if (newHostBufferTime?.beforeEvent?.id) {
         console.log(
           newHostBufferTime?.beforeEvent,
-          " newTimeBlocking?.beforeEvent",
+          ' newTimeBlocking?.beforeEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.beforeEvent);
       }
@@ -3999,7 +3994,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       if (newHostBufferTime?.afterEvent?.id) {
         console.log(
           newHostBufferTime?.afterEvent,
-          " newTimeBlocking?.afterEvent",
+          ' newTimeBlocking?.afterEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.afterEvent);
       }
@@ -4015,7 +4010,7 @@ export const processEventsForOptaPlannerForMainHost = async (
 
     const diffDays = dayjs(windowEndDate.slice(0, 19)).diff(
       dayjs(windowStartDate.slice(0, 19)),
-      "day",
+      'day'
     );
 
     const modifiedAllEventsWithBreaks: EventPlusType[] = [];
@@ -4026,8 +4021,8 @@ export const processEventsForOptaPlannerForMainHost = async (
       startDatesForEachDay.push(
         dayjs(windowStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .add(i, "day")
-          .format(),
+          .add(i, 'day')
+          .format()
       );
     }
 
@@ -4039,16 +4034,16 @@ export const processEventsForOptaPlannerForMainHost = async (
       windowStartDate,
       windowEndDate,
       hostTimezone,
-      globalPrimaryCalendar?.id,
+      globalPrimaryCalendar?.id
     );
 
-    breaks.forEach((b) => console.log(b, " generatedBreaks"));
+    breaks.forEach((b) => console.log(b, ' generatedBreaks'));
 
     if (breaks?.length > 0) {
       const allEventsWithDuplicateFreeBreaks = _.differenceBy(
         modifiedAllHostEvents,
         breaks,
-        "id",
+        'id'
       );
       modifiedAllEventsWithBreaks.push(...allEventsWithDuplicateFreeBreaks);
       modifiedAllEventsWithBreaks.push(...breaks);
@@ -4062,7 +4057,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       mainHostId,
       userPreferences,
       hostTimezone,
-      hostTimezone,
+      hostTimezone
     );
     const timeslots = [];
 
@@ -4074,7 +4069,7 @@ export const processEventsForOptaPlannerForMainHost = async (
           userPreferences,
           hostTimezone,
           hostTimezone,
-          true,
+          true
         );
         timeslots.push(...timeslotsForDay);
         continue;
@@ -4085,17 +4080,17 @@ export const processEventsForOptaPlannerForMainHost = async (
         userPreferences,
         hostTimezone,
         hostTimezone,
-        false,
+        false
       );
       timeslots.push(...timeslotsForDay);
     }
-    console.log(timeslots, " timeslots");
+    console.log(timeslots, ' timeslots');
 
     const filteredAllEvents = _.uniqBy(
       modifiedAllEventsWithBreaks.filter((e) =>
-        validateEventDates(e, userPreferences),
+        validateEventDates(e, userPreferences)
       ),
-      "id",
+      'id'
     );
     let eventParts: EventPartPlannerRequestBodyType[] = [];
 
@@ -4109,7 +4104,7 @@ export const processEventsForOptaPlannerForMainHost = async (
       modifyEventPartsForMultiplePreBufferTime(eventPartMinisAccumulated);
     const modifiedEventPartMinisPreAndPostBuffer =
       modifyEventPartsForMultiplePostBufferTime(
-        modifiedEventPartMinisPreBuffer,
+        modifiedEventPartMinisPreBuffer
       );
     const formattedEventParts: EventPartPlannerRequestBodyType[] =
       modifiedEventPartMinisPreAndPostBuffer.map((e) =>
@@ -4117,42 +4112,42 @@ export const processEventsForOptaPlannerForMainHost = async (
           e,
           userPreferences,
           workTimes,
-          hostTimezone,
-        ),
+          hostTimezone
+        )
       );
     if (formattedEventParts.length > 0) {
       eventParts.push(...formattedEventParts);
     }
 
     if (eventParts.length > 0) {
-      eventParts.forEach((e) => console.log(e, " eventParts after formatting"));
+      eventParts.forEach((e) => console.log(e, ' eventParts after formatting'));
       const newEventPartsWithPreferredTimeSet = eventParts.map((e) =>
         setPreferredTimeForUnModifiableEvent(
           e,
-          allHostEvents.find((f) => f.id === e.eventId)?.timezone,
-        ),
+          allHostEvents.find((f) => f.id === e.eventId)?.timezone
+        )
       );
       newEventPartsWithPreferredTimeSet.forEach((e) =>
-        console.log(e, " newEventPartsWithPreferredTimeSet"),
+        console.log(e, ' newEventPartsWithPreferredTimeSet')
       );
       const newEventParts = await tagEventsForDailyOrWeeklyTask(
-        newEventPartsWithPreferredTimeSet,
+        newEventPartsWithPreferredTimeSet
       );
       newEventParts.forEach((e) =>
-        console.log(e, " newEventParts after tagEventsForDailyOrWeeklyTask"),
+        console.log(e, ' newEventParts after tagEventsForDailyOrWeeklyTask')
       );
       const userPlannerRequestBody = generateUserPlannerRequestBody(
         userPreferences,
         userPreferences.userId,
         workTimes,
-        mainHostId,
+        mainHostId
       );
-      console.log(userPlannerRequestBody, " userPlannerRequestBody");
+      console.log(userPlannerRequestBody, ' userPlannerRequestBody');
 
       const modifiedNewEventParts: EventPartPlannerRequestBodyType[] =
         newEventParts.map((eventPart) => {
           const oldEvent = filteredAllEvents.find(
-            (event) => event.id === eventPart.eventId,
+            (event) => event.id === eventPart.eventId
           );
           return {
             groupId: eventPart?.groupId,
@@ -4216,7 +4211,7 @@ export const processEventsForOptaPlannerForMainHost = async (
   } catch (e) {
     console.log(
       e,
-      " unable to process events for optaplanner for host attendee",
+      ' unable to process events for optaplanner for host attendee'
     );
   }
 };
@@ -4231,7 +4226,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
   oldEvents: EventType[],
   oldMeetingEvents: EventMeetingPlusType[],
   newHostReminders?: RemindersForEventType[],
-  newHostBufferTimes?: BufferTimeObjectType[],
+  newHostBufferTimes?: BufferTimeObjectType[]
 ): Promise<ReturnBodyForAttendeeForOptaplannerPrepType> => {
   try {
     const newBufferTimeArray: EventPlusType[] = [];
@@ -4239,7 +4234,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       if (newHostBufferTime?.beforeEvent?.id) {
         console.log(
           newHostBufferTime?.beforeEvent,
-          " newTimeBlocking?.beforeEvent",
+          ' newTimeBlocking?.beforeEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.beforeEvent);
       }
@@ -4247,7 +4242,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       if (newHostBufferTime?.afterEvent?.id) {
         console.log(
           newHostBufferTime?.afterEvent,
-          " newTimeBlocking?.afterEvent",
+          ' newTimeBlocking?.afterEvent'
         );
         newBufferTimeArray.push(newHostBufferTime.afterEvent);
       }
@@ -4269,8 +4264,8 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     if (filteredOldMeetingEvents?.[0]?.id) {
       modifiedAllEvents.push(
         ...filteredOldMeetingEvents?.map((a) =>
-          convertMeetingPlusTypeToEventPlusType(a),
-        ),
+          convertMeetingPlusTypeToEventPlusType(a)
+        )
       );
     }
 
@@ -4284,20 +4279,20 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
 
     const userPreferences: UserPreferenceType[] = _.uniqWith(
       unfilteredUserPreferences,
-      _.isEqual,
+      _.isEqual
     );
 
     const unfilteredGlobalPrimaryCalendars: CalendarType[] = [];
     for (const internalAttendee of internalAttendees) {
       const globalPrimaryCalendar = await getGlobalCalendar(
-        internalAttendee?.userId,
+        internalAttendee?.userId
       );
       unfilteredGlobalPrimaryCalendars.push(globalPrimaryCalendar);
     }
 
     const globalPrimaryCalendars = _.uniqWith(
       unfilteredGlobalPrimaryCalendars,
-      _.isEqual,
+      _.isEqual
     );
 
     const modifiedAllEventsWithBreaks: EventPlusType[] = [];
@@ -4305,10 +4300,10 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     let parentBreaks: EventPlusType[] = [];
     for (const userPreference of userPreferences) {
       const globalPrimaryCalendar = globalPrimaryCalendars.find(
-        (g) => g?.userId === userPreference?.userId,
+        (g) => g?.userId === userPreference?.userId
       );
       if (!globalPrimaryCalendar) {
-        throw new Error("no global primary calendar found");
+        throw new Error('no global primary calendar found');
       }
       const userId = userPreference?.userId;
 
@@ -4318,16 +4313,16 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
         windowStartDate,
         windowEndDate,
         hostTimezone,
-        globalPrimaryCalendar?.id,
+        globalPrimaryCalendar?.id
       );
 
-      breaks.forEach((b) => console.log(b, " generatedBreaks"));
+      breaks.forEach((b) => console.log(b, ' generatedBreaks'));
 
       if (breaks?.length > 0) {
         const allEventsWithDuplicateFreeBreaks = _.differenceBy(
           modifiedAllEvents,
           breaks,
-          "id",
+          'id'
         );
         modifiedAllEventsWithBreaks.push(...allEventsWithDuplicateFreeBreaks);
         modifiedAllEventsWithBreaks.push(...breaks);
@@ -4339,7 +4334,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
 
     const diffDays = dayjs(windowEndDate.slice(0, 19)).diff(
       dayjs(windowStartDate.slice(0, 19)),
-      "day",
+      'day'
     );
     const startDatesForEachDay = [];
 
@@ -4347,15 +4342,15 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       startDatesForEachDay.push(
         dayjs(windowStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .add(i, "day")
-          .format(),
+          .add(i, 'day')
+          .format()
       );
     }
 
     const unfilteredWorkTimes: WorkTimeType[] = [];
     for (const internalAttendee of internalAttendees) {
       const userPreference = userPreferences.find(
-        (u) => u.userId === internalAttendee.userId,
+        (u) => u.userId === internalAttendee.userId
       );
       const attendeeTimezone = internalAttendee?.timezone;
       const workTimesForAttendee = generateWorkTimesForInternalAttendee(
@@ -4363,14 +4358,14 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
         internalAttendee.userId,
         userPreference,
         hostTimezone,
-        attendeeTimezone,
+        attendeeTimezone
       );
       unfilteredWorkTimes.push(...workTimesForAttendee);
     }
 
     const workTimes: WorkTimeType[] = _.uniqWith(
       unfilteredWorkTimes,
-      _.isEqual,
+      _.isEqual
     );
 
     const unfilteredTimeslots = [];
@@ -4380,7 +4375,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       if (i === 0) {
         for (const internalAttendee of internalAttendees) {
           const userPreference = userPreferences.find(
-            (u) => u.userId === internalAttendee.userId,
+            (u) => u.userId === internalAttendee.userId
           );
           const timeslotsForDay =
             await generateTimeSlotsLiteForInternalAttendee(
@@ -4389,7 +4384,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
               userPreference,
               hostTimezone,
               internalAttendee?.timezone,
-              true,
+              true
             );
           unfilteredTimeslots.push(...timeslotsForDay);
         }
@@ -4397,7 +4392,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       }
       for (const internalAttendee of internalAttendees) {
         const userPreference = userPreferences.find(
-          (u) => u.userId === internalAttendee.userId,
+          (u) => u.userId === internalAttendee.userId
         );
         const timeslotsForDay = await generateTimeSlotsLiteForInternalAttendee(
           startDatesForEachDay?.[i],
@@ -4405,30 +4400,30 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
           userPreference,
           hostTimezone,
           internalAttendee?.timezone,
-          false,
+          false
         );
         unfilteredTimeslots.push(...timeslotsForDay);
       }
     }
 
     timeslots.push(..._.uniqWith(unfilteredTimeslots, _.isEqual));
-    console.log(timeslots, "isMachinePro timeslots");
+    console.log(timeslots, 'isMachinePro timeslots');
 
     const unfilteredAllEvents: EventPlusType[] = [];
     for (const internalAttendee of internalAttendees) {
       const userPreference = userPreferences.find(
-        (u) => u.userId === internalAttendee.userId,
+        (u) => u.userId === internalAttendee.userId
       );
       const modifiedAllEventsWithBreaksWithUser =
         modifiedAllEventsWithBreaks.filter(
-          (e) => e.userId === internalAttendee.userId,
+          (e) => e.userId === internalAttendee.userId
         );
       const events = modifiedAllEventsWithBreaksWithUser.filter((e) =>
-        validateEventDates(e, userPreference),
+        validateEventDates(e, userPreference)
       );
       unfilteredAllEvents.push(...events);
     }
-    const filteredAllEvents = _.uniqBy(unfilteredAllEvents, "id");
+    const filteredAllEvents = _.uniqBy(unfilteredAllEvents, 'id');
     let eventParts: EventPartPlannerRequestBodyType[] = [];
 
     const eventPartMinisAccumulated = [];
@@ -4441,7 +4436,7 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
       modifyEventPartsForMultiplePreBufferTime(eventPartMinisAccumulated);
     const modifiedEventPartMinisPreAndPostBuffer =
       modifyEventPartsForMultiplePostBufferTime(
-        modifiedEventPartMinisPreBuffer,
+        modifiedEventPartMinisPreBuffer
       );
     const formattedEventParts: EventPartPlannerRequestBodyType[] = [];
     for (const userPreference of userPreferences) {
@@ -4453,8 +4448,8 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
               e,
               userPreference,
               workTimes,
-              hostTimezone,
-            ),
+              hostTimezone
+            )
           );
       formattedEventParts.push(...formattedEventPartsForUser);
     }
@@ -4464,21 +4459,21 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
     }
 
     if (eventParts.length > 0) {
-      eventParts.forEach((e) => console.log(e, " eventParts after formatting"));
+      eventParts.forEach((e) => console.log(e, ' eventParts after formatting'));
       const newEventPartsWithPreferredTimeSet = eventParts.map((e) =>
         setPreferredTimeForUnModifiableEvent(
           e,
-          allEvents.find((f) => f.id === e.eventId)?.timezone,
-        ),
+          allEvents.find((f) => f.id === e.eventId)?.timezone
+        )
       );
       newEventPartsWithPreferredTimeSet.forEach((e) =>
-        console.log(e, " newEventPartsWithPreferredTimeSet"),
+        console.log(e, ' newEventPartsWithPreferredTimeSet')
       );
       const newEventParts = await tagEventsForDailyOrWeeklyTask(
-        newEventPartsWithPreferredTimeSet,
+        newEventPartsWithPreferredTimeSet
       );
       newEventParts.forEach((e) =>
-        console.log(e, " newEventParts after tagEventsForDailyOrWeeklyTask"),
+        console.log(e, ' newEventParts after tagEventsForDailyOrWeeklyTask')
       );
       const unfilteredUserList: UserPlannerRequestBodyType[] = [];
       for (const userPreference of userPreferences) {
@@ -4486,21 +4481,21 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
           userPreference,
           userPreference?.userId,
           workTimes,
-          mainHostId,
+          mainHostId
         );
-        console.log(userPlannerRequestBody, " userPlannerRequestBody");
+        console.log(userPlannerRequestBody, ' userPlannerRequestBody');
         unfilteredUserList.push(userPlannerRequestBody);
       }
 
       const userList: UserPlannerRequestBodyType[] = _.uniqWith(
         unfilteredUserList,
-        _.isEqual,
+        _.isEqual
       );
 
       const modifiedNewEventParts: EventPartPlannerRequestBodyType[] =
         newEventParts.map((eventPart) => {
           const oldEvent = filteredAllEvents.find(
-            (event) => event.id === eventPart.eventId,
+            (event) => event.id === eventPart.eventId
           );
           return {
             groupId: eventPart?.groupId,
@@ -4565,14 +4560,14 @@ export const processEventsForOptaPlannerForInternalAttendees = async (
   } catch (e) {
     console.log(
       e,
-      " unable to process events for optaplanner for each attendee",
+      ' unable to process events for optaplanner for each attendee'
     );
   }
 };
 
 export const convertMeetingAssistEventTypeToEventPlusType = (
   event: MeetingAssistEventType,
-  userId: string,
+  userId: string
 ): EventPlusType => {
   return {
     id: event?.id,
@@ -4633,7 +4628,7 @@ export const generateWorkTimesForExternalAttendee = (
   userId: string,
   attendeeEvents: EventPlusType[],
   hostTimezone: string,
-  userTimezone: string,
+  userTimezone: string
 ) => {
   const daysInWeek = 7;
 
@@ -4648,21 +4643,21 @@ export const generateWorkTimesForExternalAttendee = (
           dayjs(e.startDate.slice(0, 19))
             .tz(e.timezone || userTimezone, true)
             .tz(hostTimezone)
-            .toDate(),
+            .toDate()
         ) ===
-        i + 1,
+        i + 1
     );
     const minStartDate = _.minBy(sameDayEvents, (e) =>
       dayjs(e.startDate.slice(0, 19))
         .tz(e.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
     const maxEndDate = _.maxBy(sameDayEvents, (e) =>
       dayjs(e.endDate.slice(0, 19))
         .tz(e.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
     const startHour = dayjs(minStartDate.startDate.slice(0, 19))
       .tz(minStartDate.timezone || userTimezone, true)
@@ -4680,8 +4675,8 @@ export const generateWorkTimesForExternalAttendee = (
           .tz(minStartDate.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -4696,8 +4691,8 @@ export const generateWorkTimesForExternalAttendee = (
                 .tz(minStartDate.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(minStartDate.startDate.slice(0, 19))
@@ -4712,8 +4707,8 @@ export const generateWorkTimesForExternalAttendee = (
                   .tz(minStartDate.timezone || userTimezone, true)
                   .tz(hostTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -4734,8 +4729,8 @@ export const generateWorkTimesForExternalAttendee = (
           .tz(maxEndDate.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 15
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -4750,8 +4745,8 @@ export const generateWorkTimesForExternalAttendee = (
                 .tz(maxEndDate.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -4766,8 +4761,8 @@ export const generateWorkTimesForExternalAttendee = (
                   .tz(maxEndDate.timezone || userTimezone, true)
                   .tz(hostTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 45
           : 0;
@@ -4786,11 +4781,11 @@ export const generateWorkTimesForExternalAttendee = (
             .minute(startMinute)
             .tz(hostTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm") as Time,
+        .format('HH:mm') as Time,
       endTime: dayjs(
         setISODay(
           dayjs()
@@ -4798,11 +4793,11 @@ export const generateWorkTimesForExternalAttendee = (
             .minute(endMinute)
             .tz(hostTimezone, true)
             .toDate(),
-          i + 1,
-        ),
+          i + 1
+        )
       )
         .tz(hostTimezone)
-        .format("HH:mm") as Time,
+        .format('HH:mm') as Time,
       hostId,
       userId,
     });
@@ -4817,11 +4812,11 @@ export const generateTimeSlotsForExternalAttendee = (
   attendeeEvents: EventPlusType[],
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ) => {
   if (isFirstDay) {
     const dayOfWeekIntByHost = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
     const monthByHost = dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
@@ -4837,8 +4832,8 @@ export const generateTimeSlotsForExternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -4850,8 +4845,8 @@ export const generateTimeSlotsForExternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(hostStartDate.slice(0, 19))
@@ -4863,8 +4858,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 dayjs(hostStartDate.slice(0, 19))
                   .tz(hostTimezone, true)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -4875,14 +4870,14 @@ export const generateTimeSlotsForExternalAttendee = (
           dayjs(e.startDate.slice(0, 19))
             .tz(userTimezone, true)
             .tz(hostTimezone)
-            .toDate(),
-        ) === dayOfWeekIntByHost,
+            .toDate()
+        ) === dayOfWeekIntByHost
     );
     const maxEndDate = _.maxBy(sameDayEvents, (e) =>
       dayjs(e.endDate.slice(0, 19))
         .tz(userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
 
     let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -4901,8 +4896,8 @@ export const generateTimeSlotsForExternalAttendee = (
           .tz(maxEndDate.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 15
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -4917,8 +4912,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 .tz(maxEndDate.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -4933,8 +4928,8 @@ export const generateTimeSlotsForExternalAttendee = (
                   .tz(maxEndDate.timezone || userTimezone, true)
                   .tz(hostTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 45
           : 0;
@@ -4948,7 +4943,7 @@ export const generateTimeSlotsForExternalAttendee = (
       dayjs(e.startDate.slice(0, 19))
         .tz(userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
 
     const workStartHourByHost = dayjs(minStartDate.startDate.slice(0, 19))
@@ -4967,8 +4962,8 @@ export const generateTimeSlotsForExternalAttendee = (
           .tz(minStartDate.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(15),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -4983,8 +4978,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 .tz(minStartDate.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(30),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 15
         : dayjs(minStartDate.startDate.slice(0, 19))
@@ -4999,8 +4994,8 @@ export const generateTimeSlotsForExternalAttendee = (
                   .tz(minStartDate.timezone || userTimezone, true)
                   .tz(hostTimezone)
                   .minute(45),
-                "minute",
-                "[)",
+                'minute',
+                '[)'
               )
           ? 30
           : 45;
@@ -5012,7 +5007,7 @@ export const generateTimeSlotsForExternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -5037,7 +5032,7 @@ export const generateTimeSlotsForExternalAttendee = (
         workEndHourByHost,
         workEndMinuteByHost,
         timezone,
-        `startDate,  dayOfWeekIntByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost, endMinuteByHost totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+        `startDate,  dayOfWeekIntByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost, endMinuteByHost totalMinutes, timezone, inside firstDay inside generateTimeslots`
       );
       for (let i = 0; i < totalMinutes; i += 15) {
         timeSlots.push({
@@ -5046,24 +5041,24 @@ export const generateTimeSlotsForExternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourOfHostDateByHost)
             .minute(startMinuteOfHostDateByHost)
-            .add(i, "minute")
-            .format("HH:mm") as Time,
+            .add(i, 'minute')
+            .format('HH:mm') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourOfHostDateByHost)
             .minute(startMinuteOfHostDateByHost)
-            .add(i + 15, "minute")
-            .format("HH:mm") as Time,
+            .add(i + 15, 'minute')
+            .format('HH:mm') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day where startDate is before work start time",
+        ' timeSlots inside generateTimeSlots for first day where startDate is before work start time'
       );
       return timeSlots;
     }
@@ -5089,7 +5084,7 @@ export const generateTimeSlotsForExternalAttendee = (
       workEndHourByHost,
       workEndMinuteByHost,
       hostTimezone,
-      `startDate,  dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+      `startDate,  dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
     );
     for (let i = 0; i < totalMinutes; i += 15) {
       timeSlots.push({
@@ -5098,28 +5093,28 @@ export const generateTimeSlotsForExternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourOfHostDateByHost)
           .minute(startMinuteOfHostDateByHost)
-          .add(i, "minute")
-          .format("HH:mm") as Time,
+          .add(i, 'minute')
+          .format('HH:mm') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourOfHostDateByHost)
           .minute(startMinuteOfHostDateByHost)
-          .add(i + 15, "minute")
-          .format("HH:mm") as Time,
+          .add(i + 15, 'minute')
+          .format('HH:mm') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
       });
     }
 
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
 
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const monthByHost = dayjs(hostStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -5134,20 +5129,20 @@ export const generateTimeSlotsForExternalAttendee = (
         dayjs(e.startDate.slice(0, 19))
           .tz(e.timezone || userTimezone, true)
           .tz(hostTimezone)
-          .toDate(),
-      ) === dayOfWeekIntByHost,
+          .toDate()
+      ) === dayOfWeekIntByHost
   );
   const minStartDate = _.minBy(sameDayEvents, (e) =>
     dayjs(e.startDate.slice(0, 19))
       .tz(e.timezone || userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
   const maxEndDate = _.maxBy(sameDayEvents, (e) =>
     dayjs(e.endDate.slice(0, 19))
       .tz(e.timezone || userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
 
   let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5166,8 +5161,8 @@ export const generateTimeSlotsForExternalAttendee = (
         .tz(maxEndDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(15),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 15
     : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5182,8 +5177,8 @@ export const generateTimeSlotsForExternalAttendee = (
               .tz(maxEndDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(30),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 30
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5198,8 +5193,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 .tz(maxEndDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(45),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 45
         : 0;
@@ -5225,8 +5220,8 @@ export const generateTimeSlotsForExternalAttendee = (
         .tz(minStartDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(15),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 0
     : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5241,8 +5236,8 @@ export const generateTimeSlotsForExternalAttendee = (
               .tz(minStartDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(30),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 15
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5257,8 +5252,8 @@ export const generateTimeSlotsForExternalAttendee = (
                 .tz(minStartDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(45),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 45;
@@ -5269,7 +5264,7 @@ export const generateTimeSlotsForExternalAttendee = (
     workStartHourByHost,
     workStartMinuteByHost,
     workEndHourByHost,
-    " monthByHost, dayOfMonthByHost, workStartHourByHost, workStartMinuteByHost, workEndHourByHost",
+    ' monthByHost, dayOfMonthByHost, workStartHourByHost, workStartMinuteByHost, workEndHourByHost'
   );
   const startDuration = dayjs.duration({
     hours: workStartHourByHost,
@@ -5289,23 +5284,23 @@ export const generateTimeSlotsForExternalAttendee = (
         .tz(hostTimezone, true)
         .hour(workStartHourByHost)
         .minute(workStartMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm") as Time,
+        .add(i, 'minute')
+        .format('HH:mm') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(workStartHourByHost)
         .minute(workStartMinuteByHost)
-        .add(i + 15, "minute")
-        .format("HH:mm") as Time,
+        .add(i + 15, 'minute')
+        .format('HH:mm') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
     });
   }
 
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
@@ -5315,11 +5310,11 @@ export const generateTimeSlotsLiteForExternalAttendee = (
   attendeeEvents: EventPlusType[],
   hostTimezone: string,
   userTimezone: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ) => {
   if (isFirstDay) {
     const dayOfWeekIntByHost = getISODay(
-      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+      dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
     );
     const monthByHost = dayjs(hostStartDate.slice(0, 19))
       .tz(hostTimezone, true)
@@ -5335,8 +5330,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
       .isBetween(
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(0),
         dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(hostStartDate.slice(0, 19))
@@ -5348,8 +5343,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
               dayjs(hostStartDate.slice(0, 19))
                 .tz(hostTimezone, true)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -5360,14 +5355,14 @@ export const generateTimeSlotsLiteForExternalAttendee = (
           dayjs(e.startDate.slice(0, 19))
             .tz(e?.timezone || userTimezone, true)
             .tz(hostTimezone)
-            .toDate(),
-        ) === dayOfWeekIntByHost,
+            .toDate()
+        ) === dayOfWeekIntByHost
     );
     const maxEndDate = _.maxBy(sameDayEvents, (e) =>
       dayjs(e.endDate.slice(0, 19))
         .tz(e?.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
 
     let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5386,8 +5381,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
           .tz(maxEndDate?.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 30
       : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5402,8 +5397,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
                 .tz(maxEndDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 0
         : 30;
@@ -5417,7 +5412,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
       dayjs(e.startDate.slice(0, 19))
         .tz(e?.timezone || userTimezone, true)
         .tz(hostTimezone)
-        .unix(),
+        .unix()
     );
 
     const workStartHourByHost = dayjs(minStartDate.startDate.slice(0, 19))
@@ -5436,8 +5431,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
           .tz(minStartDate?.timezone || userTimezone, true)
           .tz(hostTimezone)
           .minute(30),
-        "minute",
-        "[)",
+        'minute',
+        '[)'
       )
       ? 0
       : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5452,8 +5447,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
                 .tz(minStartDate?.timezone || userTimezone, true)
                 .tz(hostTimezone)
                 .minute(59),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             )
         ? 30
         : 0;
@@ -5465,7 +5460,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
           dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(workStartHourByHost)
-            .minute(workStartMinuteByHost),
+            .minute(workStartMinuteByHost)
         )
     ) {
       const startDuration = dayjs.duration({
@@ -5490,7 +5485,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         workEndHourByHost,
         workEndMinuteByHost,
         timezone,
-        `startDate,  dayOfWeekIntByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost, endMinuteByHost totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+        `startDate,  dayOfWeekIntByHost, dayOfMonthByHost, startHourByHost, startMinuteByHost, endHourByHost, endMinuteByHost totalMinutes, timezone, inside firstDay inside generateTimeslots`
       );
       for (let i = 0; i < totalMinutes; i += 30) {
         timeSlots.push({
@@ -5499,24 +5494,24 @@ export const generateTimeSlotsLiteForExternalAttendee = (
             .tz(hostTimezone, true)
             .hour(startHourOfHostDateByHost)
             .minute(startMinuteOfHostDateByHost)
-            .add(i, "minute")
-            .format("HH:mm") as Time,
+            .add(i, 'minute')
+            .format('HH:mm') as Time,
           endTime: dayjs(hostStartDate.slice(0, 19))
             .tz(hostTimezone, true)
             .hour(startHourOfHostDateByHost)
             .minute(startMinuteOfHostDateByHost)
-            .add(i + 30, "minute")
-            .format("HH:mm") as Time,
+            .add(i + 30, 'minute')
+            .format('HH:mm') as Time,
           hostId,
           monthDay: formatToMonthDay(
             monthByHost as MonthType,
-            dayOfMonthByHost as DayType,
+            dayOfMonthByHost as DayType
           ),
         });
       }
       console.log(
         timeSlots,
-        " timeSlots inside generateTimeSlots for first day where startDate is before work start time",
+        ' timeSlots inside generateTimeSlots for first day where startDate is before work start time'
       );
       return timeSlots;
     }
@@ -5542,7 +5537,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
       workEndHourByHost,
       workEndMinuteByHost,
       hostTimezone,
-      `startDate,  dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`,
+      `startDate,  dayOfWeekIntByHost, dayOfMonth, startHour, startMinute, endHour, endMinute totalMinutes, timezone, inside firstDay inside generateTimeslots`
     );
     for (let i = 0; i < totalMinutes; i += 30) {
       timeSlots.push({
@@ -5551,28 +5546,28 @@ export const generateTimeSlotsLiteForExternalAttendee = (
           .tz(hostTimezone, true)
           .hour(startHourOfHostDateByHost)
           .minute(startMinuteOfHostDateByHost)
-          .add(i, "minute")
-          .format("HH:mm") as Time,
+          .add(i, 'minute')
+          .format('HH:mm') as Time,
         endTime: dayjs(hostStartDate.slice(0, 19))
           .tz(hostTimezone, true)
           .hour(startHourOfHostDateByHost)
           .minute(startMinuteOfHostDateByHost)
-          .add(i + 30, "minute")
-          .format("HH:mm") as Time,
+          .add(i + 30, 'minute')
+          .format('HH:mm') as Time,
         hostId,
         monthDay: formatToMonthDay(
           monthByHost as MonthType,
-          dayOfMonthByHost as DayType,
+          dayOfMonthByHost as DayType
         ),
       });
     }
 
-    console.log(timeSlots, " timeSlots inside generateTimeSlots for first day");
+    console.log(timeSlots, ' timeSlots inside generateTimeSlots for first day');
     return timeSlots;
   }
 
   const dayOfWeekIntByHost = getISODay(
-    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate(),
+    dayjs(hostStartDate.slice(0, 19)).tz(hostTimezone, true).toDate()
   );
   const monthByHost = dayjs(hostStartDate.slice(0, 19))
     .tz(hostTimezone, true)
@@ -5587,20 +5582,17 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         dayjs(e.startDate.slice(0, 19))
           .tz(userTimezone, true)
           .tz(hostTimezone)
-          .toDate(),
-      ) === dayOfWeekIntByHost,
+          .toDate()
+      ) === dayOfWeekIntByHost
   );
   const minStartDate = _.minBy(sameDayEvents, (e) =>
     dayjs(e.startDate.slice(0, 19))
       .tz(userTimezone, true)
       .tz(hostTimezone)
-      .unix(),
+      .unix()
   );
   const maxEndDate = _.maxBy(sameDayEvents, (e) =>
-    dayjs(e.endDate.slice(0, 19))
-      .tz(userTimezone, true)
-      .tz(hostTimezone)
-      .unix(),
+    dayjs(e.endDate.slice(0, 19)).tz(userTimezone, true).tz(hostTimezone).unix()
   );
 
   let workEndHourByHost = dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5619,8 +5611,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         .tz(maxEndDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(30),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 30
     : dayjs(maxEndDate.endDate.slice(0, 19))
@@ -5635,8 +5627,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
               .tz(maxEndDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(59),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 0
       : 30;
@@ -5662,8 +5654,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         .tz(minStartDate?.timezone || userTimezone, true)
         .tz(hostTimezone)
         .minute(30),
-      "minute",
-      "[)",
+      'minute',
+      '[)'
     )
     ? 0
     : dayjs(minStartDate.startDate.slice(0, 19))
@@ -5678,8 +5670,8 @@ export const generateTimeSlotsLiteForExternalAttendee = (
               .tz(minStartDate?.timezone || userTimezone, true)
               .tz(hostTimezone)
               .minute(59),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           )
       ? 30
       : 0;
@@ -5690,7 +5682,7 @@ export const generateTimeSlotsLiteForExternalAttendee = (
     workStartHourByHost,
     workStartMinuteByHost,
     workEndHourByHost,
-    " monthByHost, dayOfMonthByHost, workStartHourByHost, workStartMinuteByHost, workEndHourByHost",
+    ' monthByHost, dayOfMonthByHost, workStartHourByHost, workStartMinuteByHost, workEndHourByHost'
   );
   const startDuration = dayjs.duration({
     hours: workStartHourByHost,
@@ -5710,23 +5702,23 @@ export const generateTimeSlotsLiteForExternalAttendee = (
         .tz(hostTimezone, true)
         .hour(workStartHourByHost)
         .minute(workStartMinuteByHost)
-        .add(i, "minute")
-        .format("HH:mm") as Time,
+        .add(i, 'minute')
+        .format('HH:mm') as Time,
       endTime: dayjs(hostStartDate.slice(0, 19))
         .tz(hostTimezone, true)
         .hour(workStartHourByHost)
         .minute(workStartMinuteByHost)
-        .add(i + 30, "minute")
-        .format("HH:mm") as Time,
+        .add(i + 30, 'minute')
+        .format('HH:mm') as Time,
       hostId,
       monthDay: formatToMonthDay(
         monthByHost as MonthType,
-        dayOfMonthByHost as DayType,
+        dayOfMonthByHost as DayType
       ),
     });
   }
 
-  console.log(timeSlots, " timeSlots inside generateTimeSlots");
+  console.log(timeSlots, ' timeSlots inside generateTimeSlots');
   return timeSlots;
 };
 
@@ -5738,14 +5730,14 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
   windowEndDate: string,
   hostTimezone: string,
   externalAttendees: MeetingAssistAttendeeType[],
-  oldExternalMeetingEvents?: EventMeetingPlusType[],
+  oldExternalMeetingEvents?: EventMeetingPlusType[]
 ): Promise<ReturnBodyForExternalAttendeeForOptaplannerPrepType> => {
   try {
     const modifiedAllExternalEvents = allExternalEvents.map((e) =>
       convertMeetingAssistEventTypeToEventPlusType(
         e,
-        externalAttendees.find((a) => a.id === e.attendeeId)?.userId,
-      ),
+        externalAttendees.find((a) => a.id === e.attendeeId)?.userId
+      )
     );
 
     const oldConvertedMeetingEvents = oldExternalMeetingEvents
@@ -5757,7 +5749,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
 
     const diffDays = dayjs(windowEndDate.slice(0, 19)).diff(
       dayjs(windowStartDate.slice(0, 19)),
-      "day",
+      'day'
     );
 
     const startDatesForEachDay = [];
@@ -5766,8 +5758,8 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
       startDatesForEachDay.push(
         dayjs(windowStartDate.slice(0, 19))
           .tz(hostTimezone, true)
-          .add(i, "day")
-          .format(),
+          .add(i, 'day')
+          .format()
       );
     }
 
@@ -5779,14 +5771,14 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
         externalAttendee?.userId,
         modifiedAllExternalEvents,
         hostTimezone,
-        externalAttendee?.timezone,
+        externalAttendee?.timezone
       );
       unfilteredWorkTimes.push(...workTimesForAttendee);
     }
 
     const workTimes: WorkTimeType[] = _.uniqWith(
       unfilteredWorkTimes,
-      _.isEqual,
+      _.isEqual
     );
 
     const unfilteredTimeslots: TimeSlotType[] = [];
@@ -5802,7 +5794,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
               modifiedAllExternalEvents,
               hostTimezone,
               externalAttendee?.timezone,
-              true,
+              true
             );
           unfilteredTimeslots.push(...timeslotsForDay);
         }
@@ -5816,19 +5808,19 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
           modifiedAllExternalEvents,
           hostTimezone,
           externalAttendee?.timezone,
-          false,
+          false
         );
         unfilteredTimeslots.push(...timeslotsForDay);
       }
     }
     timeslots.push(..._.uniqWith(unfilteredTimeslots, _.isEqual));
-    console.log(timeslots, " timeslots");
+    console.log(timeslots, ' timeslots');
 
     const filteredAllEvents = _.uniqBy(
       modifiedAllExternalEvents.filter((e) =>
-        validateEventDatesForExternalAttendee(e),
+        validateEventDatesForExternalAttendee(e)
       ),
-      "id",
+      'id'
     );
     let eventParts: EventPartPlannerRequestBodyType[] = [];
 
@@ -5842,7 +5834,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
       modifyEventPartsForMultiplePreBufferTime(eventPartMinisAccumulated);
     const modifiedEventPartMinisPreAndPostBuffer =
       modifyEventPartsForMultiplePostBufferTime(
-        modifiedEventPartMinisPreBuffer,
+        modifiedEventPartMinisPreBuffer
       );
     const formattedEventParts: EventPartPlannerRequestBodyType[] =
       modifiedEventPartMinisPreAndPostBuffer.map((e) =>
@@ -5850,29 +5842,29 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
           e,
           workTimes,
           filteredAllEvents,
-          hostTimezone,
-        ),
+          hostTimezone
+        )
       );
     if (formattedEventParts.length > 0) {
       eventParts.push(...formattedEventParts);
     }
 
     if (eventParts.length > 0) {
-      eventParts.forEach((e) => console.log(e, " eventParts after formatting"));
+      eventParts.forEach((e) => console.log(e, ' eventParts after formatting'));
       const newEventPartsWithPreferredTimeSet = eventParts.map((e) =>
         setPreferredTimeForUnModifiableEvent(
           e,
-          allExternalEvents.find((f) => f.id === e.eventId)?.timezone,
-        ),
+          allExternalEvents.find((f) => f.id === e.eventId)?.timezone
+        )
       );
       newEventPartsWithPreferredTimeSet.forEach((e) =>
-        console.log(e, " newEventPartsWithPreferredTimeSet"),
+        console.log(e, ' newEventPartsWithPreferredTimeSet')
       );
       const newEventParts = await tagEventsForDailyOrWeeklyTask(
-        newEventPartsWithPreferredTimeSet,
+        newEventPartsWithPreferredTimeSet
       );
       newEventParts.forEach((e) =>
-        console.log(e, " newEventParts after tagEventsForDailyOrWeeklyTask"),
+        console.log(e, ' newEventParts after tagEventsForDailyOrWeeklyTask')
       );
       const userList: UserPlannerRequestBodyType[] = [];
       for (const externalAttendee of externalAttendees) {
@@ -5880,16 +5872,16 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
           generateUserPlannerRequestBodyForExternalAttendee(
             externalAttendee?.userId,
             workTimes,
-            mainHostId,
+            mainHostId
           );
-        console.log(userPlannerRequestBody, " userPlannerRequestBody");
+        console.log(userPlannerRequestBody, ' userPlannerRequestBody');
         userList.push(userPlannerRequestBody);
       }
 
       const modifiedNewEventParts: EventPartPlannerRequestBodyType[] =
         newEventParts.map((eventPart) => {
           const oldEvent = filteredAllEvents?.find(
-            (event) => event.id === eventPart.eventId,
+            (event) => event.id === eventPart.eventId
           );
           return {
             groupId: eventPart?.groupId,
@@ -5952,7 +5944,7 @@ export const processEventsForOptaPlannerForExternalAttendees = async (
   } catch (e) {
     console.log(
       e,
-      " unable to process events for optaplanner for external attendee",
+      ' unable to process events for optaplanner for external attendee'
     );
   }
 };
@@ -5965,7 +5957,7 @@ export const optaPlanWeekly = async (
   hostId: string,
   fileKey: string,
   delay: number,
-  callBackUrl: string,
+  callBackUrl: string
 ) => {
   try {
     const requestBody: PlannerRequestBodyType = {
@@ -5982,22 +5974,22 @@ export const optaPlanWeekly = async (
     await got
       .post(`${optaPlannerUrl}/timeTable/admin/solve-day`, {
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${Buffer.from(`${optaPlannerUsername}:${optaPlannerPassword}`).toString("base64")}`,
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${optaPlannerUsername}:${optaPlannerPassword}`).toString('base64')}`,
         },
         json: requestBody,
       })
       .json();
 
-    console.log(" optaPlanWeekly called");
+    console.log(' optaPlanWeekly called');
   } catch (e) {
-    console.log(e, " optaPlanWeekly");
+    console.log(e, ' optaPlanWeekly');
   }
 };
 
 export const updateFreemiumById = async (id: string, usage: number) => {
   try {
-    const operationName = "UpdateFreemiumById";
+    const operationName = 'UpdateFreemiumById';
     const query = `
             mutation UpdateFreemiumById($id: uuid!, $usage: Int!) {
                 update_Freemium_by_pk(pk_columns: {id: $id}, _set: {usage: $usage}) {
@@ -6020,8 +6012,8 @@ export const updateFreemiumById = async (id: string, usage: number) => {
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -6033,18 +6025,18 @@ export const updateFreemiumById = async (id: string, usage: number) => {
     console.log(
       response,
       response?.data?.update_Freemium_by_pk,
-      " response after updating update_Freemium_by_pk",
+      ' response after updating update_Freemium_by_pk'
     );
 
     return response?.data?.update_Freemium_by_pk;
   } catch (e) {
-    console.log(e, " unable to update freemium");
+    console.log(e, ' unable to update freemium');
   }
 };
 
 export const getFreemiumByUserId = async (userId: string) => {
   try {
-    const operationName = "GetFreemiumByUserId";
+    const operationName = 'GetFreemiumByUserId';
     const query = `
             query GetFreemiumByUserId($userId: uuid!) {
                 Freemium(where: {userId: {_eq: $userId}}) {
@@ -6065,9 +6057,9 @@ export const getFreemiumByUserId = async (userId: string) => {
     const res: { data: { Freemium: FreemiumType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -6077,11 +6069,11 @@ export const getFreemiumByUserId = async (userId: string) => {
       })
       .json();
 
-    console.log(res, " res from getFreemiumByUserId ");
+    console.log(res, ' res from getFreemiumByUserId ');
 
     return res?.data?.Freemium?.[0];
   } catch (e) {
-    console.log(" unable to get freemium by user id");
+    console.log(' unable to get freemium by user id');
   }
 };
 
@@ -6097,7 +6089,7 @@ export const processEventsForOptaPlanner = async (
   externalAttendees?: MeetingAssistAttendeeType[],
   meetingAssistEvents?: MeetingAssistEventType[],
   newHostReminders?: RemindersForEventType[],
-  newHostBufferTimes?: BufferTimeObjectType[],
+  newHostBufferTimes?: BufferTimeObjectType[]
 ) => {
   try {
     const allHostEvents = allEvents.filter((e) => e.userId === mainHostId);
@@ -6105,7 +6097,7 @@ export const processEventsForOptaPlanner = async (
     const oldHostEvents = oldEvents.filter((e) => e?.userId === mainHostId);
 
     const hostIsInternalAttendee = internalAttendees.some(
-      (ia) => ia?.userId === mainHostId,
+      (ia) => ia?.userId === mainHostId
     );
 
     let returnValuesFromInternalAttendees:
@@ -6125,7 +6117,7 @@ export const processEventsForOptaPlanner = async (
           oldEvents,
           meetingEventPlus,
           newHostReminders,
-          newHostBufferTimes,
+          newHostBufferTimes
         );
     } else {
       returnValuesFromHost = await processEventsForOptaPlannerForMainHost(
@@ -6136,14 +6128,14 @@ export const processEventsForOptaPlanner = async (
         hostTimezone,
         oldHostEvents,
         newHostReminders,
-        newHostBufferTimes,
+        newHostBufferTimes
       );
     }
 
     const externalMeetingEventPlus = meetingEventPlus
       .map((e) => {
         const foundIndex = externalAttendees?.findIndex(
-          (a) => a?.userId === e?.userId,
+          (a) => a?.userId === e?.userId
         );
         if (foundIndex > -1) {
           return e;
@@ -6162,7 +6154,7 @@ export const processEventsForOptaPlanner = async (
             windowEndDate,
             hostTimezone,
             externalAttendees,
-            externalMeetingEventPlus,
+            externalMeetingEventPlus
           )
         : null;
 
@@ -6181,7 +6173,7 @@ export const processEventsForOptaPlanner = async (
       )
     ) {
       throw new Error(
-        "no event parts produced something went wrong in optaplanner",
+        'no event parts produced something went wrong in optaplanner'
       );
     }
 
@@ -6191,7 +6183,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       eventParts.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.eventParts,
+          ?.eventParts
       );
     }
 
@@ -6205,7 +6197,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       breaks.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.breaks,
+          ?.breaks
       );
     }
 
@@ -6215,7 +6207,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       oldEventsForPlanner.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.oldEvents,
+          ?.oldEvents
       );
     }
 
@@ -6225,7 +6217,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       unfilteredTimeslots.push(
         ...(returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.timeslots,
+          ?.timeslots
       );
     }
 
@@ -6235,7 +6227,7 @@ export const processEventsForOptaPlanner = async (
     ) {
       unfilteredUserList.push(
         (returnValuesFromHost as ReturnBodyForHostForOptaplannerPrepType)
-          ?.userPlannerRequestBody,
+          ?.userPlannerRequestBody
       );
     }
 
@@ -6247,7 +6239,7 @@ export const processEventsForOptaPlanner = async (
       unfilteredUserList.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.userList,
+        )?.userList
       );
     }
 
@@ -6259,7 +6251,7 @@ export const processEventsForOptaPlanner = async (
       eventParts.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.eventParts,
+        )?.eventParts
       );
     }
 
@@ -6271,7 +6263,7 @@ export const processEventsForOptaPlanner = async (
       allEventsForPlanner.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.allEvents,
+        )?.allEvents
       );
     }
 
@@ -6283,7 +6275,7 @@ export const processEventsForOptaPlanner = async (
       oldEventsForPlanner.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.oldEvents,
+        )?.oldEvents
       );
     }
 
@@ -6295,7 +6287,7 @@ export const processEventsForOptaPlanner = async (
       unfilteredTimeslots.push(
         ...(
           returnValuesFromInternalAttendees as ReturnBodyForAttendeeForOptaplannerPrepType
-        )?.timeslots,
+        )?.timeslots
       );
     }
 
@@ -6309,7 +6301,7 @@ export const processEventsForOptaPlanner = async (
 
     if (returnValuesFromExternalAttendees?.oldAttendeeEvents?.length > 0) {
       oldAttendeeEvents.push(
-        ...returnValuesFromExternalAttendees?.oldAttendeeEvents,
+        ...returnValuesFromExternalAttendees?.oldAttendeeEvents
       );
     }
 
@@ -6327,13 +6319,13 @@ export const processEventsForOptaPlanner = async (
     const duplicateFreeOldEvents = _.uniqWith(oldEvents, _.isEqual);
     const duplicateFreeOldAttendeeEvents = _.uniqWith(
       oldAttendeeEvents,
-      _.isEqual,
+      _.isEqual
     );
     const duplicateFreeTimeslots = _.uniqWith(unfilteredTimeslots, _.isEqual);
     const singletonId = uuid();
 
     if (!duplicateFreeEventParts || duplicateFreeEventParts?.length === 0) {
-      throw new Error("Event Parts length is 0 or do not exist");
+      throw new Error('Event Parts length is 0 or do not exist');
     }
 
     const params = {
@@ -6350,14 +6342,14 @@ export const processEventsForOptaPlanner = async (
       }),
       Bucket: bucketName,
       Key: `${mainHostId}/${singletonId}.json`,
-      ContentType: "application/json",
+      ContentType: 'application/json',
     };
 
     const s3Command = new PutObjectCommand(params);
 
     const s3Response = await s3Client.send(s3Command);
 
-    console.log(s3Response, " s3Response");
+    console.log(s3Response, ' s3Response');
 
     await optaPlanWeekly(
       duplicateFreeTimeslots,
@@ -6367,17 +6359,17 @@ export const processEventsForOptaPlanner = async (
       mainHostId,
       `${mainHostId}/${singletonId}.json`,
       optaplannerDuration,
-      onOptaPlanCalendarAdminCallBackUrl,
+      onOptaPlanCalendarAdminCallBackUrl
     );
-    console.log("optaplanner request sent");
+    console.log('optaplanner request sent');
   } catch (e) {
-    console.log(e, " unable to process events for optaplanner");
+    console.log(e, ' unable to process events for optaplanner');
   }
 };
 
 export const getUserCategories = async (userId) => {
   try {
-    const operationName = "getUserCategories";
+    const operationName = 'getUserCategories';
     const query = `
       query getUserCategories($userId: uuid!) {
         Category(where: {userId: {_eq: $userId}}) {
@@ -6415,50 +6407,50 @@ export const getUserCategories = async (userId) => {
           variables,
         },
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
       })
       .json();
 
     return res?.data?.Category;
   } catch (e) {
-    console.log(e, " unable to get user categories");
+    console.log(e, ' unable to get user categories');
   }
 };
 
 export const findBestMatchCategory2 = async (
   event: EventPlusType,
-  possibleLabels: CategoryType[],
+  possibleLabels: CategoryType[]
 ): Promise<ClassificationResponseBodyType> => {
   try {
     if (!event) {
-      throw new Error("no event passed inside findBestMatchCategory2");
+      throw new Error('no event passed inside findBestMatchCategory2');
     }
 
     if (!possibleLabels) {
       throw new Error(
-        "no possible labels passed inside findBestMatchCategory2",
+        'no possible labels passed inside findBestMatchCategory2'
       );
     }
 
     const { summary, notes } = event;
-    const sentence = `${summary}${notes ? `: ${notes}` : ""}`;
+    const sentence = `${summary}${notes ? `: ${notes}` : ''}`;
 
     const labelNames = possibleLabels.map((a) => a?.name);
 
     const systemPrompt =
-      "You are an expert event categorizer. Given an event description and a list of possible categories, return a JSON array string containing only the names of the categories that directly apply to the event. Do not provide any explanation, only the JSON array string.";
+      'You are an expert event categorizer. Given an event description and a list of possible categories, return a JSON array string containing only the names of the categories that directly apply to the event. Do not provide any explanation, only the JSON array string.';
     const userPrompt = `Event: "${sentence}"
 Categories: ${JSON.stringify(labelNames)}`;
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // Using string directly as openAIChatGPTModel is not available here
+        model: 'gpt-3.5-turbo', // Using string directly as openAIChatGPTModel is not available here
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         temperature: 0.2,
       });
@@ -6471,36 +6463,36 @@ Categories: ${JSON.stringify(labelNames)}`;
           matchedLabels = JSON.parse(llmResponseString);
           if (
             !Array.isArray(matchedLabels) ||
-            !matchedLabels.every((item) => typeof item === "string")
+            !matchedLabels.every((item) => typeof item === 'string')
           ) {
             console.error(
-              "LLM response is not a valid JSON array of strings:",
-              llmResponseString,
+              'LLM response is not a valid JSON array of strings:',
+              llmResponseString
             );
             matchedLabels = []; // Fallback to empty if not a string array
           }
         } catch (parseError) {
           console.error(
-            "Error parsing LLM response:",
+            'Error parsing LLM response:',
             parseError,
-            llmResponseString,
+            llmResponseString
           );
           // Fallback: attempt to extract labels if it's a simple list not in JSON array format
-          if (typeof llmResponseString === "string") {
+          if (typeof llmResponseString === 'string') {
             matchedLabels = labelNames.filter((label) =>
-              llmResponseString.includes(label),
+              llmResponseString.includes(label)
             );
           } else {
             matchedLabels = [];
           }
         }
       } else {
-        console.error("LLM response content is null or undefined.");
+        console.error('LLM response content is null or undefined.');
         matchedLabels = [];
       }
 
       const scores = labelNames.map((label) =>
-        matchedLabels.includes(label) ? 0.9 : 0.1,
+        matchedLabels.includes(label) ? 0.9 : 0.1
       );
 
       const result: ClassificationResponseBodyType = {
@@ -6511,13 +6503,13 @@ Categories: ${JSON.stringify(labelNames)}`;
       console.log(
         result,
         event?.id,
-        " result, event?.id inside findBestMatchCategory2 with OpenAI",
+        ' result, event?.id inside findBestMatchCategory2 with OpenAI'
       );
       return result;
     } catch (apiError) {
       console.error(
-        "Error calling OpenAI API or processing its response:",
-        apiError,
+        'Error calling OpenAI API or processing its response:',
+        apiError
       );
       // Fallback to low scores for all categories in case of API error
       const scores = labelNames.map(() => 0.1);
@@ -6530,7 +6522,7 @@ Categories: ${JSON.stringify(labelNames)}`;
     }
   } catch (e) {
     // This outer catch block handles errors from the initial validation steps
-    console.log(e, " initial error in findBestMatchCategory2");
+    console.log(e, ' initial error in findBestMatchCategory2');
     // Optionally rethrow or return a specific error response
     throw e; // Re-throwing the original error if it's from pre-API call logic
   }
@@ -6538,10 +6530,10 @@ Categories: ${JSON.stringify(labelNames)}`;
 
 export const processBestMatchCategories = (
   body: ClassificationResponseBodyType,
-  newPossibleLabels: string[],
+  newPossibleLabels: string[]
 ) => {
   const { scores } = body;
-  let bestMatchCategory = "";
+  let bestMatchCategory = '';
   let bestMatchScore = 0;
   for (let i = 0; i < newPossibleLabels.length; i++) {
     const label = newPossibleLabels[i];
@@ -6561,7 +6553,7 @@ const addToBestMatchCategories = (
   newEvent: EventPlusType,
   newPossibleLabels: string[],
   scores: number[],
-  categories: CategoryType[],
+  categories: CategoryType[]
 ): CategoryType[] | [] => {
   const bestMatchCategories = [];
 
@@ -6570,7 +6562,7 @@ const addToBestMatchCategories = (
 
   if (meetingIndex > -1 && scores[meetingIndex] > minThresholdScore) {
     bestMatchCategories.push(
-      categories?.find((category) => category.name === meetingLabel),
+      categories?.find((category) => category.name === meetingLabel)
     );
   }
 
@@ -6579,19 +6571,19 @@ const addToBestMatchCategories = (
     scores[externalMeetingIndex] > minThresholdScore
   ) {
     bestMatchCategories.push(
-      categories?.find((category) => category.name === externalMeetingLabel),
+      categories?.find((category) => category.name === externalMeetingLabel)
     );
   }
 
   if (newEvent.isMeeting && meetingIndex > -1) {
     bestMatchCategories.push(
-      categories?.find((category) => category.name === meetingLabel),
+      categories?.find((category) => category.name === meetingLabel)
     );
   }
 
   if (newEvent.isExternalMeeting && externalMeetingIndex > -1) {
     bestMatchCategories.push(
-      categories?.find((category) => category.name === externalMeetingLabel),
+      categories?.find((category) => category.name === externalMeetingLabel)
     );
   }
 
@@ -6603,13 +6595,13 @@ export const processEventForMeetingTypeCategories = (
   bestMatchCategory: CategoryType,
   newPossibleLabels: string[],
   scores: number[],
-  categories: CategoryType[],
+  categories: CategoryType[]
 ): CategoryType[] | [] => {
   const bestMatchCategories = addToBestMatchCategories(
     newEvent,
     newPossibleLabels,
     scores,
-    categories,
+    categories
   );
 
   if (bestMatchCategories?.length > 0) {
@@ -6620,20 +6612,20 @@ export const processEventForMeetingTypeCategories = (
 };
 
 export const getUniqueLabels = (labels: CategoryType[]) => {
-  const uniqueLabels = _.uniqBy(labels, "id");
+  const uniqueLabels = _.uniqBy(labels, 'id');
   return uniqueLabels;
 };
 
 export const copyOverCategoryDefaults = (
   event: EventPlusType,
-  category: CategoryType,
+  category: CategoryType
 ): EventPlusType => {
   return {
     ...event,
     transparency: !event?.userModifiedAvailability
       ? category?.defaultAvailability
-        ? "transparent"
-        : "opaque"
+        ? 'transparent'
+        : 'opaque'
       : event.transparency,
     priority:
       (!event?.userModifiedPriorityLevel
@@ -6686,22 +6678,22 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
   bestMatchCategory: CategoryType,
   newReminders1?: ReminderType[],
   newTimeBlocking1?: BufferTimeObjectType,
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   try {
     if (!bestMatchCategory?.id) {
-      throw new Error("bestMatchCategory is required");
+      throw new Error('bestMatchCategory is required');
     }
     if (!newEvent?.id) {
-      throw new Error("newEvent is required");
+      throw new Error('newEvent is required');
     }
 
     if (!id) {
-      throw new Error("id is required");
+      throw new Error('id is required');
     }
 
     if (!userId) {
-      throw new Error("userId is required");
+      throw new Error('userId is required');
     }
 
     let newTimeBlocking = newTimeBlocking1 || {};
@@ -6711,9 +6703,9 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
       newEvent,
       bestMatchCategory,
       oldReminders,
-      previousEvent,
+      previousEvent
     );
-    console.log(reminders, " reminders");
+    console.log(reminders, ' reminders');
     if (
       reminders?.length > 0 &&
       bestMatchCategory?.copyReminders &&
@@ -6729,9 +6721,9 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
       const timeBlocking = createPreAndPostEventsForCategoryDefaults(
         bestMatchCategory,
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(timeBlocking, " timeBlocking");
+      console.log(timeBlocking, ' timeBlocking');
       if (timeBlocking?.beforeEvent) {
         (newTimeBlocking as BufferTimeObjectType).beforeEvent =
           timeBlocking.beforeEvent;
@@ -6753,13 +6745,13 @@ export const createRemindersAndTimeBlockingForBestMatchCategory = async (
   } catch (e) {
     console.log(
       e,
-      " unable to create reminders and time blocking for best match category",
+      ' unable to create reminders and time blocking for best match category'
     );
   }
 };
 
 export const createCategoryEvents = async (
-  categoryEvents: CategoryEventType[],
+  categoryEvents: CategoryEventType[]
 ) => {
   try {
     for (const categoryEvent of categoryEvents) {
@@ -6767,7 +6759,7 @@ export const createCategoryEvents = async (
         categoryId: categoryEvent?.categoryId,
         eventId: categoryEvent?.eventId,
       };
-      const operationName = "ConnectionByCategoryIdAndEventId";
+      const operationName = 'ConnectionByCategoryIdAndEventId';
       const query = `
         query ConnectionByCategoryIdAndEventId($categoryId: uuid!, $eventId: String!) {
           Category_Event(where: {categoryId: {_eq: $categoryId}, eventId: {_eq: $eventId}}) {
@@ -6786,8 +6778,8 @@ export const createCategoryEvents = async (
       const res: { data: { Category_Event: CategoryEventType[] } } = await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -6806,7 +6798,7 @@ export const createCategoryEvents = async (
           updatedAt: categoryEvent?.updatedAt,
           userId: categoryEvent?.userId,
         };
-        const operationName2 = "InsertCategory_Event";
+        const operationName2 = 'InsertCategory_Event';
         const query2 = `
           mutation InsertCategory_Event($id: uuid!, $categoryId: uuid!, $createdDate: timestamptz, $eventId: String!, $updatedAt: timestamptz, $userId: uuid!) {
             insert_Category_Event_one(object: {categoryId: $categoryId, createdDate: $createdDate, deleted: false, eventId: $eventId, id: $id, updatedAt: $updatedAt, userId: $userId}) {
@@ -6823,8 +6815,8 @@ export const createCategoryEvents = async (
         const res2 = await got
           .post(hasuraGraphUrl, {
             headers: {
-              "X-Hasura-Admin-Secret": hasuraAdminSecret,
-              "X-Hasura-Role": "admin",
+              'X-Hasura-Admin-Secret': hasuraAdminSecret,
+              'X-Hasura-Role': 'admin',
             },
             json: {
               operationName: operationName2,
@@ -6834,23 +6826,23 @@ export const createCategoryEvents = async (
           })
           .json();
 
-        console.log(res2, " response after inserting category event");
+        console.log(res2, ' response after inserting category event');
       }
     }
   } catch (e) {
-    console.log(e, " unable to upsert category events");
+    console.log(e, ' unable to upsert category events');
   }
 };
 
 const copyOverCategoryDefaultsForMeetingType = (
   event,
-  categories: CategoryType[],
+  categories: CategoryType[]
 ) => {
   const meetingCategory = categories?.find(
-    (category) => category.name === meetingLabel,
+    (category) => category.name === meetingLabel
   );
   const externalCategory = categories?.find(
-    (category) => category.name === externalMeetingLabel,
+    (category) => category.name === externalMeetingLabel
   );
 
   let newEventMeeting = null;
@@ -6869,20 +6861,20 @@ const copyOverCategoryDefaultsForMeetingType = (
 
 export const listRemindersForEvent = async (
   eventId: string,
-  userId: string,
+  userId: string
 ) => {
   try {
     if (!eventId) {
-      console.log(eventId, " no eventId present inside listRemindersForEvent");
+      console.log(eventId, ' no eventId present inside listRemindersForEvent');
       return;
     }
 
     if (!userId) {
-      console.log(userId, " no userId present inside listRemindersForEvent");
+      console.log(userId, ' no userId present inside listRemindersForEvent');
       return;
     }
-    console.log(" listRemindersForEvent called");
-    const operationName = "listRemindersForEvent";
+    console.log(' listRemindersForEvent called');
+    const operationName = 'listRemindersForEvent';
     const query = `
     query listRemindersForEvent($userId: uuid!, $eventId: String!) {
       Reminder(where: {userId: {_eq: $userId}, eventId: {_eq: $eventId}, deleted: {_neq: true}}) {
@@ -6902,9 +6894,9 @@ export const listRemindersForEvent = async (
     const res: { data: { Reminder: ReminderType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -6917,10 +6909,10 @@ export const listRemindersForEvent = async (
       })
       .json();
 
-    console.log(res, " res from listRemindersForEvent");
+    console.log(res, ' res from listRemindersForEvent');
     return res?.data?.Reminder;
   } catch (e) {
-    console.log(e, " listRemindersForEvent");
+    console.log(e, ' listRemindersForEvent');
   }
 };
 
@@ -6928,7 +6920,7 @@ export const createRemindersUsingCategoryDefaultsForEvent = (
   event: EventPlusType,
   bestMatchCategory: CategoryType,
   oldReminders: ReminderType[],
-  previousEvent: EventPlusType,
+  previousEvent: EventPlusType
 ): ReminderType[] => {
   if (event.userModifiedReminders) {
     return null;
@@ -6965,7 +6957,7 @@ export const createRemindersUsingCategoryDefaultsForEvent = (
 export const createPreAndPostEventsForCategoryDefaults = (
   bestMatchCategory: CategoryType,
   event: EventPlusType,
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   if (previousEvent?.copyTimeBlocking) {
     return null;
@@ -6989,7 +6981,7 @@ export const createPreAndPostEventsForCategoryDefaults = (
   if (bestMatchCategory?.defaultTimeBlocking?.afterEvent) {
     const formattedZoneAfterEventEndDate = dayjs(event.endDate.slice(0, 19))
       .tz(event?.timezone, true)
-      .add(bestMatchCategory.defaultTimeBlocking.afterEvent, "m")
+      .add(bestMatchCategory.defaultTimeBlocking.afterEvent, 'm')
       .format();
     const formattedZoneAfterEventStartDate = dayjs(event.endDate.slice(0, 19))
       .tz(event?.timezone, true)
@@ -7000,11 +6992,11 @@ export const createPreAndPostEventsForCategoryDefaults = (
       isPreEvent: false,
       forEventId: event.id,
       isPostEvent: true,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: formattedZoneAfterEventStartDate,
       endDate: formattedZoneAfterEventEndDate,
-      method: event?.postEventId ? "update" : "create",
+      method: event?.postEventId ? 'update' : 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -7019,7 +7011,7 @@ export const createPreAndPostEventsForCategoryDefaults = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: postEventId.split("#")[0],
+      eventId: postEventId.split('#')[0],
     };
     valuesToReturn.afterEvent = afterEvent;
     valuesToReturn.newEvent = {
@@ -7034,10 +7026,10 @@ export const createPreAndPostEventsForCategoryDefaults = (
 
   if (bestMatchCategory?.defaultTimeBlocking?.beforeEvent) {
     const formattedZoneBeforeEventStartDate = dayjs(
-      event.startDate.slice(0, 19),
+      event.startDate.slice(0, 19)
     )
       .tz(event.timezone, true)
-      .subtract(bestMatchCategory.defaultTimeBlocking.beforeEvent, "m")
+      .subtract(bestMatchCategory.defaultTimeBlocking.beforeEvent, 'm')
       .format();
     const formattedZoneBeforeEventEndDate = dayjs(event.startDate.slice(0, 19))
       .tz(event.timezone, true)
@@ -7048,11 +7040,11 @@ export const createPreAndPostEventsForCategoryDefaults = (
       isPreEvent: true,
       isPostEvent: false,
       forEventId: event.id,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: formattedZoneBeforeEventStartDate,
       endDate: formattedZoneBeforeEventEndDate,
-      method: event?.preEventId ? "update" : "create",
+      method: event?.preEventId ? 'update' : 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -7067,7 +7059,7 @@ export const createPreAndPostEventsForCategoryDefaults = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: preEventId.split("#")[0],
+      eventId: preEventId.split('#')[0],
     };
     valuesToReturn.beforeEvent = beforeEvent;
     valuesToReturn.newEvent = {
@@ -7093,12 +7085,12 @@ export const updateValuesForMeetingTypeCategories = async (
     beforeEvent?: EventPlusType;
     afterEvent?: EventPlusType;
   },
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   try {
     if (!(bestMatchCategories?.length > 0)) {
       throw new Error(
-        "bestMatchCategories cannot be empty inside updateValuesForMeetingTypeCategories ",
+        'bestMatchCategories cannot be empty inside updateValuesForMeetingTypeCategories '
       );
     }
     let newEvent = newEvent1;
@@ -7106,38 +7098,38 @@ export const updateValuesForMeetingTypeCategories = async (
     let newBufferTime = newTimeBlocking1 || {};
     const newCategoryConstantEvents = copyOverCategoryDefaultsForMeetingType(
       event,
-      bestMatchCategories,
+      bestMatchCategories
     );
-    console.log(newCategoryConstantEvents, " newCategoryConstantEvents");
+    console.log(newCategoryConstantEvents, ' newCategoryConstantEvents');
 
     if (newCategoryConstantEvents?.newEventMeeting?.id) {
       newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventMeeting };
       const meetingCategory = bestMatchCategories?.find(
-        (category) => category.name === meetingLabel,
+        (category) => category.name === meetingLabel
       );
 
       const oldReminders = await listRemindersForEvent(
         newCategoryConstantEvents.newEventMeeting.id,
-        userId,
+        userId
       );
       const reminders = createRemindersUsingCategoryDefaultsForEvent(
         newEvent,
         meetingCategory,
         oldReminders,
-        previousEvent,
+        previousEvent
       );
-      console.log(reminders, " reminders");
+      console.log(reminders, ' reminders');
       if (reminders?.length > 0) {
         newReminders.push(...reminders);
-        newReminders = _.uniqBy(newReminders, "minutes");
+        newReminders = _.uniqBy(newReminders, 'minutes');
       }
 
       const bufferTime = createPreAndPostEventsForCategoryDefaults(
         meetingCategory,
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(bufferTime, " timeBlocking");
+      console.log(bufferTime, ' timeBlocking');
       if (bufferTime?.beforeEvent) {
         newBufferTime.beforeEvent = bufferTime.beforeEvent;
       }
@@ -7157,31 +7149,31 @@ export const updateValuesForMeetingTypeCategories = async (
     if (newCategoryConstantEvents?.newEventExternal?.id) {
       newEvent = { ...newEvent, ...newCategoryConstantEvents.newEventExternal };
       const externalCategory = bestMatchCategories?.find(
-        (category) => category.name === externalMeetingLabel,
+        (category) => category.name === externalMeetingLabel
       );
 
       const oldReminders = await listRemindersForEvent(
         newCategoryConstantEvents.newEventExternal.id,
-        userId,
+        userId
       );
       const reminders = createRemindersUsingCategoryDefaultsForEvent(
         newEvent,
         externalCategory,
         oldReminders,
-        previousEvent,
+        previousEvent
       );
-      console.log(reminders, " reminders");
+      console.log(reminders, ' reminders');
       if (reminders?.length > 0) {
         newReminders.push(...reminders);
-        newReminders = _.uniqBy(newReminders, "minutes");
+        newReminders = _.uniqBy(newReminders, 'minutes');
       }
 
       const timeBlocking = createPreAndPostEventsForCategoryDefaults(
         externalCategory,
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(timeBlocking, " timeBlocking");
+      console.log(timeBlocking, ' timeBlocking');
       if (timeBlocking?.beforeEvent) {
         newBufferTime.beforeEvent = timeBlocking.beforeEvent;
       }
@@ -7199,45 +7191,45 @@ export const updateValuesForMeetingTypeCategories = async (
     }
     return { newEvent, newReminders, newTimeBlocking: newBufferTime };
   } catch (e) {
-    console.log(e, " unable to update values for default categories");
+    console.log(e, ' unable to update values for default categories');
   }
 };
 
 export const processUserEventForCategoryDefaults = async (
   event: EventPlusType,
-  vector: number[],
+  vector: number[]
 ) => {
   try {
     const { id, userId } = event;
-    console.log(id, " id inside processUserEventForCategoryDefaults");
+    console.log(id, ' id inside processUserEventForCategoryDefaults');
 
     const categories: CategoryType[] = await getUserCategories(userId);
 
     if (!categories?.[0]?.id) {
       throw new Error(
-        "categories is not available processUserEventForCategoryDefaults",
+        'categories is not available processUserEventForCategoryDefaults'
       );
     }
 
     console.log(
       categories,
       id,
-      " categories, id processUserEventForCategoryDefaults",
+      ' categories, id processUserEventForCategoryDefaults'
     );
     const body = await findBestMatchCategory2(event, categories);
-    console.log(body, id, " body, id processUserEventForCategoryDefaults");
+    console.log(body, id, ' body, id processUserEventForCategoryDefaults');
     const { labels, scores } = body;
 
     const bestMatchLabel = processBestMatchCategories(body, labels);
     console.log(
       bestMatchLabel,
       id,
-      " bestMatchLabel, id processUserEventForCategoryDefaults",
+      ' bestMatchLabel, id processUserEventForCategoryDefaults'
     );
 
     if (bestMatchLabel) {
       const bestMatchCategory = categories?.find(
-        (category) => category.name === bestMatchLabel,
+        (category) => category.name === bestMatchLabel
       );
       let bestMatchPlusMeetingCategories =
         await processEventForMeetingTypeCategories(
@@ -7245,30 +7237,30 @@ export const processUserEventForCategoryDefaults = async (
           bestMatchCategory,
           labels,
           scores,
-          categories,
+          categories
         );
       if (bestMatchPlusMeetingCategories?.length > 0) {
         bestMatchPlusMeetingCategories = getUniqueLabels(
-          bestMatchPlusMeetingCategories,
+          bestMatchPlusMeetingCategories
         );
         console.log(
           bestMatchPlusMeetingCategories,
           id,
-          " bestMatchAndMeetingCategories, id processUserEventForCategoryDefaults",
+          ' bestMatchAndMeetingCategories, id processUserEventForCategoryDefaults'
         );
       }
       const newCategoryDefaultEvent = copyOverCategoryDefaults(
         event,
-        bestMatchCategory,
+        bestMatchCategory
       );
       console.log(
         newCategoryDefaultEvent,
         id,
-        " newCategoryDefaultEvent, id processUserEventForCategoryDefaults",
+        ' newCategoryDefaultEvent, id processUserEventForCategoryDefaults'
       );
 
       let newEvent: EventPlusType = newCategoryDefaultEvent ?? event;
-      console.log(newEvent, " newEvent processUserEventForCategoryDefaults");
+      console.log(newEvent, ' newEvent processUserEventForCategoryDefaults');
       let newReminders: ReminderType[] = [];
       let newTimeBlocking: BufferTimeObjectType = {};
 
@@ -7282,7 +7274,7 @@ export const processUserEventForCategoryDefaults = async (
         newEvent,
         bestMatchCategory,
         newReminders,
-        newTimeBlocking,
+        newTimeBlocking
       );
       newEvent = newEvent1;
       newReminders = newReminders1;
@@ -7304,7 +7296,7 @@ export const processUserEventForCategoryDefaults = async (
         console.log(
           categoryEvents,
           id,
-          " categoryEvents, id processUserEventForCategoryDefaults",
+          ' categoryEvents, id processUserEventForCategoryDefaults'
         );
         await createCategoryEvents(categoryEvents);
         const {
@@ -7317,7 +7309,7 @@ export const processUserEventForCategoryDefaults = async (
           bestMatchPlusMeetingCategories,
           userId,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         newEvent = newEvent1;
         newReminders = newReminders1;
@@ -7326,14 +7318,14 @@ export const processUserEventForCategoryDefaults = async (
 
       newEvent.vector = vector;
 
-      console.log(newEvent, " newEvent processUserEventForCategoryDefaults");
+      console.log(newEvent, ' newEvent processUserEventForCategoryDefaults');
       console.log(
         newReminders,
-        " newReminders processUserEventForCategoryDefaults",
+        ' newReminders processUserEventForCategoryDefaults'
       );
       console.log(
         newTimeBlocking,
-        " newTimeBlocking processUserEventForCategoryDefaults",
+        ' newTimeBlocking processUserEventForCategoryDefaults'
       );
 
       return {
@@ -7347,14 +7339,14 @@ export const processUserEventForCategoryDefaults = async (
       newEvent: event,
     };
   } catch (e) {
-    console.log(e, " e");
+    console.log(e, ' e');
   }
 };
 
 export const listCategoriesForEvent = async (eventId: string) => {
   try {
-    console.log(eventId, " eventId inside listCategoriesForEvent");
-    const operationName = "listCategoriesForEvent";
+    console.log(eventId, ' eventId inside listCategoriesForEvent');
+    const operationName = 'listCategoriesForEvent';
     const query = `
       query listCategoriesForEvent($eventId: String!) {
         Category_Event(where: {eventId: {_eq: $eventId}}) {
@@ -7400,9 +7392,9 @@ export const listCategoriesForEvent = async (eventId: string) => {
     const res: { data: { Category_Event: CategoryEventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -7413,26 +7405,26 @@ export const listCategoriesForEvent = async (eventId: string) => {
         },
       })
       .json();
-    console.log(res, " listCategoriesForEvent");
+    console.log(res, ' listCategoriesForEvent');
     const categories: CategoryType[] = res?.data?.Category_Event?.map(
-      (category) => category?.Category,
+      (category) => category?.Category
     )?.filter((category) => category?.id !== null);
     console.log(
       categories,
-      " categories from listCategoriesForEvent after filter",
+      ' categories from listCategoriesForEvent after filter'
     );
     return categories;
   } catch (e) {
-    console.log(e, " unable to listCategoriesForEvent");
+    console.log(e, ' unable to listCategoriesForEvent');
   }
 };
 
 export const processBestMatchCategoriesNoThreshold = (
   body,
-  newPossibleLabels,
+  newPossibleLabels
 ) => {
   const { scores } = body;
-  let bestMatchCategory = "";
+  let bestMatchCategory = '';
   let bestMatchScore = 0;
   for (let i = 0; i < newPossibleLabels.length; i++) {
     const label = newPossibleLabels[i];
@@ -7454,31 +7446,31 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
       console.log(
         id,
         userId,
-        " id, userId inside processUserEventForCategoryDefaultsWithUserModifiedCategories",
+        ' id, userId inside processUserEventForCategoryDefaultsWithUserModifiedCategories'
       );
 
       const categories: CategoryType[] = await listCategoriesForEvent(
-        event?.id,
+        event?.id
       );
 
-      console.log(categories, " categories");
+      console.log(categories, ' categories');
       const body = await findBestMatchCategory2(event, categories);
-      console.log(body, " body");
+      console.log(body, ' body');
       const { labels, scores } = body;
 
       const bestMatchLabel = processBestMatchCategoriesNoThreshold(
         body,
-        labels,
+        labels
       );
-      console.log(bestMatchLabel, " bestMatchLabel");
+      console.log(bestMatchLabel, ' bestMatchLabel');
       let bestMatchCategory: CategoryType | null = null;
       let newEvent: EventPlusType = event;
-      console.log(newEvent, " newEvent");
+      console.log(newEvent, ' newEvent');
       let newReminders: ReminderType[] = [];
       let newTimeBlocking: BufferTimeObjectType | object = {};
       if (bestMatchLabel) {
         bestMatchCategory = categories.find(
-          (category) => category.name === bestMatchLabel,
+          (category) => category.name === bestMatchLabel
         );
         labels.push(meetingLabel, externalMeetingLabel);
         scores.push(0, 0);
@@ -7488,15 +7480,15 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
             bestMatchCategory,
             labels,
             scores,
-            categories,
+            categories
           );
         if (bestMatchPlusMeetingCategories?.length > 0) {
           bestMatchPlusMeetingCategories = getUniqueLabels(
-            bestMatchPlusMeetingCategories,
+            bestMatchPlusMeetingCategories
           );
           console.log(
             bestMatchPlusMeetingCategories,
-            " bestMatchAndMeetingCategories",
+            ' bestMatchAndMeetingCategories'
           );
           const categoryEvents: CategoryEventType[] =
             bestMatchPlusMeetingCategories.map((c) => {
@@ -7510,7 +7502,7 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
               } as CategoryEventType;
               return categoryEvent;
             });
-          console.log(categoryEvents, " categoryEvents");
+          console.log(categoryEvents, ' categoryEvents');
           await createCategoryEvents(categoryEvents);
           const {
             newEvent: newEvent1,
@@ -7522,7 +7514,7 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
             bestMatchPlusMeetingCategories,
             userId,
             newReminders,
-            newTimeBlocking,
+            newTimeBlocking
           );
           newEvent = newEvent1;
           newReminders = newReminders1;
@@ -7534,13 +7526,13 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
       if (bestMatchCategory) {
         newCategoryDefaultEvent = copyOverCategoryDefaults(
           event,
-          bestMatchCategory,
+          bestMatchCategory
         );
       }
-      console.log(newCategoryDefaultEvent, " newCategoryDefaultEvent");
+      console.log(newCategoryDefaultEvent, ' newCategoryDefaultEvent');
 
       newEvent = newCategoryDefaultEvent ?? newEvent ?? event;
-      console.log(newEvent, " newEvent");
+      console.log(newEvent, ' newEvent');
       const {
         newEvent: newEvent1,
         newReminders: newReminders1,
@@ -7551,7 +7543,7 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
         newEvent,
         bestMatchCategory,
         newReminders,
-        newTimeBlocking as BufferTimeObjectType,
+        newTimeBlocking as BufferTimeObjectType
       );
 
       newEvent = newEvent1;
@@ -7569,7 +7561,7 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
           categories,
           userId,
           newReminders,
-          newTimeBlocking as BufferTimeObjectType,
+          newTimeBlocking as BufferTimeObjectType
         );
         newEvent = newEvent1;
         newReminders = newReminders1;
@@ -7578,9 +7570,9 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
 
       newEvent.vector = vector;
 
-      console.log(newEvent, " newEvent");
-      console.log(newReminders, " newReminders");
-      console.log(newTimeBlocking, " newTimeBlocking");
+      console.log(newEvent, ' newEvent');
+      console.log(newReminders, ' newReminders');
+      console.log(newTimeBlocking, ' newTimeBlocking');
 
       return {
         newEvent,
@@ -7588,15 +7580,15 @@ export const processUserEventForCategoryDefaultsWithUserModifiedCategories =
         newTimeBlocking,
       };
     } catch (e) {
-      console.log(e, " e");
+      console.log(e, ' e');
     }
   };
 
 export const getEventFromPrimaryKey = async (
-  eventId: string,
+  eventId: string
 ): Promise<EventPlusType> => {
   try {
-    const operationName = "getEventFromPrimaryKey";
+    const operationName = 'getEventFromPrimaryKey';
     const query = `
         query getEventFromPrimaryKey($eventId: String!) {
             Event_by_pk(id: $eventId) {
@@ -7720,9 +7712,9 @@ export const getEventFromPrimaryKey = async (
     const res: { data: { Event_by_pk: EventPlusType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -7733,10 +7725,10 @@ export const getEventFromPrimaryKey = async (
         },
       })
       .json();
-    console.log(res, " res from getEventFromPrimaryKey");
+    console.log(res, ' res from getEventFromPrimaryKey');
     return res?.data?.Event_by_pk;
   } catch (e) {
-    console.log(e, " getEventFromPrimaryKey");
+    console.log(e, ' getEventFromPrimaryKey');
   }
 };
 
@@ -7747,10 +7739,10 @@ export const deleteDocInSearch3 = async (id: string) => {
       id,
       index: searchIndex,
     });
-    console.log("Deleting document in search:");
+    console.log('Deleting document in search:');
     console.log(response.body);
   } catch (e) {
-    console.log(e, " unable to delete doc");
+    console.log(e, ' unable to delete doc');
   }
 };
 
@@ -7758,7 +7750,7 @@ export const copyOverPreviousEventDefaults = (
   event: EventPlusType,
   previousEvent: EventPlusType,
   category?: CategoryType,
-  userPreferences?: UserPreferenceType,
+  userPreferences?: UserPreferenceType
 ): EventPlusType => {
   const previousDuration = dayjs
     .duration(
@@ -7767,9 +7759,9 @@ export const copyOverPreviousEventDefaults = (
         .diff(
           dayjs(previousEvent.startDate.slice(0, 19)).tz(
             previousEvent?.timezone,
-            true,
-          ),
-        ),
+            true
+          )
+        )
     )
     .asMinutes();
   return {
@@ -7780,7 +7772,7 @@ export const copyOverPreviousEventDefaults = (
         : category?.copyAvailability
           ? previousEvent?.transparency
           : category?.defaultAvailability
-            ? "transparent"
+            ? 'transparent'
             : userPreferences?.copyAvailability
               ? previousEvent?.transparency
               : event?.transparency
@@ -7917,7 +7909,7 @@ export const copyOverPreviousEventDefaults = (
       ? previousEvent?.copyDuration
         ? dayjs(event.startDate.slice(0, 19))
             .tz(event.timezone, true)
-            .add(previousEvent.duration || previousDuration, "minutes")
+            .add(previousEvent.duration || previousDuration, 'minutes')
             .format()
         : event?.endDate
       : event.endDate,
@@ -8010,15 +8002,15 @@ export const copyOverPreviousEventDefaults = (
 
 export const createPreAndPostEventsFromPreviousEvent = (
   event: EventPlusType,
-  previousEvent: EventPlusType,
+  previousEvent: EventPlusType
 ) => {
   if (!previousEvent?.copyTimeBlocking) {
-    console.log("no copy time blocking");
+    console.log('no copy time blocking');
     return null;
   }
 
   if (event.userModifiedTimeBlocking) {
-    console.log("user modified time blocking");
+    console.log('user modified time blocking');
     return null;
   }
 
@@ -8034,7 +8026,7 @@ export const createPreAndPostEventsFromPreviousEvent = (
   if (previousEvent?.timeBlocking?.afterEvent) {
     const formattedZoneAfterEventEndDate = dayjs(event.endDate.slice(0, 19))
       .tz(event.timezone, true)
-      .add(previousEvent?.timeBlocking?.afterEvent, "m")
+      .add(previousEvent?.timeBlocking?.afterEvent, 'm')
       .format();
     const formattedZoneAfterEventStartDate = dayjs(event.endDate.slice(0, 19))
       .tz(event.timezone, true)
@@ -8045,11 +8037,11 @@ export const createPreAndPostEventsFromPreviousEvent = (
       isPreEvent: false,
       forEventId: event.id,
       isPostEvent: true,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: formattedZoneAfterEventStartDate,
       endDate: formattedZoneAfterEventEndDate,
-      method: event?.postEventId ? "update" : "create",
+      method: event?.postEventId ? 'update' : 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -8064,7 +8056,7 @@ export const createPreAndPostEventsFromPreviousEvent = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: postEventId.split("#")[0],
+      eventId: postEventId.split('#')[0],
     };
     valuesToReturn.afterEvent = afterEvent;
     valuesToReturn.newEvent = {
@@ -8079,10 +8071,10 @@ export const createPreAndPostEventsFromPreviousEvent = (
 
   if (previousEvent?.timeBlocking?.beforeEvent) {
     const formattedZoneBeforeEventStartDate = dayjs(
-      event.startDate.slice(0, 19),
+      event.startDate.slice(0, 19)
     )
       .tz(event.timezone, true)
-      .subtract(previousEvent?.timeBlocking?.beforeEvent, "m")
+      .subtract(previousEvent?.timeBlocking?.beforeEvent, 'm')
       .format();
     const formattedZoneBeforeEventEndDate = dayjs(event.startDate.slice(0, 19))
       .tz(event.timezone, true)
@@ -8093,11 +8085,11 @@ export const createPreAndPostEventsFromPreviousEvent = (
       isPreEvent: true,
       isPostEvent: false,
       forEventId: event.id,
-      notes: "Buffer time",
-      summary: "Buffer time",
+      notes: 'Buffer time',
+      summary: 'Buffer time',
       startDate: formattedZoneBeforeEventStartDate,
       endDate: formattedZoneBeforeEventEndDate,
-      method: event?.preEventId ? "update" : "create",
+      method: event?.preEventId ? 'update' : 'create',
       userId: event?.userId,
       createdDate: dayjs().toISOString(),
       deleted: false,
@@ -8112,7 +8104,7 @@ export const createPreAndPostEventsFromPreviousEvent = (
       updatedAt: dayjs().toISOString(),
       calendarId: event?.calendarId,
       timezone: event?.timezone,
-      eventId: preEventId.split("#")[0],
+      eventId: preEventId.split('#')[0],
     };
     valuesToReturn.beforeEvent = beforeEvent;
     valuesToReturn.newEvent = {
@@ -8131,23 +8123,23 @@ export const createPreAndPostEventsFromPreviousEvent = (
 export const createRemindersFromPreviousEventForEvent = async (
   event: EventPlusType,
   previousEvent: EventPlusType,
-  userId: string,
+  userId: string
 ): Promise<ReminderType[]> => {
   if (event.userModifiedReminders) {
-    console.log("no event inside createRemindersFromPreviousEventForEvent");
+    console.log('no event inside createRemindersFromPreviousEventForEvent');
     return null;
   }
 
   if (!previousEvent?.id) {
     console.log(
-      "no previousEvent inside createRemindersFromPreviousEventForEvent",
+      'no previousEvent inside createRemindersFromPreviousEventForEvent'
     );
     return null;
   }
 
   if (!previousEvent?.copyReminders) {
     console.log(
-      "no previousEvent inside createRemindersFromPreviousEventForEvent",
+      'no previousEvent inside createRemindersFromPreviousEventForEvent'
     );
     return null;
   }
@@ -8168,7 +8160,7 @@ const copyOverMeetingAndExternalMeetingDefaultsWithPreviousEventFound = (
   event: EventPlusType,
   previousEvent: EventPlusType,
   category: CategoryType,
-  userPreferences: UserPreferenceType,
+  userPreferences: UserPreferenceType
 ): EventPlusType => {
   return {
     ...event,
@@ -8178,7 +8170,7 @@ const copyOverMeetingAndExternalMeetingDefaultsWithPreviousEventFound = (
         : category.copyAvailability
           ? previousEvent?.transparency
           : category.defaultAvailability
-            ? "transparent"
+            ? 'transparent'
             : userPreferences?.copyAvailability
               ? previousEvent?.transparency
               : event?.transparency
@@ -8327,40 +8319,40 @@ export const copyOverCategoryMeetingAndExternalMeetingDefaultsWithFoundPreviousE
     event: EventPlusType,
     categories: CategoryType[],
     userPreferences: UserPreferenceType,
-    previousEvent: EventPlusType,
+    previousEvent: EventPlusType
   ) => {
     if (!(categories?.length > 0)) {
       console.log(
-        "no categories inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent",
+        'no categories inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent'
       );
       return;
     }
 
     if (!userPreferences?.id) {
       console.log(
-        "no userPreferences inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent",
+        'no userPreferences inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent'
       );
       return;
     }
 
     if (!previousEvent?.id) {
       console.log(
-        "no previousEvent inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent",
+        'no previousEvent inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent'
       );
       return;
     }
     if (!event?.id) {
       console.log(
-        "no event inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent",
+        'no event inside copyOverCategoryDefaultsForConstantsWithFoundPreviousEvent'
       );
       return;
     }
 
     const meetingCategory = categories.find(
-      (category) => category.name === meetingLabel,
+      (category) => category.name === meetingLabel
     );
     const externalCategory = categories.find(
-      (category) => category.name === externalMeetingLabel,
+      (category) => category.name === externalMeetingLabel
     );
 
     let newEventMeeting: EventPlusType | {} = {};
@@ -8372,7 +8364,7 @@ export const copyOverCategoryMeetingAndExternalMeetingDefaultsWithFoundPreviousE
           event,
           previousEvent,
           meetingCategory,
-          userPreferences,
+          userPreferences
         );
     }
 
@@ -8382,7 +8374,7 @@ export const copyOverCategoryMeetingAndExternalMeetingDefaultsWithFoundPreviousE
           event,
           previousEvent,
           meetingCategory,
-          userPreferences,
+          userPreferences
         );
     }
 
@@ -8395,7 +8387,7 @@ export const createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences
     newReminders1?: ReminderType[],
     newTimeBlocking1?: BufferTimeObjectType,
     previousEvent?: EventPlusType,
-    userPreferences?: UserPreferenceType,
+    userPreferences?: UserPreferenceType
   ) => {
     try {
       let newReminders = newReminders1 || [];
@@ -8404,10 +8396,10 @@ export const createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences
         const reminders = await createRemindersFromPreviousEventForEvent(
           newEvent,
           previousEvent,
-          userId,
+          userId
         );
 
-        console.log(reminders, " reminders");
+        console.log(reminders, ' reminders');
         if (reminders?.length > 0 && !newEvent?.userModifiedReminders) {
           newReminders.push(...reminders);
         }
@@ -8419,9 +8411,9 @@ export const createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences
       ) {
         const timeBlocking = createPreAndPostEventsFromPreviousEvent(
           newEvent,
-          previousEvent,
+          previousEvent
         );
-        console.log(timeBlocking, " timeBlocking");
+        console.log(timeBlocking, ' timeBlocking');
         if (timeBlocking?.beforeEvent) {
           (newTimeBlocking as BufferTimeObjectType).beforeEvent =
             timeBlocking.beforeEvent;
@@ -8443,7 +8435,7 @@ export const createRemindersAndTimeBlockingFromPreviousEventGivenUserPreferences
     } catch (e) {
       console.log(
         e,
-        " unable to create reminders and time blocking from previous event given user preferences",
+        ' unable to create reminders and time blocking from previous event given user preferences'
       );
     }
   };
@@ -8457,7 +8449,7 @@ export const updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting 
     newTimeBlocking1: BufferTimeObjectType,
     userId: string,
     userPreferences: UserPreferenceType,
-    previousEvent: EventPlusType,
+    previousEvent: EventPlusType
   ) => {
     try {
       let newEvent = newEvent1;
@@ -8468,38 +8460,38 @@ export const updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting 
           event,
           bestMatchCategories,
           userPreferences,
-          previousEvent,
+          previousEvent
         );
 
       if ((newEventMeeting as EventPlusType)?.id) {
         newEvent = { ...newEvent, ...newEventMeeting };
         const meetingCategory = bestMatchCategories.find(
-          (category) => category.name === meetingLabel,
+          (category) => category.name === meetingLabel
         );
 
         const oldReminders = await listRemindersForEvent(
           (newEventMeeting as EventPlusType)?.id,
-          userId,
+          userId
         );
         const reminders = createRemindersUsingCategoryDefaultsForEvent(
           newEvent,
           meetingCategory,
           oldReminders,
-          previousEvent,
+          previousEvent
         );
-        console.log(reminders, " reminders");
+        console.log(reminders, ' reminders');
         if (reminders?.length > 0 && !newEvent?.userModifiedReminders) {
           newReminders.push(...reminders);
-          newReminders = _.uniqBy(newReminders, "minutes");
+          newReminders = _.uniqBy(newReminders, 'minutes');
         }
 
         if (!newEvent?.userModifiedTimeBlocking) {
           const timeBlocking = createPreAndPostEventsForCategoryDefaults(
             meetingCategory,
             newEvent,
-            previousEvent,
+            previousEvent
           );
-          console.log(timeBlocking, " timeBlocking");
+          console.log(timeBlocking, ' timeBlocking');
           if (timeBlocking?.beforeEvent) {
             newTimeBlocking.beforeEvent = timeBlocking.beforeEvent;
           }
@@ -8520,31 +8512,31 @@ export const updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting 
       if ((newEventExternal as EventPlusType)?.id) {
         newEvent = { ...newEvent, ...newEventExternal };
         const externalCategory = bestMatchCategories.find(
-          (category) => category.name === externalMeetingLabel,
+          (category) => category.name === externalMeetingLabel
         );
 
         const oldReminders = await listRemindersForEvent(
           (newEventExternal as EventPlusType).id,
-          userId,
+          userId
         );
         const reminders = createRemindersUsingCategoryDefaultsForEvent(
           newEvent,
           externalCategory,
           oldReminders,
-          previousEvent,
+          previousEvent
         );
-        console.log(reminders, " reminders");
+        console.log(reminders, ' reminders');
         if (reminders?.length > 0 && !newEvent?.userModifiedReminders) {
           newReminders.push(...reminders);
-          newReminders = _.uniqBy(newReminders, "minutes");
+          newReminders = _.uniqBy(newReminders, 'minutes');
         }
 
         if (!newEvent?.userModifiedTimeBlocking) {
           const timeBlocking = createPreAndPostEventsForCategoryDefaults(
             externalCategory,
-            newEvent,
+            newEvent
           );
-          console.log(timeBlocking, " timeBlocking");
+          console.log(timeBlocking, ' timeBlocking');
           if (timeBlocking?.beforeEvent) {
             newTimeBlocking.beforeEvent = timeBlocking.beforeEvent;
           }
@@ -8564,7 +8556,7 @@ export const updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting 
 
       return { newEvent, newReminders, newTimeBlocking };
     } catch (e) {
-      console.log(e, " unable to update values for default categories");
+      console.log(e, ' unable to update values for default categories');
     }
   };
 
@@ -8573,7 +8565,7 @@ export const createRemindersAndTimeBlockingFromPreviousEvent = async (
   newEvent: EventPlusType,
   newReminders1: ReminderType[],
   newTimeBlocking1: BufferTimeObjectType,
-  previousEvent?: EventPlusType,
+  previousEvent?: EventPlusType
 ) => {
   try {
     let newReminders = newReminders1 || [];
@@ -8581,10 +8573,10 @@ export const createRemindersAndTimeBlockingFromPreviousEvent = async (
     const reminders = await createRemindersFromPreviousEventForEvent(
       newEvent,
       previousEvent,
-      userId,
+      userId
     );
 
-    console.log(reminders, " reminders");
+    console.log(reminders, ' reminders');
     if (
       reminders?.length > 0 &&
       !newEvent?.userModifiedReminders &&
@@ -8599,9 +8591,9 @@ export const createRemindersAndTimeBlockingFromPreviousEvent = async (
     ) {
       const timeBlocking = createPreAndPostEventsFromPreviousEvent(
         newEvent,
-        previousEvent,
+        previousEvent
       );
-      console.log(timeBlocking, " timeBlocking");
+      console.log(timeBlocking, ' timeBlocking');
       if (timeBlocking?.beforeEvent) {
         newTimeBlocking.beforeEvent = timeBlocking.beforeEvent;
       }
@@ -8621,7 +8613,7 @@ export const createRemindersAndTimeBlockingFromPreviousEvent = async (
   } catch (e) {
     console.log(
       e,
-      " unable to create reminders and time blocking from previous event",
+      ' unable to create reminders and time blocking from previous event'
     );
   }
 };
@@ -8639,61 +8631,61 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
   newTimeBlocking1: BufferTimeObjectType = {},
   previousCategories: CategoryType[] = [],
   previousMeetingCategoriesWithMeetingLabel: CategoryType[] = [],
-  previousMeetingCategoriesWithExternalMeetingLabel: CategoryType[] = [],
+  previousMeetingCategoriesWithExternalMeetingLabel: CategoryType[] = []
 ) => {
   try {
     if (!id) {
       console.log(
-        " no id inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no id inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!previousEvent) {
       console.log(
-        " no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!oldEvent) {
       console.log(
-        " no event inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no event inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!userPreferences) {
       console.log(
-        " no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!bestMatchCategory1) {
       console.log(
-        "no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories",
+        'no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!userId) {
       console.log(
-        " no userId inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no userId inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!bestMatchCategories1) {
       console.log(
-        " no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no bestMatchCategories inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!newModifiedEvent1) {
       console.log(
-        " no newModifiedEvent1 inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no newModifiedEvent1 inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
@@ -8720,25 +8712,25 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
               updatedAt: new Date().toISOString(),
             } as CategoryEventType;
             return categoryEvent;
-          },
+          }
         );
-        console.log(categoryEvents, " categoryEvents");
+        console.log(categoryEvents, ' categoryEvents');
         await createCategoryEvents(categoryEvents);
       }
 
       if (previousCategories?.[0]?.id) {
         const body = await findBestMatchCategory2(oldEvent, previousCategories);
-        console.log(body, " body");
+        console.log(body, ' body');
         const { labels } = body;
 
         const bestMatchLabel = processBestMatchCategoriesNoThreshold(
           body,
-          labels,
+          labels
         );
-        console.log(bestMatchLabel, " bestMatchLabel");
+        console.log(bestMatchLabel, ' bestMatchLabel');
 
         bestMatchCategory = previousCategories.find(
-          (category) => category.name === bestMatchLabel,
+          (category) => category.name === bestMatchLabel
         );
 
         if ((bestMatchCategory as CategoryType)?.id) {
@@ -8746,7 +8738,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
             oldEvent,
             previousEvent,
             bestMatchCategory as CategoryType,
-            userPreferences,
+            userPreferences
           );
         }
       } else {
@@ -8754,7 +8746,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           oldEvent,
           previousEvent,
           undefined,
-          userPreferences,
+          userPreferences
         );
       }
 
@@ -8772,7 +8764,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           newReminders,
           newTimeBlocking as BufferTimeObjectType,
           previousEvent,
-          userPreferences,
+          userPreferences
         );
 
         if (newEvent1?.id) {
@@ -8805,7 +8797,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           newTimeBlocking,
           userId,
           userPreferences,
-          previousEvent,
+          previousEvent
         );
 
         if (newEvent3) {
@@ -8836,7 +8828,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           newModifiedEvent as EventPlusType,
           bestMatchCategory as CategoryType,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         if (newEvent2?.id) {
           newModifiedEvent = newEvent2;
@@ -8869,7 +8861,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           newModifiedEvent as EventPlusType,
           previousMeetingCategoriesWithMeetingLabel?.[0],
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         if (newEvent2?.id) {
           newModifiedEvent = newEvent2;
@@ -8904,7 +8896,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           newModifiedEvent as EventPlusType,
           previousMeetingCategoriesWithExternalMeetingLabel?.[0],
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         if (newEvent2) {
           newModifiedEvent = newEvent2;
@@ -8931,7 +8923,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
           userId,
           newModifiedEvent as EventPlusType,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
 
         if (newEvent1?.id) {
@@ -8953,13 +8945,13 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
       bestMatchCategories = getUniqueLabels(bestMatchCategories);
       console.log(
         bestMatchCategories,
-        " bestMatchCategories from previousCategories",
+        ' bestMatchCategories from previousCategories'
       );
     }
 
-    console.log(newModifiedEvent, " newModifiedEvent");
-    console.log(newReminders, " newReminders");
-    console.log(newTimeBlocking, " newTimeBlocking");
+    console.log(newModifiedEvent, ' newModifiedEvent');
+    console.log(newReminders, ' newReminders');
+    console.log(newTimeBlocking, ' newTimeBlocking');
 
     return {
       newModifiedEvent,
@@ -8967,7 +8959,7 @@ export const processEventWithFoundPreviousEventAndCopyCategories = async (
       newTimeBlocking,
     };
   } catch (e) {
-    console.log(e, " processEventWithFoundPreviousEventAndCopyCategories");
+    console.log(e, ' processEventWithFoundPreviousEventAndCopyCategories');
   }
 };
 
@@ -8977,34 +8969,34 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
   userPreferences: UserPreferenceType,
   userId: string,
   newReminders: ReminderType[] = [],
-  newTimeBlocking: BufferTimeObjectType = {},
+  newTimeBlocking: BufferTimeObjectType = {}
 ) => {
   try {
-    console.log("processEventWithFoundPreviousEventWithoutCategories");
+    console.log('processEventWithFoundPreviousEventWithoutCategories');
     if (!previousEvent) {
       console.log(
-        " no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no previousEvent inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!userPreferences) {
       console.log(
-        " no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no userPreferences inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!userId) {
       console.log(
-        " no userId inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no userId inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
 
     if (!event) {
       console.log(
-        " no newModifiedEvent inside processEventWithFoundPreviousEventAndCopyCategories",
+        ' no newModifiedEvent inside processEventWithFoundPreviousEventAndCopyCategories'
       );
       return null;
     }
@@ -9016,11 +9008,11 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
         event,
         previousEvent,
         undefined,
-        userPreferences,
+        userPreferences
       );
       console.log(
         newModifiedEvent,
-        " newModifiedEvent inside processEventWithFoundPreviousEventWithoutCategories after copyOverPreviousEventDefaults",
+        ' newModifiedEvent inside processEventWithFoundPreviousEventWithoutCategories after copyOverPreviousEventDefaults'
       );
       if (
         (userPreferences?.copyReminders || userPreferences?.copyTimeBlocking) &&
@@ -9036,7 +9028,7 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
           newReminders,
           newTimeBlocking as BufferTimeObjectType,
           previousEvent,
-          userPreferences,
+          userPreferences
         );
 
         if (newEvent1?.id) {
@@ -9064,7 +9056,7 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
           userId,
           newModifiedEvent as EventPlusType,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
 
         if (newEvent1?.id) {
@@ -9084,9 +9076,9 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
       }
     }
 
-    console.log(newModifiedEvent, " newModifiedEvent");
-    console.log(newReminders, " newReminders");
-    console.log(newTimeBlocking, " newTimeBlocking");
+    console.log(newModifiedEvent, ' newModifiedEvent');
+    console.log(newReminders, ' newReminders');
+    console.log(newTimeBlocking, ' newTimeBlocking');
 
     return {
       newModifiedEvent,
@@ -9094,13 +9086,13 @@ export const processEventWithFoundPreviousEventWithoutCategories = async (
       newTimeBlocking,
     };
   } catch (e) {
-    console.log(e, " processEventWithFoundPreviousEventWithoutCategories");
+    console.log(e, ' processEventWithFoundPreviousEventWithoutCategories');
   }
 };
 
 export const processUserEventWithFoundPreviousEvent = async (
   event: EventPlusType,
-  previousEventId: string,
+  previousEventId: string
 ) => {
   try {
     const { id, userId } = event;
@@ -9108,10 +9100,10 @@ export const processUserEventWithFoundPreviousEvent = async (
       id,
       userId,
       previousEventId,
-      " id, userId, previousEventId, inside processUserEventWithFoundPreviousEvent",
+      ' id, userId, previousEventId, inside processUserEventWithFoundPreviousEvent'
     );
     if (!id || !userId) {
-      throw new Error("id or userId is missing");
+      throw new Error('id or userId is missing');
     }
     const previousEvent = await getEventFromPrimaryKey(previousEventId);
     const preferredTimeRanges =
@@ -9119,24 +9111,24 @@ export const processUserEventWithFoundPreviousEvent = async (
     previousEvent.preferredTimeRanges = preferredTimeRanges;
     console.log(
       previousEvent,
-      " previousEvent inside processUserEventWithFoundPreviousEvent",
+      ' previousEvent inside processUserEventWithFoundPreviousEvent'
     );
     const categories: CategoryType[] = await getUserCategories(userId);
-    console.log(id, categories, " id, categories");
+    console.log(id, categories, ' id, categories');
 
     const body: ClassificationResponseBodyType = await findBestMatchCategory2(
       event,
-      categories,
+      categories
     );
-    console.log(id, body, " id, body");
+    console.log(id, body, ' id, body');
     const { labels, scores } = body;
 
     const bestMatchLabel = processBestMatchCategories(body, labels);
-    console.log(id, bestMatchLabel, " id, bestMatchLabel");
+    console.log(id, bestMatchLabel, ' id, bestMatchLabel');
     let bestMatchCategory: CategoryType | object = {};
     if (bestMatchLabel) {
       bestMatchCategory = categories.find(
-        (category) => category.name === bestMatchLabel,
+        (category) => category.name === bestMatchLabel
       );
     }
 
@@ -9148,19 +9140,19 @@ export const processUserEventWithFoundPreviousEvent = async (
           bestMatchCategory as CategoryType,
           labels,
           scores,
-          categories,
+          categories
         );
       console.log(
         id,
         bestMatchCategoriesPlusMeetingType,
-        " id, bestMatchCategoriesPlusMeetingType",
+        ' id, bestMatchCategoriesPlusMeetingType'
       );
     }
 
     const userPreferences = await getUserPreferences(userId);
-    console.log(id, userPreferences, " id, userPreferences");
+    console.log(id, userPreferences, ' id, userPreferences');
     if (!userPreferences) {
-      throw new Error("userPreferences is missing");
+      throw new Error('userPreferences is missing');
     }
 
     let newModifiedEvent = event;
@@ -9170,7 +9162,7 @@ export const processUserEventWithFoundPreviousEvent = async (
     console.log(
       id,
       previousEvent,
-      " id, previousEvent before if clause inside processUserEventWithFoundPreviousEvent",
+      ' id, previousEvent before if clause inside processUserEventWithFoundPreviousEvent'
     );
 
     if (
@@ -9179,16 +9171,16 @@ export const processUserEventWithFoundPreviousEvent = async (
       !event?.userModifiedCategories
     ) {
       const previousCategories = await listCategoriesForEvent(previousEvent.id);
-      console.log(id, previousCategories, " id, previousCategories");
+      console.log(id, previousCategories, ' id, previousCategories');
 
       if (userPreferences?.id && newModifiedEvent?.id) {
         const previousMeetingCategoriesWithMeetingLabel =
           previousCategories.filter(
-            (category) => category.name === meetingLabel,
+            (category) => category.name === meetingLabel
           );
         const previousMeetingCategoriesWithExternalMeetingLabel =
           previousCategories.filter(
-            (category) => category.name === externalMeetingLabel,
+            (category) => category.name === externalMeetingLabel
           );
         const {
           newModifiedEvent: newModifiedEvent1,
@@ -9207,17 +9199,17 @@ export const processUserEventWithFoundPreviousEvent = async (
           newTimeBlocking,
           previousCategories,
           previousMeetingCategoriesWithMeetingLabel,
-          previousMeetingCategoriesWithExternalMeetingLabel,
+          previousMeetingCategoriesWithExternalMeetingLabel
         );
         console.log(
           newModifiedEvent,
           newModifiedEvent1,
-          " newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories",
+          ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories'
         );
         console.log(
           newTimeBlocking,
           newTimeBlocking1,
-          " newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories",
+          ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventAndCopyCategories'
         );
         newModifiedEvent = newModifiedEvent1 as EventPlusType;
         newReminders = newReminders1;
@@ -9233,17 +9225,17 @@ export const processUserEventWithFoundPreviousEvent = async (
           userPreferences,
           userId,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         console.log(
           newModifiedEvent,
           newModifiedEvent1,
-          " newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after else  processEventWithFoundPreviousEventAndCopyCategories",
+          ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after else  processEventWithFoundPreviousEventAndCopyCategories'
         );
         console.log(
           newTimeBlocking,
           newTimeBlocking1,
-          " newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after else processEventWithFoundPreviousEventAndCopyCategories",
+          ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after else processEventWithFoundPreviousEventAndCopyCategories'
         );
         newModifiedEvent = newModifiedEvent1 as EventPlusType;
         newReminders = newReminders1;
@@ -9267,11 +9259,11 @@ export const processUserEventWithFoundPreviousEvent = async (
           event,
           previousEvent,
           bestMatchCategory as CategoryType,
-          userPreferences,
+          userPreferences
         );
         console.log(
           newModifiedEvent,
-          " newModifiedEvent from BestMatchCategory",
+          ' newModifiedEvent from BestMatchCategory'
         );
         if (newModifiedEvent?.id) {
           const {
@@ -9284,17 +9276,17 @@ export const processUserEventWithFoundPreviousEvent = async (
             newModifiedEvent,
             bestMatchCategory as CategoryType,
             newReminders,
-            newTimeBlocking,
+            newTimeBlocking
           );
           console.log(
             newModifiedEvent,
             newEvent1,
-            " newModifiedEvent, newEvent1 inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory",
+            ' newModifiedEvent, newEvent1 inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory'
           );
           console.log(
             newTimeBlocking,
             newTimeBlocking1,
-            " newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory",
+            ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after createRemindersAndTimeBlockingForBestMatchCategory'
           );
           newModifiedEvent = newEvent1;
           newReminders = newReminders1;
@@ -9302,10 +9294,10 @@ export const processUserEventWithFoundPreviousEvent = async (
 
           console.log(
             newModifiedEvent,
-            " newModifiedEvent inside BestMatchCategory",
+            ' newModifiedEvent inside BestMatchCategory'
           );
-          console.log(newReminders, " newReminders inside ");
-          console.log(newTimeBlocking, " newTimeBlocking inside ");
+          console.log(newReminders, ' newReminders inside ');
+          console.log(newTimeBlocking, ' newTimeBlocking inside ');
 
           const {
             newEvent: newEvent2,
@@ -9319,17 +9311,17 @@ export const processUserEventWithFoundPreviousEvent = async (
             newTimeBlocking,
             userId,
             userPreferences,
-            previousEvent,
+            previousEvent
           );
           console.log(
             newModifiedEvent,
             newEvent2,
-            " newModifiedEvent, newEvent2 inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting",
+            ' newModifiedEvent, newEvent2 inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting'
           );
           console.log(
             newTimeBlocking,
             newTimeBlocking2,
-            " newTimeBlocking, newTimeBlocking2, inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting",
+            ' newTimeBlocking, newTimeBlocking2, inside processUserEventWithFoundPreviousEvent after updateValuesForEventWithPreviousEventPlusMeetingAndExternalMeeting'
           );
           newModifiedEvent = newEvent2;
           newReminders = newReminders2;
@@ -9337,15 +9329,15 @@ export const processUserEventWithFoundPreviousEvent = async (
 
           console.log(
             newModifiedEvent,
-            " newModifiedEvent inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting",
+            ' newModifiedEvent inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting'
           );
           console.log(
             newReminders,
-            " newReminders inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting",
+            ' newReminders inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting'
           );
           console.log(
             newTimeBlocking,
-            " newTimeBlocking inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting",
+            ' newTimeBlocking inside BestMatchCategory after updateValuesForEventWithPreviousEventWithMeetingAndExternalMeeting'
           );
         }
       } else {
@@ -9359,17 +9351,17 @@ export const processUserEventWithFoundPreviousEvent = async (
           userPreferences,
           userId,
           newReminders,
-          newTimeBlocking,
+          newTimeBlocking
         );
         console.log(
           newModifiedEvent,
           newModifiedEvent1,
-          " newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories",
+          ' newModifiedEvent, newModifiedEvent1 inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories'
         );
         console.log(
           newTimeBlocking,
           newTimeBlocking1,
-          " newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories",
+          ' newTimeBlocking, newTimeBlocking1, inside processUserEventWithFoundPreviousEvent after processEventWithFoundPreviousEventWithoutCategories'
         );
         newModifiedEvent = newModifiedEvent1 as EventPlusType;
         newReminders = newReminders1;
@@ -9381,7 +9373,7 @@ export const processUserEventWithFoundPreviousEvent = async (
     console.log(
       newEvent,
       event,
-      " newEvent, event last before returned inside processUserEventWithFoundPreviousEvent",
+      ' newEvent, event last before returned inside processUserEventWithFoundPreviousEvent'
     );
 
     return {
@@ -9390,7 +9382,7 @@ export const processUserEventWithFoundPreviousEvent = async (
       newTimeBlocking,
     };
   } catch (e) {
-    console.log(e, " processEventWithFoundPreviousEvent");
+    console.log(e, ' processEventWithFoundPreviousEvent');
   }
 };
 
@@ -9398,61 +9390,61 @@ export const processUserEventWithFoundPreviousEventWithUserModifiedCategories =
   async (event: EventPlusType, previousEventId: string) => {
     try {
       if (!event?.id) {
-        throw new Error("event is missing");
+        throw new Error('event is missing');
       }
       if (!previousEventId) {
-        throw new Error("previousEventId is missing");
+        throw new Error('previousEventId is missing');
       }
 
       const categories: CategoryType[] = await listCategoriesForEvent(
-        event?.id,
+        event?.id
       );
       if (!categories?.[0]?.id) {
-        throw new Error("categories is missing");
+        throw new Error('categories is missing');
       }
       console.log(
         event?.id,
-        "id inside  processUserEventWithFoundPreviousEventWithUserModifiedCategories",
+        'id inside  processUserEventWithFoundPreviousEventWithUserModifiedCategories'
       );
       const previousEvent = await getEventFromPrimaryKey(previousEventId);
       const preferredTimeRanges =
         await listPreferredTimeRangesForEvent(previousEventId);
       previousEvent.preferredTimeRanges = preferredTimeRanges;
       if (!previousEvent?.id) {
-        throw new Error("previousEvent is missing");
+        throw new Error('previousEvent is missing');
       }
-      console.log(categories, " categories");
+      console.log(categories, ' categories');
       const body = await findBestMatchCategory2(event, categories);
-      console.log(body, " body");
+      console.log(body, ' body');
       if (body?.labels?.[0]) {
         const { labels } = body;
 
         const bestMatchLabel = processBestMatchCategoriesNoThreshold(
           body,
-          labels,
+          labels
         );
-        console.log(bestMatchLabel, " bestMatchLabel");
+        console.log(bestMatchLabel, ' bestMatchLabel');
         if (bestMatchLabel) {
           let bestMatchCategory = categories.find(
-            (category) => category.name === bestMatchLabel,
+            (category) => category.name === bestMatchLabel
           );
           if (!bestMatchCategory) {
-            throw new Error("bestMatchCategory is missing");
+            throw new Error('bestMatchCategory is missing');
           }
           const userPreferences = await getUserPreferences(event?.userId);
-          console.log(userPreferences, " userPreferences");
+          console.log(userPreferences, ' userPreferences');
           if (!userPreferences) {
-            throw new Error("userPreferences is missing");
+            throw new Error('userPreferences is missing');
           }
           let newModifiedEvent = copyOverPreviousEventDefaults(
             event,
             previousEvent,
             bestMatchCategory,
-            userPreferences,
+            userPreferences
           );
           console.log(
             newModifiedEvent,
-            " newModifiedEvent from BestMatchCategory",
+            ' newModifiedEvent from BestMatchCategory'
           );
           let newReminders: ReminderType[] = [];
           let newTimeBlocking: BufferTimeObjectType = {};
@@ -9470,7 +9462,7 @@ export const processUserEventWithFoundPreviousEventWithUserModifiedCategories =
               newTimeBlocking,
               event?.userId,
               userPreferences,
-              previousEvent,
+              previousEvent
             );
             newModifiedEvent = newEvent1;
             newReminders = newReminders1 || [];
@@ -9478,20 +9470,20 @@ export const processUserEventWithFoundPreviousEventWithUserModifiedCategories =
 
             console.log(
               newModifiedEvent,
-              " newModifiedEvent inside else statement of copyCategories",
+              ' newModifiedEvent inside else statement of copyCategories'
             );
             console.log(
               newReminders,
-              " newReminders inside else statement of copyCategories",
+              ' newReminders inside else statement of copyCategories'
             );
             console.log(
               newTimeBlocking,
-              " newTimeBlocking inside else statement of copyCategories",
+              ' newTimeBlocking inside else statement of copyCategories'
             );
           }
 
           const newEvent: EventPlusType = newModifiedEvent ?? event;
-          console.log(newEvent, " newEvent");
+          console.log(newEvent, ' newEvent');
 
           return {
             newEvent,
@@ -9503,31 +9495,31 @@ export const processUserEventWithFoundPreviousEventWithUserModifiedCategories =
     } catch (e) {
       console.log(
         e,
-        " processEventWithFoundPreviousEventWithUserModifiedCategories",
+        ' processEventWithFoundPreviousEventWithUserModifiedCategories'
       );
     }
   };
 
 export const deleteOptaPlan = async (userId: string) => {
   try {
-    console.log(" deleteOptaPlanner called");
+    console.log(' deleteOptaPlanner called');
     await got
       .delete(`${optaPlannerUrl}/timeTable/admin/delete/${userId}`, {
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${Buffer.from(`${optaPlannerUsername}:${optaPlannerPassword}`).toString("base64")}`,
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${optaPlannerUsername}:${optaPlannerPassword}`).toString('base64')}`,
         },
       })
       .json();
 
-    console.log(" successfully deleted OptaPlanner");
+    console.log(' successfully deleted OptaPlanner');
   } catch (e) {
-    console.log(e, " deleteOptaPlanner");
+    console.log(e, ' deleteOptaPlanner');
   }
 };
 
 export const validateEventsFromOptaplanner = (
-  unsortedEvents: EventPlannerResponseBodyType[],
+  unsortedEvents: EventPlannerResponseBodyType[]
 ) => {
   const sortedEvents = unsortedEvents.sort((a, b) => {
     if (a.part < b.part) {
@@ -9543,19 +9535,19 @@ export const validateEventsFromOptaplanner = (
   const lastPartEndTime =
     sortedEvents?.[sortedEvents?.length - 1]?.timeslot?.endTime;
 
-  const startHour = parseInt(firstPartStartTime.split(":")[0], 10);
-  const startMinute = parseInt(firstPartStartTime.split(":")[1], 10);
-  const endHour = parseInt(lastPartEndTime.split(":")[0], 10);
-  const endMinute = parseInt(lastPartEndTime.split(":")[1], 10);
+  const startHour = parseInt(firstPartStartTime.split(':')[0], 10);
+  const startMinute = parseInt(firstPartStartTime.split(':')[1], 10);
+  const endHour = parseInt(lastPartEndTime.split(':')[0], 10);
+  const endMinute = parseInt(lastPartEndTime.split(':')[1], 10);
 
-  const firstPartEndHour = parseInt(firstPartEndTime.split(":")[0], 10);
-  const firstPartEndMinute = parseInt(firstPartEndTime.split(":")[1], 10);
+  const firstPartEndHour = parseInt(firstPartEndTime.split(':')[0], 10);
+  const firstPartEndMinute = parseInt(firstPartEndTime.split(':')[1], 10);
   const durationMinutes = dayjs
     .duration(
       dayjs()
         .hour(startHour)
         .minute(startMinute)
-        .diff(dayjs().hour(firstPartEndHour).minute(firstPartEndMinute)),
+        .diff(dayjs().hour(firstPartEndHour).minute(firstPartEndMinute))
     )
     .asMinutes();
 
@@ -9564,20 +9556,20 @@ export const validateEventsFromOptaplanner = (
       dayjs()
         .hour(startHour)
         .minute(startMinute)
-        .diff(dayjs().hour(endHour).minute(endMinute)),
+        .diff(dayjs().hour(endHour).minute(endMinute))
     )
     .asMinutes();
 
   const expectedDurationMinutes = sortedEvents?.[0]?.lastPart * durationMinutes;
 
   const diffMinutes = Math.abs(
-    plannerDurationMinutes - expectedDurationMinutes,
+    plannerDurationMinutes - expectedDurationMinutes
   );
 
   if (Math.round(diffMinutes) > 0) {
-    console.log(plannerDurationMinutes, " plannerDurationMinutes");
-    console.log(expectedDurationMinutes, " expectedDurationMinutes");
-    console.log(diffMinutes, " diffMinutes");
+    console.log(plannerDurationMinutes, ' plannerDurationMinutes');
+    console.log(expectedDurationMinutes, ' expectedDurationMinutes');
+    console.log(diffMinutes, ' diffMinutes');
     console.log(
       sortedEvents?.[0]?.eventId,
       startHour,
@@ -9590,7 +9582,7 @@ export const validateEventsFromOptaplanner = (
       lastPartEndTime,
       sortedEvents?.[0]?.timeslot,
       sortedEvents?.[sortedEvents?.length - 1]?.timeslot,
-      ` sortedEvents?.[0]?.eventId, startHour, startMinute, endHour, endMinute, sortedEvents?.[0]?.startDate, sortedEvents?.[0]?.endDate, firstPartStartTime, lastPartEndTime, sortedEvents?.[0]?.timeslot, sortedEvents?.[sortedEvents?.length - 1]?.timeslot`,
+      ` sortedEvents?.[0]?.eventId, startHour, startMinute, endHour, endMinute, sortedEvents?.[0]?.startDate, sortedEvents?.[0]?.endDate, firstPartStartTime, lastPartEndTime, sortedEvents?.[0]?.timeslot, sortedEvents?.[sortedEvents?.length - 1]?.timeslot`
     );
     for (const sortedEvent of sortedEvents) {
       console.log(
@@ -9598,18 +9590,18 @@ export const validateEventsFromOptaplanner = (
         sortedEvent.part,
         sortedEvent?.timeslot,
         sortedEvent.lastPart,
-        " sortedEvent?.eventId, sortedEvent.part, sortedEvent?.timeslot, sortedEvent.lastPart",
+        ' sortedEvent?.eventId, sortedEvent.part, sortedEvent?.timeslot, sortedEvent.lastPart'
       );
     }
 
     throw new Error(
-      "plannerDurationMinutes are not equal to expectedDurationMinutes inside validateEventFromOptaplanner and more than 30 minutes apart",
+      'plannerDurationMinutes are not equal to expectedDurationMinutes inside validateEventFromOptaplanner and more than 30 minutes apart'
     );
   }
 };
 
 export const getMonthDayFromSlot = (
-  monthDay: MonthDayType,
+  monthDay: MonthDayType
 ): { month: MonthType; day: DayType } => {
   const monthString = monthDay.slice(2, 4);
   const dayString = monthDay.slice(5, 7);
@@ -9621,30 +9613,30 @@ export const getMonthDayFromSlot = (
 export const formatPlannerEventsToEventAndAdjustTime = (
   events: EventPlannerResponseBodyType[],
   oldEvent: EventPlusType,
-  hostTimezone: string,
+  hostTimezone: string
 ): EventPlusType => {
   if (!events?.[0]?.id) {
-    console.log(" no events present inside formatPlannerEventsToEvent");
+    console.log(' no events present inside formatPlannerEventsToEvent');
     return null;
   }
 
   if (!oldEvent?.id) {
-    console.log(" no oldEvent inside formatPlannerEventsToEvent");
+    console.log(' no oldEvent inside formatPlannerEventsToEvent');
     return null;
   }
 
   if (!oldEvent?.calendarId) {
-    throw new Error("no calendarId inside oldEvent");
+    throw new Error('no calendarId inside oldEvent');
   }
 
   if (!dayjs(events?.[0]?.startDate).isValid()) {
-    console.log(events?.[0], " events?.[0]");
-    throw new Error("startDate is not valid before formatting");
+    console.log(events?.[0], ' events?.[0]');
+    throw new Error('startDate is not valid before formatting');
   }
 
   if (!dayjs(events?.[0]?.endDate).isValid()) {
-    console.log(events?.[0], " events?.[0]");
-    throw new Error("startDate is not valid before formatting");
+    console.log(events?.[0], ' events?.[0]');
+    throw new Error('startDate is not valid before formatting');
   }
 
   const sortedEvents = events.sort((a, b) => {
@@ -9664,11 +9656,11 @@ export const formatPlannerEventsToEventAndAdjustTime = (
   const { month, day } = getMonthDayFromSlot(monthDay);
 
   const startHour = firstPart?.timeslot?.startTime
-    ? parseInt(firstPart.timeslot.startTime.split(":")[0], 10)
+    ? parseInt(firstPart.timeslot.startTime.split(':')[0], 10)
     : dayjs(oldEvent.startDate.slice(0, 19)).tz(oldEvent.timezone, true).hour();
 
   const startMinute = firstPart?.timeslot?.startTime
-    ? parseInt(firstPart.timeslot.startTime.split(":")[1], 10)
+    ? parseInt(firstPart.timeslot.startTime.split(':')[1], 10)
     : dayjs(oldEvent.startDate.slice(0, 19))
         .tz(oldEvent.timezone, true)
         .minute();
@@ -9689,10 +9681,10 @@ export const formatPlannerEventsToEventAndAdjustTime = (
         .format();
 
   const endHour = lastPart?.timeslot?.endTime
-    ? parseInt(lastPart.timeslot.endTime.split(":")[0], 10)
+    ? parseInt(lastPart.timeslot.endTime.split(':')[0], 10)
     : dayjs(oldEvent.endDate.slice(0, 19)).tz(oldEvent.timezone, true).hour();
   const endMinute = lastPart?.timeslot?.endTime
-    ? parseInt(lastPart.timeslot.endTime.split(":")[1], 10)
+    ? parseInt(lastPart.timeslot.endTime.split(':')[1], 10)
     : dayjs(oldEvent.endDate.slice(0, 19)).tz(oldEvent.timezone, true).minute();
   const endDate = lastPart?.timeslot?.monthDay
     ? dayjs(oldEvent.endDate.slice(0, 19))
@@ -9727,7 +9719,7 @@ export const formatPlannerEventsToEventAndAdjustTime = (
       .format(),
     ` oldEvent.id, startDate, firstPart?.timeslot?.dayOfWeek, firstPart?.timeslot?.monthDay, firstPart?.timeslot?.startTime, startHour, startMinute, dayjs(oldEvent.startDate.slice(0, 19)).tz(oldEvent.timezone, true).month(month)
   .date(day)
-  .hour(startHour).minute(startMinute).format(),`,
+  .hour(startHour).minute(startMinute).format(),`
   );
 
   console.log(
@@ -9748,7 +9740,7 @@ export const formatPlannerEventsToEventAndAdjustTime = (
     ` oldEvent.id, endDate, lastPart?.timeslot?.dayOfWeek, lastPart?.timeslot?.monthDay, lastPart?.timeslot?.endTime, endHour, endMinute, dayjs(oldEvent.endDate.slice(0, 19)).tz(oldEvent.timezone, true)
     .month(month)
     .date(day)
-    .hour(endHour).minute(endMinute).format()`,
+    .hour(endHour).minute(endMinute).format()`
   );
 
   const newEvent: EventPlusType = {
@@ -9756,14 +9748,14 @@ export const formatPlannerEventsToEventAndAdjustTime = (
     startDate,
     endDate,
   };
-  console.log(newEvent, " newEvent inside formatPlannerEventsToEvent");
+  console.log(newEvent, ' newEvent inside formatPlannerEventsToEvent');
 
   if (!dayjs(startDate).isValid()) {
-    throw new Error("startDate is not valid after formatting");
+    throw new Error('startDate is not valid after formatting');
   }
 
   if (!dayjs(endDate).isValid()) {
-    throw new Error("startDate is not valid after formatting");
+    throw new Error('startDate is not valid after formatting');
   }
 
   return newEvent;
@@ -9772,7 +9764,7 @@ export const formatPlannerEventsToEventAndAdjustTime = (
 export const putDataInSearch = async (
   id: string,
   vector: number[],
-  userId: string,
+  userId: string
 ) => {
   try {
     const client = await getSearchClient();
@@ -9782,21 +9774,21 @@ export const putDataInSearch = async (
       body: { [eventVectorName]: vector, userId },
       refresh: true,
     });
-    console.log("Adding document:");
+    console.log('Adding document:');
     console.log(response.body);
   } catch (e) {
-    console.log(e, " unable to put data into search");
+    console.log(e, ' unable to put data into search');
   }
 };
 
 export const compareEventsToFilterUnequalEvents = (
   newEvent: EventPlusType,
-  oldEvent?: EventPlusType,
+  oldEvent?: EventPlusType
 ) => {
   if (!oldEvent?.id) {
     console.log(
       oldEvent?.id,
-      " oldEvent?.id inside compareEventsToFilterUnequalEvents likely new",
+      ' oldEvent?.id inside compareEventsToFilterUnequalEvents likely new'
     );
     return true;
   }
@@ -9804,10 +9796,10 @@ export const compareEventsToFilterUnequalEvents = (
   if (!newEvent?.id) {
     console.log(
       newEvent?.id,
-      "no  newEvent?.id inside compareEventsToFilterUnequalEvents- bug ",
+      'no  newEvent?.id inside compareEventsToFilterUnequalEvents- bug '
     );
     throw new Error(
-      `${newEvent} --- ${newEvent?.id}, no  newEvent?.id inside compareEventsToFilterUnequalEvents- bug`,
+      `${newEvent} --- ${newEvent?.id}, no  newEvent?.id inside compareEventsToFilterUnequalEvents- bug`
     );
   }
 
@@ -9832,14 +9824,14 @@ export const compareEventsToFilterUnequalEvents = (
   };
   console.log(
     !_.isEqual(newEventModified, oldEventModified),
-    " !_.isEqual(newEventModified, oldEventModified)",
+    ' !_.isEqual(newEventModified, oldEventModified)'
   );
   return !_.isEqual(newEventModified, oldEventModified);
 };
 
 export const getCalendarWithId = async (calendarId: string) => {
   try {
-    const operationName = "getCalendar";
+    const operationName = 'getCalendar';
     const query = `
     query getCalendar($id: String!) {
       Calendar_by_pk(id: $id) {
@@ -9871,9 +9863,9 @@ export const getCalendarWithId = async (calendarId: string) => {
     const res: { data: { Calendar_by_pk: CalendarType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -9883,19 +9875,19 @@ export const getCalendarWithId = async (calendarId: string) => {
       })
       .json();
 
-    console.log(res, " res from getCalendarForEvent");
+    console.log(res, ' res from getCalendarForEvent');
     return res?.data?.Calendar_by_pk;
   } catch (e) {
-    console.log(e, " getCalendarForEvent");
+    console.log(e, ' getCalendarForEvent');
   }
 };
 
 export const getCalendarIntegration = async (
   userId: string,
-  resource: string,
+  resource: string
 ) => {
   try {
-    const operationName = "getCalendarIntegration";
+    const operationName = 'getCalendarIntegration';
     const query = `
       query getCalendarIntegration($userId: uuid!, $resource: String!) {
         Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}) {
@@ -9923,28 +9915,28 @@ export const getCalendarIntegration = async (
             variables,
           },
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "Content-Type": "application/json",
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'Content-Type': 'application/json',
+            'X-Hasura-Role': 'admin',
           },
         })
         .json();
 
-    console.log(res, " res inside getCalendarIntegration");
+    console.log(res, ' res inside getCalendarIntegration');
     if (res?.data?.Calendar_Integration?.length > 0) {
       return res?.data?.Calendar_Integration?.[0];
     }
   } catch (e) {
-    console.log(e, " unable to get calendar integration");
+    console.log(e, ' unable to get calendar integration');
   }
 };
 
 export const formatRemindersForGoogle = (
-  reminders: ReminderType[],
+  reminders: ReminderType[]
 ): GoogleReminderType => {
   const googleOverrides: OverrideTypes = reminders.map((reminder) => {
     return {
-      method: "email",
+      method: 'email',
       minutes: reminder.minutes,
     };
   });
@@ -9956,10 +9948,10 @@ export const formatRemindersForGoogle = (
 };
 
 export const refreshZoomToken = async (
-  refreshToken: string,
+  refreshToken: string
 ): Promise<{
   access_token: string;
-  token_type: "bearer";
+  token_type: 'bearer';
   refresh_token: string;
   expires_in: number;
   scope: string;
@@ -9971,13 +9963,13 @@ export const refreshZoomToken = async (
     return axios({
       data: new URLSearchParams({
         refresh_token: refreshToken,
-        grant_type: "refresh_token",
+        grant_type: 'refresh_token',
       }).toString(),
       baseURL: zoomBaseTokenUrl,
-      url: "/oauth/token",
-      method: "POST",
+      url: '/oauth/token',
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       auth: {
         username,
@@ -9985,13 +9977,13 @@ export const refreshZoomToken = async (
       },
     }).then(({ data }) => Promise.resolve(data));
   } catch (e) {
-    console.log(e, " unable to refresh zoom token");
+    console.log(e, ' unable to refresh zoom token');
   }
 };
 
 export const refreshGoogleToken = async (
   refreshToken: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web'
 ): Promise<{
   access_token: string;
   expires_in: number;
@@ -9999,67 +9991,67 @@ export const refreshGoogleToken = async (
   token_type: string;
 }> => {
   try {
-    console.log("refreshGoogleToken called", refreshToken);
-    console.log("clientType", clientType);
-    console.log("googleClientIdIos", googleClientIdIos);
+    console.log('refreshGoogleToken called', refreshToken);
+    console.log('clientType', clientType);
+    console.log('googleClientIdIos', googleClientIdIos);
     switch (clientType) {
-      case "ios":
+      case 'ios':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdIos,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
-      case "android":
+      case 'android':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdAndroid,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
-      case "web":
+      case 'web':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdWeb,
               client_secret: googleClientSecretWeb,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
-      case "atomic-web":
+      case 'atomic-web':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdAtomicWeb,
               client_secret: googleClientSecretAtomicWeb,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
     }
   } catch (e) {
-    console.log(e, " unable to refresh google token");
+    console.log(e, ' unable to refresh google token');
   }
 };
 
@@ -10067,13 +10059,13 @@ export const updateCalendarIntegration = async (
   id: string,
   token?: string,
   expiresIn?: number,
-  enabled?: boolean,
+  enabled?: boolean
 ) => {
   try {
-    const operationName = "updateCalendarIntegration";
+    const operationName = 'updateCalendarIntegration';
     const query = `
-      mutation updateCalendarIntegration($id: uuid!,${token !== undefined ? " $token: String," : ""}${expiresIn !== undefined ? " $expiresAt: timestamptz," : ""}${enabled !== undefined ? " $enabled: Boolean," : ""}) {
-        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${token !== undefined ? "token: $token," : ""}${expiresIn !== undefined ? " expiresAt: $expiresAt," : ""}${enabled !== undefined ? " enabled: $enabled," : ""}}) {
+      mutation updateCalendarIntegration($id: uuid!,${token !== undefined ? ' $token: String,' : ''}${expiresIn !== undefined ? ' $expiresAt: timestamptz,' : ''}${enabled !== undefined ? ' $enabled: Boolean,' : ''}) {
+        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${token !== undefined ? 'token: $token,' : ''}${expiresIn !== undefined ? ' expiresAt: $expiresAt,' : ''}${enabled !== undefined ? ' enabled: $enabled,' : ''}}) {
           id
           name
           refreshToken
@@ -10087,7 +10079,7 @@ export const updateCalendarIntegration = async (
     const variables = {
       id,
       token,
-      expiresAt: dayjs().add(expiresIn, "seconds").toISOString(),
+      expiresAt: dayjs().add(expiresIn, 'seconds').toISOString(),
       enabled,
     };
 
@@ -10099,50 +10091,50 @@ export const updateCalendarIntegration = async (
           variables,
         },
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
       })
       .json();
 
-    console.log(res, " res inside updateCalendarIntegration");
+    console.log(res, ' res inside updateCalendarIntegration');
   } catch (e) {
-    console.log(e, " unable to update calendar integration");
+    console.log(e, ' unable to update calendar integration');
   }
 };
 
 export const decryptZoomTokens = (
   encryptedToken: string,
-  encryptedRefreshToken?: string,
+  encryptedRefreshToken?: string
 ) => {
-  const ivBuffer = Buffer.from(zoomIVForPass, "base64");
-  const saltBuffer = Buffer.from(zoomSaltForPass, "base64");
+  const ivBuffer = Buffer.from(zoomIVForPass, 'base64');
+  const saltBuffer = Buffer.from(zoomSaltForPass, 'base64');
 
   const key = crypto.pbkdf2Sync(
     zoomPassKey as string,
     saltBuffer,
     10000,
     32,
-    "sha256",
+    'sha256'
   );
 
-  const decipherToken = crypto.createDecipheriv("aes-256-cbc", key, ivBuffer);
-  let decryptedToken = decipherToken.update(encryptedToken, "base64", "utf8");
-  decryptedToken += decipherToken.final("utf8");
+  const decipherToken = crypto.createDecipheriv('aes-256-cbc', key, ivBuffer);
+  let decryptedToken = decipherToken.update(encryptedToken, 'base64', 'utf8');
+  decryptedToken += decipherToken.final('utf8');
 
   if (encryptedRefreshToken) {
     const decipherRefreshToken = crypto.createDecipheriv(
-      "aes-256-cbc",
+      'aes-256-cbc',
       key,
-      ivBuffer,
+      ivBuffer
     );
     let decryptedRefreshToken = decipherRefreshToken.update(
       encryptedRefreshToken,
-      "base64",
-      "utf8",
+      'base64',
+      'utf8'
     );
-    decryptedRefreshToken += decipherRefreshToken.final("utf8");
+    decryptedRefreshToken += decipherRefreshToken.final('utf8');
 
     return {
       token: decryptedToken,
@@ -10156,34 +10148,34 @@ export const decryptZoomTokens = (
 };
 
 export const encryptZoomTokens = (token: string, refreshToken?: string) => {
-  const ivBuffer = Buffer.from(zoomIVForPass, "base64");
-  const saltBuffer = Buffer.from(zoomSaltForPass, "base64");
+  const ivBuffer = Buffer.from(zoomIVForPass, 'base64');
+  const saltBuffer = Buffer.from(zoomSaltForPass, 'base64');
 
   const key = crypto.pbkdf2Sync(
     zoomPassKey as string,
     saltBuffer,
     10000,
     32,
-    "sha256",
+    'sha256'
   );
-  const cipherToken = crypto.createCipheriv("aes-256-cbc", key, ivBuffer);
-  let encryptedToken = cipherToken.update(token, "utf8", "base64");
-  encryptedToken += cipherToken.final("base64");
+  const cipherToken = crypto.createCipheriv('aes-256-cbc', key, ivBuffer);
+  let encryptedToken = cipherToken.update(token, 'utf8', 'base64');
+  encryptedToken += cipherToken.final('base64');
 
-  let encryptedRefreshToken = "";
+  let encryptedRefreshToken = '';
 
   if (refreshToken) {
     const cipherRefreshToken = crypto.createCipheriv(
-      "aes-256-cbc",
+      'aes-256-cbc',
       key,
-      ivBuffer,
+      ivBuffer
     );
     encryptedRefreshToken = cipherRefreshToken.update(
       refreshToken,
-      "utf8",
-      "base64",
+      'utf8',
+      'base64'
     );
-    encryptedRefreshToken += cipherRefreshToken.final("base64");
+    encryptedRefreshToken += cipherRefreshToken.final('base64');
   }
 
   if (encryptedRefreshToken) {
@@ -10200,7 +10192,7 @@ export const getZoomIntegration = async (userId: string) => {
   try {
     const { id, token, expiresAt, refreshToken } = await getCalendarIntegration(
       userId,
-      zoomResourceName,
+      zoomResourceName
     );
 
     const decryptedTokens = decryptZoomTokens(token, refreshToken);
@@ -10211,30 +10203,30 @@ export const getZoomIntegration = async (userId: string) => {
       ...decryptedTokens,
     };
   } catch (e) {
-    console.log(e, " unable to get zoom integration");
+    console.log(e, ' unable to get zoom integration');
   }
 };
 
 export const updateZoomIntegration = async (
   id: string,
   accessToken: string,
-  expiresIn: number,
+  expiresIn: number
 ) => {
   try {
     const { encryptedToken } = encryptZoomTokens(accessToken);
     await updateCalendarIntegration(id, encryptedToken, expiresIn);
   } catch (e) {
-    console.log(e, " unable to update zoom integration");
+    console.log(e, ' unable to update zoom integration');
   }
 };
 export const getZoomAPIToken = async (userId: string) => {
-  let integrationId = "";
+  let integrationId = '';
   try {
-    console.log("getZoomAPIToken called");
+    console.log('getZoomAPIToken called');
     const { id, token, expiresAt, refreshToken } =
       await getZoomIntegration(userId);
     if (!refreshToken) {
-      console.log("zoom not active, no refresh token");
+      console.log('zoom not active, no refresh token');
       return;
     }
 
@@ -10244,31 +10236,31 @@ export const getZoomAPIToken = async (userId: string) => {
       token,
       expiresAt,
       refreshToken,
-      " id, token, expiresAt, refreshToken",
+      ' id, token, expiresAt, refreshToken'
     );
     if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
       const res = await refreshZoomToken(refreshToken);
-      console.log(res, " res from refreshZoomToken");
+      console.log(res, ' res from refreshZoomToken');
       await updateZoomIntegration(id, res.access_token, res.expires_in);
       return res.access_token;
     }
 
     return token;
   } catch (e) {
-    console.log(e, " unable to get zoom api token");
+    console.log(e, ' unable to get zoom api token');
     await updateCalendarIntegration(integrationId, null, null, false);
   }
 };
 export const getGoogleAPIToken = async (
   userId: string,
   resource: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web'
 ) => {
-  let integrationId = "";
+  let integrationId = '';
   try {
     const { id, token, expiresAt, refreshToken } = await getCalendarIntegration(
       userId,
-      resource,
+      resource
     );
     integrationId = id;
     console.log(
@@ -10276,17 +10268,17 @@ export const getGoogleAPIToken = async (
       token,
       expiresAt,
       refreshToken,
-      " id, token, expiresAt, refreshToken",
+      ' id, token, expiresAt, refreshToken'
     );
     if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
       const res = await refreshGoogleToken(refreshToken, clientType);
-      console.log(res, " res from refreshGoogleToken");
+      console.log(res, ' res from refreshGoogleToken');
       await updateCalendarIntegration(id, res.access_token, res.expires_in);
       return res.access_token;
     }
     return token;
   } catch (e) {
-    console.log(e, " unable to get api token");
+    console.log(e, ' unable to get api token');
     await updateCalendarIntegration(integrationId, null, null, false);
   }
 };
@@ -10295,7 +10287,7 @@ export const patchGoogleEvent = async (
   userId: string,
   calendarId: string,
   eventId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   endDateTime?: string,
   startDateTime?: string,
   conferenceDataVersion?: 0 | 1,
@@ -10329,17 +10321,17 @@ export const patchGoogleEvent = async (
   attachments?: GoogleAttachmentType[],
   eventType?: GoogleEventType1,
   location?: string,
-  colorId?: string,
+  colorId?: string
 ) => {
   try {
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -10360,7 +10352,7 @@ export const patchGoogleEvent = async (
       const end = {
         date: dayjs(endDateTime.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       requestBody.end = end;
@@ -10371,7 +10363,7 @@ export const patchGoogleEvent = async (
         eventId,
         endDateTime,
         timezone,
-        " eventId, endDateTime, timezone prior",
+        ' eventId, endDateTime, timezone prior'
       );
       const end = {
         dateTime: endDateTime,
@@ -10383,7 +10375,7 @@ export const patchGoogleEvent = async (
         eventId,
         end.dateTime,
         end.timeZone,
-        " eventId, endDateTime, timezone after",
+        ' eventId, endDateTime, timezone after'
       );
     }
 
@@ -10391,7 +10383,7 @@ export const patchGoogleEvent = async (
       const start = {
         date: dayjs(startDateTime.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       requestBody.start = start;
@@ -10402,7 +10394,7 @@ export const patchGoogleEvent = async (
         eventId,
         startDateTime,
         timezone,
-        " eventId, startDateTime, timezone prior",
+        ' eventId, startDateTime, timezone prior'
       );
       const start = {
         dateTime: startDateTime,
@@ -10414,7 +10406,7 @@ export const patchGoogleEvent = async (
         eventId,
         start.dateTime,
         start.timeZone,
-        " eventId, startDateTime, timezone after",
+        ' eventId, startDateTime, timezone after'
       );
     }
 
@@ -10422,7 +10414,7 @@ export const patchGoogleEvent = async (
       const originalStartTime = {
         date: dayjs(originalStartDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       requestBody.originalStartTime = originalStartTime;
@@ -10554,19 +10546,19 @@ export const patchGoogleEvent = async (
     console.log(
       eventId,
       requestBody,
-      " eventId, requestBody inside googlePatchEvent",
+      ' eventId, requestBody inside googlePatchEvent'
     );
     const res = await googleCalendar.events.patch(variables);
-    console.log(eventId, res.data, " eventId, results from googlePatchEvent");
+    console.log(eventId, res.data, ' eventId, results from googlePatchEvent');
   } catch (e) {
-    console.log(e, " unable to patch google event");
+    console.log(e, ' unable to patch google event');
   }
 };
 
 export const createGoogleEventWithId = async (
   userId: string,
   calendarId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   eventId: string,
   endDateTime?: string,
   startDateTime?: string,
@@ -10601,17 +10593,17 @@ export const createGoogleEventWithId = async (
   attachments?: GoogleAttachmentType[],
   eventType?: GoogleEventType1,
   location?: string,
-  colorId?: string,
+  colorId?: string
 ) => {
   try {
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -10632,7 +10624,7 @@ export const createGoogleEventWithId = async (
       const end = {
         date: dayjs(endDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
 
@@ -10643,7 +10635,7 @@ export const createGoogleEventWithId = async (
       const start = {
         date: dayjs(startDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       data.start = start;
@@ -10806,16 +10798,16 @@ export const createGoogleEventWithId = async (
 
     console.log(res.data);
 
-    console.log(res?.data, " res?.data from googleCreateEventWithId");
+    console.log(res?.data, ' res?.data from googleCreateEventWithId');
   } catch (e) {
-    console.log(e, " unable to create google event with id");
+    console.log(e, ' unable to create google event with id');
   }
 };
 
 export const createGoogleEvent = async (
   userId: string,
   calendarId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   generatedId?: string,
   endDateTime?: string,
   startDateTime?: string,
@@ -10850,23 +10842,23 @@ export const createGoogleEvent = async (
   attachments?: GoogleAttachmentType[],
   eventType?: GoogleEventType1,
   location?: string,
-  colorId?: string,
+  colorId?: string
 ) => {
   try {
     console.log(
       generatedId,
       conferenceDataVersion,
       conferenceData,
-      " generatedId, conferenceDataVersion, conferenceData inside createGoogleEvent",
+      ' generatedId, conferenceDataVersion, conferenceData inside createGoogleEvent'
     );
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -10887,7 +10879,7 @@ export const createGoogleEvent = async (
       const end = {
         date: dayjs(endDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
 
@@ -10898,7 +10890,7 @@ export const createGoogleEvent = async (
       const start = {
         date: dayjs(startDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       data.start = start;
@@ -11059,33 +11051,33 @@ export const createGoogleEvent = async (
 
     console.log(res.data);
 
-    console.log(res?.data, " res?.data from googleCreateEvent");
+    console.log(res?.data, ' res?.data from googleCreateEvent');
     return {
       id: `${res?.data?.id}#${calendarId}`,
       googleEventId: res?.data?.id,
       generatedId,
       calendarId,
-      generatedEventId: generatedId.split("#")[0],
+      generatedEventId: generatedId.split('#')[0],
     };
   } catch (e) {
-    console.log(e, " createGoogleEvent");
+    console.log(e, ' createGoogleEvent');
   }
 };
 
 export const postPlannerModifyEventInCalendar = async (
   newEvent: EventPlusType,
   userId: string,
-  method: "update" | "create" | "createWithId",
+  method: 'update' | 'create' | 'createWithId',
   resource: string,
   isTimeBlocking: boolean,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   newReminders?: ReminderType[],
   attendees?: MeetingAssistAttendeeType[],
-  conference?: ConferenceType,
+  conference?: ConferenceType
 ): Promise<string | CreateGoogleEventResponseType> => {
   try {
-    console.log(newEvent, " newEvent inside postPlannerModifyEventInCalendar");
-    if (method === "update") {
+    console.log(newEvent, ' newEvent inside postPlannerModifyEventInCalendar');
+    if (method === 'update') {
       if (resource === googleCalendarResource) {
         const googleReminders: GoogleReminderType =
           newReminders?.length > 0
@@ -11130,14 +11122,14 @@ export const postPlannerModifyEventInCalendar = async (
           undefined,
           undefined,
           undefined,
-          newEvent?.colorId,
+          newEvent?.colorId
         );
         return newEvent.id;
       }
-    } else if (method === "create") {
+    } else if (method === 'create') {
       console.log(
         newEvent,
-        " newEvent inside create inside postPlannerModifyEventInCalendar",
+        ' newEvent inside create inside postPlannerModifyEventInCalendar'
       );
       if (resource === googleCalendarResource) {
         const googleReminders: GoogleReminderType =
@@ -11164,16 +11156,16 @@ export const postPlannerModifyEventInCalendar = async (
             })),
             conference?.id
               ? {
-                  type: conference?.app === "zoom" ? "addOn" : "hangoutsMeet",
+                  type: conference?.app === 'zoom' ? 'addOn' : 'hangoutsMeet',
                   name: conference?.name,
                   conferenceId: conference?.id,
                   entryPoints: conference?.entryPoints,
                   createRequest:
-                    conference?.app === "google"
+                    conference?.app === 'google'
                       ? {
                           requestId: conference?.requestId,
                           conferenceSolutionKey: {
-                            type: "hangoutsMeet",
+                            type: 'hangoutsMeet',
                           },
                         }
                       : undefined,
@@ -11202,22 +11194,22 @@ export const postPlannerModifyEventInCalendar = async (
             undefined,
             undefined,
             undefined,
-            isTimeBlocking ? "focusTime" : "default",
+            isTimeBlocking ? 'focusTime' : 'default',
             undefined,
-            newEvent?.colorId,
+            newEvent?.colorId
           );
         console.log(
           idResponseBody,
           newEvent?.endDate,
           newEvent?.startDate,
-          " idResponseBody, newEvent?.endDate,  newEvent?.startDate",
+          ' idResponseBody, newEvent?.endDate,  newEvent?.startDate'
         );
         return idResponseBody;
       }
-    } else if (method === "createWithId") {
+    } else if (method === 'createWithId') {
       console.log(
         newEvent,
-        " newEvent inside createWithId inside postPlannerModifyEventInCalendar",
+        ' newEvent inside createWithId inside postPlannerModifyEventInCalendar'
       );
       if (resource === googleCalendarResource) {
         const googleReminders: GoogleReminderType =
@@ -11243,7 +11235,7 @@ export const postPlannerModifyEventInCalendar = async (
           })),
           conference?.id
             ? {
-                type: conference?.app === "zoom" ? "addOn" : "hangoutsMeet",
+                type: conference?.app === 'zoom' ? 'addOn' : 'hangoutsMeet',
                 name: conference?.name,
                 conferenceId: conference?.id,
                 entryPoints: conference?.entryPoints,
@@ -11272,26 +11264,26 @@ export const postPlannerModifyEventInCalendar = async (
           undefined,
           undefined,
           undefined,
-          isTimeBlocking ? "focusTime" : "default",
+          isTimeBlocking ? 'focusTime' : 'default',
           undefined,
-          newEvent?.colorId,
+          newEvent?.colorId
         );
       }
     }
   } catch (e) {
-    console.log(e, " unable to update event");
+    console.log(e, ' unable to update event');
     console.log(
       newEvent?.id,
       newEvent?.endDate,
       newEvent?.startDate,
-      " error - newEvent?.id, newEvent?.endDate,  newEvent?.startDate",
+      ' error - newEvent?.id, newEvent?.endDate,  newEvent?.startDate'
     );
   }
 };
 
 export const upsertEventsPostPlanner = async (events: EventType[]) => {
   try {
-    const operationName = "InsertEvent";
+    const operationName = 'InsertEvent';
     const query = `
             mutation InsertEvent($events: [Event_insert_input!]!) {
                 insert_Event(
@@ -11416,11 +11408,11 @@ export const upsertEventsPostPlanner = async (events: EventType[]) => {
                 }
             }
         `;
-    _.uniqBy(events, "id").forEach((e) =>
-      console.log(e?.id, e, "id, e inside upsertEventsPostPlanner "),
+    _.uniqBy(events, 'id').forEach((e) =>
+      console.log(e?.id, e, 'id, e inside upsertEventsPostPlanner ')
     );
     const variables = {
-      events: _.uniqBy(events, "id"),
+      events: _.uniqBy(events, 'id'),
     };
 
     const response: {
@@ -11430,8 +11422,8 @@ export const upsertEventsPostPlanner = async (events: EventType[]) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11443,14 +11435,14 @@ export const upsertEventsPostPlanner = async (events: EventType[]) => {
     console.log(
       response,
       response?.data?.insert_Event?.affected_rows,
-      " response after upserting events",
+      ' response after upserting events'
     );
     response?.data?.insert_Event?.returning?.forEach((e) =>
-      console.log(e, " returning  response after upserting events"),
+      console.log(e, ' returning  response after upserting events')
     );
     return response;
   } catch (e) {
-    console.log(e, " unable to update event");
+    console.log(e, ' unable to update event');
   }
 };
 
@@ -11460,7 +11452,7 @@ export const insertAttendeesforEvent = async (attendees: AttendeeType[]) => {
       return;
     }
 
-    const operationName = "InsertAttendeesForEvent";
+    const operationName = 'InsertAttendeesForEvent';
     const query = `
             mutation InsertAttendeesForEvent($attendees: [Attendee_insert_input!]!) {
                 insert_Attendee(objects: $attendees) {
@@ -11497,8 +11489,8 @@ export const insertAttendeesforEvent = async (attendees: AttendeeType[]) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11510,28 +11502,28 @@ export const insertAttendeesforEvent = async (attendees: AttendeeType[]) => {
 
     console.log(
       response?.data?.insert_Attendee?.returning,
-      " this is response in insertAttendees",
+      ' this is response in insertAttendees'
     );
     response?.data?.insert_Attendee?.returning.forEach((r) =>
-      console.log(r, " response in insertAttendees"),
+      console.log(r, ' response in insertAttendees')
     );
   } catch (e) {
-    console.log(e, " unable to insert Attendees for new event");
+    console.log(e, ' unable to insert Attendees for new event');
   }
 };
 
 export const deleteAttendeesWithIds = async (
   eventIds: string[],
-  userId: string,
+  userId: string
 ) => {
   try {
     if (!(eventIds?.filter((e) => !!e)?.length > 0)) {
       return;
     }
     eventIds.forEach((e) =>
-      console.log(e, " eventIds inside deleteRemindersWithIds"),
+      console.log(e, ' eventIds inside deleteRemindersWithIds')
     );
-    const operationName = "DeleteAttendeesWithEventIds";
+    const operationName = 'DeleteAttendeesWithEventIds';
     const query = `
             mutation DeleteAttendeesWithEventIds($userId: uuid!, $eventIds: [String!]!) {
                 delete_Attendee(where: {userId: {_eq: $userId}, eventId: {_in: $eventIds}}) {
@@ -11567,8 +11559,8 @@ export const deleteAttendeesWithIds = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11577,24 +11569,24 @@ export const deleteAttendeesWithIds = async (
         },
       })
       .json();
-    console.log(response, " this is response in deleteAttendeesWithIds");
+    console.log(response, ' this is response in deleteAttendeesWithIds');
   } catch (e) {
-    console.log(e, " deleteAttendeesWithIds");
+    console.log(e, ' deleteAttendeesWithIds');
   }
 };
 
 export const deleteRemindersWithIds = async (
   eventIds: string[],
-  userId: string,
+  userId: string
 ) => {
   try {
     if (!(eventIds?.filter((e) => !!e)?.length > 0)) {
       return;
     }
     eventIds.forEach((e) =>
-      console.log(e, " eventIds inside deleteRemindersWithIds"),
+      console.log(e, ' eventIds inside deleteRemindersWithIds')
     );
-    const operationName = "deleteRemindersWithIds";
+    const operationName = 'deleteRemindersWithIds';
     const query = `
       mutation deleteRemindersWithIds($userId: uuid!, $eventIds: [String!]!) {
         delete_Reminder(where: {userId: {_eq: $userId}, eventId: {_in: $eventIds}}) {
@@ -11611,8 +11603,8 @@ export const deleteRemindersWithIds = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11621,9 +11613,9 @@ export const deleteRemindersWithIds = async (
         },
       })
       .json();
-    console.log(response, " this is response in deleteRemindersWithIds");
+    console.log(response, ' this is response in deleteRemindersWithIds');
   } catch (e) {
-    console.log(e, " deleteRemindersWithIds");
+    console.log(e, ' deleteRemindersWithIds');
   }
 };
 
@@ -11634,10 +11626,10 @@ export const insertReminders = async (reminders: ReminderTypeAdjusted[]) => {
     }
 
     reminders.forEach((r) =>
-      console.log(r, " reminder inside insertReminders"),
+      console.log(r, ' reminder inside insertReminders')
     );
 
-    const operationName = "InsertReminder";
+    const operationName = 'InsertReminder';
     const query = `
             mutation InsertReminder($reminders: [Reminder_insert_input!]!) {
                 insert_Reminder(objects: $reminders) {
@@ -11667,8 +11659,8 @@ export const insertReminders = async (reminders: ReminderTypeAdjusted[]) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11680,21 +11672,21 @@ export const insertReminders = async (reminders: ReminderTypeAdjusted[]) => {
 
     console.log(
       response?.data?.insert_Reminder?.returning,
-      " this is response in insertReminders",
+      ' this is response in insertReminders'
     );
     response?.data?.insert_Reminder?.returning.forEach((r) =>
-      console.log(r, " response in insertReminder"),
+      console.log(r, ' response in insertReminder')
     );
   } catch (e) {
-    console.log(e, " unable to insertReminders");
+    console.log(e, ' unable to insertReminders');
   }
 };
 
 export const deletePreferredTimeRangesForEvents = async (
-  eventIds: string[],
+  eventIds: string[]
 ) => {
   try {
-    const operationName = "DeletePreferredTimeRangesGivenEvents";
+    const operationName = 'DeletePreferredTimeRangesGivenEvents';
     const query = `mutation DeletePreferredTimeRangesGivenEvents($eventIds: [String!]!) {
                 delete_PreferredTimeRange(where: {eventId: {_in: $eventIds}}) {
                     affected_rows
@@ -11711,8 +11703,8 @@ export const deletePreferredTimeRangesForEvents = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11724,10 +11716,10 @@ export const deletePreferredTimeRangesForEvents = async (
 
     console.log(
       res?.data?.delete_PreferredTimeRange?.affected_rows,
-      " this is response affected_rows in deletePreferredTimeRangesForEvent",
+      ' this is response affected_rows in deletePreferredTimeRangesForEvent'
     );
   } catch (e) {
-    console.log(e, " unable to delete preferred time ranges");
+    console.log(e, ' unable to delete preferred time ranges');
   }
 };
 export const deletePreferredTimeRangesForEvent = async (eventId: string) => {
@@ -11735,12 +11727,12 @@ export const deletePreferredTimeRangesForEvent = async (eventId: string) => {
     if (!eventId) {
       console.log(
         eventId,
-        " no eventId inside deletePreferredTimeRangesForEvent",
+        ' no eventId inside deletePreferredTimeRangesForEvent'
       );
       return;
     }
 
-    const operationName = "DeletePreferredTimeRangesGivenEvent";
+    const operationName = 'DeletePreferredTimeRangesGivenEvent';
     const query = `
       mutation DeletePreferredTimeRangesGivenEvent($eventId: String!) {
         delete_PreferredTimeRange(where: {eventId: {_eq: $eventId}}) {
@@ -11758,8 +11750,8 @@ export const deletePreferredTimeRangesForEvent = async (eventId: string) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11771,27 +11763,27 @@ export const deletePreferredTimeRangesForEvent = async (eventId: string) => {
 
     console.log(
       res?.data?.delete_PreferredTimeRange?.affected_rows,
-      " this is response affected_rows in deletePreferredTimeRangesForEvent",
+      ' this is response affected_rows in deletePreferredTimeRangesForEvent'
     );
   } catch (e) {
-    console.log(e, " unable to deletePreferredTimeRangesForEvent");
+    console.log(e, ' unable to deletePreferredTimeRangesForEvent');
   }
 };
 
 export const insertPreferredTimeRanges = async (
-  preferredTimeRanges: PreferredTimeRangeType[],
+  preferredTimeRanges: PreferredTimeRangeType[]
 ) => {
   try {
     console.log(
       preferredTimeRanges,
-      " preferredTimeRanges inside insertPreferredTimeRanges",
+      ' preferredTimeRanges inside insertPreferredTimeRanges'
     );
     if (!(preferredTimeRanges?.length > 0)) {
-      console.log("no preferredTimeRanges inside insertPreferredTimeRanges");
+      console.log('no preferredTimeRanges inside insertPreferredTimeRanges');
       return;
     }
 
-    const operationName = "InsertPreferredTimeRanges";
+    const operationName = 'InsertPreferredTimeRanges';
     const query = `
       mutation InsertPreferredTimeRanges($preferredTimeRanges: [PreferredTimeRange_insert_input!]!) {
         insert_PreferredTimeRange(objects: $preferredTimeRanges) {
@@ -11824,8 +11816,8 @@ export const insertPreferredTimeRanges = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -11835,20 +11827,20 @@ export const insertPreferredTimeRanges = async (
       })
       .json();
 
-    console.log(response, " response inside insert_PreferredTimeRanges");
+    console.log(response, ' response inside insert_PreferredTimeRanges');
     console.log(
       response?.data,
-      " response?.data inside insert_PreferredTimeRanges",
+      ' response?.data inside insert_PreferredTimeRanges'
     );
     console.log(
       response?.data?.insert_PreferredTimeRange?.affected_rows,
-      " affected_rows inside insertPreferredTimeRanges",
+      ' affected_rows inside insertPreferredTimeRanges'
     );
     response?.data?.insert_PreferredTimeRange?.returning?.map((pt) =>
-      console.log(pt, " returning inside insertPreferredTimeRanges"),
+      console.log(pt, ' returning inside insertPreferredTimeRanges')
     );
   } catch (e) {
-    console.log(e, " unable to insert preferred time ranges");
+    console.log(e, ' unable to insert preferred time ranges');
   }
 };
 
@@ -11864,7 +11856,7 @@ export const updateAllCalendarEventsPostPlanner = async (
   oldAttendeeExternalEvents?: MeetingAssistEventType[],
   isReplan?: boolean,
   originalGoogleEventIdToUpdate?: string,
-  originalCalendarIdToUpdate?: string,
+  originalCalendarIdToUpdate?: string
 ) => {
   try {
     eventsToValidate.forEach((e) => validateEventsFromOptaplanner(e));
@@ -11872,20 +11864,20 @@ export const updateAllCalendarEventsPostPlanner = async (
       formatPlannerEventsToEventAndAdjustTime(
         e,
         allEvents?.find((event) => event.id === e[0].eventId),
-        hostTimezone,
-      ),
+        hostTimezone
+      )
     );
     eventsToUpdate.forEach((e) =>
       console.log(
         e,
-        " eventsToUpdate inside updateAllCalendarEventsPostPlanner",
-      ),
+        ' eventsToUpdate inside updateAllCalendarEventsPostPlanner'
+      )
     );
 
     const filteredAllEvents = allEvents
       .map((e) => {
         const foundIndex = oldAttendeeExternalEvents?.findIndex(
-          (a) => a?.id === e?.id,
+          (a) => a?.id === e?.id
         );
         if (foundIndex > -1) {
           return null;
@@ -11898,16 +11890,16 @@ export const updateAllCalendarEventsPostPlanner = async (
       filteredAllEvents?.filter((e) => !!e?.meetingId) || [];
     const meetingIdsOfInternalAttendees = _.uniqBy(
       filteredAllEvents,
-      "meetingId",
+      'meetingId'
     )
       ?.filter((e) => !!e?.meetingId)
       ?.map((e) => e.meetingId);
 
-    console.log(eventsWithMeetingIds, " eventsWithMeetingIds");
+    console.log(eventsWithMeetingIds, ' eventsWithMeetingIds');
 
     console.log(
       meetingIdsOfInternalAttendees,
-      " meetingIdsOfInternalAttendees",
+      ' meetingIdsOfInternalAttendees'
     );
 
     const eventsToBeCreatedWithNewId: {
@@ -11916,7 +11908,7 @@ export const updateAllCalendarEventsPostPlanner = async (
       conference?: ConferenceType;
       attendees?: MeetingAssistAttendeeType[];
       resource?: string;
-      clientType?: "ios" | "android" | "web" | "atomic-web";
+      clientType?: 'ios' | 'android' | 'web' | 'atomic-web';
     }[] = [];
 
     if (
@@ -11925,23 +11917,23 @@ export const updateAllCalendarEventsPostPlanner = async (
     ) {
       const meetingAssists =
         (await listMeetingAssistsGivenMeetingIds(
-          meetingIdsOfInternalAttendees,
+          meetingIdsOfInternalAttendees
         )) || [];
       for (const meetingAssist of meetingAssists) {
         const attendees = await listMeetingAssistAttendeesGivenMeetingId(
-          meetingAssist?.id,
+          meetingAssist?.id
         );
         const externalAttendees = attendees?.filter(
-          (a) => !!a?.externalAttendee,
+          (a) => !!a?.externalAttendee
         );
 
         const eventForMeetingIdHostOnly = eventsWithMeetingIds
           ?.filter((e) => e?.meetingId === meetingAssist?.id)
           ?.filter((e) => e?.userId === meetingAssist?.userId)
-          ?.filter((e) => e?.method === "create")
+          ?.filter((e) => e?.method === 'create')
           ?.filter((e) => {
             const externalIndex = externalAttendees?.findIndex(
-              (a) => a?.userId === e?.userId,
+              (a) => a?.userId === e?.userId
             );
             if (externalIndex > -1) {
               return false;
@@ -11953,10 +11945,10 @@ export const updateAllCalendarEventsPostPlanner = async (
         const eventsForMeetingIdSinHost = eventsWithMeetingIds
           ?.filter((e) => e?.meetingId === meetingAssist?.id)
           ?.filter((e) => e?.userId !== meetingAssist?.userId)
-          ?.filter((e) => e?.method === "create")
+          ?.filter((e) => e?.method === 'create')
           ?.filter((e) => {
             const externalIndex = externalAttendees?.findIndex(
-              (a) => a?.userId === e?.userId,
+              (a) => a?.userId === e?.userId
             );
             if (externalIndex > -1) {
               return false;
@@ -11967,18 +11959,18 @@ export const updateAllCalendarEventsPostPlanner = async (
 
         console.log(
           eventsForMeetingIdSinHost,
-          " eventsForMeetingIdSinHost inside for loop meetingIdsOfInternalAttendees",
+          ' eventsForMeetingIdSinHost inside for loop meetingIdsOfInternalAttendees'
         );
 
         for (const eventForMeetingIdSinHost of eventsForMeetingIdSinHost) {
           eventForMeetingIdSinHost.startDate = dayjs(
-            eventForMeetingIdHostOnly.startDate.slice(0, 19),
+            eventForMeetingIdHostOnly.startDate.slice(0, 19)
           )
             .tz(eventForMeetingIdHostOnly.timezone, true)
             .tz(eventForMeetingIdSinHost.timezone)
             .format();
           eventForMeetingIdSinHost.endDate = dayjs(
-            eventForMeetingIdHostOnly.endDate.slice(0, 19),
+            eventForMeetingIdHostOnly.endDate.slice(0, 19)
           )
             .tz(eventForMeetingIdHostOnly.timezone, true)
             .tz(eventForMeetingIdSinHost.timezone)
@@ -11995,7 +11987,7 @@ export const updateAllCalendarEventsPostPlanner = async (
           ?.filter((e) => e?.userId !== meetingAssist?.userId)
           ?.filter((e) => {
             const externalIndex = externalAttendees?.findIndex(
-              (a) => a?.userId === e?.userId,
+              (a) => a?.userId === e?.userId
             );
             if (externalIndex > -1) {
               return false;
@@ -12009,7 +12001,7 @@ export const updateAllCalendarEventsPostPlanner = async (
           ?.filter((e) => e?.userId === meetingAssist?.userId)
           ?.filter((e) => {
             const externalIndex = externalAttendees?.findIndex(
-              (a) => a?.userId === e?.userId,
+              (a) => a?.userId === e?.userId
             );
             if (externalIndex > -1) {
               return false;
@@ -12021,13 +12013,13 @@ export const updateAllCalendarEventsPostPlanner = async (
         if (eventForMeetingIdHostOnlyAnyMethod?.id) {
           eventsForMeetingIdSinHostAnyMethod?.forEach((e) => {
             e.startDate = dayjs(
-              eventForMeetingIdHostOnlyAnyMethod.startDate.slice(0, 19),
+              eventForMeetingIdHostOnlyAnyMethod.startDate.slice(0, 19)
             )
               .tz(eventForMeetingIdHostOnlyAnyMethod.timezone, true)
               .tz(e.timezone)
               .format();
             e.endDate = dayjs(
-              eventForMeetingIdHostOnlyAnyMethod.endDate.slice(0, 19),
+              eventForMeetingIdHostOnlyAnyMethod.endDate.slice(0, 19)
             )
               .tz(eventForMeetingIdHostOnlyAnyMethod.timezone, true)
               .tz(e.timezone)
@@ -12040,7 +12032,7 @@ export const updateAllCalendarEventsPostPlanner = async (
     const filteredEventsToUpdate = eventsToUpdate
       .filter((e1) => {
         const foundOldEvent = oldEvents?.find((e2) => e2?.id === e1?.id);
-        console.log(foundOldEvent, " foundOldEvent inside filter");
+        console.log(foundOldEvent, ' foundOldEvent inside filter');
         if (foundOldEvent) {
           return compareEventsToFilterUnequalEvents(e1, foundOldEvent);
         }
@@ -12048,14 +12040,14 @@ export const updateAllCalendarEventsPostPlanner = async (
       })
       ?.filter((e) => {
         const eventExists = oldAttendeeExternalEvents?.find(
-          (a) => a?.id === e?.id,
+          (a) => a?.id === e?.id
         );
-        console.log(eventExists, " eventExists");
+        console.log(eventExists, ' eventExists');
         return !eventExists;
       })
       ?.filter((e) => {
         const createEventSinHostIndex = eventsToBeCreatedWithNewId?.findIndex(
-          (c) => c?.event?.id === e?.id,
+          (c) => c?.event?.id === e?.id
         );
 
         if (createEventSinHostIndex > -1) {
@@ -12069,8 +12061,8 @@ export const updateAllCalendarEventsPostPlanner = async (
       console.log(
         e1,
         oldEvents?.find((e2) => e2?.id === e1?.id),
-        "  filteredEventsToUpdate",
-      ),
+        '  filteredEventsToUpdate'
+      )
     );
 
     let createPromises: Promise<CreateGoogleEventResponseType>[] = [];
@@ -12090,19 +12082,19 @@ export const updateAllCalendarEventsPostPlanner = async (
       console.log(
         b.beforeEvent,
         b.afterEvent,
-        " bufferTimes before eventToUpdate loop inside updateAllCalendarEventsPostPlanner",
-      ),
+        ' bufferTimes before eventToUpdate loop inside updateAllCalendarEventsPostPlanner'
+      )
     );
 
     for (const eventToUpdate of filteredEventsToUpdate) {
       console.log(
         eventToUpdate,
-        " eventToUpdate inside updateAllCalendarEventsPostPlanner",
+        ' eventToUpdate inside updateAllCalendarEventsPostPlanner'
       );
       const { resource } = await getCalendarWithId(eventToUpdate.calendarId);
       const calendarIntegration = await getCalendarIntegration(
         eventToUpdate.userId,
-        resource,
+        resource
       );
       const clientType = calendarIntegration?.clientType;
 
@@ -12115,7 +12107,7 @@ export const updateAllCalendarEventsPostPlanner = async (
         eventToUpdate.calendarId === originalCalendarIdToUpdate
       ) {
         console.log(
-          `Replanning: Updating event ${originalGoogleEventIdToUpdate} in calendar ${originalCalendarIdToUpdate}`,
+          `Replanning: Updating event ${originalGoogleEventIdToUpdate} in calendar ${originalCalendarIdToUpdate}`
         );
         // Ensure attendees are in GoogleAttendeeType format if needed by patchGoogleEvent
         const googleAttendees: GoogleAttendeeType[] =
@@ -12132,14 +12124,14 @@ export const updateAllCalendarEventsPostPlanner = async (
           postPlannerModifyEventInCalendar(
             { ...eventToUpdate, eventId: originalGoogleEventIdToUpdate }, // Pass original Google ID for update
             eventToUpdate.userId,
-            "update",
+            'update',
             resource,
             false, // Assuming the main replanned event is not inherently a "time blocking" break
             clientType,
             remindersObjectForEvent?.reminders,
             googleAttendees, // Pass the full final list of attendees
-            undefined, // Conference data - handle if it can change during replan
-          ) as Promise<string>,
+            undefined // Conference data - handle if it can change during replan
+          ) as Promise<string>
         );
         eventToUpdate.method = null; // Mark as processed for upsert logic
         eventsToUpsert.push(eventToUpdate); // Still upsert to Hasura to reflect changes
@@ -12148,25 +12140,25 @@ export const updateAllCalendarEventsPostPlanner = async (
         if (remindersObjectForEvent?.reminders?.length > 0) {
           const oldReminders = await listRemindersForEvent(
             originalGoogleEventIdToUpdate,
-            eventToUpdate.userId,
+            eventToUpdate.userId
           ); // Use original ID
           if (oldReminders?.length > 0) {
             deleteReminders.push(
               ...oldReminders.map((r) => ({
                 ...r,
                 eventId: originalGoogleEventIdToUpdate,
-              })),
+              }))
             );
           }
           insertReminderObjects.push(
             ...remindersObjectForEvent.reminders.map((r) => ({
               ...r,
               eventId: originalGoogleEventIdToUpdate,
-            })),
+            }))
           );
         }
         const oldPreferredTimeRanges = await listPreferredTimeRangesForEvent(
-          originalGoogleEventIdToUpdate,
+          originalGoogleEventIdToUpdate
         ); // Use original ID
         if (
           !_.isEqual(oldPreferredTimeRanges, eventToUpdate.preferredTimeRanges)
@@ -12176,7 +12168,7 @@ export const updateAllCalendarEventsPostPlanner = async (
               ...oldPreferredTimeRanges.map((ptr) => ({
                 ...ptr,
                 eventId: originalGoogleEventIdToUpdate,
-              })),
+              }))
             );
           }
           if (eventToUpdate?.preferredTimeRanges?.length > 0) {
@@ -12184,7 +12176,7 @@ export const updateAllCalendarEventsPostPlanner = async (
               ...eventToUpdate.preferredTimeRanges.map((ptr) => ({
                 ...ptr,
                 eventId: originalGoogleEventIdToUpdate,
-              })),
+              }))
             );
           }
         }
@@ -12193,49 +12185,49 @@ export const updateAllCalendarEventsPostPlanner = async (
       // --- END REPLAN LOGIC ---
 
       const beforeEventIndex = hostBufferTimes?.findIndex(
-        (bufferTimes) => bufferTimes?.beforeEvent?.id === eventToUpdate.id,
+        (bufferTimes) => bufferTimes?.beforeEvent?.id === eventToUpdate.id
       );
-      console.log(beforeEventIndex, resource, " beforeEventIndex, resource ");
+      console.log(beforeEventIndex, resource, ' beforeEventIndex, resource ');
       const afterEventIndex = hostBufferTimes?.findIndex(
-        (bufferTimes) => bufferTimes?.afterEvent?.id === eventToUpdate.id,
+        (bufferTimes) => bufferTimes?.afterEvent?.id === eventToUpdate.id
       );
-      console.log(afterEventIndex, resource, " afterEventIndex, resource ");
+      console.log(afterEventIndex, resource, ' afterEventIndex, resource ');
       const remindersObjectForEvent = newHostReminders?.find(
-        (reminder) => reminder.eventId === eventToUpdate.id,
+        (reminder) => reminder.eventId === eventToUpdate.id
       );
       const breakIndex = breaks?.findIndex(
-        (breakEvent) => breakEvent.id === eventToUpdate.id,
+        (breakEvent) => breakEvent.id === eventToUpdate.id
       );
 
       if (beforeEventIndex > -1) {
-        console.log(beforeEventIndex, resource, " beforeEventIndex, resource");
+        console.log(beforeEventIndex, resource, ' beforeEventIndex, resource');
         if (resource === googleCalendarResource) {
           console.log(
             eventToUpdate.id,
             beforeEventIndex,
-            " updatedEvent.id, beforeEventIndex, ",
+            ' updatedEvent.id, beforeEventIndex, '
           );
           if (
             hostBufferTimes?.[beforeEventIndex]?.beforeEvent?.method ===
-            "create"
+            'create'
           ) {
             console.log(
               eventToUpdate.id,
               beforeEventIndex,
-              " updatedEvent.id, beforeEventIndex, inside if (timeBlocking?.[beforeEventIndex]?.beforeEvent?.method === create)",
+              ' updatedEvent.id, beforeEventIndex, inside if (timeBlocking?.[beforeEventIndex]?.beforeEvent?.method === create)'
             );
             createPromises.push(
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate.userId,
-                "create",
+                'create',
                 resource,
                 true, // isTimeBlocking for buffer events
                 clientType,
                 remindersObjectForEvent?.reminders, // Pass reminders if any
                 undefined, // Attendees for buffer events? Usually none.
-                undefined, // Conference for buffer events? Usually none.
-              ) as Promise<CreateGoogleEventResponseType>,
+                undefined // Conference for buffer events? Usually none.
+              ) as Promise<CreateGoogleEventResponseType>
             );
 
             eventToUpdate.method = null;
@@ -12249,7 +12241,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12258,16 +12250,16 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
           } else if (
             hostBufferTimes?.[beforeEventIndex]?.beforeEvent?.method ===
-            "update"
+            'update'
           ) {
             const oldEventToUpdate = filteredAllEvents?.find(
-              (e) => e?.id === eventToUpdate?.id,
+              (e) => e?.id === eventToUpdate?.id
             );
 
             if (!eventToUpdate?.modifiable && oldEventToUpdate?.id) {
@@ -12280,20 +12272,20 @@ export const updateAllCalendarEventsPostPlanner = async (
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate?.userId,
-                "update",
+                'update',
                 resource,
                 true, // isTimeBlocking for buffer events
                 clientType,
                 remindersObjectForEvent?.reminders, // Pass reminders if any
                 undefined, // Attendees
-                undefined, // Conference
-              ) as Promise<string>,
+                undefined // Conference
+              ) as Promise<string>
             );
 
             if (remindersObjectForEvent?.reminders?.length > 0) {
               const oldReminders = await listRemindersForEvent(
                 eventToUpdate?.id,
-                eventToUpdate?.userId,
+                eventToUpdate?.userId
               );
               if (oldReminders?.length > 0) {
                 deleteReminders.push(...oldReminders);
@@ -12306,7 +12298,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12315,7 +12307,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
@@ -12324,23 +12316,23 @@ export const updateAllCalendarEventsPostPlanner = async (
 
         eventsToUpsert.push(eventToUpdate);
       } else if (afterEventIndex > -1) {
-        console.log(afterEventIndex, resource, " afterEventIndex, resource");
+        console.log(afterEventIndex, resource, ' afterEventIndex, resource');
         if (resource === googleCalendarResource) {
           if (
-            hostBufferTimes?.[afterEventIndex]?.afterEvent?.method === "create"
+            hostBufferTimes?.[afterEventIndex]?.afterEvent?.method === 'create'
           ) {
             createPromises.push(
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate.userId,
-                "create",
+                'create',
                 resource,
                 true, // isTimeBlocking for buffer events
                 clientType,
                 undefined, // Reminders for buffer events?
                 undefined, // Attendees
-                undefined, // Conference
-              ) as Promise<CreateGoogleEventResponseType>,
+                undefined // Conference
+              ) as Promise<CreateGoogleEventResponseType>
             );
 
             eventToUpdate.method = null;
@@ -12354,7 +12346,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12363,15 +12355,15 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
           } else if (
-            hostBufferTimes?.[afterEventIndex]?.afterEvent?.method === "update"
+            hostBufferTimes?.[afterEventIndex]?.afterEvent?.method === 'update'
           ) {
             const oldEventToUpdate = filteredAllEvents?.find(
-              (e) => e?.id === eventToUpdate?.id,
+              (e) => e?.id === eventToUpdate?.id
             );
 
             if (!eventToUpdate?.modifiable && oldEventToUpdate?.id) {
@@ -12384,20 +12376,20 @@ export const updateAllCalendarEventsPostPlanner = async (
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate?.userId,
-                "update",
+                'update',
                 resource,
                 true, // isTimeBlocking for buffer events
                 clientType,
                 undefined, // Reminders
                 undefined, // Attendees
-                undefined, // Conference
-              ) as Promise<string>,
+                undefined // Conference
+              ) as Promise<string>
             );
 
             if (remindersObjectForEvent?.reminders?.length > 0) {
               const oldReminders = await listRemindersForEvent(
                 eventToUpdate?.id,
-                eventToUpdate?.userId,
+                eventToUpdate?.userId
               );
               if (oldReminders?.length > 0) {
                 deleteReminders.push(...oldReminders);
@@ -12410,7 +12402,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12419,7 +12411,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
@@ -12432,22 +12424,22 @@ export const updateAllCalendarEventsPostPlanner = async (
           breakIndex,
           breaks?.[breakIndex]?.method,
           resource,
-          " breakIndex, breaks?.[breakIndex]?.method, resource",
+          ' breakIndex, breaks?.[breakIndex]?.method, resource'
         );
         if (resource === googleCalendarResource) {
-          if (breaks?.[breakIndex]?.method === "create") {
+          if (breaks?.[breakIndex]?.method === 'create') {
             createPromises.push(
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate.userId,
-                "create",
+                'create',
                 resource,
                 false, // Not a break event itself
                 clientType,
                 remindersObjectForEvent?.reminders, // Pass reminders if any
                 undefined, // Attendees
-                undefined, // Conference
-              ) as Promise<CreateGoogleEventResponseType>,
+                undefined // Conference
+              ) as Promise<CreateGoogleEventResponseType>
             );
 
             eventToUpdate.method = null;
@@ -12461,7 +12453,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12470,15 +12462,15 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
 
             breaks[breakIndex].method = null;
-          } else if (breaks?.[breakIndex]?.method === "update") {
+          } else if (breaks?.[breakIndex]?.method === 'update') {
             const oldEventToUpdate = filteredAllEvents?.find(
-              (e) => e?.id === eventToUpdate?.id,
+              (e) => e?.id === eventToUpdate?.id
             );
 
             if (!eventToUpdate?.modifiable && oldEventToUpdate?.id) {
@@ -12491,20 +12483,20 @@ export const updateAllCalendarEventsPostPlanner = async (
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate.userId,
-                "update",
+                'update',
                 resource,
                 false, // Not a break event
                 clientType,
                 remindersObjectForEvent?.reminders, // Pass reminders if any
                 undefined, // Attendees
-                undefined, // Conference
-              ) as Promise<string>,
+                undefined // Conference
+              ) as Promise<string>
             );
 
             if (remindersObjectForEvent?.reminders?.length > 0) {
               const oldReminders = await listRemindersForEvent(
                 eventToUpdate?.id,
-                eventToUpdate?.userId,
+                eventToUpdate?.userId
               );
               if (oldReminders?.length > 0) {
                 deleteReminders.push(...oldReminders);
@@ -12518,7 +12510,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12527,7 +12519,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
@@ -12540,46 +12532,46 @@ export const updateAllCalendarEventsPostPlanner = async (
         if (resource === googleCalendarResource) {
           console.log(
             eventToUpdate,
-            " updatedEvent inside else inside const updatedEvent of updatedEvents inside updateAllCalendarEventsPostPlanner",
+            ' updatedEvent inside else inside const updatedEvent of updatedEvents inside updateAllCalendarEventsPostPlanner'
           );
-          if (eventToUpdate?.method === "create") {
+          if (eventToUpdate?.method === 'create') {
             if (eventToUpdate?.meetingId) {
               const meetingAssist = await getMeetingAssist(
-                eventToUpdate?.meetingId,
+                eventToUpdate?.meetingId
               );
 
               if (meetingAssist?.userId !== eventToUpdate?.userId) {
                 eventsToRemove.push(eventToUpdate);
-                console.log(meetingAssist?.userId, " meetingAssist?.userId");
-                console.log(eventToUpdate?.userId, " eventToUpdate?.userId");
+                console.log(meetingAssist?.userId, ' meetingAssist?.userId');
+                console.log(eventToUpdate?.userId, ' eventToUpdate?.userId');
 
                 console.log(
                   eventToUpdate?.id,
-                  "event with meetingAssist not host continue",
+                  'event with meetingAssist not host continue'
                 );
 
                 continue;
               } else if (meetingAssist?.userId === eventToUpdate?.userId) {
                 console.log(
-                  "get attendees called inside method create updateAllCalendarEventsPostPlanner",
+                  'get attendees called inside method create updateAllCalendarEventsPostPlanner'
                 );
                 const attendees =
                   await listMeetingAssistAttendeesGivenMeetingId(
-                    eventToUpdate?.meetingId,
+                    eventToUpdate?.meetingId
                   );
                 console.log(
                   attendees,
-                  " attendees inside method create updateAllCalendarEventsPostPlanner",
+                  ' attendees inside method create updateAllCalendarEventsPostPlanner'
                 );
                 let conference: ConferenceType | {} = {};
 
                 if (meetingAssist?.enableConference) {
                   console.log(
                     meetingAssist?.enableConference,
-                    " meetingAssist?.enableConference",
+                    ' meetingAssist?.enableConference'
                   );
                   const zoomToken = await getZoomAPIToken(
-                    meetingAssist?.userId,
+                    meetingAssist?.userId
                   );
 
                   conference = zoomToken
@@ -12588,7 +12580,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                         id: uuid(),
                         userId: meetingAssist?.userId,
                         calendarId: eventToUpdate?.calendarId,
-                        app: "google",
+                        app: 'google',
                         name: eventToUpdate?.summary,
                         notes: eventToUpdate?.notes,
                         updatedAt: dayjs().format(),
@@ -12597,17 +12589,17 @@ export const updateAllCalendarEventsPostPlanner = async (
                         isHost: true,
                       };
 
-                  console.log(conference, " conference before if (zoomToken)");
+                  console.log(conference, ' conference before if (zoomToken)');
 
                   if (zoomToken) {
-                    console.log(zoomToken, " zoomToken inside if (zoomToken)");
+                    console.log(zoomToken, ' zoomToken inside if (zoomToken)');
                     const hostAttendee = attendees?.find(
-                      (a) => a?.userId === meetingAssist?.userId,
+                      (a) => a?.userId === meetingAssist?.userId
                     );
 
                     console.log(
                       hostAttendee,
-                      " hostAttendee inside if (zoomToken)",
+                      ' hostAttendee inside if (zoomToken)'
                     );
 
                     const zoomObject = await createZoomMeeting(
@@ -12618,12 +12610,12 @@ export const updateAllCalendarEventsPostPlanner = async (
                       meetingAssist?.duration,
                       hostAttendee?.name,
                       hostAttendee?.primaryEmail,
-                      attendees?.map((a) => a?.primaryEmail),
+                      attendees?.map((a) => a?.primaryEmail)
                     );
 
                     console.log(
                       zoomObject,
-                      " zoomObject after createZoomMeeting",
+                      ' zoomObject after createZoomMeeting'
                     );
 
                     if (zoomObject) {
@@ -12631,7 +12623,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                         id: `${zoomObject?.id}`,
                         userId: eventToUpdate?.userId,
                         calendarId: eventToUpdate?.calendarId,
-                        app: "zoom",
+                        app: 'zoom',
                         name: zoomObject?.agenda,
                         notes: zoomObject?.agenda,
                         joinUrl: zoomObject?.join_url,
@@ -12642,7 +12634,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                         deleted: false,
                         entryPoints: [
                           {
-                            entryPointType: "video",
+                            entryPointType: 'video',
                             label: zoomObject?.join_url,
                             password: zoomObject?.password,
                             uri: zoomObject?.join_url,
@@ -12657,7 +12649,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
                 console.log(
                   conference,
-                  " conference before createPromises postPlannerModifyEventInCalendar",
+                  ' conference before createPromises postPlannerModifyEventInCalendar'
                 );
 
                 if (meetingAssist?.lockAfter) {
@@ -12668,7 +12660,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                   postPlannerModifyEventInCalendar(
                     eventToUpdate,
                     eventToUpdate.userId,
-                    "create",
+                    'create',
                     resource,
                     false,
                     clientType,
@@ -12676,8 +12668,8 @@ export const updateAllCalendarEventsPostPlanner = async (
                     attendees,
                     (conference as ConferenceType)?.id
                       ? (conference as ConferenceType)
-                      : undefined,
-                  ) as Promise<CreateGoogleEventResponseType>,
+                      : undefined
+                  ) as Promise<CreateGoogleEventResponseType>
                 );
 
                 if ((conference as ConferenceType)?.id) {
@@ -12689,13 +12681,13 @@ export const updateAllCalendarEventsPostPlanner = async (
 
                 if (remindersObjectForEvent?.reminders?.length > 0) {
                   insertReminderObjects.push(
-                    ...remindersObjectForEvent?.reminders,
+                    ...remindersObjectForEvent?.reminders
                   );
                 }
 
                 if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                   insertPreferredTimeRangeObjects.push(
-                    ...eventToUpdate.preferredTimeRanges,
+                    ...eventToUpdate.preferredTimeRanges
                   );
                 }
 
@@ -12711,20 +12703,20 @@ export const updateAllCalendarEventsPostPlanner = async (
                     updatedAt: dayjs().format(),
                     createdDate: dayjs().format(),
                     deleted: false,
-                  }),
+                  })
                 );
 
                 insertAttendeeObjects.push(...attendeesToBeInsert);
 
                 const externalAttendees = attendees?.filter(
-                  (a) => !!a?.externalAttendee,
+                  (a) => !!a?.externalAttendee
                 );
                 if ((conference as ConferenceType)?.id) {
                   eventsToBeCreatedWithNewId
                     ?.filter((c) => !!c)
                     ?.forEach((c) => {
                       const externalIndex = externalAttendees?.findIndex(
-                        (e) => e?.userId === c?.event?.userId,
+                        (e) => e?.userId === c?.event?.userId
                       );
 
                       if (
@@ -12740,7 +12732,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                   ?.filter((c) => !!c)
                   ?.forEach((c) => {
                     const externalIndex = externalAttendees?.findIndex(
-                      (e) => e?.userId === c?.event?.userId,
+                      (e) => e?.userId === c?.event?.userId
                     );
 
                     if (
@@ -12759,7 +12751,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             eventToUpdate.method = null;
           } else {
             const oldEventToUpdate = filteredAllEvents?.find(
-              (e) => e?.id === eventToUpdate?.id,
+              (e) => e?.id === eventToUpdate?.id
             );
 
             if (!eventToUpdate?.modifiable && oldEventToUpdate?.id) {
@@ -12772,12 +12764,12 @@ export const updateAllCalendarEventsPostPlanner = async (
               postPlannerModifyEventInCalendar(
                 eventToUpdate,
                 eventToUpdate.userId,
-                "update",
+                'update',
                 resource,
                 false,
                 clientType,
-                remindersObjectForEvent?.reminders,
-              ) as Promise<string>,
+                remindersObjectForEvent?.reminders
+              ) as Promise<string>
             );
 
             eventToUpdate.method = null;
@@ -12785,7 +12777,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (remindersObjectForEvent?.reminders?.length > 0) {
               const oldReminders = await listRemindersForEvent(
                 eventToUpdate?.id,
-                eventToUpdate?.userId,
+                eventToUpdate?.userId
               );
               if (oldReminders?.length > 0) {
                 deleteReminders.push(...oldReminders);
@@ -12798,7 +12790,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             if (
               !_.isEqual(
                 oldPreferredTimeRanges,
-                eventToUpdate.preferredTimeRanges,
+                eventToUpdate.preferredTimeRanges
               )
             ) {
               if (oldPreferredTimeRanges?.length > 0) {
@@ -12807,7 +12799,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (eventToUpdate?.preferredTimeRanges?.length > 0) {
                 insertPreferredTimeRangeObjects.push(
-                  ...eventToUpdate.preferredTimeRanges,
+                  ...eventToUpdate.preferredTimeRanges
                 );
               }
             }
@@ -12827,21 +12819,21 @@ export const updateAllCalendarEventsPostPlanner = async (
     const idModifiedEventsToUpsert: EventPlusType[] = eventsToUpsert.map(
       (e1) => {
         const idResponseBody = idResponseBodies?.find(
-          (r) => r.generatedId === e1.id,
+          (r) => r.generatedId === e1.id
         );
         if (idResponseBody?.id) {
           const generatedIdEditIndex = eventsToEdit?.findIndex(
-            (e) => e?.id === e1?.id,
+            (e) => e?.id === e1?.id
           );
 
           const newIdEditIndex = eventsToEdit?.findIndex(
-            (e) => e?.id === idResponseBody?.id,
+            (e) => e?.id === idResponseBody?.id
           );
 
           console.log(
             generatedIdEditIndex,
             newIdEditIndex,
-            " generatedIdEditIndex, newIdEditIndex",
+            ' generatedIdEditIndex, newIdEditIndex'
           );
 
           if (generatedIdEditIndex > -1 || newIdEditIndex > -1) {
@@ -12851,7 +12843,7 @@ export const updateAllCalendarEventsPostPlanner = async (
               console.log(
                 genIdEditedEvent,
                 idResponseBody,
-                " genIdEditedEvent, idResponseBody inside generatedIdEditIndex > -1",
+                ' genIdEditedEvent, idResponseBody inside generatedIdEditIndex > -1'
               );
 
               genIdEditedEvent.id = idResponseBody?.id;
@@ -12860,25 +12852,25 @@ export const updateAllCalendarEventsPostPlanner = async (
               if (genIdEditedEvent?.preEventId) {
                 console.log(
                   genIdEditedEvent?.preEventId,
-                  " genIdEditedEvent?.preEventId",
+                  ' genIdEditedEvent?.preEventId'
                 );
 
                 const clonePreEvent = cloneEventsToUpsert.find(
-                  (e2) => e2.id === genIdEditedEvent.preEventId,
+                  (e2) => e2.id === genIdEditedEvent.preEventId
                 );
 
                 if (clonePreEvent?.id) {
                   console.log(
                     clonePreEvent?.id,
-                    " clonePreEvent?.id inside genIdEditedEvent?.preEventId inside generatedIdEditIndex > -1",
+                    ' clonePreEvent?.id inside genIdEditedEvent?.preEventId inside generatedIdEditIndex > -1'
                   );
                   clonePreEvent.forEventId = idResponseBody.id;
 
                   const genIdOfPreEventIndex = eventsToEdit?.findIndex(
-                    (e) => e?.id === genIdEditedEvent.preEventId,
+                    (e) => e?.id === genIdEditedEvent.preEventId
                   );
                   const newIdOfPreEventResponseBody = idResponseBodies?.find(
-                    (c) => c?.generatedId === genIdEditedEvent.preEventId,
+                    (c) => c?.generatedId === genIdEditedEvent.preEventId
                   );
 
                   if (newIdOfPreEventResponseBody?.id) {
@@ -12887,13 +12879,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                       newIdOfPreEventResponseBody?.googleEventId;
 
                     const newIdOfPreEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === newIdOfPreEventResponseBody?.id,
+                      (e) => e?.id === newIdOfPreEventResponseBody?.id
                     );
 
                     if (genIdOfPreEventIndex > -1) {
                       console.log(
                         genIdOfPreEventIndex,
-                        " inside genIdOfPreEventIndex > -1 ",
+                        ' inside genIdOfPreEventIndex > -1 '
                       );
                       eventsToEdit[genIdOfPreEventIndex].forEventId =
                         idResponseBody.id;
@@ -12904,7 +12896,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                     } else if (newIdOfPreEventIndex > -1) {
                       console.log(
                         newIdOfPreEventIndex,
-                        " newIdOfPreEventIndex > -1",
+                        ' newIdOfPreEventIndex > -1'
                       );
                       eventsToEdit[newIdOfPreEventIndex].forEventId =
                         idResponseBody.id;
@@ -12918,21 +12910,21 @@ export const updateAllCalendarEventsPostPlanner = async (
               if (genIdEditedEvent?.postEventId) {
                 console.log(
                   genIdEditedEvent?.postEventId,
-                  " genIdEditedEvent?.postEventId",
+                  ' genIdEditedEvent?.postEventId'
                 );
                 const clonePostEvent = cloneEventsToUpsert.find(
-                  (e2) => e2.id === genIdEditedEvent.postEventId,
+                  (e2) => e2.id === genIdEditedEvent.postEventId
                 );
 
                 if (clonePostEvent?.id) {
-                  console.log(clonePostEvent?.id, " clonePostEvent?.id");
+                  console.log(clonePostEvent?.id, ' clonePostEvent?.id');
                   clonePostEvent.forEventId = idResponseBody.id;
 
                   const genIdOfPostEventIndex = eventsToEdit?.findIndex(
-                    (e) => e?.id === genIdEditedEvent.postEventId,
+                    (e) => e?.id === genIdEditedEvent.postEventId
                   );
                   const newIdOfPostEventResponseBody = idResponseBodies?.find(
-                    (c) => c?.generatedId === genIdEditedEvent.postEventId,
+                    (c) => c?.generatedId === genIdEditedEvent.postEventId
                   );
 
                   if (newIdOfPostEventResponseBody?.id) {
@@ -12943,13 +12935,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                     const newIdOfPostEventIndex = eventsToEdit?.findIndex(
                       (e) =>
                         e?.id ===
-                        `${newIdOfPostEventResponseBody}#${clonePostEvent.calendarId}`,
+                        `${newIdOfPostEventResponseBody}#${clonePostEvent.calendarId}`
                     );
 
                     if (genIdOfPostEventIndex > -1) {
                       console.log(
                         genIdOfPostEventIndex,
-                        " genIdOfPostEventIndex > -1",
+                        ' genIdOfPostEventIndex > -1'
                       );
                       eventsToEdit[genIdOfPostEventIndex].forEventId =
                         idResponseBody.id;
@@ -12960,7 +12952,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                     } else if (newIdOfPostEventIndex > -1) {
                       console.log(
                         newIdOfPostEventIndex,
-                        " newIdOfPostEventIndex > -1",
+                        ' newIdOfPostEventIndex > -1'
                       );
                       eventsToEdit[newIdOfPostEventIndex].forEventId =
                         idResponseBody.id;
@@ -12975,23 +12967,23 @@ export const updateAllCalendarEventsPostPlanner = async (
                 if (genIdEditedEvent?.isPreEvent) {
                   console.log(
                     genIdEditedEvent?.isPreEvent,
-                    " genIdEditedEvent?.isPreEvent inside genIdEditedEvent?.forEventId",
+                    ' genIdEditedEvent?.isPreEvent inside genIdEditedEvent?.forEventId'
                   );
                   const forEvent = cloneEventsToUpsert.find(
-                    (e2) => e2.id === genIdEditedEvent.forEventId,
+                    (e2) => e2.id === genIdEditedEvent.forEventId
                   );
 
                   if (forEvent?.id) {
                     console.log(
                       forEvent?.id,
-                      " forEvent?.id inside genIdEditedEvent?.forEventId",
+                      ' forEvent?.id inside genIdEditedEvent?.forEventId'
                     );
                     forEvent.preEventId = idResponseBody.id;
                     const genIdOfForEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === forEvent?.id,
+                      (e) => e?.id === forEvent?.id
                     );
                     const newIdOfForEventResponseBody = idResponseBodies?.find(
-                      (c) => c?.generatedId === forEvent?.id,
+                      (c) => c?.generatedId === forEvent?.id
                     );
 
                     if (newIdOfForEventResponseBody?.id) {
@@ -13000,13 +12992,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                         newIdOfForEventResponseBody?.googleEventId;
 
                       const newIdOfForEventIndex = eventsToEdit?.findIndex(
-                        (e) => e?.id === newIdOfForEventResponseBody?.id,
+                        (e) => e?.id === newIdOfForEventResponseBody?.id
                       );
 
                       if (genIdOfForEventIndex > -1) {
                         console.log(
                           genIdOfForEventIndex,
-                          " genIdOfForEventIndex > -1",
+                          ' genIdOfForEventIndex > -1'
                         );
                         eventsToEdit[genIdOfForEventIndex].preEventId =
                           idResponseBody.id;
@@ -13017,7 +13009,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       } else if (newIdOfForEventIndex > -1) {
                         console.log(
                           newIdOfForEventIndex,
-                          " newIdOfEventIndex > -1",
+                          ' newIdOfEventIndex > -1'
                         );
                         eventsToEdit[newIdOfForEventIndex].preEventId =
                           idResponseBody.id;
@@ -13029,30 +13021,30 @@ export const updateAllCalendarEventsPostPlanner = async (
                 } else if (genIdEditedEvent?.isPostEvent) {
                   console.log(
                     genIdEditedEvent?.isPostEvent,
-                    " genIdEditedEvent?.isPostEvent",
+                    ' genIdEditedEvent?.isPostEvent'
                   );
                   const forEvent = cloneEventsToUpsert.find(
-                    (e2) => e2.id === genIdEditedEvent.forEventId,
+                    (e2) => e2.id === genIdEditedEvent.forEventId
                   );
                   if (forEvent?.id) {
-                    console.log(forEvent?.id, " forEvent?.id");
+                    console.log(forEvent?.id, ' forEvent?.id');
                     forEvent.postEventId = idResponseBody.id;
                     const genIdOfForEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === forEvent?.id,
+                      (e) => e?.id === forEvent?.id
                     );
                     const newIdOfForEventResponseBody = idResponseBodies?.find(
-                      (c) => c?.generatedId === forEvent?.id,
+                      (c) => c?.generatedId === forEvent?.id
                     );
 
                     if (newIdOfForEventResponseBody?.id) {
                       const newIdOfForEventIndex = eventsToEdit?.findIndex(
-                        (e) => e?.id === newIdOfForEventResponseBody?.id,
+                        (e) => e?.id === newIdOfForEventResponseBody?.id
                       );
 
                       if (genIdOfForEventIndex > -1) {
                         console.log(
                           genIdOfForEventIndex,
-                          " genIdOfForEventIndex > -1 inside genIdEditedEvent?.isPostEvent",
+                          ' genIdOfForEventIndex > -1 inside genIdEditedEvent?.isPostEvent'
                         );
                         eventsToEdit[genIdOfForEventIndex].postEventId =
                           idResponseBody.id;
@@ -13063,7 +13055,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       } else if (newIdOfForEventIndex > -1) {
                         console.log(
                           newIdOfForEventIndex > -1,
-                          " newIdOfForEventIndex > -1 inside genIdEditedEvent?.isPostEvent",
+                          ' newIdOfForEventIndex > -1 inside genIdEditedEvent?.isPostEvent'
                         );
                         eventsToEdit[newIdOfForEventIndex].postEventId =
                           idResponseBody.id;
@@ -13102,7 +13094,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       c.event,
                       idResponseBody,
                       genIdEditedEvent,
-                      " c.event, createdEvent, editedEvent inside editedEvent inside generatedEventsToEditIndex",
+                      ' c.event, createdEvent, editedEvent inside editedEvent inside generatedEventsToEditIndex'
                     );
                     c.event.id = `${idResponseBody?.googleEventId}#${c.event.calendarId}`;
                     c.event.eventId = idResponseBody?.googleEventId;
@@ -13110,25 +13102,25 @@ export const updateAllCalendarEventsPostPlanner = async (
               }
             } else if (newIdEditIndex > -1) {
               const newIdWithEditedEvent = eventsToEdit[newIdEditIndex];
-              console.log(newIdWithEditedEvent, " newIdWithEditedEvent");
+              console.log(newIdWithEditedEvent, ' newIdWithEditedEvent');
 
               if (newIdWithEditedEvent?.preEventId) {
                 console.log(
                   newIdWithEditedEvent?.preEventId,
-                  " newIdWithEditedEvent?.preEventId",
+                  ' newIdWithEditedEvent?.preEventId'
                 );
 
                 const clonePreEvent = cloneEventsToUpsert.find(
-                  (e2) => e2.id === newIdWithEditedEvent.preEventId,
+                  (e2) => e2.id === newIdWithEditedEvent.preEventId
                 );
                 const genIdOrNewIdWithPreEventEditedEvent = eventsToEdit?.find(
-                  (e3) => e3.id === newIdWithEditedEvent?.preEventId,
+                  (e3) => e3.id === newIdWithEditedEvent?.preEventId
                 );
 
                 if (genIdOrNewIdWithPreEventEditedEvent?.id) {
                   console.log(
                     genIdOrNewIdWithPreEventEditedEvent,
-                    " genIdOrNewIdWithPreEventEditedEvent inside newIdWithEditedEvent?.preEventId inside newIdWithEditedEvent",
+                    ' genIdOrNewIdWithPreEventEditedEvent inside newIdWithEditedEvent?.preEventId inside newIdWithEditedEvent'
                   );
 
                   genIdOrNewIdWithPreEventEditedEvent.forEventId =
@@ -13136,7 +13128,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
                   const preEventWithNewIdResponseBody = idResponseBodies?.find(
                     (i) =>
-                      i.generatedId === genIdOrNewIdWithPreEventEditedEvent?.id,
+                      i.generatedId === genIdOrNewIdWithPreEventEditedEvent?.id
                   );
 
                   if (preEventWithNewIdResponseBody?.id) {
@@ -13150,15 +13142,15 @@ export const updateAllCalendarEventsPostPlanner = async (
                 if (clonePreEvent?.id) {
                   console.log(
                     clonePreEvent?.id,
-                    " clonePreEvent?.id inside newIdWithEditedEvent?.preEventId",
+                    ' clonePreEvent?.id inside newIdWithEditedEvent?.preEventId'
                   );
                   clonePreEvent.forEventId = idResponseBody.id;
 
                   const genIdWithPreEventIndex = eventsToEdit?.findIndex(
-                    (e) => e?.id === newIdWithEditedEvent.preEventId,
+                    (e) => e?.id === newIdWithEditedEvent.preEventId
                   );
                   const newIdWithPreEventResponseBody = idResponseBodies?.find(
-                    (c) => c?.generatedId === newIdWithEditedEvent.preEventId,
+                    (c) => c?.generatedId === newIdWithEditedEvent.preEventId
                   );
 
                   if (newIdWithPreEventResponseBody?.id) {
@@ -13167,13 +13159,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                       newIdWithPreEventResponseBody?.googleEventId;
 
                     const newIdWithPreEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === newIdWithPreEventResponseBody?.id,
+                      (e) => e?.id === newIdWithPreEventResponseBody?.id
                     );
 
                     if (genIdWithPreEventIndex > -1) {
                       console.log(
                         genIdWithPreEventIndex,
-                        " genIdWithPreEventIndex > -1 inside clonePreEvent?.id inside newIdWithEditedEvent?.preEventId",
+                        ' genIdWithPreEventIndex > -1 inside clonePreEvent?.id inside newIdWithEditedEvent?.preEventId'
                       );
                       eventsToEdit[genIdWithPreEventIndex].forEventId =
                         idResponseBody.id;
@@ -13184,7 +13176,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                     } else if (newIdWithPreEventIndex > -1) {
                       console.log(
                         newIdWithPreEventIndex,
-                        " newIdWithPreEventIndex > -1 inside clonePreEvent?.id inside newIdWithEditedEvent?.preEventId",
+                        ' newIdWithPreEventIndex > -1 inside clonePreEvent?.id inside newIdWithEditedEvent?.preEventId'
                       );
                       eventsToEdit[newIdWithPreEventIndex].forEventId =
                         idResponseBody.id;
@@ -13197,17 +13189,17 @@ export const updateAllCalendarEventsPostPlanner = async (
 
               if (newIdWithEditedEvent?.postEventId) {
                 const clonePostEvent = cloneEventsToUpsert?.find(
-                  (e2) => e2.id === newIdWithEditedEvent.postEventId,
+                  (e2) => e2.id === newIdWithEditedEvent.postEventId
                 );
 
                 const genIdOrNewIdWithPostEventEditedEvent = eventsToEdit?.find(
-                  (e3) => e3.id === newIdWithEditedEvent?.postEventId,
+                  (e3) => e3.id === newIdWithEditedEvent?.postEventId
                 );
 
                 if (genIdOrNewIdWithPostEventEditedEvent?.id) {
                   console.log(
                     genIdOrNewIdWithPostEventEditedEvent,
-                    " genIdOrNewIdWithPostEventEditedEvent inside newIdWithEditedEvent?.postEventId inside newIdWithEditedEvent",
+                    ' genIdOrNewIdWithPostEventEditedEvent inside newIdWithEditedEvent?.postEventId inside newIdWithEditedEvent'
                   );
 
                   genIdOrNewIdWithPostEventEditedEvent.forEventId =
@@ -13215,8 +13207,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
                   const postEventWithNewIdResponseBody = idResponseBodies?.find(
                     (i) =>
-                      i.generatedId ===
-                      genIdOrNewIdWithPostEventEditedEvent?.id,
+                      i.generatedId === genIdOrNewIdWithPostEventEditedEvent?.id
                   );
 
                   if (postEventWithNewIdResponseBody?.id) {
@@ -13231,10 +13222,10 @@ export const updateAllCalendarEventsPostPlanner = async (
                   clonePostEvent.forEventId = newIdWithEditedEvent.id;
 
                   const genIdWithPostEventIndex = eventsToEdit?.findIndex(
-                    (e) => e?.id === newIdWithEditedEvent.postEventId,
+                    (e) => e?.id === newIdWithEditedEvent.postEventId
                   );
                   const newIdWithPostEventResponseBody = idResponseBodies?.find(
-                    (c) => c?.generatedId === newIdWithEditedEvent.postEventId,
+                    (c) => c?.generatedId === newIdWithEditedEvent.postEventId
                   );
 
                   if (newIdWithPostEventResponseBody?.id) {
@@ -13246,7 +13237,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       eventsToEdit?.findIndex(
                         (e) =>
                           e?.id ===
-                          `${newIdWithPostEventResponseBody}#${clonePostEvent.calendarId}`,
+                          `${newIdWithPostEventResponseBody}#${clonePostEvent.calendarId}`
                       );
 
                     if (genIdWithPostEventIndex > -1) {
@@ -13270,26 +13261,26 @@ export const updateAllCalendarEventsPostPlanner = async (
               if (newIdWithEditedEvent?.forEventId) {
                 console.log(
                   newIdWithEditedEvent?.forEventId,
-                  " newIdWithEditedEvent?.forEventId",
+                  ' newIdWithEditedEvent?.forEventId'
                 );
                 if (newIdWithEditedEvent?.isPreEvent) {
                   console.log(
                     newIdWithEditedEvent?.isPreEvent,
-                    " newIdWithEditedEvent?.isPreEvent inside newIdWithEditedEvent?.forEventId",
+                    ' newIdWithEditedEvent?.isPreEvent inside newIdWithEditedEvent?.forEventId'
                   );
                   const forEvent = cloneEventsToUpsert.find(
-                    (e2) => e2.id === newIdWithEditedEvent.forEventId,
+                    (e2) => e2.id === newIdWithEditedEvent.forEventId
                   );
 
                   if (forEvent?.id) {
-                    console.log(forEvent?.id, " forEvent?.id");
+                    console.log(forEvent?.id, ' forEvent?.id');
 
                     forEvent.preEventId = newIdWithEditedEvent.id;
                     const genIdOfForEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === forEvent?.id,
+                      (e) => e?.id === forEvent?.id
                     );
                     const newIdOfForEventResponseBody = idResponseBodies?.find(
-                      (c) => c?.generatedId === forEvent?.id,
+                      (c) => c?.generatedId === forEvent?.id
                     );
 
                     if (newIdOfForEventResponseBody?.id) {
@@ -13298,12 +13289,12 @@ export const updateAllCalendarEventsPostPlanner = async (
                         newIdOfForEventResponseBody?.googleEventId;
 
                       const newIdOfForEventIndex = eventsToEdit?.findIndex(
-                        (e) => e?.id === newIdOfForEventResponseBody?.id,
+                        (e) => e?.id === newIdOfForEventResponseBody?.id
                       );
                       if (genIdOfForEventIndex > -1) {
                         console.log(
                           genIdOfForEventIndex,
-                          " genIdOfForEventIndex > -1",
+                          ' genIdOfForEventIndex > -1'
                         );
                         eventsToEdit[genIdOfForEventIndex].preEventId =
                           idResponseBody.id;
@@ -13314,7 +13305,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       } else if (newIdOfForEventIndex > -1) {
                         console.log(
                           newIdOfForEventIndex,
-                          " newIdOfForEventIndex > -1",
+                          ' newIdOfForEventIndex > -1'
                         );
                         eventsToEdit[newIdOfForEventIndex].preEventId =
                           idResponseBody.id;
@@ -13325,30 +13316,30 @@ export const updateAllCalendarEventsPostPlanner = async (
                   }
                 } else if (newIdWithEditedEvent?.isPostEvent) {
                   const forEvent = cloneEventsToUpsert?.find(
-                    (e2) => e2.id === newIdWithEditedEvent.forEventId,
+                    (e2) => e2.id === newIdWithEditedEvent.forEventId
                   );
                   if (forEvent?.id) {
                     console.log(
                       forEvent?.id,
-                      " forEvent?.id inside newIdWithEditedEvent?.isPostEvent",
+                      ' forEvent?.id inside newIdWithEditedEvent?.isPostEvent'
                     );
                     forEvent.postEventId = idResponseBody.id;
                     const genIdOfForEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === forEvent?.id,
+                      (e) => e?.id === forEvent?.id
                     );
                     const newIdOfForEventResponseBody = idResponseBodies?.find(
-                      (c) => c?.generatedId === forEvent?.id,
+                      (c) => c?.generatedId === forEvent?.id
                     );
 
                     if (newIdOfForEventResponseBody?.id) {
                       const newIdOfForEventIndex = eventsToEdit?.findIndex(
-                        (e) => e?.id === newIdOfForEventResponseBody?.id,
+                        (e) => e?.id === newIdOfForEventResponseBody?.id
                       );
 
                       if (genIdOfForEventIndex > -1) {
                         console.log(
                           genIdOfForEventIndex,
-                          " genIdOfForEventIndex > -1 inside forEvent?.id inside newIdWithEditedEvent?.isPostEvent",
+                          ' genIdOfForEventIndex > -1 inside forEvent?.id inside newIdWithEditedEvent?.isPostEvent'
                         );
                         eventsToEdit[genIdOfForEventIndex].postEventId =
                           idResponseBody.id;
@@ -13388,7 +13379,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       c.event,
                       idResponseBody,
                       newIdWithEditedEvent,
-                      " c.event, createdEvent, createdAndEditedEvent, inside forEach inside createdEventToEditIndex",
+                      ' c.event, createdEvent, createdAndEditedEvent, inside forEach inside createdEventToEditIndex'
                     );
                     c.event.id = `${idResponseBody.googleEventId}#${c?.event?.calendarId}`;
                     c.event.eventId = idResponseBody?.googleEventId;
@@ -13397,7 +13388,7 @@ export const updateAllCalendarEventsPostPlanner = async (
             }
           } else {
             const cloneEvent = cloneEventsToUpsert?.find(
-              (e2) => e2?.id === e1?.id,
+              (e2) => e2?.id === e1?.id
             );
 
             if (cloneEvent?.id) {
@@ -13407,24 +13398,24 @@ export const updateAllCalendarEventsPostPlanner = async (
               if (cloneEvent?.preEventId) {
                 console.log(
                   cloneEvent?.preEventId,
-                  " cloneEvent?.preEventId inside else",
+                  ' cloneEvent?.preEventId inside else'
                 );
                 const clonePreEvent = cloneEventsToUpsert.find(
-                  (e2) => e2.id === cloneEvent.preEventId,
+                  (e2) => e2.id === cloneEvent.preEventId
                 );
 
                 if (clonePreEvent?.id) {
                   console.log(
                     clonePreEvent?.id,
-                    " clonePreEvent?.id inside cloneEvent?.preEventId inside else",
+                    ' clonePreEvent?.id inside cloneEvent?.preEventId inside else'
                   );
                   clonePreEvent.forEventId = idResponseBody.id;
 
                   const genIdOfPreEventIndex = eventsToEdit?.findIndex(
-                    (e) => e?.id === cloneEvent.preEventId,
+                    (e) => e?.id === cloneEvent.preEventId
                   );
                   const newIdOfPreEventResponseBody = idResponseBodies?.find(
-                    (c) => c?.generatedId === cloneEvent.preEventId,
+                    (c) => c?.generatedId === cloneEvent.preEventId
                   );
 
                   if (newIdOfPreEventResponseBody?.id) {
@@ -13433,13 +13424,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                       newIdOfPreEventResponseBody?.googleEventId;
 
                     const newIdOfPreEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === newIdOfPreEventResponseBody?.id,
+                      (e) => e?.id === newIdOfPreEventResponseBody?.id
                     );
 
                     if (genIdOfPreEventIndex > -1) {
                       console.log(
                         genIdOfPreEventIndex,
-                        " inside genIdOfPreEventIndex > -1 clonePreEvent?.id inside cloneEvent?.preEventId inside else",
+                        ' inside genIdOfPreEventIndex > -1 clonePreEvent?.id inside cloneEvent?.preEventId inside else'
                       );
                       eventsToEdit[genIdOfPreEventIndex].forEventId =
                         idResponseBody.id;
@@ -13450,7 +13441,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                     } else if (newIdOfPreEventIndex > -1) {
                       console.log(
                         newIdOfPreEventIndex,
-                        " newIdOfPreEventIndex > -1 inside genIdOfPreEventIndex > -1 clonePreEvent?.id inside cloneEvent?.preEventId inside else",
+                        ' newIdOfPreEventIndex > -1 inside genIdOfPreEventIndex > -1 clonePreEvent?.id inside cloneEvent?.preEventId inside else'
                       );
                       eventsToEdit[newIdOfPreEventIndex].forEventId =
                         idResponseBody.id;
@@ -13464,21 +13455,21 @@ export const updateAllCalendarEventsPostPlanner = async (
               if (cloneEvent?.postEventId) {
                 console.log(
                   cloneEvent?.postEventId,
-                  " cloneEvent?.postEventId",
+                  ' cloneEvent?.postEventId'
                 );
                 const clonePostEvent = cloneEventsToUpsert?.find(
-                  (e2) => e2.id === cloneEvent.postEventId,
+                  (e2) => e2.id === cloneEvent.postEventId
                 );
 
                 if (clonePostEvent?.id) {
-                  console.log(clonePostEvent?.id, " clonePostEvent?.id");
+                  console.log(clonePostEvent?.id, ' clonePostEvent?.id');
                   clonePostEvent.forEventId = idResponseBody.id;
 
                   const genIdOfPostEventIndex = eventsToEdit?.findIndex(
-                    (e) => e?.id === cloneEvent.postEventId,
+                    (e) => e?.id === cloneEvent.postEventId
                   );
                   const newIdOfPostEventResponseBody = idResponseBodies?.find(
-                    (c) => c?.generatedId === cloneEvent.postEventId,
+                    (c) => c?.generatedId === cloneEvent.postEventId
                   );
 
                   if (newIdOfPostEventResponseBody?.id) {
@@ -13487,13 +13478,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                       newIdOfPostEventResponseBody?.googleEventId;
 
                     const newIdOfPostEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === newIdOfPostEventResponseBody?.id,
+                      (e) => e?.id === newIdOfPostEventResponseBody?.id
                     );
 
                     if (genIdOfPostEventIndex > -1) {
                       console.log(
                         genIdOfPostEventIndex,
-                        " genIdOfPostEventIndex > -1",
+                        ' genIdOfPostEventIndex > -1'
                       );
                       eventsToEdit[genIdOfPostEventIndex].forEventId =
                         idResponseBody.id;
@@ -13504,7 +13495,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                     } else if (newIdOfPostEventIndex > -1) {
                       console.log(
                         newIdOfPostEventIndex,
-                        " newIdOfPostEventIndex > -1",
+                        ' newIdOfPostEventIndex > -1'
                       );
                       eventsToEdit[newIdOfPostEventIndex].forEventId =
                         idResponseBody.id;
@@ -13521,23 +13512,23 @@ export const updateAllCalendarEventsPostPlanner = async (
                 if (e1?.isPreEvent) {
                   console.log(
                     e1?.isPreEvent,
-                    " e1?.isPreEvent inside e1?.forEventId",
+                    ' e1?.isPreEvent inside e1?.forEventId'
                   );
                   const forEvent = cloneEventsToUpsert?.find(
-                    (e2) => e2.id === e1.forEventId,
+                    (e2) => e2.id === e1.forEventId
                   );
 
                   if (forEvent?.id) {
                     console.log(
                       forEvent?.id,
-                      " forEvent?.id inside genIdEditedEvent?.forEventId",
+                      ' forEvent?.id inside genIdEditedEvent?.forEventId'
                     );
                     forEvent.preEventId = idResponseBody.id;
                     const genIdOfForEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === forEvent?.id,
+                      (e) => e?.id === forEvent?.id
                     );
                     const newIdOfForEventResponseBody = idResponseBodies?.find(
-                      (c) => c?.generatedId === forEvent?.id,
+                      (c) => c?.generatedId === forEvent?.id
                     );
 
                     if (newIdOfForEventResponseBody?.id) {
@@ -13546,13 +13537,13 @@ export const updateAllCalendarEventsPostPlanner = async (
                         newIdOfForEventResponseBody?.googleEventId;
 
                       const newIdOfForEventIndex = eventsToEdit?.findIndex(
-                        (e) => e?.id === newIdOfForEventResponseBody?.id,
+                        (e) => e?.id === newIdOfForEventResponseBody?.id
                       );
 
                       if (genIdOfForEventIndex > -1) {
                         console.log(
                           genIdOfForEventIndex,
-                          " genIdOfForEventIndex > -1",
+                          ' genIdOfForEventIndex > -1'
                         );
                         eventsToEdit[genIdOfForEventIndex].preEventId =
                           idResponseBody.id;
@@ -13563,7 +13554,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       } else if (newIdOfForEventIndex > -1) {
                         console.log(
                           newIdOfForEventIndex,
-                          " newIdOfForEventIndex > -1",
+                          ' newIdOfForEventIndex > -1'
                         );
                         eventsToEdit[newIdOfForEventIndex].preEventId =
                           idResponseBody.id;
@@ -13573,33 +13564,33 @@ export const updateAllCalendarEventsPostPlanner = async (
                     }
                   }
                 } else if (e1?.isPostEvent) {
-                  console.log(e1?.isPostEvent, " e1?.isPostEvent");
+                  console.log(e1?.isPostEvent, ' e1?.isPostEvent');
                   const forEvent = cloneEventsToUpsert?.find(
-                    (e2) => e2.id === e1.forEventId,
+                    (e2) => e2.id === e1.forEventId
                   );
 
                   if (forEvent?.id) {
                     console.log(
                       forEvent?.id,
-                      " forEvent?.id inside e1?.isPostEvent",
+                      ' forEvent?.id inside e1?.isPostEvent'
                     );
                     forEvent.postEventId = idResponseBody.id;
                     const genIdOfForEventIndex = eventsToEdit?.findIndex(
-                      (e) => e?.id === forEvent?.id,
+                      (e) => e?.id === forEvent?.id
                     );
                     const newIdOfForEventResponseBody = idResponseBodies?.find(
-                      (c) => c?.generatedId === forEvent?.id,
+                      (c) => c?.generatedId === forEvent?.id
                     );
 
                     if (newIdOfForEventResponseBody?.id) {
                       const newIdOfForEventIndex = eventsToEdit?.findIndex(
-                        (e) => e?.id === newIdOfForEventResponseBody?.id,
+                        (e) => e?.id === newIdOfForEventResponseBody?.id
                       );
 
                       if (genIdOfForEventIndex > -1) {
                         console.log(
                           genIdOfForEventIndex,
-                          " genIdOfForEventIndex > -1 inside e1?.isPostEvent inside e1?.isPostEvent",
+                          ' genIdOfForEventIndex > -1 inside e1?.isPostEvent inside e1?.isPostEvent'
                         );
                         eventsToEdit[genIdOfForEventIndex].postEventId =
                           idResponseBody.id;
@@ -13610,7 +13601,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                       } else if (newIdOfForEventIndex > -1) {
                         console.log(
                           newIdOfForEventIndex > -1,
-                          " newIdOfForEventIndex > -1 inside e1?.isPostEvent inside inside e1?.isPostEvent",
+                          ' newIdOfForEventIndex > -1 inside e1?.isPostEvent inside inside e1?.isPostEvent'
                         );
                         eventsToEdit[newIdOfForEventIndex].postEventId =
                           idResponseBody.id;
@@ -13642,7 +13633,7 @@ export const updateAllCalendarEventsPostPlanner = async (
                     console.log(
                       c.event,
                       cloneEvent,
-                      " c.event, cloneEvent inside else ",
+                      ' c.event, cloneEvent inside else '
                     );
                     c.event.id = `${idResponseBody.googleEventId}#${c?.event?.calendarId}`;
                     c.event.eventId = idResponseBody?.googleEventId;
@@ -13656,52 +13647,52 @@ export const updateAllCalendarEventsPostPlanner = async (
         }
 
         return e1;
-      },
+      }
     );
 
     const eventsWithMeetingAssistSinHost =
       eventsToBeCreatedWithNewId?.map((c) => c?.event) || [];
 
-    eventsToEdit?.forEach((e) => console.log(e, " eventsToEdit"));
+    eventsToEdit?.forEach((e) => console.log(e, ' eventsToEdit'));
 
     const eventsMinusEventsToRemove = _.differenceBy(
       idModifiedEventsToUpsert,
       eventsToRemove,
-      "id",
+      'id'
     );
 
     const finalEventsToUpsert = eventsMinusEventsToRemove
       .concat(eventsWithMeetingAssistSinHost)
-      .concat(_.uniqBy(eventsToEdit, "id"))
+      .concat(_.uniqBy(eventsToEdit, 'id'))
       ?.filter((e) => !!e);
 
-    finalEventsToUpsert?.forEach((e) => console.log(e, " finalEventsToUpsert"));
+    finalEventsToUpsert?.forEach((e) => console.log(e, ' finalEventsToUpsert'));
 
     updatePromises?.forEach((e) =>
-      console.log(e, " updatePromises before filter"),
+      console.log(e, ' updatePromises before filter')
     );
 
     await processEventsForUpdatingConferences(
       finalEventsToUpsert?.filter(
         (e) =>
           !eventToFilterForUpdateConferences?.find(
-            (f) => e?.conferenceId === f?.conferenceId,
-          ),
-      ),
+            (f) => e?.conferenceId === f?.conferenceId
+          )
+      )
     );
 
     await Promise.all([
       Promise.all(updatePromises?.filter((e) => !!e)),
       upsertEventsPostPlanner(
         finalEventsToUpsert.map((e) =>
-          _.omit(e, ["vector", "preferredTimeRanges"]),
-        ),
+          _.omit(e, ['vector', 'preferredTimeRanges'])
+        )
       ),
     ]);
 
     for (const insertReminderObject of insertReminderObjects) {
       const idResponseBody = idResponseBodies?.find(
-        (i) => i?.generatedId === insertReminderObject?.eventId,
+        (i) => i?.generatedId === insertReminderObject?.eventId
       );
 
       if (idResponseBody?.id) {
@@ -13711,7 +13702,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
     for (const insertPreferredTimeRangeObject of insertPreferredTimeRangeObjects) {
       const idResponseBody = idResponseBodies?.find(
-        (i) => i?.generatedId === insertPreferredTimeRangeObject?.eventId,
+        (i) => i?.generatedId === insertPreferredTimeRangeObject?.eventId
       );
 
       if (idResponseBody?.id) {
@@ -13721,7 +13712,7 @@ export const updateAllCalendarEventsPostPlanner = async (
 
     for (const insertAttendeeObject of insertAttendeeObjects) {
       const idResponseBody = idResponseBodies?.find(
-        (i) => i?.generatedId === insertAttendeeObject?.eventId,
+        (i) => i?.generatedId === insertAttendeeObject?.eventId
       );
 
       if (idResponseBody?.id) {
@@ -13729,9 +13720,9 @@ export const updateAllCalendarEventsPostPlanner = async (
       }
     }
 
-    deleteReminders.forEach((d) => console.log(d, " deleteReminders"));
+    deleteReminders.forEach((d) => console.log(d, ' deleteReminders'));
     insertReminderObjects?.forEach((i) =>
-      console.log(i, " insertReminderObjects"),
+      console.log(i, ' insertReminderObjects')
     );
     const deleteReminderIds = deleteReminders
       .filter((r) => !!r?.eventId)
@@ -13739,46 +13730,46 @@ export const updateAllCalendarEventsPostPlanner = async (
     const insertRemindersFiltered: ReminderTypeAdjusted[] =
       insertReminderObjects.filter((r) => !!r?.eventId);
 
-    deleteReminderIds.forEach((d) => console.log(d, " deleteReminderIds"));
+    deleteReminderIds.forEach((d) => console.log(d, ' deleteReminderIds'));
     insertRemindersFiltered.forEach((i) =>
-      console.log(i, " insertRemindersFiltered"),
+      console.log(i, ' insertRemindersFiltered')
     );
     await deleteRemindersWithIds(
       _.uniq(deleteReminderIds),
-      filteredEventsToUpdate?.[0]?.userId,
+      filteredEventsToUpdate?.[0]?.userId
     );
     await insertReminders(insertRemindersFiltered);
     const distinctToDeletePreferredTimeRangeObjects = _.uniqBy(
       deletePreferredTimeRangeObjects,
-      "eventId",
+      'eventId'
     );
     const eventIdsForPts = distinctToDeletePreferredTimeRangeObjects?.map(
-      (pt) => pt?.eventId,
+      (pt) => pt?.eventId
     );
     await deletePreferredTimeRangesForEvents(eventIdsForPts);
     await insertPreferredTimeRanges(insertPreferredTimeRangeObjects);
     await insertAttendeesforEvent(insertAttendeeObjects);
-    console.log("success!");
+    console.log('success!');
   } catch (e) {
-    console.log(e, " unable to update ");
+    console.log(e, ' unable to update ');
   }
 };
 
 export const deleteZoomMeeting = async (
   zoomToken: string,
-  meetingId: number,
+  meetingId: number
 ) => {
   try {
     await got.delete(`${zoomBaseUrl}/meetings/${meetingId}`, {
       headers: {
         Authorization: `Bearer ${zoomToken}`,
-        ContentType: "application/json",
+        ContentType: 'application/json',
       },
     });
 
-    console.log(meetingId, "successfully deleted meeting");
+    console.log(meetingId, 'successfully deleted meeting');
   } catch (e) {
-    console.log(e, " unable to delete zoom meeting");
+    console.log(e, ' unable to delete zoom meeting');
   }
 };
 
@@ -13789,14 +13780,14 @@ export const getZoomMeeting = async (zoomToken: string, meetingId: number) => {
       {
         headers: {
           Authorization: `Bearer ${zoomToken}`,
-          ContentType: "application/json",
+          ContentType: 'application/json',
         },
-      },
+      }
     ).json();
 
     return res;
   } catch (e) {
-    console.log(e, " unable to get zoom meeting");
+    console.log(e, ' unable to get zoom meeting');
   }
 };
 
@@ -13804,7 +13795,7 @@ export const updateZoomMeetingStartDate = async (
   zoomToken: string,
   meetingId: number,
   startDate: string,
-  timezone: string,
+  timezone: string
 ) => {
   try {
     const reqBody = {
@@ -13817,14 +13808,14 @@ export const updateZoomMeetingStartDate = async (
         json: reqBody,
         headers: {
           Authorization: `Bearer ${zoomToken}`,
-          ContentType: "application/json",
+          ContentType: 'application/json',
         },
       })
       .json();
 
-    console.log(meetingId, "successfully patched zoom meeting starting date");
+    console.log(meetingId, 'successfully patched zoom meeting starting date');
   } catch (e) {
-    console.log(e, " unable to update zoom meeting");
+    console.log(e, ' unable to update zoom meeting');
   }
 };
 
@@ -13836,25 +13827,25 @@ export const createZoomMeeting = async (
   duration: number,
   contactName?: string,
   contactEmail?: string,
-  meetingInvitees?: string[],
+  meetingInvitees?: string[]
 ) => {
   try {
     if (dayjs().isAfter(dayjs(startDate))) {
-      console.log(" starttime is in the past");
-      throw new Error("starttime is in the past");
+      console.log(' starttime is in the past');
+      throw new Error('starttime is in the past');
     }
 
     console.log(
       dayjs(startDate?.slice(0, 19))
         .tz(timezone, true)
-        .format("YYYY-MM-DDTHH:mm:ss"),
+        .format('YYYY-MM-DDTHH:mm:ss'),
       timezone,
       agenda,
       duration,
       ` dayjs(startDate?.slice(0, 19)).tz(timezone, true).format('YYYY-MM-DDTHH:mm:ss'),
             timezone,
             agenda,
-            duration, createZoomMeeting called`,
+            duration, createZoomMeeting called`
     );
 
     let settings: any = {};
@@ -13889,29 +13880,29 @@ export const createZoomMeeting = async (
       duration,
     };
 
-    console.log(reqBody, " reqBody inside createZoomMeeting");
+    console.log(reqBody, ' reqBody inside createZoomMeeting');
 
     const res: ZoomMeetingObjectType = await got
       .post(`${zoomBaseUrl}/users/me/meetings`, {
         json: reqBody,
         headers: {
           Authorization: `Bearer ${zoomToken}`,
-          ContentType: "application/json",
+          ContentType: 'application/json',
         },
       })
       .json();
 
-    console.log(res, " res inside createZoomMeeting");
+    console.log(res, ' res inside createZoomMeeting');
 
     return res;
   } catch (e) {
-    console.log(e, " unable to create zoom meeting");
+    console.log(e, ' unable to create zoom meeting');
   }
 };
 
 export const insertConferences = async (conferences: ConferenceType[]) => {
   try {
-    const operationName = "InsertConferences";
+    const operationName = 'InsertConferences';
     const query = `
             mutation InsertConferences($conferences: [Conference_insert_input!]!) {
                 insert_Conference(objects: $conferences) {
@@ -13958,8 +13949,8 @@ export const insertConferences = async (conferences: ConferenceType[]) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -13971,16 +13962,16 @@ export const insertConferences = async (conferences: ConferenceType[]) => {
 
     console.log(
       res?.data?.insert_Conference?.returning,
-      " successfully inserted conferences",
+      ' successfully inserted conferences'
     );
   } catch (e) {
-    console.log(e, " unable to insert conferences");
+    console.log(e, ' unable to insert conferences');
   }
 };
 
 export const insertConference = async (conference: ConferenceType) => {
   try {
-    const operationName = "InsertConference";
+    const operationName = 'InsertConference';
     const query = `
             mutation InsertConference($conference: Conference_insert_input!) {
                 insert_Conference_one(object: $conference) {
@@ -14016,8 +14007,8 @@ export const insertConference = async (conference: ConferenceType) => {
     const res: { data: { insert_Conference_one: ConferenceType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -14027,17 +14018,17 @@ export const insertConference = async (conference: ConferenceType) => {
       })
       .json();
 
-    console.log(res, " successfully inserted one conference");
+    console.log(res, ' successfully inserted one conference');
 
     return res?.data?.insert_Conference_one;
   } catch (e) {
-    console.log(e, " unable to insert conference");
+    console.log(e, ' unable to insert conference');
   }
 };
 
 export const listConferencesWithHosts = async (ids: string[]) => {
   try {
-    const operationName = "ListConferencesWithHostId";
+    const operationName = 'ListConferencesWithHostId';
     const query = `
             query ListConferencesWithHostId($ids: [String!]!) {
                 Conference(where: {id: {_in: $ids}, isHost: {_eq: true}}) {
@@ -14073,8 +14064,8 @@ export const listConferencesWithHosts = async (ids: string[]) => {
     const res: { data: { Conference: ConferenceType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -14084,54 +14075,54 @@ export const listConferencesWithHosts = async (ids: string[]) => {
       })
       .json();
 
-    console.log(res, " successfully listed conferences with hosts");
+    console.log(res, ' successfully listed conferences with hosts');
 
     return res?.data?.Conference;
   } catch (e) {
-    console.log(e, " unable to list conferences with hosts");
+    console.log(e, ' unable to list conferences with hosts');
   }
 };
 
 export const processEventsForUpdatingConferences = async (
-  finalEventsToUpsert: EventPlusType[],
+  finalEventsToUpsert: EventPlusType[]
 ) => {
   try {
     const eventsWithConferences = finalEventsToUpsert.filter(
-      (e) => !!e?.conferenceId,
+      (e) => !!e?.conferenceId
     );
 
     const conferenceIds = eventsWithConferences?.map((e) => e?.conferenceId);
     const conferencesWithHosts = await listConferencesWithHosts(conferenceIds);
 
     const eventsWithHostConferences = eventsWithConferences?.filter(
-      (e) => !!conferencesWithHosts?.find((c) => c?.userId === e?.userId),
+      (e) => !!conferencesWithHosts?.find((c) => c?.userId === e?.userId)
     );
 
     if (!eventsWithHostConferences?.[0]?.id) {
-      console.log("no event with host conferences present");
+      console.log('no event with host conferences present');
       return;
     }
 
     for (const eventWithHostConference of eventsWithHostConferences) {
       const zoomToken = await getZoomAPIToken(eventWithHostConference?.userId);
       const conferenceToEvent = conferencesWithHosts?.find(
-        (c) => c?.id === eventWithHostConference?.conferenceId,
+        (c) => c?.id === eventWithHostConference?.conferenceId
       );
       if (
         zoomToken &&
-        conferenceToEvent?.app === "zoom" &&
-        typeof parseInt(conferenceToEvent?.id, 10) === "number"
+        conferenceToEvent?.app === 'zoom' &&
+        typeof parseInt(conferenceToEvent?.id, 10) === 'number'
       ) {
         await updateZoomMeetingStartDate(
           zoomToken,
           parseInt(conferenceToEvent?.id, 10),
           eventWithHostConference?.startDate,
-          eventWithHostConference?.timezone,
+          eventWithHostConference?.timezone
         );
       }
     }
   } catch (e) {
-    console.log(e, " unable to processEventsforupdatingconferences");
+    console.log(e, ' unable to processEventsforupdatingconferences');
   }
 };
 
@@ -14140,7 +14131,7 @@ export const processEventsForCreatingConferences = async (
   createResults: {
     id: string;
     generatedId: string;
-  }[],
+  }[]
 ) => {
   try {
     const createdEventsWithMeetingId = finalEventsToUpsert
@@ -14149,15 +14140,15 @@ export const processEventsForCreatingConferences = async (
 
     const uniqueMeetingIdCreatedEvents = _.uniqBy(
       createdEventsWithMeetingId,
-      "meetingId",
+      'meetingId'
     );
 
     if (!uniqueMeetingIdCreatedEvents?.[0]) {
-      console.log(" no new meeting events created");
+      console.log(' no new meeting events created');
       return;
     }
     const meetingAssistObjects = await listMeetingAssistsGivenMeetingIds(
-      uniqueMeetingIdCreatedEvents?.map((e) => e?.meetingId),
+      uniqueMeetingIdCreatedEvents?.map((e) => e?.meetingId)
     );
 
     const zoomObjects: (ZoomMeetingObjectType & {
@@ -14170,23 +14161,23 @@ export const processEventsForCreatingConferences = async (
 
       if (zoomToken) {
         const meetingEvent = uniqueMeetingIdCreatedEvents?.find(
-          (e) => e?.meetingId === meetingAssist?.id,
+          (e) => e?.meetingId === meetingAssist?.id
         );
         if (!meetingEvent) {
-          console.log(" not meetingEvent found for zoom continue");
+          console.log(' not meetingEvent found for zoom continue');
           continue;
         }
 
         const attendees = await listMeetingAssistAttendeesGivenMeetingId(
-          meetingEvent?.meetingId,
+          meetingEvent?.meetingId
         );
 
         if (!attendees) {
-          console.log(" no attendees present for zoom continue");
+          console.log(' no attendees present for zoom continue');
           continue;
         }
         const hostAttendee = attendees?.find(
-          (a) => a?.userId === meetingAssist?.userId,
+          (a) => a?.userId === meetingAssist?.userId
         );
 
         const zoomObject = await createZoomMeeting(
@@ -14197,7 +14188,7 @@ export const processEventsForCreatingConferences = async (
           meetingAssist?.duration,
           hostAttendee?.name,
           hostAttendee?.primaryEmail,
-          attendees?.map((a) => a?.primaryEmail),
+          attendees?.map((a) => a?.primaryEmail)
         );
 
         zoomObjects.push({
@@ -14208,25 +14199,25 @@ export const processEventsForCreatingConferences = async (
 
         console.log(
           zoomObject,
-          " zoomObject inside processEventsForCreatingConferences",
+          ' zoomObject inside processEventsForCreatingConferences'
         );
       }
     }
 
-    console.log(zoomObjects, " zoomObjects");
+    console.log(zoomObjects, ' zoomObjects');
     if (zoomObjects?.[0]?.id) {
       return zoomObjects;
     }
   } catch (e) {
-    console.log(e, " unable to create conferences");
+    console.log(e, ' unable to create conferences');
   }
 };
 
 export const listMeetingAssistsGivenMeetingIds = async (
-  meetingIds: string[],
+  meetingIds: string[]
 ) => {
   try {
-    const operationName = "ListMeetingAssists";
+    const operationName = 'ListMeetingAssists';
     const query = `
             query ListMeetingAssists($meetingIds: [uuid!]!) {
                 Meeting_Assist(where: {id: {_in: $meetingIds}}) {
@@ -14282,8 +14273,8 @@ export const listMeetingAssistsGivenMeetingIds = async (
     const res: { data: { Meeting_Assist: MeetingAssistType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -14293,10 +14284,10 @@ export const listMeetingAssistsGivenMeetingIds = async (
       })
       .json();
 
-    console.log(res, " successfully listed listMeetingAssistsGivenMeetingIds");
+    console.log(res, ' successfully listed listMeetingAssistsGivenMeetingIds');
 
     return res?.data?.Meeting_Assist;
   } catch (e) {
-    console.log(e, " unable to list meeting assists");
+    console.log(e, ' unable to list meeting assists');
   }
 };

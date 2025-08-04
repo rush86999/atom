@@ -1,4 +1,3 @@
-
 export default `
 query GetUserById($id: uuid!) {
   User_by_pk(id: $id) {
@@ -11,4 +10,4 @@ query GetUserById($id: uuid!) {
     userPreferenceId
   }
 }
-`
+`;

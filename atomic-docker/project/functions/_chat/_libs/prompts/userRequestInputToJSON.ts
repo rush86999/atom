@@ -1,4 +1,3 @@
-
 export const userInputToJSONPrompt = `
     You are a user input to json format parser. Convert user input command provided to an AI calendar assistant into JSON type language used to trigger an API call. Do not provide false values, replace placeholders with null if not available or unknown. If exact values not provided, set unclear values as null. Do not make assumptions on input generally. Pseudo JSON format: 
     
@@ -49,15 +48,15 @@ export const userInputToJSONPrompt = `
     }
 
 user current time: {{userCurrentTime}}
-`
+`;
 
 // export const userInputToJSONTemplate = `
-//     Given user input: {{userInput}} & 
+//     Given user input: {{userInput}} &
 // `
 
 export const userInputToJSONExampleInput = `
     schedule a meeting with Joe on Tuesday for Marketing presentation
-`
+`;
 
 export const userInputToJSONExampleOutput = `
 {
@@ -94,4 +93,4 @@ export const userInputToJSONExampleOutput = `
       "deadlineType": null
     }
   }
-`
+`;

@@ -1,5 +1,5 @@
 /* eslint-disable import/no-anonymous-default-export */
-import { colorsPalette } from "./colorsPalette";
+import { colorsPalette } from './colorsPalette';
 export default {
   // BACKGROUND
   $backgroundDefault: colorsPalette.white,
@@ -65,5 +65,5 @@ export default {
   $outlineGeneral: colorsPalette.blue30,
   $outlineWarning: colorsPalette.yellow30,
   $outlineDanger: colorsPalette.red30,
-  $outlineInverted: colorsPalette.white
+  $outlineInverted: colorsPalette.white,
 };

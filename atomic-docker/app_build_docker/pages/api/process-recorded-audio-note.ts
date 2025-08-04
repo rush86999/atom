@@ -17,7 +17,8 @@ export const config = {
 
 // Determine the Python backend URL from environment variables
 // This should point to the service that will actually process the audio (e.g., python-agent)
-const PYTHON_PROCESSING_SERVICE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://python-agent:5000'; // Default from compose
+const PYTHON_PROCESSING_SERVICE_URL =
+  process.env.PYTHON_API_SERVICE_BASE_URL || 'http://python-agent:5000'; // Default from compose
 
 interface FormidableParseResult {
   fields: formidable.Fields;
@@ -44,8 +45,10 @@ interface PythonBackendResponse {
   message?: string;
 }
 
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
@@ -61,52 +64,100 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const operationName = 'processRecordedAudioNoteAPI'; // For logging context
 
-    const parsePromise = new Promise<FormidableParseResult>((resolve, reject) => {
-      form.parse(req, (err, fields, files) => {
-        if (err) {
-          appServiceLogger.error(`[${operationName}] Formidable parsing error.`, { error: err.message, stack: err.stack, details: err });
-          return reject(err);
-        }
-        resolve({ fields, files });
-      });
-    });
+    const parsePromise = new Promise<FormidableParseResult>(
+      (resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+          if (err) {
+            appServiceLogger.error(
+              `[${operationName}] Formidable parsing error.`,
+              { error: err.message, stack: err.stack, details: err }
+            );
+            return reject(err);
+          }
+          resolve({ fields, files });
+        });
+      }
+    );
 
     const { fields, files } = await parsePromise;
-    appServiceLogger.info(`[${operationName}] Form parsed successfully.`, { fileKeys: Object.keys(files), fieldKeys: Object.keys(fields).join(', ') });
+    appServiceLogger.info(`[${operationName}] Form parsed successfully.`, {
+      fileKeys: Object.keys(files),
+      fieldKeys: Object.keys(fields).join(', '),
+    });
 
     const audioFileArray = files.audio_file;
     const titleArray = fields.title;
     const userIdArray = fields.user_id;
     const linkedEventIdArray = fields.linked_event_id; // Optional
 
-    if (!audioFileArray || !Array.isArray(audioFileArray) || audioFileArray.length === 0) {
-      return res.status(400).json({ ok: false, error: { message: 'No audio file uploaded.' } });
+    if (
+      !audioFileArray ||
+      !Array.isArray(audioFileArray) ||
+      audioFileArray.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ ok: false, error: { message: 'No audio file uploaded.' } });
     }
     const audioFile = audioFileArray[0];
 
-    if (!titleArray || !Array.isArray(titleArray) || titleArray.length === 0 || !titleArray[0]) {
-      return res.status(400).json({ ok: false, error: { message: 'Missing title for the audio note.' } });
+    if (
+      !titleArray ||
+      !Array.isArray(titleArray) ||
+      titleArray.length === 0 ||
+      !titleArray[0]
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          error: { message: 'Missing title for the audio note.' },
+        });
     }
     const title = titleArray[0];
 
-    if (!userIdArray || !Array.isArray(userIdArray) || userIdArray.length === 0 || !userIdArray[0]) {
-      return res.status(400).json({ ok: false, error: { message: 'Missing user_id.' } });
+    if (
+      !userIdArray ||
+      !Array.isArray(userIdArray) ||
+      userIdArray.length === 0 ||
+      !userIdArray[0]
+    ) {
+      return res
+        .status(400)
+        .json({ ok: false, error: { message: 'Missing user_id.' } });
     }
     const userId = userIdArray[0];
 
-    const linkedEventId = (linkedEventIdArray && Array.isArray(linkedEventIdArray) && linkedEventIdArray.length > 0)
-                          ? linkedEventIdArray[0]
-                          : undefined;
+    const linkedEventId =
+      linkedEventIdArray &&
+      Array.isArray(linkedEventIdArray) &&
+      linkedEventIdArray.length > 0
+        ? linkedEventIdArray[0]
+        : undefined;
 
     if (!audioFile.filepath) {
-        return res.status(500).json({ ok: false, error: { message: 'Uploaded file path is missing.' } });
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          error: { message: 'Uploaded file path is missing.' },
+        });
     }
 
     // At this point, audioFile.filepath points to the temporary location of the uploaded file.
     // We need to send this file to the Python backend.
 
     const pythonEndpoint = `${PYTHON_PROCESSING_SERVICE_URL}/api/internal/process_audio_note_data`;
-    appServiceLogger.info(`[${operationName}] Forwarding audio to Python backend.`, { pythonEndpoint, userId, title, linkedEventId, audioFilePath: audioFile.filepath });
+    appServiceLogger.info(
+      `[${operationName}] Forwarding audio to Python backend.`,
+      {
+        pythonEndpoint,
+        userId,
+        title,
+        linkedEventId,
+        audioFilePath: audioFile.filepath,
+      }
+    );
 
     const backendFormData = new FormData();
     const fileStream = fs.createReadStream(audioFile.filepath);
@@ -136,51 +187,139 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         responseType: 'json' as 'json', // Expect a JSON response
       };
 
-      const pythonServiceResponseData = await resilientGot('post', pythonEndpoint, gotOptions, `${operationName}_PythonBackendCall`) as PythonBackendResponse;
+      const pythonServiceResponseData = (await resilientGot(
+        'post',
+        pythonEndpoint,
+        gotOptions,
+        `${operationName}_PythonBackendCall`
+      )) as PythonBackendResponse;
 
       // Clean up the temporary file uploaded by formidable
       fs.unlink(audioFile.filepath, (unlinkErr) => {
-        if (unlinkErr) appServiceLogger.error(`[${operationName}] Error deleting temp audio file.`, { filepath: audioFile.filepath, error: unlinkErr.message, stack: unlinkErr.stack });
+        if (unlinkErr)
+          appServiceLogger.error(
+            `[${operationName}] Error deleting temp audio file.`,
+            {
+              filepath: audioFile.filepath,
+              error: unlinkErr.message,
+              stack: unlinkErr.stack,
+            }
+          );
       });
 
       // Check Python backend response
       // resilientGot returns the body directly, so we access properties on pythonServiceResponseData
-      if (pythonServiceResponseData && (pythonServiceResponseData.ok || pythonServiceResponseData.status === 'success') && pythonServiceResponseData.data) {
-        appServiceLogger.info(`[${operationName}] Python backend processed audio successfully.`, { userId, title, responseData: pythonServiceResponseData.data });
+      if (
+        pythonServiceResponseData &&
+        (pythonServiceResponseData.ok ||
+          pythonServiceResponseData.status === 'success') &&
+        pythonServiceResponseData.data
+      ) {
+        appServiceLogger.info(
+          `[${operationName}] Python backend processed audio successfully.`,
+          { userId, title, responseData: pythonServiceResponseData.data }
+        );
         return res.status(200).json({
           ok: true,
-          message: "Audio note processed successfully.",
-          data: pythonServiceResponseData.data
+          message: 'Audio note processed successfully.',
+          data: pythonServiceResponseData.data,
         });
       } else {
-        const errorMsg = pythonServiceResponseData?.error?.message || pythonServiceResponseData?.message || "Unknown error from Python processing service.";
-        appServiceLogger.error(`[${operationName}] Error response from Python backend.`, { userId, title, errorMsg, pythonResponseData: pythonServiceResponseData });
-        return res.status(500).json({ ok: false, error: { message: errorMsg, code: pythonServiceResponseData?.error?.code || "PYTHON_PROCESSING_FAILED" } });
+        const errorMsg =
+          pythonServiceResponseData?.error?.message ||
+          pythonServiceResponseData?.message ||
+          'Unknown error from Python processing service.';
+        appServiceLogger.error(
+          `[${operationName}] Error response from Python backend.`,
+          {
+            userId,
+            title,
+            errorMsg,
+            pythonResponseData: pythonServiceResponseData,
+          }
+        );
+        return res
+          .status(500)
+          .json({
+            ok: false,
+            error: {
+              message: errorMsg,
+              code:
+                pythonServiceResponseData?.error?.code ||
+                'PYTHON_PROCESSING_FAILED',
+            },
+          });
       }
-    } catch (serviceCallError: any) { // Catch errors from resilientGot or file operations
-      fs.unlink(audioFile.filepath, (unlinkErr) => { // Ensure cleanup on error too
-        if (unlinkErr) appServiceLogger.error(`[${operationName}] Error deleting temp audio file after service call error.`, { filepath: audioFile.filepath, error: unlinkErr.message, stack: unlinkErr.stack });
+    } catch (serviceCallError: any) {
+      // Catch errors from resilientGot or file operations
+      fs.unlink(audioFile.filepath, (unlinkErr) => {
+        // Ensure cleanup on error too
+        if (unlinkErr)
+          appServiceLogger.error(
+            `[${operationName}] Error deleting temp audio file after service call error.`,
+            {
+              filepath: audioFile.filepath,
+              error: unlinkErr.message,
+              stack: unlinkErr.stack,
+            }
+          );
       });
 
-      appServiceLogger.error(`[${operationName}] Error calling Python backend or during file ops.`, { userId, title, error: serviceCallError.message, stack: serviceCallError.stack, details: serviceCallError });
+      appServiceLogger.error(
+        `[${operationName}] Error calling Python backend or during file ops.`,
+        {
+          userId,
+          title,
+          error: serviceCallError.message,
+          stack: serviceCallError.stack,
+          details: serviceCallError,
+        }
+      );
 
-      let errorMessage = "Error communicating with audio processing service.";
+      let errorMessage = 'Error communicating with audio processing service.';
       // If serviceCallError is from resilientGot, it might have response details
       if (serviceCallError.response?.body) {
-         try {
-            const errorBody = typeof serviceCallError.response.body === 'string' ? JSON.parse(serviceCallError.response.body) : serviceCallError.response.body;
-            errorMessage = errorBody.message || errorBody.error?.message || JSON.stringify(errorBody);
+        try {
+          const errorBody =
+            typeof serviceCallError.response.body === 'string'
+              ? JSON.parse(serviceCallError.response.body)
+              : serviceCallError.response.body;
+          errorMessage =
+            errorBody.message ||
+            errorBody.error?.message ||
+            JSON.stringify(errorBody);
         } catch (e) {
-            errorMessage = typeof serviceCallError.response.body === 'string' ? serviceCallError.response.body : "Unparseable error from service";
+          errorMessage =
+            typeof serviceCallError.response.body === 'string'
+              ? serviceCallError.response.body
+              : 'Unparseable error from service';
         }
       } else if (serviceCallError.message) {
         errorMessage = serviceCallError.message;
       }
-      return res.status(502).json({ ok: false, error: { message: errorMessage, code: "PYTHON_SERVICE_COMMUNICATION_ERROR" } });
+      return res
+        .status(502)
+        .json({
+          ok: false,
+          error: {
+            message: errorMessage,
+            code: 'PYTHON_SERVICE_COMMUNICATION_ERROR',
+          },
+        });
     }
-
   } catch (error: any) {
-    appServiceLogger.error(`[${operationName}] Overall error in API handler.`, { error: error.message, stack: error.stack, details: error });
-    return res.status(500).json({ ok: false, error: { message: `Server error: ${error.message || 'Failed to process request'}` } });
+    appServiceLogger.error(`[${operationName}] Overall error in API handler.`, {
+      error: error.message,
+      stack: error.stack,
+      details: error,
+    });
+    return res
+      .status(500)
+      .json({
+        ok: false,
+        error: {
+          message: `Server error: ${error.message || 'Failed to process request'}`,
+        },
+      });
   }
 }

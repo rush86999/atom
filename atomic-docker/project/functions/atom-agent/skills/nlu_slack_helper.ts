@@ -58,7 +58,8 @@ export function buildSlackSearchQuery(params: StructuredSlackQuery): string {
   // The LLM is prompted to provide YYYY-MM-DD format.
   if (params.onDate) {
     queryParts.push(`on:${params.onDate}`);
-  } else { // 'onDate' is exclusive with 'beforeDate'/'afterDate' in typical usage
+  } else {
+    // 'onDate' is exclusive with 'beforeDate'/'afterDate' in typical usage
     if (params.afterDate) {
       queryParts.push(`after:${params.afterDate}`);
     }
@@ -67,8 +68,14 @@ export function buildSlackSearchQuery(params: StructuredSlackQuery): string {
     }
   }
 
-  const finalQuery = queryParts.filter(part => part.length > 0).join(' ').trim();
-  logger.debug(`[NluSlackHelper] Built Slack search query: "${finalQuery}" from params:`, params);
+  const finalQuery = queryParts
+    .filter((part) => part.length > 0)
+    .join(' ')
+    .trim();
+  logger.debug(
+    `[NluSlackHelper] Built Slack search query: "${finalQuery}" from params:`,
+    params
+  );
   return finalQuery;
 }
 

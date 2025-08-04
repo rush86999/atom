@@ -259,7 +259,8 @@ export function useFinanceSuggestions() {
 
     const filtered = allSuggestions.filter(s =>
       s.toLowerCase().includes(lowerInput) ||
-      lowerInput.includes(s.toLowerCase().split(' ')[0])\n    ).slice(0, 5);
+      lowerInput.includes(s.toLowerCase().split(' ')[0])
+    ).slice(0, 5);
 
     setSuggestions(filtered);
   }, []);

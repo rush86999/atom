@@ -1,0 +1,13 @@
+export declare const googleCalendarURL = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
+export declare const googleURL = "https://www.googleapis.com/calendar/v3/calendars";
+export declare const googleResourceName = "google";
+export declare const googleCalendarName = "Google Calendar";
+export declare const googleCalendarSyncUrl: string | undefined;
+export declare const googleCalendarSyncFunctionName = "googleCalendarSync";
+export declare const localCalendarName = "Atomic Calendar";
+export declare const localCalendarResource = "local";
+export declare const googleMeetName = "Google Meet";
+export declare const googleColorUrl = "https://www.googleapis.com/calendar/v3/colors";
+export declare const selfGoogleCalendarWatchUrl: string | undefined;
+export declare const googleOAuthStartUrl: string | undefined;
+export declare const googleClientTypeForMainWebApp = "atomic-web";

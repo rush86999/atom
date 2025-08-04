@@ -1,0 +1,45 @@
+import { connect } from 'vectordb';
+import { LANCEDB_DATA_PATH, LANCEDB_EVENT_TABLE_NAME } from './constants';
+let dbConnection = null;
+async function getDBConnection() {
+    if (dbConnection) {
+        return dbConnection;
+    }
+    try {
+        dbConnection = await connect(LANCEDB_DATA_PATH);
+        console.log('Successfully connected to LanceDB.');
+        return dbConnection;
+    }
+    catch (error) {
+        console.error('Failed to connect to LanceDB:', error);
+        // Reset connection on failure to allow retry
+        dbConnection = null;
+        throw error;
+    }
+}
+export async function getEventTable() {
+    const db = await getDBConnection();
+    try {
+        const table = await db.openTable(LANCEDB_EVENT_TABLE_NAME);
+        console.log(`Table "${LANCEDB_EVENT_TABLE_NAME}" opened successfully.`);
+        return table;
+    }
+    catch (error) {
+        // This simple version assumes the table always exists
+        // A more robust version might try to create it if not found,
+        // but for a read-focused service, it might be better to ensure it's created elsewhere.
+        console.error(`Failed to open table "${LANCEDB_EVENT_TABLE_NAME}":`, error);
+        throw new Error(`Table "${LANCEDB_EVENT_TABLE_NAME}" not found or could not be opened. Ensure it is created and populated by the google-calendar-sync service.`);
+    }
+}
+// Optional: Close connection if needed, e.g. for cleanup during application shutdown
+export async function closeDBConnection() {
+    if (dbConnection) {
+        // await dbConnection.close(); // The `vectordb` API might not have an explicit close for the connection object itself.
+        // LanceDB connections are often managed at the process level.
+        // For now, we'll just nullify it.
+        dbConnection = null;
+        console.log('LanceDB connection closed (nullified).');
+    }
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibGFuY2VkYl9jb25uZWN0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsibGFuY2VkYl9jb25uZWN0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLE9BQU8sRUFBRSxPQUFPLEVBQXFCLE1BQU0sVUFBVSxDQUFDO0FBQ3RELE9BQU8sRUFBRSxpQkFBaUIsRUFBRSx3QkFBd0IsRUFBRSxNQUFNLGFBQWEsQ0FBQztBQUcxRSxJQUFJLFlBQVksR0FBc0IsSUFBSSxDQUFDO0FBRTNDLEtBQUssVUFBVSxlQUFlO0lBQzVCLElBQUksWUFBWSxFQUFFLENBQUM7UUFDakIsT0FBTyxZQUFZLENBQUM7SUFDdEIsQ0FBQztJQUNELElBQUksQ0FBQztRQUNILFlBQVksR0FBRyxNQUFNLE9BQU8sQ0FBQyxpQkFBaUIsQ0FBQyxDQUFDO1FBQ2hELE9BQU8sQ0FBQyxHQUFHLENBQUMsb0NBQW9DLENBQUMsQ0FBQztRQUNsRCxPQUFPLFlBQVksQ0FBQztJQUN0QixDQUFDO0lBQUMsT0FBTyxLQUFLLEVBQUUsQ0FBQztRQUNmLE9BQU8sQ0FBQyxLQUFLLENBQUMsK0JBQStCLEVBQUUsS0FBSyxDQUFDLENBQUM7UUFDdEQsNkNBQTZDO1FBQzdDLFlBQVksR0FBRyxJQUFJLENBQUM7UUFDcEIsTUFBTSxLQUFLLENBQUM7SUFDZCxDQUFDO0FBQ0gsQ0FBQztBQUVELE1BQU0sQ0FBQyxLQUFLLFVBQVUsYUFBYTtJQUNqQyxNQUFNLEVBQUUsR0FBRyxNQUFNLGVBQWUsRUFBRSxDQUFDO0lBQ25DLElBQUksQ0FBQztRQUNILE1BQU0sS0FBSyxHQUFHLE1BQU0sRUFBRSxDQUFDLFNBQVMsQ0FBYyx3QkFBd0IsQ0FBQyxDQUFDO1FBQ3hFLE9BQU8sQ0FBQyxHQUFHLENBQUMsVUFBVSx3QkFBd0Isd0JBQXdCLENBQUMsQ0FBQztRQUN4RSxPQUFPLEtBQUssQ0FBQztJQUNmLENBQUM7SUFBQyxPQUFPLEtBQUssRUFBRSxDQUFDO1FBQ2Ysc0RBQXNEO1FBQ3RELDZEQUE2RDtRQUM3RCx1RkFBdUY7UUFDdkYsT0FBTyxDQUFDLEtBQUssQ0FBQyx5QkFBeUIsd0JBQXdCLElBQUksRUFBRSxLQUFLLENBQUMsQ0FBQztRQUM1RSxNQUFNLElBQUksS0FBSyxDQUNiLFVBQVUsd0JBQXdCLDZHQUE2RyxDQUNoSixDQUFDO0lBQ0osQ0FBQztBQUNILENBQUM7QUFFRCxxRkFBcUY7QUFDckYsTUFBTSxDQUFDLEtBQUssVUFBVSxpQkFBaUI7SUFDckMsSUFBSSxZQUFZLEVBQUUsQ0FBQztRQUNqQix1SEFBdUg7UUFDdkgsOERBQThEO1FBQzlELGtDQUFrQztRQUNsQyxZQUFZLEdBQUcsSUFBSSxDQUFDO1FBQ3BCLE9BQU8sQ0FBQyxHQUFHLENBQUMsd0NBQXdDLENBQUMsQ0FBQztJQUN4RCxDQUFDO0FBQ0gsQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IGNvbm5lY3QsIENvbm5lY3Rpb24sIFRhYmxlIH0gZnJvbSAndmVjdG9yZGInO1xuaW1wb3J0IHsgTEFOQ0VEQl9EQVRBX1BBVEgsIExBTkNFREJfRVZFTlRfVEFCTEVfTkFNRSB9IGZyb20gJy4vY29uc3RhbnRzJztcbmltcG9ydCB7IEV2ZW50U2NoZW1hIH0gZnJvbSAnLi90eXBlcyc7IC8vIEFzc3VtaW5nIEV2ZW50U2NoZW1hIGlzIGRlZmluZWQgZm9yIHRhYmxlIGludGVyYWN0aW9uc1xuXG5sZXQgZGJDb25uZWN0aW9uOiBDb25uZWN0aW9uIHwgbnVsbCA9IG51bGw7XG5cbmFzeW5jIGZ1bmN0aW9uIGdldERCQ29ubmVjdGlvbigpOiBQcm9taXNlPENvbm5lY3Rpb24+IHtcbiAgaWYgKGRiQ29ubmVjdGlvbikge1xuICAgIHJldHVybiBkYkNvbm5lY3Rpb247XG4gIH1cbiAgdHJ5IHtcbiAgICBkYkNvbm5lY3Rpb24gPSBhd2FpdCBjb25uZWN0KExBTkNFREJfREFUQV9QQVRIKTtcbiAgICBjb25zb2xlLmxvZygnU3VjY2Vzc2Z1bGx5IGNvbm5lY3RlZCB0byBMYW5jZURCLicpO1xuICAgIHJldHVybiBkYkNvbm5lY3Rpb247XG4gIH0gY2F0Y2ggKGVycm9yKSB7XG4gICAgY29uc29sZS5lcnJvcignRmFpbGVkIHRvIGNvbm5lY3QgdG8gTGFuY2VEQjonLCBlcnJvcik7XG4gICAgLy8gUmVzZXQgY29ubmVjdGlvbiBvbiBmYWlsdXJlIHRvIGFsbG93IHJldHJ5XG4gICAgZGJDb25uZWN0aW9uID0gbnVsbDtcbiAgICB0aHJvdyBlcnJvcjtcbiAgfVxufVxuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gZ2V0RXZlbnRUYWJsZSgpOiBQcm9taXNlPFRhYmxlPEV2ZW50U2NoZW1hPj4ge1xuICBjb25zdCBkYiA9IGF3YWl0IGdldERCQ29ubmVjdGlvbigpO1xuICB0cnkge1xuICAgIGNvbnN0IHRhYmxlID0gYXdhaXQgZGIub3BlblRhYmxlPEV2ZW50U2NoZW1hPihMQU5DRURCX0VWRU5UX1RBQkxFX05BTUUpO1xuICAgIGNvbnNvbGUubG9nKGBUYWJsZSBcIiR7TEFOQ0VEQl9FVkVOVF9UQUJMRV9OQU1FfVwiIG9wZW5lZCBzdWNjZXNzZnVsbHkuYCk7XG4gICAgcmV0dXJuIHRhYmxlO1xuICB9IGNhdGNoIChlcnJvcikge1xuICAgIC8vIFRoaXMgc2ltcGxlIHZlcnNpb24gYXNzdW1lcyB0aGUgdGFibGUgYWx3YXlzIGV4aXN0c1xuICAgIC8vIEEgbW9yZSByb2J1c3QgdmVyc2lvbiBtaWdodCB0cnkgdG8gY3JlYXRlIGl0IGlmIG5vdCBmb3VuZCxcbiAgICAvLyBidXQgZm9yIGEgcmVhZC1mb2N1c2VkIHNlcnZpY2UsIGl0IG1pZ2h0IGJlIGJldHRlciB0byBlbnN1cmUgaXQncyBjcmVhdGVkIGVsc2V3aGVyZS5cbiAgICBjb25zb2xlLmVycm9yKGBGYWlsZWQgdG8gb3BlbiB0YWJsZSBcIiR7TEFOQ0VEQl9FVkVOVF9UQUJMRV9OQU1FfVwiOmAsIGVycm9yKTtcbiAgICB0aHJvdyBuZXcgRXJyb3IoXG4gICAgICBgVGFibGUgXCIke0xBTkNFREJfRVZFTlRfVEFCTEVfTkFNRX1cIiBub3QgZm91bmQgb3IgY291bGQgbm90IGJlIG9wZW5lZC4gRW5zdXJlIGl0IGlzIGNyZWF0ZWQgYW5kIHBvcHVsYXRlZCBieSB0aGUgZ29vZ2xlLWNhbGVuZGFyLXN5bmMgc2VydmljZS5gXG4gICAgKTtcbiAgfVxufVxuXG4vLyBPcHRpb25hbDogQ2xvc2UgY29ubmVjdGlvbiBpZiBuZWVkZWQsIGUuZy4gZm9yIGNsZWFudXAgZHVyaW5nIGFwcGxpY2F0aW9uIHNodXRkb3duXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gY2xvc2VEQkNvbm5lY3Rpb24oKTogUHJvbWlzZTx2b2lkPiB7XG4gIGlmIChkYkNvbm5lY3Rpb24pIHtcbiAgICAvLyBhd2FpdCBkYkNvbm5lY3Rpb24uY2xvc2UoKTsgLy8gVGhlIGB2ZWN0b3JkYmAgQVBJIG1pZ2h0IG5vdCBoYXZlIGFuIGV4cGxpY2l0IGNsb3NlIGZvciB0aGUgY29ubmVjdGlvbiBvYmplY3QgaXRzZWxmLlxuICAgIC8vIExhbmNlREIgY29ubmVjdGlvbnMgYXJlIG9mdGVuIG1hbmFnZWQgYXQgdGhlIHByb2Nlc3MgbGV2ZWwuXG4gICAgLy8gRm9yIG5vdywgd2UnbGwganVzdCBudWxsaWZ5IGl0LlxuICAgIGRiQ29ubmVjdGlvbiA9IG51bGw7XG4gICAgY29uc29sZS5sb2coJ0xhbmNlREIgY29ubmVjdGlvbiBjbG9zZWQgKG51bGxpZmllZCkuJyk7XG4gIH1cbn1cbiJdfQ==

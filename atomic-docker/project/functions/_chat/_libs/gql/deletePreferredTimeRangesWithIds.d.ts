@@ -1,0 +1,2 @@
+declare const _default: "\n    mutation DeletePreferredTimeRangesWithIds($ids: [uuid!]!) {\n        delete_PreferredTimeRange(where: {id: {_in: $ids}}) {\n        affected_rows\n        returning {\n                id\n                startTime\n                endTime\n                eventId\n                dayOfWeek\n                createdDate\n                updatedAt\n                userId\n            }\n        }\n    }\n";
+export default _default;

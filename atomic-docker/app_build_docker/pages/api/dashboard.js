@@ -1,0 +1,23 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = handler;
+async function handler(req, res) {
+    // In a real application, you would fetch data from each agent skill's data source.
+    // For this example, we'll just return some mock data.
+    const dashboardData = {
+        calendar: [
+            { id: 1, title: 'Meeting with team', time: '10:00 AM' },
+            { id: 2, title: 'Lunch with Jane', time: '12:30 PM' },
+        ],
+        tasks: [
+            { id: 1, title: 'Finish report', due_date: 'Today' },
+            { id: 2, title: 'Follow up with client', due_date: 'Tomorrow' },
+        ],
+        social: [
+            { id: 1, platform: 'Twitter', post: 'Just released a new feature!' },
+            { id: 2, platform: 'LinkedIn', post: 'We are hiring!' },
+        ],
+    };
+    res.status(200).json(dashboardData);
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiZGFzaGJvYXJkLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiZGFzaGJvYXJkLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7O0FBRUEsMEJBdUJDO0FBdkJjLEtBQUssVUFBVSxPQUFPLENBQ25DLEdBQW1CLEVBQ25CLEdBQW9CO0lBRXBCLG1GQUFtRjtJQUNuRixzREFBc0Q7SUFFdEQsTUFBTSxhQUFhLEdBQUc7UUFDcEIsUUFBUSxFQUFFO1lBQ1IsRUFBRSxFQUFFLEVBQUUsQ0FBQyxFQUFFLEtBQUssRUFBRSxtQkFBbUIsRUFBRSxJQUFJLEVBQUUsVUFBVSxFQUFFO1lBQ3ZELEVBQUUsRUFBRSxFQUFFLENBQUMsRUFBRSxLQUFLLEVBQUUsaUJBQWlCLEVBQUUsSUFBSSxFQUFFLFVBQVUsRUFBRTtTQUN0RDtRQUNELEtBQUssRUFBRTtZQUNMLEVBQUUsRUFBRSxFQUFFLENBQUMsRUFBRSxLQUFLLEVBQUUsZUFBZSxFQUFFLFFBQVEsRUFBRSxPQUFPLEVBQUU7WUFDcEQsRUFBRSxFQUFFLEVBQUUsQ0FBQyxFQUFFLEtBQUssRUFBRSx1QkFBdUIsRUFBRSxRQUFRLEVBQUUsVUFBVSxFQUFFO1NBQ2hFO1FBQ0QsTUFBTSxFQUFFO1lBQ04sRUFBRSxFQUFFLEVBQUUsQ0FBQyxFQUFFLFFBQVEsRUFBRSxTQUFTLEVBQUUsSUFBSSxFQUFFLDhCQUE4QixFQUFFO1lBQ3BFLEVBQUUsRUFBRSxFQUFFLENBQUMsRUFBRSxRQUFRLEVBQUUsVUFBVSxFQUFFLElBQUksRUFBRSxnQkFBZ0IsRUFBRTtTQUN4RDtLQUNGLENBQUM7SUFFRixHQUFHLENBQUMsTUFBTSxDQUFDLEdBQUcsQ0FBQyxDQUFDLElBQUksQ0FBQyxhQUFhLENBQUMsQ0FBQztBQUN0QyxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgTmV4dEFwaVJlcXVlc3QsIE5leHRBcGlSZXNwb25zZSB9IGZyb20gJ25leHQnO1xuXG5leHBvcnQgZGVmYXVsdCBhc3luYyBmdW5jdGlvbiBoYW5kbGVyKFxuICByZXE6IE5leHRBcGlSZXF1ZXN0LFxuICByZXM6IE5leHRBcGlSZXNwb25zZVxuKSB7XG4gIC8vIEluIGEgcmVhbCBhcHBsaWNhdGlvbiwgeW91IHdvdWxkIGZldGNoIGRhdGEgZnJvbSBlYWNoIGFnZW50IHNraWxsJ3MgZGF0YSBzb3VyY2UuXG4gIC8vIEZvciB0aGlzIGV4YW1wbGUsIHdlJ2xsIGp1c3QgcmV0dXJuIHNvbWUgbW9jayBkYXRhLlxuXG4gIGNvbnN0IGRhc2hib2FyZERhdGEgPSB7XG4gICAgY2FsZW5kYXI6IFtcbiAgICAgIHsgaWQ6IDEsIHRpdGxlOiAnTWVldGluZyB3aXRoIHRlYW0nLCB0aW1lOiAnMTA6MDAgQU0nIH0sXG4gICAgICB7IGlkOiAyLCB0aXRsZTogJ0x1bmNoIHdpdGggSmFuZScsIHRpbWU6ICcxMjozMCBQTScgfSxcbiAgICBdLFxuICAgIHRhc2tzOiBbXG4gICAgICB7IGlkOiAxLCB0aXRsZTogJ0ZpbmlzaCByZXBvcnQnLCBkdWVfZGF0ZTogJ1RvZGF5JyB9LFxuICAgICAgeyBpZDogMiwgdGl0bGU6ICdGb2xsb3cgdXAgd2l0aCBjbGllbnQnLCBkdWVfZGF0ZTogJ1RvbW9ycm93JyB9LFxuICAgIF0sXG4gICAgc29jaWFsOiBbXG4gICAgICB7IGlkOiAxLCBwbGF0Zm9ybTogJ1R3aXR0ZXInLCBwb3N0OiAnSnVzdCByZWxlYXNlZCBhIG5ldyBmZWF0dXJlIScgfSxcbiAgICAgIHsgaWQ6IDIsIHBsYXRmb3JtOiAnTGlua2VkSW4nLCBwb3N0OiAnV2UgYXJlIGhpcmluZyEnIH0sXG4gICAgXSxcbiAgfTtcblxuICByZXMuc3RhdHVzKDIwMCkuanNvbihkYXNoYm9hcmREYXRhKTtcbn1cbiJdfQ==

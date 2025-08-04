@@ -1,0 +1,9 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const jsx_runtime_1 = require("react/jsx-runtime");
+const react_1 = require("@chakra-ui/react");
+const Content = () => {
+    return ((0, jsx_runtime_1.jsxs)(react_1.Box, { children: [(0, jsx_runtime_1.jsx)(react_1.Heading, { children: "Content" }), (0, jsx_runtime_1.jsx)(react_1.Text, { children: "This is the content page." }), (0, jsx_runtime_1.jsx)(react_1.Textarea, { placeholder: "Enter a topic to generate content", mt: 4 }), (0, jsx_runtime_1.jsx)(react_1.Button, { mt: 4, children: "Generate" })] }));
+};
+exports.default = Content;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbmRleC50c3giXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQ0EsNENBQXdFO0FBRXhFLE1BQU0sT0FBTyxHQUFHLEdBQUcsRUFBRTtJQUNuQixPQUFPLENBQ0wsd0JBQUMsV0FBRyxlQUNGLHVCQUFDLGVBQU8sMEJBQWtCLEVBQzFCLHVCQUFDLFlBQUksNENBQWlDLEVBQ3RDLHVCQUFDLGdCQUFRLElBQUMsV0FBVyxFQUFDLG1DQUFtQyxFQUFDLEVBQUUsRUFBRSxDQUFDLEdBQUksRUFDbkUsdUJBQUMsY0FBTSxJQUFDLEVBQUUsRUFBRSxDQUFDLHlCQUFtQixJQUM1QixDQUNQLENBQUM7QUFDSixDQUFDLENBQUM7QUFFRixrQkFBZSxPQUFPLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgUmVhY3QgZnJvbSBcInJlYWN0XCI7XG5pbXBvcnQgeyBUZXh0YXJlYSwgQnV0dG9uLCBCb3gsIEhlYWRpbmcsIFRleHQgfSBmcm9tIFwiQGNoYWtyYS11aS9yZWFjdFwiO1xuXG5jb25zdCBDb250ZW50ID0gKCkgPT4ge1xuICByZXR1cm4gKFxuICAgIDxCb3g+XG4gICAgICA8SGVhZGluZz5Db250ZW50PC9IZWFkaW5nPlxuICAgICAgPFRleHQ+VGhpcyBpcyB0aGUgY29udGVudCBwYWdlLjwvVGV4dD5cbiAgICAgIDxUZXh0YXJlYSBwbGFjZWhvbGRlcj1cIkVudGVyIGEgdG9waWMgdG8gZ2VuZXJhdGUgY29udGVudFwiIG10PXs0fSAvPlxuICAgICAgPEJ1dHRvbiBtdD17NH0+R2VuZXJhdGU8L0J1dHRvbj5cbiAgICA8L0JveD5cbiAgKTtcbn07XG5cbmV4cG9ydCBkZWZhdWx0IENvbnRlbnQ7XG4iXX0=

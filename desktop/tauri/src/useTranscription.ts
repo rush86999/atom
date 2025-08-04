@@ -13,7 +13,7 @@ export function useTranscription() {
     });
 
     return () => {
-      unlisten.then(f => f());
+      unlisten.then((f) => f());
     };
   }, []);
 

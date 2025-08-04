@@ -1,5 +1,8 @@
 import { Client } from '@microsoft/microsoft-graph-client';
-import { ConfidentialClientApplication, OnBehalfOfRequest } from '@azure/msal-node';
+import {
+  ConfidentialClientApplication,
+  OnBehalfOfRequest,
+} from '@azure/msal-node';
 import { getMsalConfig } from './auth_utils';
 import { createAdminGraphQLClient } from '../_utils/dbService';
 import { decrypt, encrypt } from '../outlook-integration/crypto_utils';
@@ -32,17 +35,27 @@ mutation UpdateUserOutlookAccessTokenAfterRefresh($userId: uuid!, $newEncryptedA
 export async function getAuthenticatedClient(userId: string): Promise<Client> {
   const adminGraphQLClient = createAdminGraphQLClient();
 
-  const gqlResponse = await adminGraphQLClient.request(GET_OUTLOOK_TOKENS_QUERY, { userId });
-  const storedTokenRecord = gqlResponse.user_outlook_tokens && gqlResponse.user_outlook_tokens[0];
+  const gqlResponse = await adminGraphQLClient.request(
+    GET_OUTLOOK_TOKENS_QUERY,
+    { userId }
+  );
+  const storedTokenRecord =
+    gqlResponse.user_outlook_tokens && gqlResponse.user_outlook_tokens[0];
 
   if (!storedTokenRecord) {
     throw new Error('Outlook tokens not found for user.');
   }
 
-  let { encrypted_access_token, encrypted_refresh_token, token_expiry_timestamp } = storedTokenRecord;
+  let {
+    encrypted_access_token,
+    encrypted_refresh_token,
+    token_expiry_timestamp,
+  } = storedTokenRecord;
 
-  const expiryDate = token_expiry_timestamp ? new Date(token_expiry_timestamp).getTime() : 0;
-  const needsRefresh = Date.now() >= expiryDate - (5 * 60 * 1000);
+  const expiryDate = token_expiry_timestamp
+    ? new Date(token_expiry_timestamp).getTime()
+    : 0;
+  const needsRefresh = Date.now() >= expiryDate - 5 * 60 * 1000;
 
   let accessToken = '';
 
@@ -77,16 +90,24 @@ export async function getAuthenticatedClient(userId: string): Promise<Client> {
   return client;
 }
 
-export async function searchUserOutlookEmails(userId: string, query: string, maxResults: number = 10) {
+export async function searchUserOutlookEmails(
+  userId: string,
+  query: string,
+  maxResults: number = 10
+) {
   const client: Client = await getAuthenticatedClient(userId);
-  const searchResults = await client.api('/me/messages')
+  const searchResults = await client
+    .api('/me/messages')
     .search(query)
     .top(maxResults)
     .get();
   return searchResults.value;
 }
 
-export async function getUserOutlookEmailContent(userId: string, emailId: string) {
+export async function getUserOutlookEmailContent(
+  userId: string,
+  emailId: string
+) {
   const client: Client = await getAuthenticatedClient(userId);
   const email = await client.api(`/me/messages/${emailId}`).get();
   return email;

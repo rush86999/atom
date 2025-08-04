@@ -1,8 +1,8 @@
-import got from "got";
+import got from 'got';
 // Mock OpenAI for local testing
 let OpenAI: any;
 try {
-  const openaiModule = require("openai");
+  const openaiModule = require('openai');
   OpenAI = openaiModule.OpenAI;
 } catch {
   // Use mock if OpenAI not available
@@ -14,7 +14,7 @@ try {
           choices: [
             {
               message: {
-                content: "Mock response",
+                content: 'Mock response',
               },
             },
           ],
@@ -53,7 +53,7 @@ import {
   zoomPassKey,
   zoomResourceName,
   zoomSaltForPass,
-} from "./constants";
+} from './constants';
 import {
   CalendarType,
   CalendarWebhookType,
@@ -75,13 +75,13 @@ import {
   OverrideTypes,
   ReminderType,
   UserPreferenceType,
-} from "./types";
-import _ from "lodash";
-import { v4 as uuid } from "uuid";
+} from './types';
+import _ from 'lodash';
+import { v4 as uuid } from 'uuid';
 // Mock date-fns for local testing
 let getISODay: any;
 try {
-  const dateFns = require("date-fns");
+  const dateFns = require('date-fns');
   getISODay = dateFns.getISODay;
 } catch {
   getISODay = (date: Date) => {
@@ -89,23 +89,23 @@ try {
     return day === 0 ? 7 : day;
   };
 }
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import duration from "dayjs/plugin/duration";
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import duration from 'dayjs/plugin/duration';
 // import isoWeek from 'dayjs/plugin/isoWeek'
-import isBetween from "dayjs/plugin/isBetween";
-import timezone from "dayjs/plugin/timezone";
+import isBetween from 'dayjs/plugin/isBetween';
+import timezone from 'dayjs/plugin/timezone';
 import {
   AttendeeType,
   CalendarIntegrationType,
   CalendarWatchRequestResourceType,
   colorTypeResponse,
   ConferenceType,
-} from "@/google-calendar-sync/_libs/types/googleCalendarSync/types";
+} from '@/google-calendar-sync/_libs/types/googleCalendarSync/types';
 // Mock googleapis for local testing
 let google: any;
 try {
-  const googleapis = require("googleapis");
+  const googleapis = require('googleapis');
   google = googleapis.google;
 } catch {
   google = {
@@ -117,7 +117,7 @@ try {
           this.credentials = tokens;
         }
         getAccessToken() {
-          return Promise.resolve({ token: "mock-token" });
+          return Promise.resolve({ token: 'mock-token' });
         }
       },
     },
@@ -135,7 +135,7 @@ try {
 // Mock OpenSearch for local testing
 let Client: any;
 try {
-  const opensearch = require("@opensearch-project/opensearch");
+  const opensearch = require('@opensearch-project/opensearch');
   Client = opensearch.Client;
 } catch {
   Client = class MockClient {
@@ -148,21 +148,21 @@ try {
 // Mock google-calendar-sync-admin
 let initialGoogleCalendarSync2: any;
 try {
-  const gcalAdmin = require("@google_calendar_sync/googleCalendarSync/google-calendar-sync-admin");
+  const gcalAdmin = require('@google_calendar_sync/googleCalendarSync/google-calendar-sync-admin');
   initialGoogleCalendarSync2 = gcalAdmin.initialGoogleCalendarSync2;
 } catch {
   initialGoogleCalendarSync2 = async () => ({ success: true });
 }
-import { EventTriggerType } from "@/google-calendar-sync/_libs/types/googlePeopleSync/types";
-import axios from "axios";
-import qs from "qs";
-import crypto from "crypto";
-import { Readable } from "stream";
-import { EventObjectForVectorType } from "@/google-calendar-sync/_libs/types/event2Vectors/types";
+import { EventTriggerType } from '@/google-calendar-sync/_libs/types/googlePeopleSync/types';
+import axios from 'axios';
+import qs from 'qs';
+import crypto from 'crypto';
+import { Readable } from 'stream';
+import { EventObjectForVectorType } from '@/google-calendar-sync/_libs/types/event2Vectors/types';
 // Mock AWS S3 for local testing
 let S3Client: any, PutObjectCommand: any;
 try {
-  const s3 = require("@aws-sdk/client-s3");
+  const s3 = require('@aws-sdk/client-s3');
   S3Client = s3.S3Client;
   PutObjectCommand = s3.PutObjectCommand;
 } catch {
@@ -178,7 +178,7 @@ try {
 // Mock Kafka for local testing
 let Kafka: any, logLevel: any;
 try {
-  const kafkajs = require("kafkajs");
+  const kafkajs = require('kafkajs');
   Kafka = kafkajs.Kafka;
   logLevel = kafkajs.logLevel;
 } catch {
@@ -198,10 +198,10 @@ try {
 // Mock ip module for local testing
 let ip: any;
 try {
-  ip = require("ip");
+  ip = require('ip');
 } catch {
   ip = {
-    address: () => "127.0.0.1",
+    address: () => '127.0.0.1',
   };
 }
 
@@ -227,10 +227,10 @@ const s3Client = new S3Client({
 const kafka = new Kafka({
   logLevel: logLevel.DEBUG,
   brokers: [`kafka1:29092`],
-  clientId: "atomic",
+  clientId: 'atomic',
   // ssl: true,
   sasl: {
-    mechanism: "plain", // scram-sha-256 or scram-sha-512
+    mechanism: 'plain', // scram-sha-256 or scram-sha-512
     username: process.env.KAFKA_USERNAME,
     password: process.env.KAFKA_PASSWORD,
   },
@@ -238,7 +238,7 @@ const kafka = new Kafka({
 
 export const insertEventTriggers = async (objects: EventTriggerType[]) => {
   try {
-    const operationName = "insertEventTriggers";
+    const operationName = 'insertEventTriggers';
     const query = `
       mutation insertEventTriggers($objects: [Event_Trigger_insert_input!]!) {
         insert_Event_Trigger(objects: $objects) {
@@ -259,27 +259,27 @@ export const insertEventTriggers = async (objects: EventTriggerType[]) => {
             variables,
           },
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "Content-Type": "application/json",
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'Content-Type': 'application/json',
+            'X-Hasura-Role': 'admin',
           },
         })
         .json();
 
-    console.log(res, " affected_rows inside insert event triggers");
+    console.log(res, ' affected_rows inside insert event triggers');
   } catch (e) {
-    console.log(e, " unable to insert event trigger");
+    console.log(e, ' unable to insert event trigger');
   }
 };
 
 export const getEventTriggerByResourceId = async (resourceId: string) => {
   try {
     if (!resourceId) {
-      console.log("no resourceId inside getEventTriggerByResourceId");
+      console.log('no resourceId inside getEventTriggerByResourceId');
       return;
     }
 
-    const operationName = "GetEventTriggerByResourceId";
+    const operationName = 'GetEventTriggerByResourceId';
     const query = `
     query GetEventTriggerByResourceId($resourceId: String) {
       Event_Trigger(where: {resourceId: {_eq: $resourceId}}) {
@@ -296,9 +296,9 @@ export const getEventTriggerByResourceId = async (resourceId: string) => {
     const response: { data: { Event_Trigger: EventTriggerType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -309,16 +309,16 @@ export const getEventTriggerByResourceId = async (resourceId: string) => {
         },
       })
       .json();
-    console.log(response, " response inside getEventTriggerByResourceId");
+    console.log(response, ' response inside getEventTriggerByResourceId');
     return response?.data?.Event_Trigger?.[0];
   } catch (e) {
-    console.log(e, " unable to getEventTriggerByResourceId");
+    console.log(e, ' unable to getEventTriggerByResourceId');
   }
 };
 
 export const deleteEventTriggerById = async (id: string) => {
   try {
-    const operationName = "deleteEventTriggerById";
+    const operationName = 'deleteEventTriggerById';
     const query = `
       mutation deleteEventTriggerById($id: uuid!) {
         delete_Event_Trigger_by_pk(id: $id) {
@@ -329,9 +329,9 @@ export const deleteEventTriggerById = async (id: string) => {
     const res = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -342,19 +342,19 @@ export const deleteEventTriggerById = async (id: string) => {
         },
       })
       .json();
-    console.log(res, " deleteEventTriggerById");
+    console.log(res, ' deleteEventTriggerById');
   } catch (e) {
-    console.log(e, " deleteEventTriggerById");
+    console.log(e, ' deleteEventTriggerById');
   }
 };
 
 export const resetGoogleSyncForCalendar = async (
   calendarId: string,
   userId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web'
 ) => {
   try {
-    const operationName = "updateCalendar";
+    const operationName = 'updateCalendar';
     const query = `mutation updateCalendar($id: String!, $changes: Calendar_set_input) {
       update_Calendar_by_pk(pk_columns: {id: $id}, _set: $changes) {
         pageToken
@@ -373,8 +373,8 @@ export const resetGoogleSyncForCalendar = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -383,17 +383,17 @@ export const resetGoogleSyncForCalendar = async (
         },
       })
       .json();
-    console.log(response, " this is response in resetGoogleIntegrationSync");
+    console.log(response, ' this is response in resetGoogleIntegrationSync');
     // const { token: authToken } = await getGoogleIntegration(calendarIntegrationId)
     return initialGoogleCalendarSync2(calendarId, userId, clientType);
   } catch (e) {
-    console.log(e, " unable to reset google integration sync");
+    console.log(e, ' unable to reset google integration sync');
   }
 };
 
 export const deleteMeetingAssistsGivenIds = async (ids: string[]) => {
   try {
-    const operationName = "DeleteMeetingAssistsByIds";
+    const operationName = 'DeleteMeetingAssistsByIds';
     const query = `
             mutation DeleteMeetingAssistsByIds($ids: [uuid!]!) {
                 delete_Meeting_Assist(where: {id: {_in: $ids}}) {
@@ -456,8 +456,8 @@ export const deleteMeetingAssistsGivenIds = async (ids: string[]) => {
     const res = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -467,28 +467,28 @@ export const deleteMeetingAssistsGivenIds = async (ids: string[]) => {
       })
       .json();
 
-    console.log(res, " successfully deleted meetingassists with given ids");
+    console.log(res, ' successfully deleted meetingassists with given ids');
   } catch (e) {
-    console.log(e, " unable to delete meeting assists given ids");
+    console.log(e, ' unable to delete meeting assists given ids');
   }
 };
 
 export const addlocalItemsToEvent2VectorObjects = (
   localItems: EventResourceType[],
   event2VectorObjects: EventObjectForVectorType[],
-  calendarId: string,
+  calendarId: string
 ) => {
   for (const localItem of localItems) {
-    const status = "cancelled";
+    const status = 'cancelled';
     if (localItem?.status === status) {
       (event2VectorObjects as EventObjectForVectorType[]).push({
-        method: "delete",
+        method: 'delete',
         event: localItem,
         calendarId,
       });
     } else {
       (event2VectorObjects as EventObjectForVectorType[]).push({
-        method: "upsert",
+        method: 'upsert',
         event: localItem,
         calendarId,
       });
@@ -499,10 +499,10 @@ export const addlocalItemsToEvent2VectorObjects = (
 export const incrementalGoogleCalendarSync2 = async (
   calendarId: string,
   userId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   parentSyncToken: string,
   parentPageToken?: string,
-  colorItem?: colorTypeResponse,
+  colorItem?: colorTypeResponse
 ) => {
   try {
     let pageToken = parentPageToken;
@@ -513,11 +513,11 @@ export const incrementalGoogleCalendarSync2 = async (
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -562,22 +562,22 @@ export const incrementalGoogleCalendarSync2 = async (
     addlocalItemsToEvent2VectorObjects(
       localItems,
       event2VectorObjects,
-      calendarId,
+      calendarId
     );
 
     await updateGoogleCalendarTokensInDb(
       calendarId,
       nextSyncToken,
-      nextPageToken,
+      nextPageToken
     );
-    const status = "cancelled";
+    const status = 'cancelled';
 
     const deletedEvents = localItems.filter((e) => e?.status === status);
 
     if (deletedEvents?.[0]?.id) {
       const returnedDeletedEventValues = await deleteEvents(
         deletedEvents,
-        calendarId,
+        calendarId
       );
       const meetingIdsToDelete = returnedDeletedEventValues
         ?.filter((e) => !!e?.meetingId)
@@ -602,7 +602,7 @@ export const incrementalGoogleCalendarSync2 = async (
 
     // no events to upsert check next pagetoken
     if (!eventsToUpsert?.[0]?.id) {
-      console.log("no events to upsert check next pagetoken");
+      console.log('no events to upsert check next pagetoken');
       const variables: any = {
         // Calendar identifier. To retrieve calendar IDs call the calendarList.list method. If you want to access the primary calendar of the currently logged in user, use the "primary" keyword.
         calendarId,
@@ -627,19 +627,19 @@ export const incrementalGoogleCalendarSync2 = async (
         addlocalItemsToEvent2VectorObjects(
           localItems,
           event2VectorObjects,
-          calendarId,
+          calendarId
         );
         await updateGoogleCalendarTokensInDb(
           calendarId,
           nextSyncToken,
-          nextPageToken,
+          nextPageToken
         );
         const deletedEvents = localItems.filter((e) => e?.status === status);
 
         if (deletedEvents?.[0]?.id) {
           const returnedDeletedEventValues = await deleteEvents(
             deletedEvents,
-            calendarId,
+            calendarId
           );
           const meetingIdsToDelete = returnedDeletedEventValues
             ?.filter((e) => !!e?.meetingId)
@@ -669,7 +669,7 @@ export const incrementalGoogleCalendarSync2 = async (
             insertRemindersGivenEventResource(
               eventsToUpsert2,
               userId,
-              calendarId,
+              calendarId
             ),
             upsertAttendees2(eventsToUpsert2, userId, calendarId),
           ];
@@ -718,13 +718,13 @@ export const incrementalGoogleCalendarSync2 = async (
         addlocalItemsToEvent2VectorObjects(
           localItems,
           event2VectorObjects,
-          calendarId,
+          calendarId
         );
 
         await updateGoogleCalendarTokensInDb(
           calendarId,
           nextSyncToken,
-          nextPageToken,
+          nextPageToken
         );
 
         const deletedEvents = localItems.filter((e) => e?.status === status);
@@ -732,7 +732,7 @@ export const incrementalGoogleCalendarSync2 = async (
         if (deletedEvents?.[0]?.id) {
           const returnedDeletedEventValues = await deleteEvents(
             deletedEvents,
-            calendarId,
+            calendarId
           );
           const meetingIdsToDelete = returnedDeletedEventValues
             ?.filter((e) => !!e?.meetingId)
@@ -756,7 +756,7 @@ export const incrementalGoogleCalendarSync2 = async (
 
         // no events to upsert check next pagetoken
         if (!eventsToUpsert?.[0]?.id) {
-          console.log("no events to upsert check next pagetoken");
+          console.log('no events to upsert check next pagetoken');
           const variables: any = {
             // Calendar identifier. To retrieve calendar IDs call the calendarList.list method. If you want to access the primary calendar of the currently logged in user, use the "primary" keyword.
             calendarId,
@@ -781,22 +781,22 @@ export const incrementalGoogleCalendarSync2 = async (
             addlocalItemsToEvent2VectorObjects(
               localItems,
               event2VectorObjects,
-              calendarId,
+              calendarId
             );
 
             await updateGoogleCalendarTokensInDb(
               calendarId,
               nextSyncToken,
-              nextPageToken,
+              nextPageToken
             );
             const deletedEvents = localItems.filter(
-              (e) => e?.status === status,
+              (e) => e?.status === status
             );
 
             if (deletedEvents?.[0]?.id) {
               const returnedDeletedEventValues = await deleteEvents(
                 deletedEvents,
-                calendarId,
+                calendarId
               );
               const meetingIdsToDelete = returnedDeletedEventValues
                 ?.filter((e) => !!e?.meetingId)
@@ -817,7 +817,7 @@ export const incrementalGoogleCalendarSync2 = async (
             }
 
             const eventsToUpsert2 = localItems?.filter(
-              (e) => e?.status !== status,
+              (e) => e?.status !== status
             );
             if (eventsToUpsert2) {
               await upsertConference2(eventsToUpsert2, userId, calendarId);
@@ -825,7 +825,7 @@ export const incrementalGoogleCalendarSync2 = async (
                 eventsToUpsert2,
                 userId,
                 calendarId,
-                colorItem,
+                colorItem
               );
 
               const promises = [
@@ -833,7 +833,7 @@ export const incrementalGoogleCalendarSync2 = async (
                 insertRemindersGivenEventResource(
                   eventsToUpsert2,
                   userId,
-                  calendarId,
+                  calendarId
                 ),
                 upsertAttendees2(eventsToUpsert2, userId, calendarId),
               ];
@@ -859,7 +859,7 @@ export const incrementalGoogleCalendarSync2 = async (
       await updateGoogleCalendarTokensInDb(
         calendarId,
         nextSyncToken,
-        nextPageToken,
+        nextPageToken
       );
     }
 
@@ -867,7 +867,7 @@ export const incrementalGoogleCalendarSync2 = async (
 
     return true;
   } catch (e) {
-    console.log(e, " unable to incremental google sync");
+    console.log(e, ' unable to incremental google sync');
     if (e.code === 410) {
       // reset sync
       await resetGoogleSyncForCalendar(calendarId, userId, clientType);
@@ -879,7 +879,7 @@ export const incrementalGoogleCalendarSync2 = async (
 
 export const getCalendarWebhookById = async (channelId: string) => {
   try {
-    const operationName = "GetCalendarPushNotificationById";
+    const operationName = 'GetCalendarPushNotificationById';
     const query = `query GetCalendarPushNotificationById($id: String!) {
       Calendar_Push_Notification_by_pk(id: $id) {
         calendarId
@@ -905,9 +905,9 @@ export const getCalendarWebhookById = async (channelId: string) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -917,31 +917,31 @@ export const getCalendarWebhookById = async (channelId: string) => {
       })
       .json();
 
-    console.log(res, " res from getCalendarWebhook");
+    console.log(res, ' res from getCalendarWebhook');
     return res?.data?.Calendar_Push_Notification_by_pk;
   } catch (e) {
-    console.log(e, " unable to getCalendarWebhook");
+    console.log(e, ' unable to getCalendarWebhook');
   }
 };
 
 export const convertTextToVectorSpace2 = async (
-  text: string,
+  text: string
 ): Promise<number[]> => {
   try {
-    if (!text || text.trim() === "") {
+    if (!text || text.trim() === '') {
       return [];
     }
 
     const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-ada-002",
-      input: text.replace(/\n/g, " "),
+      model: 'text-embedding-ada-002',
+      input: text.replace(/\n/g, ' '),
     });
 
     const vector = embeddingResponse.data[0].embedding;
 
     return vector;
   } catch (e) {
-    console.log(e, " unable to convertTextToVectorSpace");
+    console.log(e, ' unable to convertTextToVectorSpace');
     throw e;
   }
 };
@@ -953,10 +953,10 @@ export const deleteDocInSearch3 = async (id: string) => {
       id,
       index: searchIndex,
     });
-    console.log("Deleting document in search:");
+    console.log('Deleting document in search:');
     console.log(response.body);
   } catch (e) {
-    console.log(e, " unable to delete doc");
+    console.log(e, ' unable to delete doc');
   }
 };
 
@@ -970,13 +970,13 @@ export const getSearchClient = async () => {
       },
     });
   } catch (e) {
-    console.log(e, " unable to get credentials from getSearchClient");
+    console.log(e, ' unable to get credentials from getSearchClient');
   }
 };
 
 export const searchData3 = async (
   userId: string,
-  searchVector: number[],
+  searchVector: number[]
 ): Promise<esResponseBody> => {
   try {
     const client = await getSearchClient();
@@ -996,12 +996,12 @@ export const searchData3 = async (
               },
             },
             script: {
-              lang: "knn",
-              source: "knn_score",
+              lang: 'knn',
+              source: 'knn_score',
               params: {
                 field: eventVectorName,
                 query_value: searchVector,
-                space_type: "cosinesimil",
+                space_type: 'cosinesimil',
               },
             },
           },
@@ -1009,16 +1009,16 @@ export const searchData3 = async (
         min_score: 1.2,
       },
     });
-    console.log(response, " search data in search engine");
+    console.log(response, ' search data in search engine');
     return response.body;
   } catch (e) {
-    console.log(e, " unable to search data");
+    console.log(e, ' unable to search data');
   }
 };
 
 export const deleteCalendarWebhookById = async (channelId: string) => {
   try {
-    const operationName = "DeleteCalendarPushNotificationById";
+    const operationName = 'DeleteCalendarPushNotificationById';
     const query = `
       mutation DeleteCalendarPushNotificationById($id: String!) {
         delete_Calendar_Push_Notification_by_pk(id: $id) {
@@ -1044,9 +1044,9 @@ export const deleteCalendarWebhookById = async (channelId: string) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1056,9 +1056,9 @@ export const deleteCalendarWebhookById = async (channelId: string) => {
       })
       .json();
 
-    console.log(res, " res from  deleteCalendarWebhookById");
+    console.log(res, ' res from  deleteCalendarWebhookById');
   } catch (e) {
-    console.log(e, " unable to delete calendar webhook by id");
+    console.log(e, ' unable to delete calendar webhook by id');
   }
 };
 
@@ -1066,22 +1066,22 @@ export const stopCalendarWatch = async (id: string, resourceId: string) => {
   try {
     const res = await got.post(googleCalendarStopWatchUrl, {
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       json: {
         id,
         resourceId,
       },
     });
-    console.log(res, " res inside stopCalendarWatch");
+    console.log(res, ' res inside stopCalendarWatch');
   } catch (e) {
-    console.log(e, " unable to stop calendar watch");
+    console.log(e, ' unable to stop calendar watch');
   }
 };
 
 export const getCalendarWebhookByCalendarId = async (calendarId: string) => {
   try {
-    const operationName = "GetCalendarPushNotificationByCalendarId";
+    const operationName = 'GetCalendarPushNotificationByCalendarId';
     const query = `
       query GetCalendarPushNotificationByCalendarId($calendarId: String!) {
         Calendar_Push_Notification(where: {calendarId: {_eq: $calendarId}}, limit: 1) {
@@ -1106,9 +1106,9 @@ export const getCalendarWebhookByCalendarId = async (calendarId: string) => {
       await got
         .post(hasuraGraphUrl, {
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "Content-Type": "application/json",
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'Content-Type': 'application/json',
+            'X-Hasura-Role': 'admin',
           },
           json: {
             operationName,
@@ -1118,10 +1118,10 @@ export const getCalendarWebhookByCalendarId = async (calendarId: string) => {
         })
         .json();
 
-    console.log(res, " res from getCalendarWebhook");
+    console.log(res, ' res from getCalendarWebhook');
     return res?.data?.Calendar_Push_Notification?.[0];
   } catch (e) {
-    console.log(e, " unable to getCalendarWebhookByCalendarId");
+    console.log(e, ' unable to getCalendarWebhookByCalendarId');
   }
 };
 
@@ -1129,11 +1129,11 @@ export const upsertEvents2 = async (
   events: EventResourceType[],
   userId: string,
   calendarId: string,
-  colorItem?: colorTypeResponse,
+  colorItem?: colorTypeResponse
 ) => {
   try {
-    console.log(events, " events inside upsertEvents");
-    console.log(colorItem, " colorItem inside upsertEvents");
+    console.log(events, ' events inside upsertEvents');
+    console.log(colorItem, ' colorItem inside upsertEvents');
     if (!events?.[0]?.id) return null;
 
     // format events for insert
@@ -1220,7 +1220,7 @@ export const upsertEvents2 = async (
           dynamically generate upsert query based on the number of columns
           and set the update_columns to the columns that are not undefined
         */
-    const operationName = "InsertEvent";
+    const operationName = 'InsertEvent';
     const query = `
       mutation InsertEvent($events: [Event_insert_input!]!) {
         insert_Event(
@@ -1283,8 +1283,8 @@ export const upsertEvents2 = async (
     const response: any = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1294,17 +1294,17 @@ export const upsertEvents2 = async (
       })
       .json();
 
-    console.log(response, " this is response in upsertEvents");
+    console.log(response, ' this is response in upsertEvents');
     response?.errors?.forEach((e) => console.log(e));
   } catch (e) {
-    console.log(e, " unable to upsertEvents");
+    console.log(e, ' unable to upsertEvents');
   }
 };
 
 export const upsertConference2 = async (
   events: EventResourceType[],
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     const formattedConference: ConferenceType[] = events.map((e) => {
@@ -1335,7 +1335,7 @@ export const upsertConference2 = async (
         and set the update_columns to the columns that are not undefined
         */
 
-    const operationName = "InsertConference";
+    const operationName = 'InsertConference';
     const query = `
       mutation InsertConference($conferences: [Conference_insert_input!]!) {
             insert_Conference(
@@ -1370,8 +1370,8 @@ export const upsertConference2 = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1380,15 +1380,15 @@ export const upsertConference2 = async (
         },
       })
       .json();
-    console.log(response, " this is response in upsertConference");
+    console.log(response, ' this is response in upsertConference');
   } catch (e) {
-    console.log(e, " unable to upsert conference data");
+    console.log(e, ' unable to upsert conference data');
   }
 };
 
 export const insertCalendarWebhook = async (webhook: CalendarWebhookType) => {
   try {
-    const operationName = "InsertCalendarPushNotification";
+    const operationName = 'InsertCalendarPushNotification';
     const query = `mutation InsertCalendarPushNotification($webhook: Calendar_Push_Notification_insert_input!) {
       insert_Calendar_Push_Notification_one(object: $webhook,
         on_conflict: {
@@ -1425,8 +1425,8 @@ export const insertCalendarWebhook = async (webhook: CalendarWebhookType) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1436,18 +1436,18 @@ export const insertCalendarWebhook = async (webhook: CalendarWebhookType) => {
       })
       .json();
 
-    console.log(response, " response after upserting calendar webhook");
+    console.log(response, ' response after upserting calendar webhook');
 
     return response?.data?.insert_Calendar_Push_Notification_one;
   } catch (e) {
-    console.log(e, " unable to upsertCalendarWebhook");
+    console.log(e, ' unable to upsertCalendarWebhook');
   }
 };
 
 export const upsertAttendees2 = async (
   events: EventResourceType[],
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     const attendees: AttendeeType[] = [];
@@ -1464,7 +1464,7 @@ export const upsertAttendees2 = async (
                 primary: false,
                 value: a?.email,
                 displayName: a?.displayName,
-                type: "",
+                type: '',
               },
             ],
             eventId: `${e?.id}#${calendarId}`,
@@ -1484,7 +1484,7 @@ export const upsertAttendees2 = async (
       return;
     }
 
-    const operationName = "InsertAttendee";
+    const operationName = 'InsertAttendee';
 
     const query = `
         mutation InsertAttendee($attendees: [Attendee_insert_input!]!) {
@@ -1521,8 +1521,8 @@ export const upsertAttendees2 = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1532,20 +1532,20 @@ export const upsertAttendees2 = async (
       })
       .json();
 
-    console.log(response, " this is response in upsertAttendees");
+    console.log(response, ' this is response in upsertAttendees');
   } catch (e) {
-    console.log(e, " unable to upsertAttendees");
+    console.log(e, ' unable to upsertAttendees');
   }
 };
 
 export const updateGoogleIntegration = async (
   calendarIntegrationId: string,
-  syncEnabled?: boolean,
+  syncEnabled?: boolean
 ) => {
   try {
-    const operationName = "updateCalendarIntegration";
-    const query = `mutation updateCalendarIntegration($id: uuid!, ${syncEnabled !== undefined ? " $syncEnabled: Boolean," : ""}) {
-        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${syncEnabled !== undefined ? " syncEnabled: $syncEnabled," : ""} }) {
+    const operationName = 'updateCalendarIntegration';
+    const query = `mutation updateCalendarIntegration($id: uuid!, ${syncEnabled !== undefined ? ' $syncEnabled: Boolean,' : ''}) {
+        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${syncEnabled !== undefined ? ' syncEnabled: $syncEnabled,' : ''} }) {
           id
           name
           refreshToken
@@ -1573,8 +1573,8 @@ export const updateGoogleIntegration = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1584,21 +1584,21 @@ export const updateGoogleIntegration = async (
       })
       .json();
 
-    console.log(response, " this is response in updateGoogleIntegration");
+    console.log(response, ' this is response in updateGoogleIntegration');
   } catch (e) {
-    console.log(e, " unable to update google integration");
+    console.log(e, ' unable to update google integration');
   }
 };
 
 export const updateGoogleCalendarTokensInDb = async (
   calendarId: string,
   syncToken?: string,
-  pageToken?: string,
+  pageToken?: string
 ) => {
   try {
-    const operationName = "updateCalendar";
-    const query = `mutation updateCalendar($id: String!, ${syncToken !== undefined ? " $syncToken: String," : ""} ${pageToken !== undefined ? " $pageToken: String," : ""}) {
-        update_Calendar_by_pk(pk_columns: {id: $id}, _set: {${pageToken !== undefined ? " pageToken : $pageToken," : ""} ${syncToken !== undefined ? " syncToken: $syncToken," : ""} }) {
+    const operationName = 'updateCalendar';
+    const query = `mutation updateCalendar($id: String!, ${syncToken !== undefined ? ' $syncToken: String,' : ''} ${pageToken !== undefined ? ' $pageToken: String,' : ''}) {
+        update_Calendar_by_pk(pk_columns: {id: $id}, _set: {${pageToken !== undefined ? ' pageToken : $pageToken,' : ''} ${syncToken !== undefined ? ' syncToken: $syncToken,' : ''} }) {
           id
           pageToken
           syncToken
@@ -1624,8 +1624,8 @@ export const updateGoogleCalendarTokensInDb = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1635,16 +1635,16 @@ export const updateGoogleCalendarTokensInDb = async (
       })
       .json();
 
-    console.log(response, " this is response in updateGoogleIntegration");
+    console.log(response, ' this is response in updateGoogleIntegration');
   } catch (e) {
-    console.log(e, " unable to update google integration");
+    console.log(e, ' unable to update google integration');
   }
 };
 
 export const getCalendarWithId = async (calendarId: string) => {
   try {
     // get Calendar
-    const operationName = "getCalendar";
+    const operationName = 'getCalendar';
     const query = `
     query getCalendar($id: String!) {
       Calendar_by_pk(id: $id) {
@@ -1665,9 +1665,9 @@ export const getCalendarWithId = async (calendarId: string) => {
     const res: { data: { Calendar_by_pk: CalendarType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1677,10 +1677,10 @@ export const getCalendarWithId = async (calendarId: string) => {
       })
       .json();
 
-    console.log(res, " res from getCalendarForEvent");
+    console.log(res, ' res from getCalendarForEvent');
     return res?.data?.Calendar_by_pk;
   } catch (e) {
-    console.log(e, " getCalendarForEvent");
+    console.log(e, ' getCalendarForEvent');
   }
 };
 
@@ -1688,7 +1688,7 @@ export const requestCalendarWatch = async (
   calendarId: string,
   channelId: string,
   token: string,
-  userId: string,
+  userId: string
 ) => {
   try {
     const { resource } = await getCalendarWithId(calendarId);
@@ -1698,11 +1698,11 @@ export const requestCalendarWatch = async (
     const authToken = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${authToken}`,
       },
@@ -1711,7 +1711,7 @@ export const requestCalendarWatch = async (
     const reqBody: CalendarWatchRequestResourceType = {
       id: channelId,
       token,
-      type: "webhook",
+      type: 'webhook',
       address: selfGoogleCalendarWebhookPublicUrl,
     };
 
@@ -1722,16 +1722,16 @@ export const requestCalendarWatch = async (
     });
 
     const response = res?.data;
-    console.log(response, " response inside requestCalendarWatch");
+    console.log(response, ' response inside requestCalendarWatch');
     return response;
   } catch (e) {
-    console.log(e, " unable to request calendar watch");
+    console.log(e, ' unable to request calendar watch');
   }
 };
 
 export const listCalendarsForUser = async (userId: string) => {
   try {
-    const operationName = "ListCalendarsForUser";
+    const operationName = 'ListCalendarsForUser';
     const query = `
       query ListCalendarsForUser($userId: uuid!) {
         Calendar(where: {userId: {_eq: $userId}}) {
@@ -1762,9 +1762,9 @@ export const listCalendarsForUser = async (userId: string) => {
     const res: { data: { Calendar: CalendarType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1776,14 +1776,14 @@ export const listCalendarsForUser = async (userId: string) => {
 
     return res.data.Calendar;
   } catch (e) {
-    console.log(e, " list calendars for user");
+    console.log(e, ' list calendars for user');
   }
 };
 
 export const insertRemindersGivenEventResource = async (
   events: EventResourceType[],
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     if (!(events?.filter((e) => !!e?.id)?.length > 0)) {
@@ -1793,8 +1793,7 @@ export const insertRemindersGivenEventResource = async (
     events
       .filter(
         (e) =>
-          e?.reminders?.useDefault ||
-          e?.reminders?.overrides?.[0]?.minutes > -1,
+          e?.reminders?.useDefault || e?.reminders?.overrides?.[0]?.minutes > -1
       )
       .forEach((event) => {
         const eventId = event?.id;
@@ -1802,7 +1801,7 @@ export const insertRemindersGivenEventResource = async (
         console.log(
           eventId,
           calendarId,
-          " eventId, calendarId inside insertRemindersGivenEventResource",
+          ' eventId, calendarId inside insertRemindersGivenEventResource'
         );
         if (event?.reminders?.useDefault) {
           reminders.push({
@@ -1825,12 +1824,12 @@ export const insertRemindersGivenEventResource = async (
         }
       });
 
-    console.log(reminders, " reminders");
+    console.log(reminders, ' reminders');
     if (!(reminders?.length > 0)) {
       return;
     }
 
-    const operationName = "InsertReminder";
+    const operationName = 'InsertReminder';
     const query = `
     mutation InsertReminder($reminders: [Reminder_insert_input!]!) {
             insert_Reminder(
@@ -1849,8 +1848,8 @@ export const insertRemindersGivenEventResource = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1859,15 +1858,15 @@ export const insertRemindersGivenEventResource = async (
         },
       })
       .json();
-    console.log(response, " this is response in insertRemindersGivenResource");
+    console.log(response, ' this is response in insertRemindersGivenResource');
   } catch (e) {
-    console.log(e, " unable to upsert reminder");
+    console.log(e, ' unable to upsert reminder');
   }
 };
 
 export const getGoogleIntegration = async (calendarIntegrationId: string) => {
   try {
-    const operationName = "getCalendarIntegration";
+    const operationName = 'getCalendarIntegration';
     const query = `query getCalendarIntegration($id: uuid!){
       Calendar_Integration_by_pk(id: $id) {
         id
@@ -1884,8 +1883,8 @@ export const getGoogleIntegration = async (calendarIntegrationId: string) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1895,7 +1894,7 @@ export const getGoogleIntegration = async (calendarIntegrationId: string) => {
       })
       .json();
     // just to check
-    console.log(response, " this is response in getGoogleIntegration");
+    console.log(response, ' this is response in getGoogleIntegration');
     if (response?.data?.Calendar_Integration_by_pk) {
       const {
         data: {
@@ -1906,7 +1905,7 @@ export const getGoogleIntegration = async (calendarIntegrationId: string) => {
       return { token, refreshToken, clientType };
     }
   } catch (e) {
-    console.log(e, " unable to get google token");
+    console.log(e, ' unable to get google token');
   }
 };
 
@@ -1920,16 +1919,16 @@ export const getGoogleColor = async (token: string) => {
     const body: colorTypeResponse = await got
       .get(googleColorUrl, config)
       .json();
-    console.log(body, " body inside getGoogleColor");
+    console.log(body, ' body inside getGoogleColor');
     return body;
   } catch (e) {
-    console.log(e, " unable to get colors");
+    console.log(e, ' unable to get colors');
   }
 };
 
 export const getGoogleCalendarInDb = async (calendarId: string) => {
   try {
-    const operationName = "GetCalendarById";
+    const operationName = 'GetCalendarById';
     const query = `query GetCalendarById($id: String!) {
       Calendar_by_pk(id: $id) {
         id
@@ -1956,8 +1955,8 @@ export const getGoogleCalendarInDb = async (calendarId: string) => {
     const response: { data: { Calendar_by_pk: CalendarType } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -1967,7 +1966,7 @@ export const getGoogleCalendarInDb = async (calendarId: string) => {
       })
       .json();
     // just to check
-    console.log(response, " this is response in getGoogleCalendar");
+    console.log(response, ' this is response in getGoogleCalendar');
     if (response?.data?.Calendar_by_pk) {
       const {
         data: {
@@ -1978,13 +1977,13 @@ export const getGoogleCalendarInDb = async (calendarId: string) => {
       return { pageToken, syncToken, id };
     }
   } catch (e) {
-    console.log(e, " unable to get google token");
+    console.log(e, ' unable to get google token');
   }
 };
 
 export const deleteAttendees = async (
   events: EventResourceType[],
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     const eventIds = events.map((e) => `${e?.id}#${calendarId}`);
@@ -1993,7 +1992,7 @@ export const deleteAttendees = async (
       return;
     }
 
-    const operationName = "DeleteAttendees";
+    const operationName = 'DeleteAttendees';
     const query = `
       mutation DeleteAttendees($eventIds: [String!]!) {
         delete_Attendee(where: {eventId: {_in: $eventIds}}) {
@@ -2008,8 +2007,8 @@ export const deleteAttendees = async (
     const results = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2018,17 +2017,17 @@ export const deleteAttendees = async (
         },
       })
       .json();
-    console.log(results, " successfully deleted attendees");
+    console.log(results, ' successfully deleted attendees');
   } catch (e) {
-    console.log(e, " unable to delete attendees");
+    console.log(e, ' unable to delete attendees');
   }
 };
 
 export const refreshZoomToken = async (
-  refreshToken: string,
+  refreshToken: string
 ): Promise<{
   access_token: string;
-  token_type: "bearer";
+  token_type: 'bearer';
   refresh_token: string;
   expires_in: number;
   scope: string;
@@ -2040,13 +2039,13 @@ export const refreshZoomToken = async (
     return axios({
       data: new URLSearchParams({
         refresh_token: refreshToken,
-        grant_type: "refresh_token",
+        grant_type: 'refresh_token',
       }).toString(),
       baseURL: zoomBaseTokenUrl,
-      url: "/oauth/token",
-      method: "POST",
+      url: '/oauth/token',
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       auth: {
         username,
@@ -2054,41 +2053,41 @@ export const refreshZoomToken = async (
       },
     }).then(({ data }) => Promise.resolve(data));
   } catch (e) {
-    console.log(e, " unable to refresh zoom token");
+    console.log(e, ' unable to refresh zoom token');
   }
 };
 
 export const decryptZoomTokens = (
   encryptedToken: string,
-  encryptedRefreshToken?: string,
+  encryptedRefreshToken?: string
 ) => {
-  const ivBuffer = Buffer.from(zoomIVForPass, "base64");
-  const saltBuffer = Buffer.from(zoomSaltForPass, "base64");
+  const ivBuffer = Buffer.from(zoomIVForPass, 'base64');
+  const saltBuffer = Buffer.from(zoomSaltForPass, 'base64');
 
   const key = crypto.pbkdf2Sync(
     zoomPassKey as string,
     saltBuffer,
     10000,
     32,
-    "sha256",
+    'sha256'
   );
 
-  const decipherToken = crypto.createDecipheriv("aes-256-cbc", key, ivBuffer);
-  let decryptedToken = decipherToken.update(encryptedToken, "base64", "utf8");
-  decryptedToken += decipherToken.final("utf8");
+  const decipherToken = crypto.createDecipheriv('aes-256-cbc', key, ivBuffer);
+  let decryptedToken = decipherToken.update(encryptedToken, 'base64', 'utf8');
+  decryptedToken += decipherToken.final('utf8');
 
   if (encryptedRefreshToken) {
     const decipherRefreshToken = crypto.createDecipheriv(
-      "aes-256-cbc",
+      'aes-256-cbc',
       key,
-      ivBuffer,
+      ivBuffer
     );
     let decryptedRefreshToken = decipherRefreshToken.update(
       encryptedRefreshToken,
-      "base64",
-      "utf8",
+      'base64',
+      'utf8'
     );
-    decryptedRefreshToken += decipherRefreshToken.final("utf8");
+    decryptedRefreshToken += decipherRefreshToken.final('utf8');
 
     return {
       token: decryptedToken,
@@ -2102,34 +2101,34 @@ export const decryptZoomTokens = (
 };
 
 export const encryptZoomTokens = (token: string, refreshToken?: string) => {
-  const ivBuffer = Buffer.from(zoomIVForPass, "base64");
-  const saltBuffer = Buffer.from(zoomSaltForPass, "base64");
+  const ivBuffer = Buffer.from(zoomIVForPass, 'base64');
+  const saltBuffer = Buffer.from(zoomSaltForPass, 'base64');
 
   const key = crypto.pbkdf2Sync(
     zoomPassKey as string,
     saltBuffer,
     10000,
     32,
-    "sha256",
+    'sha256'
   );
-  const cipherToken = crypto.createCipheriv("aes-256-cbc", key, ivBuffer);
-  let encryptedToken = cipherToken.update(token, "utf8", "base64");
-  encryptedToken += cipherToken.final("base64");
+  const cipherToken = crypto.createCipheriv('aes-256-cbc', key, ivBuffer);
+  let encryptedToken = cipherToken.update(token, 'utf8', 'base64');
+  encryptedToken += cipherToken.final('base64');
 
-  let encryptedRefreshToken = "";
+  let encryptedRefreshToken = '';
 
   if (refreshToken) {
     const cipherRefreshToken = crypto.createCipheriv(
-      "aes-256-cbc",
+      'aes-256-cbc',
       key,
-      ivBuffer,
+      ivBuffer
     );
     encryptedRefreshToken = cipherRefreshToken.update(
       refreshToken,
-      "utf8",
-      "base64",
+      'utf8',
+      'base64'
     );
-    encryptedRefreshToken += cipherRefreshToken.final("base64");
+    encryptedRefreshToken += cipherRefreshToken.final('base64');
   }
 
   if (encryptedRefreshToken) {
@@ -2146,7 +2145,7 @@ export const getZoomIntegration = async (userId: string) => {
   try {
     const { id, token, expiresAt, refreshToken } = await getCalendarIntegration(
       userId,
-      zoomResourceName,
+      zoomResourceName
     );
 
     const decryptedTokens = decryptZoomTokens(token, refreshToken);
@@ -2157,31 +2156,31 @@ export const getZoomIntegration = async (userId: string) => {
       ...decryptedTokens,
     };
   } catch (e) {
-    console.log(e, " unable to get zoom integration");
+    console.log(e, ' unable to get zoom integration');
   }
 };
 
 export const updateZoomIntegration = async (
   id: string,
   accessToken: string,
-  expiresIn: number,
+  expiresIn: number
 ) => {
   try {
     const { encryptedToken } = encryptZoomTokens(accessToken);
     await updateCalendarIntegration(id, encryptedToken, expiresIn);
   } catch (e) {
-    console.log(e, " unable to update zoom integration");
+    console.log(e, ' unable to update zoom integration');
   }
 };
 
 export const getZoomAPIToken = async (userId: string) => {
-  let integrationId = "";
+  let integrationId = '';
   try {
-    console.log("getZoomAPIToken called");
+    console.log('getZoomAPIToken called');
     const { id, token, expiresAt, refreshToken } =
       await getZoomIntegration(userId);
     if (!refreshToken) {
-      console.log("zoom not active, no refresh token");
+      console.log('zoom not active, no refresh token');
       return;
     }
 
@@ -2191,18 +2190,18 @@ export const getZoomAPIToken = async (userId: string) => {
       token,
       expiresAt,
       refreshToken,
-      " id, token, expiresAt, refreshToken",
+      ' id, token, expiresAt, refreshToken'
     );
     if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
       const res = await refreshZoomToken(refreshToken);
-      console.log(res, " res from refreshZoomToken");
+      console.log(res, ' res from refreshZoomToken');
       await updateZoomIntegration(id, res.access_token, res.expires_in);
       return res.access_token;
     }
 
     return token;
   } catch (e) {
-    console.log(e, " unable to get zoom api token");
+    console.log(e, ' unable to get zoom api token');
     await updateCalendarIntegration(integrationId, null, null, false);
   }
 };
@@ -2211,7 +2210,7 @@ export const deleteZoomMeeting = async (
   zoomToken: string,
   conferenceId: number,
   scheduleForReminder?: boolean,
-  cancelMeetingReminder?: boolean,
+  cancelMeetingReminder?: boolean
 ) => {
   try {
     let params: any = {};
@@ -2226,36 +2225,36 @@ export const deleteZoomMeeting = async (
     }
 
     const stringifiedObject =
-      Object.keys(params)?.length > 0 ? qs.stringify(params) : "";
+      Object.keys(params)?.length > 0 ? qs.stringify(params) : '';
 
     if (stringifiedObject) {
       await got.delete(
-        `${zoomBaseUrl}/meetings/` + conferenceId + "?" + stringifiedObject,
+        `${zoomBaseUrl}/meetings/` + conferenceId + '?' + stringifiedObject,
         {
           headers: {
             Authorization: `Bearer ${zoomToken}`,
-            ContentType: "application/json",
+            ContentType: 'application/json',
           },
-        },
+        }
       );
     } else {
       await got.delete(`${zoomBaseUrl}/meetings/` + conferenceId, {
         headers: {
           Authorization: `Bearer ${zoomToken}`,
-          ContentType: "application/json",
+          ContentType: 'application/json',
         },
       });
     }
 
-    console.log(conferenceId, "successfully deleted meeting");
+    console.log(conferenceId, 'successfully deleted meeting');
   } catch (e) {
-    console.log(e, " unable to delete zoom meeting");
+    console.log(e, ' unable to delete zoom meeting');
   }
 };
 
 export const listConferencesWithHosts = async (ids: string[]) => {
   try {
-    const operationName = "ListConferencesWithHostId";
+    const operationName = 'ListConferencesWithHostId';
     const query = `
             query ListConferencesWithHostId($ids: [String!]!) {
                 Conference(where: {id: {_in: $ids}, isHost: {_eq: true}}) {
@@ -2291,8 +2290,8 @@ export const listConferencesWithHosts = async (ids: string[]) => {
     const res: { data: { Conference: ConferenceType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2302,17 +2301,17 @@ export const listConferencesWithHosts = async (ids: string[]) => {
       })
       .json();
 
-    console.log(res, " successfully listed conferences with hosts");
+    console.log(res, ' successfully listed conferences with hosts');
 
     return res?.data?.Conference;
   } catch (e) {
-    console.log(e, " unable to list conferences with hosts");
+    console.log(e, ' unable to list conferences with hosts');
   }
 };
 
 export const deleteConferencesInDb = async (conferenceIds: string[]) => {
   try {
-    const operationName = "deleteConferences";
+    const operationName = 'deleteConferences';
     const query = `
             mutation deleteConferences($ids: [String!]!) {
                 delete_Conference(where: {id: {_in: $ids}}) {
@@ -2326,8 +2325,8 @@ export const deleteConferencesInDb = async (conferenceIds: string[]) => {
     const results = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2337,9 +2336,9 @@ export const deleteConferencesInDb = async (conferenceIds: string[]) => {
       })
       .json();
 
-    console.log(results, " successfully deleted multiple conferences");
+    console.log(results, ' successfully deleted multiple conferences');
   } catch (e) {
-    console.log(e, " unable to delete conferences in db");
+    console.log(e, ' unable to delete conferences in db');
   }
 };
 
@@ -2350,7 +2349,7 @@ export const deleteConferences = async (
     calendarId: string;
     meetingId: string;
     conferenceId?: string;
-  }[],
+  }[]
 ) => {
   try {
     const conferenceIds = events?.map((e) => e?.conferenceId);
@@ -2368,7 +2367,7 @@ export const deleteConferences = async (
     for (const conference of conferences) {
       const zoomToken = await getZoomAPIToken(conference?.userId);
 
-      if (zoomToken && typeof parseInt(conference?.id, 10) === "number") {
+      if (zoomToken && typeof parseInt(conference?.id, 10) === 'number') {
         await deleteZoomMeeting(zoomToken, parseInt(conference?.id, 10));
       }
     }
@@ -2376,21 +2375,21 @@ export const deleteConferences = async (
     // delete in db
     await deleteConferencesInDb(conferenceIds);
   } catch (e) {
-    console.log(e, " unable to deleteConference");
+    console.log(e, ' unable to deleteConference');
   }
 };
 
 export const deleteEvents = async (
   events: EventResourceType[],
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     const eventIds = events.map((e) => `${e?.id}#${calendarId}`);
-    console.log(eventIds, " eventIds inside deleteEvents");
+    console.log(eventIds, ' eventIds inside deleteEvents');
     if (!(eventIds?.filter((e) => !!e)?.length > 0)) {
       return;
     }
-    const operationName = "deleteEvents";
+    const operationName = 'deleteEvents';
     const query = `
             mutation deleteEvents($eventIds: [String!]!) {
                 delete_Event(where: {id: {_in: $eventIds}}) {
@@ -2426,8 +2425,8 @@ export const deleteEvents = async (
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2436,23 +2435,23 @@ export const deleteEvents = async (
         },
       })
       .json();
-    console.log(res, " this is response in deleteEvents");
+    console.log(res, ' this is response in deleteEvents');
     return res?.data?.delete_Event?.returning;
   } catch (e) {
-    console.log(e, " unable to delete events");
+    console.log(e, ' unable to delete events');
   }
 };
 
 export const deleteReminders = async (
   events: EventResourceType[],
   userId: string,
-  calendarId: string,
+  calendarId: string
 ) => {
   try {
     if (!(events?.filter((e) => !!e?.id)?.length > 0)) {
       return;
     }
-    const operationName = "deleteReminders";
+    const operationName = 'deleteReminders';
     const delEvents = events.map((e) => `${e?.id}#${calendarId}`);
     const query = `
       mutation deleteReminders($userId: uuid!, $eventIds: [String!]!) {
@@ -2470,8 +2469,8 @@ export const deleteReminders = async (
     const response = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2480,21 +2479,21 @@ export const deleteReminders = async (
         },
       })
       .json();
-    console.log(response, " this is response in deleteReminders");
+    console.log(response, ' this is response in deleteReminders');
   } catch (e) {
-    console.log(e, " unable to delete reminders");
+    console.log(e, ' unable to delete reminders');
   }
 };
 
 export const getUserPreferences = async (
-  userId: string,
+  userId: string
 ): Promise<UserPreferenceType> => {
   try {
     if (!userId) {
-      console.log("userId is null");
+      console.log('userId is null');
       return null;
     }
-    const operationName = "getUserPreferences";
+    const operationName = 'getUserPreferences';
     const query = `
     query getUserPreferences($userId: uuid!) {
       User_Preference(where: {userId: {_eq: $userId}}) {
@@ -2533,9 +2532,9 @@ export const getUserPreferences = async (
     const res: { data: { User_Preference: UserPreferenceType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2548,19 +2547,19 @@ export const getUserPreferences = async (
       .json();
     return res?.data?.User_Preference?.[0];
   } catch (e) {
-    console.log(e, " getUserPreferences");
+    console.log(e, ' getUserPreferences');
   }
 };
 
 export const convertToTotalWorkingHours = (
   userPreference: UserPreferenceType,
   startDate: string,
-  timezone: string,
+  timezone: string
 ) => {
   const startTimes = userPreference.startTimes;
   const endTimes = userPreference.endTimes;
   const dayOfWeekInt = getISODay(
-    dayjs(startDate.slice(0, 19)).tz(timezone, true).toDate(),
+    dayjs(startDate.slice(0, 19)).tz(timezone, true).toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -2578,7 +2577,7 @@ export const convertToTotalWorkingHours = (
 
 export const listEventsWithIds = async (ids: string[]) => {
   try {
-    const operationName = "listEventsWithIds";
+    const operationName = 'listEventsWithIds';
 
     const query = `
     query listEventsWithIds($ids: [String!]!) {
@@ -2700,9 +2699,9 @@ export const listEventsWithIds = async (ids: string[]) => {
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2716,7 +2715,7 @@ export const listEventsWithIds = async (ids: string[]) => {
 
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " unable to list ids with ids");
+    console.log(e, ' unable to list ids with ids');
   }
 };
 
@@ -2724,10 +2723,10 @@ export const listEventsForDate = async (
   userId: string,
   startDate: string,
   endDate: string,
-  timezone: string,
+  timezone: string
 ) => {
   try {
-    const operationName = "listEventsForDate";
+    const operationName = 'listEventsForDate';
     const query = `
         query listEventsForDate($userId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
           Event(where: {userId: {_eq: $userId}, startDate: {_gte: $startDate, _lt: $endDate}, deleted: {_eq: false}}) {
@@ -2850,9 +2849,9 @@ export const listEventsForDate = async (
     const res: { data: { Event: EventType[] } } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -2868,28 +2867,28 @@ export const listEventsForDate = async (
       })
       .json();
 
-    console.log(res, " res from listEventsforUser");
+    console.log(res, ' res from listEventsforUser');
     return res?.data?.Event;
   } catch (e) {
-    console.log(e, " unable to list events for date");
+    console.log(e, ' unable to list events for date');
   }
 };
 
 export const shouldGenerateBreakEventsForDay = (
   workingHours: number,
   userPreferences: UserPreferenceType,
-  allEvents: EventPlusType[],
+  allEvents: EventPlusType[]
 ) => {
   // validate
   if (!userPreferences?.breakLength) {
     console.log(
-      "no user preferences breakLength provided inside shouldGenerateBreakEvents",
+      'no user preferences breakLength provided inside shouldGenerateBreakEvents'
     );
     return false;
   }
 
   if (!(allEvents?.length > 0)) {
-    console.log("no allEvents present inside shouldGenerateBreakEventsForDay");
+    console.log('no allEvents present inside shouldGenerateBreakEventsForDay');
     return false;
   }
 
@@ -2903,25 +2902,23 @@ export const shouldGenerateBreakEventsForDay = (
     const duration = dayjs
       .duration(
         dayjs(
-          dayjs(breakEvent.endDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
+          dayjs(breakEvent.endDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
         ).diff(
-          dayjs(breakEvent.startDate.slice(0, 19)).format(
-            "YYYY-MM-DDTHH:mm:ss",
-          ),
-        ),
+          dayjs(breakEvent.startDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
+        )
       )
       .asHours();
     breakHoursUsed += duration;
   }
 
   if (breakHoursUsed >= breakHoursAvailable) {
-    console.log("breakHoursUsed >= breakHoursAvailable");
+    console.log('breakHoursUsed >= breakHoursAvailable');
     return false;
   }
 
   if (!(allEvents?.length > 0)) {
     console.log(
-      "there are no events for this date inside shouldGenerateBreakEvents",
+      'there are no events for this date inside shouldGenerateBreakEvents'
     );
     return false;
   }
@@ -2930,17 +2927,17 @@ export const shouldGenerateBreakEventsForDay = (
     const duration = dayjs
       .duration(
         dayjs(
-          dayjs(event.endDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
+          dayjs(event.endDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
         ).diff(
-          dayjs(event.startDate.slice(0, 19)).format("YYYY-MM-DDTHH:mm:ss"),
-        ),
+          dayjs(event.startDate.slice(0, 19)).format('YYYY-MM-DDTHH:mm:ss')
+        )
       )
       .asHours();
     hoursUsed += duration;
   }
 
   if (hoursUsed >= workingHours) {
-    console.log("hoursUsed >= workingHours");
+    console.log('hoursUsed >= workingHours');
     return false;
   }
 
@@ -2951,47 +2948,47 @@ export const generateBreaks = (
   userPreferences: UserPreferenceType,
   numberOfBreaksToGenerate: number,
   eventMirror: EventPlusType,
-  globalCalendarId?: string,
+  globalCalendarId?: string
 ): EventPlusType[] => {
   const breaks = [];
   // validate
   if (!userPreferences?.breakLength) {
     console.log(
-      "no user preferences breakLength provided inside generateBreaks",
+      'no user preferences breakLength provided inside generateBreaks'
     );
     return breaks;
   }
 
   if (!numberOfBreaksToGenerate) {
     console.log(
-      "no number of breaks to generate provided inside generateBreaks",
+      'no number of breaks to generate provided inside generateBreaks'
     );
     return breaks;
   }
 
   if (!eventMirror) {
-    console.log("no event mirror provided inside generateBreaks");
+    console.log('no event mirror provided inside generateBreaks');
     return breaks;
   }
   console.log(
     numberOfBreaksToGenerate,
-    " numberOfBreaksToGenerate inside generateBreaks",
+    ' numberOfBreaksToGenerate inside generateBreaks'
   );
   for (let i = 0; i < numberOfBreaksToGenerate; i++) {
     const eventId = uuid();
     const breakEvent: EventPlusType = {
       id: `${eventId}#${globalCalendarId || eventMirror.calendarId}}`,
       userId: userPreferences.userId,
-      title: "Break",
+      title: 'Break',
       startDate: dayjs(eventMirror.startDate.slice(0, 19))
         .tz(eventMirror.timezone, true)
         .format(),
       endDate: dayjs(eventMirror.startDate.slice(0, 19))
         .tz(eventMirror.timezone, true)
-        .add(userPreferences.breakLength, "minute")
+        .add(userPreferences.breakLength, 'minute')
         .format(),
       allDay: false,
-      notes: "Break",
+      notes: 'Break',
       timezone: eventMirror.timezone,
       createdDate: dayjs().toISOString(),
       updatedAt: dayjs().toISOString(),
@@ -3006,13 +3003,13 @@ export const generateBreaks = (
       originalStartDate: undefined,
       originalAllDay: false,
       calendarId: globalCalendarId || eventMirror.calendarId,
-      backgroundColor: userPreferences.breakColor || "#F7EBF7",
+      backgroundColor: userPreferences.breakColor || '#F7EBF7',
       isBreak: true,
       duration: userPreferences.breakLength,
       userModifiedDuration: true,
       userModifiedColor: true,
       isPostEvent: false,
-      method: "create",
+      method: 'create',
       eventId,
     };
     breaks.push(breakEvent);
@@ -3028,36 +3025,36 @@ export const generateBreakEventsForDay = async (
   timezone: string,
   eventsToBeBreaks: EventPlusType[] = [],
   globalCalendarId?: string,
-  isFirstDay?: boolean,
+  isFirstDay?: boolean
 ) => {
   try {
     // validate
     if (!userPreferences?.breakLength) {
       console.log(
-        "no user preferences breakLength provided inside shouldGenerateBreakEvents",
+        'no user preferences breakLength provided inside shouldGenerateBreakEvents'
       );
       return null;
     }
 
     if (!userId) {
-      console.log("no userId provided inside shouldGenerateBreakEvents");
+      console.log('no userId provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (!startDate) {
-      console.log("no startDate provided inside shouldGenerateBreakEvents");
+      console.log('no startDate provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (!timezone) {
-      console.log("no timezone provided inside shouldGenerateBreakEvents");
+      console.log('no timezone provided inside shouldGenerateBreakEvents');
       return null;
     }
 
     if (isFirstDay) {
       const endTimes = userPreferences.endTimes;
       const dayOfWeekInt = getISODay(
-        dayjs(startDate.slice(0, 19)).tz(timezone, true).toDate(),
+        dayjs(startDate.slice(0, 19)).tz(timezone, true).toDate()
       );
 
       let startHour = dayjs(startDate.slice(0, 19)).tz(timezone, true).hour();
@@ -3071,12 +3068,12 @@ export const generateBreakEventsForDay = async (
       const startTimes = userPreferences.startTimes;
       const workStartHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
       const workStartMinute = startTimes.find(
-        (i) => i.day === dayOfWeekInt,
+        (i) => i.day === dayOfWeekInt
       ).minutes;
 
       if (
         dayjs(startDate.slice(0, 19)).isAfter(
-          dayjs(startDate.slice(0, 19)).hour(endHour).minute(endMinute),
+          dayjs(startDate.slice(0, 19)).hour(endHour).minute(endMinute)
         )
       ) {
         // return empty as outside of work time
@@ -3088,7 +3085,7 @@ export const generateBreakEventsForDay = async (
         dayjs(startDate.slice(0, 19)).isBefore(
           dayjs(startDate.slice(0, 19))
             .hour(workStartHour)
-            .minute(workStartMinute),
+            .minute(workStartMinute)
         )
       ) {
         startHour = workStartHour;
@@ -3098,7 +3095,7 @@ export const generateBreakEventsForDay = async (
       const workingHours = convertToTotalWorkingHours(
         userPreferences,
         startDate,
-        timezone,
+        timezone
       );
       const allEvents = await listEventsForDate(
         userId,
@@ -3112,22 +3109,22 @@ export const generateBreakEventsForDay = async (
           .hour(endHour)
           .minute(endMinute)
           .format(),
-        timezone,
+        timezone
       );
       if (!(allEvents?.length > 0)) {
         console.log(
-          "no allEvents present inside shouldGenerateBreakEventsForDay",
+          'no allEvents present inside shouldGenerateBreakEventsForDay'
         );
         return null;
       }
       const shouldGenerateBreaks = shouldGenerateBreakEventsForDay(
         workingHours,
         userPreferences,
-        allEvents,
+        allEvents
       );
       // validate
       if (!shouldGenerateBreaks) {
-        console.log("should not generate breaks");
+        console.log('should not generate breaks');
         return null;
       }
 
@@ -3139,9 +3136,7 @@ export const generateBreakEventsForDay = async (
             .duration(
               dayjs(allEvent.endDate.slice(0, 19))
                 .tz(timezone, true)
-                .diff(
-                  dayjs(allEvent.startDate.slice(0, 19)).tz(timezone, true),
-                ),
+                .diff(dayjs(allEvent.startDate.slice(0, 19)).tz(timezone, true))
             )
             .asHours();
           hoursUsed += duration;
@@ -3152,7 +3147,7 @@ export const generateBreakEventsForDay = async (
       hoursAvailable -= workingHours * userPreferences.maxWorkLoadPercent;
       // no hours available
       if (hoursAvailable <= 0) {
-        console.log(hoursAvailable, " no hours available");
+        console.log(hoursAvailable, ' no hours available');
         return null;
       }
 
@@ -3161,13 +3156,13 @@ export const generateBreakEventsForDay = async (
         .filter((e) =>
           dayjs(startDate.slice(0, 19))
             .tz(timezone, true)
-            .isSame(dayjs(e.startDate.slice(0, 19)).tz(timezone, true), "day"),
+            .isSame(dayjs(e.startDate.slice(0, 19)).tz(timezone, true), 'day')
         );
 
       const breakEvents = eventsToBeBreaks.concat(oldBreakEvents);
 
       const numberOfBreaksPerDay = userPreferences.minNumberOfBreaks;
-      console.log(numberOfBreaksPerDay, " numberOfBreaksPerDay");
+      console.log(numberOfBreaksPerDay, ' numberOfBreaksPerDay');
       const breakHoursToGenerate =
         (userPreferences.breakLength / 60) * numberOfBreaksPerDay;
       let breakHoursUsed = 0;
@@ -3179,8 +3174,8 @@ export const generateBreakEventsForDay = async (
               dayjs(breakEvent.endDate.slice(0, 19))
                 .tz(timezone, true)
                 .diff(
-                  dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
-                ),
+                  dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true)
+                )
             )
             .asHours();
           breakHoursUsed += duration;
@@ -3190,21 +3185,21 @@ export const generateBreakEventsForDay = async (
       const actualBreakHoursToGenerate = breakHoursToGenerate - breakHoursUsed;
 
       if (actualBreakHoursToGenerate > hoursAvailable) {
-        console.log(" no hours available to generate break");
+        console.log(' no hours available to generate break');
         return null;
       }
 
-      console.log(breakHoursUsed, " breakHoursUsed");
-      console.log(breakHoursToGenerate, " breakHoursAvailable");
+      console.log(breakHoursUsed, ' breakHoursUsed');
+      console.log(breakHoursToGenerate, ' breakHoursAvailable');
       const breakLengthAsHours = userPreferences.breakLength / 60;
-      console.log(breakLengthAsHours, " breakLengthAsHours");
+      console.log(breakLengthAsHours, ' breakLengthAsHours');
       const numberOfBreaksToGenerate = Math.floor(
-        actualBreakHoursToGenerate / breakLengthAsHours,
+        actualBreakHoursToGenerate / breakLengthAsHours
       );
-      console.log(numberOfBreaksToGenerate, " numberOfBreaksToGenerate");
+      console.log(numberOfBreaksToGenerate, ' numberOfBreaksToGenerate');
 
       if (numberOfBreaksToGenerate < 1) {
-        console.log("should not generate breaks");
+        console.log('should not generate breaks');
         return null;
       }
 
@@ -3214,7 +3209,7 @@ export const generateBreakEventsForDay = async (
         userPreferences,
         numberOfBreaksToGenerate,
         eventMirror,
-        globalCalendarId,
+        globalCalendarId
       );
 
       return newEvents;
@@ -3222,7 +3217,7 @@ export const generateBreakEventsForDay = async (
 
     const endTimes = userPreferences.endTimes;
     const dayOfWeekInt = getISODay(
-      dayjs(startDate.slice(0, 19)).tz(timezone, true).toDate(),
+      dayjs(startDate.slice(0, 19)).tz(timezone, true).toDate()
     );
 
     const endHour = endTimes.find((i) => i.day === dayOfWeekInt).hour;
@@ -3236,7 +3231,7 @@ export const generateBreakEventsForDay = async (
     const workingHours = convertToTotalWorkingHours(
       userPreferences,
       startDate,
-      timezone,
+      timezone
     );
     const allEvents = await listEventsForDate(
       userId,
@@ -3250,22 +3245,22 @@ export const generateBreakEventsForDay = async (
         .hour(endHour)
         .minute(endMinute)
         .format(),
-      timezone,
+      timezone
     );
     if (!(allEvents?.length > 0)) {
       console.log(
-        "no allEvents present inside shouldGenerateBreakEventsForDay",
+        'no allEvents present inside shouldGenerateBreakEventsForDay'
       );
       return null;
     }
     const shouldGenerateBreaks = shouldGenerateBreakEventsForDay(
       workingHours,
       userPreferences,
-      allEvents,
+      allEvents
     );
     // validate
     if (!shouldGenerateBreaks) {
-      console.log("should not generate breaks");
+      console.log('should not generate breaks');
       return null;
     }
 
@@ -3277,7 +3272,7 @@ export const generateBreakEventsForDay = async (
           .duration(
             dayjs(allEvent.endDate.slice(0, 19))
               .tz(timezone, true)
-              .diff(dayjs(allEvent.startDate.slice(0, 19)).tz(timezone, true)),
+              .diff(dayjs(allEvent.startDate.slice(0, 19)).tz(timezone, true))
           )
           .asHours();
         hoursUsed += duration;
@@ -3289,7 +3284,7 @@ export const generateBreakEventsForDay = async (
 
     // no hours available
     if (hoursAvailable <= 0) {
-      console.log(hoursAvailable, " no hours available");
+      console.log(hoursAvailable, ' no hours available');
       return null;
     }
 
@@ -3298,13 +3293,13 @@ export const generateBreakEventsForDay = async (
       .filter((e) =>
         dayjs(startDate.slice(0, 19))
           .tz(timezone, true)
-          .isSame(dayjs(e.startDate.slice(0, 19)).tz(timezone, true), "day"),
+          .isSame(dayjs(e.startDate.slice(0, 19)).tz(timezone, true), 'day')
       );
 
     const breakEvents = eventsToBeBreaks.concat(oldBreakEvents);
 
     const numberOfBreaksPerDay = userPreferences.minNumberOfBreaks;
-    console.log(numberOfBreaksPerDay, " numberOfBreaksPerDay");
+    console.log(numberOfBreaksPerDay, ' numberOfBreaksPerDay');
     const breakHoursToGenerate =
       (userPreferences.breakLength / 60) * numberOfBreaksPerDay;
     let breakHoursUsed = 0;
@@ -3315,9 +3310,7 @@ export const generateBreakEventsForDay = async (
           .duration(
             dayjs(breakEvent.endDate.slice(0, 19))
               .tz(timezone, true)
-              .diff(
-                dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
-              ),
+              .diff(dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true))
           )
           .asHours();
         breakHoursUsed += duration;
@@ -3327,21 +3320,21 @@ export const generateBreakEventsForDay = async (
     const actualBreakHoursToGenerate = breakHoursToGenerate - breakHoursUsed;
 
     if (actualBreakHoursToGenerate > hoursAvailable) {
-      console.log(" no hours available to generate break");
+      console.log(' no hours available to generate break');
       return null;
     }
 
-    console.log(breakHoursUsed, " breakHoursUsed");
-    console.log(breakHoursToGenerate, " breakHoursAvailable");
+    console.log(breakHoursUsed, ' breakHoursUsed');
+    console.log(breakHoursToGenerate, ' breakHoursAvailable');
     const breakLengthAsHours = userPreferences.breakLength / 60;
-    console.log(breakLengthAsHours, " breakLengthAsHours");
+    console.log(breakLengthAsHours, ' breakLengthAsHours');
     const numberOfBreaksToGenerate = Math.floor(
-      actualBreakHoursToGenerate / breakLengthAsHours,
+      actualBreakHoursToGenerate / breakLengthAsHours
     );
-    console.log(numberOfBreaksToGenerate, " numberOfBreaksToGenerate");
+    console.log(numberOfBreaksToGenerate, ' numberOfBreaksToGenerate');
 
     if (numberOfBreaksToGenerate < 1) {
-      console.log("should not generate breaks");
+      console.log('should not generate breaks');
       return null;
     }
 
@@ -3351,12 +3344,12 @@ export const generateBreakEventsForDay = async (
       userPreferences,
       numberOfBreaksToGenerate,
       eventMirror,
-      globalCalendarId,
+      globalCalendarId
     );
 
     return newEvents;
   } catch (e) {
-    console.log(e, " unable to generate breaks for day");
+    console.log(e, ' unable to generate breaks for day');
   }
 };
 
@@ -3364,18 +3357,18 @@ export const adjustStartDatesForBreakEventsForDay = (
   allEvents: EventPlusType[],
   breakEvents: EventPlusType[],
   userPreference: UserPreferenceType,
-  timezone: string,
+  timezone: string
 ): EventPlusType[] => {
   // validate
   if (!allEvents?.[0]?.id) {
-    console.log("no allEvents inside adjustStartDatesForBreakEvents");
+    console.log('no allEvents inside adjustStartDatesForBreakEvents');
     return;
   }
 
   const startTimes = userPreference.startTimes;
   const endTimes = userPreference.endTimes;
   const dayOfWeekInt = getISODay(
-    dayjs(allEvents?.[0]?.startDate.slice(0, 19)).tz(timezone, true).toDate(),
+    dayjs(allEvents?.[0]?.startDate.slice(0, 19)).tz(timezone, true).toDate()
   );
   const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
   const startMinute = startTimes.find((i) => i.day === dayOfWeekInt).minutes;
@@ -3406,12 +3399,12 @@ export const adjustStartDatesForBreakEventsForDay = (
       let index = 0;
       while (!foundSpace && index < filteredEvents.length) {
         const possibleEndDate = dayjs(
-          filteredEvents[index].startDate.slice(0, 19),
+          filteredEvents[index].startDate.slice(0, 19)
         ).tz(timezone, true);
 
         const possibleStartDate = dayjs(possibleEndDate.format().slice(0, 19))
           .tz(timezone, true)
-          .subtract(userPreference.breakLength, "minute");
+          .subtract(userPreference.breakLength, 'minute');
         let isBetweenStart = true;
         let isBetweenEnd = true;
         let betweenIndex = 0;
@@ -3432,56 +3425,56 @@ export const adjustStartDatesForBreakEventsForDay = (
           isBetweenStart = possibleStartDate.isBetween(
             dayjs(filteredEvents[betweenIndex].startDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
             dayjs(filteredEvents[betweenIndex].endDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           );
 
           isBetweenEnd = possibleEndDate.isBetween(
             dayjs(filteredEvents[betweenIndex].startDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
             dayjs(filteredEvents[betweenIndex].endDate.slice(0, 19)).tz(
               timezone,
-              true,
+              true
             ),
-            "minute",
-            "(]",
+            'minute',
+            '(]'
           );
 
           betweenWorkingDayStart = possibleStartDate.isBetween(
             startOfWorkingDay,
             endOfWorkingDay,
-            "minute",
-            "[)",
+            'minute',
+            '[)'
           );
 
           betweenWorkingDayEnd = possibleEndDate.isBetween(
             startOfWorkingDay,
             endOfWorkingDay,
-            "minute",
-            "(]",
+            'minute',
+            '(]'
           );
 
           for (const breakEvent of breakEvents) {
             isBetweenBreakStart = possibleStartDate.isBetween(
               dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
               dayjs(breakEvent.endDate.slice(0, 19)).tz(timezone, true),
-              "minute",
-              "[)",
+              'minute',
+              '[)'
             );
 
             isBetweenBreakEnd = possibleEndDate.isBetween(
               dayjs(breakEvent.startDate.slice(0, 19)).tz(timezone, true),
               dayjs(breakEvent.endDate.slice(0, 19)).tz(timezone, true),
-              "minute",
-              "(]",
+              'minute',
+              '(]'
             );
           }
 
@@ -3520,23 +3513,23 @@ export const generateBreakEventsForDate = async (
   endDate: string,
   timezone: string,
   eventsToBeBreaks: EventPlusType[] = [],
-  globalCalendarId?: string,
+  globalCalendarId?: string
 ): Promise<EventPlusType[] | []> => {
   try {
     const totalBreakEvents = [];
     const totalDays = dayjs(endDate.slice(0, 19))
       .tz(timezone, true)
-      .diff(dayjs(startDate.slice(0, 19)).tz(timezone, true), "day");
-    console.log(totalDays, " totalDays inside generateBreakEventsForDate");
+      .diff(dayjs(startDate.slice(0, 19)).tz(timezone, true), 'day');
+    console.log(totalDays, ' totalDays inside generateBreakEventsForDate');
     for (let i = 0; i < totalDays; i++) {
       const dayDate = dayjs(startDate.slice(0, 19))
         .tz(timezone, true)
-        .add(i, "day")
+        .add(i, 'day')
         .format();
       const eventsToBeBreaksForDay = eventsToBeBreaks.filter((e) =>
         dayjs(e.startDate.slice(0, 19))
           .tz(e.timezone, true)
-          .isSame(dayDate, "day"),
+          .isSame(dayDate, 'day')
       );
       const newBreakEvents = await generateBreakEventsForDay(
         userPreferences,
@@ -3545,13 +3538,13 @@ export const generateBreakEventsForDate = async (
         timezone,
         eventsToBeBreaksForDay,
         globalCalendarId,
-        i === 0,
+        i === 0
       );
 
       if (i === 0) {
         const endTimes = userPreferences.endTimes;
         const dayOfWeekInt = getISODay(
-          dayjs(dayDate.slice(0, 19)).tz(timezone, true).toDate(),
+          dayjs(dayDate.slice(0, 19)).tz(timezone, true).toDate()
         );
 
         let startHour = dayjs(dayDate.slice(0, 19)).tz(timezone, true).hour();
@@ -3564,15 +3557,15 @@ export const generateBreakEventsForDate = async (
         // validate values before calculating
         const startTimes = userPreferences.startTimes;
         const workStartHour = startTimes.find(
-          (i) => i.day === dayOfWeekInt,
+          (i) => i.day === dayOfWeekInt
         ).hour;
         const workStartMinute = startTimes.find(
-          (i) => i.day === dayOfWeekInt,
+          (i) => i.day === dayOfWeekInt
         ).minutes;
 
         if (
           dayjs(dayDate.slice(0, 19)).isAfter(
-            dayjs(dayDate.slice(0, 19)).hour(endHour).minute(endMinute),
+            dayjs(dayDate.slice(0, 19)).hour(endHour).minute(endMinute)
           )
         ) {
           // return empty as outside of work time
@@ -3584,7 +3577,7 @@ export const generateBreakEventsForDate = async (
           dayjs(dayDate.slice(0, 19)).isBefore(
             dayjs(dayDate.slice(0, 19))
               .hour(workStartHour)
-              .minute(workStartMinute),
+              .minute(workStartMinute)
           )
         ) {
           startHour = workStartHour;
@@ -3603,18 +3596,18 @@ export const generateBreakEventsForDate = async (
             .hour(endHour)
             .minute(endMinute)
             .format(),
-          timezone,
+          timezone
         );
         const newBreakEventsAdjusted =
           await adjustStartDatesForBreakEventsForDay(
             allEvents,
             newBreakEvents,
             userPreferences,
-            timezone,
+            timezone
           );
         if (newBreakEventsAdjusted?.length > 0) {
           newBreakEventsAdjusted.forEach((b) =>
-            console.log(b, " newBreakEventsAdjusted"),
+            console.log(b, ' newBreakEventsAdjusted')
           );
           totalBreakEvents.push(...newBreakEventsAdjusted);
         }
@@ -3624,7 +3617,7 @@ export const generateBreakEventsForDate = async (
 
       const endTimes = userPreferences.endTimes;
       const dayOfWeekInt = getISODay(
-        dayjs(dayDate.slice(0, 19)).tz(timezone, true).toDate(),
+        dayjs(dayDate.slice(0, 19)).tz(timezone, true).toDate()
       );
 
       const endHour = endTimes.find((i) => i.day === dayOfWeekInt).hour;
@@ -3634,7 +3627,7 @@ export const generateBreakEventsForDate = async (
       const startTimes = userPreferences.startTimes;
       const startHour = startTimes.find((i) => i.day === dayOfWeekInt).hour;
       const startMinute = startTimes.find(
-        (i) => i.day === dayOfWeekInt,
+        (i) => i.day === dayOfWeekInt
       ).minutes;
 
       const allEvents = await listEventsForDate(
@@ -3649,17 +3642,17 @@ export const generateBreakEventsForDate = async (
           .hour(endHour)
           .minute(endMinute)
           .format(),
-        timezone,
+        timezone
       );
       const newBreakEventsAdjusted = await adjustStartDatesForBreakEventsForDay(
         allEvents,
         newBreakEvents,
         userPreferences,
-        timezone,
+        timezone
       );
       if (newBreakEventsAdjusted?.length > 0) {
         newBreakEventsAdjusted.forEach((b) =>
-          console.log(b, " newBreakEventsAdjusted"),
+          console.log(b, ' newBreakEventsAdjusted')
         );
         totalBreakEvents.push(...newBreakEventsAdjusted);
       }
@@ -3667,13 +3660,13 @@ export const generateBreakEventsForDate = async (
 
     return totalBreakEvents;
   } catch (e) {
-    console.log(e, " unable to generateBreakEventsForDate");
+    console.log(e, ' unable to generateBreakEventsForDate');
   }
 };
 
 export const upsertEventsPostPlanner = async (events: EventType[]) => {
   try {
-    const operationName = "InsertEvent";
+    const operationName = 'InsertEvent';
     const query = `
       mutation InsertEvent($events: [Event_insert_input!]!) {
         insert_Event(
@@ -3797,11 +3790,11 @@ export const upsertEventsPostPlanner = async (events: EventType[]) => {
           }
         }
       `;
-    _.uniqBy(events, "id").forEach((e) =>
-      console.log(e?.id, e, "id, e inside upsertEventsPostPlanner "),
+    _.uniqBy(events, 'id').forEach((e) =>
+      console.log(e?.id, e, 'id, e inside upsertEventsPostPlanner ')
     );
     const variables = {
-      events: _.uniqBy(events, "id"),
+      events: _.uniqBy(events, 'id'),
     };
 
     const response: {
@@ -3811,8 +3804,8 @@ export const upsertEventsPostPlanner = async (events: EventType[]) => {
     } = await got
       .post(hasuraGraphUrl, {
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'X-Hasura-Role': 'admin',
         },
         json: {
           operationName,
@@ -3824,23 +3817,23 @@ export const upsertEventsPostPlanner = async (events: EventType[]) => {
     console.log(
       response,
       response?.data?.insert_Event?.affected_rows,
-      " response after upserting events",
+      ' response after upserting events'
     );
     response?.data?.insert_Event?.returning?.forEach((e) =>
-      console.log(e, " returning  response after upserting events"),
+      console.log(e, ' returning  response after upserting events')
     );
     return response;
   } catch (e) {
-    console.log(e, " unable to update event");
+    console.log(e, ' unable to update event');
   }
 };
 
 export const formatRemindersForGoogle = (
-  reminders: ReminderType[],
+  reminders: ReminderType[]
 ): GoogleReminderType => {
   const googleOverrides: OverrideTypes = reminders.map((reminder) => {
     return {
-      method: "email",
+      method: 'email',
       minutes: reminder.minutes,
     };
   });
@@ -3853,7 +3846,7 @@ export const formatRemindersForGoogle = (
 
 export const refreshGoogleToken = async (
   refreshToken: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web'
 ): Promise<{
   access_token: string;
   expires_in: number; // add seconds to now
@@ -3861,61 +3854,61 @@ export const refreshGoogleToken = async (
   token_type: string;
 }> => {
   try {
-    console.log("refreshGoogleToken called", refreshToken);
-    console.log("clientType", clientType);
-    console.log("googleClientIdIos", googleClientIdIos);
+    console.log('refreshGoogleToken called', refreshToken);
+    console.log('clientType', clientType);
+    console.log('googleClientIdIos', googleClientIdIos);
     switch (clientType) {
-      case "ios":
+      case 'ios':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdIos,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
-      case "android":
+      case 'android':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdAndroid,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
-      case "web":
+      case 'web':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdWeb,
               client_secret: googleClientSecretWeb,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
-      case "atomic-web":
+      case 'atomic-web':
         return got
           .post(googleTokenUrl, {
             form: {
-              grant_type: "refresh_token",
+              grant_type: 'refresh_token',
               refresh_token: refreshToken,
               client_id: googleClientIdAtomicWeb,
               client_secret: googleClientSecretAtomicWeb,
             },
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
           })
           .json();
@@ -3930,7 +3923,7 @@ export const refreshGoogleToken = async (
         }
         */
   } catch (e) {
-    console.log(e, " unable to refresh google token");
+    console.log(e, ' unable to refresh google token');
   }
 };
 
@@ -3938,13 +3931,13 @@ export const updateCalendarIntegration = async (
   id: string,
   token?: string,
   expiresIn?: number,
-  enabled?: boolean,
+  enabled?: boolean
 ) => {
   try {
-    const operationName = "updateCalendarIntegration";
+    const operationName = 'updateCalendarIntegration';
     const query = `
-      mutation updateCalendarIntegration($id: uuid!,${token !== undefined ? " $token: String," : ""}${expiresIn !== undefined ? " $expiresAt: timestamptz," : ""}${enabled !== undefined ? " $enabled: Boolean," : ""}) {
-        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${token !== undefined ? "token: $token," : ""}${expiresIn !== undefined ? " expiresAt: $expiresAt," : ""}${enabled !== undefined ? " enabled: $enabled," : ""}}) {
+      mutation updateCalendarIntegration($id: uuid!,${token !== undefined ? ' $token: String,' : ''}${expiresIn !== undefined ? ' $expiresAt: timestamptz,' : ''}${enabled !== undefined ? ' $enabled: Boolean,' : ''}) {
+        update_Calendar_Integration_by_pk(pk_columns: {id: $id}, _set: {${token !== undefined ? 'token: $token,' : ''}${expiresIn !== undefined ? ' expiresAt: $expiresAt,' : ''}${enabled !== undefined ? ' enabled: $enabled,' : ''}}) {
           id
           name
           refreshToken
@@ -3958,7 +3951,7 @@ export const updateCalendarIntegration = async (
     const variables = {
       id,
       token,
-      expiresAt: dayjs().add(expiresIn, "seconds").toISOString(),
+      expiresAt: dayjs().add(expiresIn, 'seconds').toISOString(),
       enabled,
     };
 
@@ -3970,25 +3963,25 @@ export const updateCalendarIntegration = async (
           variables,
         },
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin",
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin',
         },
       })
       .json();
 
-    console.log(res, " res inside updateCalendarIntegration");
+    console.log(res, ' res inside updateCalendarIntegration');
   } catch (e) {
-    console.log(e, " unable to update calendar integration");
+    console.log(e, ' unable to update calendar integration');
   }
 };
 
 export const getCalendarIntegration = async (
   userId: string,
-  resource: string,
+  resource: string
 ) => {
   try {
-    const operationName = "getCalendarIntegration";
+    const operationName = 'getCalendarIntegration';
     const query = `
       query getCalendarIntegration($userId: uuid!, $resource: String!) {
         Calendar_Integration(where: {userId: {_eq: $userId}, resource: {_eq: $resource}}) {
@@ -4016,32 +4009,32 @@ export const getCalendarIntegration = async (
             variables,
           },
           headers: {
-            "X-Hasura-Admin-Secret": hasuraAdminSecret,
-            "Content-Type": "application/json",
-            "X-Hasura-Role": "admin",
+            'X-Hasura-Admin-Secret': hasuraAdminSecret,
+            'Content-Type': 'application/json',
+            'X-Hasura-Role': 'admin',
           },
         })
         .json();
 
-    console.log(res, " res inside getCalendarIntegration");
+    console.log(res, ' res inside getCalendarIntegration');
     if (res?.data?.Calendar_Integration?.length > 0) {
       return res?.data?.Calendar_Integration?.[0];
     }
   } catch (e) {
-    console.log(e, " unable to get calendar integration");
+    console.log(e, ' unable to get calendar integration');
   }
 };
 
 export const getGoogleAPIToken = async (
   userId: string,
   resource: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web'
 ) => {
-  let integrationId = "";
+  let integrationId = '';
   try {
     const { id, token, expiresAt, refreshToken } = await getCalendarIntegration(
       userId,
-      resource,
+      resource
     );
     integrationId = id;
     console.log(
@@ -4049,17 +4042,17 @@ export const getGoogleAPIToken = async (
       token,
       expiresAt,
       refreshToken,
-      " id, token, expiresAt, refreshToken",
+      ' id, token, expiresAt, refreshToken'
     );
     if (dayjs().isAfter(dayjs(expiresAt)) || !token) {
       const res = await refreshGoogleToken(refreshToken, clientType);
-      console.log(res, " res from refreshGoogleToken");
+      console.log(res, ' res from refreshGoogleToken');
       await updateCalendarIntegration(id, res.access_token, res.expires_in);
       return res.access_token;
     }
     return token;
   } catch (e) {
-    console.log(e, " unable to get api token");
+    console.log(e, ' unable to get api token');
     await updateCalendarIntegration(integrationId, null, null, false);
   }
 };
@@ -4068,7 +4061,7 @@ export const patchGoogleEvent = async (
   userId: string,
   calendarId: string,
   eventId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   endDateTime?: string, // either endDateTime or endDate - all day vs specific period
   startDateTime?: string,
   conferenceDataVersion?: 0 | 1,
@@ -4102,14 +4095,14 @@ export const patchGoogleEvent = async (
   attachments?: GoogleAttachmentType[],
   eventType?: GoogleEventType1,
   location?: string,
-  colorId?: string,
+  colorId?: string
 ) => {
   try {
     // get token =
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
     // let url = `${googleUrl}/${encodeURI(calendarId)}/events/${encodeURI(eventId)}`
 
@@ -4122,7 +4115,7 @@ export const patchGoogleEvent = async (
     // }
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -4193,7 +4186,7 @@ export const patchGoogleEvent = async (
       const end = {
         date: dayjs(endDateTime.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       requestBody.end = end;
@@ -4213,7 +4206,7 @@ export const patchGoogleEvent = async (
         eventId,
         endDateTime,
         timezone,
-        " eventId, endDateTime, timezone prior",
+        ' eventId, endDateTime, timezone prior'
       );
       const end = {
         dateTime: endDateTime,
@@ -4225,7 +4218,7 @@ export const patchGoogleEvent = async (
         eventId,
         end.dateTime,
         end.timeZone,
-        " eventId, endDateTime, timeZone after",
+        ' eventId, endDateTime, timeZone after'
       );
     }
 
@@ -4233,7 +4226,7 @@ export const patchGoogleEvent = async (
       const start = {
         date: dayjs(startDateTime.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       requestBody.start = start;
@@ -4252,7 +4245,7 @@ export const patchGoogleEvent = async (
         eventId,
         startDateTime,
         timezone,
-        " eventId, startDateTime, timezone prior",
+        ' eventId, startDateTime, timezone prior'
       );
       const start = {
         dateTime: startDateTime,
@@ -4264,7 +4257,7 @@ export const patchGoogleEvent = async (
         eventId,
         start.dateTime,
         start.timeZone,
-        " eventId, startDateTime, timeZone after",
+        ' eventId, startDateTime, timeZone after'
       );
     }
 
@@ -4272,7 +4265,7 @@ export const patchGoogleEvent = async (
       const originalStartTime = {
         date: dayjs(originalStartDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       requestBody.originalStartTime = originalStartTime;
@@ -4451,19 +4444,19 @@ export const patchGoogleEvent = async (
     console.log(
       eventId,
       requestBody,
-      " eventId, requestBody inside googlePatchEvent",
+      ' eventId, requestBody inside googlePatchEvent'
     );
     const res = await googleCalendar.events.patch(variables);
-    console.log(eventId, res.data, " eventId, results from googlePatchEvent");
+    console.log(eventId, res.data, ' eventId, results from googlePatchEvent');
   } catch (e) {
-    console.log(e, " unable to patch google event");
+    console.log(e, ' unable to patch google event');
   }
 };
 
 export const createGoogleEvent = async (
   userId: string,
   calendarId: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   generatedId?: string,
   endDateTime?: string, // either endDateTime or endDate - all day vs specific period
   startDateTime?: string,
@@ -4498,18 +4491,18 @@ export const createGoogleEvent = async (
   attachments?: GoogleAttachmentType[],
   eventType?: GoogleEventType1,
   location?: string,
-  colorId?: string,
+  colorId?: string
 ) => {
   try {
     // get token =
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
 
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -4570,7 +4563,7 @@ export const createGoogleEvent = async (
       const end = {
         date: dayjs(endDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
 
@@ -4581,7 +4574,7 @@ export const createGoogleEvent = async (
       const start = {
         date: dayjs(startDate.slice(0, 19))
           .tz(timezone, true)
-          .format("YYYY-MM-DD"),
+          .format('YYYY-MM-DD'),
         timeZone: timezone,
       };
       data.start = start;
@@ -4759,27 +4752,27 @@ export const createGoogleEvent = async (
 
     console.log(res.data);
 
-    console.log(res?.data, " res?.data from googleCreateEvent");
+    console.log(res?.data, ' res?.data from googleCreateEvent');
     return { id: res?.data?.id, generatedId };
   } catch (e) {
-    console.log(e, " createGoogleEvent");
+    console.log(e, ' createGoogleEvent');
   }
 };
 
 export const postPlannerModifyEventInCalendar = async (
   newEvent: EventPlusType,
   userId: string,
-  method: "update" | "create",
+  method: 'update' | 'create',
   resource: string,
   isTimeBlocking: boolean,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
   newReminders?: ReminderType[],
   attendees?: MeetingAssistAttendeeType[],
-  conference?: ConferenceType,
+  conference?: ConferenceType
 ): Promise<string | { id: string; generatedId: string }> => {
   try {
-    console.log(newEvent, " newEvent inside postPlannerModifyEventInCalendar");
-    if (method === "update") {
+    console.log(newEvent, ' newEvent inside postPlannerModifyEventInCalendar');
+    if (method === 'update') {
       // update event
 
       if (resource === googleCalendarResource) {
@@ -4827,17 +4820,17 @@ export const postPlannerModifyEventInCalendar = async (
           undefined,
           undefined,
           undefined,
-          newEvent?.colorId,
+          newEvent?.colorId
         );
         return newEvent.id;
       }
       // else if (resource === outlookCalendarResource) {
       //   // await updateOutlookEvent(newEvent)
       // }
-    } else if (method === "create") {
+    } else if (method === 'create') {
       console.log(
         newEvent,
-        " newEvent inside create inside postPlannerModifyEventInCalendar",
+        ' newEvent inside create inside postPlannerModifyEventInCalendar'
       );
       // create task events only
       if (resource === googleCalendarResource) {
@@ -4864,16 +4857,16 @@ export const postPlannerModifyEventInCalendar = async (
           })),
           conference?.id
             ? {
-                type: conference?.app === "zoom" ? "addOn" : "hangoutsMeet",
+                type: conference?.app === 'zoom' ? 'addOn' : 'hangoutsMeet',
                 name: conference?.name,
                 conferenceId: conference?.id,
                 entryPoints: conference?.entryPoints,
                 createRequest:
-                  conference?.app === "google"
+                  conference?.app === 'google'
                     ? {
                         requestId: conference?.requestId,
                         conferenceSolutionKey: {
-                          type: "hangoutsMeet",
+                          type: 'hangoutsMeet',
                         },
                       }
                     : undefined,
@@ -4902,26 +4895,26 @@ export const postPlannerModifyEventInCalendar = async (
           undefined,
           undefined,
           undefined,
-          isTimeBlocking ? "focusTime" : "default",
+          isTimeBlocking ? 'focusTime' : 'default',
           undefined,
-          newEvent?.colorId,
+          newEvent?.colorId
         );
         console.log(
           idAndGenIdObject,
           newEvent?.endDate,
           newEvent?.startDate,
-          " idAndGenIdObject, newEvent?.endDate,  newEvent?.startDate",
+          ' idAndGenIdObject, newEvent?.endDate,  newEvent?.startDate'
         );
         return idAndGenIdObject;
       }
     }
   } catch (e) {
-    console.log(e, " unable to update event");
+    console.log(e, ' unable to update event');
     console.log(
       newEvent?.id,
       newEvent?.endDate,
       newEvent?.startDate,
-      " error - newEvent?.id, newEvent?.endDate,  newEvent?.startDate",
+      ' error - newEvent?.id, newEvent?.endDate,  newEvent?.startDate'
     );
   }
 };
@@ -4929,22 +4922,22 @@ export const postPlannerModifyEventInCalendar = async (
 export const generateBreakEventsForCalendarSync = async (
   userId: string,
   timezone: string,
-  clientType: "ios" | "android" | "web" | "atomic-web",
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web'
 ) => {
   try {
     // validate
     if (!userId) {
-      console.log("no userId inside generateBreakEventsForCalendarSync");
+      console.log('no userId inside generateBreakEventsForCalendarSync');
       return;
     }
 
     if (!timezone) {
-      console.log("no timezone inside generateBreakEventsForCalendarSync");
+      console.log('no timezone inside generateBreakEventsForCalendarSync');
       return;
     }
 
     if (!clientType) {
-      console.log("no clientType inside generateBreakEventsForCalendarSync");
+      console.log('no clientType inside generateBreakEventsForCalendarSync');
       return;
     }
     const userPreferences = await getUserPreferences(userId);
@@ -4953,8 +4946,8 @@ export const generateBreakEventsForCalendarSync = async (
       userPreferences,
       userId,
       dayjs().tz(timezone, true).format(),
-      dayjs().tz(timezone, true).add(7, "d").format(),
-      timezone,
+      dayjs().tz(timezone, true).add(7, 'd').format(),
+      timezone
     );
 
     const results = (await Promise.all(
@@ -4962,12 +4955,12 @@ export const generateBreakEventsForCalendarSync = async (
         postPlannerModifyEventInCalendar(
           b,
           userId,
-          "create",
+          'create',
           googleCalendarResource,
           false,
-          clientType,
-        ),
-      ),
+          clientType
+        )
+      )
     )) as {
       id: string;
       generatedId: string;
@@ -4975,16 +4968,16 @@ export const generateBreakEventsForCalendarSync = async (
 
     console.log(
       results,
-      " results form modifying postPlannerModifyEventInCalendar inside generateBreakEventsForCalendarSync",
+      ' results form modifying postPlannerModifyEventInCalendar inside generateBreakEventsForCalendarSync'
     );
     if (!(breakEvents?.length > 0)) {
-      console.log("no breakEvents to upsert");
+      console.log('no breakEvents to upsert');
       return;
     }
     const eventsToUpsert = [];
     for (const result of results) {
       const foundEvent = (breakEvents as EventPlusType[])?.find(
-        (e) => e?.eventId === result?.generatedId,
+        (e) => e?.eventId === result?.generatedId
       );
       if (foundEvent?.id) {
         foundEvent.id = `${result?.id}#${foundEvent?.calendarId}`;
@@ -4994,7 +4987,7 @@ export const generateBreakEventsForCalendarSync = async (
     }
     await upsertEventsPostPlanner(eventsToUpsert);
   } catch (e) {
-    console.log(e, " unable to generatezbreakEventsForCalendarSync");
+    console.log(e, ' unable to generatezbreakEventsForCalendarSync');
   }
 };
 
@@ -5003,9 +4996,9 @@ interface GoogleEventPatchAttributes {
   summary?: string;
   description?: string;
   location?: string;
-  status?: "confirmed" | "tentative" | "cancelled";
-  transparency?: "opaque" | "transparent";
-  visibility?: "default" | "public" | "private" | "confidential";
+  status?: 'confirmed' | 'tentative' | 'cancelled';
+  transparency?: 'opaque' | 'transparent';
+  visibility?: 'default' | 'public' | 'private' | 'confidential';
   colorId?: string;
   conferenceData?: Record<string, any> | null;
 }
@@ -5014,11 +5007,11 @@ export async function directUpdateGoogleEventAndHasura(
   userId: string,
   calendarId: string,
   eventId: string, // This is Google's event ID
-  clientType: "ios" | "android" | "web" | "atomic-web",
-  updates: Partial<GoogleEventPatchAttributes>,
+  clientType: 'ios' | 'android' | 'web' | 'atomic-web',
+  updates: Partial<GoogleEventPatchAttributes>
 ): Promise<boolean> {
   if (!eventId || Object.keys(updates).length === 0) {
-    console.log("Missing eventId or empty updates object.");
+    console.log('Missing eventId or empty updates object.');
     return false;
   }
 
@@ -5032,16 +5025,16 @@ export async function directUpdateGoogleEventAndHasura(
     const token = await getGoogleAPIToken(
       userId,
       googleCalendarResource,
-      clientType,
+      clientType
     );
     if (!token) {
-      console.error("Failed to get Google API token.");
+      console.error('Failed to get Google API token.');
       return false;
     }
 
     // 3. Initialize Google Calendar API
     const googleCalendar = google.calendar({
-      version: "v3",
+      version: 'v3',
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -5049,7 +5042,7 @@ export async function directUpdateGoogleEventAndHasura(
     try {
       console.log(
         `Patching Google event ${eventId} in calendar ${calendarId} with updates:`,
-        JSON.stringify(patchRequestBody),
+        JSON.stringify(patchRequestBody)
       );
       await googleCalendar.events.patch({
         calendarId,
@@ -5061,7 +5054,7 @@ export async function directUpdateGoogleEventAndHasura(
     } catch (googleError) {
       console.error(
         `Error patching Google event ${eventId}:`,
-        googleError.response?.data || googleError.message,
+        googleError.response?.data || googleError.message
       );
       return false;
     }
@@ -5104,7 +5097,7 @@ export async function directUpdateGoogleEventAndHasura(
         Array.isArray(updates.conferenceData.entryPoints)
       ) {
         const videoEntryPoint = updates.conferenceData.entryPoints.find(
-          (ep) => ep.entryPointType === "video",
+          (ep) => ep.entryPointType === 'video'
         );
         if (videoEntryPoint && videoEntryPoint.uri) {
           hasuraUpdatePayload.hangoutLink = videoEntryPoint.uri;
@@ -5128,13 +5121,13 @@ export async function directUpdateGoogleEventAndHasura(
       Object.keys(hasuraUpdatePayload).length === 1 &&
       hasuraUpdatePayload.updatedAt
     ) {
-      console.log("No mappable fields to update in Hasura besides updatedAt.");
+      console.log('No mappable fields to update in Hasura besides updatedAt.');
       // Still proceed to update 'updatedAt' or return true if Google update was the only goal
       // For now, let's proceed to update 'updatedAt'
     }
 
     // 6. Construct and execute Hasura update_Event_by_pk mutation
-    const operationName = "UpdateEventByPkDirect";
+    const operationName = 'UpdateEventByPkDirect';
     const query = `
             mutation ${operationName}($id: String!, $changes: Event_set_input!) {
                 update_Event_by_pk(pk_columns: {id: $id}, _set: $changes) {
@@ -5150,7 +5143,7 @@ export async function directUpdateGoogleEventAndHasura(
 
     console.log(
       `Updating Hasura event ${hasuraEventId} with payload:`,
-      JSON.stringify(hasuraUpdatePayload),
+      JSON.stringify(hasuraUpdatePayload)
     );
 
     const hasuraResponse: any = await got
@@ -5161,18 +5154,18 @@ export async function directUpdateGoogleEventAndHasura(
           variables,
         },
         headers: {
-          "X-Hasura-Admin-Secret": hasuraAdminSecret,
-          "Content-Type": "application/json",
-          "X-Hasura-Role": "admin", // Or appropriate user role
+          'X-Hasura-Admin-Secret': hasuraAdminSecret,
+          'Content-Type': 'application/json',
+          'X-Hasura-Role': 'admin', // Or appropriate user role
         },
-        responseType: "json",
+        responseType: 'json',
       })
       .json();
 
     if (hasuraResponse.errors) {
       console.error(
         `Error updating Hasura event ${hasuraEventId}:`,
-        JSON.stringify(hasuraResponse.errors, null, 2),
+        JSON.stringify(hasuraResponse.errors, null, 2)
       );
       // Google update was successful, but Hasura failed.
       // May need a reconciliation strategy or specific error handling.
@@ -5183,8 +5176,8 @@ export async function directUpdateGoogleEventAndHasura(
     return true;
   } catch (error) {
     console.error(
-      "An unexpected error occurred in directUpdateGoogleEventAndHasura:",
-      error,
+      'An unexpected error occurred in directUpdateGoogleEventAndHasura:',
+      error
     );
     return false;
   }
@@ -5193,15 +5186,15 @@ export async function directUpdateGoogleEventAndHasura(
 export async function streamToString(stream: Readable): Promise<string> {
   return await new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = [];
-    stream.on("data", (chunk) => chunks.push(chunk));
-    stream.on("error", reject);
-    stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
   });
 }
 
 export const addToQueueForVectorSearch = async (
   userId: string,
-  events: EventObjectForVectorType[],
+  events: EventObjectForVectorType[]
 ) => {
   const producer = kafka.producer({ maxInFlightRequests: 1, idempotent: true });
   await producer.connect();
@@ -5218,14 +5211,14 @@ export const addToQueueForVectorSearch = async (
       }),
       Bucket: bucketName,
       Key: `${userId}/${singletonId}.json`,
-      ContentType: "application/json",
+      ContentType: 'application/json',
     };
 
     const s3Command = new PutObjectCommand(params);
 
     const s3Response = await s3Client.send(s3Command);
 
-    console.log(s3Response, " s3Response");
+    console.log(s3Response, ' s3Response');
 
     const response = await transaction.send({
       topic: kafkaGoogleCalendarSyncTopic,
@@ -5258,10 +5251,10 @@ export const addToQueueForVectorSearch = async (
 
     console.log(
       response,
-      " response successfully added to queue inside addToQueueForVectorSearch",
+      ' response successfully added to queue inside addToQueueForVectorSearch'
     );
   } catch (e) {
-    console.log(e, " unable to add to queue");
+    console.log(e, ' unable to add to queue');
     await transaction.abort();
   }
 };

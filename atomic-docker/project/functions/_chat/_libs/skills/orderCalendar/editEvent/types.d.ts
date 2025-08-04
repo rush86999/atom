@@ -1,0 +1,38 @@
+import { BufferTimeNumberType } from '@chat/_libs/types/ChatMeetingPreferencesType';
+import DayOfWeekType from '@chat/_libs/types/DayOfWeekType';
+import { AppType, MutatedCalendarExtractedJSONAttendeeType } from '@chat/_libs/types/UserInputToJSONType';
+import TimePreferenceType from '@chat/_libs/types/TimePreferenceType';
+import ByMonthDayType from '@chat/_libs/types/ByMonthDayType';
+import { TransparencyType, VisibilityType } from '@chat/_libs/types/EventType';
+type MethodType = 'edit-event-property';
+export type EditEventType = {
+    userId: string;
+    timezone: string;
+    title: string;
+    oldTitle?: string;
+    attendees?: MutatedCalendarExtractedJSONAttendeeType[];
+    method: MethodType;
+    duration?: number;
+    description?: string;
+    conferenceApp?: AppType;
+    startDate?: string;
+    bufferTime?: BufferTimeNumberType;
+    reminders?: number[];
+    priority?: number;
+    timePreferences?: TimePreferenceType[];
+    location?: string;
+    transparency?: TransparencyType;
+    visibility?: VisibilityType;
+    isBreak?: boolean;
+    allDay?: boolean;
+    isFollowUp?: boolean;
+    recur?: {
+        frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+        endDate?: string;
+        occurrence?: number;
+        interval: number;
+        byWeekDay?: DayOfWeekType[];
+        ByMonthDay?: ByMonthDayType[];
+    };
+};
+export {};
