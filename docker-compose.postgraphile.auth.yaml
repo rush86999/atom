@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  postgres-atom:
+    image: postgres:15-alpine
+    container_name: postgres-atom-secure
+    environment:
+      POSTGRES_DB: ${DB_NAME:-atom_production}
+      POSTGRES_USER: ${DB_USER:-atom_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-atom_secure_2024}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./project/initdb.d:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-atom_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgraphile-atom:
+    image: graphile/postgraphile:latest
+    container_name: postgraphile-atom-auth
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-atom_user}:${DB_PASSWORD:-atom_secure_2024}@postgres-atom:5432/${DB_NAME:-atom_production}
+      POSTGRAPHILE_SECRETS: ${JWT_SECRET:-development-jwt-secret-change-in-production}
+      POSTGRAPHILE_JWT_SECRET: ${JWT_SECRET:-development-jwt-secret-change-in-production}
+      POSTGRAPHILE_JWT_PAYLOAD_KEY: sub
+      POSTGRAPHILE_JWT_ROLE_KEY: role
+      POSTGRAPHILE_JWT_AUDIENCE: atom-app
+      POSTGRAPHILE_JWT_ISSUER: atom-auth-server
+      POSTGRAPHILE_DEFAULT_ROLE: app_user
+      POSTGRAPHILE_AUDIT_LEVEL: info
+      POSTGRAPHILE_ENHANCED_PGR_INTROSPECTION: 1
+    command: >
+      postgraphile
+      --connection $DATABASE_URL
+      --schema public,app_public,app_private
+      --watch
+      --dynamic-json
+      --no-setof-functions-contain-nulls
+      --no-ignore-rbac
+      --no-ignore-indexes
+      --show-error-stack=json
+      --extended-errors hint,detail,errcode
+      --port 5000
+      --jwt-secret $POSTGRAPHILE_JWT_SECRET
+      --jwt-role-denylist app_private,app_hidden
+      --jwt-token-identifier app_public.jwt_token
+      --append-plugins @graphile-contrib/pg-simplify-inflector,@graphile/jwt-extras
+      --enable-query-batching
+      --disable-query-logging
++    depends_on:
++      postgres-atom:
++        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/status > /dev/null || exit 1"]
++      interval: 30s
++      timeout: 10s
++      retries: 5
+
+  atom-api-auth:
+    build:
+      context: ./project/functions
+      dockerfile: Dockerfile.auth
+    container_name: atom-api-auth-server
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-atom_user}:${DB_PASSWORD:-atom_secure_2024}@postgres-atom:5432/${DB_NAME:-atom_production}
+      POSTGRAPHILE_URL: http://postgraphile-atom:5000/graphql
+      JWT_SECRET: ${JWT_SECRET:-development-jwt-secret-change-in-production}
+      NODE_ENV: ${NODE_ENV:-development}
+      TEST_USER_ID: test_user_from_postgraphile_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres-atom
+      - postgraphile-atom
+    volumes:
+      - ./project/functions:/app
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: atom-network

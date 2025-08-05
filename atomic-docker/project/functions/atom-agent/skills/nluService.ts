@@ -1,12 +1,12 @@
-import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { ATOM_OPENAI_API_KEY, ATOM_NLU_MODEL_NAME } from '../_libs/constants';
+import OpenAI from "openai";
+import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { ATOM_OPENAI_API_KEY, ATOM_NLU_MODEL_NAME } from "../_libs/constants";
 import {
   NLUResponseData,
   ProcessedNLUResponse,
   LtmQueryResult, // Import LtmQueryResult
   EmailActionType, // Assuming EmailActionType is defined in types.ts
-} from '../../types'; // Adjusted path assuming types.ts is in functions/types.ts
+} from "../../types"; // Adjusted path assuming types.ts is in functions/types.ts
 
 let openAIClient: OpenAI | null = null;
 
@@ -20,7 +20,7 @@ function getOpenAIClient(): OpenAI | null {
   }
 
   if (!ATOM_OPENAI_API_KEY) {
-    console.error('OpenAI API Key not configured for NLU service.');
+    console.error("OpenAI API Key not configured for NLU service.");
     return null;
   }
 
@@ -571,13 +571,42 @@ Response (assuming BookFlight and FindHotel are defined simple intents):
 If you identify a "ComplexTask", do not also try to process its parts as one of the simpler, single intents in the main response. Focus on the decomposition.
 Ensure sub_task intents are chosen from the list of available simple intents.
 
+## Universal Synthesis Intents
+
+Identify requests for comprehensive cross-domain intelligence synthesis as "UniversalSynthesis". The entities should include:
+- "query": User's synthesis request/questions
+- "focusAreas": Array of domains to focus on (productivity, collaboration, relationship, etc.)
+- "timeRange": Optional date range for data collection
+- "includePredictions": Boolean for future predictions
+- "crossDomainInsights": Boolean for cross-domain pattern analysis
+
+Examples for UniversalSynthesis:
+User says "Analyze my productivity patterns from my calendar and tasks"
+Response: {"intent": "UniversalSynthesis", "entities": {"query": "productivity patterns", "focusAreas": ["productivity", "time-management"], "includePredictions": true, "crossDomainInsights": true}}
+
+User says "Synthesize insights from my email, meetings, and team collaboration to improve team efficiency"
+Response: {"intent": "UniversalSynthesis", "entities": {"query": "improve team efficiency", "focusAreas": ["collaboration", "communication", "productivity"], "includePredictions": true, "crossDomainInsights": true}}
+
+User says "Generate strategic insights by combining my project data, meeting decisions, and team dynamics"
+Response: {"intent": "UniversalSynthesis", "entities": {"query": "strategic insights", "focusAreas": ["strategic-planning", "team-dynamics", "decision-making"], "crossDomainInsights": true}}
+
+## SynthesizeInsights Intent
+For focused synthesis based on specific domains without full universal analysis, identify as "SynthesizeInsights". The entities should focus on:
+- "domains": Which data sources to analyze (calendar, email, slack, tasks, research, meetings)
+- "context": Specific context/situation
+- "deliverables": What format/type of synthesis needed
+
+Example for SynthesizeInsights:
+User says "Synthesize my email and calendar data for better focus"
+Response: {"intent": "SynthesizeInsights", "entities": {"context": "better focus", "domains": ["email", "calendar"], "deliverables": ["productivity-analysis", "focus-recommendations"]}}
+
 Example for no matching intent: {"intent": null, "entities": {}}
 Example for GetCalendarEvents: {"intent": "GetCalendarEvents", "entities": {"date_range": "tomorrow", "limit": 3, "event_type_filter": "Google Meet events"}}`;
 
 export async function understandMessage(
   message: string,
   conversationHistory?: ChatCompletionMessageParam[],
-  ltmContext?: LtmQueryResult[] | null // Added ltmContext parameter
+  ltmContext?: LtmQueryResult[] | null, // Added ltmContext parameter
 ): Promise<ProcessedNLUResponse> {
   const client = getOpenAIClient();
   if (!client) {
@@ -585,21 +614,21 @@ export async function understandMessage(
       originalMessage: message,
       intent: null,
       entities: {},
-      error: 'NLU service not configured: OpenAI API Key is missing.',
+      error: "NLU service not configured: OpenAI API Key is missing.",
     };
   }
-  if (!message || message.trim() === '') {
+  if (!message || message.trim() === "") {
     return {
       originalMessage: message,
       intent: null,
       entities: {},
-      error: 'Input message is empty.',
+      error: "Input message is empty.",
     };
   }
 
   if (ltmContext && ltmContext.length > 0) {
     console.log(
-      `[NLU Service] Received LTM context with ${ltmContext.length} items. First item (summary): ${JSON.stringify(ltmContext[0].text?.substring(0, 100))}... Potential use: Augment prompts to NLU provider.`
+      `[NLU Service] Received LTM context with ${ltmContext.length} items. First item (summary): ${JSON.stringify(ltmContext[0].text?.substring(0, 100))}... Potential use: Augment prompts to NLU provider.`,
     );
     // console.log('[NLU Service] Full LTM Context:', JSON.stringify(ltmContext, null, 2)); // Optional: for more detail
   }
@@ -608,12 +637,12 @@ export async function understandMessage(
   // or selecting the most relevant pieces of context.
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: "system", content: SYSTEM_PROMPT },
     ...(conversationHistory || []).map((h) => ({
-      role: h.role as 'user' | 'assistant',
-      content: h.content || '',
+      role: h.role as "user" | "assistant",
+      content: h.content || "",
     })),
-    { role: 'user', content: message },
+    { role: "user", content: message },
   ];
 
   try {
@@ -621,7 +650,7 @@ export async function understandMessage(
       model: ATOM_NLU_MODEL_NAME,
       messages: messages,
       temperature: 0.1,
-      response_format: { type: 'json_object' },
+      response_format: { type: "json_object" },
     });
 
     const llmResponse = completion.choices[0]?.message?.content;
@@ -630,15 +659,15 @@ export async function understandMessage(
         originalMessage: message,
         intent: null,
         entities: {},
-        error: 'NLU service received an empty response from AI.',
+        error: "NLU service received an empty response from AI.",
       };
     }
 
     try {
       const parsedResponse = JSON.parse(llmResponse) as NLUResponseData;
       if (
-        typeof parsedResponse.intent === 'undefined' ||
-        typeof parsedResponse.entities !== 'object'
+        typeof parsedResponse.intent === "undefined" ||
+        typeof parsedResponse.entities !== "object"
       ) {
         return {
           originalMessage: message,
@@ -657,7 +686,7 @@ export async function understandMessage(
       };
 
       if (
-        parsedResponse.intent === 'NeedsClarification' &&
+        parsedResponse.intent === "NeedsClarification" &&
         parsedResponse.clarification_question
       ) {
         processed.requires_clarification = true;
@@ -668,14 +697,14 @@ export async function understandMessage(
             parsedResponse.partially_understood_intent;
         }
       } else if (
-        parsedResponse.intent === 'ComplexTask' &&
+        parsedResponse.intent === "ComplexTask" &&
         parsedResponse.entities &&
         parsedResponse.entities.sub_tasks
       ) {
         processed.sub_tasks = parsedResponse.entities.sub_tasks.map((st) => ({
           intent: st.intent || null,
           entities: st.entities || {},
-          summary_for_sub_task: st.summary_for_sub_task || '',
+          summary_for_sub_task: st.summary_for_sub_task || "",
         }));
         // Keep original_query if present in entities
         if (parsedResponse.entities.original_query) {
@@ -685,34 +714,34 @@ export async function understandMessage(
       }
 
       // Conceptual Post-Processing for QueryEmails intent:
-      if (processed.intent === 'QueryEmails' && processed.entities) {
+      if (processed.intent === "QueryEmails" && processed.entities) {
         const { date_query, ...otherEntities } = processed.entities;
         const resolvedDates: { after?: string; before?: string } = {};
 
-        if (date_query && typeof date_query === 'string') {
+        if (date_query && typeof date_query === "string") {
           console.log(`[NLU Service] Raw date_query from LLM: "${date_query}"`);
           const now = new Date();
           const formatDate = (d: Date) =>
-            `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
+            `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`;
           const lcDateQuery = date_query.toLowerCase();
 
-          if (lcDateQuery === 'today') {
+          if (lcDateQuery === "today") {
             resolvedDates.after = formatDate(
-              new Date(now.setHours(0, 0, 0, 0))
+              new Date(now.setHours(0, 0, 0, 0)),
             );
             resolvedDates.before = formatDate(
-              new Date(now.setHours(23, 59, 59, 999))
+              new Date(now.setHours(23, 59, 59, 999)),
             );
-          } else if (lcDateQuery === 'yesterday') {
+          } else if (lcDateQuery === "yesterday") {
             const yesterday = new Date(now);
             yesterday.setDate(now.getDate() - 1);
             resolvedDates.after = formatDate(
-              new Date(yesterday.setHours(0, 0, 0, 0))
+              new Date(yesterday.setHours(0, 0, 0, 0)),
             );
             resolvedDates.before = formatDate(
-              new Date(yesterday.setHours(23, 59, 59, 999))
+              new Date(yesterday.setHours(23, 59, 59, 999)),
             );
-          } else if (lcDateQuery.includes('last week')) {
+          } else if (lcDateQuery.includes("last week")) {
             const dayOfWeek = now.getDay();
             const lastMonday = new Date(now);
             lastMonday.setDate(now.getDate() - dayOfWeek - 6);
@@ -722,11 +751,11 @@ export async function understandMessage(
             lastSunday.setHours(23, 59, 59, 999);
             resolvedDates.after = formatDate(lastMonday);
             resolvedDates.before = formatDate(lastSunday);
-          } else if (lcDateQuery.includes('this week')) {
+          } else if (lcDateQuery.includes("this week")) {
             const dayOfWeek = now.getDay();
             const currentMonday = new Date(now);
             currentMonday.setDate(
-              now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)
+              now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1),
             );
             currentMonday.setHours(0, 0, 0, 0);
             const currentSunday = new Date(currentMonday);
@@ -734,29 +763,29 @@ export async function understandMessage(
             currentSunday.setHours(23, 59, 59, 999);
             resolvedDates.after = formatDate(currentMonday);
             resolvedDates.before = formatDate(currentSunday);
-          } else if (lcDateQuery.includes('last month')) {
+          } else if (lcDateQuery.includes("last month")) {
             const firstDayLastMonth = new Date(
               now.getFullYear(),
               now.getMonth() - 1,
-              1
+              1,
             );
             const lastDayLastMonth = new Date(
               now.getFullYear(),
               now.getMonth(),
-              0
+              0,
             );
             resolvedDates.after = formatDate(firstDayLastMonth);
             resolvedDates.before = formatDate(lastDayLastMonth);
-          } else if (lcDateQuery.includes('this month')) {
+          } else if (lcDateQuery.includes("this month")) {
             const firstDayThisMonth = new Date(
               now.getFullYear(),
               now.getMonth(),
-              1
+              1,
             );
             const lastDayThisMonth = new Date(
               now.getFullYear(),
               now.getMonth() + 1,
-              0
+              0,
             );
             resolvedDates.after = formatDate(firstDayThisMonth);
             resolvedDates.before = formatDate(lastDayThisMonth);
@@ -766,20 +795,20 @@ export async function understandMessage(
             processed.entities.resolved_date_range = resolvedDates;
             console.log(
               `[NLU Service] Resolved date_query "${date_query}" to:`,
-              resolvedDates
+              resolvedDates,
             );
           } else {
             console.log(
-              `[NLU Service] Could not resolve date_query "${date_query}" with basic logic. Passing raw.`
+              `[NLU Service] Could not resolve date_query "${date_query}" with basic logic. Passing raw.`,
             );
           }
         }
 
-        if (processed.intent === 'QueryEmails' && processed.entities) {
+        if (processed.intent === "QueryEmails" && processed.entities) {
           if (!processed.entities.raw_email_search_query && message) {
             processed.entities.raw_email_search_query = message;
             console.warn(
-              "[NLU Service] LLM did not explicitly return 'raw_email_search_query' for QueryEmails intent. Using original message as fallback."
+              "[NLU Service] LLM did not explicitly return 'raw_email_search_query' for QueryEmails intent. Using original message as fallback.",
             );
           }
 
@@ -787,7 +816,7 @@ export async function understandMessage(
             | EmailActionType
             | undefined;
           processed.entities.structured_action_request = {
-            actionType: actionTypeFromLLM || 'GET_FULL_CONTENT',
+            actionType: actionTypeFromLLM || "GET_FULL_CONTENT",
             infoKeywords:
               processed.entities.information_to_extract_keywords || undefined,
             naturalLanguageQuestion:
@@ -799,7 +828,7 @@ export async function understandMessage(
       return processed;
     } catch (jsonError: any) {
       console.error(
-        `Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`
+        `Error parsing NLU response from AI. Raw response: ${llmResponse}. Error: ${jsonError.message}`,
       );
       return {
         originalMessage: message,
@@ -809,9 +838,9 @@ export async function understandMessage(
       };
     }
   } catch (error: any) {
-    console.error('Error calling OpenAI for NLU service:', error.message);
+    console.error("Error calling OpenAI for NLU service:", error.message);
     let errorMessage =
-      'Failed to understand message due to an NLU service error.';
+      "Failed to understand message due to an NLU service error.";
     if (error.response?.data?.error?.message) {
       errorMessage += ` API Error: ${error.response.data.error.message}`;
     } else if (error.message) {
