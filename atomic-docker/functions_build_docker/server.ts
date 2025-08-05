@@ -2,21 +2,21 @@
 // This is typically handled by NODE_OPTIONS="--require ./opentelemetry.js" in the container environment.
 // Ensure `opentelemetry.js` is in the same directory as this `server.ts` or adjust path.
 
-import path from 'path';
-import express, { Request, Response, NextFunction } from 'express'; // Added Response, NextFunction
-import glob from 'glob';
-import { WebSocketServer, WebSocket } from 'ws';
-import qs from 'qs';
-import * as jose from 'jose';
-import http from 'http';
-import winston from 'winston';
-import expressWinston from 'express-winston';
+import path from "path";
+import express, { Request, Response, NextFunction } from "express"; // Added Response, NextFunction
+import glob from "glob";
+import { WebSocketServer, WebSocket } from "ws";
+import qs from "qs";
+import * as jose from "jose";
+import http from "http";
+import winston from "winston";
+import expressWinston from "express-winston";
 import {
   trace,
   context as otelContext,
   SpanStatusCode,
   Attributes,
-} from '@opentelemetry/api'; // For manual span attributes
+} from "@opentelemetry/api"; // For manual span attributes
 
 // Import custom metrics from opentelemetry.js
 import {
@@ -24,22 +24,23 @@ import {
   httpServerRequestDurationSeconds,
   activeWebsocketConnections,
   websocketMessagesReceivedTotal,
-} from './opentelemetry'; // Assuming opentelemetry.js is in the same directory
+} from "./opentelemetry"; // Assuming opentelemetry.js is in the same directory
 
 // Agenda imports
-import { startAgenda, stopAgenda } from '../../project/functions/agendaService';
-import { _internalHandleMessage } from '../../project/functions/atom-agent/handler';
-import type { InterfaceType } from '../../project/functions/atom-agent/conversationState';
+import { startAgenda, stopAgenda } from "../../project/functions/agendaService";
+import { _internalHandleMessage } from "../../project/functions/atom-agent/handler";
+import type { InterfaceType } from "../../project/functions/atom-agent/conversationState";
+import { initializeMeetingPrepScheduler } from "../../project/functions/atom-agent/meetingPrepScheduler";
 
 const PORT = process.env.PORT || 3000; // Standardized PORT usage
 const PORT2 = process.env.PORT2 || 3030; // Standardized PORT2 usage
 
-const serviceName = process.env.OTEL_SERVICE_NAME || 'functions-service';
-const serviceVersion = process.env.OTEL_SERVICE_VERSION || '1.0.0';
+const serviceName = process.env.OTEL_SERVICE_NAME || "functions-service";
+const serviceVersion = process.env.OTEL_SERVICE_VERSION || "1.0.0";
 
 // Configure Winston Logger
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.json(), // Output logs in JSON format
@@ -58,7 +59,7 @@ const logger = winston.createLogger({
         }
       }
       return info;
-    })()
+    })(),
   ),
   transports: [
     new winston.transports.Console(), // Log to console (stdout/stderr)
@@ -69,14 +70,14 @@ const logger = winston.createLogger({
 function onSocketError(err: Error) {
   // Typed error
   logger.error({
-    message: 'WebSocket socket error',
+    message: "WebSocket socket error",
     error: err.message,
     stack_trace: err.stack,
   });
 }
 
 const JWKS = jose.createRemoteJWKSet(
-  new URL(`${process.env.APP_CLIENT_URL}/api/auth/jwt/jwks.json`)
+  new URL(`${process.env.APP_CLIENT_URL}/api/auth/jwt/jwks.json`),
 );
 
 const connectedClients = new Map<string, WebSocket>();
@@ -84,9 +85,9 @@ const connectedClients = new Map<string, WebSocket>();
 interface AgentClientCommand {
   command_id: string;
   action:
-    | 'START_RECORDING_SESSION'
-    | 'STOP_RECORDING_SESSION'
-    | 'CANCEL_RECORDING_SESSION';
+    | "START_RECORDING_SESSION"
+    | "STOP_RECORDING_SESSION"
+    | "CANCEL_RECORDING_SESSION";
   payload?: {
     suggestedTitle?: string;
     linkedEventId?: string;
@@ -95,12 +96,12 @@ interface AgentClientCommand {
 
 export async function sendCommandToUser(
   userId: string,
-  command: AgentClientCommand
+  command: AgentClientCommand,
 ): Promise<boolean> {
   const clientSocket = connectedClients.get(userId);
-  const operation_name = 'SendCommandToUser';
+  const operation_name = "SendCommandToUser";
   if (clientSocket && clientSocket.readyState === WebSocket.OPEN) {
-    const messageToSend = { type: 'AGENT_COMMAND', payload: command };
+    const messageToSend = { type: "AGENT_COMMAND", payload: command };
     try {
       clientSocket.send(JSON.stringify(messageToSend));
       logger.info(
@@ -110,7 +111,7 @@ export async function sendCommandToUser(
           command_action: command.action,
           success: true,
         },
-        'Sent command to user'
+        "Sent command to user",
       );
       return true;
     } catch (error: any) {
@@ -123,7 +124,7 @@ export async function sendCommandToUser(
           error_message: error.message,
           stack_trace: error.stack,
         },
-        'Error sending command to user'
+        "Error sending command to user",
       );
       return false;
     }
@@ -134,9 +135,9 @@ export async function sendCommandToUser(
         user_id: userId,
         command_action: command.action,
         success: false,
-        reason: 'No active WebSocket or socket not open',
+        reason: "No active WebSocket or socket not open",
       },
-      'Failed to send command to user'
+      "Failed to send command to user",
     );
     return false;
   }
@@ -151,10 +152,10 @@ const main = async () => {
     expressWinston.logger({
       winstonInstance: logger,
       meta: true, // Log metadata such as req.url, req.method, etc.
-      msg: 'HTTP {{req.method}} {{req.url}} {{res.statusCode}} {{res.responseTime}}ms',
+      msg: "HTTP {{req.method}} {{req.url}} {{res.statusCode}} {{res.responseTime}}ms",
       expressFormat: false, // Use winston's format, not morgan's
       colorize: false, // JSON logs should not be colorized
-      skip: (req, _res) => req.path === '/healthz', // Skip health checks
+      skip: (req, _res) => req.path === "/healthz", // Skip health checks
       dynamicMeta: (req, res) => {
         // Add custom attributes to request logs
         const meta: Attributes = {};
@@ -168,17 +169,17 @@ const main = async () => {
         }
         return meta;
       },
-    })
+    }),
   );
   app2.use(
     expressWinston.logger({
       // Apply to app2 as well
       winstonInstance: logger,
       meta: true,
-      msg: 'HTTP {{req.method}} {{req.url}} {{res.statusCode}} {{res.responseTime}}ms (app2)',
+      msg: "HTTP {{req.method}} {{req.url}} {{res.statusCode}} {{res.responseTime}}ms (app2)",
       expressFormat: false,
       colorize: false,
-      skip: (req, _res) => req.path === '/healthz',
+      skip: (req, _res) => req.path === "/healthz",
       dynamicMeta: (req, res) => {
         const meta: Attributes = {};
         if (req) {
@@ -190,24 +191,24 @@ const main = async () => {
         }
         return meta;
       },
-    })
+    }),
   );
 
   // Middleware for custom metrics for all requests
   const recordHttpMetrics = (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) => {
     const startEpoch = Date.now();
-    res.on('finish', () => {
+    res.on("finish", () => {
       const endEpoch = Date.now();
       const durationSeconds = (endEpoch - startEpoch) / 1000;
 
       const attributes = {
         http_route: req.route
           ? req.route.path
-          : (req.originalUrl || req.url).split('?')[0], // Use route path if available, else full path
+          : (req.originalUrl || req.url).split("?")[0], // Use route path if available, else full path
         http_method: req.method,
         status_code: res.statusCode,
       };
@@ -221,19 +222,19 @@ const main = async () => {
 
   app.use(
     express.json({
-      limit: '6MB',
+      limit: "6MB",
       verify: (req, _res, buf) => {
         (req as any).rawBody = buf.toString();
       },
-    })
+    }),
   );
   app2.use(
     express.json({
-      limit: '6MB',
+      limit: "6MB",
       verify: (req, _res, buf) => {
         (req as any).rawBody = buf.toString();
       },
-    })
+    }),
   );
 
   app.use(express.urlencoded({ extended: true }));
@@ -248,36 +249,36 @@ const main = async () => {
     }
     if (req.path.match(/\-admin$/)) {
       const authorizationToken = req.headers.authorization;
-      if (!authorizationToken || !authorizationToken.startsWith('Basic ')) {
+      if (!authorizationToken || !authorizationToken.startsWith("Basic ")) {
         logger.warn({
           operation_name,
           path: req.path,
-          reason: 'Missing or malformed Basic auth for admin path',
+          reason: "Missing or malformed Basic auth for admin path",
         });
-        return res.status(401).send('Unauthorized');
+        return res.status(401).send("Unauthorized");
       }
-      const encodedCreds = authorizationToken.split(' ')[1];
-      const verifyToken = Buffer.from(encodedCreds, 'base64')
+      const encodedCreds = authorizationToken.split(" ")[1];
+      const verifyToken = Buffer.from(encodedCreds, "base64")
         .toString()
-        .split(':')[1];
+        .split(":")[1];
       if (verifyToken !== process.env.BASIC_AUTH) {
         logger.warn({
           operation_name,
           path: req.path,
-          reason: 'Invalid Basic auth token for admin path',
+          reason: "Invalid Basic auth token for admin path",
         });
-        return res.status(401).send('Unauthorized');
+        return res.status(401).send("Unauthorized");
       }
       return next();
     }
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
       try {
         const result = await jose.jwtVerify(token, JWKS);
         logger.debug(
           { operation_name, path: req.path, user_id: result.payload.sub },
-          'JWT verified successfully'
+          "JWT verified successfully",
         );
         (req as any).user = result.payload; // Attach user payload to request
         next();
@@ -286,7 +287,7 @@ const main = async () => {
           operation_name,
           path: req.path,
           error_message: e.message,
-          reason: 'JWT verification failed',
+          reason: "JWT verification failed",
         });
         return res.sendStatus(403);
       }
@@ -294,7 +295,7 @@ const main = async () => {
       logger.warn({
         operation_name,
         path: req.path,
-        reason: 'Missing Bearer token',
+        reason: "Missing Bearer token",
       });
       res.sendStatus(401);
     }
@@ -308,36 +309,36 @@ const main = async () => {
     }
     if (req.path.match(/\-admin$/)) {
       const authorizationToken = req.headers.authorization;
-      if (!authorizationToken || !authorizationToken.startsWith('Basic ')) {
+      if (!authorizationToken || !authorizationToken.startsWith("Basic ")) {
         logger.warn({
           operation_name,
           path: req.path,
-          reason: 'Missing or malformed Basic auth for admin path on app2',
+          reason: "Missing or malformed Basic auth for admin path on app2",
         });
-        return res.status(401).send('Unauthorized');
+        return res.status(401).send("Unauthorized");
       }
-      const encodedCreds = authorizationToken.split(' ')[1];
-      const verifyToken = Buffer.from(encodedCreds, 'base64')
+      const encodedCreds = authorizationToken.split(" ")[1];
+      const verifyToken = Buffer.from(encodedCreds, "base64")
         .toString()
-        .split(':')[1];
+        .split(":")[1];
       if (verifyToken !== process.env.BASIC_AUTH) {
         logger.warn({
           operation_name,
           path: req.path,
-          reason: 'Invalid Basic auth token for admin path on app2',
+          reason: "Invalid Basic auth token for admin path on app2",
         });
-        return res.status(401).send('Unauthorized');
+        return res.status(401).send("Unauthorized");
       }
       return next();
     }
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
       try {
         const result = await jose.jwtVerify(token, JWKS);
         logger.debug(
           { operation_name, path: req.path, user_id: result.payload.sub },
-          'JWT verified successfully for app2'
+          "JWT verified successfully for app2",
         );
         (req as any).user = result.payload;
         next();
@@ -346,7 +347,7 @@ const main = async () => {
           operation_name,
           path: req.path,
           error_message: e.message,
-          reason: 'JWT verification failed for app2',
+          reason: "JWT verification failed for app2",
         });
         return res.sendStatus(403);
       }
@@ -354,31 +355,31 @@ const main = async () => {
       logger.warn({
         operation_name,
         path: req.path,
-        reason: 'Missing Bearer token for app2',
+        reason: "Missing Bearer token for app2",
       });
       res.sendStatus(401);
     }
   });
 
-  app.disable('x-powered-by');
-  app2.disable('x-powered-by');
+  app.disable("x-powered-by");
+  app2.disable("x-powered-by");
 
-  app.get('/healthz', (_req: Request, res: Response) => {
+  app.get("/healthz", (_req: Request, res: Response) => {
     // Typed req, res
-    res.status(200).send('ok');
+    res.status(200).send("ok");
   });
-  app2.get('/healthz', (_req: Request, res: Response) => {
+  app2.get("/healthz", (_req: Request, res: Response) => {
     // Typed req, res
-    res.status(200).send('ok');
+    res.status(200).send("ok");
   });
 
   const functionsPath = path.join(
     process.cwd(),
-    process.env.FUNCTIONS_RELATIVE_PATH!
+    process.env.FUNCTIONS_RELATIVE_PATH!,
   ); // Added non-null assertion
-  const files = glob.sync('**/*.@(js|ts)', {
+  const files = glob.sync("**/*.@(js|ts)", {
     cwd: functionsPath,
-    ignore: ['**/node_modules/**', '**/_*/**', '**/_*'],
+    ignore: ["**/node_modules/**", "**/_*/**", "**/_*"],
   });
 
   for (const file of files) {
@@ -389,19 +390,19 @@ const main = async () => {
 
       if (handler) {
         const route = `/${file}`
-          .replace(/(\.ts|\.js)$/, '')
-          .replace(/\/index$/, '/');
+          .replace(/(\.ts|\.js)$/, "")
+          .replace(/\/index$/, "/");
         app.all(route, handler);
         app2.all(route, handler);
         logger.info(
           { operation_name, route, file: relativePath },
-          `Loaded route from file`
+          `Loaded route from file`,
         );
       } else {
         logger.warn({
           operation_name,
           file: relativePath,
-          reason: 'No default export',
+          reason: "No default export",
         });
       }
     } catch (error: any) {
@@ -412,7 +413,7 @@ const main = async () => {
           error_message: error.message,
           stack_trace: error.stack,
         },
-        `Unable to load file as a Serverless Function`
+        `Unable to load file as a Serverless Function`,
       );
       continue;
     }
@@ -424,10 +425,10 @@ const main = async () => {
   const wss = new WebSocketServer({ clientTracking: false, noServer: true });
   const wss2 = new WebSocketServer({ clientTracking: false, noServer: true });
 
-  const wsFiles = glob.sync('**/_chat/chat_brain/handler.ts', {
+  const wsFiles = glob.sync("**/_chat/chat_brain/handler.ts", {
     // This seems very specific, ensure it's correct
     cwd: functionsPath,
-    ignore: ['**/node_modules/**'],
+    ignore: ["**/node_modules/**"],
   });
 
   // Common WebSocket upgrade logic
@@ -436,37 +437,37 @@ const main = async () => {
     request: Request,
     socket: NodeJS.Socket, // http.IncomingMessage uses stream.Duplex, but WebSocketServer expects NodeJS.Socket
     head: Buffer,
-    serverName: string
+    serverName: string,
   ) {
     const operation_name = `WebSocketUpgrade_${serverName}`;
-    socket.on('error', onSocketError); // onSocketError now uses logger
+    socket.on("error", onSocketError); // onSocketError now uses logger
 
     logger.info(
       { operation_name, url: request.url },
-      `Attempting WebSocket upgrade`
+      `Attempting WebSocket upgrade`,
     );
 
     const string2Parse = request.url?.slice(2); // Assuming URL like "/?Auth=Bearer%20token"
-    const queryParams = qs.parse(string2Parse || '');
+    const queryParams = qs.parse(string2Parse || "");
     const authHeader = queryParams.Auth as string;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
       try {
         const result = await jose.jwtVerify(token, JWKS);
-        if (result.payload.sub && typeof result.payload.sub === 'string') {
+        if (result.payload.sub && typeof result.payload.sub === "string") {
           (request as any).userId = result.payload.sub;
           logger.info(
             { operation_name, user_id: result.payload.sub },
-            `WebSocket JWT verified`
+            `WebSocket JWT verified`,
           );
         } else {
           logger.error({
             operation_name,
-            reason: 'User ID (sub) not found or invalid in JWT payload',
+            reason: "User ID (sub) not found or invalid in JWT payload",
           });
           socket.write(
-            'HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n'
+            "HTTP/1.1 401 Unauthorized (Invalid Token Payload)\r\n\r\n",
           );
           socket.destroy();
           return;
@@ -475,38 +476,38 @@ const main = async () => {
         logger.error({
           operation_name,
           error_message: e.message,
-          reason: 'WebSocket JWT verification failed',
+          reason: "WebSocket JWT verification failed",
         });
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();
         return;
       }
     } else {
       logger.warn({
         operation_name,
-        reason: 'Missing or malformed Auth query parameter for WebSocket',
+        reason: "Missing or malformed Auth query parameter for WebSocket",
       });
-      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;
     }
 
-    socket.removeListener('error', onSocketError);
+    socket.removeListener("error", onSocketError);
     wssInstance.handleUpgrade(
       request as http.IncomingMessage,
       socket,
       head,
       function done(ws) {
-        wssInstance.emit('connection', ws, request);
-      }
+        wssInstance.emit("connection", ws, request);
+      },
     );
   }
 
-  httpServer.on('upgrade', (req, socket, head) =>
-    handleWebSocketUpgrade(wss, req as Request, socket, head, 'httpServer1')
+  httpServer.on("upgrade", (req, socket, head) =>
+    handleWebSocketUpgrade(wss, req as Request, socket, head, "httpServer1"),
   );
-  httpServer2.on('upgrade', (req, socket, head) =>
-    handleWebSocketUpgrade(wss2, req as Request, socket, head, 'httpServer2')
+  httpServer2.on("upgrade", (req, socket, head) =>
+    handleWebSocketUpgrade(wss2, req as Request, socket, head, "httpServer2"),
   );
 
   const keepAlivePeriod = 50000;
@@ -515,7 +516,7 @@ const main = async () => {
   async function onWebSocketConnection(
     ws: WebSocket,
     request: Request & { userId?: string },
-    serverName: string
+    serverName: string,
   ) {
     const userId = request.userId;
     const operation_name = `WebSocketConnect_${serverName}`;
@@ -524,11 +525,11 @@ const main = async () => {
       activeWebsocketConnections.add(1, { server: serverName });
       logger.info(
         { operation_name, user_id: userId },
-        `WebSocket connection established`
+        `WebSocket connection established`,
       );
       connectedClients.set(userId, ws);
 
-      ws.on('error', (error: Error) => {
+      ws.on("error", (error: Error) => {
         // Typed error
         logger.error(
           {
@@ -537,17 +538,17 @@ const main = async () => {
             error_message: error.message,
             stack_trace: error.stack,
           },
-          `WebSocket error`
+          `WebSocket error`,
         );
       });
 
       const keepAliveId = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' })); // Send JSON ping
+          ws.send(JSON.stringify({ type: "ping" })); // Send JSON ping
         }
       }, keepAlivePeriod);
 
-      ws.on('message', async function incoming(messageBuffer) {
+      ws.on("message", async function incoming(messageBuffer) {
         const messageOpName = `WebSocketMessage_${serverName}`;
         websocketMessagesReceivedTotal.add(1, { server: serverName });
         const message = messageBuffer.toString();
@@ -557,7 +558,7 @@ const main = async () => {
             user_id: userId,
             received_message_length: message.length,
           },
-          `Received message`
+          `Received message`,
         );
 
         try {
@@ -565,7 +566,7 @@ const main = async () => {
             logger.error({
               messageOpName,
               user_id: userId,
-              reason: 'No WebSocket message handler file found (wsFiles empty)',
+              reason: "No WebSocket message handler file found (wsFiles empty)",
             });
             return;
           }
@@ -577,7 +578,7 @@ const main = async () => {
             message,
             userId,
             request,
-            sendCommandToUser
+            sendCommandToUser,
           );
 
           if (replyMessage && ws.readyState === WebSocket.OPEN) {
@@ -591,12 +592,12 @@ const main = async () => {
               error_message: e.message,
               stack_trace: e.stack,
             },
-            `Error processing message`
+            `Error processing message`,
           );
         }
       });
 
-      ws.on('close', (code, reason) => {
+      ws.on("close", (code, reason) => {
         activeWebsocketConnections.add(-1, { server: serverName });
         logger.info(
           {
@@ -605,7 +606,7 @@ const main = async () => {
             code,
             reason: reason.toString(),
           },
-          `WebSocket connection closed`
+          `WebSocket connection closed`,
         );
         connectedClients.delete(userId);
         clearInterval(keepAliveId);
@@ -613,23 +614,23 @@ const main = async () => {
     } else {
       logger.error({
         operation_name,
-        reason: 'WebSocket connection established without a userId. Closing.',
+        reason: "WebSocket connection established without a userId. Closing.",
       });
-      ws.close(1008, 'User ID not available after upgrade');
+      ws.close(1008, "User ID not available after upgrade");
     }
   }
 
-  wss.on('connection', (ws, req) =>
-    onWebSocketConnection(ws, req as Request & { userId?: string }, 'wss1')
+  wss.on("connection", (ws, req) =>
+    onWebSocketConnection(ws, req as Request & { userId?: string }, "wss1"),
   );
-  wss2.on('connection', (ws, req) =>
-    onWebSocketConnection(ws, req as Request & { userId?: string }, 'wss2')
+  wss2.on("connection", (ws, req) =>
+    onWebSocketConnection(ws, req as Request & { userId?: string }, "wss2"),
   );
 
-  const workerFiles = glob.sync('**/*_/*.@(js|ts)', {
+  const workerFiles = glob.sync("**/*_/*.@(js|ts)", {
     // e.g. _dayScheduleWorker_
     cwd: functionsPath,
-    ignore: ['**/node_modules/**'],
+    ignore: ["**/node_modules/**"],
   });
 
   const workerHandlers: (() => Promise<any>)[] = []; // Typed array
@@ -639,14 +640,14 @@ const main = async () => {
       const { default: handler } = await import(
         path.join(functionsPath, workerFile)
       );
-      if (typeof handler === 'function') {
+      if (typeof handler === "function") {
         workerHandlers.push(handler);
         logger.info({ opName, file: workerFile }, `Loaded worker handler`);
       } else {
         logger.warn({
           opName,
           file: workerFile,
-          reason: 'No default export function found',
+          reason: "No default export function found",
         });
       }
     } catch (error: any) {
@@ -657,50 +658,63 @@ const main = async () => {
           error_message: error.message,
           stack_trace: error.stack,
         },
-        `Error loading worker handler`
+        `Error loading worker handler`,
       );
     }
   }
 
   if (workerHandlers.length > 0) {
     logger.info(
-      { operation_name: 'InitializeWorkers', count: workerHandlers.length },
-      'Initializing Kafka consumer workers...'
+      { operation_name: "InitializeWorkers", count: workerHandlers.length },
+      "Initializing Kafka consumer workers...",
     );
     await Promise.all(workerHandlers.map((handler) => handler())).catch(
       (err) => {
         logger.error(
           {
-            operation_name: 'InitializeWorkers',
+            operation_name: "InitializeWorkers",
             error_message: err.message,
             stack_trace: err.stack,
           },
-          'Error during worker initialization'
+          "Error during worker initialization",
         );
-      }
+      },
     );
   } else {
     logger.info(
-      { operation_name: 'InitializeWorkers' },
-      'No Kafka consumer workers found to initialize.'
+      { operation_name: "InitializeWorkers" },
+      "No Kafka consumer workers found to initialize.",
     );
   }
+
+  await initializeMeetingPrepScheduler().catch((error) => {
+    logger.error(
+      {
+        operation_name: "InitializeLLMScheduling",
+        error_message: error.message,
+        stack_trace: error.stack,
+      },
+      "Failed to start LLM-powered scheduling system",
+    );
+    // Don't exit on LLM scheduling error - allow server to start
+    logger.warn("LLM scheduling features may not be available");
+  });
 
   await startAgenda().catch((error) => {
     logger.error(
       {
-        operation_name: 'StartAgenda',
+        operation_name: "StartAgenda",
         error_message: error.message,
         stack_trace: error.stack,
       },
-      'Failed to start Agenda'
+      "Failed to start Agenda",
     );
   });
 
-  app.post('/api/agent-handler', async (req: Request, res: Response) => {
+  app.post("/api/agent-handler", async (req: Request, res: Response) => {
     // Typed req, res
-    const operation_name = 'AgentHandlerScheduledTask';
-    logger.info({ operation_name }, 'Received request from Agenda job runner');
+    const operation_name = "AgentHandlerScheduledTask";
+    logger.info({ operation_name }, "Received request from Agenda job runner");
     const {
       message,
       userId,
@@ -714,25 +728,25 @@ const main = async () => {
       !userId ||
       !intentName ||
       !requestSource ||
-      requestSource !== 'ScheduledJobExecutor'
+      requestSource !== "ScheduledJobExecutor"
     ) {
       logger.warn(
-        { operation_name, error_code: 'VALIDATION_001', payload: req.body },
-        'Invalid payload for scheduled task'
+        { operation_name, error_code: "VALIDATION_001", payload: req.body },
+        "Invalid payload for scheduled task",
       );
       return res
         .status(400)
-        .json({ error: 'Invalid payload for scheduled task' });
+        .json({ error: "Invalid payload for scheduled task" });
     }
 
     try {
-      const interfaceType: InterfaceType = 'text';
+      const interfaceType: InterfaceType = "text";
       const options = { requestSource, intentName, entities, conversationId };
       const result = await _internalHandleMessage(
         interfaceType,
         message,
         userId,
-        options
+        options,
       );
 
       logger.info(
@@ -743,15 +757,13 @@ const main = async () => {
           success: true,
           result_text_length: result.text?.length,
         },
-        'Scheduled task processed successfully'
+        "Scheduled task processed successfully",
       );
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message: 'Task processed',
-          details: result.text,
-        });
+      return res.status(200).json({
+        success: true,
+        message: "Task processed",
+        details: result.text,
+      });
     } catch (error: any) {
       logger.error(
         {
@@ -762,27 +774,25 @@ const main = async () => {
           error_message: error.message,
           stack_trace: error.stack,
         },
-        'Error processing scheduled task'
+        "Error processing scheduled task",
       );
-      return res
-        .status(500)
-        .json({
-          success: false,
-          error: error.message || 'Internal server error',
-        });
+      return res.status(500).json({
+        success: false,
+        error: error.message || "Internal server error",
+      });
     }
   });
 
   httpServer.listen(PORT, () => {
     logger.info(
-      { operation_name: 'HttpServerStart', port: PORT },
-      `HTTP Server with Agent Handler listening`
+      { operation_name: "HttpServerStart", port: PORT },
+      `HTTP Server with Agent Handler listening`,
     );
   });
   httpServer2.listen(PORT2, () => {
     logger.info(
-      { operation_name: 'HttpServer2Start', port: PORT2 },
-      `HTTP Server 2 listening`
+      { operation_name: "HttpServer2Start", port: PORT2 },
+      `HTTP Server 2 listening`,
     );
   });
 
@@ -803,7 +813,7 @@ const main = async () => {
         http_path: req.originalUrl || req.url,
         // trace_id: traceId, // Explicitly adding for clarity, though hook should do it.
       },
-      `Unhandled error caught by central error handler for app1: ${err.message}`
+      `Unhandled error caught by central error handler for app1: ${err.message}`,
     );
 
     // Set OpenTelemetry Span Status to error
@@ -819,50 +829,50 @@ const main = async () => {
     if (!res.headersSent) {
       let statusCode = err.status || err.statusCode || 500;
       if (
-        typeof statusCode !== 'number' ||
+        typeof statusCode !== "number" ||
         statusCode < 400 ||
         statusCode > 599
       ) {
         statusCode = 500; // Ensure it's a valid HTTP error status
       }
 
-      let errorCode = 'UNEXPECTED_ERROR';
+      let errorCode = "UNEXPECTED_ERROR";
       if (err.code) {
         // From opossum (EOPENBREAKER) or other libs
         errorCode = err.code;
       } else {
         switch (statusCode) {
           case 400:
-            errorCode = 'BAD_REQUEST';
+            errorCode = "BAD_REQUEST";
             break;
           case 401:
-            errorCode = 'UNAUTHORIZED';
+            errorCode = "UNAUTHORIZED";
             break;
           case 403:
-            errorCode = 'FORBIDDEN';
+            errorCode = "FORBIDDEN";
             break;
           case 404:
-            errorCode = 'NOT_FOUND';
+            errorCode = "NOT_FOUND";
             break;
           case 500:
-            errorCode = 'INTERNAL_SERVER_ERROR';
+            errorCode = "INTERNAL_SERVER_ERROR";
             break;
           case 502:
-            errorCode = 'BAD_GATEWAY';
+            errorCode = "BAD_GATEWAY";
             break;
           case 503:
-            errorCode = 'SERVICE_UNAVAILABLE';
+            errorCode = "SERVICE_UNAVAILABLE";
             break;
           case 504:
-            errorCode = 'GATEWAY_TIMEOUT';
+            errorCode = "GATEWAY_TIMEOUT";
             break;
         }
       }
 
       const responseMessage =
-        statusCode >= 500 && process.env.NODE_ENV === 'production'
-          ? 'An internal server error occurred. Please try again later.'
-          : err.message || 'An unexpected error occurred.';
+        statusCode >= 500 && process.env.NODE_ENV === "production"
+          ? "An internal server error occurred. Please try again later."
+          : err.message || "An unexpected error occurred.";
 
       res.status(statusCode).json({
         success: false,
@@ -891,9 +901,9 @@ const main = async () => {
         error_code_property: err.code,
         http_method: req.method,
         http_path: req.originalUrl || req.url,
-        app_instance: 'app2',
+        app_instance: "app2",
       },
-      `Unhandled error caught by central error handler for app2: ${err.message}`
+      `Unhandled error caught by central error handler for app2: ${err.message}`,
     );
 
     const currentSpanApp2 = trace.getSpan(otelContext.active());
@@ -909,49 +919,49 @@ const main = async () => {
     if (!res.headersSent) {
       let statusCode = err.status || err.statusCode || 500;
       if (
-        typeof statusCode !== 'number' ||
+        typeof statusCode !== "number" ||
         statusCode < 400 ||
         statusCode > 599
       ) {
         statusCode = 500;
       }
 
-      let errorCode = 'UNEXPECTED_ERROR_APP2';
+      let errorCode = "UNEXPECTED_ERROR_APP2";
       if (err.code) {
         errorCode = err.code;
       } else {
         switch (statusCode) {
           case 400:
-            errorCode = 'BAD_REQUEST_APP2';
+            errorCode = "BAD_REQUEST_APP2";
             break;
           case 401:
-            errorCode = 'UNAUTHORIZED_APP2';
+            errorCode = "UNAUTHORIZED_APP2";
             break;
           case 403:
-            errorCode = 'FORBIDDEN_APP2';
+            errorCode = "FORBIDDEN_APP2";
             break;
           case 404:
-            errorCode = 'NOT_FOUND_APP2';
+            errorCode = "NOT_FOUND_APP2";
             break;
           case 500:
-            errorCode = 'INTERNAL_SERVER_ERROR_APP2';
+            errorCode = "INTERNAL_SERVER_ERROR_APP2";
             break;
           case 502:
-            errorCode = 'BAD_GATEWAY_APP2';
+            errorCode = "BAD_GATEWAY_APP2";
             break;
           case 503:
-            errorCode = 'SERVICE_UNAVAILABLE_APP2';
+            errorCode = "SERVICE_UNAVAILABLE_APP2";
             break;
           case 504:
-            errorCode = 'GATEWAY_TIMEOUT_APP2';
+            errorCode = "GATEWAY_TIMEOUT_APP2";
             break;
         }
       }
 
       const responseMessage =
-        statusCode >= 500 && process.env.NODE_ENV === 'production'
-          ? 'An internal server error occurred on app2. Please try again later.'
-          : err.message || 'An unexpected error occurred on app2.';
+        statusCode >= 500 && process.env.NODE_ENV === "production"
+          ? "An internal server error occurred on app2. Please try again later."
+          : err.message || "An unexpected error occurred on app2.";
 
       res.status(statusCode).json({
         success: false,
@@ -967,17 +977,17 @@ const main = async () => {
 
   const shutdown = async (signal: string) => {
     logger.info(
-      { operation_name: 'ShutdownProcess', signal },
-      `Received signal. Shutting down...`
+      { operation_name: "ShutdownProcess", signal },
+      `Received signal. Shutting down...`,
     );
     await stopAgenda();
     // Add any other cleanup here (e.g. wss.close(), sdk.shutdown() - though sdk handles SIGTERM/SIGINT)
     httpServer.close(() => {
-      logger.info({ operation_name: 'HttpServerStop' }, 'HTTP server closed.');
+      logger.info({ operation_name: "HttpServerStop" }, "HTTP server closed.");
       httpServer2.close(() => {
         logger.info(
-          { operation_name: 'HttpServer2Stop' },
-          'HTTP server 2 closed.'
+          { operation_name: "HttpServer2Stop" },
+          "HTTP server 2 closed.",
         );
         // process.exit(0) will be handled by OpenTelemetry SDK's shutdown hooks if it's registered for the signal
       });
@@ -993,11 +1003,11 @@ const main = async () => {
 main().catch((error) => {
   logger.fatal(
     {
-      operation_name: 'MainExecutionError',
+      operation_name: "MainExecutionError",
       error_message: error.message,
       stack_trace: error.stack,
     },
-    'Fatal error during main execution, exiting.'
+    "Fatal error during main execution, exiting.",
   );
   process.exit(1);
 });

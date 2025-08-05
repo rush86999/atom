@@ -1,44 +1,45 @@
-import { ChatBrainBodyType } from './types';
-import { callOpenAI } from '@chat/_libs/api-helper';
+import { ChatBrainBodyType } from "./types";
+import { callOpenAI } from "@chat/_libs/api-helper";
 
-import OpenAI from 'openai';
+import OpenAI from "openai";
 import {
   defaultOpenAIAPIKey,
   openAIChatGPT35Model,
-} from '@chat/_libs/constants';
+} from "@chat/_libs/constants";
 import {
   categorizeSkillFromUserInputExampleInput,
   categorizeSkillFromUserInputExampleOutput,
   categorizeSkillFromUserInputPrompt,
-} from '@chat/_libs/prompts/categorizeSkillFromUserInput';
+} from "@chat/_libs/prompts/categorizeSkillFromUserInput";
 import {
   SkillMessageHistoryType,
   SkillType,
-} from '@chat/_libs/types/Messaging/MessagingTypes';
-import { dayjs } from '@chat/_libs/datetime/date-utils';
-import { askAvailabilityControlCenterForPending } from '@chat/_libs/skills/askCalendar/askAvailability/api-helper';
-import { askEventControlCenter } from '@chat/_libs/skills/askCalendar/findEvent/api-helper';
-import { nextEventControlCenter } from '@chat/_libs/skills/askCalendar/nextEvent/api-helper';
-import { addTaskControlCenter } from '@chat/_libs/skills/orderCalendar/addTask/api-helper';
-import { blockOffTimeControlCenter } from '@chat/_libs/skills/orderCalendar/blockOffTime/api-helper';
-import { cancelMeetingControlCenterPending } from '@chat/_libs/skills/orderCalendar/cancelMeeting/api-helper';
-import { queryEventsControlCenter } from '@chat/_libs/skills/askCalendar/findEvents/api-helper';
-import { createEventControlCenter } from '@chat/_libs/skills/orderCalendar/createEvent/api-helper';
-import { deleteEventControlCenter } from '@chat/_libs/skills/orderCalendar/deleteEvent/api-helper';
-import { deletePriorityControlCenter } from '@chat/_libs/skills/orderCalendar/deletePriority/api-helper';
-import { deleteTaskControlCenter } from '@chat/_libs/skills/orderCalendar/deleteTask/api-helper';
-import { EAPTToPreferredTimesControlCenter } from '@chat/_libs/skills/orderCalendar/editAddPreferredTimeToPreferredTimes/api-helper';
-import { editEventControlCenter } from '@chat/_libs/skills/orderCalendar/editEvent/api-helper';
-import { ERPT2PTControlCenter } from '@chat/_libs/skills/orderCalendar/editRemovePreferredTimeToPreferredTimes/api-helper';
-import { FMTWPControlCenter } from '@chat/_libs/skills/orderCalendar/findMeetingTimeWithPermission/api-helper';
-import { generateMeetingInviteControlCenter } from '@chat/_libs/skills/orderCalendar/generateMeetingInvite/api-helper';
-import { RAPControlCenter } from '@chat/_libs/skills/orderCalendar/removeAllPreferedTimes/api-helper';
-import { RCEControlCenter } from '@chat/_libs/skills/orderCalendar/resolveConflictingEvents/api-helper';
-import { scheduleMeetingControlCenter } from '@chat/_libs/skills/orderCalendar/scheduleMeeting/api-helper';
-import { sendMeetingInviteControlCenter } from '@chat/_libs/skills/orderCalendar/sendMeetingInvite/api-helper';
-import { updateMeetingControlCenter } from '@chat/_libs/skills/orderCalendar/updateMeeting/api-helper';
-import { updatePriorityControlCenter } from '@chat/_libs/skills/orderCalendar/updatePriority/api-helper';
-import { updateTaskControlCenter } from '@chat/_libs/skills/orderCalendar/updateTask/api-helper';
+} from "@chat/_libs/types/Messaging/MessagingTypes";
+import { dayjs } from "@chat/_libs/datetime/date-utils";
+import { askAvailabilityControlCenterForPending } from "@chat/_libs/skills/askCalendar/askAvailability/api-helper";
+import { askEventControlCenter } from "@chat/_libs/skills/askCalendar/findEvent/api-helper";
+import { nextEventControlCenter } from "@chat/_libs/skills/askCalendar/nextEvent/api-helper";
+import { addTaskControlCenter } from "@chat/_libs/skills/orderCalendar/addTask/api-helper";
+import { blockOffTimeControlCenter } from "@chat/_libs/skills/orderCalendar/blockOffTime/api-helper";
+import { cancelMeetingControlCenterPending } from "@chat/_libs/skills/orderCalendar/cancelMeeting/api-helper";
+import { queryEventsControlCenter } from "@chat/_libs/skills/askCalendar/findEvents/api-helper";
+import { createEventControlCenter } from "@chat/_libs/skills/orderCalendar/createEvent/api-helper";
+import { deleteEventControlCenter } from "@chat/_libs/skills/orderCalendar/deleteEvent/api-helper";
+import { deletePriorityControlCenter } from "@chat/_libs/skills/orderCalendar/deletePriority/api-helper";
+import { deleteTaskControlCenter } from "@chat/_libs/skills/orderCalendar/deleteTask/api-helper";
+import { EAPTToPreferredTimesControlCenter } from "@chat/_libs/skills/orderCalendar/editAddPreferredTimeToPreferredTimes/api-helper";
+import { editEventControlCenter } from "@chat/_libs/skills/orderCalendar/editEvent/api-helper";
+import { ERPT2PTControlCenter } from "@chat/_libs/skills/orderCalendar/editRemovePreferredTimeToPreferredTimes/api-helper";
+import { FMTWPControlCenter } from "@chat/_libs/skills/orderCalendar/findMeetingTimeWithPermission/api-helper";
+import { generateMeetingInviteControlCenter } from "@chat/_libs/skills/orderCalendar/generateMeetingInvite/api-helper";
+import { RAPControlCenter } from "@chat/_libs/skills/orderCalendar/removeAllPreferedTimes/api-helper";
+import { RCEControlCenter } from "@chat/_libs/skills/orderCalendar/resolveConflictingEvents/api-helper";
+import { scheduleMeetingControlCenter } from "@chat/_libs/skills/orderCalendar/scheduleMeeting/api-helper";
+import { sendMeetingInviteControlCenter } from "@chat/_libs/skills/orderCalendar/sendMeetingInvite/api-helper";
+import { updateMeetingControlCenter } from "@chat/_libs/skills/orderCalendar/updateMeeting/api-helper";
+import { updatePriorityControlCenter } from "@chat/_libs/skills/orderCalendar/updatePriority/api-helper";
+import { updateTaskControlCenter } from "@chat/_libs/skills/orderCalendar/updateTask/api-helper";
+import { atomAgentClient } from "@chat/_libs/clients/atomAgentClient";
 
 const openai = new OpenAI({
   apiKey: defaultOpenAIAPIKey,
@@ -47,29 +48,29 @@ const openai = new OpenAI({
 const processQueries = async (
   userId: string,
   timezone: string,
-  messageHistoryObject: SkillMessageHistoryType
+  messageHistoryObject: SkillMessageHistoryType,
 ) => {
   try {
     // const userInput = messageHistoryObject?.messages?.[messageHistoryObject?.messages?.length - 1]?.content
     // extractQueryUserInputTimeToJSONTemplate
     const userCurrentTime = dayjs()
       .tz(timezone)
-      .format('dddd, YYYY-MM-DDTHH:mm:ssZ');
+      .format("dddd, YYYY-MM-DDTHH:mm:ssZ");
 
     switch (messageHistoryObject.skill) {
-      case 'ask-availability':
+      case "ask-availability":
         const messageHistoryObjectReturnedAskAvailability =
           await askAvailabilityControlCenterForPending(
             openai,
             userId,
             timezone,
             messageHistoryObject,
-            userCurrentTime
+            userCurrentTime,
           );
 
         return messageHistoryObjectReturnedAskAvailability;
 
-      case 'find-event':
+      case "find-event":
         const messageHistoryObjectReturnedAskEvent =
           await askEventControlCenter(
             openai,
@@ -77,11 +78,11 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedAskEvent;
-      case 'find-events':
+      case "find-events":
         const messageHistoryObjectReturnedAskEvents =
           await queryEventsControlCenter(
             openai,
@@ -89,11 +90,11 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedAskEvents;
-      case 'find-next-event':
+      case "find-next-event":
         const messageHistoryObjectReturnedNextEvent =
           await nextEventControlCenter(
             openai,
@@ -101,24 +102,24 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedNextEvent;
 
-      case 'add-task':
+      case "add-task":
         const messageHistoryObjectReturnedAddTask = await addTaskControlCenter(
           openai,
           userId,
           timezone,
           messageHistoryObject,
           userCurrentTime,
-          messageHistoryObject?.query
+          messageHistoryObject?.query,
         );
 
         return messageHistoryObjectReturnedAddTask;
 
-      case 'block-off-time':
+      case "block-off-time":
         const messageHistoryObjectReturnedBockOffTime =
           await blockOffTimeControlCenter(
             openai,
@@ -126,11 +127,11 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject.query
+            messageHistoryObject.query,
           );
 
         return messageHistoryObjectReturnedBockOffTime;
-      case 'cancel-meeting':
+      case "cancel-meeting":
         const messageHistoryObjectReturnedCancelMeeting =
           await cancelMeetingControlCenterPending(
             openai,
@@ -138,12 +139,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject.query
+            messageHistoryObject.query,
           );
 
         return messageHistoryObjectReturnedCancelMeeting;
 
-      case 'create-event':
+      case "create-event":
         const messageHistoryObjectReturnedCreateEvent =
           await createEventControlCenter(
             openai,
@@ -151,12 +152,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject.query
+            messageHistoryObject.query,
           );
 
         return messageHistoryObjectReturnedCreateEvent;
 
-      case 'delete-event':
+      case "delete-event":
         const messageHistoryObjectReturnedDeleteEvent =
           await deleteEventControlCenter(
             openai,
@@ -164,12 +165,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject.query
+            messageHistoryObject.query,
           );
 
         return messageHistoryObjectReturnedDeleteEvent;
 
-      case 'delete-priority':
+      case "delete-priority":
         const messageHistoryObjectReturnedDeletePriority =
           await deletePriorityControlCenter(
             openai,
@@ -177,12 +178,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject.query
+            messageHistoryObject.query,
           );
 
         return messageHistoryObjectReturnedDeletePriority;
 
-      case 'delete-task':
+      case "delete-task":
         const messageHistoryObjectReturnedDeleteTask =
           await deleteTaskControlCenter(
             openai,
@@ -190,10 +191,10 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
         return messageHistoryObjectReturnedDeleteTask;
-      case 'edit-add-preferred-time-to-preferred-times':
+      case "edit-add-preferred-time-to-preferred-times":
         // EAPTToPreferredTimesControlCenterPending
         const messageHistoryObjectReturnedEAPT =
           await EAPTToPreferredTimesControlCenter(
@@ -202,11 +203,11 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
         return messageHistoryObjectReturnedEAPT;
 
-      case 'edit-event':
+      case "edit-event":
         // editEventControlCenterPending
         const messageHistoryObjectReturnedEditEvent =
           await editEventControlCenter(
@@ -215,11 +216,11 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
         return messageHistoryObjectReturnedEditEvent;
 
-      case 'edit-remove-preferred-time-to-preferred-times':
+      case "edit-remove-preferred-time-to-preferred-times":
         // ERPT2PTControlCenterPending
         const messageHistoryObjectReturnedERPT2PTs = await ERPT2PTControlCenter(
           openai,
@@ -227,11 +228,11 @@ const processQueries = async (
           timezone,
           messageHistoryObject,
           userCurrentTime,
-          messageHistoryObject?.query
+          messageHistoryObject?.query,
         );
         return messageHistoryObjectReturnedERPT2PTs;
 
-      case 'find-meeting-time-with-permission':
+      case "find-meeting-time-with-permission":
         // findMeetingTimeWithPermissionControlCenterPending
         const messageHistoryObjectReturnedFMTWP = await FMTWPControlCenter(
           openai,
@@ -239,11 +240,11 @@ const processQueries = async (
           timezone,
           messageHistoryObject,
           userCurrentTime,
-          messageHistoryObject?.query
+          messageHistoryObject?.query,
         );
 
         return messageHistoryObjectReturnedFMTWP;
-      case 'generate-meeting-invite':
+      case "generate-meeting-invite":
         // generateMeetingInviteControlCenterPending
         const messageHistoryObjectReturnedGMI =
           await generateMeetingInviteControlCenter(
@@ -252,12 +253,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedGMI;
 
-      case 'remove-all-preferred-times':
+      case "remove-all-preferred-times":
         // RAPControlCenterPending
         const messageHistoryObjectReturnedRAP = await RAPControlCenter(
           openai,
@@ -265,24 +266,24 @@ const processQueries = async (
           timezone,
           messageHistoryObject,
           userCurrentTime,
-          messageHistoryObject?.query
+          messageHistoryObject?.query,
         );
 
         return messageHistoryObjectReturnedRAP;
 
-      case 'resolve-conflicting-events':
+      case "resolve-conflicting-events":
         const messageHistoryObjectReturnedRCE = await RCEControlCenter(
           openai,
           userId,
           timezone,
           messageHistoryObject,
           userCurrentTime,
-          messageHistoryObject?.query
+          messageHistoryObject?.query,
         );
 
         return messageHistoryObjectReturnedRCE;
 
-      case 'schedule-meeting':
+      case "schedule-meeting":
         // scheduleMeetingControlCenterPending
         const messageHistoryObjectReturnedScheduleMeeting =
           await scheduleMeetingControlCenter(
@@ -291,12 +292,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedScheduleMeeting;
 
-      case 'send-meeting-invite':
+      case "send-meeting-invite":
         // sendMeetingInviteControlCenterPending
         const messageHistoryObjectReturnedSMI =
           await sendMeetingInviteControlCenter(
@@ -305,12 +306,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedSMI;
 
-      case 'update-meeting':
+      case "update-meeting":
         // updateMeetingControlCenterPending
         const messageHistoryObjectReturnedUpdateMeeting =
           await updateMeetingControlCenter(
@@ -319,12 +320,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedUpdateMeeting;
 
-      case 'update-priority':
+      case "update-priority":
         // updatePriorityControlCenterPending
         const messageHistoryObjectReturnedUpdatePriority =
           await updatePriorityControlCenter(
@@ -333,12 +334,12 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedUpdatePriority;
 
-      case 'update-task':
+      case "update-task":
         // updateTaskControlCenterPending
         const messageHistoryObjectReturnedUpdateTask =
           await updateTaskControlCenter(
@@ -347,10 +348,46 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedUpdateTask;
+
+      case "generate-meeting-prep":
+        const messageHistoryObjectReturnedMeetingPrep =
+          await generateMeetingPrepControlCenter(
+            openai,
+            userId,
+            timezone,
+            messageHistoryObject,
+            userCurrentTime,
+            messageHistoryObject?.query,
+          );
+        return messageHistoryObjectReturnedMeetingPrep;
+
+      case "generate-daily-briefing":
+        const messageHistoryObjectReturnedDailyBriefing =
+          await generateDailyBriefingControlCenter(
+            openai,
+            userId,
+            timezone,
+            messageHistoryObject,
+            userCurrentTime,
+            messageHistoryObject?.query,
+          );
+        return messageHistoryObjectReturnedDailyBriefing;
+
+      case "auto-schedule-prep":
+        const messageHistoryObjectReturnedAutoSchedulePrep =
+          await autoSchedulePrepControlCenter(
+            openai,
+            userId,
+            timezone,
+            messageHistoryObject,
+            userCurrentTime,
+            messageHistoryObject?.query,
+          );
+        return messageHistoryObjectReturnedAutoSchedulePrep;
 
       default:
         const messageHistoryObjectReturnedAskEventsDefault =
@@ -360,13 +397,13 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
 
         return messageHistoryObjectReturnedAskEventsDefault;
     }
   } catch (e) {
-    console.log(e, ' unable to process pending queries');
+    console.log(e, " unable to process pending queries");
   }
 };
 
@@ -375,9 +412,9 @@ const processQueries = async (
 interface AgentClientCommand {
   command_id: string;
   action:
-    | 'START_RECORDING_SESSION'
-    | 'STOP_RECORDING_SESSION'
-    | 'CANCEL_RECORDING_SESSION';
+    | "START_RECORDING_SESSION"
+    | "STOP_RECORDING_SESSION"
+    | "CANCEL_RECORDING_SESSION";
   payload?: {
     suggestedTitle?: string;
     linkedEventId?: string;
@@ -388,7 +425,7 @@ interface AgentSkillContext {
   userId: string;
   sendCommandToClient: (
     userId: string,
-    command: AgentClientCommand
+    command: AgentClientCommand,
   ) => Promise<boolean>;
 }
 
@@ -407,13 +444,13 @@ const processQueries = async (
   messageHistoryObject: SkillMessageHistoryType,
   sendCommandToUserFunc?: (
     userId: string,
-    command: AgentClientCommand
-  ) => Promise<boolean> // New parameter
+    command: AgentClientCommand,
+  ) => Promise<boolean>, // New parameter
 ) => {
   try {
     const userCurrentTime = dayjs()
       .tz(timezone)
-      .format('dddd, YYYY-MM-DDTHH:mm:ssZ');
+      .format("dddd, YYYY-MM-DDTHH:mm:ssZ");
 
     // Import the new skill handlers here if they are not too large,
     // or create a dedicated control center that imports them.
@@ -421,21 +458,21 @@ const processQueries = async (
     // acknowledging this might be refactored into a proper "control center".
     // This dynamic import is for illustration; static imports are generally preferred.
     const ইনPersonAudioNoteSkills = await import(
-      '../../../atom-agent/skills/inPersonAudioNoteSkills'
+      "../../../atom-agent/skills/inPersonAudioNoteSkills"
     );
 
     switch (messageHistoryObject.skill) {
       // --- NEW CASES FOR IN-PERSON AUDIO NOTES ---
-      case 'IN_PERSON_AUDIO_NOTE_START': // Assuming NLU categorizes to this
-      case 'IN_PERSON_AUDIO_NOTE_STOP':
-      case 'IN_PERSON_AUDIO_NOTE_CANCEL':
+      case "IN_PERSON_AUDIO_NOTE_START": // Assuming NLU categorizes to this
+      case "IN_PERSON_AUDIO_NOTE_STOP":
+      case "IN_PERSON_AUDIO_NOTE_CANCEL":
         if (!sendCommandToUserFunc) {
           console.error(
-            'sendCommandToUserFunc not provided to processQueries for audio note skill.'
+            "sendCommandToUserFunc not provided to processQueries for audio note skill.",
           );
           // Fallback response or error
           messageHistoryObject.messages.push({
-            role: 'assistant',
+            role: "assistant",
             content:
               "Sorry, I can't control audio recording right now due to a setup issue.",
           });
@@ -456,49 +493,49 @@ const processQueries = async (
         };
 
         let skillResponse;
-        if (messageHistoryObject.skill === 'IN_PERSON_AUDIO_NOTE_START') {
+        if (messageHistoryObject.skill === "IN_PERSON_AUDIO_NOTE_START") {
           skillResponse =
             await ইনPersonAudioNoteSkills.handleStartInPersonAudioNoteDirect(
               nluResultForSkill,
-              agentSkillContext
+              agentSkillContext,
             );
-        } else if (messageHistoryObject.skill === 'IN_PERSON_AUDIO_NOTE_STOP') {
+        } else if (messageHistoryObject.skill === "IN_PERSON_AUDIO_NOTE_STOP") {
           skillResponse =
             await ইনPersonAudioNoteSkills.handleStopInPersonAudioNoteDirect(
               nluResultForSkill,
-              agentSkillContext
+              agentSkillContext,
             );
         } else {
           // CANCEL
           skillResponse =
             await ইনPersonAudioNoteSkills.handleCancelInPersonAudioNoteDirect(
               nluResultForSkill,
-              agentSkillContext
+              agentSkillContext,
             );
         }
 
         messageHistoryObject.messages.push({
-          role: 'assistant',
+          role: "assistant",
           content: skillResponse.message,
         });
-        messageHistoryObject.query = 'completed'; // Mark as completed
+        messageHistoryObject.query = "completed"; // Mark as completed
         return messageHistoryObject;
 
       // --- EXISTING CASES ---
-      case 'ask-availability':
+      case "ask-availability":
         const messageHistoryObjectReturnedAskAvailability =
           await askAvailabilityControlCenterForPending(
             openai,
             userId,
             timezone,
             messageHistoryObject,
-            userCurrentTime
+            userCurrentTime,
           );
         return messageHistoryObjectReturnedAskAvailability;
 
       // ... (all other existing cases remain unchanged) ...
 
-      case 'update-task':
+      case "update-task":
         // updateTaskControlCenterPending
         const messageHistoryObjectReturnedUpdateTask =
           await updateTaskControlCenter(
@@ -507,7 +544,7 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
         return messageHistoryObjectReturnedUpdateTask;
 
@@ -516,7 +553,7 @@ const processQueries = async (
         // it might fall through to a default handler or error.
         // For now, let's assume the existing default (queryEventsControlCenter) is fine if no match.
         console.warn(
-          `processQueries: Unhandled or default skill: ${messageHistoryObject.skill}`
+          `processQueries: Unhandled or default skill: ${messageHistoryObject.skill}`,
         );
         const messageHistoryObjectReturnedAskEventsDefault =
           await queryEventsControlCenter(
@@ -525,18 +562,18 @@ const processQueries = async (
             timezone,
             messageHistoryObject,
             userCurrentTime,
-            messageHistoryObject?.query
+            messageHistoryObject?.query,
           );
         return messageHistoryObjectReturnedAskEventsDefault;
     }
   } catch (e) {
-    console.log(e, ' unable to process pending queries in processQueries');
+    console.log(e, " unable to process pending queries in processQueries");
     // Ensure a valid SkillMessageHistoryType is returned even on error
     messageHistoryObject.messages.push({
-      role: 'assistant',
-      content: 'An error occurred while processing your request.',
+      role: "assistant",
+      content: "An error occurred while processing your request.",
     });
-    messageHistoryObject.query = 'error';
+    messageHistoryObject.query = "error";
     return messageHistoryObject;
   }
 };
@@ -548,8 +585,8 @@ const assistant_brain = async (
   // requestFromWs: any, // The original request object from WebSocket upgrade, if needed by any skill
   sendCommandToUserFunc?: (
     userId: string,
-    command: AgentClientCommand
-  ) => Promise<boolean> // New parameter
+    command: AgentClientCommand,
+  ) => Promise<boolean>, // New parameter
 ) => {
   // const body = eventPayload; // Keep if direct Buffer processing is needed
 
@@ -558,10 +595,10 @@ const assistant_brain = async (
     const bodyString = Buffer.isBuffer(eventPayload)
       ? eventPayload.toString()
       : eventPayload;
-    console.log(bodyString, ' bodyString inside assistant_brain');
+    console.log(bodyString, " bodyString inside assistant_brain");
 
     const bodyObject: ChatBrainBodyType = JSON.parse(bodyString);
-    console.log(bodyObject, ' bodyObject inside assistant_brain');
+    console.log(bodyObject, " bodyObject inside assistant_brain");
 
     // userId should be the authenticated one from WebSocket connection, not from body if possible
     const userId = userIdFromWs || bodyObject?.userId;
@@ -570,23 +607,23 @@ const assistant_brain = async (
 
     if (!userId) {
       throw new Error(
-        'no userId provided (either from WebSocket auth or message body)'
+        "no userId provided (either from WebSocket auth or message body)",
       );
     }
     if (!timezone) {
       // Fallback timezone or error
       // For now, let's use a default or throw. Agent might need user's actual timezone.
       console.warn(
-        `No timezone provided for user ${userId}, falling back to UTC or agent default.`
+        `No timezone provided for user ${userId}, falling back to UTC or agent default.`,
       );
       // throw new Error('no timezone provided');
     }
     if (!messageHistoryObject) {
-      throw new Error('no messageHistoryObject (chat payload)');
+      throw new Error("no messageHistoryObject (chat payload)");
     }
 
     // NLU Skill Categorization (existing logic)
-    if (messageHistoryObject?.skill === 'pending') {
+    if (messageHistoryObject?.skill === "pending") {
       const userInputForNlu =
         messageHistoryObject?.messages?.[
           messageHistoryObject?.messages?.length - 1
@@ -598,31 +635,31 @@ const assistant_brain = async (
           openAIChatGPT35Model,
           userInputForNlu,
           categorizeSkillFromUserInputExampleInput,
-          categorizeSkillFromUserInputExampleOutput
+          categorizeSkillFromUserInputExampleOutput,
         );
-        console.log(openAIResSkill, ' openAIResSkill categorized by NLU');
+        console.log(openAIResSkill, " openAIResSkill categorized by NLU");
         messageHistoryObject.skill = openAIResSkill as SkillType;
         // TODO: If NLU categorizes to IN_PERSON_AUDIO_NOTE_START, etc., it needs to also extract entities
         // like suggestedTitle and pass them. For now, this is a gap if relying on this NLU.
         // The `inPersonAudioNoteSkills` currently expect entities in `nluResult.entities`.
         // `messageHistoryObject.prevData.entities` might be a place to store them.
       } else {
-        console.warn('User input for NLU skill categorization is empty.');
-        messageHistoryObject.skill = 'unknown_or_empty_input'; // Handle gracefully
+        console.warn("User input for NLU skill categorization is empty.");
+        messageHistoryObject.skill = "unknown_or_empty_input"; // Handle gracefully
       }
     }
 
     // Call processQueries, now passing sendCommandToUserFunc
     const res = await processQueries(
       userId,
-      timezone || 'UTC',
+      timezone || "UTC",
       messageHistoryObject,
-      sendCommandToUserFunc
+      sendCommandToUserFunc,
     );
 
     return JSON.stringify(res);
   } catch (e: any) {
-    console.error('Error in assistant_brain:', e.message, e.stack);
+    console.error("Error in assistant_brain:", e.message, e.stack);
     return JSON.stringify(e);
   }
 };

@@ -1,5 +1,5 @@
 {
-	"dependencies": {
-		"@types/express": "^4.17.17"
-	}
+  "dependencies": {
+    "@types/express": "^4.17.17"
+  }
 }

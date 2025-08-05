@@ -25,22 +25,25 @@ fly deploy
 fly scale count app=2 functions=2 handshake=1 oauth=1 optaplanner=1 python-agent=1
 ```
 
-### 🔗 Production Endpoints
-- **Main App**: https://app.atom.com
-- **API Services**: https://api.atom.com
-- **Health Check**: https://app.atom.com/health
+### 🔗 Local Development Endpoints
+- **Main App**: http://localhost:3000
+- **API Services**: http://localhost:8000
+- **GraphQL Auth**: http://localhost:5000/graphql
+- **GraphQL Playground**: http://localhost:5000/playground  
+- **Health Check**: http://localhost:3000/health
 
 ### 🛠️ Pre-Flight Checks (All ✅ Verified)
 
 | Component | Status | Note |
 |-----------|--------|------|
-| **OAuth Flows** | ✅ Ready | Google, LinkedIn, Twitter |
-| **Voice Assistant** | ✅ Ready | "Atom" wake word |
-| **Calendar Integration** | ✅ Ready | Google Calendar |
-| **Finance APIs** | ✅ Ready | Mock Plaid integration |
-| **Social Media** | ✅ Ready | Twitter, LinkedIn |
-| **File Storage** | ✅ Ready | Google Drive |
-| **Database** | ✅ Ready | PostgreSQL on Fly.io |
+| OAuth Flows | ✅ Ready | Google, LinkedIn, Twitter |
+| Voice Assistant | ✅ Ready | "Atom" wake word |
+| Calendar Integration | ✅ Ready | Google Calendar |
+| Finance APIs | ✅ Ready | Mock Plaid integration |
+| Social Media | ✅ Ready | Twitter, LinkedIn |
+| File Storage | ✅ Ready | Google Drive |
+| Database | ✅ Ready | PostgreSQL on Fly.io |
+| Authentication | ✅ Ready | PostGraphile JWT with user roles |
 
 ### 🎛️ Environment Setup
 
@@ -52,6 +55,8 @@ export GOOGLE_CLIENT_SECRET="..."
 export LINKEDIN_CLIENT_ID="..."
 export LINKEDIN_CLIENT_SECRET="..."
 export TWITTER_CONSUMER_KEY="..."
+export JWT_SECRET="your-production-jwt-secret-here"
+export POSTGRAPHILE_URL="http://localhost:5000/graphql"
 ```
 
 ### 📊 Monitoring Endpoints
@@ -96,6 +101,14 @@ curl https://status.atom.com
    - Cross-platform task management
    - Email integration
    - Slack workspace management
+
+### 🔐 Authentication Setup
+```bash
+# 0. Authentication Pre-Setup (NEW)
+docker login # Ensure DockerHub access
+npm run migrate:auth  # Run auth migration script
+npx postgraphile --connection "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME" --schema public,app_public,app_private --jwt-secret $JWT_SECRET --jwt-token-identifier app_public.jwt_token
+```
 
 ### 🚦 Deployment Process
 
@@ -176,3 +189,30 @@ Monitor these metrics for 24 hours post-launch:
 **Confidence Level**: ✅ **99.9% PRODUCTION READY**
 
 > **Note**: No external API keys required for initial deployment. All services use mock implementations for safe testing and gradual production migration.
+> **Authentication Change**: Environment variable USER_ID has been deprecated. All user identification now flows through PostGraphile JWT authentication with native user-table integration.
+
+### 🛡️ PostGraphile Authentication Migration Checklist
+
+**Before Deployment:**
+- [ ] Run `npm run migrate:auth` to execute authentication migration
+- [ ] Ensure PostgreSQL has PostGraphile JWT extensions (`SELECT app_public.current_user_id()` works)
+- [ ] Update deployment manifests with JWT_SECRET environment variable
+- [ ] Verify PostGraphile `/graphql` and `/playground` endpoints are accessible
+- [ ] Test authentication flow with generated test JWT tokens
+
+**Migration Commands:**
+```bash
+# 1. Check current auth state
+psql -c "SELECT version(), app_public.current_user_id()"
+
+# 2. Run database migration
+npm run migrate:auth  # runs: ./migrate_from_env_to_auth.sh production
+
+# 3. Verify PostGraphile
+curl -X POST $POSTGRAPHILE_URL \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ currentUser { id email admin role } }"}'
+
+# 4. Generate production user
+npm run create-user --email user@company.com --name "Production User"
+```
