@@ -1,4 +1,41 @@
+# Environment Variables - NEVER COMMIT THESE (LOCAL & CLOUD)
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+*.env.staging
+*.env.*.local
+
+# Database credentials & secrets
+*.credentials
+config/database.yml
+secrets/*.json
+**/google-service-account.json
+**/aws-creds.json
+
+# Local only (never commit)
+.local/
+logs/
+tmp/
+backups/
+.DS_Store
+.env*.local
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Environment Variables - NEVER COMMIT THESE
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+*.env.staging
+*.env.*.local
+
+# Database credentials
+*.credentials
+config/database.yml
 
 # dependencies
 /node_modules
@@ -7,6 +44,8 @@
 
 # testing
 /coverage
+*.lcov
+coverage/
 
 # next.js
 /.next/
@@ -14,23 +53,43 @@
 
 # production
 /build
+dist/
 
 # misc
 .DS_Store
 *.pem
+.DS_Store?
+.AppleDouble
+.LSOverride
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# Cloud Provider Credentials
+.aws/
+.azure/
+.gcp/
+.google/
+gcloud-service-key.json
+*.key
+*.pem
+*.p12
+*.json/   # wildcard for cloud config files
+
+# Docker Compose overrides
+docker-compose.override.yml
+docker-compose.production.yml
 .env*.production
 
 # vercel
 .vercel
+.fly.toml
+fly.toml*
 
 # typescript
 *.tsbuildinfo
