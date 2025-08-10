@@ -3,6 +3,7 @@ import {
   SkillResponse,
   ShopifyProduct,
   ShopifyOrder,
+  ShopifyTopSellingProduct,
   PythonApiResponse,
 } from '../../atomic-docker/project/functions/atom-agent/types';
 import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
@@ -116,6 +117,31 @@ export async function getShopifyOrder(
     return handlePythonApiResponse(response.data, 'getShopifyOrder');
   } catch (error) {
     return handleAxiosError(error as AxiosError, 'getShopifyOrder');
+  }
+}
+
+export async function getTopSellingProducts(
+  userId: string
+): Promise<SkillResponse<{ products: ShopifyTopSellingProduct[] }>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/shopify/top-selling-products?user_id=${userId}`;
+
+  try {
+    const response =
+      await axios.get<
+        PythonApiResponse<{ products: ShopifyTopSellingProduct[] }>
+      >(endpoint);
+    return handlePythonApiResponse(response.data, 'getTopSellingProducts');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'getTopSellingProducts');
   }
 }
 

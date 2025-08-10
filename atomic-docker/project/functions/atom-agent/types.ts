@@ -1593,6 +1593,14 @@ export interface ShopifyOrder {
   }>;
 }
 
+export interface ShopifyTopSellingProduct {
+  product_id: number;
+  variant_id: number;
+  title: string;
+  variant_title: string;
+  quantity_sold: number;
+}
+
 export interface XeroInvoice {
   InvoiceID: string;
   InvoiceNumber?: string;
