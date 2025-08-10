@@ -58,38 +58,42 @@ For comprehensive information about Atom, including setup, deployment, and featu
 
 ## Features
 
-Atom includes complete personal finance management with natural language and voice activation:
+Atom is a powerful and flexible open-source AI assistant with a wide range of features, including:
 
-**🎤 Atom Finance Suite (Wake Word Enabled)**
-- **Complete Net Worth Overview**: "Atom what's my net worth?" - Real-time financial health across all Plaid-connected bank accounts and credit cards
-- **Smart Budget Management**: "Atom show my dining budget this month" - Visual insights combining bank transaction data with spending predictions
-- **Spending Pattern Analysis**: "Atom where did I spend most money?" - AI-powered categorization from bank transactions with trend alerts
-- **Goal Setting & Tracking**: "Atom create emergency fund goal for $5000" - Smart progress tracking connecting bank balances to goal milestones
-- **Investment Portfolio**: "Atom show portfolio performance" - Real-time investment holdings and allocation analysis
-- **Natural Transaction Search**: "Atom find Amazon purchases over $75 this quarter" - Semantic search across bank transactions plus Gmail receipt extraction
-- **Budget vs Actual**: "Atom compare dining budget to actual spending" - Smart variance analysis using live bank transaction data
+*   **Conversational AI Agent:** Interact with Atom through a chat interface to manage tasks, schedule meetings, get information, and control integrations.
+*   **Wake Word Detection:** Initiate interaction with Atom using a spoken wake word (e.g., "Atom") for hands-free operation.
+*   **Smart Meeting Preparation:** Proactively gathers relevant notes, emails, and tasks for your upcoming meetings.
+*   **Automated Weekly Digest:** Provides a summary of your accomplishments and critical upcoming items.
+*   **Comprehensive Integrations:** Atom supports a wide range of third-party integrations, including:
+    *   **Communication:** Gmail, Outlook, Slack, Microsoft Teams
+    *   **Scheduling:** Google Calendar, Outlook Calendar, Calendly, Zoom
+    *   **Task Management:** Notion, Trello, Asana, Jira
+    *   **File Storage:** Google Drive, Dropbox, OneDrive, Box
+    *   **Finance:** Plaid, Quickbooks, Xero, Stripe
+    *   **CRM & Sales:** Salesforce, HubSpot
+    *   **Social Media:** Twitter, LinkedIn, Instagram, TikTok
+    *   **Marketing:** Mailchimp, Canva, Figma
+    *   **HR:** Greenhouse, BambooHR
+    *   **E-commerce:** Shopify
+    *   **Other:** Zapier, Zoho, DocuSign
 
-*   **AI-Powered Scheduling:** Smartly manages your calendar with AI-driven event matching, automated tagging, and customizable templates.
-*   **Voice-Powered Finance Suite:** Complete finance management with Plaid-powered bank connections and Gmail integration via natural language voice commands - all accessible via wake word "Atom".
-*   **Voice-Powered Task Management:** Use natural language to manage tasks in Notion alongside comprehensive financial management features.
-*   **Integrated Notes, Research & Finance:** Take notes via text or audio, leverage multi-agent research, and track personal finances including budgeting, net worth, investments, and spending analysis with natural language queries.
-*   **Semantic Search:** Instantly find information across your meeting transcripts and notes.
-*   **Live Meeting Assistance:** Atom can join meetings, provide real-time transcription, and extract action items.
-*   **Proactive Assistance:** Get automated weekly digests, smart meeting preparation, and intelligent follow-up suggestions.
-
-For a comprehensive list of all features and capabilities, including wake word finance commands, please see our **[Features Overview Document](./FEATURES.md)**.
+For a complete list of all features and capabilities, please see our **[Features Overview Document](./FEATURES.md)**.
 
 ## Core Agent Capabilities
 
-Use Atom's AI agent via chat or wake word to manage your productivity and finances. The agent's enhanced Natural Language Understanding (NLU) allows you to:
+Atom's agent is equipped with a wide range of skills that allow it to perform various tasks and interact with different services, including:
 
-*   **Manage Calendars & Finances:** Create, list, and modify events in Google Calendar and Microsoft Teams, plus manage personal finances via natural language: net worth, budgets, investments, and spending tracking across all accounts.
-*   **Manage Calendars & Communications:** Create events in Google Calendar, manage Teams meetings, track emails across Gmail, send Slack messages.
-*   **Finance Management with Voice Recognition:** Complete finance suite - wake word "Atom" activates voice commands for net worth, budgets, spending insights, goal tracking, portfolio analysis, and transaction search.
-*   **Voice Task Management:** Natural language to create, query and update tasks: "Atom create follow-up task for finance review" in your Notion database.
-*   **CRM & Customer Communications:** Voice-enabled contact management, email campaigns, meeting coordination across all platforms.
-*   **Search Across Knowledge:** Semantic search through meetings, notes, emails and financial data.
-*   **Multi-agent Research:** Automated competitor analysis, market research and data collection. 
+*   **Calendar:** Manage your calendar, schedule meetings, and create events.
+*   **Email:** Read, send, and search your emails.
+*   **Contacts:** Manage your contacts and find contact information.
+*   **Tasks:** Create, query, and update your tasks.
+*   **Notes:** Create and manage your notes.
+*   **Reminders:** Set and manage your reminders.
+*   **Autopilot:** Proactively manages your schedule by applying learned features and templates.
+*   **Browser:** Control a web browser to perform tasks like navigating to a URL, clicking on elements, and extracting text.
+*   **Finance:** Manage your finances, track your spending, and create budgets.
+*   **Research:** Research and gather information from various sources.
+*   **Social Media:** Manage your social media accounts and track your social media presence.
 
 For a complete list of integrations and agent capabilities, see the **[Features Overview Document](./FEATURES.md)**.
 
