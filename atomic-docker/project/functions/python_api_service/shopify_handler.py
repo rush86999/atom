@@ -51,6 +51,27 @@ async def handle_order(order_id):
         logger.error(f"Error handling Shopify order {order_id} for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "ORDER_HANDLING_FAILED", "message": str(e)}}), 500
 
+@shopify_bp.route('/api/shopify/top-selling-products', methods=['GET'])
+async def handle_top_selling_products():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        sh = shopify_service.get_shopify_client(user_id, db_conn_pool)
+        if not sh:
+            return jsonify({"ok": False, "error": {"code": "AUTH_ERROR", "message": "Could not get authenticated Shopify client. Please connect your Shopify account."}}), 401
+
+        top_products = await shopify_service.get_top_selling_products(sh)
+        return jsonify({"ok": True, "data": {"products": top_products}})
+    except Exception as e:
+        logger.error(f"Error handling Shopify top-selling products for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "TOP_SELLING_HANDLING_FAILED", "message": str(e)}}), 500
+
 @shopify_bp.route('/api/shopify/connection-status', methods=['GET'])
 def get_connection_status():
     user_id = request.args.get('user_id')

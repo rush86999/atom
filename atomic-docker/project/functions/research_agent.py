@@ -2,7 +2,7 @@ import openai
 import json
 import requests
 from bs4 import BeautifulSoup
-import note_utils
+from . import note_utils
 import os
 import lancedb
 from dotenv import load_dotenv
