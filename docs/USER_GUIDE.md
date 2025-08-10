@@ -109,3 +109,7 @@ Atom supports hands-free operation through wake word detection. When you say the
 
 *   **Web Version:** When enabled in the settings, the web version continuously listens for the wake word using your browser's microphone and a WebSocket-based Speech-to-Text (STT) service.
 *   **Desktop Version:** The desktop version uses a more resource-friendly approach. Wake word detection is not always on. Instead, it's activated by a specific event within the application.
+
+## Integrations
+
+Atom can connect to a variety of third-party applications to extend its functionality. For a complete list of all available integrations and their setup guides, please see the [Integrations](./INTEGRATIONS.md) document.

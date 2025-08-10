@@ -317,3 +317,39 @@ Refer to individual platform sections above for usage instructions for each spec
 1. The Vibe Hacking Agent uses a variety of tools to scan the target system for vulnerabilities.
 2. The agent attempts to exploit any vulnerabilities that it finds.
 3. The agent generates a report of its findings, with a description of the vulnerabilities, the steps taken to exploit them, and recommendations for remediation.
+
+### Use Case 22: E-commerce Management
+**Voice Command**: *"Atom, what are my top-selling products this month?"*
+
+**Integrations Active**:
+- **Shopify**
+- **Data Analysis Agent**
+
+**Workflow**:
+1. The Data Analysis Agent connects to your Shopify account.
+2. The agent analyzes your sales data and identifies your top-selling products.
+3. The agent returns a summary of your top-selling products, along with their sales figures and trends.
+
+### Use Case 23: Marketing Campaign Management
+**Voice Command**: *"Atom, create a new email campaign for our upcoming sale."*
+
+**Integrations Active**:
+- **Mailchimp**
+- **Content Creation Agent**
+
+**Workflow**:
+1. The Content Creation Agent generates a series of emails for the campaign.
+2. The agent connects to your Mailchimp account and creates a new campaign with the generated emails.
+3. The agent schedules the campaign to be sent to your subscribers.
+
+### Use Case 24: HR & Recruiting
+**Voice Command**: *"Atom, find the best candidates for the Senior Software Engineer position."*
+
+**Integrations Active**:
+- **Greenhouse**
+- **Recruitment Recommendation Agent**
+
+**Workflow**:
+1. The Recruitment Recommendation Agent connects to your Greenhouse account.
+2. The agent analyzes the resumes of the candidates who have applied for the position.
+3. The agent returns a ranked list of the best-fit candidates, with a summary of their qualifications and a link to their resume.
