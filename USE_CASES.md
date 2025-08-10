@@ -60,7 +60,7 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 **Workflow**: Auto-convert emails to actionable project items
 
 1. **Email Scanning** (Gmail/Outlook): Detect project-related emails
-2. **Task Creation**: Automatically create Trello cards with:
+2. **Task Creation**: Automatically create tasks in Trello, Asana, or Jira with:
    - Email content summary
    - Sender contact info
    - Deadline extraction
@@ -77,14 +77,14 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 - **Git Repositories** (Commit frequency, PR analysis)
 - **Slack** (Team sentiment analysis)
 - **Google Calendar** (Meeting load)
-- **Trello** (Task progress)
+- **Trello, Jira, Asana** (Task progress)
 - **Banking** (Budget adherence)
 
 **Health Score Calculation**:
 - 25% Git metrics (commit frequency, review time)
 - 25% Slack sentiment (positive/neutral/negative)
 - 20% Calendar efficiency (meeting time vs productive time)
-- 20% Trello completion rate
+- 20% Task completion rate (from Trello, Jira, or Asana)
 - 10% Financial budget compliance
 
 ### Use Case 6: Automated Competitor Intelligence
@@ -103,7 +103,7 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 **Multi-Platform Learning Orchestration**:
 
 **Learning Sources**:
-- **Google Drive**: Course materials and documents
+- **Google Drive, Dropbox, OneDrive, Box**: Course materials and documents
 - **Outlook**: Academic calendars and course schedules
 - **Gmail**: Course announcements and assignment reminders
 - **Banking**: Budget for learning resources
@@ -133,10 +133,11 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 **Sales to Finance Pipeline**:
 
 1. **HubSpot**: Detect closed-won deals
-2. **Xero**: Auto-generate invoice
-3. **Banking**: Track payment receipt
-4. **Email**: Send customer receipt via Gmail
-5. **Slack**: Notify sales team in #wins channel
+2. **Xero or QuickBooks**: Auto-generate invoice
+3. **Stripe**: Process payment
+4. **Banking**: Track payment receipt
+5. **Email**: Send customer receipt via Gmail
+6. **Slack**: Notify sales team in #wins channel
 
 ---
 
@@ -158,7 +159,8 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 **Real-time Multi-Project View**:
 
 **Integration Points**:
-- **Trello**: Card progress across projects
+- **Trello, Asana, Jira**: Card progress across projects
+- **Miro**: Review whiteboard sessions and brainstorming
 - **Slack**: Team wellbeing in project channels
 - **Banking**: Project budget vs actual spend
 - **Email**: Stakeholder communications
@@ -219,6 +221,73 @@ This document consolidates all use case scenarios for Atom's integrated ecosyste
 
 ---
 
+### Use Case 16: Advanced Meeting Scheduling
+**Voice Command**: *"Atom, find a 30-minute slot for me and John next week and set up a Zoom call."*
+
+**Integrations Active**:
+- **Google Calendar / Outlook Calendar**
+- **Calendly**
+- **Zoom**
+
+**Workflow**:
+1. Atom accesses your calendar and John's public calendar via Calendly.
+2. It identifies mutually available slots and suggests them to you.
+3. Once you confirm a time, Atom creates a calendar event, invites John, and automatically generates a Zoom meeting link.
+
+### Use Case 17: Sales Contract Automation
+**Voice Command**: *"Atom, create a new contract for Acme Corp, and send it for signature."*
+
+**Integrations Active**:
+- **Salesforce**
+- **Dropbox / Box**
+- **DocuSign**
+
+**Workflow**:
+1. Atom pulls customer data for Acme Corp from Salesforce.
+2. It generates a new contract using a template and populates it with the customer's data.
+3. The contract is saved in a dedicated folder in Dropbox or Box.
+4. Atom sends the contract to the client for e-signature using DocuSign and notifies you upon completion.
+
+### Use Case 18: Customer Support Automation
+**Voice Command**: *"Atom, create a high-priority ticket from this email and assign it to the support team."*
+
+**Integrations Active**:
+- **Gmail / Outlook**
+- **Zendesk**
+- **Salesforce**
+- **Slack**
+
+**Workflow**:
+1. Atom processes an incoming customer email and identifies it as a support request.
+2. It creates a new ticket in Zendesk, extracting the customer's details and the issue description.
+3. It pulls the customer's history from Salesforce to provide context to the support agent.
+4. A notification is sent to the #support channel in Slack with a link to the Zendesk ticket.
+
+### Use Case 19: The Everything Connector
+**Voice Command**: *"Atom, when a new high-priority task is created in Asana, post a message to our Telegram channel."*
+
+**Integrations Active**:
+- **Asana**
+- **Zapier**
+
+**Workflow**:
+1. Atom detects that a new high-priority task has been created in Asana.
+2. It triggers a pre-configured "Zap" in Zapier.
+3. Zapier then connects to Telegram (or any of the 5000+ apps it supports) and posts a custom message to the designated channel.
+
+### Use Case 20: Small Business Operations
+**Voice Command**: *"Atom, show me my sales pipeline and overdue invoices from Zoho."*
+
+**Integrations Active**:
+- **Zoho Suite (CRM, Books)**
+
+**Workflow**:
+1. Atom connects to your Zoho CRM to pull the latest sales pipeline data.
+2. It also connects to Zoho Books to retrieve a list of all overdue invoices.
+3. It presents a unified summary, showing your sales opportunities alongside your outstanding payments, giving you a complete view of your business health.
+
+---
+
 ## 📊 Platform-Specific Deep Dives
 
 ### Banking Platform Benefits
@@ -237,9 +306,9 @@ Refer to individual platform sections above for usage instructions for each spec
 
 ---
 
-## 🚀 New Agent Skills
+## 🚀 Advanced Agent Skills
 
-### Use Case 16: Advanced Market Research
+### Use Case 21: Advanced Market Research
 **Voice Command**: *"Atom, research the latest trends in the electric vehicle market and create a presentation."*
 
 **Integrations Active**:
@@ -252,20 +321,21 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The Content Creation Agent uses the collected information to generate a presentation with key findings, charts, and graphs.
 3. The presentation is saved to the user's Google Drive account.
 
-### Use Case 17: Automated Social Media Management
+### Use Case 22: Automated Social Media Management
 **Voice Command**: *"Atom, schedule a week's worth of social media posts about our new product launch."*
 
 **Integrations Active**:
 - **Social Media Agent**
 - **Content Creation Agent**
-- **Twitter API, Facebook Graph API, LinkedIn API**
+- **Canva, Figma**: For creating visual content
+- **Twitter, Facebook, LinkedIn, Instagram, TikTok APIs**
 
 **Workflow**:
-1. The Content Creation Agent generates a series of social media posts about the new product launch.
-2. The Social Media Agent schedules the posts to be published on Twitter, Facebook, and LinkedIn at optimal times.
+1. The Content Creation Agent generates a series of social media posts, using Canva and Figma to create engaging visuals.
+2. The Social Media Agent schedules the posts to be published on Twitter, Facebook, LinkedIn, Instagram, and TikTok at optimal times.
 3. The agent monitors the posts for comments and messages, and notifies the user of any important interactions.
 
-### Use Case 18: Personalized Shopping Experience
+### Use Case 23: Personalized Shopping Experience
 **Voice Command**: *"Atom, find me a new laptop for work that's under $1000."*
 
 **Integrations Active**:
@@ -278,7 +348,7 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The agent searches for laptops on Amazon that meet the user's criteria.
 3. The agent presents the user with a list of recommended laptops, along with prices, reviews, and a summary of the key features.
 
-### Use Case 19: Legal Document Analysis
+### Use Case 24: Legal Document Analysis
 **Voice Command**: *"Atom, analyze this contract and identify any potential risks: [URL/filepath]."*
 
 **Integrations Active**:
@@ -291,7 +361,7 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The agent uses a legal NLP model to identify key clauses, entities, and sentiment.
 3. The agent returns a summary of the contract, with the key clauses and potential risks highlighted.
 
-### Use Case 20: Recruitment Recommendation
+### Use Case 25: Recruitment Recommendation
 **Voice Command**: *"Atom, find the best candidates for the Senior Software Engineer position."*
 
 **Integrations Active**:
@@ -305,7 +375,7 @@ Refer to individual platform sections above for usage instructions for each spec
 3. The agent uses a matching algorithm to compare the candidates' qualifications with the job requirements.
 4. The agent returns a ranked list of the best-fit candidates, with a summary of their qualifications and a link to their resume.
 
-### Use Case 21: Vibe Hacking
+### Use Case 26: Vibe Hacking
 **Voice Command**: *"Atom, perform a red team test on our web application."*
 
 **Integrations Active**:
@@ -318,7 +388,7 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The agent attempts to exploit any vulnerabilities that it finds.
 3. The agent generates a report of its findings, with a description of the vulnerabilities, the steps taken to exploit them, and recommendations for remediation.
 
-### Use Case 22: E-commerce Management
+### Use Case 27: E-commerce Management
 **Voice Command**: *"Atom, what are my top-selling products this month?"*
 
 **Integrations Active**:
@@ -330,7 +400,7 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The agent analyzes your sales data and identifies your top-selling products.
 3. The agent returns a summary of your top-selling products, along with their sales figures and trends.
 
-### Use Case 23: Marketing Campaign Management
+### Use Case 28: Marketing Campaign Management
 **Voice Command**: *"Atom, create a new email campaign for our upcoming sale."*
 
 **Integrations Active**:
@@ -342,14 +412,16 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The agent connects to your Mailchimp account and creates a new campaign with the generated emails.
 3. The agent schedules the campaign to be sent to your subscribers.
 
-### Use Case 24: HR & Recruiting
+### Use Case 29: HR & Recruiting
 **Voice Command**: *"Atom, find the best candidates for the Senior Software Engineer position."*
 
 **Integrations Active**:
-- **Greenhouse**
+- **Greenhouse** for recruiting
+- **BambooHR** for HR data
 - **Recruitment Recommendation Agent**
 
 **Workflow**:
-1. The Recruitment Recommendation Agent connects to your Greenhouse account.
-2. The agent analyzes the resumes of the candidates who have applied for the position.
-3. The agent returns a ranked list of the best-fit candidates, with a summary of their qualifications and a link to their resume.
+1. The Recruitment Recommendation Agent connects to your Greenhouse account to get the list of candidates.
+2. The agent cross-references candidate information with employee data in BambooHR to identify internal candidates or referrals.
+3. The agent analyzes the resumes of the candidates who have applied for the position.
+4. The agent returns a ranked list of the best-fit candidates, with a summary of their qualifications and a link to their resume.
