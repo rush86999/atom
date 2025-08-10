@@ -609,3 +609,51 @@ export async function sendEmail(emailDetails: EmailDetails): Promise<SendEmailRe
     return { success: false, message: `An unexpected error occurred: ${error.message}` };
   }
 }
+
+export async function createGmailDraft(userId: string, emailDetails: EmailDetails): Promise<SendEmailResponse> {
+  logger.info(`[emailSkills] Creating Gmail draft for user ${userId}...`);
+
+  const gmail = await getGmailClient(userId);
+  if (!gmail) {
+    const errorMsg = "Failed to get Gmail client, cannot create draft.";
+    logger.error(`[emailSkills] ${errorMsg}`);
+    return { success: false, message: errorMsg };
+  }
+
+  if (!emailDetails.to || !emailDetails.subject || !emailDetails.body) {
+    return { success: false, message: 'Missing required details for draft (to, subject, body).' };
+  }
+
+  const rawEmail = [
+    `To: ${emailDetails.to}`,
+    `Subject: ${emailDetails.subject}`,
+    'Content-Type: text/plain; charset="UTF-t"',
+    'MIME-Version: 1.0',
+    '',
+    emailDetails.body,
+  ].join('\n');
+
+  const base64EncodedEmail = Buffer.from(rawEmail).toString('base64url');
+
+  try {
+    const response = await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody: {
+        message: {
+          raw: base64EncodedEmail,
+        },
+      },
+    });
+
+    if (response.data && response.data.id) {
+      logger.info(`[emailSkills] Successfully created draft with ID: ${response.data.id}`);
+      return { success: true, emailId: response.data.id, message: 'Draft created successfully.' };
+    } else {
+      logger.error('[emailSkills] Failed to create draft, no ID returned.', response);
+      return { success: false, message: 'Failed to create draft.' };
+    }
+  } catch (error: any) {
+    logger.error(`[emailSkills] Error creating Gmail draft for user ${userId}:`, error);
+    return { success: false, message: `Error creating draft: ${error.message}` };
+  }
+}

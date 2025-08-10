@@ -1,15 +1,21 @@
 {
   "dependencies": {
+    "@hubspot/api-client": "^13.0.0",
     "@microsoft/teams-ai": "^1.7.4",
-    "@types/jest": "^30.0.0",
     "aws-cdk-lib": "^2.206.0",
-    "botbuilder": "^4.17.0-blobs1",
-    "ts-jest": "^29.4.0"
+    "axios": "^1.11.0",
+    "botbuilder": "^4.17.0-blobs1"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-typescript": "^7.27.1",
     "@types/async-retry": "^1.4.9",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.20",
-    "@types/node": "^24.1.0"
+    "@types/node": "^24.1.0",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.4.1",
+    "typescript": "^5.9.2"
   }
 }

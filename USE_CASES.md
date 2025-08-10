@@ -425,3 +425,49 @@ Refer to individual platform sections above for usage instructions for each spec
 2. The agent cross-references candidate information with employee data in BambooHR to identify internal candidates or referrals.
 3. The agent analyzes the resumes of the candidates who have applied for the position.
 4. The agent returns a ranked list of the best-fit candidates, with a summary of their qualifications and a link to their resume.
+
+---
+
+### Use Case 30: DevOps Monitoring & Incident Response
+**Voice Command**: *"Atom, set up a monitor for the 'production' repository. If there's a new commit to the 'main' branch, create a 'P3' ticket in Jira and post a notification to the #devops channel in Slack."*
+
+**Integrations Active**:
+- **Git (via GitHub/GitLab/Bitbucket)**
+- **Jira**
+- **Slack / Microsoft Teams**
+
+**Workflow**:
+1.  Atom establishes a webhook with the specified Git repository to listen for new commits.
+2.  When a new commit is pushed to the 'main' branch, the webhook triggers an Atom workflow.
+3.  Atom connects to Jira and creates a new ticket with a summary of the commit details (author, message, link to commit).
+4.  Atom then posts a message to the specified Slack or Teams channel, including the Jira ticket number and a link to the commit.
+
+---
+
+### Use Case 31: Creative Brainstorming to Execution
+**Voice Command**: *"Atom, convert the 'New Features' frame on my Miro board into a Trello list."*
+
+**Integrations Active**:
+- **Miro**
+- **Trello**
+
+**Workflow**:
+1.  Atom connects to your Miro account and accesses the specified board.
+2.  It identifies all the sticky notes within the 'New Features' frame.
+3.  For each sticky note, Atom creates a new card in a new 'New Features' list on your chosen Trello board.
+4.  The content of the sticky note becomes the title of the Trello card.
+
+---
+
+### Use Case 32: Automated Sales Outreach
+**Voice Command**: *"Atom, find all new leads in HubSpot from the last week, draft a personalized introduction email, and save them as drafts in my Gmail."*
+
+**Integrations Active**:
+- **HubSpot / Salesforce**
+- **Content Creation Agent**
+- **Gmail / Outlook**
+
+**Workflow**:
+1.  Atom connects to your CRM (HubSpot or Salesforce) and retrieves a list of new leads created in the last 7 days.
+2.  For each lead, Atom uses the Content Creation Agent to draft a personalized email, using the lead's name, company, and any other available information to tailor the message.
+3.  Atom connects to your Gmail or Outlook account and saves each personalized email as a draft, ready for you to review and send.

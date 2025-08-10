@@ -56,6 +56,84 @@ const getHubspotClient = async (userId: string) => {
   return new Client({ apiKey });
 };
 
+export async function getNewHubSpotContacts(
+  userId: string,
+  since: Date
+): Promise<HubSpotSkillResponse<HubSpotContact[]>> {
+  console.log(
+    `getNewHubSpotContacts called for userId: ${userId}, since: ${since.toISOString()}`
+  );
+  const hubspotClient = await getHubspotClient(userId);
+  if (!hubspotClient) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'HubSpot API key not configured.',
+      },
+    };
+  }
+
+  try {
+    const response = await hubspotClient.crm.contacts.searchApi.doSearch({
+      properties: [
+        'email',
+        'firstname',
+        'lastname',
+        'company',
+        'hs_object_id',
+        'createdate',
+        'lastmodifieddate',
+      ],
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'createdate',
+              operator: 'GTE',
+              value: since.getTime().toString(),
+            },
+          ],
+        },
+      ],
+      sorts: [{ propertyName: 'createdate', direction: 'DESCENDING' }],
+      limit: 100, // Limit to 100 new contacts per request
+    });
+
+    if (response.results && response.results.length > 0) {
+      const contacts: HubSpotContact[] = response.results.map(contactData => ({
+        id: contactData.id,
+        properties: {
+          hs_object_id: contactData.properties.hs_object_id,
+          createdate: contactData.properties.createdate,
+          lastmodifieddate: contactData.properties.lastmodifieddate,
+          email: contactData.properties.email,
+          firstname: contactData.properties.firstname,
+          lastname: contactData.properties.lastname,
+          company: contactData.properties.company,
+        },
+        createdAt: contactData.createdAt.toISOString(),
+        updatedAt: contactData.updatedAt.toISOString(),
+        archived: contactData.archived || false,
+      }));
+      return { ok: true, data: contacts };
+    } else {
+      console.log(`No new HubSpot contacts found since: ${since.toISOString()}`);
+      return { ok: true, data: [] }; // Success, but no new contacts found
+    }
+  } catch (error: any) {
+    console.error(
+      `Error fetching new HubSpot contacts for userId ${userId}:`,
+      error.message
+    );
+    // ... (error handling as in getHubSpotContactByEmail)
+    return {
+      ok: false,
+      error: { code: 'HUBSPOT_API_ERROR', message: `Failed to fetch new contacts: ${error.message}`, details: error },
+    };
+  }
+}
+
 export async function getHubSpotContactByEmail(
   userId: string,
   email: string
