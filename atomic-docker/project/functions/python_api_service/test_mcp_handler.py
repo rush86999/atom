@@ -9,7 +9,7 @@ class McpHandlerTestCase(unittest.TestCase):
         self.client = self.app.test_client()
 
     @patch('python_api_service.mcp_handler.get_mcp_credentials')
-    @patch('python_api_service.gdrive_service._get_drive_service')
+    @patch('python_api_service.gdrive_service.GDriveApiClient._get_service')
     def test_list_files_route(self, mock_get_drive_service, mock_get_mcp_credentials):
         mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='gdrive', refresh_token='test_refresh_token', token_uri='test_token_uri', client_id='test_client_id', client_secret='test_client_secret')
         mock_service = MagicMock()
@@ -21,7 +21,7 @@ class McpHandlerTestCase(unittest.TestCase):
         self.assertEqual(response.json, {"status": "success", "data": {"files": [], "nextPageToken": None}})
 
     @patch('python_api_service.mcp_handler.get_mcp_credentials')
-    @patch('python_api_service.gdrive_service._get_drive_service')
+    @patch('python_api_service.gdrive_service.GDriveApiClient._get_service')
     def test_get_file_metadata_route(self, mock_get_drive_service, mock_get_mcp_credentials):
         mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='gdrive', refresh_token='test_refresh_token', token_uri='test_token_uri', client_id='test_client_id', client_secret='test_client_secret')
         mock_service = MagicMock()
@@ -34,7 +34,7 @@ class McpHandlerTestCase(unittest.TestCase):
 
     @patch('python_api_service.mcp_handler.get_mcp_credentials')
     @patch('googleapiclient.http._retry_request')
-    @patch('python_api_service.gdrive_service._get_drive_service')
+    @patch('python_api_service.gdrive_service.GDriveApiClient._get_service')
     def test_download_file_route(self, mock_get_drive_service, mock_retry_request, mock_get_mcp_credentials):
         mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='gdrive', refresh_token='test_refresh_token', token_uri='test_token_uri', client_id='test_client_id', client_secret='test_client_secret')
         mock_service = MagicMock()

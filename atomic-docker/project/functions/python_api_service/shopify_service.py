@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from .db_utils import get_db_connection
 
-def get_shopify_client(user_id: str, db_conn_pool) -> Optional[shopify.ShopifyAPI]:
+def get_shopify_client(user_id: str, db_conn_pool) -> Optional[shopify.ShopifyResource]:
     """
     Constructs and returns an authenticated Shopify API client for the given user.
     """
@@ -38,14 +38,14 @@ def get_shopify_client(user_id: str, db_conn_pool) -> Optional[shopify.ShopifyAP
         logger.error(f"Failed to initialize Shopify session for user {user_id}: {e}", exc_info=True)
         return None
 
-async def list_products(sh: shopify.ShopifyAPI) -> List[Dict[str, Any]]:
+async def list_products(sh: shopify.ShopifyResource) -> List[Dict[str, Any]]:
     """
     Retrieves a list of products from Shopify.
     """
     products = sh.Product.find()
     return [product.to_dict() for product in products]
 
-async def get_order(sh: shopify.ShopifyAPI, order_id: str) -> Optional[Dict[str, Any]]:
+async def get_order(sh: shopify.ShopifyResource, order_id: str) -> Optional[Dict[str, Any]]:
     """
     Retrieves a specific order by its ID.
     """

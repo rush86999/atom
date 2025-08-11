@@ -5,7 +5,7 @@ from . import db_oauth_asana, crypto_utils
 from .mcp_base import MCPBase
 
 class AsanaService(MCPBase):
-    def __init__(self, client: asana.Client):
+    def __init__(self, client: asana.ApiClient):
         self.client = client
 
     def list_files(

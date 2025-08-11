@@ -26,11 +26,11 @@ from .personal_assistant_handler import personal_assistant_bp
 from .financial_analyst_handler import financial_analyst_bp
 from .marketing_manager_handler import marketing_manager_bp
 from .customer_support_manager_handler import customer_support_manager_bp
-from .recruiting_manager_handler import recruiting_manager_bp
+# from .recruiting_manager_handler import recruiting_manager_bp
 from .legal_handler import legal_bp
 from .it_manager_handler import it_manager_bp
 from .devops_manager_handler import devops_manager_bp
-from .hr_manager_handler import hr_manager_bp
+# from .hr_manager_handler import hr_manager_bp
 from .content_marketer_handler import content_marketer_bp
 from .meeting_prep import meeting_prep_bp
 from .mcp_handler import mcp_bp
@@ -56,7 +56,9 @@ from .auth_handler_asana import asana_auth_bp
 from .auth_handler_trello import trello_auth_bp
 from .auth_handler_zoho import zoho_auth_bp
 from .auth_handler_shopify import shopify_auth_bp
+from .auth_handler_freshbooks import freshbooks_auth_bp
 from .zoho_handler import zoho_bp
+from .freshbooks_handler import freshbooks_bp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -126,16 +128,16 @@ def create_app(db_pool=None):
     logger.info("Registered 'marketing_manager_bp' blueprint.")
     app.register_blueprint(customer_support_manager_bp)
     logger.info("Registered 'customer_support_manager_bp' blueprint.")
-    app.register_blueprint(recruiting_manager_bp)
-    logger.info("Registered 'recruiting_manager_bp' blueprint.")
+    # app.register_blueprint(recruiting_manager_bp)
+    # logger.info("Registered 'recruiting_manager_bp' blueprint.")
     app.register_blueprint(legal_bp)
     logger.info("Registered 'legal_bp' blueprint.")
     app.register_blueprint(it_manager_bp)
     logger.info("Registered 'it_manager_bp' blueprint.")
     app.register_blueprint(devops_manager_bp)
     logger.info("Registered 'devops_manager_bp' blueprint.")
-    app.register_blueprint(hr_manager_bp)
-    logger.info("Registered 'hr_manager_bp' blueprint.")
+    # app.register_blueprint(hr_manager_bp)
+    # logger.info("Registered 'hr_manager_bp' blueprint.")
     app.register_blueprint(content_marketer_bp)
     logger.info("Registered 'content_marketer_bp' blueprint.")
     app.register_blueprint(mcp_bp)
@@ -186,6 +188,10 @@ def create_app(db_pool=None):
     logger.info("Registered 'shopify_auth_bp' blueprint.")
     app.register_blueprint(zoho_bp)
     logger.info("Registered 'zoho_bp' blueprint.")
+    app.register_blueprint(freshbooks_auth_bp)
+    logger.info("Registered 'freshbooks_auth_bp' blueprint.")
+    app.register_blueprint(freshbooks_bp)
+    logger.info("Registered 'freshbooks_bp' blueprint.")
 
     from .github_handler import github_bp
     app.register_blueprint(github_bp)

@@ -28,4 +28,12 @@ linkedin-api
 zenpy
 greenhouse
 yfinance
+py-trello
+ShopifyAPI
+docusign-esign
+jira
+python-wordpress-xmlrpc
+plaid-python
+boxsdk
+asana
 pytest

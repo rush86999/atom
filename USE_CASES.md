@@ -471,3 +471,16 @@ Refer to individual platform sections above for usage instructions for each spec
 1.  Atom connects to your CRM (HubSpot or Salesforce) and retrieves a list of new leads created in the last 7 days.
 2.  For each lead, Atom uses the Content Creation Agent to draft a personalized email, using the lead's name, company, and any other available information to tailor the message.
 3.  Atom connects to your Gmail or Outlook account and saves each personalized email as a draft, ready for you to review and send.
+
+---
+
+### Use Case 33: Small Business Accounting with FreshBooks
+**Voice Command**: *"Atom, show me my outstanding invoices from FreshBooks."*
+
+**Integrations Active**:
+- **FreshBooks**
+
+**Workflow**:
+1. Atom connects to your FreshBooks account to pull a list of all outstanding invoices.
+2. It can also be used to create new invoices, view client information, and manage your accounting on the fly.
+3. It presents a unified summary of your invoices, giving you a complete view of your business's financial health.

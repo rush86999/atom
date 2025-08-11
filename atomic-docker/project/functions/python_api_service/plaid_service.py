@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 # Production Imports - Only import plaid if available, fallback gracefully
 try:
-    from plaid import Client  # type: ignore
+    from plaid import ApiClient as Client  # type: ignore
     from plaid.api import plaid_api  # type: ignore
     from plaid.model.account_base import AccountBase  # type: ignore
     from plaid.model.transactions_get_request import TransactionsGetRequest  # type: ignore

@@ -2,7 +2,7 @@ import os
 import logging
 from flask import Blueprint, request, jsonify
 from .note_handler import search_notes
-from .gdrive_handler import search_gdrive
+from .gdrive_handler import search_gdrive_route as search_gdrive
 from .dropbox_handler import search_dropbox_route as search_dropbox
 from .web_search import search_web
 

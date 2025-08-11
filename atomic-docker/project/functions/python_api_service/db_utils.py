@@ -1,6 +1,15 @@
 import logging
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
+
+@contextmanager
+def get_db_connection(db_conn_pool):
+    conn = db_conn_pool.getconn()
+    try:
+        yield conn
+    finally:
+        db_conn_pool.putconn(conn)
 
 async def create_plaid_item(user_id, access_token, db_conn_pool):
     """
@@ -20,3 +29,9 @@ async def get_plaid_access_token(user_id, db_conn_pool):
     # For this example, we will just return a dummy value.
     logger.info(f"Getting Plaid access token for user {user_id}")
     return "access-sandbox-12345"
+
+def get_decrypted_credential(user_id, service):
+    # This is a placeholder. In a real application, this would fetch the
+    # credential from the database and decrypt it.
+    logger.info(f"Getting decrypted credential for user {user_id} and service {service}")
+    return "decrypted_credential"
