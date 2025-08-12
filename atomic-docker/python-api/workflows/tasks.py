@@ -38,6 +38,8 @@ def flatten_list(node_config, input_data):
     print("Executing Flatten List...")
     return [item for sublist in input_data for item in sublist]
 
+from notion_client import APIResponseError
+
 def execute_notion_action(node_config, input_data):
     print("Executing Notion Action...")
     action_items = input_data
@@ -67,8 +69,10 @@ def execute_notion_action(node_config, input_data):
                     }
                 }
             )
+        except APIResponseError as e:
+            print(f"    Error creating Notion page: {e.body}")
         except Exception as e:
-            print(f"    Error creating Notion page: {e}")
+            print(f"    An unexpected error occurred: {e}")
 
     return [] # Notion action is a sink, it doesn't return data
 
