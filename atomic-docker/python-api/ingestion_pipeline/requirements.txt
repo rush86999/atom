@@ -22,6 +22,7 @@ google-api-python-client
 google-auth-oauthlib
 msgraph-sdk
 azure-identity
+slack-sdk
 
 # For HTML/DOCX parsing
 python-docx>=0.8.11
