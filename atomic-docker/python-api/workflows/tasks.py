@@ -16,17 +16,22 @@ def execute_gmail_trigger(node_config, input_data):
         {"email_body": "Another email with an action: follow up with John."},
     ]
 
-def execute_ai_action_extractor(node_config, input_data):
-    print("Executing AI Action Extractor...")
+def execute_ai_task(node_config, input_data):
+    print("Executing AI Task...")
+    prompt = node_config.get("prompt", "")
+    if not prompt:
+        print("Warning: No prompt provided for AI Task node.")
+        return []
+
     output = []
     for item in input_data:
-        email_body = item.get("email_body", "")
-        action_items = []
-        if "report by Friday" in email_body:
-            action_items.append("Send the report by Friday")
-        if "follow up with John" in email_body:
-            action_items.append("Follow up with John")
-        output.append(action_items)
+        # In a real implementation, this would call an LLM with the prompt and item
+        print(f"  - Simulating LLM call with prompt: '{prompt}' and input: '{item}'")
+        # Placeholder logic
+        if "summarize" in prompt.lower():
+            output.append(f"Summary of {item}")
+        else:
+            output.append(f"Result of '{prompt}' on '{item}'")
     return output
 
 def flatten_list(node_config, input_data):
@@ -69,7 +74,7 @@ def execute_notion_action(node_config, input_data):
 
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
-    "aiActionExtractor": execute_ai_action_extractor,
+    "aiTask": execute_ai_task,
     "notionAction": execute_notion_action,
     "flatten": flatten_list,
 }
