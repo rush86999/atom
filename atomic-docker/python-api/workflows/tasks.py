@@ -16,27 +16,40 @@ def execute_gmail_trigger(node_config, input_data):
         {"email_body": "Another email with an action: follow up with John."},
     ]
 
+import openai
+
 def execute_ai_task(node_config, input_data):
     print("Executing AI Task...")
     prompt = node_config.get("prompt", "")
-    if not prompt:
-        print("Warning: No prompt provided for AI Task node.")
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+    if not prompt or not openai.api_key:
+        print("Error: OpenAI API key or prompt is not configured.")
         return []
 
     output = []
     for item in input_data:
-        # In a real implementation, this would call an LLM with the prompt and item
-        print(f"  - Simulating LLM call with prompt: '{prompt}' and input: '{item}'")
-        # Placeholder logic
-        if "summarize" in prompt.lower():
-            output.append(f"Summary of {item}")
-        else:
-            output.append(f"Result of '{prompt}' on '{item}'")
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": str(item)}
+                ]
+            )
+            result = response.choices[0].message.content
+            output.append(result)
+        except Exception as e:
+            print(f"    Error calling OpenAI API: {e}")
+            output.append(f"Error processing item: {item}")
+
     return output
 
 def flatten_list(node_config, input_data):
     print("Executing Flatten List...")
     return [item for sublist in input_data for item in sublist]
+
+from notion_client import APIResponseError
 
 def execute_notion_action(node_config, input_data):
     print("Executing Notion Action...")
@@ -67,8 +80,10 @@ def execute_notion_action(node_config, input_data):
                     }
                 }
             )
+        except APIResponseError as e:
+            print(f"    Error creating Notion page: {e.body}")
         except Exception as e:
-            print(f"    Error creating Notion page: {e}")
+            print(f"    An unexpected error occurred: {e}")
 
     return [] # Notion action is a sink, it doesn't return data
 
