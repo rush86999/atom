@@ -14,7 +14,7 @@ import 'reactflow/dist/style.css';
 import GmailTriggerNode from '../../src/ui-shared/components/workflows/nodes/GmailTriggerNode';
 import GoogleCalendarNode from '../../src/ui-shared/components/workflows/nodes/GoogleCalendarNode';
 import NotionNode from '../../src/ui-shared/components/workflows/nodes/NotionNode';
-import AiNode from '../../src/ui-shared/components/workflows/nodes/AiNode';
+import AiTaskNode from '../../src/ui-shared/components/workflows/nodes/AiTaskNode';
 import FlattenNode from '../../src/ui-shared/components/workflows/nodes/FlattenNode';
 import Sidebar from '../../src/ui-shared/components/workflows/Sidebar';
 
@@ -62,7 +62,7 @@ const AutomationsPage = () => {
       gmailTrigger: GmailTriggerNode,
       googleCalendarTrigger: GoogleCalendarNode,
       notionAction: NotionNode,
-      aiActionExtractor: AiNode,
+      aiTask: AiTaskNode,
       flatten: FlattenNode,
     }),
     []
