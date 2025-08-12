@@ -9,12 +9,32 @@ import notion_client
 
 # --- Node Execution Functions ---
 
+import requests
+
 def execute_gmail_trigger(node_config, input_data):
     print("Executing Gmail Trigger...")
-    return [
-        {"email_body": "This is a test email. Please send me the report by Friday."},
-        {"email_body": "Another email with an action: follow up with John."},
-    ]
+    user_id = node_config.get("userId")
+    query = node_config.get("query", "is:unread")
+    max_results = node_config.get("maxResults", 10)
+
+    if not user_id:
+        print("Error: userId is not configured for Gmail Trigger.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/gmail-integration/search-user-gmail",
+            json={
+                "session_variables": {"x-hasura-user-id": user_id},
+                "input": {"query": query, "maxResults": max_results},
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get("results", [])
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
 
 import openai
 

@@ -361,8 +361,7 @@ async fn get_workflows() -> Result<Vec<Workflow>, String> {
     match response {
         Ok(res) => {
             if res.status().is_success() {
-                let workflows: Vec<Workflow> = res.json().await.unwrap();
-                Ok(workflows)
+                res.json::<Vec<Workflow>>().await.map_err(|e| e.to_string())
             } else {
                 Err(format!("Failed to get workflows: {}", res.status()))
             }
