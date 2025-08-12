@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 # Omit --production flag for TypeScript devDependencies
 RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile --network-timeout 1000000; \
+  if [ -f yarn.lock ]; then yarn --network-timeout 1000000; \
   elif [ -f package-lock.json ]; then npm ci; \
   elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i; \
   # Allow install without lockfile, so example works even without Node.js installed locally
