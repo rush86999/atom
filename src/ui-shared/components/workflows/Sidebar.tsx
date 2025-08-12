@@ -63,10 +63,10 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow }) => {
             cursor: 'grab',
             textAlign: 'center'
           }}
-          onDragStart={(event) => onDragStart(event, 'aiActionExtractor')}
+          onDragStart={(event) => onDragStart(event, 'aiTask')}
           draggable
         >
-          AI Action Extractor
+          AI Task
         </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
