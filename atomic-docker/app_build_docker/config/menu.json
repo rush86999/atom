@@ -3,6 +3,10 @@
     {
       "name": "Home",
       "url": "/"
+    },
+    {
+      "name": "Automations",
+      "url": "/Automations"
     }
   ],
   "footer": [
