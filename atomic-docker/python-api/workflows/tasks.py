@@ -3,6 +3,106 @@ from . import database, models
 from sqlalchemy.orm import Session
 import json
 import time
+from collections import defaultdict
+import os
+import notion_client
+
+# --- Node Execution Functions ---
+
+def execute_gmail_trigger(node_config, input_data):
+    print("Executing Gmail Trigger...")
+    return [
+        {"email_body": "This is a test email. Please send me the report by Friday."},
+        {"email_body": "Another email with an action: follow up with John."},
+    ]
+
+def execute_ai_action_extractor(node_config, input_data):
+    print("Executing AI Action Extractor...")
+    output = []
+    for item in input_data:
+        email_body = item.get("email_body", "")
+        action_items = []
+        if "report by Friday" in email_body:
+            action_items.append("Send the report by Friday")
+        if "follow up with John" in email_body:
+            action_items.append("Follow up with John")
+        output.append(action_items)
+    return output
+
+def flatten_list(node_config, input_data):
+    print("Executing Flatten List...")
+    return [item for sublist in input_data for item in sublist]
+
+def execute_notion_action(node_config, input_data):
+    print("Executing Notion Action...")
+    action_items = input_data
+    database_id = node_config.get("databaseId")
+    notion_api_key = os.environ.get("NOTION_API_KEY")
+
+    if not database_id or not notion_api_key:
+        print("Error: Notion database ID or API key is not configured.")
+        return []
+
+    notion = notion_client.Client(auth=notion_api_key)
+
+    for item in action_items:
+        print(f"  - Creating Notion task: {item}")
+        try:
+            notion.pages.create(
+                parent={"database_id": database_id},
+                properties={
+                    "Name": {
+                        "title": [
+                            {
+                                "text": {
+                                    "content": str(item) # Ensure item is a string
+                                }
+                            }
+                        ]
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"    Error creating Notion page: {e}")
+
+    return [] # Notion action is a sink, it doesn't return data
+
+NODE_EXECUTION_MAP = {
+    "gmailTrigger": execute_gmail_trigger,
+    "aiActionExtractor": execute_ai_action_extractor,
+    "notionAction": execute_notion_action,
+    "flatten": flatten_list,
+}
+
+# --- Topological Sort ---
+
+def topological_sort(nodes, edges):
+    adj = defaultdict(list)
+    in_degree = {node['id']: 0 for node in nodes}
+    node_map = {node['id']: node for node in nodes}
+
+    for edge in edges:
+        source_id = edge['source']
+        target_id = edge['target']
+        adj[source_id].append(target_id)
+        in_degree[target_id] += 1
+
+    queue = [node['id'] for node in nodes if in_degree[node['id']] == 0]
+    sorted_order = []
+
+    while queue:
+        u = queue.pop(0)
+        sorted_order.append(node_map[u])
+        for v_id in adj[u]:
+            in_degree[v_id] -= 1
+            if in_degree[v_id] == 0:
+                queue.append(v_id)
+
+    if len(sorted_order) == len(nodes):
+        return sorted_order
+    else:
+        raise Exception("Workflow contains a cycle")
+
 
 @celery_app.task
 def execute_workflow(workflow_id: str):
@@ -17,16 +117,36 @@ def execute_workflow(workflow_id: str):
     nodes = definition.get("nodes", [])
     edges = definition.get("edges", [])
 
-    # For the PoC, we'll just print the nodes and edges
-    print("Nodes:")
-    for node in nodes:
-        print(f"  - {node['id']}: {node['type']}")
+    if not nodes:
+        print("Workflow has no nodes to execute.")
+        return
 
-    print("Edges:")
-    for edge in edges:
-        print(f"  - {edge['source']} -> {edge['target']}")
+    try:
+        sorted_nodes = topological_sort(nodes, edges)
+    except Exception as e:
+        print(f"Error sorting workflow nodes: {e}")
+        return
 
-    # Simulate a long-running task
-    time.sleep(10)
+    node_outputs = {}
+
+    for node in sorted_nodes:
+        node_id = node['id']
+        node_type = node.get('type')
+
+        input_data = []
+        for edge in edges:
+            if edge['target'] == node_id:
+                source_id = edge['source']
+                if source_id in node_outputs:
+                    input_data.extend(node_outputs[source_id])
+
+        if node_type in NODE_EXECUTION_MAP:
+            print(f"--- Executing node {node_id} ({node_type}) ---")
+            execution_func = NODE_EXECUTION_MAP[node_type]
+            output_data = execution_func(node.get('data', {}), input_data)
+            node_outputs[node_id] = output_data
+            print(f"--- Finished node {node_id}. Output: {output_data} ---")
+        else:
+            print(f"Warning: No execution function found for node type '{node_type}'")
 
     print(f"Workflow {workflow.name} executed successfully")

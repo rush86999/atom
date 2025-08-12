@@ -54,6 +54,20 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow }) => {
         >
           Notion Action
         </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'aiActionExtractor')}
+          draggable
+        >
+          AI Action Extractor
+        </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
       <div>
