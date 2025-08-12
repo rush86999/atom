@@ -15,6 +15,7 @@ pyarrow
 # For Meilisearch
 
 # For Cloud Integrations
+boxsdk[jwt]>=3.0.0
 dropbox>=11.36.0
 google-api-python-client
 google-auth-oauthlib
