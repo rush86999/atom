@@ -12,6 +12,7 @@ try:
     from .gdrive_extractor import extract_data_from_gdrive
     from .local_storage_extractor import extract_data_from_local_storage
     from .dropbox_extractor import extract_data_from_dropbox
+    from .box_extractor import extract_data_from_box
     from .onedrive_extractor import extract_data_from_onedrive
     from .text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from .lancedb_handler import (
@@ -154,6 +155,12 @@ async def run_ingestion_pipeline():
     if dropbox_token:
         dropbox_data = await extract_data_from_dropbox(ATOM_USER_ID_FOR_INGESTION, dropbox_token)
         all_data.extend(dropbox_data)
+
+    # Box
+    box_token = os.getenv("BOX_ACCESS_TOKEN")
+    if box_token:
+        box_data = await extract_data_from_box(ATOM_USER_ID_FOR_INGESTION, box_token)
+        all_data.extend(box_data)
 
     # OneDrive
     onedrive_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
