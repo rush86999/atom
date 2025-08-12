@@ -13,6 +13,8 @@ import 'reactflow/dist/style.css';
 import GmailTriggerNode from '../../../../src/ui-shared/components/workflows/nodes/GmailTriggerNode';
 import GoogleCalendarNode from '../../../../src/ui-shared/components/workflows/nodes/GoogleCalendarNode';
 import NotionNode from '../../../../src/ui-shared/components/workflows/nodes/NotionNode';
+import AiNode from '../../../../src/ui-shared/components/workflows/nodes/AiNode';
+import FlattenNode from '../../../../src/ui-shared/components/workflows/nodes/FlattenNode';
 import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
 
 let id = 1;
@@ -62,6 +64,8 @@ const AutomationsPage = () => {
       gmailTrigger: GmailTriggerNode,
       googleCalendarTrigger: GoogleCalendarNode,
       notionAction: NotionNode,
+      aiActionExtractor: AiNode,
+      flatten: FlattenNode,
     }),
     []
   );
@@ -90,12 +94,24 @@ const AutomationsPage = () => {
         id: getId(),
         type,
         position,
-        data: { label: `${type} node` },
+        data: {
+          label: `${type} node`,
+          onChange: (newData) => {
+            setNodes((nds) =>
+              nds.map((node) => {
+                if (node.id === newNode.id) {
+                  return { ...node, data: { ...node.data, ...newData } };
+                }
+                return node;
+              })
+            );
+          },
+        },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance]
+    [reactFlowInstance, setNodes]
   );
 
   const handleSave = async () => {
