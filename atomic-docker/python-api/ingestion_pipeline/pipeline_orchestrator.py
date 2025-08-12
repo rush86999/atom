@@ -1,10 +1,12 @@
 import os
 import asyncio
 import logging
-from datetime import datetime, timezone # Ensure timezone is imported
-from typing import Optional, Any, List # Added List for type hint
+import psycopg2.pool
+from datetime import datetime, timezone
+from typing import Optional, Any, List
 
-# Assuming modules are in the same package or PYTHONPATH is set up correctly.
+# Assuming the execution environment (like a Docker container) will have PYTHONPATH
+# set up to include the path to the 'python_api_service' directory.
 # If running as a script directly within the directory, relative imports might need adjustment
 # or the directory added to sys.path. For a proper package, this should work.
 try:
@@ -16,12 +18,13 @@ try:
     from .onedrive_extractor import extract_data_from_onedrive
     from .text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from .lancedb_handler import (
-        upsert_page_embeddings_to_lancedb,
+        upsert_meeting_transcript_embeddings,
         get_lancedb_connection,
-        TABLE_NAME as lancedb_default_table_name, # Use the default table name from handler
-        TranscriptChunk # Schema for type checking if needed, though not directly used here
+        MEETING_TRANSCRIPTS_TABLE_NAME as lancedb_default_table_name, # Use the correct table name
+        TranscriptChunk
     )
-except ImportError: # Fallback for direct script execution if . is not recognized
+except ImportError as e: # Fallback for direct script execution
+    print(f"Import error: {e}. Trying fallback imports.")
     from notion_extractor import extract_structured_data_from_db, get_notion_client as get_notion_ext_client
     from gdrive_extractor import extract_data_from_gdrive
     from local_storage_extractor import extract_data_from_local_storage
@@ -29,9 +32,9 @@ except ImportError: # Fallback for direct script execution if . is not recognize
     from onedrive_extractor import extract_data_from_onedrive
     from text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from lancedb_handler import (
-        upsert_page_embeddings_to_lancedb,
+        upsert_meeting_transcript_embeddings,
         get_lancedb_connection,
-        TABLE_NAME as lancedb_default_table_name,
+        MEETING_TRANSCRIPTS_TABLE_NAME as lancedb_default_table_name,
         TranscriptChunk
     )
 
@@ -112,14 +115,14 @@ async def get_latest_page_edit_time_from_lancedb(
         return None
 
 
-async def run_ingestion_pipeline():
+async def run_ingestion_pipeline(db_conn_pool: Any):
     logger.info(f"Starting ingestion pipeline in '{PROCESSING_MODE}' mode for user '{ATOM_USER_ID_FOR_INGESTION}'.")
 
     openai_client = get_tp_openai_client()
     lancedb_conn = await get_lancedb_connection()
 
-    if not openai_client or not lancedb_conn:
-        logger.error("One or more clients (OpenAI, LanceDB) failed to initialize. Aborting pipeline.")
+    if not openai_client or not lancedb_conn or not db_conn_pool:
+        logger.error("One or more clients (OpenAI, LanceDB, DB Pool) failed to initialize. Aborting pipeline.")
         return
 
     all_data = []
@@ -156,11 +159,9 @@ async def run_ingestion_pipeline():
         dropbox_data = await extract_data_from_dropbox(ATOM_USER_ID_FOR_INGESTION, dropbox_token)
         all_data.extend(dropbox_data)
 
-    # Box
-    box_token = os.getenv("BOX_ACCESS_TOKEN")
-    if box_token:
-        box_data = await extract_data_from_box(ATOM_USER_ID_FOR_INGESTION, box_token)
-        all_data.extend(box_data)
+    # Box - Now uses the DB connection pool to fetch its own tokens
+    box_data = await extract_data_from_box(ATOM_USER_ID_FOR_INGESTION, db_conn_pool)
+    all_data.extend(box_data)
 
     # OneDrive
     onedrive_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
@@ -229,7 +230,7 @@ async def run_ingestion_pipeline():
             continue
 
         logger.info(f"Upserting {len(valid_chunks_for_storage)} embedding(s) for item: '{item_title}' (ID: {item_id}) to LanceDB.")
-        upsert_success = await upsert_page_embeddings_to_lancedb(
+        upsert_success = await upsert_meeting_transcript_embeddings(
             notion_page_id=item_id,
             notion_page_title=item_title,
             notion_page_url=item_data.get("url"),
@@ -255,7 +256,6 @@ async def main():
     # For actual deployment, this would be triggered by an API call or a scheduler.
 
     # Load .env file if it exists (for local development)
-    # You might need to install python-dotenv: pip install python-dotenv
     try:
         from dotenv import load_dotenv
         dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -263,45 +263,39 @@ async def main():
             logger.info(f"Loading .env file from {dotenv_path}")
             load_dotenv(dotenv_path)
         else:
-            logger.info(".env file not found at expected location, relying on environment variables set externally.")
+            logger.info(".env file not found, relying on environment variables.")
     except ImportError:
-        logger.info("python-dotenv not installed, .env file will not be loaded. Relying on external environment variables.")
+        logger.info("python-dotenv not installed, .env file will not be loaded.")
 
     # Check for required environment variables before running
-    required_vars = ["OPENAI_API_KEY", "LANCEDB_URI"]
-    if os.getenv("NOTION_API_KEY"):
-        required_vars.append("NOTION_TRANSCRIPTS_DATABASE_ID")
-    if os.getenv("GDRIVE_CREDENTIALS"):
-        pass # No additional required vars, credentials are self-contained
-    if os.getenv("DROPBOX_ACCESS_TOKEN"):
-        pass # No additional required vars
-    if os.getenv("ONEDRIVE_ACCESS_TOKEN"):
-        required_vars.append("MS_CLIENT_ID")
-
+    required_vars = ["OPENAI_API_KEY", "LANCEDB_URI", "DATABASE_URL"]
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     if missing_vars:
-        logger.error(f"Missing required environment variables: {', '.join(missing_vars)}. Aborting pipeline.")
-        print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}. Please set them to run the pipeline.")
+        logger.error(f"Missing required environment variables: {', '.join(missing_vars)}. Aborting.")
         return
 
-    await run_ingestion_pipeline()
+    db_pool = None
+    try:
+        logger.info("Initializing PostgreSQL connection pool...")
+        db_pool = psycopg2.pool.SimpleConnectionPool(
+            minconn=1,
+            maxconn=5,
+            dsn=os.getenv("DATABASE_URL")
+        )
+        logger.info("PostgreSQL connection pool initialized successfully.")
+
+        await run_ingestion_pipeline(db_pool)
+
+    except Exception as e:
+        logger.error(f"An error occurred during the pipeline execution: {e}", exc_info=True)
+    finally:
+        if db_pool:
+            db_pool.closeall()
+            logger.info("PostgreSQL connection pool closed.")
 
 if __name__ == "__main__":
     # This allows running the pipeline directly, e.g., for testing or a cron job.
-    # Example: python -m atomic-docker.python-api.ingestion_pipeline.pipeline_orchestrator
-    # (Adjust python -m path based on how you run it relative to your project root)
-    # Or simply: python pipeline_orchestrator.py if in the directory
-
-    # Ensure the logger for this module specifically shows output
-    # logging.getLogger("pipeline_orchestrator").setLevel(logging.INFO) # Already set by basicConfig
-
-    # For testing, you might want to set env vars here if not using .env or system env
-    # os.environ["NOTION_API_KEY"] = "your_key"
-    # os.environ["OPENAI_API_KEY"] = "your_key"
-    # os.environ["NOTION_TRANSCRIPTS_DATABASE_ID"] = "your_db_id"
-    # os.environ["LANCEDB_URI"] = "./lance_db_pipeline_run" # Test with a local path
-    # os.environ["ATOM_USER_ID_FOR_INGESTION"] = "test_user_pipeline_run"
-    # os.environ["PROCESSING_MODE"] = "full"
-
+    # To run this, ensure PYTHONPATH is set up to find the 'python_api_service' module.
+    # Example from the `atomic-docker` directory:
+    # PYTHONPATH=./project/functions python -m python-api.ingestion_pipeline.pipeline_orchestrator
     asyncio.run(main())
-    pass
