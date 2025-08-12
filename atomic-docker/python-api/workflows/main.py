@@ -4,6 +4,8 @@ from typing import List
 from . import models, database
 from .database import engine
 from uuid import UUID
+from .tasks import execute_workflow
+from celery.result import AsyncResult
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -73,15 +75,11 @@ def trigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
-    # This is a placeholder for the logic to create a periodic task in Celery
-    # In a real application, this would use the celery-beat database scheduler
-    # to create a new PeriodicTask record.
-
-    # For now, we will just set the celery_task_id to a dummy value
-    db_workflow.celery_task_id = "dummy_task_id"
+    task = execute_workflow.delay(str(workflow_id))
+    db_workflow.celery_task_id = task.id
     db.commit()
 
-    return {"message": "Workflow triggered successfully"}
+    return {"message": "Workflow triggered successfully", "task_id": task.id}
 
 @app.post("/workflows/{workflow_id}/untrigger")
 def untrigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
@@ -90,10 +88,9 @@ def untrigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
-    # This is a placeholder for the logic to remove the periodic task from Celery
-    # In a real application, this would delete the PeriodicTask record from the database.
-
-    db_workflow.celery_task_id = None
-    db.commit()
+    if db_workflow.celery_task_id:
+        AsyncResult(db_workflow.celery_task_id).revoke(terminate=True)
+        db_workflow.celery_task_id = None
+        db.commit()
 
     return {"message": "Workflow untriggered successfully"}

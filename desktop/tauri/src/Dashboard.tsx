@@ -9,6 +9,7 @@ const Dashboard = ({ setActiveView }) => {
       <button onClick={() => setActiveView('support')}>Support</button>
       <button onClick={() => setActiveView('settings')}>Settings</button>
       <button onClick={() => setActiveView('integrations')}>Integrations</button>
+      <button onClick={() => setActiveView('automations')}>Automations</button>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/tauri';
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -10,10 +11,10 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import GmailTriggerNode from '../../../../src/ui-shared/components/workflows/nodes/GmailTriggerNode';
-import GoogleCalendarNode from '../../../../src/ui-shared/components/workflows/nodes/GoogleCalendarNode';
-import NotionNode from '../../../../src/ui-shared/components/workflows/nodes/NotionNode';
-import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
+import GmailTriggerNode from '../../src/ui-shared/components/workflows/nodes/GmailTriggerNode';
+import GoogleCalendarNode from '../../src/ui-shared/components/workflows/nodes/GoogleCalendarNode';
+import NotionNode from '../../src/ui-shared/components/workflows/nodes/NotionNode';
+import Sidebar from '../../src/ui-shared/components/workflows/Sidebar';
 
 let id = 1;
 const getId = () => `${id++}`;
@@ -28,9 +29,8 @@ const AutomationsPage = () => {
   useEffect(() => {
     const fetchWorkflows = async () => {
       try {
-        const response = await fetch('http://localhost:8003/workflows/');
-        const data = await response.json();
-        setWorkflows(data);
+        const data = await invoke('get_workflows');
+        setWorkflows(data as any[]);
       } catch (error) {
         console.error('Failed to fetch workflows', error);
       }
@@ -46,9 +46,7 @@ const AutomationsPage = () => {
 
   const handleTriggerWorkflow = async (workflowId) => {
     try {
-      await fetch(`http://localhost:8003/workflows/${workflowId}/trigger`, {
-        method: 'POST',
-      });
+      await invoke('trigger_workflow', { workflowId });
       console.log('Workflow triggered successfully');
     } catch (error) {
       console.error('Failed to trigger workflow', error);
@@ -109,13 +107,8 @@ const AutomationsPage = () => {
     };
 
     try {
-      await fetch('/api/workflows', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(workflow),
-      });
+      await invoke('save_workflow', { workflow });
+      console.log('Workflow saved successfully');
     } catch (error) {
       console.error('Failed to save workflow', error);
     }

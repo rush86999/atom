@@ -3,3 +3,5 @@ uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 pydantic
+celery==5.2.7
+redis==4.3.4

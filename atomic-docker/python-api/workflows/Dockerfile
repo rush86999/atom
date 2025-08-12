@@ -19,5 +19,9 @@ COPY . /app/workflows/
 # Make port 8003 available to the world outside this container
 EXPOSE 8003
 
-# Command to run the application using Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
+# Copy the start script and make it executable
+COPY ./start.sh /app/workflows/start.sh
+RUN chmod +x /app/workflows/start.sh
+
+# Run the start script
+CMD ["/app/workflows/start.sh"]
