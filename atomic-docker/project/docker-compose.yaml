@@ -54,6 +54,7 @@ services:
       - "traefik.http.routers.whoami-https.tls.certresolver=le"
       - "traefik.http.routers.whoami-https.service=whoami" # Use the same service definition
   postgres:
+    image: postgres:13-alpine
     restart: always
     volumes:
       - ./postgres/data:/var/lib/postgresql/data
@@ -588,6 +589,91 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  redis:
+    image: "redis:alpine"
+    container_name: redis
+    expose:
+      - 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  celery-worker:
+    build:
+      context: ../python_agent_build_docker
+      dockerfile: Dockerfile
+    container_name: celery-worker
+    command: celery -A project.celery_app worker --loglevel=info
+    volumes:
+      - .:/app/project
+      - ${LANCEDB_HOST_PATH:-./lance_db_data_shared}:/lancedb_data
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      - NOTION_API_TOKEN=${NOTION_API_TOKEN}
+      - NOTION_NOTES_DATABASE_ID=${NOTION_NOTES_DATABASE_ID}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - NOTION_RESEARCH_PROJECTS_DB_ID=${NOTION_RESEARCH_PROJECTS_DB_ID}
+      - NOTION_RESEARCH_TASKS_DB_ID=${NOTION_RESEARCH_TASKS_DB_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LANCEDB_URI=/lancedb_data/atom_core_db
+      - LANCEDB_TABLE_NAME=${LANCEDB_TABLE_NAME:-meeting_transcripts_embeddings}
+      - PYTHONUNBUFFERED=1
+
+  celery-beat:
+    build:
+      context: ../python_agent_build_docker
+      dockerfile: Dockerfile
+    container_name: celery-beat
+    command: celery -A project.celery_app beat --loglevel=info
+    volumes:
+      - .:/app/project
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+
+  workflows-api:
+    build:
+      context: ../python-api/workflows
+      dockerfile: Dockerfile
+    container_name: workflows-api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8003/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.strip-workflows-api.stripprefix.prefixes=/api/workflows"
+      - "traefik.http.routers.workflows-api-http.rule=Host(`${HOST_NAME}`) && PathPrefix(`/api/workflows`)"
+      - "traefik.http.routers.workflows-api-http.entrypoints=web"
+      - "traefik.http.routers.workflows-api-http.middlewares=strip-workflows-api@docker,https-redirect@docker"
+      - "traefik.http.routers.workflows-api-https.rule=Host(`${HOST_NAME}`) && PathPrefix(`/api/workflows`)"
+      - "traefik.http.routers.workflows-api-https.entrypoints=websecure"
+      - "traefik.http.routers.workflows-api-https.tls=true"
+      - "traefik.http.routers.workflows-api-https.tls.certresolver=le"
+      - "traefik.http.routers.workflows-api-https.middlewares=strip-workflows-api@docker"
+      - "traefik.http.routers.workflows-api-https.service=workflows-api-service"
+      - "traefik.http.services.workflows-api-service.loadbalancer.server.port=8003"
 
 volumes:
   project_node_modules:
