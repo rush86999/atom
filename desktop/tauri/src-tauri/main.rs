@@ -68,6 +68,41 @@ struct SocialPost {
     post: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct WorkflowNode {
+    id: String,
+    #[serde(rename = "type")]
+    node_type: String,
+    position: Position,
+    data: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Position {
+    x: f64,
+    y: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct WorkflowEdge {
+    id: String,
+    source: String,
+    target: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct WorkflowDefinition {
+    nodes: Vec<WorkflowNode>,
+    edges: Vec<WorkflowEdge>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Workflow {
+    name: String,
+    definition: WorkflowDefinition,
+    enabled: bool,
+}
+
 // --- Secure Storage ---
 fn get_settings_path(app_handle: &AppHandle) -> PathBuf {
     let mut path = app_handle.path_resolver().app_data_dir().unwrap();
@@ -294,6 +329,68 @@ async fn smart_search(query: String) -> Result<Vec<SearchResult>, String> {
     }
 }
 
+#[tauri::command]
+async fn save_workflow(workflow: Workflow) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post("http://localhost:8003/workflows/")
+        .json(&workflow)
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Failed to save workflow: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to workflow endpoint: {}", err)),
+    }
+}
+
+#[tauri::command]
+async fn get_workflows() -> Result<Vec<Workflow>, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:8003/workflows/")
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                let workflows: Vec<Workflow> = res.json().await.unwrap();
+                Ok(workflows)
+            } else {
+                Err(format!("Failed to get workflows: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to workflow endpoint: {}", err)),
+    }
+}
+
+#[tauri::command]
+async fn trigger_workflow(workflow_id: String) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("http://localhost:8003/workflows/{}/trigger", workflow_id))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Failed to trigger workflow: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to workflow endpoint: {}", err)),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -304,7 +401,10 @@ fn main() {
             run_competitor_analysis,
             generate_learning_plan,
             smart_search,
-            dashboard
+            dashboard,
+            save_workflow,
+            get_workflows,
+            trigger_workflow
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
