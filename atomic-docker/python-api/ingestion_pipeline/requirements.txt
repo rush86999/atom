@@ -1,11 +1,12 @@
 # Requirements for the Ingestion Pipeline service/module
 
 # For Notion API interaction (if notion_extractor is used here)
-notion-sdk-py
+notion-client
 
 # For OpenAI Embeddings (if text_processor is used here)
 openai>=1.0.0
 tenacity>=8.2.0
+tiktoken>=0.4.0
 
 # For LanceDB
 lancedb>=0.5.0
@@ -30,6 +31,10 @@ lxml>=4.9.0
 
 # General utilities
 python-dotenv # For local .env file loading
+psycopg2-binary # For PostgreSQL database connection
+
+# For Audio/Speech-to-Text (dependency of lancedb_handler)
+deepgram-sdk>=2.12.0
 # Add other specific dependencies if this becomes a standalone service
 # For example, if it's a FastAPI service:
 # fastapi
