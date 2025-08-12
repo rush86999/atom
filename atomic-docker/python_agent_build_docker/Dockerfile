@@ -4,10 +4,8 @@ FROM python:3.9-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the local project directory (relative to build context) into /app/project in the image
-# Build context for docker-compose will be 'python_agent_build_docker'.
-# So, '../project' refers to 'atomic-docker/project/'.
-COPY ../project /app/project
+# Copy the current directory contents into the container at /app
+COPY . /app
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
@@ -26,7 +24,10 @@ RUN pip install --no-cache-dir \
     opentelemetry-exporter-otlp-proto-http \
     opentelemetry-instrumentation-requests \
     opentelemetry-instrumentation-boto3 \
-    opentelemetry-instrumentation-logging
+    opentelemetry-instrumentation-logging \
+    celery \
+    redis \
+    django-celery-beat
     # opentelemetry-instrumentation-flask # Uncomment if Flask is used
 
 # Set PYTHONPATH. With this, Python will look for /app/project/...
