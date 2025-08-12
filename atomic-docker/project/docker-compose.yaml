@@ -651,8 +651,11 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+      - redis
     environment:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     ports:
       - "8003:8003"
     healthcheck:

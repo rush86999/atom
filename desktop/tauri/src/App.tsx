@@ -16,6 +16,7 @@ import CompetitorAnalysis from './CompetitorAnalysis';
 import LearningAssistant from './LearningAssistant';
 import Finance from './Finance';
 import Integrations from "./components/Integrations";
+import AutomationsPage from "./Automations";
 import "./App.css";
 
 // Define the roles available in the desktop application.
@@ -39,7 +40,7 @@ const AVAILABLE_ROLES: Role[] = [
 function App() {
   // State to manage the currently displayed view. Defaults to 'chat'.
   const [activeView, setActiveView] = useState<
-    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance" | "research" | "social" | "content" | "shopping" | "integrations"
+    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance" | "research" | "social" | "content" | "shopping" | "integrations" | "automations"
   >("chat");
   // State to track which roles the user has activated.
   const [activeRoles, setActiveRoles] = useState<Role[]>([]);
@@ -165,6 +166,8 @@ function App() {
             <Shopping />
           </FeatureViewGuard>
         );
+      case "automations":
+        return <AutomationsPage />;
       default:
         return <Chat />;
     }
