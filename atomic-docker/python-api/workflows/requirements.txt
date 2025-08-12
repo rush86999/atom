@@ -5,3 +5,5 @@ psycopg2-binary
 pydantic
 celery==5.2.7
 redis==4.3.4
+notion-client==1.0.0
+openai==0.28.1
