@@ -23,7 +23,6 @@ RUN pip install --no-cache-dir \
     opentelemetry-sdk \
     opentelemetry-exporter-otlp-proto-http \
     opentelemetry-instrumentation-requests \
-    opentelemetry-instrumentation-boto3 \
     opentelemetry-instrumentation-logging \
     celery \
     redis \
