@@ -16,6 +16,7 @@ try:
     from .dropbox_extractor import extract_data_from_dropbox
     from .box_extractor import extract_data_from_box
     from .onedrive_extractor import extract_data_from_onedrive
+    from .slack_extractor import extract_data_from_slack
     from .text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from .lancedb_handler import (
         upsert_meeting_transcript_embeddings,
@@ -30,6 +31,7 @@ except ImportError as e: # Fallback for direct script execution
     from local_storage_extractor import extract_data_from_local_storage
     from dropbox_extractor import extract_data_from_dropbox
     from onedrive_extractor import extract_data_from_onedrive
+    from slack_extractor import extract_data_from_slack
     from text_processor import process_text_for_embeddings, get_openai_client as get_tp_openai_client
     from lancedb_handler import (
         upsert_meeting_transcript_embeddings,
@@ -168,6 +170,10 @@ async def run_ingestion_pipeline(db_conn_pool: Any):
     if onedrive_token:
         onedrive_data = await extract_data_from_onedrive(ATOM_USER_ID_FOR_INGESTION, onedrive_token)
         all_data.extend(onedrive_data)
+
+    # Slack - Also uses the DB connection pool to fetch its credentials
+    slack_data = await extract_data_from_slack(ATOM_USER_ID_FOR_INGESTION, db_conn_pool)
+    all_data.extend(slack_data)
 
     if not all_data:
         logger.info("No data found from any source. Pipeline finished.")
