@@ -107,11 +107,56 @@ def execute_notion_action(node_config, input_data):
 
     return [] # Notion action is a sink, it doesn't return data
 
+def execute_google_calendar_action(node_config, input_data):
+    print("Executing Google Calendar Action...")
+    user_id = node_config.get("userId")
+    calendar_id = node_config.get("calendarId", "primary")
+
+    if not user_id:
+        print("Error: userId is not configured for Google Calendar Action.")
+        return []
+
+    for item in input_data:
+        try:
+            summary = item.get("summary")
+            description = item.get("description")
+            start_date_time = item.get("startDateTime")
+            end_date_time = item.get("endDateTime")
+            timezone = item.get("timezone", "UTC")
+
+            if not all([summary, start_date_time, end_date_time]):
+                print(f"Skipping item due to missing fields: {item}")
+                continue
+
+            response = requests.post(
+                "http://functions:3000/calendar-integration/create-event",
+                json={
+                    "session_variables": {"x-hasura-user-id": user_id},
+                    "input": {
+                        "calendarId": calendar_id,
+                        "summary": summary,
+                        "description": description,
+                        "startDateTime": start_date_time,
+                        "endDateTime": end_date_time,
+                        "timezone": timezone,
+                    },
+                },
+            )
+            response.raise_for_status()
+            print(f"  - Successfully created calendar event: {summary}")
+        except requests.exceptions.RequestException as e:
+            print(f"    Error calling functions service: {e}")
+        except Exception as e:
+            print(f"    An unexpected error occurred: {e}")
+
+    return []
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
     "notionAction": execute_notion_action,
     "flatten": flatten_list,
+    "googleCalendarAction": execute_google_calendar_action,
 }
 
 # --- Topological Sort ---
