@@ -35,10 +35,10 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow
             cursor: 'grab',
             textAlign: 'center'
           }}
-          onDragStart={(event) => onDragStart(event, 'googleCalendarTrigger')}
+          onDragStart={(event) => onDragStart(event, 'googleCalendarAction')}
           draggable
         >
-          Google Calendar Trigger
+          Google Calendar Action
         </div>
         <div
           style={{
