@@ -152,6 +152,20 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow
         >
           Branch
         </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'sendEmail')}
+          draggable
+        >
+          Send Email
+        </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
       <div>

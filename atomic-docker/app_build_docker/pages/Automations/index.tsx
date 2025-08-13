@@ -17,6 +17,7 @@ import ReduceNode from '../../../../src/ui-shared/components/workflows/nodes/Red
 import ReminderNode from '../../../../src/ui-shared/components/workflows/nodes/ReminderNode';
 import SlackSendMessageNode from '../../../../src/ui-shared/components/workflows/nodes/SlackSendMessageNode';
 import BranchNode from '../../../../src/ui-shared/components/workflows/nodes/BranchNode';
+import SendEmailNode from '../../../../src/ui-shared/components/workflows/nodes/SendEmailNode';
 import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
 import { useWorkflows } from '../../../../src/ui-shared/hooks/useWorkflows';
 import DataMapper from '../../../../src/ui-shared/components/workflows/DataMapper';
@@ -87,6 +88,7 @@ const AutomationsPage = () => {
       reminder: ReminderNode,
       slackSendMessage: SlackSendMessageNode,
       branch: BranchNode,
+      sendEmail: SendEmailNode,
     }),
     []
   );
@@ -104,6 +106,7 @@ const AutomationsPage = () => {
     reminder: ReminderNode.schema,
     slackSendMessage: SlackSendMessageNode.schema,
     branch: BranchNode.schema,
+    sendEmail: SendEmailNode.schema,
   };
 
   return (
