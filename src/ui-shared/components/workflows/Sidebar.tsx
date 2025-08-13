@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default ({ workflows, onLoadWorkflow, onTriggerWorkflow }) => {
+export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow }) => {
   const onDragStart = (event, nodeType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
@@ -91,6 +91,12 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow }) => {
               style={{ marginLeft: 10 }}
             >
               Trigger
+            </button>
+            <button
+              onClick={() => onDeleteWorkflow(wf.id)}
+              style={{ marginLeft: 5, background: 'salmon', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+            >
+              Delete
             </button>
           </div>
         ))}

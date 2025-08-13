@@ -26,3 +26,12 @@ export default memo(({ data }) => {
     </div>
   );
 });
+
+export const schema = {
+  inputs: [
+    { id: 'list_to_flatten', label: 'List to Flatten', type: 'array' },
+  ],
+  outputs: [
+    { id: 'flattened_list', label: 'Flattened List', type: 'array' },
+  ],
+};
