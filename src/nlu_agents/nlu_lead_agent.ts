@@ -21,6 +21,8 @@ import { RecruitmentRecommendationAgent } from '../skills/recruitmentRecommendat
 import { VibeHackingAgent } from '../skills/vibeHackingSkill';
 import { TaxAgent } from './tax_agent';
 import { MarketingAutomationAgent } from '../skills/marketingAutomationSkill';
+import { WorkflowAgent } from './workflow_agent';
+import { WorkflowGenerator } from './workflow_generator';
 
 export class NLULeadAgent {
   private analyticalAgent: AnalyticalAgent;
@@ -37,6 +39,8 @@ export class NLULeadAgent {
   private vibeHackingAgent: VibeHackingAgent;
   private taxAgent: TaxAgent;
   private marketingAutomationAgent: MarketingAutomationAgent;
+  private workflowAgent: WorkflowAgent;
+  private workflowGenerator: WorkflowGenerator;
   private agentName: string = 'NLULeadAgent';
 
   constructor(
@@ -61,6 +65,8 @@ export class NLULeadAgent {
     this.vibeHackingAgent = new VibeHackingAgent(llmService);
     this.taxAgent = new TaxAgent(llmService);
     this.marketingAutomationAgent = new MarketingAutomationAgent(llmService);
+    this.workflowAgent = new WorkflowAgent(llmService);
+    this.workflowGenerator = new WorkflowGenerator();
   }
 
   public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -79,6 +85,7 @@ export class NLULeadAgent {
       vibeHackingResponse,
       taxResponse,
       marketingAutomationResponse,
+      workflowResponse,
     ] = await Promise.all([
       this.analyticalAgent.analyze(input).catch((e) => {
         console.error('AnalyticalAgent failed:', e);
@@ -120,19 +127,13 @@ export class NLULeadAgent {
         console.error('MarketingAutomationAgent failed:', e);
         return null;
       }),
+      this.workflowAgent.analyze(input).catch((e) => {
+        console.error('WorkflowAgent failed:', e);
+        return null;
+      }),
     ]);
     console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
-    if (analyticalResponse?.problemType === 'data_analysis') {
-      const dataAnalystResult = await this.dataAnalystSkill.analyzeData(
-        input.userInput
-      );
-      // You can decide how to incorporate the result of the data analyst skill.
-      // For now, we'll just log it.
-      console.log('Data Analyst Skill Result:', dataAnalystResult);
-    }
-
-    console.time(P_LEAD_SYNTHESIS_TIMER_LABEL);
     const synthesisResult = await this.synthesizingAgent.synthesize(
       input,
       analyticalResponse,
@@ -144,11 +145,20 @@ export class NLULeadAgent {
       recruitmentRecommendationResponse,
       vibeHackingResponse,
       taxResponse,
-      marketingAutomationResponse
+      marketingAutomationResponse,
+      workflowResponse
     );
-    console.timeEnd(P_LEAD_SYNTHESIS_TIMER_LABEL);
 
-    if (synthesisResult.suggestedNextAction?.actionType === 'invoke_skill') {
+    if (synthesisResult.suggestedNextAction?.actionType === 'create_workflow') {
+      const workflowDefinition = this.workflowGenerator.generate(synthesisResult);
+      if (workflowDefinition) {
+        await this.saveWorkflow(synthesisResult.primaryGoal, workflowDefinition);
+        // We could potentially modify the enriched intent here to indicate success.
+        synthesisResult.synthesisLog?.push("Successfully generated and saved the new workflow.");
+      } else {
+        synthesisResult.synthesisLog?.push("Failed to generate the workflow definition.");
+      }
+    } else if (synthesisResult.suggestedNextAction?.actionType === 'invoke_skill') {
       const skillId = synthesisResult.suggestedNextAction.skillId;
       if (skillId === 'advancedResearch') {
         // @ts-ignore
@@ -191,11 +201,39 @@ export class NLULeadAgent {
         vibeHacking: vibeHackingResponse,
         tax: taxResponse,
         marketingAutomation: marketingAutomationResponse,
+        workflow: workflowResponse,
       },
       synthesisLog: synthesisResult.synthesisLog || [
         'Synthesis log not initialized.',
       ],
     };
+  }
+}
+
+  private async saveWorkflow(name: string, definition: object): Promise<void> {
+    const workflow = {
+      name,
+      definition,
+      enabled: true,
+    };
+
+    try {
+      // Assuming fetch is available in the environment.
+      // In a real scenario, this URL should come from a config.
+      const response = await fetch('http://localhost:8003/workflows/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workflow),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to save workflow:', response.statusText);
+      } else {
+        console.log('Workflow saved successfully');
+      }
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+    }
   }
 }
 
