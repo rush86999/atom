@@ -106,6 +106,12 @@ The pipeline is designed to be extensible to multiple data sources. The general 
 *   **Data Scoped**: The integration fetches messages from all public channels in the user's connected Slack workspace.
 *   **Configuration**: No specific environment variables are needed for the Slack token itself, as it's managed via the database.
 
+### Microsoft Teams Integration
+
+*   **Authentication**: The MS Teams integration uses the Microsoft Graph API and authenticates via OAuth 2.0. Credentials (including a refresh token) must be stored in the `public.user_msteams_oauth_tokens` table. The extractor handles the token refresh flow using the MSAL library.
+*   **Data Scoped**: The integration fetches messages from all channels in all teams that the user is a member of.
+*   **Configuration**: This integration requires several environment variables for the MSAL client to be configured, including the client ID, client secret, and authority URL. An encryption key is also required for securing the tokens in the database.
+
 ## Data Source Structure Assumptions
 
 *   **Notion**: The pipeline expects pages within the `NOTION_TRANSCRIPTS_DATABASE_ID` to contain their primary textual content directly within their blocks (e.g., as paragraphs, headings). It attempts to find a page title using common property names like "Name", "Title", or "Task Description".
