@@ -237,6 +237,34 @@ def execute_slack_send_message_node(node_config, input_data, user_id):
 def execute_branch_node(node_config, input_data):
     return input_data
 
+def execute_send_email_node(node_config, input_data, user_id):
+    to = node_config.get("to", "")
+    subject = node_config.get("subject", "")
+    body = node_config.get("body", "")
+
+    if not all([to, subject, body]):
+        print("Error: Missing required config for Send Email Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/gmail-service/send-email",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "to": to,
+                    "subject": subject,
+                    "body": body,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
@@ -249,6 +277,7 @@ NODE_EXECUTION_MAP = {
     "reminder": execute_reminder_node,
     "slackSendMessage": execute_slack_send_message_node,
     "branch": execute_branch_node,
+    "sendEmail": execute_send_email_node,
 }
 
 # --- Topological Sort ---
@@ -320,7 +349,7 @@ def execute_workflow(workflow_id: str):
         if node_type in NODE_EXECUTION_MAP:
             print(f"--- Executing node {node_id} ({node_type}) ---")
             execution_func = NODE_EXECUTION_MAP[node_type]
-            if node_type in ["gmailTrigger", "reminder", "slackSendMessage"]:
+            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail"]:
                 output_data = execution_func(node.get('data', {}), input_data, workflow.user_id)
             else:
                 output_data = execution_func(node.get('data', {}), input_data)
