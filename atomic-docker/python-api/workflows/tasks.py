@@ -234,6 +234,9 @@ def execute_slack_send_message_node(node_config, input_data, user_id):
         print(f"    Error calling functions service: {e}")
         return []
 
+def execute_branch_node(node_config, input_data):
+    return input_data
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
@@ -245,6 +248,7 @@ NODE_EXECUTION_MAP = {
     "reduce": execute_reduce_node,
     "reminder": execute_reminder_node,
     "slackSendMessage": execute_slack_send_message_node,
+    "branch": execute_branch_node,
 }
 
 # --- Topological Sort ---
