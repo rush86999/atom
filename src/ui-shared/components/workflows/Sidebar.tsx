@@ -82,6 +82,62 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow
         >
           AI Task
         </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'delay')}
+          draggable
+        >
+          Delay
+        </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'llmFilter')}
+          draggable
+        >
+          LLM Filter
+        </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'reduce')}
+          draggable
+        >
+          Combine
+        </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'slackSendMessage')}
+          draggable
+        >
+          Slack: Send Message
+        </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
       <div>
