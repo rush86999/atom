@@ -6,17 +6,36 @@ import psycopg2.extras
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime, timezone
+from Crypto.Cipher import AES
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# In a production system, a secure way to handle secrets (like a decryption utility
-# using AWS KMS or HashiCorp Vault) would be used here. For this implementation,
-# we assume the token is not stored encrypted in the database.
+# --- Decryption Logic ---
+# NOTE: SLACK_TOKEN_ENCRYPTION_KEY should be a 64-character hex string (32 bytes)
+ENCRYPTION_KEY = os.getenv("SLACK_TOKEN_ENCRYPTION_KEY")
+
+def decrypt(encrypted_text: str) -> str:
+    """
+    Decrypts text encrypted by a corresponding encryption function.
+    """
+    if not ENCRYPTION_KEY:
+        raise ValueError("SLACK_TOKEN_ENCRYPTION_KEY is not set.")
+
+    key = bytes.fromhex(ENCRYPTION_KEY)
+    parts = encrypted_text.split(':')
+    iv = bytes.fromhex(parts[0])
+    auth_tag = bytes.fromhex(parts[1])
+    encrypted_data = bytes.fromhex(parts[2])
+
+    cipher = AES.new(key, AES.MODE_GCM, iv)
+    decrypted_data = cipher.decrypt_and_verify(encrypted_data, auth_tag)
+    return decrypted_data.decode('utf-8')
+
+
 async def get_slack_oauth_token(user_id: str, db_conn_pool: Any) -> Dict[str, Any]:
     """
-    Retrieves the Slack OAuth token for a given user from the database.
-    NOTE: This simplified version does not handle token decryption.
+    Retrieves and decrypts the Slack OAuth token for a given user from the database.
     """
     conn = None
     try:
@@ -28,21 +47,17 @@ async def get_slack_oauth_token(user_id: str, db_conn_pool: Any) -> Dict[str, An
             )
             record = cur.fetchone()
             if record:
-                # We are assuming the token is stored as a plain string for now.
-                # In a real implementation, this would be a call to a decryption service.
-                access_token = record["encrypted_access_token"]
-                if isinstance(access_token, bytes):
-                    # If it were encrypted, it would be bytes. We'd decrypt it.
-                    # For now, we'll just decode it assuming it's plain text stored as bytes.
-                    access_token = access_token.decode('utf-8')
+                encrypted_token = record["encrypted_access_token"]
+                # The token is stored as a hex string representation of bytes in the DB
+                access_token = decrypt(encrypted_token)
 
-                logger.info(f"Successfully retrieved Slack token for user {user_id}.")
+                logger.info(f"Successfully retrieved and decrypted Slack token for user {user_id}.")
                 return {"token": access_token, "team_id": record["team_id"]}
             else:
                 logger.warning(f"No Slack token found for user {user_id}.")
                 return {}
-    except psycopg2.Error as e:
-        logger.error(f"Database error while fetching Slack token for user {user_id}: {e}")
+    except Exception as e:
+        logger.error(f"Error getting Slack token for user {user_id}: {e}", exc_info=True)
         return {}
     finally:
         if conn:

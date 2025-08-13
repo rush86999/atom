@@ -13,7 +13,7 @@ def mock_db_conn_pool():
 
     # This is the mock for the cursor object itself.
     mock_cursor = MagicMock()
-    mock_cursor.fetchone.return_value = {'encrypted_access_token': 'xoxp-test-token', 'team_id': 'T12345'}
+    mock_cursor.fetchone.return_value = {'encrypted_access_token': 'mock_encrypted_token', 'team_id': 'T12345'}
 
     # This is the mock for the context manager returned by `conn.cursor()`.
     mock_context_manager = MagicMock()
@@ -64,8 +64,14 @@ def mock_slack_client():
 
         yield mock_instance
 
+@pytest.fixture
+def mock_decrypt():
+    """Mocks the decrypt function."""
+    with patch('ingestion_pipeline.slack_extractor.decrypt', return_value="decrypted_xoxp_token") as mock:
+        yield mock
+
 @pytest.mark.asyncio
-async def test_extract_data_from_slack_happy_path(mock_db_conn_pool, mock_slack_client):
+async def test_extract_data_from_slack_happy_path(mock_db_conn_pool, mock_slack_client, mock_decrypt):
     # Arrange
     user_id = "test_user_slack"
 
@@ -90,6 +96,7 @@ async def test_extract_data_from_slack_happy_path(mock_db_conn_pool, mock_slack_
     assert created_at_dt.day == 25
 
     # Verify mocks were called
+    mock_decrypt.assert_called_once_with('mock_encrypted_token')
     mock_db_conn_pool.getconn.assert_called_once()
     mock_slack_client.conversations_list.assert_called_once_with(types="public_channel", limit=200)
     assert mock_slack_client.conversations_history.call_count == 2

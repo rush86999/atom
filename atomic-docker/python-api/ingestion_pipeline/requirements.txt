@@ -23,6 +23,7 @@ google-auth-oauthlib
 msgraph-sdk
 azure-identity
 slack-sdk
+msal
 
 # For HTML/DOCX parsing
 python-docx>=0.8.11
@@ -33,6 +34,7 @@ lxml>=4.9.0
 # General utilities
 python-dotenv # For local .env file loading
 psycopg2-binary # For PostgreSQL database connection
+pycryptodome # For token encryption/decryption
 
 # For Audio/Speech-to-Text (dependency of lancedb_handler)
 deepgram-sdk>=2.12.0
