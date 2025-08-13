@@ -80,3 +80,11 @@ export default memo(({ data }) => {
     </div>
   );
 });
+
+export const schema = {
+  outputs: [
+    { id: 'email_body', label: 'Email Body', type: 'string' },
+    { id: 'subject', label: 'Subject', type: 'string' },
+    { id: 'sender', label: 'Sender', type: 'string' },
+  ],
+};

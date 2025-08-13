@@ -13,6 +13,7 @@ import AiTaskNode from '../../src/ui-shared/components/workflows/nodes/AiTaskNod
 import FlattenNode from '../../src/ui-shared/components/workflows/nodes/FlattenNode';
 import Sidebar from '../../src/ui-shared/components/workflows/Sidebar';
 import { useWorkflows } from '../../src/ui-shared/hooks/useWorkflows';
+import DataMapper from '../../src/ui-shared/components/workflows/DataMapper';
 
 const desktopApi = {
   getWorkflows: async () => {
@@ -23,6 +24,12 @@ const desktopApi = {
   },
   triggerWorkflow: async (workflowId) => {
     await invoke('trigger_workflow', { workflowId });
+  },
+  updateWorkflow: async (workflowId, workflow) => {
+    await invoke('update_workflow', { workflowId, workflow });
+  },
+  deleteWorkflow: async (workflowId) => {
+    await invoke('delete_workflow', { workflowId });
   },
 };
 
@@ -41,6 +48,10 @@ const AutomationsPage = () => {
     handleLoadWorkflow,
     handleSave,
     handleTriggerWorkflow,
+    handleDeleteWorkflow,
+    dataMapperState,
+    handleSaveMapping,
+    handleCancelMapping,
   } = useWorkflows(desktopApi);
 
   const nodeTypes = useMemo(
@@ -54,6 +65,14 @@ const AutomationsPage = () => {
     []
   );
 
+  const nodeSchemas = {
+    gmailTrigger: GmailTriggerNode.schema,
+    googleCalendarTrigger: GoogleCalendarNode.schema,
+    notionAction: NotionNode.schema,
+    aiTask: AiTaskNode.schema,
+    flatten: FlattenNode.schema,
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <ReactFlowProvider>
@@ -61,6 +80,7 @@ const AutomationsPage = () => {
           workflows={workflows}
           onLoadWorkflow={handleLoadWorkflow}
           onTriggerWorkflow={handleTriggerWorkflow}
+          onDeleteWorkflow={handleDeleteWorkflow}
         />
         <div style={{ flex: 1 }} ref={reactFlowWrapper}>
           <ReactFlow
@@ -81,6 +101,14 @@ const AutomationsPage = () => {
       <button onClick={handleSave} style={{ position: 'absolute', top: 10, right: 10 }}>
         Save Workflow
       </button>
+      {dataMapperState.isOpen && (
+        <DataMapper
+          sourceSchema={nodeSchemas[dataMapperState.sourceNode.type]}
+          targetSchema={nodeSchemas[dataMapperState.targetNode.type]}
+          onSave={handleSaveMapping}
+          onCancel={handleCancelMapping}
+        />
+      )}
     </div>
   );
 };

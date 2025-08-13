@@ -39,3 +39,12 @@ export default memo(({ data }) => {
     </div>
   );
 });
+
+export const schema = {
+  inputs: [
+    { id: 'text_to_process', label: 'Text to Process', type: 'string' },
+  ],
+  outputs: [
+    { id: 'result', label: 'Result', type: 'string' },
+  ],
+};
