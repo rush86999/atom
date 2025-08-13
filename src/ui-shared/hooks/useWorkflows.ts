@@ -17,6 +17,12 @@ export const useWorkflows = (api) => {
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const [workflows, setWorkflows] = useState([]);
   const [currentWorkflowId, setCurrentWorkflowId] = useState(null);
+  const [dataMapperState, setDataMapperState] = useState({
+    isOpen: false,
+    sourceNode: null,
+    targetNode: null,
+    edgeParams: null,
+  });
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -37,7 +43,32 @@ export const useWorkflows = (api) => {
     setCurrentWorkflowId(workflow.id);
   };
 
-  const onConnect = (params: Edge | Connection) => setEdges((els) => addEdge(params, els));
+  const onConnect = (params: Edge | Connection) => {
+    const sourceNode = nodes.find(n => n.id === params.source);
+    const targetNode = nodes.find(n => n.id === params.target);
+
+    if (sourceNode && targetNode) {
+      setDataMapperState({
+        isOpen: true,
+        sourceNode,
+        targetNode,
+        edgeParams: params,
+      });
+    }
+  };
+
+  const handleSaveMapping = (mappings) => {
+    const { edgeParams } = dataMapperState;
+    if (edgeParams) {
+      const newEdge = { ...edgeParams, data: { mappings } };
+      setEdges((els) => addEdge(newEdge, els));
+    }
+    setDataMapperState({ isOpen: false, sourceNode: null, targetNode: null, edgeParams: null });
+  };
+
+  const handleCancelMapping = () => {
+    setDataMapperState({ isOpen: false, sourceNode: null, targetNode: null, edgeParams: null });
+  };
 
   const onDragOver = useCallback((event) => {
     event.preventDefault();
@@ -143,5 +174,8 @@ export const useWorkflows = (api) => {
     handleSave,
     handleTriggerWorkflow,
     handleDeleteWorkflow,
+    dataMapperState,
+    handleSaveMapping,
+    handleCancelMapping,
   };
 };

@@ -12,6 +12,7 @@ import AiTaskNode from '../../../../src/ui-shared/components/workflows/nodes/AiT
 import FlattenNode from '../../../../src/ui-shared/components/workflows/nodes/FlattenNode';
 import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
 import { useWorkflows } from '../../../../src/ui-shared/hooks/useWorkflows';
+import DataMapper from '../../../../src/ui-shared/components/workflows/DataMapper';
 
 const webApi = {
   getWorkflows: async () => {
@@ -37,6 +38,11 @@ const webApi = {
       body: JSON.stringify(workflow),
     });
   },
+  deleteWorkflow: async (workflowId) => {
+    await fetch(`http://localhost:8003/workflows/${workflowId}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 const AutomationsPage = () => {
@@ -54,6 +60,10 @@ const AutomationsPage = () => {
     handleLoadWorkflow,
     handleSave,
     handleTriggerWorkflow,
+    handleDeleteWorkflow,
+    dataMapperState,
+    handleSaveMapping,
+    handleCancelMapping,
   } = useWorkflows(webApi);
 
   const nodeTypes = useMemo(
@@ -67,6 +77,14 @@ const AutomationsPage = () => {
     []
   );
 
+  const nodeSchemas = {
+    gmailTrigger: GmailTriggerNode.schema,
+    googleCalendarTrigger: GoogleCalendarNode.schema,
+    notionAction: NotionNode.schema,
+    aiTask: AiTaskNode.schema,
+    flatten: FlattenNode.schema,
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <ReactFlowProvider>
@@ -74,6 +92,7 @@ const AutomationsPage = () => {
           workflows={workflows}
           onLoadWorkflow={handleLoadWorkflow}
           onTriggerWorkflow={handleTriggerWorkflow}
+          onDeleteWorkflow={handleDeleteWorkflow}
         />
         <div style={{ flex: 1 }} ref={reactFlowWrapper}>
           <ReactFlow
@@ -94,6 +113,14 @@ const AutomationsPage = () => {
       <button onClick={handleSave} style={{ position: 'absolute', top: 10, right: 10 }}>
         Save Workflow
       </button>
+      {dataMapperState.isOpen && (
+        <DataMapper
+          sourceSchema={nodeSchemas[dataMapperState.sourceNode.type]}
+          targetSchema={nodeSchemas[dataMapperState.targetNode.type]}
+          onSave={handleSaveMapping}
+          onCancel={handleCancelMapping}
+        />
+      )}
     </div>
   );
 };
