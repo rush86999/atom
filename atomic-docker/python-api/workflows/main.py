@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from . import models, database
 from .database import engine
 from uuid import UUID
@@ -19,9 +19,10 @@ import json
 from datetime import datetime
 
 @app.post("/workflows/", response_model=models.Workflow)
-def create_workflow(workflow: models.WorkflowCreate, db: Session = Depends(database.get_db)):
-    # This is a placeholder for the user_id. In a real application, this would come from the auth system.
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def create_workflow(workflow: models.WorkflowCreate, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
 
     db_workflow = models.Workflow(**workflow.dict(), user_id=user_id)
     db.add(db_workflow)
@@ -59,25 +60,28 @@ def create_workflow(workflow: models.WorkflowCreate, db: Session = Depends(datab
     return db_workflow
 
 @app.get("/workflows/", response_model=List[models.Workflow])
-def read_workflows(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
-    # This is a placeholder for the user_id.
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def read_workflows(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
     workflows = db.query(models.Workflow).filter(models.Workflow.user_id == user_id).offset(skip).limit(limit).all()
     return workflows
 
 @app.get("/workflows/{workflow_id}", response_model=models.Workflow)
-def read_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
-    # This is a placeholder for the user_id.
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def read_workflow(workflow_id: UUID, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id, models.Workflow.user_id == user_id).first()
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return db_workflow
 
 @app.put("/workflows/{workflow_id}", response_model=models.Workflow)
-def update_workflow(workflow_id: UUID, workflow: models.WorkflowCreate, db: Session = Depends(database.get_db)):
-    # This is a placeholder for the user_id.
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def update_workflow(workflow_id: UUID, workflow: models.WorkflowCreate, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id, models.Workflow.user_id == user_id).first()
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -141,9 +145,10 @@ def update_workflow(workflow_id: UUID, workflow: models.WorkflowCreate, db: Sess
     return db_workflow
 
 @app.delete("/workflows/{workflow_id}", response_model=models.Workflow)
-def delete_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
-    # This is a placeholder for the user_id.
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def delete_workflow(workflow_id: UUID, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id, models.Workflow.user_id == user_id).first()
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -168,8 +173,10 @@ def delete_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
     return db_workflow
 
 @app.post("/workflows/{workflow_id}/trigger")
-def trigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def trigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id, models.Workflow.user_id == user_id).first()
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -181,8 +188,10 @@ def trigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
     return {"message": "Workflow triggered successfully", "task_id": task.id}
 
 @app.post("/workflows/{workflow_id}/untrigger")
-def untrigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db)):
-    user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+def untrigger_workflow(workflow_id: UUID, db: Session = Depends(database.get_db), x_user_id: Optional[str] = Header(None)):
+    if not x_user_id:
+        raise HTTPException(status_code=400, detail="X-User-Id header is required")
+    user_id = x_user_id
     db_workflow = db.query(models.Workflow).filter(models.Workflow.id == workflow_id, models.Workflow.user_id == user_id).first()
     if db_workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")

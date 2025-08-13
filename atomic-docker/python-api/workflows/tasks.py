@@ -11,9 +11,8 @@ import notion_client
 
 import requests
 
-def execute_gmail_trigger(node_config, input_data):
+def execute_gmail_trigger(node_config, input_data, user_id):
     print("Executing Gmail Trigger...")
-    user_id = node_config.get("userId")
     query = node_config.get("query", "is:unread")
     max_results = node_config.get("maxResults", 10)
 
@@ -25,7 +24,7 @@ def execute_gmail_trigger(node_config, input_data):
         response = requests.post(
             "http://functions:3000/gmail-integration/search-user-gmail",
             json={
-                "session_variables": {"x-hasura-user-id": user_id},
+                "session_variables": {"x-hasura-user-id": str(user_id)},
                 "input": {"query": query, "maxResults": max_results},
             },
         )
@@ -107,11 +106,45 @@ def execute_notion_action(node_config, input_data):
 
     return [] # Notion action is a sink, it doesn't return data
 
+def execute_google_calendar_create_event(node_config, input_data, user_id):
+    print("Executing Google Calendar Create Event...")
+    calendar_id = node_config.get("calendarId", "primary")
+    summary = node_config.get("summary", "")
+    start_time = node_config.get("startTime", "")
+    end_time = node_config.get("endTime", "")
+    timezone = node_config.get("timezone", "UTC")
+
+    if not all([summary, start_time, end_time, timezone]):
+        print("Error: Missing required config for Google Calendar Create Event.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/google-calendar-sync/create-event",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "calendarId": calendar_id,
+                    "summary": summary,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "timezone": timezone,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
     "notionAction": execute_notion_action,
     "flatten": flatten_list,
+    "googleCalendarCreateEvent": execute_google_calendar_create_event,
 }
 
 # --- Topological Sort ---
@@ -183,7 +216,10 @@ def execute_workflow(workflow_id: str):
         if node_type in NODE_EXECUTION_MAP:
             print(f"--- Executing node {node_id} ({node_type}) ---")
             execution_func = NODE_EXECUTION_MAP[node_type]
-            output_data = execution_func(node.get('data', {}), input_data)
+            if node_type == "gmailTrigger":
+                output_data = execution_func(node.get('data', {}), input_data, workflow.user_id)
+            else:
+                output_data = execution_func(node.get('data', {}), input_data)
             node_outputs[node_id] = output_data
             print(f"--- Finished node {node_id}. Output: {output_data} ---")
         else:

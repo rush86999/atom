@@ -7,6 +7,7 @@ import 'reactflow/dist/style.css';
 
 import GmailTriggerNode from '../../../../src/ui-shared/components/workflows/nodes/GmailTriggerNode';
 import GoogleCalendarNode from '../../../../src/ui-shared/components/workflows/nodes/GoogleCalendarNode';
+import GoogleCalendarCreateEventNode from '../../../../src/ui-shared/components/workflows/nodes/GoogleCalendarCreateEventNode';
 import NotionNode from '../../../../src/ui-shared/components/workflows/nodes/NotionNode';
 import AiTaskNode from '../../../../src/ui-shared/components/workflows/nodes/AiTaskNode';
 import FlattenNode from '../../../../src/ui-shared/components/workflows/nodes/FlattenNode';
@@ -70,6 +71,7 @@ const AutomationsPage = () => {
     () => ({
       gmailTrigger: GmailTriggerNode,
       googleCalendarTrigger: GoogleCalendarNode,
+      googleCalendarCreateEvent: GoogleCalendarCreateEventNode,
       notionAction: NotionNode,
       aiTask: AiTaskNode,
       flatten: FlattenNode,
@@ -80,6 +82,7 @@ const AutomationsPage = () => {
   const nodeSchemas = {
     gmailTrigger: GmailTriggerNode.schema,
     googleCalendarTrigger: GoogleCalendarNode.schema,
+    googleCalendarCreateEvent: GoogleCalendarCreateEventNode.schema,
     notionAction: NotionNode.schema,
     aiTask: AiTaskNode.schema,
     flatten: FlattenNode.schema,
