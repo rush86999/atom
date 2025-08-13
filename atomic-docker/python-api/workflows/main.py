@@ -15,14 +15,47 @@ app = FastAPI()
 def healthz():
     return {"status": "ok"}
 
+import json
+from datetime import datetime
+
 @app.post("/workflows/", response_model=models.Workflow)
 def create_workflow(workflow: models.WorkflowCreate, db: Session = Depends(database.get_db)):
     # This is a placeholder for the user_id. In a real application, this would come from the auth system.
     user_id = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+
     db_workflow = models.Workflow(**workflow.dict(), user_id=user_id)
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
+
+    if workflow.schedule:
+        try:
+            minute, hour, day_of_week, day_of_month, month_of_year = workflow.schedule.split()
+            crontab = models.CrontabSchedule(
+                minute=minute,
+                hour=hour,
+                day_of_week=day_of_week,
+                day_of_month=day_of_month,
+                month_of_year=month_of_year,
+            )
+            db.add(crontab)
+            db.commit()
+            db.refresh(crontab)
+
+            task = models.PeriodicTask(
+                name=f"Workflow - {db_workflow.id}",
+                task='workflows.tasks.execute_workflow',
+                crontab_id=crontab.id,
+                args=json.dumps([str(db_workflow.id)]),
+                kwargs="{}",
+                date_changed=datetime.utcnow(),
+                description="",
+            )
+            db.add(task)
+            db.commit()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid cron string format. Expected 5 space-separated values.")
+
     return db_workflow
 
 @app.get("/workflows/", response_model=List[models.Workflow])

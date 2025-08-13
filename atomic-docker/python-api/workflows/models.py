@@ -7,6 +7,7 @@ class WorkflowBase(BaseModel):
     name: str
     definition: Dict[str, Any]
     enabled: bool = False
+    schedule: Optional[str] = None
 
 class WorkflowCreate(WorkflowBase):
     pass
