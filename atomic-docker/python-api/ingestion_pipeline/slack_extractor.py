@@ -1,67 +1,32 @@
 import os
 import logging
 from typing import List, Dict, Any
-import psycopg2
-import psycopg2.extras
+import httpx
 from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime, timezone
-from Crypto.Cipher import AES
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# --- Decryption Logic ---
-# NOTE: SLACK_TOKEN_ENCRYPTION_KEY should be a 64-character hex string (32 bytes)
-ENCRYPTION_KEY = os.getenv("SLACK_TOKEN_ENCRYPTION_KEY")
+# The URL for the new, centralized token service
+TOKEN_SERVICE_URL = os.getenv("TOKEN_SERVICE_URL", "http://token-service:8080")
 
-def decrypt(encrypted_text: str) -> str:
+async def get_slack_token_from_service(user_id: str) -> str | None:
     """
-    Decrypts text encrypted by a corresponding encryption function.
+    Retrieves the Slack access token for a user by calling the token service.
     """
-    if not ENCRYPTION_KEY:
-        raise ValueError("SLACK_TOKEN_ENCRYPTION_KEY is not set.")
-
-    key = bytes.fromhex(ENCRYPTION_KEY)
-    parts = encrypted_text.split(':')
-    iv = bytes.fromhex(parts[0])
-    auth_tag = bytes.fromhex(parts[1])
-    encrypted_data = bytes.fromhex(parts[2])
-
-    cipher = AES.new(key, AES.MODE_GCM, iv)
-    decrypted_data = cipher.decrypt_and_verify(encrypted_data, auth_tag)
-    return decrypted_data.decode('utf-8')
-
-
-async def get_slack_oauth_token(user_id: str, db_conn_pool: Any) -> Dict[str, Any]:
-    """
-    Retrieves and decrypts the Slack OAuth token for a given user from the database.
-    """
-    conn = None
     try:
-        conn = db_conn_pool.getconn()
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute(
-                "SELECT encrypted_access_token, team_id FROM public.user_slack_oauth_tokens WHERE user_id = %s",
-                (user_id,)
-            )
-            record = cur.fetchone()
-            if record:
-                encrypted_token = record["encrypted_access_token"]
-                # The token is stored as a hex string representation of bytes in the DB
-                access_token = decrypt(encrypted_token)
-
-                logger.info(f"Successfully retrieved and decrypted Slack token for user {user_id}.")
-                return {"token": access_token, "team_id": record["team_id"]}
-            else:
-                logger.warning(f"No Slack token found for user {user_id}.")
-                return {}
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{TOKEN_SERVICE_URL}/get-token/{user_id}/slack")
+            response.raise_for_status()
+            return response.json().get("access_token")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Failed to get Slack token for user {user_id} from token service: {e.response.status_code}")
+        return None
     except Exception as e:
-        logger.error(f"Error getting Slack token for user {user_id}: {e}", exc_info=True)
-        return {}
-    finally:
-        if conn:
-            db_conn_pool.putconn(conn)
+        logger.error(f"Error calling token service for Slack token: {e}", exc_info=True)
+        return None
 
 
 async def extract_data_from_slack(user_id: str, db_conn_pool: Any) -> List[Dict[str, Any]]:
@@ -70,12 +35,11 @@ async def extract_data_from_slack(user_id: str, db_conn_pool: Any) -> List[Dict[
     """
     logger.info(f"Starting Slack data extraction for user {user_id}.")
 
-    token_data = await get_slack_oauth_token(user_id, db_conn_pool)
-    if not token_data or "token" not in token_data:
+    access_token = await get_slack_token_from_service(user_id)
+    if not access_token:
         logger.warning(f"No Slack credentials found for user {user_id}. Skipping extraction.")
         return []
 
-    access_token = token_data["token"]
     client = AsyncWebClient(token=access_token)
     all_messages = []
 
