@@ -39,3 +39,9 @@ export default memo(({ data }) => {
     </div>
   );
 });
+
+export const schema = {
+  inputs: [
+    { id: 'task_name', label: 'Task Name', type: 'string' },
+  ],
+};
