@@ -21,6 +21,20 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow
             cursor: 'grab',
             textAlign: 'center'
           }}
+          onDragStart={(event) => onDragStart(event, 'googleCalendarCreateEvent')}
+          draggable
+        >
+          Google Calendar: Create Event
+        </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
           onDragStart={(event) => onDragStart(event, 'gmailTrigger')}
           draggable
         >
