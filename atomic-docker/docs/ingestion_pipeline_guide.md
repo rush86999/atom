@@ -112,6 +112,12 @@ The pipeline is designed to be extensible to multiple data sources. The general 
 *   **Data Scoped**: The integration fetches messages from all channels in all teams that the user is a member of.
 *   **Configuration**: This integration requires several environment variables for the MSAL client to be configured, including the client ID, client secret, and authority URL. An encryption key is also required for securing the tokens in the database.
 
+### Outlook Integration
+
+*   **Authentication**: The Outlook integration uses the same Microsoft Graph API authentication flow as the MS Teams integration. It reuses the same tokens stored in the `public.user_msteams_oauth_tokens` table.
+*   **Data Scoped**: The integration fetches all emails from the user's Outlook inbox.
+*   **Configuration**: The `Mail.Read` scope must be included in the `MSGRAPH_DELEGATED_SCOPES` environment variable.
+
 ## Data Source Structure Assumptions
 
 *   **Notion**: The pipeline expects pages within the `NOTION_TRANSCRIPTS_DATABASE_ID` to contain their primary textual content directly within their blocks (e.g., as paragraphs, headings). It attempts to find a page title using common property names like "Name", "Title", or "Task Description".
