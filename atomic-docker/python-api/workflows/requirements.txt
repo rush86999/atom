@@ -9,3 +9,5 @@ notion-client==1.0.0
 openai==0.28.1
 requests
 django-celery-beat
+pytest
+pytest-cov

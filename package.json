@@ -17,5 +17,8 @@
     "jest": "^30.0.5",
     "ts-jest": "^29.4.1",
     "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "test": "cd atomic-docker/python-api && pytest"
   }
 }
