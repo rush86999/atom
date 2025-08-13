@@ -24,6 +24,12 @@ const desktopApi = {
   triggerWorkflow: async (workflowId) => {
     await invoke('trigger_workflow', { workflowId });
   },
+  deleteWorkflow: async (workflowId) => {
+    await invoke('delete_workflow', { workflowId });
+  },
+  updateWorkflow: async (workflowId, workflow) => {
+    await invoke('update_workflow', { workflowId, workflow });
+  },
 };
 
 const AutomationsPage = () => {
@@ -41,6 +47,7 @@ const AutomationsPage = () => {
     handleLoadWorkflow,
     handleSave,
     handleTriggerWorkflow,
+    handleDeleteWorkflow,
   } = useWorkflows(desktopApi);
 
   const nodeTypes = useMemo(
@@ -61,6 +68,7 @@ const AutomationsPage = () => {
           workflows={workflows}
           onLoadWorkflow={handleLoadWorkflow}
           onTriggerWorkflow={handleTriggerWorkflow}
+          onDeleteWorkflow={handleDeleteWorkflow}
         />
         <div style={{ flex: 1 }} ref={reactFlowWrapper}>
           <ReactFlow

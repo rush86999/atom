@@ -390,6 +390,47 @@ async fn trigger_workflow(workflow_id: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn delete_workflow(workflow_id: String) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .delete(format!("http://localhost:8003/workflows/{}", workflow_id))
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Failed to delete workflow: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to workflow endpoint: {}", err)),
+    }
+}
+
+#[tauri::command]
+async fn update_workflow(workflow_id: String, workflow: Workflow) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .put(format!("http://localhost:8003/workflows/{}", workflow_id))
+        .json(&workflow)
+        .send()
+        .await;
+
+    match response {
+        Ok(res) => {
+            if res.status().is_success() {
+                Ok(())
+            } else {
+                Err(format!("Failed to update workflow: {}", res.status()))
+            }
+        }
+        Err(err) => Err(format!("Failed to make request to workflow endpoint: {}", err)),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -403,7 +444,9 @@ fn main() {
             dashboard,
             save_workflow,
             get_workflows,
-            trigger_workflow
+            trigger_workflow,
+            delete_workflow,
+            update_workflow
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

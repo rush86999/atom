@@ -30,6 +30,13 @@ const webApi = {
       method: 'POST',
     });
   },
+  updateWorkflow: async (workflowId, workflow) => {
+    await fetch(`http://localhost:8003/workflows/${workflowId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(workflow),
+    });
+  },
 };
 
 const AutomationsPage = () => {
