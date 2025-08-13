@@ -680,6 +680,21 @@ services:
       - "traefik.http.routers.workflows-api-https.service=workflows-api-service"
       - "traefik.http.services.workflows-api-service.loadbalancer.server.port=8003"
 
+  celery-beat:
+    build:
+      context: ../python-api/workflows
+      dockerfile: Dockerfile
+    command: celery -A workflows.celery_app beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ./python-api/workflows:/app/workflows
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+
 volumes:
   project_node_modules:
   functions_node_modules:
