@@ -16,6 +16,7 @@ export const useWorkflows = (api) => {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const [workflows, setWorkflows] = useState([]);
+  const [currentWorkflowId, setCurrentWorkflowId] = useState(null);
 
   useEffect(() => {
     const fetchWorkflows = async () => {
@@ -33,6 +34,7 @@ export const useWorkflows = (api) => {
     const { nodes, edges } = workflow.definition;
     setNodes(nodes || []);
     setEdges(edges || []);
+    setCurrentWorkflowId(workflow.id);
   };
 
   const onConnect = (params: Edge | Connection) => setEdges((els) => addEdge(params, els));
@@ -88,11 +90,16 @@ export const useWorkflows = (api) => {
       enabled: true,
     };
     try {
-      await api.saveWorkflow(workflow);
+      if (currentWorkflowId) {
+        await api.updateWorkflow(currentWorkflowId, workflow);
+      } else {
+        await api.saveWorkflow(workflow);
+      }
       console.log('Workflow saved successfully');
       // Refetch workflows to update the list
       const data = await api.getWorkflows();
       setWorkflows(data || []);
+      setCurrentWorkflowId(null);
     } catch (error) {
       console.error('Failed to save workflow', error);
     }
@@ -104,6 +111,20 @@ export const useWorkflows = (api) => {
       console.log('Workflow triggered successfully');
     } catch (error) {
       console.error('Failed to trigger workflow', error);
+    }
+  };
+
+  const handleDeleteWorkflow = async (workflowId) => {
+    if (window.confirm("Are you sure you want to delete this workflow?")) {
+      try {
+        await api.deleteWorkflow(workflowId);
+        console.log('Workflow deleted successfully');
+        // Refetch workflows to update the list
+        const data = await api.getWorkflows();
+        setWorkflows(data || []);
+      } catch (error) {
+        console.error('Failed to delete workflow', error);
+      }
     }
   };
 
@@ -121,5 +142,6 @@ export const useWorkflows = (api) => {
     handleLoadWorkflow,
     handleSave,
     handleTriggerWorkflow,
+    handleDeleteWorkflow,
   };
 };
