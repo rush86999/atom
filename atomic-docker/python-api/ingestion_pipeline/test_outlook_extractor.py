@@ -5,9 +5,9 @@ from ingestion_pipeline.outlook_extractor import extract_data_from_outlook
 
 @pytest.fixture
 def mock_get_token():
-    """Mocks the token retrieval function from the msteams_extractor."""
-    with patch('ingestion_pipeline.outlook_extractor.get_msteams_oauth_token', new_callable=AsyncMock) as mock_func:
-        mock_func.return_value = {"token": "mock_graph_api_token"}
+    """Mocks the token retrieval function from the token service."""
+    with patch('ingestion_pipeline.outlook_extractor.get_outlook_token_from_service', new_callable=AsyncMock) as mock_func:
+        mock_func.return_value = "mock_graph_api_token"
         yield mock_func
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def mock_httpx_client():
 async def test_extract_data_from_outlook_happy_path(mock_get_token, mock_httpx_client):
     # Arrange
     user_id = "test_user_outlook"
-    db_conn_pool = MagicMock() # The pool is passed but the token retrieval is mocked directly
+    db_conn_pool = None # No longer used directly
 
     # Act
     results = await extract_data_from_outlook(user_id=user_id, db_conn_pool=db_conn_pool)
@@ -59,6 +59,6 @@ async def test_extract_data_from_outlook_happy_path(mock_get_token, mock_httpx_c
     assert result["source"] == "outlook"
 
     # Verify mocks
-    mock_get_token.assert_called_once_with(user_id, db_conn_pool)
+    mock_get_token.assert_called_once_with(user_id)
     mock_httpx_client.get.assert_called_once()
     assert "/me/messages" in mock_httpx_client.get.call_args[0][0]

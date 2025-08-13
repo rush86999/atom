@@ -1,87 +1,31 @@
 import os
-import json
 import logging
 from typing import List, Dict, Any
-import psycopg2
-import psycopg2.extras
-from datetime import datetime, timezone
 import httpx
-import msal
-from Crypto.Cipher import AES
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# --- Decryption Logic (Python equivalent of _utils/crypto.ts) ---
-# NOTE: MSTEAMS_TOKEN_ENCRYPTION_KEY should be a 64-character hex string (32 bytes)
-ENCRYPTION_KEY = os.getenv("MSTEAMS_TOKEN_ENCRYPTION_KEY")
+# The URL for the new, centralized token service
+TOKEN_SERVICE_URL = os.getenv("TOKEN_SERVICE_URL", "http://token-service:8080")
 
-def decrypt(encrypted_text: str, key: str) -> str:
+async def get_msteams_token_from_service(user_id: str) -> str | None:
     """
-    Decrypts text encrypted by the corresponding TypeScript encrypt function.
+    Retrieves the MS Graph access token for a user by calling the token service.
     """
-    if not key:
-        raise ValueError("Encryption key is not set.")
-
-    key_bytes = bytes.fromhex(key)
-    parts = encrypted_text.split(':')
-    iv = bytes.fromhex(parts[0])
-    auth_tag = bytes.fromhex(parts[1])
-    encrypted_data = bytes.fromhex(parts[2])
-
-    cipher = AES.new(key_bytes, AES.MODE_GCM, iv)
-    decrypted_data = cipher.decrypt_and_verify(encrypted_data, auth_tag)
-    return decrypted_data.decode('utf-8')
-
-# --- MSAL and Token Management ---
-MSGRAPH_AUTHORITY = os.getenv("MSGRAPH_DELEGATED_AUTHORITY")
-MSGRAPH_CLIENT_ID = os.getenv("MSGRAPH_DELEGATED_CLIENT_ID")
-MSGRAPH_CLIENT_SECRET = os.getenv("MSGRAPH_DELEGATED_CLIENT_SECRET")
-MSGRAPH_SCOPES = os.getenv("MSGRAPH_DELEGATED_SCOPES", "").split(" ")
-
-async def get_msteams_oauth_token(user_id: str, db_conn_pool: Any) -> Dict[str, Any]:
-    """
-    Retrieves and refreshes the MS Teams OAuth token for a given user from the database.
-    """
-    conn = None
     try:
-        conn = db_conn_pool.getconn()
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute(
-                "SELECT encrypted_refresh_token, account_json FROM public.user_msteams_oauth_tokens WHERE user_id = %s",
-                (user_id,)
-            )
-            record = cur.fetchone()
-            if not record:
-                logger.warning(f"No MS Teams token found for user {user_id}.")
-                return {}
-
-            refresh_token = decrypt(record["encrypted_refresh_token"], ENCRYPTION_KEY)
-            account_info = json.loads(record["account_json"])
-
-            app = msal.ConfidentialClientApplication(
-                MSGRAPH_CLIENT_ID,
-                authority=MSGRAPH_AUTHORITY,
-                client_credential=MSGRAPH_CLIENT_SECRET,
-            )
-
-            result = app.acquire_token_by_refresh_token(
-                refresh_token=refresh_token,
-                scopes=MSGRAPH_SCOPES
-            )
-
-            if "access_token" in result:
-                # TODO: Store the new access and refresh tokens in the database.
-                return {"token": result["access_token"]}
-            else:
-                logger.error(f"Failed to refresh MS Teams token for user {user_id}: {result.get('error_description')}")
-                return {}
+        async with httpx.AsyncClient() as client:
+            # The service name 'msteams' is used to get the correct token from the generic service
+            response = await client.get(f"{TOKEN_SERVICE_URL}/get-token/{user_id}/msteams")
+            response.raise_for_status()
+            return response.json().get("access_token")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Failed to get MS Teams token for user {user_id} from token service: {e.response.status_code}")
+        return None
     except Exception as e:
-        logger.error(f"Error getting MS Teams token for user {user_id}: {e}", exc_info=True)
-        return {}
-    finally:
-        if conn:
-            db_conn_pool.putconn(conn)
+        logger.error(f"Error calling token service for MS Teams token: {e}", exc_info=True)
+        return None
+
 
 # --- Data Extraction Logic ---
 GRAPH_API_BASE_URL = "https://graph.microsoft.com/v1.0"
@@ -92,12 +36,11 @@ async def extract_data_from_msteams(user_id: str, db_conn_pool: Any) -> List[Dic
     """
     logger.info(f"Starting MS Teams data extraction for user {user_id}.")
 
-    token_data = await get_msteams_oauth_token(user_id, db_conn_pool)
-    if not token_data or "token" not in token_data:
+    access_token = await get_msteams_token_from_service(user_id)
+    if not access_token:
         logger.warning(f"No valid MS Teams credentials found for user {user_id}. Skipping extraction.")
         return []
 
-    access_token = token_data["token"]
     headers = {"Authorization": f"Bearer {access_token}"}
     all_messages = []
 
