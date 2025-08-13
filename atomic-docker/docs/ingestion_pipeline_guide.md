@@ -1,17 +1,17 @@
-# Atom Ingestion Pipeline Guide (Notion to LanceDB)
+# Atom Ingestion Pipeline Guide
 
 ## Purpose
 
-This guide describes the Ingestion Pipeline responsible for processing meeting transcripts (or other textual notes) from a specified Notion database, generating text embeddings, and storing them in a LanceDB vector database. This enables the "Searchable Meeting Archive" feature, allowing users to perform semantic searches across their Notion content via the Atom agent.
+This guide describes the Ingestion Pipeline responsible for processing documents, messages, and other textual data from various cloud sources (like Notion, Google Drive, Slack, etc.). It generates text embeddings from this data and stores them in a LanceDB vector database. This enables powerful semantic search capabilities across all connected sources via the Atom agent.
 
 ## How It Works
 
 The pipeline operates in several stages:
 
-1.  **Notion Data Extraction:**
-    *   Connects to a designated Notion database using the provided API key and Database ID.
-    *   Fetches pages from this database.
-    *   For each page, it extracts the primary textual content from its blocks and relevant metadata (title, URL, creation/edit times, Notion page ID).
+1.  **Data Extraction:**
+    *   The pipeline connects to various data sources configured for the user.
+    *   This can include Notion databases, Google Drive files, Slack channels, and more.
+    *   For each source, it extracts the primary textual content and relevant metadata (title, URL, creation/edit times, source-specific ID).
 
 2.  **Text Processing & Embedding:**
     *   The extracted text from each Notion page is split into smaller, manageable chunks.
@@ -96,10 +96,32 @@ If the `ingestion-pipeline-service` is running (e.g., via `docker-compose up`):
         python -m python-api.ingestion_pipeline.pipeline_orchestrator
         ```
 
-## Notion Database Structure Assumptions
+## Other Integrations
 
-*   The pipeline expects pages within the `NOTION_TRANSCRIPTS_DATABASE_ID` to contain their primary textual content directly within their blocks (e.g., as paragraphs, headings).
-*   It attempts to find a page title using common property names like "Name", "Title", or "Task Description". If your database uses a different property name for the main title, the `notion_extractor.py` might need adjustment for optimal title extraction.
+The pipeline is designed to be extensible to multiple data sources. The general flow for each integration is the same: extract text and metadata, process it, and store it in LanceDB.
+
+### Slack Integration
+
+*   **Authentication**: The Slack integration uses OAuth 2.0. To enable it, a user's OAuth access token must be securely stored in the `public.user_slack_oauth_tokens` table in the database. The pipeline retrieves the token from this table for the specified `ATOM_USER_ID_FOR_INGESTION`.
+*   **Data Scoped**: The integration fetches messages from all public channels in the user's connected Slack workspace.
+*   **Configuration**: No specific environment variables are needed for the Slack token itself, as it's managed via the database.
+
+### Microsoft Teams Integration
+
+*   **Authentication**: The MS Teams integration uses the Microsoft Graph API and authenticates via OAuth 2.0. Credentials (including a refresh token) must be stored in the `public.user_msteams_oauth_tokens` table. The extractor handles the token refresh flow using the MSAL library.
+*   **Data Scoped**: The integration fetches messages from all channels in all teams that the user is a member of.
+*   **Configuration**: This integration requires several environment variables for the MSAL client to be configured, including the client ID, client secret, and authority URL. An encryption key is also required for securing the tokens in the database.
+
+### Outlook Integration
+
+*   **Authentication**: The Outlook integration uses the same Microsoft Graph API authentication flow as the MS Teams integration. It reuses the same tokens stored in the `public.user_msteams_oauth_tokens` table.
+*   **Data Scoped**: The integration fetches all emails from the user's Outlook inbox.
+*   **Configuration**: The `Mail.Read` scope must be included in the `MSGRAPH_DELEGATED_SCOPES` environment variable.
+
+## Data Source Structure Assumptions
+
+*   **Notion**: The pipeline expects pages within the `NOTION_TRANSCRIPTS_DATABASE_ID` to contain their primary textual content directly within their blocks (e.g., as paragraphs, headings). It attempts to find a page title using common property names like "Name", "Title", or "Task Description".
+*   **Other Sources**: Each extractor has its own assumptions about the data structure. Refer to the specific `_extractor.py` file for details.
 
 ## LanceDB Schema Overview
 
