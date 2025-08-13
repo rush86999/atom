@@ -1,15 +1,17 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from . import models, database
-from .database import engine
+from workflows import models, database
+from workflows.database import engine
 from uuid import UUID
-from .tasks import execute_workflow
+from workflows.tasks import execute_workflow
 from celery.result import AsyncResult
 
-models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
+
+@app.on_event("startup")
+def on_startup():
+    models.Base.metadata.create_all(bind=engine)
 
 @app.get("/healthz")
 def healthz():
