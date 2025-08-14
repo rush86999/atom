@@ -291,6 +291,32 @@ def execute_trello_create_card_node(node_config, input_data, user_id):
         print(f"    Error calling functions service: {e}")
         return []
 
+def execute_asana_create_task_node(node_config, input_data, user_id):
+    project_id = node_config.get("projectId", "")
+    task_name = node_config.get("taskName", "")
+
+    if not all([project_id, task_name]):
+        print("Error: Missing required config for Asana Create Task Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/asana/create-task",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "project_id": project_id,
+                    "task_name": task_name,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
@@ -305,6 +331,7 @@ NODE_EXECUTION_MAP = {
     "branch": execute_branch_node,
     "sendEmail": execute_send_email_node,
     "trelloCreateCard": execute_trello_create_card_node,
+    "asanaCreateTask": execute_asana_create_task_node,
 }
 
 # --- Topological Sort ---
@@ -376,7 +403,7 @@ def execute_workflow(workflow_id: str):
         if node_type in NODE_EXECUTION_MAP:
             print(f"--- Executing node {node_id} ({node_type}) ---")
             execution_func = NODE_EXECUTION_MAP[node_type]
-            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail", "trelloCreateCard"]:
+            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail", "trelloCreateCard", "asanaCreateTask"]:
                 output_data = execution_func(node.get('data', {}), input_data, workflow.user_id)
             else:
                 output_data = execution_func(node.get('data', {}), input_data)

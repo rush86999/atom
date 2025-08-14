@@ -180,6 +180,20 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow
         >
           Trello: Create Card
         </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'asanaCreateTask')}
+          draggable
+        >
+          Asana: Create Task
+        </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
       <div>
