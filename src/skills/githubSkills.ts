@@ -75,3 +75,80 @@ export async function createRepoWebhook(
         };
     }
 }
+
+export async function createGithubIssue(
+    userId: string,
+    owner: string,
+    repo: string,
+    title: string,
+    body: string
+): Promise<SkillResponse<any>> {
+    try {
+        const accessToken = await getGitHubAccessToken(userId);
+        if (!accessToken) {
+            return {
+                ok: false,
+                error: {
+                    code: 'CONFIG_ERROR',
+                    message: 'GitHub access token not configured for this user.',
+                },
+            };
+        }
+
+        const response = await axios.post(
+            `${GITHUB_API_BASE_URL}/repos/${owner}/${repo}/issues`,
+            {
+                title,
+                body,
+            },
+            {
+                headers: {
+                    Authorization: `token ${accessToken}`,
+                },
+            }
+        );
+
+        return { ok: true, data: response.data };
+    } catch (error: any) {
+        return {
+            ok: false,
+            error: {
+                code: 'GITHUB_API_ERROR',
+                message: "Sorry, I couldn't create the GitHub issue due to an error.",
+                details: error,
+            },
+        };
+    }
+}
+
+export async function listGithubRepos(userId: string): Promise<SkillResponse<any>> {
+    try {
+        const accessToken = await getGitHubAccessToken(userId);
+        if (!accessToken) {
+            return {
+                ok: false,
+                error: {
+                    code: 'CONFIG_ERROR',
+                    message: 'GitHub access token not configured for this user.',
+                },
+            };
+        }
+
+        const response = await axios.get(`${GITHUB_API_BASE_URL}/user/repos`, {
+            headers: {
+                Authorization: `token ${accessToken}`,
+            },
+        });
+
+        return { ok: true, data: response.data };
+    } catch (error: any) {
+        return {
+            ok: false,
+            error: {
+                code: 'GITHUB_API_ERROR',
+                message: "Sorry, I couldn't list the GitHub repositories due to an error.",
+                details: error,
+            },
+        };
+    }
+}
