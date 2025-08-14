@@ -17,6 +17,12 @@ const NODE_TYPE_MAP = {
   trello: {
     create_card: 'trelloCreateCard',
   },
+  slack: {
+    send_message: 'slackSendMessage',
+  },
+  email: {
+    send_email: 'sendEmail',
+  },
   utils: {
     flatten: 'flatten',
   }
