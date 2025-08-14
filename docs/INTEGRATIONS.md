@@ -27,6 +27,8 @@ Atom is designed to be the central hub for all your productivity and communicati
 *   **Asana:** Connect your Asana account to manage your Asana projects and tasks.
 *   **Jira:** Connect your Jira account to manage your Jira projects and issues.
 *   **Miro:** Connect your Miro account to collaborate on online whiteboards.
+*   **GitHub:** Connect your GitHub account to manage your repositories, issues, and pull requests.
+    *   [GitHub Integration Guide](./github_integration_guide.md)
 
 ## ☁️ File Storage
 *   **Google Drive:** Connect your Google Drive account to access and manage your files.

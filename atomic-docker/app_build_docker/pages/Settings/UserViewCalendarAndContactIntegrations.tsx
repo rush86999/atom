@@ -60,6 +60,7 @@ import googleButtonLightNormal from '@assets/images/google-signin-normal.png'
 import googleButtonPressedLightNormal from '@assets/images/google-signin-pressed.png'
 
 import { useAppContext } from '@lib/user-context'
+import { useUserRole } from '@contexts/userRole/userRoleContext'
 import { useRouter } from 'next/router'
 
 
@@ -340,6 +341,7 @@ function UserViewCalendarAndContactIntegrations() {
     
     const router = useRouter()
     const { sub, client,  } = useAppContext()
+    const { hasRole } = useUserRole()
     const userId = sub
 
     const { loading: googleIntegrationLoading, error: googleIntegrationError, data: googleIntegrationData, refetch: googleIntRefetch } = useQuery<{ Calendar_Integration: CalendarIntegrationType[] }>(getCalendarIntegrationByResourceAndName, {
@@ -1071,9 +1073,11 @@ function UserViewCalendarAndContactIntegrations() {
               </Box>
 
               {/* GitHub Integration Section */}
-              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
-                <GithubManager />
-              </Box>
+              {hasRole('developer') && (
+                <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                  <GithubManager />
+                </Box>
+              )}
 
               {/* Shopify Integration Section */}
               <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
