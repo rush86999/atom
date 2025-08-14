@@ -265,6 +265,32 @@ def execute_send_email_node(node_config, input_data, user_id):
         print(f"    Error calling functions service: {e}")
         return []
 
+def execute_trello_create_card_node(node_config, input_data, user_id):
+    list_id = node_config.get("listId", "")
+    card_name = node_config.get("cardName", "")
+
+    if not all([list_id, card_name]):
+        print("Error: Missing required config for Trello Create Card Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/trello/create-card",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "list_id": list_id,
+                    "card_name": card_name,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
@@ -278,6 +304,7 @@ NODE_EXECUTION_MAP = {
     "slackSendMessage": execute_slack_send_message_node,
     "branch": execute_branch_node,
     "sendEmail": execute_send_email_node,
+    "trelloCreateCard": execute_trello_create_card_node,
 }
 
 # --- Topological Sort ---
@@ -349,7 +376,7 @@ def execute_workflow(workflow_id: str):
         if node_type in NODE_EXECUTION_MAP:
             print(f"--- Executing node {node_id} ({node_type}) ---")
             execution_func = NODE_EXECUTION_MAP[node_type]
-            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail"]:
+            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail", "trelloCreateCard"]:
                 output_data = execution_func(node.get('data', {}), input_data, workflow.user_id)
             else:
                 output_data = execution_func(node.get('data', {}), input_data)
