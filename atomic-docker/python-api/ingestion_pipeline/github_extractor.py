@@ -5,6 +5,9 @@ from typing import Dict, Any, Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from .lancedb_handler import add_processed_document, get_lancedb_connection
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+import base64
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -13,17 +16,31 @@ if not logger.hasHandlers():
 
 GITHUB_API_BASE_URL = 'https://api.github.com'
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:secretpgpassword@postgres:5432/postgres")
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "a_default_encryption_key_32_chars")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def decrypt(text: str) -> str:
+    text_parts = text.split(':')
+    iv = bytes.fromhex(text_parts[0])
+    encrypted_text = bytes.fromhex(text_parts[1])
+    backend = default_backend()
+    key = ENCRYPTION_KEY.encode()
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+    decryptor = cipher.decryptor()
+    decrypted = decryptor.update(encrypted_text) + decryptor.finalize()
+    # Unpad
+    unpadder = lambda s: s[:-ord(s[len(s)-1:])]
+    return unpadder(decrypted).decode('utf-8')
+
 async def get_github_access_token(user_id: str) -> Optional[str]:
     db = SessionLocal()
     try:
-        query = text("SELECT access_token FROM user_github_oauth_tokens WHERE user_id = :user_id")
+        query = text("SELECT encrypted_access_token FROM user_tokens WHERE user_id = :user_id AND service = 'github'")
         result = db.execute(query, {"user_id": user_id}).fetchone()
-        if result:
-            return result[0]
+        if result and result[0]:
+            return decrypt(result[0])
         return None
     finally:
         db.close()

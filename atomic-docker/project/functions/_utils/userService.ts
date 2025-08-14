@@ -1,6 +1,4 @@
-import { getDbPool } from './dbService';
-import { QueryResult } from 'pg';
-import { createAdminGraphQLClient } from './hasura-client'; // Corrected import path
+import { createAdminGraphQLClient } from './dbService';
 
 const GET_USER_LLM_MODEL_QUERY = `
 query GetUserLlmModel($userId: uuid!) {
@@ -32,20 +30,4 @@ export async function updateUserLlmModel(userId: string, llmModel: string) {
     userId,
     llmModel,
   });
-}
-
-export async function getUserRoles(userId: string): Promise<string[]> {
-    const query = `
-        SELECT role_name
-        FROM auth.roles
-        WHERE user_id = $1;
-    `;
-
-    try {
-        const result: QueryResult = await getDbPool().query(query, [userId]);
-        return result.rows.map(row => row.role_name);
-    } catch (error) {
-        console.error(`[userService.getUserRoles] Error getting roles for user ${userId}:`, error);
-        throw error;
-    }
 }
