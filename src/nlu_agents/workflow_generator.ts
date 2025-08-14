@@ -20,6 +20,9 @@ const NODE_TYPE_MAP = {
   slack: {
     send_message: 'slackSendMessage',
   },
+  email: {
+    send_email: 'sendEmail',
+  },
   utils: {
     flatten: 'flatten',
   }
