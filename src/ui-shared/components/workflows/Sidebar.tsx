@@ -166,6 +166,20 @@ export default ({ workflows, onLoadWorkflow, onTriggerWorkflow, onDeleteWorkflow
         >
           Send Email
         </div>
+        <div
+          style={{
+            border: '1px solid #ddd',
+            padding: '10px 15px',
+            borderRadius: '5px',
+            marginBottom: 10,
+            cursor: 'grab',
+            textAlign: 'center'
+          }}
+          onDragStart={(event) => onDragStart(event, 'trelloCreateCard')}
+          draggable
+        >
+          Trello: Create Card
+        </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
       <div>

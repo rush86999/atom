@@ -18,6 +18,7 @@ import ReminderNode from '../../../../src/ui-shared/components/workflows/nodes/R
 import SlackSendMessageNode from '../../../../src/ui-shared/components/workflows/nodes/SlackSendMessageNode';
 import BranchNode from '../../../../src/ui-shared/components/workflows/nodes/BranchNode';
 import SendEmailNode from '../../../../src/ui-shared/components/workflows/nodes/SendEmailNode';
+import TrelloCreateCardNode from '../../../../src/ui-shared/components/workflows/nodes/TrelloCreateCardNode';
 import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
 import { useWorkflows } from '../../../../src/ui-shared/hooks/useWorkflows';
 import DataMapper from '../../../../src/ui-shared/components/workflows/DataMapper';
@@ -89,6 +90,7 @@ const AutomationsPage = () => {
       slackSendMessage: SlackSendMessageNode,
       branch: BranchNode,
       sendEmail: SendEmailNode,
+      trelloCreateCard: TrelloCreateCardNode,
     }),
     []
   );
@@ -107,6 +109,7 @@ const AutomationsPage = () => {
     slackSendMessage: SlackSendMessageNode.schema,
     branch: BranchNode.schema,
     sendEmail: SendEmailNode.schema,
+    trelloCreateCard: TrelloCreateCardNode.schema,
   };
 
   return (
