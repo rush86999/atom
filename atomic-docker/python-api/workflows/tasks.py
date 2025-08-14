@@ -11,9 +11,8 @@ import notion_client
 
 import requests
 
-def execute_gmail_trigger(node_config, input_data):
+def execute_gmail_trigger(node_config, input_data, user_id):
     print("Executing Gmail Trigger...")
-    user_id = node_config.get("userId")
     query = node_config.get("query", "is:unread")
     max_results = node_config.get("maxResults", 10)
 
@@ -25,7 +24,7 @@ def execute_gmail_trigger(node_config, input_data):
         response = requests.post(
             "http://functions:3000/gmail-integration/search-user-gmail",
             json={
-                "session_variables": {"x-hasura-user-id": user_id},
+                "session_variables": {"x-hasura-user-id": str(user_id)},
                 "input": {"query": query, "maxResults": max_results},
             },
         )
@@ -107,11 +106,232 @@ def execute_notion_action(node_config, input_data):
 
     return [] # Notion action is a sink, it doesn't return data
 
+def execute_google_calendar_create_event(node_config, input_data, user_id):
+    print("Executing Google Calendar Create Event...")
+    calendar_id = node_config.get("calendarId", "primary")
+    summary = node_config.get("summary", "")
+    start_time = node_config.get("startTime", "")
+    end_time = node_config.get("endTime", "")
+    timezone = node_config.get("timezone", "UTC")
+
+    if not all([summary, start_time, end_time, timezone]):
+        print("Error: Missing required config for Google Calendar Create Event.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/google-calendar-sync/create-event",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "calendarId": calendar_id,
+                    "summary": summary,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "timezone": timezone,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
+import time
+
+def execute_delay_node(node_config, input_data):
+    duration = node_config.get("duration", 60)  # in seconds
+    print(f"Delaying workflow for {duration} seconds...")
+    time.sleep(duration)
+    print("Delay finished.")
+    return input_data
+
+import openai
+
+def execute_llm_filter_node(node_config, input_data):
+    condition = node_config.get("condition", "")
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+    if not condition or not openai.api_key:
+        print("Error: OpenAI API key or condition is not configured.")
+        return []
+
+    output = []
+    for item in input_data:
+        try:
+            prompt = f"You are a filtering assistant. Given an item and a condition, you must determine if the item satisfies the condition. Respond with only 'true' or 'false'.\n\nItem: {str(item)}\nCondition: {condition}\n\nDoes the item satisfy the condition?"
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a filtering assistant. Your only job is to determine if an item satisfies a condition. Respond with only 'true' or 'false'."},
+                    {"role": "user", "content": f"Item: {str(item)}\nCondition: {condition}"}
+                ]
+            )
+            result = response.choices[0].message.content.lower().strip()
+            if result == 'true':
+                output.append(item)
+        except Exception as e:
+            print(f"    Error calling OpenAI API: {e}")
+
+    return output
+
+def execute_reduce_node(node_config, input_data):
+    return input_data
+
+def execute_reminder_node(node_config, input_data, user_id):
+    summary = node_config.get("summary", "")
+    date_time = node_config.get("dateTime", "")
+    minutes_before = node_config.get("minutesBefore", 10)
+
+    if not all([summary, date_time]):
+        print("Error: Missing required config for Reminder Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/google-calendar-sync/create-reminder",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "summary": summary,
+                    "dateTime": date_time,
+                    "minutesBefore": minutes_before,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
+def execute_slack_send_message_node(node_config, input_data, user_id):
+    channel_id = node_config.get("channelId", "")
+    text = node_config.get("text", "")
+
+    if not all([channel_id, text]):
+        print("Error: Missing required config for Slack Send Message Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/slack-service/send-message",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "channelId": channel_id,
+                    "text": text,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
+def execute_branch_node(node_config, input_data):
+    return input_data
+
+def execute_send_email_node(node_config, input_data, user_id):
+    to = node_config.get("to", "")
+    subject = node_config.get("subject", "")
+    body = node_config.get("body", "")
+
+    if not all([to, subject, body]):
+        print("Error: Missing required config for Send Email Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/gmail-service/send-email",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "to": to,
+                    "subject": subject,
+                    "body": body,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
+def execute_trello_create_card_node(node_config, input_data, user_id):
+    list_id = node_config.get("listId", "")
+    card_name = node_config.get("cardName", "")
+
+    if not all([list_id, card_name]):
+        print("Error: Missing required config for Trello Create Card Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/trello/create-card",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "list_id": list_id,
+                    "card_name": card_name,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
+def execute_asana_create_task_node(node_config, input_data, user_id):
+    project_id = node_config.get("projectId", "")
+    task_name = node_config.get("taskName", "")
+
+    if not all([project_id, task_name]):
+        print("Error: Missing required config for Asana Create Task Node.")
+        return []
+
+    try:
+        response = requests.post(
+            "http://functions:3000/asana/create-task",
+            json={
+                "session_variables": {"x-hasura-user-id": str(user_id)},
+                "input": {
+                    "project_id": project_id,
+                    "task_name": task_name,
+                },
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [data]
+    except requests.exceptions.RequestException as e:
+        print(f"    Error calling functions service: {e}")
+        return []
+
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
     "notionAction": execute_notion_action,
     "flatten": flatten_list,
+    "googleCalendarCreateEvent": execute_google_calendar_create_event,
+    "delay": execute_delay_node,
+    "llmFilter": execute_llm_filter_node,
+    "reduce": execute_reduce_node,
+    "reminder": execute_reminder_node,
+    "slackSendMessage": execute_slack_send_message_node,
+    "branch": execute_branch_node,
+    "sendEmail": execute_send_email_node,
+    "trelloCreateCard": execute_trello_create_card_node,
+    "asanaCreateTask": execute_asana_create_task_node,
 }
 
 # --- Topological Sort ---
@@ -183,7 +403,10 @@ def execute_workflow(workflow_id: str):
         if node_type in NODE_EXECUTION_MAP:
             print(f"--- Executing node {node_id} ({node_type}) ---")
             execution_func = NODE_EXECUTION_MAP[node_type]
-            output_data = execution_func(node.get('data', {}), input_data)
+            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail", "trelloCreateCard", "asanaCreateTask"]:
+                output_data = execution_func(node.get('data', {}), input_data, workflow.user_id)
+            else:
+                output_data = execution_func(node.get('data', {}), input_data)
             node_outputs[node_id] = output_data
             print(f"--- Finished node {node_id}. Output: {output_data} ---")
         else:

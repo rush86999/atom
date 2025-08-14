@@ -11,6 +11,12 @@ const NODE_TYPE_MAP = {
   notion: {
     create_task: 'notionAction',
   },
+  asana: {
+    create_task: 'asanaCreateTask',
+  },
+  trello: {
+    create_card: 'trelloCreateCard',
+  },
   utils: {
     flatten: 'flatten',
   }
@@ -59,7 +65,10 @@ export class WorkflowGenerator {
         id: `${i + 2}`,
         type: actionNodeType,
         position: { x: 250, y: yPos },
-        data: { label: `${action.service} - ${action.action}` },
+        data: {
+          label: `${action.service} - ${action.action}`,
+          ...action.parameters,
+        },
       };
       nodes.push(actionNode);
 

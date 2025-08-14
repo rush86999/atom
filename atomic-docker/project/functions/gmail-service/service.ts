@@ -238,6 +238,49 @@ export async function searchUserEmails(
   }
 }
 
+export async function sendEmail(
+  userId: string,
+  to: string,
+  subject: string,
+  body: string
+): Promise<any> {
+  const authedClient = await getGmailClientForUser(userId);
+  if (!authedClient) {
+    throw new Error('Failed to get authenticated Gmail client.');
+  }
+
+  const gmail = google.gmail({ version: 'v1', auth: authedClient });
+
+  // The 'From' header will be set automatically by the Gmail API to the user's primary email address
+  // when using userId: 'me'. The 'To' and 'Subject' headers must be included.
+  const rawMessage = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    body,
+  ].join('\n');
+
+  const encodedMessage = Buffer.from(rawMessage)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  try {
+    const response = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(`Error sending email for user ${userId}:`, error.message);
+    throw new Error(`Failed to send email: ${error.message || 'Unknown Gmail API error'}`);
+  }
+}
+
 /**
  * Fetches the full content of a specific email.
  * @param userId The ID of the user.
