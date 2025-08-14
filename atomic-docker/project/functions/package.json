@@ -64,7 +64,6 @@
     "quoted-printable": "^1.0.1",
     "rrule": "^2.7.2",
     "simple-oauth2": "^5.0.0",
-    "@octokit/rest": "^20.0.2",
     "stripe": "^15.8.0",
     "url-join": "^5.0.0",
     "uuid": "^9.0.0",
