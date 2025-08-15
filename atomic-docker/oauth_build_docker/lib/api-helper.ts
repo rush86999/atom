@@ -23,6 +23,9 @@ import {
   discordRedirectUrl,
   paypalClientId,
   paypalClientSecret,
+  jiraClientId,
+  jiraClientSecret,
+  jiraRedirectUrl,
 } from '@lib/constants';
 import {
   CalendarIntegrationType,
@@ -40,6 +43,7 @@ const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
 const GITHUB_SERVICE_NAME = 'github';
 const DISCORD_SERVICE_NAME = 'discord';
 const PAYPAL_SERVICE_NAME = 'paypal';
+const JIRA_SERVICE_NAME = 'jira';
 
 dayjs.extend(isoWeek);
 dayjs.extend(duration);
@@ -74,6 +78,18 @@ const discordOAuth2 = new AuthorizationCode({
         tokenHost: 'https://discord.com',
         tokenPath: '/api/oauth2/token',
         authorizePath: '/api/oauth2/authorize',
+    },
+});
+
+const jiraOAuth2 = new AuthorizationCode({
+    client: {
+        id: jiraClientId,
+        secret: jiraClientSecret,
+    },
+    auth: {
+        tokenHost: 'https://auth.atlassian.com',
+        tokenPath: '/oauth/token',
+        authorizePath: '/authorize',
     },
 });
 
@@ -228,6 +244,22 @@ export const exchangeCodeForDiscordTokens = async (code: string, userId: string)
     }
 };
 
+export const exchangeCodeForJiraTokens = async (code: string, userId: string) => {
+    try {
+        const result = await jiraOAuth2.getToken({
+            code,
+            redirect_uri: jiraRedirectUrl,
+            scope: 'read:jira-work manage:jira-project',
+        });
+        const { token } = result;
+        await saveUserTokens(userId, JIRA_SERVICE_NAME, token);
+        return token;
+    } catch (error) {
+        console.error('Access Token Error', error.message);
+        throw error;
+    }
+};
+
 export const getPaypalAccessToken = async (userId: string) => {
     try {
         const response = await got.post('https://api-m.sandbox.paypal.com/v1/oauth2/token', {
@@ -279,6 +311,17 @@ export const generateDiscordAuthUrl = (state: string) => {
         redirect_uri: discordRedirectUrl,
         scope: 'identify guilds messages.read',
         state,
+    });
+    return authorizationUri;
+};
+
+export const generateJiraAuthUrl = (state: string) => {
+    const authorizationUri = jiraOAuth2.authorizeURL({
+        redirect_uri: jiraRedirectUrl,
+        scope: 'read:jira-work manage:jira-project',
+        state,
+        audience: 'api.atlassian.com',
+        prompt: 'consent',
     });
     return authorizationUri;
 };

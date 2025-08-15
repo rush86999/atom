@@ -28,6 +28,7 @@ Atom is designed to be the central hub for all your productivity and communicati
 *   **Trello:** Connect your Trello account to manage your Trello boards and cards.
 *   **Asana:** Connect your Asana account to manage your Asana projects and tasks.
 *   **Jira:** Connect your Jira account to manage your Jira projects and issues.
+    *   [Jira Integration Guide](./jira_integration_guide.md)
 *   **Miro:** Connect your Miro account to collaborate on online whiteboards.
 *   **GitHub:** Connect your GitHub account to manage your repositories, issues, and pull requests.
     *   [GitHub Integration Guide](./github_integration_guide.md)
