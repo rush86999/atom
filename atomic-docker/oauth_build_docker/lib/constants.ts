@@ -39,3 +39,7 @@ export const zoomPassKey = process.env.ZOOM_PASS_KEY as string;
 export const githubClientId = process.env.GITHUB_CLIENT_ID;
 export const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
 export const githubRedirectUrl = process.env.GITHUB_REDIRECT_URI;
+
+export const discordClientId = process.env.DISCORD_CLIENT_ID;
+export const discordClientSecret = process.env.DISCORD_CLIENT_SECRET;
+export const discordRedirectUrl = process.env.DISCORD_REDIRECT_URI;

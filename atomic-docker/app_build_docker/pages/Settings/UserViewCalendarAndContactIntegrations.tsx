@@ -31,6 +31,7 @@ import {
   deleteEventTriggerByResourceId,
  } from '@lib/Settings/calendar_integrationHelper';
 import GithubManager from '@components/Settings/GithubManager';
+import DiscordManager from '@components/Settings/DiscordManager';
 
 import {
    googleCalendarName,
@@ -1078,6 +1079,11 @@ function UserViewCalendarAndContactIntegrations() {
                   <GithubManager />
                 </Box>
               )}
+
+              {/* Discord Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                <DiscordManager />
+              </Box>
 
               {/* Shopify Integration Section */}
               <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
