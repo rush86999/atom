@@ -46,3 +46,7 @@ export const discordRedirectUrl = process.env.DISCORD_REDIRECT_URI;
 
 export const paypalClientId = process.env.PAYPAL_CLIENT_ID;
 export const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET;
+
+export const jiraClientId = process.env.JIRA_CLIENT_ID;
+export const jiraClientSecret = process.env.JIRA_CLIENT_SECRET;
+export const jiraRedirectUrl = process.env.JIRA_REDIRECT_URI;
