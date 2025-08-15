@@ -32,6 +32,8 @@ import {
  } from '@lib/Settings/calendar_integrationHelper';
 import GithubManager from '@components/Settings/GithubManager';
 import DiscordManager from '@components/Settings/DiscordManager';
+import PaypalManager from '@components/Settings/PaypalManager';
+import JiraManager from '@components/Settings/JiraManager';
 
 import {
    googleCalendarName,
@@ -1083,6 +1085,16 @@ function UserViewCalendarAndContactIntegrations() {
               {/* Discord Integration Section */}
               <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
                 <DiscordManager />
+              </Box>
+
+              {/* PayPal Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                <PaypalManager />
+              </Box>
+
+              {/* Jira Integration Section */}
+              <Box flex={1} pt={{ phone: 'm', tablet: 'l' }} alignItems="center" width="100%" mt="l" mb="l" style={{borderTopWidth: 1, borderTopColor: palette.lightGray, paddingTop: 20}}>
+                <JiraManager />
               </Box>
 
               {/* Shopify Integration Section */}
