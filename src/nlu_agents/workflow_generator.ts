@@ -26,6 +26,9 @@ const NODE_TYPE_MAP = {
   reminder: {
     create_reminder: 'reminder',
   },
+  google_calendar: {
+    create_event: 'googleCalendarCreateEvent',
+  },
   utils: {
     flatten: 'flatten',
   }
