@@ -70,39 +70,32 @@ def flatten_list(node_config, input_data):
 
 from notion_client import APIResponseError
 
-def execute_notion_action(node_config, input_data):
+def execute_notion_action(node_config, input_data, user_id):
     print("Executing Notion Action...")
-    action_items = input_data
     database_id = node_config.get("databaseId")
-    notion_api_key = os.environ.get("NOTION_API_KEY")
+    properties = node_config.get("properties", {})
 
-    if not database_id or not notion_api_key:
-        print("Error: Notion database ID or API key is not configured.")
+    if not database_id:
+        print("Error: Notion database ID is not configured.")
         return []
 
-    notion = notion_client.Client(auth=notion_api_key)
-
-    for item in action_items:
-        print(f"  - Creating Notion task: {item}")
+    for item in input_data:
         try:
-            notion.pages.create(
-                parent={"database_id": database_id},
-                properties={
-                    "Name": {
-                        "title": [
-                            {
-                                "text": {
-                                    "content": str(item) # Ensure item is a string
-                                }
-                            }
-                        ]
-                    }
-                }
+            description = str(item)
+            response = requests.post(
+                "http://functions:3000/notion/create-task",
+                json={
+                    "session_variables": {"x-hasura-user-id": str(user_id)},
+                    "input": {
+                        "notion_db_id": database_id,
+                        "description": description,
+                        "properties": properties,
+                    },
+                },
             )
-        except APIResponseError as e:
-            print(f"    Error creating Notion page: {e.body}")
-        except Exception as e:
-            print(f"    An unexpected error occurred: {e}")
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"    Error calling functions service: {e}")
 
     return [] # Notion action is a sink, it doesn't return data
 
@@ -403,7 +396,7 @@ def execute_workflow(workflow_id: str):
         if node_type in NODE_EXECUTION_MAP:
             print(f"--- Executing node {node_id} ({node_type}) ---")
             execution_func = NODE_EXECUTION_MAP[node_type]
-            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail", "trelloCreateCard", "asanaCreateTask"]:
+            if node_type in ["gmailTrigger", "reminder", "slackSendMessage", "sendEmail", "trelloCreateCard", "asanaCreateTask", "notionAction"]:
                 output_data = execution_func(node.get('data', {}), input_data, workflow.user_id)
             else:
                 output_data = execution_func(node.get('data', {}), input_data)

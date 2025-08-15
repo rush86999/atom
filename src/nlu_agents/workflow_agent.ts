@@ -30,7 +30,7 @@ export class WorkflowAgent {
       Respond in JSON format with the following fields:
       - "isWorkflowRequest": boolean, true if the user is asking to create a workflow, false otherwise.
       - "trigger": object with "service" and "event" fields (e.g., {"service": "gmail", "event": "new_email"}). This should only be present if isWorkflowRequest is true.
-      - "actions": a list of objects, each with "service", "action", and "parameters" fields. The "parameters" field should be an object containing the extracted parameters for the action (e.g., {"service": "email", "action": "send_email", "parameters": {"to": "john@example.com", "subject": "Hello"}}). This should only be present if isWorkflowRequest is true.
+      - "actions": a list of objects, each with "service", "action", and "parameters" fields. The "parameters" field should be an object containing the extracted parameters for the action (e.g., for Notion: {"service": "notion", "action": "create_task", "parameters": {"description": "My new task", "properties": {"Status": "In Progress", "Priority": "High"}}}). This should only be present if isWorkflowRequest is true.
 
       User request: "${input.userInput}"
     `;
