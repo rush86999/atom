@@ -15,6 +15,12 @@ import {
   zoomIVForPass,
   zoomPassKey,
   zoomSaltForPass,
+  githubClientId,
+  githubClientSecret,
+  githubRedirectUrl,
+  discordClientId,
+  discordClientSecret,
+  discordRedirectUrl,
 } from '@lib/constants';
 import {
   CalendarIntegrationType,
@@ -26,8 +32,11 @@ import type { NextApiResponse } from 'next';
 import crypto, { BinaryLike } from 'crypto';
 import { executeGraphQLMutation } from './graphqlClient';
 import { Credentials as OAuth2Token } from 'google-auth-library';
+import { AuthorizationCode } from 'simple-oauth2';
 
 const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
+const GITHUB_SERVICE_NAME = 'github';
+const DISCORD_SERVICE_NAME = 'discord';
 
 dayjs.extend(isoWeek);
 dayjs.extend(duration);
@@ -41,13 +50,37 @@ const oauth2Client = new google.auth.OAuth2(
   googleRedirectUrl
 );
 
-// Re-implementing saveUserTokens here
+const githubOAuth2 = new AuthorizationCode({
+    client: {
+        id: githubClientId,
+        secret: githubClientSecret,
+    },
+    auth: {
+        tokenHost: 'https://github.com',
+        tokenPath: '/login/oauth/access_token',
+        authorizePath: '/login/oauth/authorize',
+    },
+});
+
+const discordOAuth2 = new AuthorizationCode({
+    client: {
+        id: discordClientId,
+        secret: discordClientSecret,
+    },
+    auth: {
+        tokenHost: 'https://discord.com',
+        tokenPath: '/api/oauth2/token',
+        authorizePath: '/api/oauth2/authorize',
+    },
+});
+
 async function saveUserTokens(
   userId: string,
-  tokens: OAuth2Token
+  serviceName: string,
+  tokens: any
 ): Promise<{ ok: boolean; error?: any }> {
   console.log(
-    `Saving tokens for userId: ${userId}, service: ${GOOGLE_CALENDAR_SERVICE_NAME}`
+    `Saving tokens for userId: ${userId}, service: ${serviceName}`
   );
 
   const mutation = `
@@ -55,8 +88,8 @@ async function saveUserTokens(
       insert_user_tokens(
         objects: $objects,
         on_conflict: {
-          constraint: user_tokens_user_id_service_name_key,
-          update_columns: [access_token, refresh_token, expiry_date, scope, token_type, updated_at]
+          constraint: user_tokens_user_id_service_key,
+          update_columns: [encrypted_access_token, encrypted_refresh_token, token_expiry_timestamp, metadata, updated_at]
         }
       ) {
         affected_rows
@@ -66,14 +99,13 @@ async function saveUserTokens(
 
   const tokenDataForDb = {
     user_id: userId,
-    service_name: GOOGLE_CALENDAR_SERVICE_NAME,
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    expiry_date: tokens.expiry_date
-      ? new Date(tokens.expiry_date).toISOString()
+    service: serviceName,
+    encrypted_access_token: tokens.access_token, // Assuming encryption happens elsewhere
+    encrypted_refresh_token: tokens.refresh_token,
+    token_expiry_timestamp: tokens.expires_at
+      ? new Date(tokens.expires_at).toISOString()
       : null,
-    scope: tokens.scope,
-    token_type: tokens.token_type,
+    metadata: tokens.metadata || {},
     updated_at: new Date().toISOString(),
   };
 
@@ -108,7 +140,7 @@ async function saveUserTokens(
     return {
       ok: false,
       error: {
-        message: 'Failed to save Google Calendar tokens.',
+        message: `Failed to save ${serviceName} tokens.`,
         details: error.message,
       },
     };
@@ -123,7 +155,6 @@ export const validateZoomWebook = (
     .createHmac('sha256', process.env.ZOOM_WEBHOOK_SECRET_TOKEN as BinaryLike)
     .update(request.body.payload.plainToken)
     .digest('hex');
-  // console.log(hashForValidate, ' hashForValidate')
   return response.status(200).json({
     plainToken: request.body.payload.plainToken,
     encryptedToken: hashForValidate,
@@ -141,7 +172,6 @@ export const verifyZoomWebhook = (request: ZoomWebhookRequestType) => {
   const signature = `v0=${hashForVerify}`;
 
   if (request.headers['x-zm-signature'] === signature) {
-    // Webhook request came from Zoom
     return true;
   }
 
@@ -155,7 +185,7 @@ export const exchangeCodeForTokens = async (code: string, userId: string) => {
     let { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
     if (tokens) {
-      await saveUserTokens(userId, tokens);
+      await saveUserTokens(userId, GOOGLE_CALENDAR_SERVICE_NAME, tokens);
     }
     return tokens;
   } catch (e) {
@@ -163,29 +193,71 @@ export const exchangeCodeForTokens = async (code: string, userId: string) => {
   }
 };
 
+export const exchangeCodeForGithubTokens = async (code: string, userId: string) => {
+    try {
+        const result = await githubOAuth2.getToken({
+            code,
+            redirect_uri: githubRedirectUrl,
+            scope: 'repo,user',
+        });
+        const { token } = result;
+        await saveUserTokens(userId, GITHUB_SERVICE_NAME, token);
+        return token;
+    } catch (error) {
+        console.error('Access Token Error', error.message);
+        throw error;
+    }
+};
+
+export const exchangeCodeForDiscordTokens = async (code: string, userId: string) => {
+    try {
+        const result = await discordOAuth2.getToken({
+            code,
+            redirect_uri: discordRedirectUrl,
+            scope: 'identify guilds messages.read',
+        });
+        const { token } = result;
+        await saveUserTokens(userId, DISCORD_SERVICE_NAME, token);
+        return token;
+    } catch (error) {
+        console.error('Access Token Error', error.message);
+        throw error;
+    }
+};
+
 export const generateGoogleAuthUrl = (state: string) => {
-  // Access scopes for read-only Drive activity.
   const scopes = [
     'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/calendar.events',
     'https://www.googleapis.com/auth/contacts.readonly',
   ];
 
-  // Generate a url that asks permissions for the Calendar activity scope
   const authorizationUrl = oauth2Client.generateAuthUrl({
-    // 'online' (default) or 'offline' (gets refresh_token)
     access_type: 'online',
-    /** Pass in the scopes array defined above.
-     * Alternatively, if only one scope is needed, you can pass a scope URL as a string */
     scope: scopes,
-    // Enable incremental authorization. Recommended as a best practice.
     include_granted_scopes: true,
     state,
   });
 
-  // console.log(authorizationUrl, ' authorizationUrl')
-
   return authorizationUrl;
+};
+
+export const generateGithubAuthUrl = (state: string) => {
+    const authorizationUri = githubOAuth2.authorizeURL({
+        redirect_uri: githubRedirectUrl,
+        scope: 'repo,user',
+        state,
+    });
+    return authorizationUri;
+};
+
+export const generateDiscordAuthUrl = (state: string) => {
+    const authorizationUri = discordOAuth2.authorizeURL({
+        redirect_uri: discordRedirectUrl,
+        scope: 'identify guilds messages.read',
+        state,
+    });
+    return authorizationUri;
 };
 
 export const getMinimalCalendarIntegration = async (
@@ -248,7 +320,6 @@ export const getMinimalCalendarIntegration = async (
         })
         .json();
 
-    // console.log(res, ' res inside getCalendarIntegration')
     if (res?.data?.Calendar_Integration?.length > 0) {
       return res?.data?.Calendar_Integration?.[0];
     }
@@ -387,7 +458,6 @@ export const updateAccessTokenCalendarIntegration = async (
       })
       .json();
 
-    // console.log(res, ' res inside updateCalendarIntegration')
   } catch (e) {
     console.log(e, ' unable to update calendar integration');
   }
@@ -487,13 +557,11 @@ export const updateZoomIntegration = async (
   refreshToken?: string,
   contactFirstName?: string,
   contactLastName?: string,
-  phoneCountry?: string, // 'US'
-  phoneNumber?: string, // '+1 1234567891'
+  phoneCountry?: string,
+  phoneNumber?: string,
   enabled?: boolean
 ) => {
   try {
-    //${token !== undefined ? ' $token: String,' : ''}
-    //
     const operationName = 'updateCalendarIntegrationById';
     const query = `
             mutation updateCalendarIntegrationById(
@@ -595,7 +663,6 @@ export const updateZoomIntegration = async (
       })
       .json();
 
-    // console.log(res, ' res inside updateCalendarIntegration')
   } catch (e) {
     console.log(e, ' unable to update zoom integration');
   }
