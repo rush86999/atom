@@ -23,6 +23,9 @@ const NODE_TYPE_MAP = {
   email: {
     send_email: 'sendEmail',
   },
+  reminder: {
+    create_reminder: 'reminder',
+  },
   utils: {
     flatten: 'flatten',
   }
