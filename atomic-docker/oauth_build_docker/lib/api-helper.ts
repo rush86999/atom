@@ -21,6 +21,8 @@ import {
   discordClientId,
   discordClientSecret,
   discordRedirectUrl,
+  paypalClientId,
+  paypalClientSecret,
 } from '@lib/constants';
 import {
   CalendarIntegrationType,
@@ -37,6 +39,7 @@ import { AuthorizationCode } from 'simple-oauth2';
 const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
 const GITHUB_SERVICE_NAME = 'github';
 const DISCORD_SERVICE_NAME = 'discord';
+const PAYPAL_SERVICE_NAME = 'paypal';
 
 dayjs.extend(isoWeek);
 dayjs.extend(duration);
@@ -218,6 +221,26 @@ export const exchangeCodeForDiscordTokens = async (code: string, userId: string)
         });
         const { token } = result;
         await saveUserTokens(userId, DISCORD_SERVICE_NAME, token);
+        return token;
+    } catch (error) {
+        console.error('Access Token Error', error.message);
+        throw error;
+    }
+};
+
+export const getPaypalAccessToken = async (userId: string) => {
+    try {
+        const response = await got.post('https://api-m.sandbox.paypal.com/v1/oauth2/token', {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + Buffer.from(paypalClientId + ':' + paypalClientSecret).toString('base64'),
+            },
+            form: {
+                grant_type: 'client_credentials',
+            },
+        }).json();
+        const token = response.access_token;
+        await saveUserTokens(userId, PAYPAL_SERVICE_NAME, { access_token: token, expires_in: response.expires_in });
         return token;
     } catch (error) {
         console.error('Access Token Error', error.message);
