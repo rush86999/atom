@@ -43,6 +43,8 @@ Atom is designed to be the central hub for all your productivity and communicati
 *   **Quickbooks:** Connect your Quickbooks account to manage your accounting and finances.
 *   **Xero:** Connect your Xero account to manage your accounting and finances.
 *   **Stripe:** Connect your Stripe account to manage your online payments.
+*   **PayPal:** Connect your PayPal account to manage your payments and transactions.
+    *   [PayPal Integration Guide](./paypal_integration_guide.md)
 
 ## 👔 CRM & Sales
 *   **Salesforce:** Connect your Salesforce account to manage your leads, contacts, and opportunities.

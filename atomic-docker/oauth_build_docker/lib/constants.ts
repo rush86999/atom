@@ -43,3 +43,6 @@ export const githubRedirectUrl = process.env.GITHUB_REDIRECT_URI;
 export const discordClientId = process.env.DISCORD_CLIENT_ID;
 export const discordClientSecret = process.env.DISCORD_CLIENT_SECRET;
 export const discordRedirectUrl = process.env.DISCORD_REDIRECT_URI;
+
+export const paypalClientId = process.env.PAYPAL_CLIENT_ID;
+export const paypalClientSecret = process.env.PAYPAL_CLIENT_SECRET;
