@@ -5,21 +5,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import GmailTriggerNode from '../../../../src/ui-shared/components/workflows/nodes/GmailTriggerNode';
-import GoogleCalendarNode from '../../../../src/ui-shared/components/workflows/nodes/GoogleCalendarNode';
-import GoogleCalendarCreateEventNode from '../../../../src/ui-shared/components/workflows/nodes/GoogleCalendarCreateEventNode';
-import NotionNode from '../../../../src/ui-shared/components/workflows/nodes/NotionNode';
-import AiTaskNode from '../../../../src/ui-shared/components/workflows/nodes/AiTaskNode';
-import FlattenNode from '../../../../src/ui-shared/components/workflows/nodes/FlattenNode';
-import DelayNode from '../../../../src/ui-shared/components/workflows/nodes/DelayNode';
-import LlmFilterNode from '../../../../src/ui-shared/components/workflows/nodes/LlmFilterNode';
-import ReduceNode from '../../../../src/ui-shared/components/workflows/nodes/ReduceNode';
-import ReminderNode from '../../../../src/ui-shared/components/workflows/nodes/ReminderNode';
-import SlackSendMessageNode from '../../../../src/ui-shared/components/workflows/nodes/SlackSendMessageNode';
-import BranchNode from '../../../../src/ui-shared/components/workflows/nodes/BranchNode';
-import SendEmailNode from '../../../../src/ui-shared/components/workflows/nodes/SendEmailNode';
-import TrelloCreateCardNode from '../../../../src/ui-shared/components/workflows/nodes/TrelloCreateCardNode';
-import AsanaCreateTaskNode from '../../../../src/ui-shared/components/workflows/nodes/AsanaCreateTaskNode';
+import GenericNode from '../../../../src/ui-shared/components/workflows/nodes/GenericNode';
 import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
 import { useWorkflows } from '../../../../src/ui-shared/hooks/useWorkflows';
 import DataMapper from '../../../../src/ui-shared/components/workflows/DataMapper';
@@ -78,42 +64,10 @@ const AutomationsPage = () => {
 
   const nodeTypes = useMemo(
     () => ({
-      gmailTrigger: GmailTriggerNode,
-      googleCalendarTrigger: GoogleCalendarNode,
-      googleCalendarCreateEvent: GoogleCalendarCreateEventNode,
-      notionAction: NotionNode,
-      aiTask: AiTaskNode,
-      flatten: FlattenNode,
-      delay: DelayNode,
-      llmFilter: LlmFilterNode,
-      reduce: ReduceNode,
-      reminder: ReminderNode,
-      slackSendMessage: SlackSendMessageNode,
-      branch: BranchNode,
-      sendEmail: SendEmailNode,
-      trelloCreateCard: TrelloCreateCardNode,
-      asanaCreateTask: AsanaCreateTaskNode,
+      genericNode: GenericNode,
     }),
     []
   );
-
-  const nodeSchemas = {
-    gmailTrigger: GmailTriggerNode.schema,
-    googleCalendarTrigger: GoogleCalendarNode.schema,
-    googleCalendarCreateEvent: GoogleCalendarCreateEventNode.schema,
-    notionAction: NotionNode.schema,
-    aiTask: AiTaskNode.schema,
-    flatten: FlattenNode.schema,
-    delay: DelayNode.schema,
-    llmFilter: LlmFilterNode.schema,
-    reduce: ReduceNode.schema,
-    reminder: ReminderNode.schema,
-    slackSendMessage: SlackSendMessageNode.schema,
-    branch: BranchNode.schema,
-    sendEmail: SendEmailNode.schema,
-    trelloCreateCard: TrelloCreateCardNode.schema,
-    asanaCreateTask: AsanaCreateTaskNode.schema,
-  };
 
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
@@ -145,8 +99,8 @@ const AutomationsPage = () => {
       </button>
       {dataMapperState.isOpen && (
         <DataMapper
-          sourceSchema={nodeSchemas[dataMapperState.sourceNode.type]}
-          targetSchema={nodeSchemas[dataMapperState.targetNode.type]}
+          sourceSchema={dataMapperState.sourceNode.data.outputSchema}
+          targetSchema={dataMapperState.targetNode.data.inputSchema}
           onSave={handleSaveMapping}
           onCancel={handleCancelMapping}
         />
