@@ -32,6 +32,7 @@ const NODE_TYPE_MAP = {
   utils: {
     flatten: 'flatten',
     delay: 'delay',
+    filter: 'llmFilter',
   }
 };
 
