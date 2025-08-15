@@ -34,6 +34,7 @@ const NODE_TYPE_MAP = {
     delay: 'delay',
     filter: 'llmFilter',
     reduce: 'reduce',
+    branch: 'branch',
   }
 };
 
