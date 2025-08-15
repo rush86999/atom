@@ -33,6 +33,7 @@ const NODE_TYPE_MAP = {
     flatten: 'flatten',
     delay: 'delay',
     filter: 'llmFilter',
+    reduce: 'reduce',
   }
 };
 
