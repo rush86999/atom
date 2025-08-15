@@ -14,6 +14,8 @@ Atom is designed to be the central hub for all your productivity and communicati
     *   [Slack Integration Guide](./slack_integration_guide.md)
 *   **Microsoft Teams:** Connect your Microsoft Teams account to search messages, retrieve content, and interact with your team using delegated permissions.
     *   [Microsoft Teams Integration Guide](./msteams_integration_guide.md)
+*   **Discord:** Connect your Discord account to interact with your servers and channels.
+    *   [Discord Integration Guide](./discord_integration_guide.md)
 
 ## 📅 Calendar & Scheduling
 *   **Google Calendar:** Connect your Google Calendar to create, edit, and manage calendar events.

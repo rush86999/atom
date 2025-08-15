@@ -18,6 +18,9 @@ import {
   githubClientId,
   githubClientSecret,
   githubRedirectUrl,
+  discordClientId,
+  discordClientSecret,
+  discordRedirectUrl,
 } from '@lib/constants';
 import {
   CalendarIntegrationType,
@@ -33,6 +36,7 @@ import { AuthorizationCode } from 'simple-oauth2';
 
 const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
 const GITHUB_SERVICE_NAME = 'github';
+const DISCORD_SERVICE_NAME = 'discord';
 
 dayjs.extend(isoWeek);
 dayjs.extend(duration);
@@ -55,6 +59,18 @@ const githubOAuth2 = new AuthorizationCode({
         tokenHost: 'https://github.com',
         tokenPath: '/login/oauth/access_token',
         authorizePath: '/login/oauth/authorize',
+    },
+});
+
+const discordOAuth2 = new AuthorizationCode({
+    client: {
+        id: discordClientId,
+        secret: discordClientSecret,
+    },
+    auth: {
+        tokenHost: 'https://discord.com',
+        tokenPath: '/api/oauth2/token',
+        authorizePath: '/api/oauth2/authorize',
     },
 });
 
@@ -193,6 +209,22 @@ export const exchangeCodeForGithubTokens = async (code: string, userId: string) 
     }
 };
 
+export const exchangeCodeForDiscordTokens = async (code: string, userId: string) => {
+    try {
+        const result = await discordOAuth2.getToken({
+            code,
+            redirect_uri: discordRedirectUrl,
+            scope: 'identify guilds messages.read',
+        });
+        const { token } = result;
+        await saveUserTokens(userId, DISCORD_SERVICE_NAME, token);
+        return token;
+    } catch (error) {
+        console.error('Access Token Error', error.message);
+        throw error;
+    }
+};
+
 export const generateGoogleAuthUrl = (state: string) => {
   const scopes = [
     'https://www.googleapis.com/auth/calendar.readonly',
@@ -214,6 +246,15 @@ export const generateGithubAuthUrl = (state: string) => {
     const authorizationUri = githubOAuth2.authorizeURL({
         redirect_uri: githubRedirectUrl,
         scope: 'repo,user',
+        state,
+    });
+    return authorizationUri;
+};
+
+export const generateDiscordAuthUrl = (state: string) => {
+    const authorizationUri = discordOAuth2.authorizeURL({
+        redirect_uri: discordRedirectUrl,
+        scope: 'identify guilds messages.read',
         state,
     });
     return authorizationUri;
