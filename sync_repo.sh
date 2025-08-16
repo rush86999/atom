@@ -6,15 +6,22 @@ cd /path/to/repo
 
 # Check if the directory is a Git repository
 if git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Syncing repository..."
+    echo "Checking repository sync status..."
 
     # Fetch the latest changes from the remote
     git fetch origin
 
-    # Push your local changes to the remote
-    git push origin
+    # Check if the local branch is up-to-date with the remote branch
+    if git diff --quiet origin/main; then
+        echo "Repository is synced."
+    else
+        echo "Repository is not synced. Pushing local changes..."
 
-    echo "Repository synced successfully."
+        # Push your local changes to the remote
+        git push origin
+
+        echo "Repository synced successfully."
+    fi
 else
     echo "Error: This is not a Git repository."
 fi
