@@ -14,7 +14,6 @@ import { AgentLLMService } from './nlu_types';
 import { DataAnalystSkill } from '../skills/dataAnalystSkill';
 import { AdvancedResearchSkill } from '../skills/researchSkillIndex';
 import { LegalDocumentAnalysisSkill } from '../skills/legalSkillIndex';
-import { SocialMediaAgent } from '../skills/socialMediaSkill';
 import { ContentCreationAgent } from '../skills/contentCreationSkill';
 import { PersonalizedShoppingAgent } from '../skills/personalizedShoppingSkill';
 import { RecruitmentRecommendationAgent } from '../skills/recruitmentRecommendationSkill';
@@ -25,6 +24,7 @@ import { WorkflowAgent } from './workflow_agent';
 import { WorkflowGenerator } from './workflow_generator';
 import { runAutonomousWebAppFlow } from '../orchestration/devOpsOrchestrator';
 import { runShopifyReport } from '../orchestration/autonomousSystemOrchestrator';
+import { SocialMediaAgent } from './socialMediaAgent';
 
 export class NLULeadAgent {
   private analyticalAgent: AnalyticalAgent;
@@ -41,6 +41,7 @@ export class NLULeadAgent {
   private vibeHackingAgent: VibeHackingAgent;
   private taxAgent: TaxAgent;
   private marketingAutomationAgent: MarketingAutomationAgent;
+  private socialMediaAgent: SocialMediaAgent;
   private workflowAgent: WorkflowAgent;
   private workflowGenerator: WorkflowGenerator;
   private agentName: string = 'NLULeadAgent';
@@ -67,6 +68,7 @@ export class NLULeadAgent {
     this.vibeHackingAgent = new VibeHackingAgent(llmService);
     this.taxAgent = new TaxAgent(llmService);
     this.marketingAutomationAgent = new MarketingAutomationAgent(llmService);
+    this.socialMediaAgent = new SocialMediaAgent(llmService);
     this.workflowAgent = new WorkflowAgent(llmService);
     this.workflowGenerator = new WorkflowGenerator();
   }
@@ -80,7 +82,6 @@ export class NLULeadAgent {
       analyticalResponse,
       creativeResponse,
       practicalResponse,
-      socialMediaResponse,
       contentCreationResponse,
       personalizedShoppingResponse,
       recruitmentRecommendationResponse,
@@ -99,10 +100,6 @@ export class NLULeadAgent {
       }),
       this.practicalAgent.analyze(input).catch((e) => {
         console.error('PracticalAgent failed:', e);
-        return null;
-      }),
-      this.socialMediaAgent.analyze(input).catch((e) => {
-        console.error('SocialMediaAgent failed:', e);
         return null;
       }),
       this.contentCreationAgent.analyze(input).catch((e) => {
@@ -133,6 +130,10 @@ export class NLULeadAgent {
         console.error('WorkflowAgent failed:', e);
         return null;
       }),
+      this.socialMediaAgent.analyzeAndAct(input).catch((e) => {
+        console.error('SocialMediaAgent failed:', e);
+        return null;
+      }),
     ]);
     console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
@@ -141,7 +142,6 @@ export class NLULeadAgent {
       analyticalResponse,
       creativeResponse,
       practicalResponse,
-      socialMediaResponse,
       contentCreationResponse,
       personalizedShoppingResponse,
       recruitmentRecommendationResponse,
@@ -225,7 +225,6 @@ export class NLULeadAgent {
         analytical: analyticalResponse,
         creative: creativeResponse,
         practical: practicalResponse,
-        socialMedia: socialMediaResponse,
         contentCreation: contentCreationResponse,
         personalizedShopping: personalizedShoppingResponse,
         recruitmentRecommendation: recruitmentRecommendationResponse,
