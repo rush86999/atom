@@ -46,6 +46,55 @@ export async function getRepoCommitActivity(
   }
 }
 
+export async function createGithubRepo(
+  userId: string,
+  owner: string,
+  repo: string
+): Promise<any> {
+  const apiKey = await getGithubApiKey(userId);
+  if (!apiKey) {
+    throw new Error('GitHub API key not configured for this user.');
+  }
+  const octokit = new Octokit({ auth: apiKey });
+
+  try {
+    const response = await octokit.repos.createForAuthenticatedUser({
+      name: repo,
+    });
+    return response;
+  } catch (error) {
+    console.error('Error creating repository:', error);
+    return null;
+  }
+}
+
+export async function createGithubIssue(
+  userId: string,
+  owner: string,
+  repo: string,
+  title: string,
+  body: string
+): Promise<any> {
+  const apiKey = await getGithubApiKey(userId);
+  if (!apiKey) {
+    throw new Error('GitHub API key not configured for this user.');
+  }
+  const octokit = new Octokit({ auth: apiKey });
+
+  try {
+    const response = await octokit.issues.create({
+      owner,
+      repo,
+      title,
+      body,
+    });
+    return response;
+  } catch (error) {
+    console.error('Error creating issue:', error);
+    return null;
+  }
+}
+
 export async function getRepoPullRequestActivity(
   userId: string,
   owner: string,
