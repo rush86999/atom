@@ -24,6 +24,7 @@ import { MarketingAutomationAgent } from '../skills/marketingAutomationSkill';
 import { WorkflowAgent } from './workflow_agent';
 import { WorkflowGenerator } from './workflow_generator';
 import { runAutonomousWebAppFlow } from '../orchestration/devOpsOrchestrator';
+import { AutonomousTradingAgent } from './trading_agent';
 
 export class NLULeadAgent {
   private analyticalAgent: AnalyticalAgent;
@@ -42,6 +43,7 @@ export class NLULeadAgent {
   private marketingAutomationAgent: MarketingAutomationAgent;
   private workflowAgent: WorkflowAgent;
   private workflowGenerator: WorkflowGenerator;
+  private tradingAgent: AutonomousTradingAgent;
   private agentName: string = 'NLULeadAgent';
 
   constructor(
@@ -68,6 +70,7 @@ export class NLULeadAgent {
     this.marketingAutomationAgent = new MarketingAutomationAgent(llmService);
     this.workflowAgent = new WorkflowAgent(llmService);
     this.workflowGenerator = new WorkflowGenerator();
+    this.tradingAgent = new AutonomousTradingAgent(llmService);
   }
 
   public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -87,6 +90,7 @@ export class NLULeadAgent {
       taxResponse,
       marketingAutomationResponse,
       workflowResponse,
+      tradingResponse,
     ] = await Promise.all([
       this.analyticalAgent.analyze(input).catch((e) => {
         console.error('AnalyticalAgent failed:', e);
@@ -132,6 +136,10 @@ export class NLULeadAgent {
         console.error('WorkflowAgent failed:', e);
         return null;
       }),
+      this.tradingAgent.analyze(input).catch((e) => {
+        console.error('TradingAgent failed:', e);
+        return null;
+      }),
     ]);
     console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
@@ -147,7 +155,8 @@ export class NLULeadAgent {
       vibeHackingResponse,
       taxResponse,
       marketingAutomationResponse,
-      workflowResponse
+      workflowResponse,
+      tradingResponse
     );
 
     if (synthesisResult.suggestedNextAction?.actionType === 'create_workflow') {
@@ -218,6 +227,7 @@ export class NLULeadAgent {
         tax: taxResponse,
         marketingAutomation: marketingAutomationResponse,
         workflow: workflowResponse,
+        trading: tradingResponse,
       },
       synthesisLog: synthesisResult.synthesisLog || [
         'Synthesis log not initialized.',
