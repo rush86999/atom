@@ -3,8 +3,8 @@ import time
 import tempfile
 from typing import Dict, Any, Optional
 
-from .. import note_utils
-from . import command_handlers
+from project.functions import note_utils
+from project.functions.atom_agent import command_handlers
 
 # --- Test State ---
 # A simple dictionary to hold state between tests, like created page IDs.

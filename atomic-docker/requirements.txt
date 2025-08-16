@@ -1,6 +1,6 @@
 notion_client
 pytest
-flask
+flask[async]
 lancedb
 requests
 kafka-python
@@ -33,3 +33,12 @@ ShopifyAPI
 docusign-esign
 jira
 python-wordpress-xmlrpc
+flask-sock
+GitPython
+fastapi
+plaid-python
+google-ads
+elevenlabs
+slack_sdk
+boxsdk
+asana==3.2.3
