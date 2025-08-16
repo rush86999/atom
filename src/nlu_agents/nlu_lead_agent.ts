@@ -23,6 +23,7 @@ import { TaxAgent } from './tax_agent';
 import { MarketingAutomationAgent } from '../skills/marketingAutomationSkill';
 import { WorkflowAgent } from './workflow_agent';
 import { WorkflowGenerator } from './workflow_generator';
+import { runAutonomousWebAppFlow } from '../orchestration/devOpsOrchestrator';
 
 export class NLULeadAgent {
   private analyticalAgent: AnalyticalAgent;
@@ -174,6 +175,21 @@ export class NLULeadAgent {
         console.log('Legal Document Analysis Skill Result:', legalResult);
       }
       // Add similar blocks for other skills
+    }
+
+    if (synthesisResult.primaryGoal?.includes('create a web app') || synthesisResult.primaryGoal?.includes('create a new project')) {
+        const { owner, repo, jiraProjectKey, slackChannelId } = synthesisResult.extractedParameters;
+        if (owner && repo && jiraProjectKey && slackChannelId) {
+            console.log("Triggering autonomous web app flow...");
+            const flowResult = await runAutonomousWebAppFlow(
+                input.userId,
+                owner,
+                repo,
+                jiraProjectKey,
+                slackChannelId
+            );
+            synthesisResult.synthesisLog?.push(`Autonomous web app flow triggered. Result: ${flowResult.message}`);
+        }
     }
 
     return {
