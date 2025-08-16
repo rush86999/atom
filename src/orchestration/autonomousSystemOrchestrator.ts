@@ -2,6 +2,7 @@ import { handleCreateJiraIssue, getJiraCredentials } from 'atomic-docker/project
 import { createGithubRepo, createGithubIssue } from 'atomic-docker/project/functions/atom-agent/skills/githubSkills';
 import { sendSlackMessage } from 'atomic-docker/project/functions/atom-agent/skills/slackSkills';
 import { runShellCommand } from '../skills/shellSkills';
+import { runShopifyBusinessManager } from './shopifyBusinessManager';
 
 interface AutonomousSystemResult {
     success: boolean;
@@ -97,4 +98,19 @@ export async function runAutonomousSystem(
 
     console.log(`[AutonomousSystemOrchestrator] ${result.message}`);
     return result;
+}
+
+export async function runShopifyReport(
+    userId: string,
+    slackChannelId: string
+): Promise<AutonomousSystemResult> {
+    console.log(`[AutonomousSystemOrchestrator] Starting Shopify report for user ${userId}.`);
+
+    const result = await runShopifyBusinessManager(userId, slackChannelId);
+
+    return {
+        success: result.success,
+        message: result.message,
+        errors: result.errors,
+    };
 }

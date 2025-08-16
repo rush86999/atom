@@ -24,6 +24,7 @@ import { MarketingAutomationAgent } from '../skills/marketingAutomationSkill';
 import { WorkflowAgent } from './workflow_agent';
 import { WorkflowGenerator } from './workflow_generator';
 import { runAutonomousWebAppFlow } from '../orchestration/devOpsOrchestrator';
+import { runShopifyReport } from '../orchestration/autonomousSystemOrchestrator';
 
 export class NLULeadAgent {
   private analyticalAgent: AnalyticalAgent;
@@ -189,6 +190,20 @@ export class NLULeadAgent {
                 slackChannelId
             );
             synthesisResult.synthesisLog?.push(`Autonomous web app flow triggered. Result: ${flowResult.message}`);
+        }
+    }
+
+    if (synthesisResult.primaryGoal?.toLowerCase().includes('run shopify report')) {
+        const { slackChannelId } = synthesisResult.extractedParameters;
+        if (slackChannelId) {
+            console.log("Triggering Shopify report flow...");
+            const flowResult = await runShopifyReport(
+                input.userId,
+                slackChannelId
+            );
+            synthesisResult.synthesisLog?.push(`Shopify report flow triggered. Result: ${flowResult.message}`);
+        } else {
+            synthesisResult.synthesisLog?.push(`Missing slackChannelId to run Shopify report.`);
         }
     }
 
