@@ -20,6 +20,7 @@ import { PersonalizedShoppingAgent } from '../skills/personalizedShoppingSkill';
 import { RecruitmentRecommendationAgent } from '../skills/recruitmentRecommendationSkill';
 import { VibeHackingAgent } from '../skills/vibeHackingSkill';
 import { TaxAgent } from './tax_agent';
+import { FinanceAgent } from './finance_agent';
 import { MarketingAutomationAgent } from '../skills/marketingAutomationSkill';
 import { WorkflowAgent } from './workflow_agent';
 import { WorkflowGenerator } from './workflow_generator';
@@ -40,6 +41,7 @@ export class NLULeadAgent {
   private recruitmentRecommendationAgent: RecruitmentRecommendationAgent;
   private vibeHackingAgent: VibeHackingAgent;
   private taxAgent: TaxAgent;
+  private financeAgent: FinanceAgent;
   private marketingAutomationAgent: MarketingAutomationAgent;
   private workflowAgent: WorkflowAgent;
   private workflowGenerator: WorkflowGenerator;
@@ -66,6 +68,7 @@ export class NLULeadAgent {
     );
     this.vibeHackingAgent = new VibeHackingAgent(llmService);
     this.taxAgent = new TaxAgent(llmService);
+    this.financeAgent = new FinanceAgent(llmService);
     this.marketingAutomationAgent = new MarketingAutomationAgent(llmService);
     this.workflowAgent = new WorkflowAgent(llmService);
     this.workflowGenerator = new WorkflowGenerator();
@@ -86,6 +89,7 @@ export class NLULeadAgent {
       recruitmentRecommendationResponse,
       vibeHackingResponse,
       taxResponse,
+      financeResponse,
       marketingAutomationResponse,
       workflowResponse,
     ] = await Promise.all([
@@ -125,6 +129,10 @@ export class NLULeadAgent {
         console.error('TaxAgent failed:', e);
         return null;
       }),
+      this.financeAgent.analyze(input).catch((e) => {
+        console.error('FinanceAgent failed:', e);
+        return null;
+      }),
       this.marketingAutomationAgent.analyze(input).catch((e) => {
         console.error('MarketingAutomationAgent failed:', e);
         return null;
@@ -147,6 +155,7 @@ export class NLULeadAgent {
       recruitmentRecommendationResponse,
       vibeHackingResponse,
       taxResponse,
+      financeResponse,
       marketingAutomationResponse,
       workflowResponse
     );
@@ -231,6 +240,7 @@ export class NLULeadAgent {
         recruitmentRecommendation: recruitmentRecommendationResponse,
         vibeHacking: vibeHackingResponse,
         tax: taxResponse,
+      finance: financeResponse,
         marketingAutomation: marketingAutomationResponse,
         workflow: workflowResponse,
       },

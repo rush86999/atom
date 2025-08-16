@@ -29,6 +29,34 @@ async def create_transaction():
         logger.error(f"Error creating transaction for account {account_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "TRANSACTION_CREATE_FAILED", "message": str(e)}}), 500
 
+@transaction_bp.route('/api/transactions/search', methods=['POST'])
+async def search_transactions():
+    data = request.get_json()
+    user_id = data.get('userId') # Note: Matches the Zod schema in the frontend service
+
+    if not user_id:
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "userId is required."}}), 400
+
+    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+    if not db_conn_pool:
+        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
+
+    try:
+        result = await transaction_service.search_transactions(
+            user_id=user_id,
+            db_conn_pool=db_conn_pool,
+            query=data.get('query'),
+            category=data.get('category'),
+            date_range=data.get('dateRange'),
+            amount_range=data.get('amountRange'),
+            limit=data.get('limit', 50)
+        )
+        # The frontend expects an object with a 'transactions' key
+        return jsonify({"ok": True, "transactions": result})
+    except Exception as e:
+        logger.error(f"Error searching transactions for user {user_id}: {e}", exc_info=True)
+        return jsonify({"ok": False, "error": {"code": "TRANSACTION_SEARCH_FAILED", "message": str(e)}}), 500
+
 @transaction_bp.route('/api/transactions', methods=['GET'])
 async def get_transactions():
     account_id = request.args.get('account_id')

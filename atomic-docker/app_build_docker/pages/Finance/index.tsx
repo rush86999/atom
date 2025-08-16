@@ -34,6 +34,7 @@ import {
   Wallet,
   Calendar,
 } from "@material-ui/icons";
+import { useFinanceData } from "../../lib/hooks/useFinanceData";
 
 interface Account {
   id: string;
@@ -45,12 +46,10 @@ interface Account {
 
 interface Transaction {
   id: string;
-  name: string;
+  description: string;
   amount: number;
   date: string;
   category: string;
-  merchant?: string;
-  description?: string;
 }
 
 interface BudgetCategory {
@@ -84,190 +83,49 @@ const FinanceDashboard: React.FC = () => {
   const { hasRole } = useUserRole();
   const [activeTab, setActiveTab] = useState(0);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [budgets, setBudgets] = useState<BudgetCategory[]>([]);
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [netWorthHistory, setNetWorthHistory] = useState<NetWorthData[]>([]);
   const [netWorth, setNetWorth] = useState(0);
-  const [loading, setLoading] = useState(true);
+
+  const { transactions, budgetSummary, loading, error, fetchTransactions, fetchBudgetSummary } = useFinanceData();
+  const budgets = budgetSummary?.categories || [];
 
   const fetchAllData = useCallback(async () => {
+    if (!user) return;
+
+    fetchTransactions({ userId: user.id });
+    fetchBudgetSummary({ userId: user.id });
+
+    // TODO: Replace other mock data fetches with real API calls
     try {
-      // Mock data for demo - replace with actual API calls
       const mockAccounts: Account[] = [
-        {
-          id: "1",
-          name: "Chase Checking",
-          type: "checking",
-          balance: 5234.56,
-          institution: "Chase",
-        },
-        {
-          id: "2",
-          name: "High Yield Savings",
-          type: "savings",
-          balance: 15890.23,
-          institution: "Ally",
-        },
-        {
-          id: "3",
-          name: "Investment Account",
-          type: "investment",
-          balance: 48750.89,
-          institution: "Vanguard",
-        },
-        {
-          id: "4",
-          name: "Credit Card",
-          type: "credit",
-          balance: -1298.45,
-          institution: "Bank of America",
-        },
-      ];
-
-      const mockTransactions: Transaction[] = [
-        {
-          id: "1",
-          name: "Whole Foods",
-          amount: -127.45,
-          date: "2024-12-10",
-          category: "Groceries",
-          merchant: "Whole Foods Market",
-        },
-        {
-          id: "2",
-          name: "Salary Deposit",
-          amount: 3500.0,
-          date: "2024-12-05",
-          category: "Income",
-          merchant: "Employer Inc.",
-        },
-        {
-          id: "3",
-          name: "Netflix Subscription",
-          amount: -15.99,
-          date: "2024-12-01",
-          category: "Entertainment",
-          merchant: "Netflix",
-        },
-        {
-          id: "4",
-          name: "Gas Station",
-          amount: -45.3,
-          date: "2024-11-28",
-          category: "Transportation",
-          merchant: "Shell",
-        },
-      ];
-
-      const mockBudgets: BudgetCategory[] = [
-        {
-          category: "Groceries",
-          budgeted: 500,
-          spent: 420,
-          remaining: 80,
-          utilization: 84,
-        },
-        {
-          category: "Dining",
-          budgeted: 300,
-          spent: 285,
-          remaining: 15,
-          utilization: 95,
-        },
-        {
-          category: "Transportation",
-          budgeted: 200,
-          spent: 145,
-          remaining: 55,
-          utilization: 72.5,
-        },
-        {
-          category: "Entertainment",
-          budgeted: 150,
-          spent: 180,
-          remaining: -30,
-          utilization: 120,
-        },
-        {
-          category: "Shopping",
-          budgeted: 250,
-          spent: 190,
-          remaining: 60,
-          utilization: 76,
-        },
+        { id: "1", name: "Chase Checking", type: "checking", balance: 5234.56, institution: "Chase" },
+        { id: "2", name: "High Yield Savings", type: "savings", balance: 15890.23, institution: "Ally" },
+        { id: "3", name: "Investment Account", type: "investment", balance: 48750.89, institution: "Vanguard" },
+        { id: "4", name: "Credit Card", type: "credit", balance: -1298.45, institution: "Bank of America" },
       ];
 
       const mockGoals: FinancialGoal[] = [
-        {
-          id: "1",
-          name: "Emergency Fund",
-          description: "3-6 months living expenses",
-          targetAmount: 15000,
-          current: 8750,
-          progress: 58.3,
-          goalType: "emergency",
-        },
-        {
-          id: "2",
-          name: "Vacation Fund - Hawaii",
-          description: "2-week family vacation",
-          targetAmount: 8000,
-          current: 2200,
-          progress: 27.5,
-          goalType: "vacation",
-          targetDate: "2025-06-30",
-        },
-        {
-          id: "3",
-          name: "Retirement IRA",
-          description: "Annual contribution",
-          targetAmount: 6500,
-          current: 4800,
-          progress: 73.8,
-          goalType: "retirement",
-        },
+        { id: "1", name: "Emergency Fund", description: "3-6 months living expenses", targetAmount: 15000, current: 8750, progress: 58.3, goalType: "emergency" },
+        { id: "2", name: "Vacation Fund - Hawaii", description: "2-week family vacation", targetAmount: 8000, current: 2200, progress: 27.5, goalType: "vacation", targetDate: "2025-06-30" },
+        { id: "3", name: "Retirement IRA", description: "Annual contribution", targetAmount: 6500, current: 4800, progress: 73.8, goalType: "retirement" },
       ];
 
       const mockNetWorth = [
-        {
-          date: "Nov 2024",
-          netWorth: 125430,
-          assets: 145430,
-          liabilities: 20000,
-        },
-        {
-          date: "Oct 2024",
-          netWorth: 122190,
-          assets: 141190,
-          liabilities: 19000,
-        },
-        {
-          date: "Sep 2024",
-          netWorth: 119890,
-          assets: 137890,
-          liabilities: 18000,
-        },
-        {
-          date: "Aug 2024",
-          netWorth: 116290,
-          assets: 133290,
-          liabilities: 17000,
-        },
+        { date: "Nov 2024", netWorth: 125430, assets: 145430, liabilities: 20000 },
+        { date: "Oct 2024", netWorth: 122190, assets: 141190, liabilities: 19000 },
+        { date: "Sep 2024", netWorth: 119890, assets: 137890, liabilities: 18000 },
+        { date: "Aug 2024", netWorth: 116290, assets: 133290, liabilities: 17000 },
       ];
 
       setAccounts(mockAccounts);
-      setTransactions(mockTransactions);
-      setBudgets(mockBudgets);
       setGoals(mockGoals);
       setNetWorthHistory(mockNetWorth);
-      setNetWorth(netWorthHistory[netWorthHistory.length - 1]?.netWorth || 0);
+      setNetWorth(mockNetWorth.length > 0 ? mockNetWorth[0].netWorth : 0);
     } catch (error) {
-      console.error("Error fetching finance data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error fetching mock data:", error);
     }
-  }, []);
+  }, [user, fetchTransactions, fetchBudgetSummary]);
 
   useEffect(() => {
     if (user && hasRole("finance")) {
@@ -323,6 +181,10 @@ const FinanceDashboard: React.FC = () => {
 
   if (loading) {
     return <div style={{ padding: 20 }}>Loading finance dashboard...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: 20 }}>Error: {error}</div>;
   }
 
   const renderTabContent = () => {
@@ -422,9 +284,7 @@ const FinanceDashboard: React.FC = () => {
         <Grid item xs={12} md={3}>
           <StatCard
             title="Monthly Budget"
-            value={budgets
-              .reduce((sum, b) => sum + b.budgeted, 0)
-              .toLocaleString()}
+            value={(budgetSummary?.totalBudget || 0).toLocaleString()}
           />
         </Grid>
       </Grid>
@@ -717,9 +577,9 @@ const TransactionHistory: React.FC<{ transactions: Transaction[] }> = ({
           borderBottom="1px solid #eee"
         >
           <Box>
-            <Typography variant="subtitle1">{transaction.name}</Typography>
+            <Typography variant="subtitle1">{transaction.description}</Typography>
             <Typography variant="body2" color="textSecondary">
-              {transaction.merchant || transaction.category}
+              {transaction.category}
             </Typography>
             <Typography variant="body2" color="textSecondary">
               {new Date(transaction.date).toLocaleDateString()}

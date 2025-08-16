@@ -69,6 +69,10 @@ function UserViewSettings() {
 
   const navigateToUserChatMeetingPreferences = () => router.push({ pathname: '/Settings/UserChatMeetingPreferences'})
 
+  const navigateToTransactionRules = () => router.push({ pathname: '/Settings/TransactionRules' })
+
+  const navigateToBudgetAlerts = () => router.push({ pathname: '/Settings/BudgetAlerts' })
+
   return (
     <ScrollView style={{ flex: 1, width: '100%', minHeight: '65vh', maxHeight: '65vh' }} contentContainerStyle={{ alignItems: 'center'}}>
       <Box flex={1} justifyContent="center" alignItems="center" minHeight="70vh">
@@ -105,6 +109,16 @@ function UserViewSettings() {
         <div className="pt-3">
           <Text variant="buttonLink" onPress={navigateToCategories}>
             Edit Tags
+          </Text>
+        </div>
+        <div className="pt-3">
+          <Text variant="buttonLink" onPress={navigateToTransactionRules}>
+            Transaction Rules
+          </Text>
+        </div>
+        <div className="pt-3">
+          <Text variant="buttonLink" onPress={navigateToBudgetAlerts}>
+            Budget Alert Settings
           </Text>
         </div>
         <div className="pt-3">

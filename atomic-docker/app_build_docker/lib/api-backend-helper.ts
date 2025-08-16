@@ -1463,6 +1463,108 @@ export const getAllCalendarIntegratonsByResourceAndClientType = async (
   }
 };
 
+export const listTransactionRules = async (userId: string) => {
+  const operationName = 'listTransactionRules';
+  try {
+    const response = await resilientGot('post', 'http://agent:3000/command', {
+      json: { userId, text: 'list transaction rules' },
+    }, operationName);
+    return response;
+  } catch (e: any) {
+    appServiceLogger.error(`[${operationName}] Unable to list transaction rules.`, {
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    throw e;
+  }
+}
+
+export const getBudgetAlertSettings = async (userId: string) => {
+  const operationName = 'getBudgetAlertSettings';
+  try {
+    const response = await resilientGot('post', 'http://agent:3000/command', {
+      json: { userId, text: 'get budget alert settings' },
+    }, operationName);
+    return response;
+  } catch (e: any) {
+    appServiceLogger.error(`[${operationName}] Unable to get budget alert settings.`, {
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    throw e;
+  }
+}
+
+export const updateBudgetAlertSettings = async (userId: string, settings: any) => {
+  const operationName = 'updateBudgetAlertSettings';
+  try {
+    const response = await resilientGot('post', 'http://agent:3000/command', {
+      json: { userId, text: `update budget alert settings with ${JSON.stringify(settings)}` },
+    }, operationName);
+    return response;
+  } catch (e: any) {
+    appServiceLogger.error(`[${operationName}] Unable to update budget alert settings.`, {
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    throw e;
+  }
+}
+
+export const createTransactionRule = async (userId: string, rule: { pattern: string, target_value: string }) => {
+  const operationName = 'createTransactionRule';
+  try {
+    const response = await resilientGot('post', 'http://agent:3000/command', {
+      json: { userId, text: `create rule for ${rule.pattern} to be ${rule.target_value}` },
+    }, operationName);
+    return response;
+  } catch (e: any) {
+    appServiceLogger.error(`[${operationName}] Unable to create transaction rule.`, {
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    throw e;
+  }
+}
+
+export const updateTransactionRule = async (userId: string, ruleId: number, updates: any) => {
+  const operationName = 'updateTransactionRule';
+  try {
+    const response = await resilientGot('post', 'http://agent:3000/command', {
+      json: { userId, text: `update rule ${ruleId} with ${JSON.stringify(updates)}` },
+    }, operationName);
+    return response;
+  } catch (e: any) {
+    appServiceLogger.error(`[${operationName}] Unable to update transaction rule.`, {
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    throw e;
+  }
+}
+
+export const deleteTransactionRule = async (userId: string, ruleId: number) => {
+  const operationName = 'deleteTransactionRule';
+  try {
+    const response = await resilientGot('post', 'http://agent:3000/command', {
+      json: { userId, text: `delete rule ${ruleId}` },
+    }, operationName);
+    return response;
+  } catch (e: any) {
+    appServiceLogger.error(`[${operationName}] Unable to delete transaction rule.`, {
+      error: e.message,
+      stack: e.stack,
+      details: e,
+    });
+    throw e;
+  }
+}
+
 export const getAllCalendarIntegrationsByResource = async (
   userId: string,
   resource: string

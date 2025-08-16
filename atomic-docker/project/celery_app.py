@@ -7,7 +7,14 @@ app = Celery(
     include=['project.tasks']
 )
 
-app.conf.beat_schedule = {}
+from celery.schedules import crontab
+
+app.conf.beat_schedule = {
+    'check-budgets-daily': {
+        'task': 'project.tasks.check_budget_alerts',
+        'schedule': crontab(hour=0, minute=0),
+    },
+}
 
 if __name__ == '__main__':
     app.start()
