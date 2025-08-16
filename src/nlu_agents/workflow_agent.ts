@@ -26,10 +26,11 @@ export class WorkflowAgent {
       Analyze the following user request and determine if the user wants to create a workflow.
       A workflow is a sequence of automated steps, usually in the format "when X happens, do Y, then Z".
       If the user wants to create a workflow, identify the trigger that starts it and the sequence of actions to be performed.
+      For each action, extract the relevant parameters.
       Respond in JSON format with the following fields:
       - "isWorkflowRequest": boolean, true if the user is asking to create a workflow, false otherwise.
       - "trigger": object with "service" and "event" fields (e.g., {"service": "gmail", "event": "new_email"}). This should only be present if isWorkflowRequest is true.
-      - "actions": a list of objects, each with "service" and "action" fields (e.g., [{"service": "ai", "action": "extract_action_items"}, {"service": "notion", "action": "create_task"}]). This should only be present if isWorkflowRequest is true.
+      - "actions": a list of objects, each with "service", "action", and "parameters" fields. The "parameters" field should be an object containing the extracted parameters for the action (e.g., {"service": "email", "action": "send_email", "parameters": {"to": "john@example.com", "subject": "Hello"}}). This should only be present if isWorkflowRequest is true.
 
       User request: "${input.userInput}"
     `;

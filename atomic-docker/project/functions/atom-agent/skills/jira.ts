@@ -4,7 +4,7 @@ import { executeGraphQLQuery } from '../../_libs/graphqlClient';
 import { handleError } from '../../_utils/errorHandler';
 import { JiraApi } from 'jira-client';
 
-async function getJiraCredentials(
+export async function getJiraCredentials(
   userId: string
 ): Promise<{ username: string; apiKey: string; serverUrl: string } | null> {
   const query = `
