@@ -31,6 +31,7 @@ export class SynthesizingAgent {
     recruitmentRecommendation: any,
     vibeHacking: any,
     tax: TaxAgentResponse | null,
+    finance: any,
     marketingAutomation: any
   ): StructuredLLMPrompt {
     const systemMessage = `
@@ -64,6 +65,9 @@ ${JSON.stringify(vibeHacking, null, 2)}
 Tax Agent's findings:
 ${JSON.stringify(tax, null, 2)}
 
+Finance Agent's findings:
+${JSON.stringify(finance, null, 2)}
+
 Marketing Automation Agent's findings:
 ${JSON.stringify(marketingAutomation, null, 2)}
 
@@ -94,6 +98,7 @@ Decision-Making Guidelines:
 - If Analytical Agent identifies clear, consistent tasks and Practical Agent deems them feasible, the \`primaryGoal\` should reflect these tasks, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' or 'perform_direct_action'. Confidence should be high.
 - If the Analytical Agent identifies the problem type as 'data_analysis', the \`primaryGoal\` should reflect this, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' with a relevant data skill.
 - If the Analytical Agent identifies the problem type as 'advanced_research', 'social_media_management', 'content_creation', 'personalized_shopping', 'legal_document_analysis', 'recruitment_recommendation', or 'vibe_hacking', the \`primaryGoal\` should reflect this, and \`suggestedNextAction.actionType\` should likely be 'invoke_skill' with the corresponding skillId (e.g., 'advancedResearch', 'socialMedia', 'contentCreation', 'personalizedShopping', 'legalDocumentAnalysis', 'recruitmentRecommendation', 'vibeHacking').
+- If the Finance Agent identifies a finance-related intent, the \`primaryGoal\` should be that intent (e.g., 'create_transaction_rule'), and the \`suggestedNextAction.actionType\` should be 'invoke_skill' with the skillId 'TransactionCategorization'. Extract parameters like 'merchant_name' and 'category_name' from the user query.
 - If Creative Agent raises significant ambiguities or Practical Agent indicates low feasibility or failed common sense validation, \`suggestedNextAction.actionType\` should likely be 'clarify_query'. Confidence in \`primaryGoal\` might be lower. The \`clarificationQuestion\` should try to address the core issue.
 - If the overall intent is very unclear even after sub-agent analysis, use 'unable_to_determine' and provide a reason.
 - \`primaryGoalConfidence\` should reflect the overall clarity and actionability. For example, if a clarification is needed due to ambiguity, confidence might be medium. If feasibility is low, confidence might also be medium/low even if the task is clear.
@@ -118,6 +123,7 @@ Do not include any explanations, apologies, or conversational text outside this 
     recruitmentRecommendation: any,
     vibeHacking: any,
     tax: TaxAgentResponse | null,
+    finance: any,
     marketingAutomation: any
   ): Promise<Partial<EnrichedIntent>> {
     const structuredPrompt = this.constructPrompt(
@@ -131,6 +137,7 @@ Do not include any explanations, apologies, or conversational text outside this 
       recruitmentRecommendation,
       vibeHacking,
       tax,
+      finance,
       marketingAutomation
     );
     const P_SYNTHESIZING_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;

@@ -126,6 +126,13 @@ export interface TaxAgentResponse {
   details: string;
 }
 
+export interface FinanceAgentResponse {
+  isFinanceRelated: boolean;
+  confidence: number;
+  intent?: 'create_transaction_rule' | 'list_transaction_rules' | 'update_transaction_rule' | 'delete_transaction_rule';
+  details: string;
+}
+
 // --- NLU Lead Agent Output ---
 export interface EnrichedIntent {
   originalQuery: string;
@@ -162,6 +169,7 @@ export interface EnrichedIntent {
     recruitmentRecommendation: RecruitmentRecommendationAgentResponse | null;
     vibeHacking: VibeHackingAgentResponse | null;
     tax: TaxAgentResponse | null;
+    finance: FinanceAgentResponse | null;
   };
   synthesisLog?: string[]; // Log of how synthesis was performed
 }
