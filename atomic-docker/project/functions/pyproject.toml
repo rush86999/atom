@@ -64,11 +64,6 @@ reportOptionalParameterMissing = false
 reportOptionalSubscript = false
 
 # Override for specific directories
-[tool.pyright.targets]
-python_api_service = {
-  reportMissingImports = "none",
-  reportPrivateUsage = "none"
-}
-```
-
-Now let me create the corresponding VS Code settings for additional IDE configuration:
+[tool.pyright.targets.python_api_service]
+reportMissingImports = "none"
+reportPrivateUsage = "none"
