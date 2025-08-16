@@ -3,6 +3,7 @@ import { createGithubRepo, createGithubIssue } from 'atomic-docker/project/funct
 import { sendSlackMessage } from 'atomic-docker/project/functions/atom-agent/skills/slackSkills';
 import { runShellCommand } from '../skills/shellSkills';
 import { runShopifyBusinessManager } from './shopifyBusinessManager';
+import { postTweet } from './socialMediaOrchestrator';
 
 interface AutonomousSystemResult {
     success: boolean;
@@ -112,5 +113,20 @@ export async function runShopifyReport(
         success: result.success,
         message: result.message,
         errors: result.errors,
+    };
+}
+
+export async function runSocialMediaAutoPost(
+    userId: string,
+    text: string
+): Promise<AutonomousSystemResult> {
+    console.log(`[AutonomousSystemOrchestrator] Starting social media auto post for user ${userId}.`);
+
+    const result = await postTweet(userId, text);
+
+    return {
+        success: result.ok,
+        message: result.ok ? 'Successfully posted tweet.' : result.error.message,
+        errors: result.ok ? [] : [result.error.message],
     };
 }
