@@ -17,21 +17,20 @@ from dataclasses import dataclass
 
 # Production Imports - Only import plaid if available, fallback gracefully
 try:
-    from plaid import Client  # type: ignore
-    from plaid.api import plaid_api  # type: ignore
-    from plaid.model.account_base import AccountBase  # type: ignore
-    from plaid.model.transactions_get_request import TransactionsGetRequest  # type: ignore
-    from plaid.model.transactions_get_response import TransactionsGetResponse  # type: ignore
-    from plaid.model.item_get_request import ItemGetRequest  # type: ignore
-    from plaid.model.accounts_get_request import AccountsGetRequest  # type: ignore
-    from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetRequest  # type: ignore
-    from plaid.model.liabilities_get_request import LiabilitiesGetRequest  # type: ignore
-    from plaid.model.link_token_create_request import LinkTokenCreateRequest  # type: ignore
-    from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser  # type: ignore
+    import plaid
+    from plaid.api import plaid_api
+    from plaid.model.account_base import AccountBase
+    from plaid.model.transactions_get_request import TransactionsGetRequest
+    from plaid.model.transactions_get_response import TransactionsGetResponse
+    from plaid.model.item_get_request import ItemGetRequest
+    from plaid.model.accounts_get_request import AccountsGetRequest
+    from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetRequest
+    from plaid.model.liabilities_get_request import LiabilitiesGetRequest
+    from plaid.model.link_token_create_request import LinkTokenCreateRequest
+    from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
     PLAID_AVAILABLE = True
 except ImportError:
     PLAID_AVAILABLE = False
-    Client = None
     raise ImportError(
         "Plaid library not installed. Install with: pip install plaid-python"
     )
@@ -90,12 +89,15 @@ class PlaidService:
         if not PLAID_AVAILABLE:
             raise RuntimeError("Plaid library not available. Install: pip install plaid-python")
 
-        self.client = Client(
-            client_id=PLAID_CLIENT_ID,
-            secret=PLAID_SECRET,
-            environment=PLAID_ENVIRONMENT
+        configuration = plaid.Configuration(
+            host=plaid.Environment.Sandbox,
+            api_key={
+                'clientId': PLAID_CLIENT_ID,
+                'secret': PLAID_SECRET,
+            }
         )
-        self.api_client = self.client
+        api_client = plaid.ApiClient(configuration)
+        self.api_client = plaid_api.PlaidApi(api_client)
 
     def create_link_token(self, user_id: str) -> str:
         """
