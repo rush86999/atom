@@ -76,6 +76,22 @@ export const financeNluHandler: NLUHandler = {
         /show.*spending/i,
       ],
     },
+    {
+      name: 'buy_asset',
+      patterns: [/buy.*(stock|asset)/i],
+    },
+    {
+      name: 'sell_asset',
+      patterns: [/sell.*(stock|asset)/i],
+    },
+    {
+      name: 'start_autonomous_trading',
+      patterns: [/start.*autonomous.*trading/i],
+    },
+    {
+      name: 'stop_autonomous_trading',
+      patterns: [/stop.*autonomous.*trading/i],
+    },
   ],
 
   /**
@@ -111,6 +127,9 @@ export const financeNluHandler: NLUHandler = {
           'How much did I spend on restaurants?',
           'Create a savings goal',
           'Investment portfolio',
+          'Buy 10 shares of AAPL',
+          'Sell all my shares of GOOG',
+          'Start autonomous trading',
         ],
       };
     },
@@ -148,6 +167,10 @@ export const activateFinanceThroughWakeWord = async () => {
       'show my financial goals',
       'investment portfolio',
       'compare this month to last',
+      'buy 10 shares of AAPL',
+      'sell all my shares of GOOG',
+      'start autonomous trading',
+      'stop autonomous trading',
     ],
     responseMode: 'conversational',
   };
@@ -193,6 +216,10 @@ export const FinanceWakeFlow = {
     'Atom investment portfolio performance',
     'Atom help with budgets',
     'Atom compare this month to last',
+    'Atom buy 10 shares of AAPL',
+    'Atom sell all my shares of GOOG',
+    'Atom start autonomous trading',
+    'Atom stop autonomous trading',
   ],
   integration: 'Uses existing wake word system, no new wake words needed',
 };
