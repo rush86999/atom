@@ -48,6 +48,18 @@ Maintaining consistent code style and catching errors early is crucial. We use l
     *   To run: `bandit -r .` from the service directory.
 *   Configuration files (e.g., `pyproject.toml` for Black, `.pylintrc` for Pylint) may be present in the service directory.
 
+### Workflows Service
+(Applies to `python-api/workflows`)
+
+This service manages the creation, execution, and scheduling of workflows.
+
+*   **FastAPI:** The web framework used for the API.
+*   **Celery:** Used for asynchronous task execution of workflows.
+*   **SQLAlchemy:** The ORM used to interact with the PostgreSQL database.
+*   **PyTest:** The testing framework.
+    *   To run tests: `pytest` from the `atomic-docker/python-api/workflows` directory.
+    *   Alternatively, from the root of the repository, you can run `npm run test`.
+
 ### Pre-commit Hooks (Highly Recommended)
 
 To automate the process of running linters and formatters before code is committed:
