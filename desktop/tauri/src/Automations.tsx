@@ -57,7 +57,7 @@ const AutomationsPage = () => {
   const nodeTypes = useMemo(
     () => ({
       gmailTrigger: GmailTriggerNode,
-      googleCalendarTrigger: GoogleCalendarNode,
+      googleCalendarAction: GoogleCalendarNode,
       notionAction: NotionNode,
       aiTask: AiTaskNode,
       flatten: FlattenNode,
@@ -67,7 +67,7 @@ const AutomationsPage = () => {
 
   const nodeSchemas = {
     gmailTrigger: GmailTriggerNode.schema,
-    googleCalendarTrigger: GoogleCalendarNode.schema,
+    googleCalendarAction: GoogleCalendarNode.schema,
     notionAction: NotionNode.schema,
     aiTask: AiTaskNode.schema,
     flatten: FlattenNode.schema,
