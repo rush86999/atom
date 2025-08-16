@@ -26,6 +26,10 @@ python-quickbooks
 mailchimp-marketing
 linkedin-api
 zenpy
-greenhouse
 yfinance
 pytest
+py-trello
+ShopifyAPI
+docusign-esign
+jira
+python-wordpress-xmlrpc
