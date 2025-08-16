@@ -695,6 +695,28 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
 
+  dropbox-api:
+    build:
+      context: ../python-api/dropbox_service
+      dockerfile: Dockerfile
+    container_name: dropbox-api
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5001/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dropbox-api.rule=Host(`${HOST_NAME}`) && PathPrefix(`/api/dropbox`)"
+      - "traefik.http.routers.dropbox-api.entrypoints=websecure"
+      - "traefik.http.routers.dropbox-api.tls=true"
+      - "traefik.http.routers.dropbox-api.tls.certresolver=le"
+      - "traefik.http.services.dropbox-api.loadbalancer.server.port=5001"
+
 volumes:
   project_node_modules:
   functions_node_modules:
