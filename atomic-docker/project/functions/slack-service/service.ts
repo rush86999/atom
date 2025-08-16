@@ -148,6 +148,51 @@ export async function searchSlackMessages(
   }
 }
 
+export async function sendSlackMessage(
+  userId: string,
+  channelId: string,
+  text: string
+): Promise<any> { // Should return a more specific type
+  logger.debug(
+    `[SlackService] sendSlackMessage called for userId: ${userId}, channelId: ${channelId}`
+  );
+  const client = getSlackClientForUser(userId);
+  if (!client) {
+    throw new Error(
+      '[SlackService] Slack client is not available. Check configuration.'
+    );
+  }
+
+  try {
+    const response = await client.chat.postMessage({
+      channel: channelId,
+      text: text,
+    });
+
+    if (!response.ok) {
+      const errorMsg = `Slack API error sending message: ${response.error || 'Unknown error'}`;
+      logger.error(`[SlackService] ${errorMsg}`, response);
+      throw new Error(errorMsg);
+    }
+
+    logger.info(
+      `[SlackService] Successfully sent message to channel ${channelId} for user ${userId}.`
+    );
+    return response; // Or a slimmed down version of the response
+  } catch (error: any) {
+    logger.error(
+      `[SlackService] Error in sendSlackMessage to channel ${channelId}:`,
+      error
+    );
+    if (error instanceof SlackAPIError) {
+      throw new Error(
+        `[SlackService] Slack API Error (${error.code}) sending message: ${error.data?.error || error.message}`
+      );
+    }
+    throw error;
+  }
+}
+
 /**
  * Fetches the content of a specific Slack message.
  * Uses conversations.history with latest, oldest, and inclusive flags to pinpoint the message.
