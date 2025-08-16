@@ -5,7 +5,10 @@ from . import trello_service
 
 logger = logging.getLogger(__name__)
 
-async def create_mailchimp_campaign_from_salesforce_campaign(user_id: str, salesforce_campaign_id: str, db_conn_pool):
+import os
+from typing import Optional
+
+async def create_mailchimp_campaign_from_salesforce_campaign(user_id: str, salesforce_campaign_id: str, list_id: str, from_name: str, reply_to: str, template_id: Optional[int], db_conn_pool):
     """
     Creates a Mailchimp campaign from a Salesforce campaign.
     """
@@ -13,25 +16,20 @@ async def create_mailchimp_campaign_from_salesforce_campaign(user_id: str, sales
     if not sf_client:
         raise Exception("Could not get authenticated Salesforce client.")
 
-    salesforce_campaign = await salesforce_service.get_campaign(sf_client, salesforce_campaign_id) # We need to add this to salesforce_service.py
+    salesforce_campaign = await salesforce_service.get_campaign(sf_client, salesforce_campaign_id)
 
     mailchimp_client = await mailchimp_service.get_mailchimp_client(user_id, db_conn_pool)
     if not mailchimp_client:
         raise Exception("Could not get authenticated Mailchimp client.")
 
-    # This is a simplified implementation. In a real application, you would need to map the
-    # Salesforce campaign members to a Mailchimp list. For now, we'll just create an empty campaign.
-    campaign_data = {
-        "type": "regular",
-        "recipients": {"list_id": os.environ.get("MAILCHIMP_LIST_ID")}, # You'll need to get this from the user
-        "settings": {
-            "subject_line": salesforce_campaign['Name'],
-            "from_name": "Atom Agent", # This should be configurable
-            "reply_to": "test@test.com" # This should be configurable
-        }
-    }
-
-    campaign = await mailchimp_service.create_campaign(mailchimp_client, campaign_data)
+    campaign = await mailchimp_service.create_campaign(
+        mailchimp_client,
+        list_id,
+        salesforce_campaign['Name'],
+        from_name,
+        reply_to,
+        template_id
+    )
     return campaign
 
 async def get_mailchimp_campaign_summary(user_id: str, campaign_id: str, db_conn_pool):

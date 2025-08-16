@@ -25,6 +25,7 @@ from .project_manager_handler import project_manager_bp
 from .personal_assistant_handler import personal_assistant_bp
 from .financial_analyst_handler import financial_analyst_bp
 from .marketing_manager_handler import marketing_manager_bp
+from .mailchimp_handler import mailchimp_bp
 from .customer_support_manager_handler import customer_support_manager_bp
 from .legal_handler import legal_bp
 from .it_manager_handler import it_manager_bp
@@ -122,6 +123,8 @@ def create_app(db_pool=None):
     logger.info("Registered 'personal_assistant_bp' blueprint.")
     app.register_blueprint(marketing_manager_bp)
     logger.info("Registered 'marketing_manager_bp' blueprint.")
+    app.register_blueprint(mailchimp_bp)
+    logger.info("Registered 'mailchimp_bp' blueprint.")
     app.register_blueprint(customer_support_manager_bp)
     logger.info("Registered 'customer_support_manager_bp' blueprint.")
     app.register_blueprint(legal_bp)
