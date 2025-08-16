@@ -1,6 +1,7 @@
 import { createRepoWebhook } from '../skills/githubSkills';
 import { handleCreateJiraIssue } from 'atomic-docker/project/functions/atom-agent/skills/jira';
 import { sendSlackMessage } from 'atomic-docker/project/functions/atom-agent/skills/slackSkills';
+import { runAutonomousSystem } from './autonomousSystemOrchestrator';
 
 const WEBHOOK_BASE_URL = 'https://atom.example.com/api/webhooks'; // This would be a real, deployed URL
 
@@ -42,6 +43,26 @@ export async function runDevOpsFlow(
     result.message = `Successfully created webhook with ID ${result.webhookId}.`;
 
     console.log(`[DevOpsOrchestrator] ${result.message}`);
+    return result;
+}
+
+export async function runAutonomousWebAppFlow(
+    userId: string,
+    owner: string,
+    repo: string,
+    jiraProjectKey: string,
+    slackChannelId: string
+): Promise<any> {
+    console.log(`[DevOpsOrchestrator] Starting autonomous web app flow for user ${userId}.`);
+
+    const result = await runAutonomousSystem(
+        userId,
+        owner,
+        repo,
+        jiraProjectKey,
+        slackChannelId
+    );
+
     return result;
 }
 
