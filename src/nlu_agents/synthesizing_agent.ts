@@ -31,7 +31,8 @@ export class SynthesizingAgent {
     recruitmentRecommendation: any,
     vibeHacking: any,
     tax: TaxAgentResponse | null,
-    marketingAutomation: any
+    marketingAutomation: any,
+    trading: any
   ): StructuredLLMPrompt {
     const systemMessage = `
 You are the Synthesizing Agent. Your task is to consolidate the analyses from three sub-agents (Analytical, Creative, Practical) into a single, actionable EnrichedIntent object.
@@ -66,6 +67,9 @@ ${JSON.stringify(tax, null, 2)}
 
 Marketing Automation Agent's findings:
 ${JSON.stringify(marketingAutomation, null, 2)}
+
+Trading Agent's findings:
+${JSON.stringify(trading, null, 2)}
 
 Based on all the above, determine the most likely primary goal, extract key parameters, and suggest the best next action.
 The next action can be:
@@ -118,7 +122,8 @@ Do not include any explanations, apologies, or conversational text outside this 
     recruitmentRecommendation: any,
     vibeHacking: any,
     tax: TaxAgentResponse | null,
-    marketingAutomation: any
+    marketingAutomation: any,
+    trading: any
   ): Promise<Partial<EnrichedIntent>> {
     const structuredPrompt = this.constructPrompt(
       input,
@@ -131,7 +136,8 @@ Do not include any explanations, apologies, or conversational text outside this 
       recruitmentRecommendation,
       vibeHacking,
       tax,
-      marketingAutomation
+      marketingAutomation,
+      trading
     );
     const P_SYNTHESIZING_AGENT_TIMER_LABEL = `[${this.agentName}] LLM Call Duration`;
 
