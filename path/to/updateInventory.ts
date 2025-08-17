@@ -9,13 +9,12 @@ interface InventoryLevel {
 }
 
 interface ResponseData {
-  // Define the structure of the response data as needed
   inventory_level: InventoryLevel;
 }
 
 async function updateInventory(variantId: string, newQuantity: number): Promise<ResponseData> {
   try {
-    const response = await axios.post<ResponseData>(`${shopifyStoreUrl}/admin/api/2023-01/inventory_levels/set.json`, {
+    const response = await axios.post(`${shopifyStoreUrl}/admin/api/2023-01/inventory_levels/set.json`, {
       inventory_level: {
         inventory_item_id: variantId,
         available: newQuantity
