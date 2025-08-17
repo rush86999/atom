@@ -139,6 +139,12 @@ def create_app(db_pool=None):
     logger.info("Registered 'mcp_bp' blueprint.")
     app.register_blueprint(account_bp)
     logger.info("Registered 'account_bp' blueprint.")
+
+    # Goals API
+    from .goals_handler import goals_bp
+    app.register_blueprint(goals_bp)
+    logger.info("Registered 'goals_bp' blueprint.")
+
     app.register_blueprint(transaction_bp)
     logger.info("Registered 'transaction_bp' blueprint.")
     app.register_blueprint(investment_bp)
@@ -185,6 +191,13 @@ def create_app(db_pool=None):
     logger.info("Registered 'zoho_bp' blueprint.")
 
     from .github_handler import github_bp
+    app.register_blueprint(github_bp)
+    logger.info("Registered 'github_bp' blueprint.")
+
+    # Register goals API
+    from .goals_handler import goals_bp
+    app.register_blueprint(goals_bp)
+    logger.info("Registered 'goals_bp' blueprint.")
     app.register_blueprint(github_bp)
     logger.info("Registered 'github_bp' blueprint.")
 
