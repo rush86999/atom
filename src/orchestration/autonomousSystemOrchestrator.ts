@@ -16,7 +16,8 @@ export async function runAutonomousSystem(
     owner: string,
     repo: string,
     jiraProjectKey: string,
-    slackChannelId: string
+    slackChannelId: string,
+    dependencies?: string[]
 ): Promise<AutonomousSystemResult> {
     console.log(`[AutonomousSystemOrchestrator] Starting autonomous system for user ${userId}.`);
 
@@ -48,7 +49,22 @@ export async function runAutonomousSystem(
         return result;
     }
 
-    // 3. Get Jira credentials
+    // 3. Install dependencies
+    if (dependencies && dependencies.length > 0) {
+        console.log(`[AutonomousSystemOrchestrator] Installing dependencies: ${dependencies.join(' ')}`);
+        const installResponse = await runShellCommand(
+            `cd ${repo} && npm install ${dependencies.join(' ')}`
+        );
+
+        if (installResponse.exitCode !== 0) {
+            const errorMsg = `Failed to install dependencies: ${installResponse.stderr}`;
+            console.error(`[AutonomousSystemOrchestrator] ${errorMsg}`);
+            result.message = errorMsg;
+            return result;
+        }
+    }
+
+    // 4. Get Jira credentials
     const jiraCredentials = await getJiraCredentials(userId);
     if (!jiraCredentials) {
         const errorMsg = 'Jira credentials not configured for this user.';
@@ -57,7 +73,7 @@ export async function runAutonomousSystem(
         return result;
     }
 
-    // 4. Create Jira issue
+    // 5. Create Jira issue
     const jiraEntities = {
         summary: `New web app created: ${repo}`,
         project_key: jiraProjectKey,
@@ -74,7 +90,7 @@ export async function runAutonomousSystem(
 
     const jiraIssueKey = jiraResponse.replace('Jira issue created: ', '');
 
-    // 5. Create GitHub issue
+    // 6. Create GitHub issue
     const issueResponse = await createGithubIssue(
         userId,
         owner,
@@ -90,12 +106,18 @@ export async function runAutonomousSystem(
         return result;
     }
 
-    // 6. Send Slack message
-    const slackMessage = `New web app created: ${repo}. Jira issue <https://${jiraCredentials.serverUrl}/browse/${jiraIssueKey}|${jiraIssueKey}> created.`;
+    // 7. Send Slack message
+    let slackMessage = `New web app created: ${repo}. Jira issue <https://${jiraCredentials.serverUrl}/browse/${jiraIssueKey}|${jiraIssueKey}> created.`;
+    if (dependencies && dependencies.length > 0) {
+        slackMessage += ` Installed dependencies: ${dependencies.join(', ')}.`;
+    }
     await sendSlackMessage(userId, slackChannelId, slackMessage);
 
     result.success = true;
     result.message = `Successfully created web app ${repo}.`;
+    if (dependencies && dependencies.length > 0) {
+        result.message += ` Installed dependencies: ${dependencies.join(', ')}.`;
+    }
 
     console.log(`[AutonomousSystemOrchestrator] ${result.message}`);
     return result;
