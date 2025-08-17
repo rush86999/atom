@@ -1,7 +1,7 @@
-import { Agenda, Job } from 'agenda';
-import axios from 'axios'; // Added for making HTTP calls
-import { sendSlackMessage } from './atom-agent/skills/slackSkills';
-import logger from './lib/logger';
+import { Agenda, Job } from "agenda";
+import axios from "axios"; // Added for making HTTP calls
+import { sendSlackMessage } from "./atom-agent/skills/slackSkills";
+import logger from "./lib/logger";
 
 // Define the structure for job data
 export interface ScheduledAgentTaskData {
@@ -20,23 +20,23 @@ export interface SendTaskReminderData {
 
 // Default MongoDB connection string - replace with your actual URI in production
 const mongoConnectionString =
-  process.env.MONGODB_URI || 'mongodb://mongo:27017/atomicAgentJobs';
+  process.env.MONGODB_URI || "mongodb://mongo:27017/atomicAgentJobs";
 
 // URL for the agent's internal invocation endpoint
 const AGENT_INTERNAL_INVOKE_URL =
   process.env.AGENT_INTERNAL_INVOKE_URL ||
-  'http://localhost:3000/api/agent-handler';
+  "http://localhost:3000/api/agent-handler";
 
 // Initialize Agenda
 export const agenda = new Agenda({
-  db: { address: mongoConnectionString, collection: 'agentScheduledTasks' },
-  processEvery: '1 minute', // How often Agenda checks for jobs
+  db: { address: mongoConnectionString, collection: "agentScheduledTasks" },
+  processEvery: "1 minute", // How often Agenda checks for jobs
   maxConcurrency: 20, // Max number of jobs to run at once
 });
 
 export function defineJob<T>(
   name: string,
-  handler: (job: Job<T>) => Promise<void>
+  handler: (job: Job<T>) => Promise<void>,
 ): void {
   agenda.define<T>(name, handler);
   logger.info(`Job defined: ${name}`);
@@ -44,12 +44,12 @@ export function defineJob<T>(
 
 export async function startAgenda(): Promise<void> {
   try {
-    logger.info('Attempting to start Agenda...');
+    logger.info("Attempting to start Agenda...");
     await agenda.start();
-    logger.info('Agenda started successfully.');
+    logger.info("Agenda started successfully.");
 
     agenda.define<ScheduledAgentTaskData>(
-      'EXECUTE_AGENT_ACTION',
+      "EXECUTE_AGENT_ACTION",
       async (job) => {
         const data = job.attrs.data;
         if (!data) {
@@ -60,7 +60,7 @@ export async function startAgenda(): Promise<void> {
               job_id: job.attrs._id,
               error_message: errorMessage,
             },
-            errorMessage
+            errorMessage,
           );
           job.fail(errorMessage);
           await job.save();
@@ -76,7 +76,7 @@ export async function startAgenda(): Promise<void> {
             intent: originalUserIntent,
             entities: entities,
           },
-          `Executing scheduled agent action for user ${userId} (Job ID: ${job.attrs._id}): intent ${originalUserIntent}`
+          `Executing scheduled agent action for user ${userId} (Job ID: ${job.attrs._id}): intent ${originalUserIntent}`,
         );
 
         try {
@@ -86,7 +86,7 @@ export async function startAgenda(): Promise<void> {
             intentName: originalUserIntent,
             entities: entities,
             conversationId: data.conversationId,
-            requestSource: 'ScheduledJobExecutor',
+            requestSource: "ScheduledJobExecutor",
           };
           logger.info(
             {
@@ -96,15 +96,15 @@ export async function startAgenda(): Promise<void> {
               agent_url: AGENT_INTERNAL_INVOKE_URL,
               payload: agentPayload,
             },
-            `Invoking agent at ${AGENT_INTERNAL_INVOKE_URL}`
+            `Invoking agent at ${AGENT_INTERNAL_INVOKE_URL}`,
           );
 
           const response = await axios.post(
             AGENT_INTERNAL_INVOKE_URL,
             agentPayload,
             {
-              headers: { 'Content-Type': 'application/json' },
-            }
+              headers: { "Content-Type": "application/json" },
+            },
           );
 
           logger.info(
@@ -112,17 +112,18 @@ export async function startAgenda(): Promise<void> {
               job_name: job.attrs.name,
               job_id: job.attrs._id,
               user_id: userId,
-              agent_response_status: response.status,
-              agent_response_data: response.data,
+              agent_response_status: response?.status || "unknown",
+              agent_response_data: response?.data || {},
             },
-            `Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent. Agent response status: ${response.status}`
+            `Scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId} processed by agent.`,
           );
         } catch (error) {
-          let errorMessage = 'Failed to execute agent action via HTTP.';
+          let errorMessage = "Failed to execute agent action via HTTP.";
           if (axios.isAxiosError(error)) {
-            errorMessage = error.response
-              ? `Agent endpoint error: ${error.response.status} - ${JSON.stringify(error.response.data)}`
-              : `Agent endpoint error: ${error.message}`;
+            errorMessage =
+              error.response && error.response.status
+                ? `Agent endpoint error: ${error.response.status} - ${error.response.data ? JSON.stringify(error.response.data) : "No response data"}`
+                : `Agent endpoint error: ${error.message}`;
           } else if (error instanceof Error) {
             errorMessage = error.message;
           }
@@ -134,88 +135,88 @@ export async function startAgenda(): Promise<void> {
               error_message: errorMessage,
               error_stack: error instanceof Error ? error.stack : undefined,
             },
-            `Error executing scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId}: ${errorMessage}`
+            `Error executing scheduled task ${job.attrs.name} (ID: ${job.attrs._id}) for user ${userId}: ${errorMessage}`,
           );
           job.fail(errorMessage);
           await job.save();
         }
-      }
+      },
     );
 
-    agenda.define<SendTaskReminderData>('send task reminder', async (job) => {
+    agenda.define<SendTaskReminderData>("send task reminder", async (job) => {
       const { userId, taskId, taskDescription } = job.attrs.data;
       console.log(
-        `Sending reminder for task "${taskDescription}" (ID: ${taskId}) to user ${userId}`
+        `Sending reminder for task "${taskDescription}" (ID: ${taskId}) to user ${userId}`,
       );
       try {
         await sendSlackMessage(
           userId,
           userId,
-          `Reminder: Task "${taskDescription}" is due.`
+          `Reminder: Task "${taskDescription}" is due.`,
         );
       } catch (error) {
         console.error(
           `Failed to send task reminder for task ${taskId} to user ${userId}:`,
-          error
+          error,
         );
       }
     });
   } catch (error) {
     logger.error(
       {
-        error_message: error instanceof Error ? error.message : 'Unknown error',
+        error_message: error instanceof Error ? error.message : "Unknown error",
         error_stack: error instanceof Error ? error.stack : undefined,
       },
-      'Failed to start Agenda:'
+      "Failed to start Agenda:",
     );
   }
 }
 
 export async function stopAgenda(): Promise<void> {
   try {
-    logger.info('Attempting to stop Agenda...');
+    logger.info("Attempting to stop Agenda...");
     await agenda.stop();
-    logger.info('Agenda stopped successfully.');
+    logger.info("Agenda stopped successfully.");
   } catch (error) {
     logger.error(
       {
-        error_message: error instanceof Error ? error.message : 'Unknown error',
+        error_message: error instanceof Error ? error.message : "Unknown error",
         error_stack: error instanceof Error ? error.stack : undefined,
       },
-      'Failed to stop Agenda gracefully:'
+      "Failed to stop Agenda gracefully:",
     );
   }
 }
 
-agenda.on('ready', () => logger.info('Agenda ready and connected to MongoDB.'));
-agenda.on('error', (err: Error) =>
+agenda.on("ready", () => logger.info("Agenda ready and connected to MongoDB."));
+agenda.on("error", (err: Error) =>
   logger.error(
     {
       error_message: err.message,
       error_stack: err.stack,
     },
-    'Agenda connection error:'
-  )
+    "Agenda connection error:",
+  ),
 );
-agenda.on('start', (job: Job) =>
+agenda.on("start", (job: Job) =>
   logger.info(
     { job_name: job.attrs.name, job_id: job.attrs._id },
-    `Job ${job.attrs.name} starting.`
-  )
+    `Job ${job.attrs.name} starting.`,
+  ),
 );
-agenda.on('complete', (job: Job) =>
+agenda.on("complete", (job: Job) =>
   logger.info(
     { job_name: job.attrs.name, job_id: job.attrs._id },
-    `Job ${job.attrs.name} completed.`
-  )
+    `Job ${job.attrs.name} completed.`,
+  ),
 );
-agenda.on('success', (job: Job) =>
+agenda.on("success", (job: Job) =>
   logger.info(
     { job_name: job.attrs.name, job_id: job.attrs._id },
-    `Job ${job.attrs.name} succeeded.`
-  )
+    `Job ${job.attrs.name} succeeded.`,
+  ),
 );
-agenda.on('fail', (err: Error, job: Job) =>
+agenda.on("fail", (err: Error, job: Job) =>
   logger.error(
     {
       job_name: job.attrs.name,
@@ -223,6 +224,6 @@ agenda.on('fail', (err: Error, job: Job) =>
       error_message: err.message,
       error_stack: err.stack,
     },
-    `Job ${job.attrs.name} failed with error: ${err.message}.`
-  )
+    `Job ${job.attrs.name} failed with error: ${err.message}.`,
+  ),
 );
