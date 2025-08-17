@@ -1,17 +1,17 @@
 # Atom Features
 
-Atom is a sophisticated autonomous multi-agent AI system designed for complex workflow orchestration, proactive task automation, and intelligent cross-platform coordination. This document provides a comprehensive overview of Atom's 70+ autonomous capabilities across 12+ integrated platforms.
+Atom is a multi-agent system designed for workflow orchestration, task automation, and cross-platform coordination. This document provides a comprehensive overview of Atom's 30+ capabilities across 12 integrated platforms.
 
 ## Core Features
 
-*   **Autonomous Multi-Agent System:** 70+ integrated skills across 12+ platforms with self-learning capabilities
+*   **Multi-Agent System:** 30+ integrated skills across 12+ platforms with basic automation capabilities
 *   **Wake Word Detection:** Instant activation with "Atom" for hands-free autonomous operation
 *   **Proactive Autopilot Assistant:** Daily automated schedule optimization without user intervention
-*   **Self-Learning Engine:** Continuously adapts to user patterns and preferences
+*   **Automation Engine:** Pre-configured skills for common workflow automation
 *   **Cross-Platform Orchestration:** Coordinates complex workflows across multiple systems automatically
-*   **Intelligent Meeting Preparation:** Autonomous gathering of relevant context 2+ hours before meetings
-*   **Autonomous Weekly Intelligence:** Automated synthesis of accomplishments, patterns, and strategic insights
-*   **Zero-Overhead Setup:** Guided onboarding that configures autonomous agents automatically
+*   **Meeting Integration:** Basic calendar event creation and context gathering before meetings
+*   **Weekly Reports:** Automated data compilation across connected platforms
+- **Zero-Overhead Setup:** Guided onboarding that configures integrated services automatically
 *   **Enterprise-Grade Security:** OAuth-based authentication across all integrated platforms
 
 ## Integrations
@@ -20,7 +20,7 @@ Atom supports a wide range of third-party integrations to extend its functionali
 
 ### Communication
 *   **Gmail:** Connect your Gmail account to search emails, retrieve content, and extract information using natural language queries.
-*   **Outlook:** Connect your Outlook/Exchange account for secure, enterprise-grade email access with AI-powered search.
+- **Outlook:** Connect your Outlook/Exchange account for secure email access with natural language search.
 *   **Slack:** Connect your Slack workspace to search messages, send messages, and interact with your team using natural language.
 *   **Microsoft Teams:** Connect your Microsoft Teams account to search messages, retrieve content, and interact with your team using delegated permissions.
 
@@ -77,45 +77,43 @@ Atom supports a wide range of third-party integrations to extend its functionali
 
 ## Agent Skills
 
-Atom's autonomous multi-agent system is equipped with 70+ specialized skills across 12+ integrated platforms.
+Atom's multi-agent system is equipped with 30+ specialized skills across 12+ integrated platforms.
 
-### Core Autonomous Skills
-*   **Multi-User LLM Scheduling:** AI-powered coordination of meetings across multiple calendars with conflict resolution
-*   **Email Intelligence:** Automatic email triage, categorization, and intelligent routing
-*   **Autonomous Contact Management:** Updates records across all platforms when information changes
-*   **Cross-Platform Task Orchestration:** Creates and syncs tasks across multiple project management systems
-*   **Intelligent Note Creation:** Automatically captures meeting context and generates structured notes
-*   **Proactive Reminder Management:** Creates timed reminders based on patterns and deadlines
+### Core Skills
+*   **Individual Calendar Management:** Basic scheduling and conflict detection for individual user calendars
+*   **Email Integration:** Search and retrieval of emails across Gmail and Outlook
+*   **Contact Management:** Creation and management of contacts in integrated platforms
+*   **Basic Task Syncing:** Simple task creation across Notion, Trello, and other connected platforms
+*   **Meeting Notes:** Manual note creation with basic templates
+*   **Reminder Setup:** Timed reminders based on calendar and task deadlines
 
 ### Advanced Skills
-*   **Autonomous Multi-Agent Orchestration:** Coordinates complex cross-platform workflows without user intervention
-*   **Web Application Creation & Development:** Complete project scaffolding from template selection to deployment
-*   **Browser Automation Agent:** Self-navigating web research and data extraction across any site
-*   **Competitor Intelligence Agent:** Continuous monitoring and automated analysis of competitive landscape
-*   **Content Generation Pipeline:** AI-created documents, presentations, and social media content with automated scheduling
-*   **Financial Intelligence Engine:** Real-time bank data analysis with AI-powered insights and anomaly detection
-*   **Project Management Automation:** Intelligent project progress tracking across multiple platforms
-*   **Recruitment Automation Pipeline:** Automated candidate screening and interview scheduling
-*   **Research Synthesis Engine:** Advanced web research with automated summarization and insight generation
-*   **Sales Process Automation:** Complete pipeline management from lead to close
-*   **Social Media Management:** Automated content creation, scheduling, and performance monitoring
-*   **Vibe Hacking Autonomous Testing:** Self-directed security and performance testing system
-*   **Cross-Platform Workflow Engine:** Intelligent automation between any integrated systems
-*   **GitHub Repository Management:** Automated repository creation, issue tracking, and commit orchestration
+*   **Workflow Automation:** Coordinates basic workflows across connected platforms
+*   **Web Project Setup:** Basic repository creation and template initialization
+*   **Data Collection:** Web scraping and API data retrieval from connected services
+*   **Report Generation:** Basic business intelligence reports based on available data
+*   **Template-based Content:** Uses pre-built templates for documents and basic presentations
+*   **Financial Data Access:** Real-time bank data via Plaid with basic categorization
+*   **Project Tracking:** Basic status tracking across connected project management tools
+*   **Information Gathering:** Web research and basic summarization
+*   **Simple Sales Tracking:** Monitor deals and opportunities in connected CRM platforms
+*   **Basic Social Media:** Monitor mentions and post scheduling where APIs allow
+*   **Cross-Platform Data Sync:** Basic automation between integrated systems
+*   **GitHub Integration:** Repository creation and basic issue management
 
 ## 🎯 Autonomous Workflow Capabilities
 
 ### **Engine Classifications**
 - **Tier 1 - Immediate Response**: <1 second response time for basic queries
 - **Tier 2 - Orchestrated Tasks**: 2-30 seconds for multi-platform workflows  
-- **Tier 3 - Complex Analysis**: 30-300 seconds for research and synthesis tasks
+### **Tier 3 - Data Processing**: 30-120 seconds for basic data collection and reporting
 
 ### **Opportunity Patterns**
-- **Daily Autopilot Runs**: Zero-intervention schedule optimization
-- **Web App Creation**: Complete web application scaffolding with repository, issues, and notifications
-- **Meeting Preparation**: 2+ hour advance automated context gathering
-- **Financial Reviews**: Automated weekly/monthly financial intelligence
-- **Team Coordination**: Multi-user calendar and project coordination
+- **Daily Task Runs:** Automated task execution based on user-configured triggers
+- **Web App Setup**: Basic project initialization with repository creation and templates
+- **Meeting Preparation**: Basic context gathering for upcoming individual calendar events
+- **Financial Reviews**: Weekly/monthly transaction summaries across connected bank accounts
+- **Individual Coordination**: Personal calendar and task management with connected platforms
 - **Cross-Platform Sync**: Automatic data consistency across integrated systems
 
 ### **Workflow Intelligence Metrics**
