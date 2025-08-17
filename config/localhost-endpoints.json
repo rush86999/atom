@@ -1,0 +1,124 @@
+{
+  "version": "2.0.0",
+  "environment": "localhost",
+  "description": "Real working endpoints for ATOM AI Web Development Studio - complete localhost configuration",
+
+  "services": {
+    "websocket": {
+      "protocol": "ws",
+      "host": "localhost",
+      "port": 3001,
+      "endpoint": "ws://localhost:3001",
+      "description": "Real-time build notifications to desktop app"
+    },
+
+    "api": {
+      "protocol": "http",
+      "host": "localhost",
+      "port": 3000,
+      "endpoint": "http://localhost:3000",
+      "description": "Development API server for build coordination"
+    },
+
+    "cloud_build": {
+      "protocol": "https",
+      "host": "github.com",
+      "api_endpoint": "https://api.github.com",
+      "description": "Real GitHub API for user repositories"
+    },
+
+    "cloud_deployment": {
+      "primary": {
+        "provider": "vercel",
+        "api": "https://api.vercel.com",
+        "webhook": "https://api.vercel.com/v1/integrations/deploy/${VERCEL_HOOK_URL}",
+        "description": "Vercel deployment via GitHub integration"
+      },
+      "secondary": {
+        "provider": "netlify",
+        "api": "https://api.netlify.com",
+        "webhook": "https://api.netlify.com/build_hooks/${NETLIFY_HOOK_ID}",
+        "description": "Netlify deployment via GitHub integration"
+      }
+    },
+
+    "storage": {
+      "provider": "github",
+      "type": "personal_repositories",
+      "base_url": "https://github.com",
+      "description": "Each user's own GitHub repositories for project storage"
+    }
++  },
+
+  "local_development": {
+    "web_client": {
+      "protocol": "http",
+      "host": "localhost",
+      "port": 3002,
+      "endpoint": "http://localhost:3002",
++      "path": "/web-client",
++      "description": "Local Next.js development for testing"
++    },
+
++    "desktop_app": {
++      "protocol": "ws",
++      "host": "localhost",
++      "port": 1420,
++      "endpoint": "http://localhost:1420",
++      "description": "Tauri desktop app development server"
++    }
++  },
+
+  "user_authentication": {
++    "github": {
++      "auth_endpoint": "https://github.com/login/oauth/authorize",
++      "token_endpoint": "https://github.com/login/oauth/access_token",
++      "api_endpoint": "https://api.github.com",
++      "scope": ["repo", "public_repo"],
++      "description": "OAuth authentication with user's GitHub account"
++    }
++  },
+
+  "project_naming": {
++    "format": "${username}-atom-${project}-${timestamp}",
++    "truncation_length": 100,
++    "invalid_chars_replace": "-",
++    "description": "Each project gets personalized repository name"
++  },
+
+  "build_webhooks": {
++    "localhost": {
++      "endpoint": "http://localhost:3000/webhook/build-status",
++      "method": "POST",
++      "events": ["start", "progress", "success", "failure"]
++    },
++
++    "github_actions": {
++      "repository_dispatch": "https://api.github.com/repos/{owner}/{repo}/dispatches",
++      "repository_variables": {
++        "owner": "{username}",
++        "repo": "{project_repo}"
++      }
++    }
++  },
+
+  "environment_variables": {
++    "GITHUB_TOKEN": "user_personal_access_token",
++    "GITHUB_USER": "user_login_name",
++    "LOCAL_PORT": "3001",
++    "DEBUG": "false"
++  },
+
+  "development_commands": {
++    "start_websocket": "node src/websocket-server.js",
++    "start_api": "node src/api-server.js",
++    "start_desktop": "cd desktop && npm run tauri dev",
++    "start_web": "cd web-client && npm run dev"
++  },
+
+  "qa_endpoints": {
++    "health_check": "http://localhost:3001/health",
++    "test_build": "http://localhost:3000/test-build",
++    "user_status": "http://localhost:3001/user/{username}/status"
++  }
+}

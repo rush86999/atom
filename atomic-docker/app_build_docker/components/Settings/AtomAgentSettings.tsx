@@ -14,50 +14,41 @@ import ThirdPartyIntegrations from './ThirdPartyIntegrations'; // Import the new
 const AtomAgentSettings = () => {
   const router = useRouter();
   const { isWakeWordEnabled, toggleWakeWord, isListening, wakeWordError } = useWakeWord();
-  // TODO: This state should ideally be fetched from a backend endpoint
-  // that checks actual token status for the user.
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  // Real connection status fetched from backend API
+  const [connections, setConnections] = useState<Record<string, any>>({});
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [apiMessage, setApiMessage] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
-
   useEffect(() => {
-    // Function to fetch connection status
-    const fetchStatus = async () => {
+    const fetchAllStatus = async () => {
       setIsLoadingStatus(true);
       try {
-        const response = await fetch('/api/atom/auth/calendar/status');
+        const response = await fetch('/api/connection-status/status/user'); // Supplied by every PR as quick guide
         const data = await response.json();
         if (response.ok) {
-          setIsCalendarConnected(data.isConnected);
-          if (data.isConnected) {
-            // Assuming the status endpoint might return user email or a generic placeholder
-            setUserEmail(data.email || 'Connected');
-          } else {
-            setUserEmail(null);
-            if (data.error) {
-              // Optionally set an error message if status check reveals an issue
-              // setApiError(`Status check failed: ${data.error}`);
-              console.warn("Calendar status check indicates not connected or an error:", data.error);
-            }
-          }
+          setConnections(data.connections || {});
         } else {
-          setApiError(data.message || 'Failed to fetch calendar connection status.');
-          setIsCalendarConnected(false);
-          setUserEmail(null);
+          setApiError(data.message || 'Failed to fetch connection status');
         }
       } catch (err) {
-        console.error('Error fetching calendar status:', err);
-        setApiError('Could not connect to the server to check calendar status.');
-        setIsCalendarConnected(false);
-        setUserEmail(null);
+        console.error('Error fetching connection status:', err);
+        setApiError('Could not connect to server');
+        // Fallback: Use mock connections for demo purposes
+        setConnections({
+          google: { connected: false, email: 'Not configured' },
+          slack: { connected: false, message: 'Not configured' },
+          microsoft: { connected: false, message: 'Not configured' },
+          linkedin: { connected: false, message: 'Not configured' },
+          twitter: { connected: false, message: 'Not configured' },
+          plaid: { connected: false, message: 'Not configured' }
+        });
       }
       setIsLoadingStatus(false);
     };
 
-    fetchStatus(); // Fetch status on component mount
+    fetchAllStatus();
 
     // Handling query parameters from OAuth redirects
     const { query } = router;
@@ -180,21 +171,7 @@ const handleSaveZapierUrl = async () => {
         </Box>
       )}
 
-      {/* Google Account Section (Calendar & Gmail) */}
-      <Box marginBottom="m" paddingBottom="m" borderBottomWidth={1} borderColor="hairline">
-        <Text variant="subHeader" marginBottom="s">
-          Google Account (Calendar, Gmail)
-        </Text>
-        {isLoadingStatus ? (
-          <Text>Loading Google connection status...</Text>
-        ) : isCalendarConnected ? ( // isCalendarConnected now implies Google Account is connected
-          <Box>
-            <Text marginBottom="s">Status: Connected ({userEmail || 'Details unavailable'})</Text>
-            <Text fontSize="sm" color="gray.600" marginBottom="s">
-              Provides access to Google Calendar and Gmail (read-only). Reconnecting may be needed if previously connected without Gmail permissions.
-            </Text>
-            <Button onPress={handleDisconnectGoogleCalendar} variant="danger" title="Disconnect Google Account" />
-          </Box>
+
         ) : (
           <Box>
             <Text marginBottom="s">Status: Not Connected</Text>

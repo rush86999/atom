@@ -1,0 +1,150 @@
+{
+  "production": {
+    "name": "ATOM Web Development Workflow",
+    "version": "2.0.0",
+    "description": "Zero-setup cloud-desktop development environment for Next.js applications",
+    "environment": "production",
+
+    "cloud_providers": {
+      "primary": "vercel",
+      "backup": "netlify",
+      "fallback": "render"
+    },
+
+    "github": {
+      "repo_template": "nextjs-tailwind-template",
+      "auto_repo_creation": true,
+      "webhook_endpoint": "/webhook/github-deployment",
+      "token_env": "GITHUB_TOKEN"
+    },
+
+    "desktop_app": {
+      "build_target": "production",
+      "cloud_sync": {
+        "websocket_url": "wss://atom-dev-api.vercel.app/live-updates",
+        "reconnect_interval": 3000,
+        "heartbeat_interval": 10000
+      },
+
+      "features": {
+        "real_time_builds": true,
+        "live_preview": true,
+        "mobile_emulation": true,
+        "performance_monitoring": true,
+        "cost_tracking": true,
+        "team_collaboration": false
+      },
+
+      "notifications": {
+        "build_complete": "toast",
+        "build_failed": "dialog",
+        "new_deployment": "preview"
+      }
+    },
+
+    "nextjs_config": {
+      "theme": "dark",
+      "routing": "app_router",
++      "typescript": true,
++      "linting": "strict",
++      "tailwind": {
++        "preset": "full",
++        "custom_colors": true,
++        "plugins": ["forms", "typography", "aspect-ratio"]
++      },
++      "features": [
++        "seo_meta",
++        "sitemap_generation",
++        "robots_txt",
++        "performance_analytics",
++        "conversion_tracking",
++        "contact_forms",
++        "newsletter_signup"
++      ]
++    },
++
++    "performance_targets": {
++      "lighthouse": {
++        "performance": 90,
++        "accessibility": 95,
++        "best_practices": 90,
++        "seo": 95
++      },
++      "build_time": {
++        "cold": 120,
++        "incremental": 15
++      },
++      "bundle_size": {
++        "max_pages": "500kb",
++        "max_total": "3mb"
++      }
++    },
++
++    "cloud_resources": {
++      "deployment": {
++        "strategy": "zero_downtime",
++        "regions": ["us-east-1", "us-west-1"],
++        "edge_caching": true,
++        "image_optimization": "automatic"
++      },
++
++      "monitoring": {
++        "uptime": "99.9",
++        "build_failures": "slack_notification",
++        "performance": "weekly_reports",
++        "errors": "sentry_integration"
++      },
++
++      "cost_control": {
++        "free_tier_limit": "6GB",
++        "auto_switch_provider": true,
++        "budget_alerts": ["$5", "$10", "$20"]
++      }
++    },
++
++    "development_workflow": {
++      "team_mode": false,
++      "approval_required": false,
++      "auto_deploy": true,
++      "staging_branch": "develop",
++      "production_branch": "main"
++    },
++
++    "integrations": {
++      "analytics": {
++        "provider": "vercel",
++        "enable": true,
++        "privacy_compliant": true
++      },
++
++      "forms": {
++        "provider": "formspree",
++        "honeypot": true,
++        "validation": "server_side"
++      },
++
++      "email": {
++        "provider": "resend",
++        "templates": ["welcome", "contact_confirmation", "newsletter"]
++      },
++
++      "social": {
++        "og_images": "auto_generate",
++        "twitter_cards": true,
++        "social_sharing": true
++      }
++    },
++
++    "templates": {
++      "available": [
++        "saas_landing",
++        "portfolio_minimal",
++        "ecommerce_starter",
++        "blog_magazine",
++        "restaurant_menu",
++        "consultancy_v1"
++      ],
++
++      "customization": {
++        "colors": ["sky", "emerald", "rose", "indigo"],
++        "fonts": ["inter", "poppins",
