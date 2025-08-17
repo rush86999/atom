@@ -1,4 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/node,os,macos,linux,windows,intellij,visualstudiocode
+# Enhanced gitignore to prevent all Python and cache conflicts
+# Created by https://www.toptal.com/developers/gitignore/api/node,python,go,java,react,nextjs,django,flask,fastapi,macos,linux,windows,intellij,visualstudiocode,vim,git
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,os,macos,linux,windows,intellij,visualstudiocode
 
 ### Node ###
@@ -9,9 +10,72 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Python
-*.pyc
+# Python - enhanced patterns
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
 lerna-debug.log*
 .pnpm-debug.log*
 
@@ -92,6 +156,8 @@ web_modules/
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
+.next/
+out/
 
 # Next.js build output
 .next
@@ -297,17 +363,149 @@ amplifytools.xcconfig
 
 # IDE configuration files that may contain personal paths
 .vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
 .idea/workspace.xml
 .idea/tasks.xml
 .idea/usage.statistics.xml
 .idea/dictionaries
+.idea/sonarlint/
+.idea/httpRequests
+.idea/dataSources/
+.idea/dataSources.ids
+.idea/dataSources.xml
+.idea/dataSources.local.xml
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+.idea/uiDesigner.xml
+.idea/aws.xml
+.idea/assetWizardSettings.xml
+
+# Vim
+*.swp
+*.swo
+*~
+._*
+.DS_Store
+
+# Backup files
+*.bak
+*.tmp
+*.tmp.*
+*~.nib
+local.properties
+loadpath
+.recommenders
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+*.orig
+*.rej
 
 # System-specific path references
 *_setup_*.md
 paths.cache
 
 # OS user profiles
+# Cache directories (SYSTEMATICALLY PREVENT CONFLICTS)
+**/__pycache__/
+**/*.py[ocd]
+**/*.pyc
+**/*.pyd
+**/*.so
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.hypothesis/
+**/.coverage*
+coverage.xml
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+poetry.lock
+Pipfile.lock
+
+# Build artifacts that might cause conflicts
 *-profile
 *-settings
 *-config
+.gitsecret/keys/random_seed
+.gitsecret/keys/secring.gpg
+.hashconfig.json
+
+# Development tools cache
+.pre-commit-config.yaml.cache
+.pip-cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+*.lock
+
+# Aider and AI tools
 .aider*
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/
+
+# System tools
+*.tmp
+*.temp
+*.log.*
+*.swo
+*.swp
+*~
+
+# === CACHE CONFLICT PREVENTION ===
+# Systematically prevent .pyc, __pycache__, and build artifacts
+**/__pycache__/
+**/*.py[ocd]
+**/*.pyd
+**/*.so
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.hypothesis/
+**/.coverage*
+**/coverage.xml
+**/.DS_Store
+**/._*
+**/Thumbs.db
+**/ehthumbs.db
+**/*.tmp
+**/*.backup
+**/*.orig
+**/*.rej
+
+# Build artifacts (systematically exclude)
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/share/python-wheels/
+**/*.egg-info/
+**/.installed.cfg
+
+# Development tool caches
+**/.pip-cache/
+**/.cache/
+**/.parcel-cache/
+**/.next/cache/
+**/node_modules/.cache/
+**/dist/prod/

@@ -1,0 +1,130 @@
+{
+  "googleCalendarEvents": {
+    "items": [
+      {
+        "id": "evt_1234567890",
+        "summary": "Q3 Product Roadmap Review",
+        "location": "Conference Room A, 5th Floor",
+        "start": {
+          "dateTime": "2024-01-15T09:00:00-08:00",
+          "timeZone": "America/Los_Angeles"
+        },
+        "end": {
+          "dateTime": "2024-01-15T10:00:00-08:00",
+          "timeZone": "America/Los_Angeles"
+        },
+        "attendees": [
+          { "email": "sarah@company.com", "displayName": "Sarah Johnson" },
+          { "email": "mike@company.com", "displayName": "Mike Chen" }
+        ],
+        "description": "Review Q3 roadmap priorities and timeline. Please review attached documents before the meeting.",
+        "attachments": [
+          {
+            "fileUrl": "https://drive.google.com/file/d/abc123",
+            "title": "Q3 Roadmap - Latest"
+          }
+        ]
+      },
+      {
+        "id": "evt_9876543210",
+        "summary": "Team Standup",
+        "start": {
+          "dateTime": "2024-01-15T11:00:00-08:00",
+          "timeZone": "America/Los_Angeles"
+        },
+        "end": {
+          "dateTime": "2024-01-15T11:30:00-08:00",
+          "timeZone": "America/Los_Angeles"
+        },
+        "location": "Virtual"
+      }
+    ]
+  },
+  "notionPages": {
+    "results": [
+      {
+        "object": "page",
+        "id": "page_q3_roadmap",
+        "properties": {
+          "title": {
+            "title": [
+              {
+                "text": {
+                  "content": "Q3 Product Roadmap - January Update"
+                }
++              }
++            ]
++          }
++        },
++        "last_edited_time": "2024-01-14T15:30:00.000Z"
++      },
++      {
++        "object": "page",
++        "id": "page_meeting_notes",
++        "properties": {
++          "title": {
++            "title": [
++              {
++                "text": {
++                  "content": "Stakeholder Meeting Notes - Week of Jan 15"
++                }
++              }
++            ]
++          }
++        },
++        "last_edited_time": "2024-01-14T09:15:00.000Z"
++      }
++    ]
++  },
++  "plaidAccounts": {
++    "accounts": [
++      {
++        "account_id": "acc_checking_123",
++        "name": "Primary Checking",
++        "type": "checking",
++        "subtype": "checking",
++        "balance": {
++          "available": 4850.75,
++          "current": 4875.42
++        },
++        "mask": "****1234"
++      },
++      {
++        "account_id": "acc_savings_456",
++        "name": "Emergency Fund",
++        "type": "savings",
++        "subtype": "savings",
++        "balance": {
++          "available": 15000.00,
++          "current": 15000.00
++        },
++        "mask": "****5678"
++      },
++      {
++        "account_id": "acc_credit_789",
++        "name": "Business Card",
++        "type": "credit",
++        "subtype": "credit card",
++        "balance": {
++          "available": 2500.00,
++          "current": -1234.56
++        },
++        "mask": "****9012"
++      }
++    ]
++  },
++  "plaidTransactions": {
++    "transactions": [
++      {
++        "transaction_id": "txn_starbucks_001",
++        "account_id": "acc_checking_123",
++        "amount": -4.85,
++        "category": ["Food and Drink", "Restaurants", "Coffee Shop"],
++        "category_id": "13005000",
++        "date": "2024-01-14",
++        "name": "STARBUCKS STORE #12345",
++        "merchant_name": "Starbucks"
++      },
++      {
++        "transaction_id": "txn_figma_001",
++        "account_id": "acc_credit_
