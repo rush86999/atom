@@ -25,7 +25,6 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
   constructor(userId: string) {
     super();
     this.userId = userId;
-
     this.analyzer = new CommunicationAnalyzer();
     this.scheduler = new CommunicationScheduler();
     this.router = new PlatformRouter(userId);
@@ -33,7 +32,6 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
     this.relationshipTracker = new RelationshipTracker(userId);
     this.toneAnalyzer = new ToneAnalyzer();
     this.crisisDetector = new CrisisDetector();
-
     this.setupEventHandlers();
   }
 
@@ -57,16 +55,12 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
     this.isRunning = true;
     console.log(`[AutonomousCommunication] Starting for user ${this.userId}`);
 
-    // Initialize platform connections
     await this.router.initializeConnections();
-
-    // Load historical data
     await this.loadHistoricalContext();
 
-    // Start continuous monitoring
     this.interval = setInterval(async () => {
       await this.performAutonomousCheck();
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     this.emit('started');
   }
@@ -82,24 +76,17 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
     }
 
     await this.router.cleanup();
-
     this.emit('stopped');
   }
 
   private async performAutonomousCheck(): Promise<void> {
     try {
       const context = await this.buildCurrentContext();
-
-      // Analyze communication patterns
       const analysis = await this.analyzer.analyzeCommunicationPatterns(context);
-
-      // Identify potential issues or opportunities
       const opportunities = await this.identifyCommunicationOpportunities(context, analysis);
 
-      // Schedule communications based on analysis
       await this.scheduler.scheduleFromAnalysis(opportunities);
 
-      // Learn from recent interactions
       if (this.learningEnabled) {
         await this.updateLearningModels(context);
       }
@@ -108,123 +95,62 @@ export class AutonomousCommunicationOrchestrator extends EventEmitter {
       console.error('[AutonomousCommunication] Error in autonomous check:', error);
       this.emit('error', error);
     }
-  private async identifyCommunicationOpportunities(
-    context: any,
-    _: any
-  ): Promise<AutonomousCommunications[]> {
-    const opportunities: AutonomousCommunications[] = [];
-
-    // Simple relationship maintenance check
-    const staleRelationships = await this.relationshipTracker.getContactsNeedingMaintenance();
-    for (const contactId of staleRelationships) {
-      opportunities.push({
-        type: 'relationship-maintenance',
-        priority: 'medium',
-        recipient: contactId,
-        channel: 'email',
-        scheduledTime: new Date(Date.now() + 3600000), // 1 hour
-        reasoning: 'Relationship maintenance - overdue contact'
-+      });
-+    }
-+
-+    return opportunities;
-+  }
-+
-+  private async executeScheduledCommunication(communication: AutonomousCommunications): Promise<void> {
-+    await this.executeCommunications([communication]);
-+  }
-+
-+  private identifyFollowUpOpportunities(_: any): AutonomousCommunications[] {
-+    return [];
-+  }
-+
-+  private identifyProactiveOpportunities(_: any): AutonomousCommunications[] {
-+    return [];
-+  }
-+
-+  private identifyCelebrationOpportunities(_: any): AutonomousCommunications[] {
-+    return [];
-+  }
-+
-+  private handleCrisisCommunication(_: any): Promise<void> {
-+    return Promise.resolve();
-+  }
-+
-+  private handleRelationshipMaintenance(contactId: string): Promise<void> {
-+    const communication: AutonomousCommunications = {
-+      type: 'relationship-maintenance',
-+      priority: 'medium',
-+      recipient: contactId,
-+      channel: 'email',
-+      scheduledTime: new Date(),
-+      reasoning: 'Relationship maintenance - extended silence'
-+    };
-+    return this.executeCommunications([communication]);
-+  }
-+
-+  private calculateOptimalFollowUpTime(_: any): Date {
-+    return new Date(Date.now() + 86400000); // 24 hours
-+  }
-+
-+  private calculateOptimalReachOutTime(_: string): Date {
-+    return new Date(Date.now() + 172800000); // 2 days
-+  }
-+
-+  private selectBestChannel(_: string): string {
-+    return 'email';
-+  }
-+
-+  private selectBestChannelForCelebration(_: any): string {
-+    return 'email';
-+  }
-+
-+  private async getLastContactDate(contactId: string): Promise<Date> {
-+    const comm = await this.memory.getLastCommunicationWith(contact
-
-  private async buildCurrentContext(): Promise<CommunicationContext> {
-    const now = new Date();
-
-    // Get recent communications
-    const recentCommunications = await this.memory.getRecentCommunications(24);
-
-    // Get key relationships that need attention
-    const activeRelationships = await this.relationshipTracker.getActiveRelationships();
-
-    // Get platform status
-    const platformStatus = await this.router.getPlatformStatus();
-
-    // Check user preferences and patterns
-    const preferences = await this.memory.getCommunicationPreferences();
-
-    // Detect current emotional state
-    const emotionalContext = await this.toneAnalyzer.analyzeRecentMood(recentCommunications);
-
-    return {
-      timestamp: now,
-      userId: this.userId,
-      recentCommunications,
-      activeRelationships,
-      platformStatus,
-      preferences,
-      emotionalContext,
-      externalFactors: await this.detectExternalFactors(),
-      userAvailability: await this.checkUserAvailability()
-    };
   }
 
-  private async detectExternalFactors() {
-+    const now = new Date();
-+    return {
-+      isWeekend: now.getDay() === 0 || now.getDay() === 6,
-+      timeOfDay: now.getHours(),
-+      scheduleBusy: false,
-+      weather: "sunny",
-+      moodIndicators: { sentiment: "neutral" },
-+      holidays: [],
-+      events: []
-+    };
-+  }
-+
-+  private async checkUserAvailability() {
-+    return {
-+      busy: false
+  private async executeCommunications(communications: AutonomousCommunications[]): Promise<void> {
+    for (const communication of communications) {
+      try {
+        const success = await this.router.sendCommunication(communication);
+        if (success) {
+          await this.memory.recordCommunication(communication);
+          await this.relationshipTracker.updateInteraction(communication.recipient);
+        }
+      } catch (error) {
+        console.error('Failed to execute communication:', error);
+        this.emit('error', error);
+      }
+    }
+  }
+
+  public async executeWorkflows(workflows: string[], context: any): Promise<{
+    success: boolean;
+    results: any[];
+    insights: any[];
+  }> {
+    const results: any[] = [];
+    const insights: any[] = [];
+
+    for (const workflow of workflows) {
+      try {
+        const result = await this.executeSingleWorkflow(workflow, context);
+        results.push(result);
+
+        // Generate insights for learning
+        if (result.success) {
+          insights.push({
+            workflow,
+            outcome: result.message || 'Completed successfully',
+            metadata: result.metadata
+          });
+        }
+      } catch (error) {
+        results.push({
+          workflow,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    return { success: results.some(r => r.success), results, insights };
+  }
+
+  private async executeSingleWorkflow(workflow: string, context: any) {
+    let result = { success: false, message: '', metadata: {} };
+
+    switch (workflow) {
+      case 'shopify-automation':
+        result = await this.executeShopifyAutomation(context);
+        break;
+      case 'social-media-automation':
+        result = await this.executeSocialMediaAutomation(context);
