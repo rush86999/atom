@@ -74,6 +74,7 @@
     "react-burger-menu": "^3.0.9",
     "react-datetime-picker": "^4.2.0",
     "react-dom": "^18.2.0",
+    "react-flow-renderer": "^10.3.17",
     "react-gtm-module": "^2.0.11",
     "react-icons": "^4.8.0",
     "react-lite-youtube-embed": "^2.3.52",
@@ -86,6 +87,7 @@
     "react-native-web": "^0.18.12",
     "react-select": "^5.7.2",
     "react-textarea-autosize": "^8.4.1",
+    "reactflow": "^11.7.4",
     "recharts": "^3.1.0",
     "rehype-slug": "^5.1.0",
     "remark-gfm": "^3.0.1",
@@ -98,9 +100,8 @@
     "supertokens-node": "^15.1.0",
     "supertokens-web-js": "^0.7.3",
     "tailwind-merge": "^1.14.0",
-    "uuid": "^9.0.0",
-    "react-flow-renderer": "^10.3.17",
-    "reactflow": "^11.7.4"
+    "technicalindicators": "^3.1.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.21.3",

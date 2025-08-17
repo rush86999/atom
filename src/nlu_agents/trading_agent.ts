@@ -21,7 +21,15 @@ export class AutonomousTradingAgent {
     - "stop_autonomous_trading": If the user wants to stop the trading system.
     - "none": If the user's request is not related to the trading system.
 
-    Respond with a JSON object containing the "action" and "confidence" (from 0 to 1).`;
+    If the action is "start_autonomous_trading", you must also identify the trading strategy the user wants to use.
+    Available strategies:
+    - "moving_average_crossover"
+    - "rsi"
+    - "bollinger_bands"
+
+    If the user does not specify a strategy, use "moving_average_crossover" as the default.
+
+    Respond with a JSON object containing the "action", "confidence" (from 0 to 1), and "strategyName" (if applicable).`;
 
     try {
         const llmResponse = await this.llmService.generate(prompt);
@@ -30,10 +38,11 @@ export class AutonomousTradingAgent {
         if (parsedResponse.action === 'start_autonomous_trading' && parsedResponse.confidence > 0.7) {
             const startSkill = tradingSkills.find(skill => skill.name === 'start_autonomous_trading');
             if (startSkill) {
-                const result = await startSkill.handler({ userId });
+                const result = await startSkill.handler({ userId, strategyName: parsedResponse.strategyName });
                 return {
                     action: 'start_autonomous_trading',
                     confidence: parsedResponse.confidence,
+                    strategyName: parsedResponse.strategyName,
                     result,
                 };
             }
