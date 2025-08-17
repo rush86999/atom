@@ -1,0 +1,73 @@
+{
+  "invalidPersona": {
+    "type": "invalid_persona",
+    "name": "Non-existent persona",
+    "email": "invalid@example.com"
+  },
+  "networkTimeout": {
+    "delay": 30000,
+    "response": "timeout_error",
+    "retryCount": 3
+  },
+  "rateLimit": {
+    "status": 429,
+    "message": "Rate limit exceeded. Try again in 60 seconds.",
+    "headers": {
+      "Retry-After": "60"
+    }
+  },
+  "largeData": {
+    "events": 250,
+    "tasks": 500,
+    "transactions": 1000,
+    "pagination": {
+      "page": 1,
+      "perPage": 50,
+      "total": 1000
+    }
+  },
+  "specialCharacters": {
+    "title": "<script>alert('XSS')</script>",
+    "description": "Test with \"quotes\" & ampersands @ symbols",
++    "email": "test+alias@example.com",
++    "amount": "$1,234.56"
++  },
++  "validationErrors": {
++    "emptyTaskTitle": {
++      "field": "title",
++      "message": "Task title is required"
++    },
++    "invalidEmail": {
++      "field": "email",
++      "message": "Please enter a valid email address"
++    },
++    "futureDate": {
++      "field": "dueDate",
++      "message": "Due date cannot be in the past"
++    }
++  },
++  "concurrentRequests": {
++    "scenarios": [
++      {
++        "type": "calendar",
++        "delay": 1000,
++        "method": "GET"
++      },
++      {
++        "type": "tasks",
++        "delay": 1500,
++        "method": "GET"
++      },
++      {
++        "type": "integrations",
++        "delay": 2000,
++        "method": "POST"
++      }
++    ]
++  },
++  "sessionTimeout": {
++    "expiryBefore": "2024-01-01T12:00:00Z",
++    "expiryAfter": "2024-01-01T12:30:00Z",
++    "message": "Session expired. Please login again."
++  }
++}

@@ -1,0 +1,290 @@
+{
+  "config": {
+    "configFile": "/Users/rushiparikh/projects/atom/atom/playwright.config.ts",
+    "rootDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "/Users/rushiparikh/projects/atom/atom/node_modules/allure-playwright/dist/index.js",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests/results/test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "mobile-chrome",
+        "name": "mobile-chrome",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "mobile-safari",
+        "name": "mobile-safari",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.54.2",
+    "workers": 2,
+    "webServer": {
+      "command": "cd atomic-docker/app_build_docker && npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true
+    }
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-alex.workflow.test.ts: Unexpected token, expected \",\" (23:51)\n\n  21 |     await window.fill('[data-testid=\"profile-name\"]', 'Alex Chen');\n  22 |     await window.selectOption('[data-testid=\"profile-industry\"]', 'Technology');\n> 23 |     await window.fill('[data-testid=\"profile-title']', 'Senior Product Manager');\n     |                                                    ^\n  24 |     await window.click('[data-testid=\"continue-desktop-setup\"]');\n  25 |\n  26 |     await window.waitForSelector('[data-testid=\"alex-dashboard-desktop\"]');",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-alex.workflow.test.ts: Unexpected token, expected \",\" (23:51)\n\n  21 |     await window.fill('[data-testid=\"profile-name\"]', 'Alex Chen');\n  22 |     await window.selectOption('[data-testid=\"profile-industry\"]', 'Technology');\n> 23 |     await window.fill('[data-testid=\"profile-title']', 'Senior Product Manager');\n     |                                                    ^\n  24 |     await window.click('[data-testid=\"continue-desktop-setup\"]');\n  25 |\n  26 |     await window.waitForSelector('[data-testid=\"alex-dashboard-desktop\"]');",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-alex.workflow.test.ts",
+        "line": 23,
+        "column": 51
+      },
+      "snippet": "\u001b[90m   at \u001b[39mdesktop-app/desktop-alex.workflow.test.ts:23\n\n  21 |     await window.fill('[data-testid=\"profile-name\"]', 'Alex Chen');\n  22 |     await window.selectOption('[data-testid=\"profile-industry\"]', 'Technology');\n> 23 |     await window.fill('[data-testid=\"profile-title']', 'Senior Product Manager');\n     |                                                   ^\n  24 |     await window.click('[data-testid=\"continue-desktop-setup\"]');\n  25 |\n  26 |     await window.waitForSelector('[data-testid=\"alex-dashboard-desktop\"]');"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-core.test.ts: Unexpected token (60:7)\n\n  58 |       const contextMenu = Menu.buildFromTemplate([\n  59 | +        { label: 'Show Atom', click: () => console.log('Show') }\n> 60 | +      ]);\n     |        ^\n  61 | +      contextMenu.popup();\n  62 | +    });\n  63 | +  });",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-core.test.ts: Unexpected token (60:7)\n\n  58 |       const contextMenu = Menu.buildFromTemplate([\n  59 | +        { label: 'Show Atom', click: () => console.log('Show') }\n> 60 | +      ]);\n     |        ^\n  61 | +      contextMenu.popup();\n  62 | +    });\n  63 | +  });",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-core.test.ts",
+        "line": 60,
+        "column": 7
+      },
+      "snippet": "\u001b[90m   at \u001b[39mdesktop-app/desktop-core.test.ts:60\n\n  58 |       const contextMenu = Menu.buildFromTemplate([\n  59 | +        { label: 'Show Atom', click: () => console.log('Show') }\n> 60 | +      ]);\n     |       ^\n  61 | +      contextMenu.popup();\n  62 | +    });\n  63 | +  });"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-maria.workflow.test.ts: Unexpected token, expected \",\" (33:49)\n\n  31 |\n  32 |     // Add budget widget\n> 33 |     await window.click('[data-testid=\"add-widget']');\n     |                                                  ^\n  34 |     await window.click('[data-testid=\"widget-budget']');\n  35 |     await window.fill('[data-testid=\"widget-name']', 'Monthly Budget Tracker');\n  36 |     await window.selectOption('[data-testid=\"budget-period\"]', 'monthly');",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-maria.workflow.test.ts: Unexpected token, expected \",\" (33:49)\n\n  31 |\n  32 |     // Add budget widget\n> 33 |     await window.click('[data-testid=\"add-widget']');\n     |                                                  ^\n  34 |     await window.click('[data-testid=\"widget-budget']');\n  35 |     await window.fill('[data-testid=\"widget-name']', 'Monthly Budget Tracker');\n  36 |     await window.selectOption('[data-testid=\"budget-period\"]', 'monthly');",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/desktop-app/desktop-maria.workflow.test.ts",
+        "line": 33,
+        "column": 49
+      },
+      "snippet": "\u001b[90m   at \u001b[39mdesktop-app/desktop-maria.workflow.test.ts:33\n\n  31 |\n  32 |     // Add budget widget\n> 33 |     await window.click('[data-testid=\"add-widget']');\n     |                                                 ^\n  34 |     await window.click('[data-testid=\"widget-budget']');\n  35 |     await window.fill('[data-testid=\"widget-name']', 'Monthly Budget Tracker');\n  36 |     await window.selectOption('[data-testid=\"budget-period\"]', 'monthly');"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/error-handling/edge-cases.test.ts: Unterminated regular expression. (107:34)\n\n  105 |\n  106 |     await expect(page.locator('[data-testid=\"session-expired-modal\"]')).toBeVisible();\n> 107 |     await expect(page).toHaveURL(/\\/login\\\n      |                                   ^\n  108 |",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/error-handling/edge-cases.test.ts: Unterminated regular expression. (107:34)\n\n  105 |\n  106 |     await expect(page.locator('[data-testid=\"session-expired-modal\"]')).toBeVisible();\n> 107 |     await expect(page).toHaveURL(/\\/login\\\n      |                                   ^\n  108 |",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/error-handling/edge-cases.test.ts",
+        "line": 107,
+        "column": 34
+      },
+      "snippet": "\u001b[90m   at \u001b[39merror-handling/edge-cases.test.ts:107\n\n  105 |\n  106 |     await expect(page.locator('[data-testid=\"session-expired-modal\"]')).toBeVisible();\n> 107 |     await expect(page).toHaveURL(/\\/login\\\n      |                                  ^\n  108 |"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/alex.chen.core-journey.test.ts: Unterminated string constant. (88:21)\n\n  86 |     await page.fill('[data-testid=\"email-input\"]', alex.email);\n  87 |     await page.fill('[data-testid=\"password-input\"]', `TestPass123!_${alex.id}`);\n> 88 |     await page.click('[data-testid=\"login-button\"]`);\n     |                      ^\n  89 | +    await page.waitForURL(`${config.baseUrl}/dashboard`);\n  90 |\n  91 |     // Navigate to tasks view",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/alex.chen.core-journey.test.ts: Unterminated string constant. (88:21)\n\n  86 |     await page.fill('[data-testid=\"email-input\"]', alex.email);\n  87 |     await page.fill('[data-testid=\"password-input\"]', `TestPass123!_${alex.id}`);\n> 88 |     await page.click('[data-testid=\"login-button\"]`);\n     |                      ^\n  89 | +    await page.waitForURL(`${config.baseUrl}/dashboard`);\n  90 |\n  91 |     // Navigate to tasks view",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/alex.chen.core-journey.test.ts",
+        "line": 88,
+        "column": 21
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersona-tests/alex.chen.core-journey.test.ts:88\n\n  86 |     await page.fill('[data-testid=\"email-input\"]', alex.email);\n  87 |     await page.fill('[data-testid=\"password-input\"]', `TestPass123!_${alex.id}`);\n> 88 |     await page.click('[data-testid=\"login-button\"]`);\n     |                     ^\n  89 | +    await page.waitForURL(`${config.baseUrl}/dashboard`);\n  90 |\n  91 |     // Navigate to tasks view"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/alex.test.ts: Unexpected token, expected \",\" (40:55)\n\n  38 |     await page.goto(`${config.baseUrl}`);\n  39 |     await page.fill('[data-testid=\"email-input\"]', alex.email);\n> 40 |     await page.fill('[data-testid=\"password-input\"]`, 'TestPass123!');\n     |                                                        ^\n  41 |     await page.click('[data-testid=\"login-button\"]');\n  42 |     await page.waitForURL(`${config.baseUrl}/dashboard`);\n  43 |",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/alex.test.ts: Unexpected token, expected \",\" (40:55)\n\n  38 |     await page.goto(`${config.baseUrl}`);\n  39 |     await page.fill('[data-testid=\"email-input\"]', alex.email);\n> 40 |     await page.fill('[data-testid=\"password-input\"]`, 'TestPass123!');\n     |                                                        ^\n  41 |     await page.click('[data-testid=\"login-button\"]');\n  42 |     await page.waitForURL(`${config.baseUrl}/dashboard`);\n  43 |",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/alex.test.ts",
+        "line": 40,
+        "column": 55
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersona-tests/alex.test.ts:40\n\n  38 |     await page.goto(`${config.baseUrl}`);\n  39 |     await page.fill('[data-testid=\"email-input\"]', alex.email);\n> 40 |     await page.fill('[data-testid=\"password-input\"]`, 'TestPass123!');\n     |                                                       ^\n  41 |     await page.click('[data-testid=\"login-button\"]');\n  42 |     await page.waitForURL(`${config.baseUrl}/dashboard`);\n  43 |"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/ben.test.ts: Unexpected token (32:3)\n\n  30 | +    await expect(page).toHaveURL(`${config.baseUrl}/dashboard`);\n  31 | +    await expect(page.locator('h1')).toContainText('Welcome, Ben!');\n> 32 | +  });\n     |    ^\n  33 | +\n  34 | +  test('Ben sets up team collaboration tools', async ({ page }) => {\n  35 | +    await page.goto(`${config.baseUrl}/login`);",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/ben.test.ts: Unexpected token (32:3)\n\n  30 | +    await expect(page).toHaveURL(`${config.baseUrl}/dashboard`);\n  31 | +    await expect(page.locator('h1')).toContainText('Welcome, Ben!');\n> 32 | +  });\n     |    ^\n  33 | +\n  34 | +  test('Ben sets up team collaboration tools', async ({ page }) => {\n  35 | +    await page.goto(`${config.baseUrl}/login`);",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/ben.test.ts",
+        "line": 32,
+        "column": 3
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersona-tests/ben.test.ts:32\n\n  30 | +    await expect(page).toHaveURL(`${config.baseUrl}/dashboard`);\n  31 | +    await expect(page.locator('h1')).toContainText('Welcome, Ben!');\n> 32 | +  });\n     |   ^\n  33 | +\n  34 | +  test('Ben sets up team collaboration tools', async ({ page }) => {\n  35 | +    await page.goto(`${config.baseUrl}/login`);"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/core/test-config.ts: A 'get' accessor must not have any formal parameters. (54:2)\n\n  52 |   }\n  53 |\n> 54 |   get shouldRunPersona(personaName: string) {\n     |   ^\n  55 |     return this.isAllPersonas || this.persona === personaName;\n  56 |   }\n  57 |",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/core/test-config.ts: A 'get' accessor must not have any formal parameters. (54:2)\n\n  52 |   }\n  53 |\n> 54 |   get shouldRunPersona(personaName: string) {\n     |   ^\n  55 |     return this.isAllPersonas || this.persona === personaName;\n  56 |   }\n  57 |\n    at Object.<anonymous> (/Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/maria.test.ts:3:1)",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/persona-tests/maria.test.ts",
+        "line": 54,
+        "column": 2
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersona-tests/maria.test.ts:54\n\n  52 | +    await page.waitForURL(`${config.baseUrl}/dashboard`);\n  53 |\n> 54 |     await page.click('[data-testid=\"nav-workflows\"]');\n     |  ^\n  55 |     await page.click('[data-testid=\"create-balance-workflow\"]');\n  56 |\n  57 |     await page.fill('[data-testid=\"workflow-prompt\"]', 'Notify me 30 minutes before school pickup');"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/alex.persona.test.ts: Unexpected token (95:0)\n\n  93 |     expect(results).toContain('Product Sync');\n  94 |   }\n> 95 | +}\n     | ^\n  96 |\n  97 | test.describe('Alex Chen - Busy Professional Persona', () => {\n  98 |   let page: Page;",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/alex.persona.test.ts: Unexpected token (95:0)\n\n  93 |     expect(results).toContain('Product Sync');\n  94 |   }\n> 95 | +}\n     | ^\n  96 |\n  97 | test.describe('Alex Chen - Busy Professional Persona', () => {\n  98 |   let page: Page;",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/personas/alex.persona.test.ts",
+        "line": 95,
+        "column": 0
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersonas/alex.persona.test.ts:95\n\n  93 |     expect(results).toContain('Product Sync');\n  94 |   }\n> 95 | +}\n  96 |\n  97 | test.describe('Alex Chen - Busy Professional Persona', () => {\n  98 |   let page: Page;"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/ben.persona.test.ts: Unexpected token (99:0)\n\n  97 |\n  98 |   test.beforeEach(async ({ page: newPage }) => {\n> 99 |\n     | ^",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/ben.persona.test.ts: Unexpected token (99:0)\n\n  97 |\n  98 |   test.beforeEach(async ({ page: newPage }) => {\n> 99 |\n     | ^",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/personas/ben.persona.test.ts",
+        "line": 99,
+        "column": 0
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersonas/ben.persona.test.ts:99\n\n  97 |\n  98 |   test.beforeEach(async ({ page: newPage }) => {\n> 99 |"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/maria.persona.test.ts: Unexpected token (106:0)\n\n  104 |   test('Expense categorization and analysis works correctly', async () => {\n  105 |     await mariaTest.analyzeMonthlyExpenses\n> 106 |\n      | ^",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/maria.persona.test.ts: Unexpected token (106:0)\n\n  104 |   test('Expense categorization and analysis works correctly', async () => {\n  105 |     await mariaTest.analyzeMonthlyExpenses\n> 106 |\n      | ^",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/personas/maria.persona.test.ts",
+        "line": 106,
+        "column": 0
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersonas/maria.persona.test.ts:106\n\n  104 |   test('Expense categorization and analysis works correctly', async () => {\n  105 |     await mariaTest.analyzeMonthlyExpenses\n> 106 |"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/WORKING.ben.test.ts: Unterminated string constant. (93:21)\n\n  91 |     await page.fill('[data-testid=\"investor-email\"]', 'investor@techventures.com');\n  92 |     await page.selectOption('[data-testid=\"investor-stage\"]', 'seed');\n> 93 |     await page.click('[data-testid=\"add\n     |                      ^\n  94 |",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/WORKING.ben.test.ts: Unterminated string constant. (93:21)\n\n  91 |     await page.fill('[data-testid=\"investor-email\"]', 'investor@techventures.com');\n  92 |     await page.selectOption('[data-testid=\"investor-stage\"]', 'seed');\n> 93 |     await page.click('[data-testid=\"add\n     |                      ^\n  94 |",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/personas/WORKING.ben.test.ts",
+        "line": 93,
+        "column": 21
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersonas/WORKING.ben.test.ts:93\n\n  91 |     await page.fill('[data-testid=\"investor-email\"]', 'investor@techventures.com');\n  92 |     await page.selectOption('[data-testid=\"investor-stage\"]', 'seed');\n> 93 |     await page.click('[data-testid=\"add\n     |                     ^\n  94 |"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/WORKING.maria.test.ts: Unexpected token, expected \",\" (61:57)\n\n  59 |     await page.fill('[data-testid=\"goal-name\"]', 'Emergency Fund');\n  60 |     await page.fill('[data-testid=\"goal-amount\"]', '15000');\n> 61 |     await page.selectOption('[data-testid=\"goal-timeline']', '12');\n     |                                                          ^\n  62 |     await page.click('[data-testid=\"create-goal\"]');\n  63 |\n  64 |     await expect(page.locator('[data-testid=\"goal-tracker\"]')).toContainText('$15,000 goal');",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/personas/WORKING.maria.test.ts: Unexpected token, expected \",\" (61:57)\n\n  59 |     await page.fill('[data-testid=\"goal-name\"]', 'Emergency Fund');\n  60 |     await page.fill('[data-testid=\"goal-amount\"]', '15000');\n> 61 |     await page.selectOption('[data-testid=\"goal-timeline']', '12');\n     |                                                          ^\n  62 |     await page.click('[data-testid=\"create-goal\"]');\n  63 |\n  64 |     await expect(page.locator('[data-testid=\"goal-tracker\"]')).toContainText('$15,000 goal');",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/personas/WORKING.maria.test.ts",
+        "line": 61,
+        "column": 57
+      },
+      "snippet": "\u001b[90m   at \u001b[39mpersonas/WORKING.maria.test.ts:61\n\n  59 |     await page.fill('[data-testid=\"goal-name\"]', 'Emergency Fund');\n  60 |     await page.fill('[data-testid=\"goal-amount\"]', '15000');\n> 61 |     await page.selectOption('[data-testid=\"goal-timeline']', '12');\n     |                                                         ^\n  62 |     await page.click('[data-testid=\"create-goal\"]');\n  63 |\n  64 |     await expect(page.locator('[data-testid=\"goal-tracker\"]')).toContainText('$15,000 goal');"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/workflows/cross-platform-user-journey.test.ts: Unexpected token (156:5)\n\n  154 | +    await this.page.waitForSelector('[data-testid=\"export-ready\"]');\n  155 | +\n> 156 | +    const exportStatus = await this.page.textContent('[data-testid=\"export-status\"]');\n      |      ^\n  157 | +    expect(exportStatus).toContain('Tax export ready');\n  158 | +  }\n  159 | +",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/workflows/cross-platform-user-journey.test.ts: Unexpected token (156:5)\n\n  154 | +    await this.page.waitForSelector('[data-testid=\"export-ready\"]');\n  155 | +\n> 156 | +    const exportStatus = await this.page.textContent('[data-testid=\"export-status\"]');\n      |      ^\n  157 | +    expect(exportStatus).toContain('Tax export ready');\n  158 | +  }\n  159 | +",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/workflows/cross-platform-user-journey.test.ts",
+        "line": 156,
+        "column": 5
+      },
+      "snippet": "\u001b[90m   at \u001b[39mworkflows/cross-platform-user-journey.test.ts:156\n\n  154 | +    await this.page.waitForSelector('[data-testid=\"export-ready\"]');\n  155 | +\n> 156 | +    const exportStatus = await this.page.textContent('[data-testid=\"export-status\"]');\n      |     ^\n  157 | +    expect(exportStatus).toContain('Tax export ready');\n  158 | +  }\n  159 | +"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/working-tests/all-personas.test.ts: Unexpected token, expected \"(\" (108:0)\n\n  106 |         await page.selectOption('[data-testid=\"alert-category\"]', 'dining');\n  107 |       } else if\n> 108 |\n      | ^",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/working-tests/all-personas.test.ts: Unexpected token, expected \"(\" (108:0)\n\n  106 |         await page.selectOption('[data-testid=\"alert-category\"]', 'dining');\n  107 |       } else if\n> 108 |\n      | ^",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/working-tests/all-personas.test.ts",
+        "line": 108,
+        "column": 0
+      },
+      "snippet": "\u001b[90m   at \u001b[39mworking-tests/all-personas.test.ts:108\n\n  106 |         await page.selectOption('[data-testid=\"alert-category\"]', 'dining');\n  107 |       } else if\n> 108 |"
+    },
+    {
+      "message": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/working-tests/simple-personas.test.ts: Unterminated string constant. (102:25)\n\n  100 |         await page.fill('[data-testid=\"budget-name\"]', 'Monthly Budget');\n  101 |         await page.fill('[data-testid=\"budget-amount\"]', '3000');\n> 102 |         await page.click('[data-test\n      |                          ^\n  103 |",
+      "stack": "SyntaxError: /Users/rushiparikh/projects/atom/atom/tests/e2e/working-tests/simple-personas.test.ts: Unterminated string constant. (102:25)\n\n  100 |         await page.fill('[data-testid=\"budget-name\"]', 'Monthly Budget');\n  101 |         await page.fill('[data-testid=\"budget-amount\"]', '3000');\n> 102 |         await page.click('[data-test\n      |                          ^\n  103 |",
+      "location": {
+        "file": "/Users/rushiparikh/projects/atom/atom/tests/e2e/working-tests/simple-personas.test.ts",
+        "line": 102,
+        "column": 25
+      },
+      "snippet": "\u001b[90m   at \u001b[39mworking-tests/simple-personas.test.ts:102\n\n  100 |         await page.fill('[data-testid=\"budget-name\"]', 'Monthly Budget');\n  101 |         await page.fill('[data-testid=\"budget-amount\"]', '3000');\n> 102 |         await page.click('[data-test\n      |                         ^\n  103 |"
+    }
+  ],
+  "stats": {
+    "startTime": "2025-08-16T20:36:41.884Z",
+    "duration": 458.1669999999999,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
