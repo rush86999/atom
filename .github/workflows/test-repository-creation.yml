@@ -1,0 +1,46 @@
+name: Test Repository Creation
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_name:
+        description: 'Test repository name'
+        required: true
+        type: string
+        default: 'atom-test-repo'
+
+jobs:
+  test-create-repos:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test basic GitHub API call
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Testing basic API connectivity..."
+
+          # Get user info
+          USER_LOGIN=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/user | jq -r '.login')
+
+          echo "Current user: $USER_LOGIN"
+
+          # Test creating a simple repo
+          REPO_NAME="${{ github.event.inputs.test_name }}-$(date +%s)"
+          echo "Would create: $REPO_NAME"
+
+          # Create actual repo
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "{\"name\":\"$REPO_NAME\",\"private\":false,\"auto_init\":true}" \
+            https://api.github.com/user/repos
+
+          echo "✅ Successfully created repository: $REPO_NAME"
+          echo "🔗 https://github.com/$USER_LOGIN/$REPO_NAME"

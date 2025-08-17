@@ -12,6 +12,7 @@ on:
         description: 'Template to use'
         required: true
         type: choice
+        in: choice
         options:
           - nextjs-basic
           - nextjs-fullstack
@@ -30,6 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      actions: write
+      issues: write
+      pull-requests: write
+      repository-projects: write
     outputs:
       repo_url: ${{ steps.create_repo.outputs.repo_url }}
       repo_name: ${{ steps.create_repo.outputs.repo_name }}
@@ -40,6 +46,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Generate repository details
         id: repo_info
         run: |
@@ -48,6 +57,15 @@ jobs:
           echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
           echo "safe_name=$SAFE_NAME" >> $GITHUB_OUTPUT
 
+      - name: Authenticate and get user info
+        id: user_info
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          USER_LOGIN=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            https://api.github.com/user | jq -r '.login')
+          echo "user_login=$USER_LOGIN" >> $GITHUB_OUTPUT
+
       - name: Create new repository
         id: create_repo
         env:
@@ -55,19 +73,13 @@ jobs:
         run: |
           REPO_NAME="${{ steps.repo_info.outputs.repo_name }}"
 
-          # Create the repository
+          # Create the repository using curl - properly escaped
           curl -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
             https://api.github.com/user/repos \
-            -d "{
-              \"name\": \"$REPO_NAME\",
-              \"description\": \"Web app created via ATOM AI conversation\",
-              \"private\": ${{ toJSON(github.event.inputs.is_private) }},
-              \"auto_init\": true,
-              \"gitignore_template\": \"Node\",
-              \"license_template\": \"mit\"
-            }"
+            -d "{\"name\":\"$REPO_NAME\",\"description\":\"Web app created via ATOM AI conversation\",\"private\":${{ toJSON(github.event.inputs.is_private) }},\"auto_init\":true,\"gitignore_template\":\"Node\",\"license_template\":\"mit\"}"
 
           echo "repo_url=https://github.com/${{ github.repository_owner }}/$REPO_NAME" >> $GITHUB_OUTPUT
           echo "✅ Created repository: $REPO_NAME"
@@ -80,7 +92,7 @@ jobs:
           SAFE_NAME="${{ steps.repo_info.outputs.safe_name }}"
 
           # Clone the new repo
-          git clone "https://x-access-token:$GITHUB_TOKEN@github.com/${{ github.repository_owner }}/$REPO_NAME.git"
+          git clone "https://x-access-token:$GITHUB_TOKEN@github.com/${{ steps.user_info.outputs.user_login }}/$REPO_NAME.git"
           cd "$REPO_NAME"
 
           # Configure git
@@ -248,7 +260,7 @@ jobs:
         curl -X PUT \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository_owner }}/$REPO_NAME/pages" \
+          "https://api.github.com/repos/${{ steps.user_info.outputs.user_login }}/$REPO_NAME/pages" \
           -d '{
             "source": {
               "branch": "main",
