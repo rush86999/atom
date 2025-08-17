@@ -1,0 +1,141 @@
+name: Production Release - Real GitHub Distribution
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v2.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '18'
+  RUST_VERSION: 'stable'
+
+jobs:
+  # 1. Validate tag format
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+      - name: Validate tag format
+        id: validate
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format: $VERSION"
+            exit 1
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+  # 2. Build Next.js cloud application
+  build-cloud-app:
+    runs-on: ubuntu-latest
+    needs: validate-release
+    outputs:
+      build-url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            atomic-docker/app_build_docker/package-lock.json
+
+      - name: Install dependencies
+        working-directory: atomic-docker/app_build_docker
+        run: |
+          npm ci
+          npm run build
+          npm run export
+
+      - name: Deploy to Netlify
+        id: deploy
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
++          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npm install -g netlify-cli
+          netlify deploy --dir=out --prod
+          echo "url=https://$(netlify sites:list --json | jq -r '.[0].url')" >> $GITHUB_OUTPUT
+
+  # 3. Build desktop applications
+  build-desktop-apps:
+    needs: [validate-release, build-cloud-app]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bundle: deb
++            asset_suffix: Linux-x64.deb
++          - os: windows-latest
++            target: x86_64-pc-windows-msvc
++            bundle: msi
++            asset_suffix: Windows-x64.msi
++          - os: macos-latest
++            target: x86_64-apple-darwin
++            bundle: dmg
++            asset_suffix: macOS-Intel.dmg
++          - os: macos-latest
++            target: aarch64-apple-darwin
++            bundle: dmg
++            asset_suffix: macOS-AppleSilicon.dmg
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: desktop/tauri/package-lock.json
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Setup Tauri for Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd desktop/tauri
+          npm ci
+
+      - name: Build desktop application
+        working-directory: desktop/tauri
+        run: |
+          npm ci
+          npm run tauri build -- --target ${{ matrix.target }}
+
+      - name: Upload artifact
++        uses: actions/upload-artifact@v4
++        with:
++          name: desktop-artifact-${{ matrix.target }}
++          path: desktop/tauri/target/release/bundle/*/*${{ matrix.bundle == 'msi' && '.msi' || matrix.bundle == 'dmg' && '.dmg' || '.deb' }}
++
+  # 4. Create GitHub release with real links
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs
