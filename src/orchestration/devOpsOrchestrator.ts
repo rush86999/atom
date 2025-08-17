@@ -51,7 +51,8 @@ export async function runAutonomousWebAppFlow(
     owner: string,
     repo: string,
     jiraProjectKey: string,
-    slackChannelId: string
+    slackChannelId: string,
+    dependencies?: string[]
 ): Promise<any> {
     console.log(`[DevOpsOrchestrator] Starting autonomous web app flow for user ${userId}.`);
 
@@ -60,7 +61,8 @@ export async function runAutonomousWebAppFlow(
         owner,
         repo,
         jiraProjectKey,
-        slackChannelId
+        slackChannelId,
+        dependencies
     );
 
     return result;

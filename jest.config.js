@@ -1,6 +1,8 @@
+const { createJsWithTsPreset } = require('ts-jest');
+
 module.exports = {
+  ...createJsWithTsPreset(),
   testEnvironment: "node",
-  preset: "ts-jest/presets/js-with-ts",
   roots: ["<rootDir>/src", "<rootDir>/atomic-docker/project/functions"],
   testMatch: [
     "**/__tests__/**/*.(test|spec).(js|jsx|ts|tsx)",
@@ -34,8 +36,10 @@ module.exports = {
       "<rootDir>/atomic-docker/project/functions/_libs/crypto.ts",
     "^../_libs/graphqlClient$":
       "<rootDir>/atomic-docker/project/functions/atom-agent/_libs/graphqlClient.ts",
+    "^../../_libs/graphqlClient$": "<rootDir>/atomic-docker/project/functions/atom-agent/_libs/graphqlClient.ts",
     "^atomic-docker/project/functions/atom-agent/skills/trello$":
       "<rootDir>/atomic-docker/project/functions/atom-agent/skills/trello.ts",
+    "^atomic-docker/project/functions/atom-agent/skills/(.*)$": "<rootDir>/atomic-docker/project/functions/atom-agent/skills/$1",
     "^@utils/(.*)$": "<rootDir>/atomic-docker/project/functions/_utils/$1",
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],

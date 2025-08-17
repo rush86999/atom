@@ -132,4 +132,8 @@ describe('AutonomousSystemOrchestrator', () => {
       const result = await orchestrator.optimizeWorkflows();
 
       expect(result.success).toBe(true);
-      expect(result.optimization_plan.recommendations).toEqual(['No active workflows
+      expect(result.optimization_plan.recommendations).toEqual([]);
+      expect(result.optimization_plan.estimated_improvement).toBe('No workflows to optimize');
+    });
+  });
+});
