@@ -10,6 +10,7 @@ interface InventoryLevel {
 
 interface ResponseData {
   // Define the structure of the response data as needed
+  inventory_level: InventoryLevel;
 }
 
 async function updateInventory(variantId: string, newQuantity: number): Promise<ResponseData> {
