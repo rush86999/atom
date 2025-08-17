@@ -1,42 +1,39 @@
-import React, { useMemo } from 'react';
-import ReactFlow, {
-  ReactFlowProvider,
-  Controls,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+import React, { useMemo } from "react";
+import ReactFlow, { ReactFlowProvider, Controls } from "reactflow";
+import "reactflow/dist/style.css";
 
-import GenericNode from '../../../../src/ui-shared/components/workflows/nodes/GenericNode';
-import Sidebar from '../../../../src/ui-shared/components/workflows/Sidebar';
-import { useWorkflows } from '../../../../src/ui-shared/hooks/useWorkflows';
-import DataMapper from '../../../../src/ui-shared/components/workflows/DataMapper';
+import GenericNode from "../../../../src/ui-shared/components/workflows/nodes/GenericNode";
+import Sidebar from "../../../../src/ui-shared/components/workflows/Sidebar";
+import { useWorkflows } from "../../../../src/ui-shared/hooks/useWorkflows";
+import DataMapper from "../../../../src/ui-shared/components/workflows/DataMapper";
 
 const webApi = {
   getWorkflows: async () => {
-    const response = await fetch('http://localhost:8003/workflows/');
+    const response = await fetch("http://localhost:8003/workflows/");
     return response.json();
   },
   saveWorkflow: async (workflow) => {
-    await fetch('http://localhost:8003/workflows/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    await fetch("http://localhost:8003/workflows/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(workflow),
     });
   },
   triggerWorkflow: async (workflowId) => {
     await fetch(`http://localhost:8003/workflows/${workflowId}/trigger`, {
-      method: 'POST',
+      method: "POST",
     });
   },
   updateWorkflow: async (workflowId, workflow) => {
     await fetch(`http://localhost:8003/workflows/${workflowId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(workflow),
     });
   },
   deleteWorkflow: async (workflowId) => {
     await fetch(`http://localhost:8003/workflows/${workflowId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   },
 };
@@ -66,11 +63,11 @@ const AutomationsPage = () => {
     () => ({
       genericNode: GenericNode,
     }),
-    []
+    [],
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div style={{ display: "flex", height: "100vh" }}>
       <ReactFlowProvider>
         <Sidebar
           workflows={workflows}
@@ -94,7 +91,10 @@ const AutomationsPage = () => {
           </ReactFlow>
         </div>
       </ReactFlowProvider>
-      <button onClick={handleSave} style={{ position: 'absolute', top: 10, right: 10 }}>
+      <button
+        onClick={handleSave}
+        style={{ position: "absolute", top: 10, right: 10 }}
+      >
         Save Workflow
       </button>
       {dataMapperState.isOpen && (

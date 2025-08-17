@@ -106,6 +106,51 @@ def execute_notion_action(node_config, input_data):
 
     return [] # Notion action is a sink, it doesn't return data
 
+<<<<<<< HEAD
+def execute_google_calendar_action(node_config, input_data):
+    print("Executing Google Calendar Action...")
+    user_id = node_config.get("userId")
+    calendar_id = node_config.get("calendarId", "primary")
+
+    if not user_id:
+        print("Error: userId is not configured for Google Calendar Action.")
+        return []
+
+    for item in input_data:
+        try:
+            summary = item.get("summary")
+            description = item.get("description")
+            start_date_time = item.get("startDateTime")
+            end_date_time = item.get("endDateTime")
+            timezone = item.get("timezone", "UTC")
+
+            if not all([summary, start_date_time, end_date_time]):
+                print(f"Skipping item due to missing fields: {item}")
+                continue
+
+            response = requests.post(
+                "http://functions:3000/calendar-integration/create-event",
+                json={
+                    "session_variables": {"x-hasura-user-id": user_id},
+                    "input": {
+                        "calendarId": calendar_id,
+                        "summary": summary,
+                        "description": description,
+                        "startDateTime": start_date_time,
+                        "endDateTime": end_date_time,
+                        "timezone": timezone,
+                    },
+                },
+            )
+            response.raise_for_status()
+            print(f"  - Successfully created calendar event: {summary}")
+        except requests.exceptions.RequestException as e:
+            print(f"    Error calling functions service: {e}")
+        except Exception as e:
+            print(f"    An unexpected error occurred: {e}")
+
+    return []
+=======
 def execute_google_calendar_create_event(node_config, input_data, user_id):
     print("Executing Google Calendar Create Event...")
     calendar_id = node_config.get("calendarId", "primary")
@@ -316,12 +361,16 @@ def execute_asana_create_task_node(node_config, input_data, user_id):
     except requests.exceptions.RequestException as e:
         print(f"    Error calling functions service: {e}")
         return []
+>>>>>>> 2dc596dc74d18751b99cd08a30c0fdf9b7fbe3e8
 
 NODE_EXECUTION_MAP = {
     "gmailTrigger": execute_gmail_trigger,
     "aiTask": execute_ai_task,
     "notionAction": execute_notion_action,
     "flatten": flatten_list,
+<<<<<<< HEAD
+    "googleCalendarAction": execute_google_calendar_action,
+=======
     "googleCalendarCreateEvent": execute_google_calendar_create_event,
     "delay": execute_delay_node,
     "llmFilter": execute_llm_filter_node,
@@ -332,6 +381,7 @@ NODE_EXECUTION_MAP = {
     "sendEmail": execute_send_email_node,
     "trelloCreateCard": execute_trello_create_card_node,
     "asanaCreateTask": execute_asana_create_task_node,
+>>>>>>> 2dc596dc74d18751b99cd08a30c0fdf9b7fbe3e8
 }
 
 # --- Topological Sort ---

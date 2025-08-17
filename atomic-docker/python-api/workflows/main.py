@@ -1,15 +1,23 @@
 from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
+<<<<<<< HEAD
+from typing import List
+from workflows import models, database
+from workflows.database import engine
+=======
 from typing import List, Optional
 from . import models, database
 from .database import engine
+>>>>>>> 2dc596dc74d18751b99cd08a30c0fdf9b7fbe3e8
 from uuid import UUID
-from .tasks import execute_workflow
+from workflows.tasks import execute_workflow
 from celery.result import AsyncResult
 
-models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
+
+@app.on_event("startup")
+def on_startup():
+    models.Base.metadata.create_all(bind=engine)
 
 @app.get("/healthz")
 def healthz():
