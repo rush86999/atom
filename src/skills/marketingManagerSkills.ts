@@ -63,37 +63,45 @@ function handleAxiosError(
   };
 }
 
-export async function createMailchimpCampaignFromSalesforceCampaign(
-  userId: string,
-  salesforceCampaignId: string
-): Promise<SkillResponse<any>> {
-  if (!PYTHON_API_SERVICE_BASE_URL) {
-    return {
-      ok: false,
-      error: {
-        code: 'CONFIG_ERROR',
-        message: 'Python API service URL is not configured.',
-      },
-    };
-  }
-  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/create-mailchimp-campaign-from-salesforce-campaign`;
+export async function createMailchimpCampaign(
+    userId: string,
+    listId: string,
+    subjectLine: string,
+    fromName: string,
+    replyTo: string,
+    templateId?: number
+  ): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_ERROR',
+          message: 'Python API service URL is not configured.',
+        },
+      };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/marketing/create-mailchimp-campaign-from-salesforce-campaign`;
 
-  try {
-    const response = await axios.post(endpoint, {
-      user_id: userId,
-      salesforce_campaign_id: salesforceCampaignId,
-    });
-    return handlePythonApiResponse(
-      response,
-      'createMailchimpCampaignFromSalesforceCampaign'
-    );
-  } catch (error) {
-    return handleAxiosError(
-      error as AxiosError,
-      'createMailchimpCampaignFromSalesforceCampaign'
-    );
+    try {
+      const response = await axios.post(endpoint, {
+        user_id: userId,
+        list_id: listId,
+        subject_line: subjectLine,
+        from_name: fromName,
+        reply_to: replyTo,
+        template_id: templateId
+      });
+      return handlePythonApiResponse(
+        response,
+        'createMailchimpCampaign'
+      );
+    } catch (error) {
+      return handleAxiosError(
+        error as AxiosError,
+        'createMailchimpCampaign'
+      );
+    }
   }
-}
 
 export async function getMailchimpCampaignSummary(
   userId: string,
@@ -149,5 +157,100 @@ export async function createTrelloCardFromMailchimpCampaign(
       error as AxiosError,
       'createTrelloCardFromMailchimpCampaign'
     );
+  }
+}
+
+export async function listMailchimpLists(userId: string): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_ERROR',
+          message: 'Python API service URL is not configured.',
+        },
+      };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/mailchimp/lists?user_id=${userId}`;
+
+    try {
+      const response = await axios.get(endpoint);
+      return handlePythonApiResponse(response, 'listMailchimpLists');
+    } catch (error) {
+      return handleAxiosError(error as AxiosError, 'listMailchimpLists');
+    }
+  }
+
+  export async function addMemberToMailchimpList(
+    userId: string,
+    listId: string,
+    memberData: any
+  ): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_ERROR',
+          message: 'Python API service URL is not configured.',
+        },
+      };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/mailchimp/lists/${listId}/members`;
+
+    try {
+      const response = await axios.post(endpoint, {
+        user_id: userId,
+        member_data: memberData,
+      });
+      return handlePythonApiResponse(response, 'addMemberToMailchimpList');
+    } catch (error) {
+      return handleAxiosError(error as AxiosError, 'addMemberToMailchimpList');
+    }
+  }
+
+  export async function listMailchimpTemplates(userId: string): Promise<SkillResponse<any>> {
+    if (!PYTHON_API_SERVICE_BASE_URL) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFIG_ERROR',
+          message: 'Python API service URL is not configured.',
+        },
+      };
+    }
+    const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/mailchimp/templates?user_id=${userId}`;
+
+    try {
+      const response = await axios.get(endpoint);
+      return handlePythonApiResponse(response, 'listMailchimpTemplates');
+    } catch (error) {
+      return handleAxiosError(error as AxiosError, 'listMailchimpTemplates');
+    }
+  }
+
+export async function setMailchimpCredentials(
+  userId: string,
+  apiKey: string,
+  serverPrefix: string
+): Promise<SkillResponse<any>> {
+  if (!PYTHON_API_SERVICE_BASE_URL) {
+    return {
+      ok: false,
+      error: {
+        code: 'CONFIG_ERROR',
+        message: 'Python API service URL is not configured.',
+      },
+    };
+  }
+  const endpoint = `${PYTHON_API_SERVICE_BASE_URL}/api/mailchimp/credentials`;
+
+  try {
+    const response = await axios.post(endpoint, {
+      user_id: userId,
+      api_key: apiKey,
+      server_prefix: serverPrefix,
+    });
+    return handlePythonApiResponse(response, 'setMailchimpCredentials');
+  } catch (error) {
+    return handleAxiosError(error as AxiosError, 'setMailchimpCredentials');
   }
 }
