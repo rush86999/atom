@@ -188,3 +188,28 @@ async def ingest_gdrive_document_route():
     except Exception as e:
         logger.error(f"Error ingesting Google Drive file for user {user_id}, file {gdrive_file_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "INGESTION_UNHANDLED_ERROR", "message": str(e)}}), 500
+
+def search_gdrive(query: str, user_id: str = "test_user"):
+    import asyncio
+    from flask import current_app
+    from . import gdrive_service
+
+    async def _search_async():
+        db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
+        if not db_conn_pool:
+            return "Database connection not available."
+
+        creds = await gdrive_service.get_gdrive_credentials(user_id, db_conn_pool)
+        if not creds:
+            return "Could not get authenticated Google Drive client."
+
+        search_results = await gdrive_service.search_files(creds, query)
+        return str(search_results) if search_results is not None else "Failed to search files."
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop.run_until_complete(_search_async())

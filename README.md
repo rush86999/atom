@@ -3,9 +3,11 @@
 Atom is a powerful and flexible open-source AI assistant designed to streamline your workflow, intelligently manage your schedule, automate research, and organize your information. Take control of your productivity with an assistant that you can host yourself, ensuring privacy and customization.
 
 ## Why Choose Atom?
-*   **Empower Your Productivity:** Let Atom handle schedules, finances, notes, and communications so you can focus on what matters.
-*   **Open Source & Transparent:** Full visibility into operations - no black boxes.
-*   **Self-Hosted Privacy & Control**: Host on your infrastructure for maximum privacy.
+*   **Autonomous AI System:** Complete autonomous workflow orchestration with 70+ integrated skills across 12+ platforms
+*   **Self-Driving Productivity:** No manual intervention required - Atom learns patterns and executes complex multi-step workflows automatically
+*   **Multi-Agent Architecture:** Sophisticated orchestration engine that coordinates specialized agents in real-time
+*   **Open Source & Transparent:** Full visibility into autonomous operations - no black boxes
+*   **Self-Hosted Privacy & Control**: Host entirely on your infrastructure for maximum privacy and security
 *   **Finance, Money & Budgeting**: Complete finance suite with Plaid banking integration and wake word "Atom" for natural language queries - net worth, budgets, spending analysis, goals, investments, and secure transaction search via Gmail email receipts.
 *   **Communication & CRM**: Voice-enabled customer relationship management across emails, Slack, Teams, and social media.
 *   **Voice-First Interface**: "Atom show my net worth" or "Atom schedule a meeting" - works after wake word detection.
@@ -37,9 +39,10 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 *   **Voice-Powered Note-Taking:** While commuting, you can say: "Atom, take an audio note: Idea for marketing campaign - focus on social media engagement and influencer collaborations." Atom will transcribe the audio and save it to Notion.
 *   **Automated Meeting Summaries & Action Items:** Atom can process your meeting transcripts (e.g., from live meeting attendance or uploaded recordings) and then automatically extract key decisions and action items directly into your Notion meeting notes.
 *   **Intelligent Information Retrieval:** Ask Atom "What did we decide about Project X?" or "Search my meetings for discussions on marketing strategy." Atom can semantically search through your transcribed meeting archives (stored in Notion & LanceDB) to find relevant information quickly.
-*   **Proactive Schedule Optimization:** With Autopilot, Atom can learn your work patterns and preferences. "My mornings are for deep work. Keep them as free of meetings as possible." Atom will then intelligently schedule new events accordingly.
-*   **LLM-Powered Scheduling:** "Find a time for a 30-minute meeting with Sarah and John to discuss the Q3 marketing plan." Atom will use a large language model to parse your request and then find an optimal time for the meeting.
-- **Comprehensive Finance Management:** Wake word activated finance commands via Plaid banking: "Atom what's my net worth today?" gives complete financial overview including secure bank connections, "Atom show my dining budget" displays budget analysis, "Atom where did I spend most money this month?" provides spending insights across categories, "Atom create emergency fund goal for $5000" sets up goal tracking, "Atom find Amazon purchases over $75" combines bank transactions and Gmail receipt search.
+*   **Autonomous Multi-Agent Scheduling:** Advanced AI system that coordinates complex cross-platform workflows - "Create meeting with Sarah, pull latest sales data from Shopify, prepare presentation in Canva, and send calendar invites to the whole team"
+*   **Self-Learning Autopilot:** Proactive daily management that learns your work patterns and automatically optimizes your schedule without manual intervention
+*   **Multi-User LLM Scheduling:** Coordinates meetings across multiple calendars and team members with AI-powered planning
+- **Autonomous Financial Intelligence:** Wake word activated comprehensive finance automation: "Atom what's my net worth today?" triggers automatic bank data aggregation with fraud detection, "Atom create Q4 budget" cross-analyzes spending patterns across all accounts, "Atom reconcile all transactions" automatically matches bank data with accounting software and flags discrepancies
 - **Quickly Access Information:** "What was the outcome of the Project Phoenix meeting last month?" Atom can search your linked Notion notes and relevant event details to provide you with the context you need.
 - **Stay on Top of Your Day:** "What's on my agenda for today?" or "Do I have any free time this afternoon for a quick call?"
 - **Proactive Meeting Prep:** "Atom, get me ready for my meeting with 'Project X'." Atom gathers related notes, emails, and tasks.
@@ -49,12 +52,13 @@ Tired of juggling multiple apps and struggling to stay organized? Atom is here t
 
 ## Documentation
 
-For comprehensive information about Atom, including setup, deployment, and features, please refer to the following guides:
+For comprehensive information about the autonomous Atom system, including setup, deployment, and advanced capabilities:
 
-*   **[Features Overview](./FEATURES.md):** A detailed list and explanation of all of Atom's capabilities.
-*   **[Docker Compose Deployment](./atomic-docker/README.md):** Instructions for setting up and running Atom locally using Docker Compose.
-*   **[AWS Cloud Deployment](./deployment/aws/README.md):** A guide for deploying Atom to your own AWS account for a scalable, self-hosted solution.
-*   **[Technical Documentation](./atomic-docker/docs/):** Additional technical details, API guides, and development information.
+*   **[🤖 Autonomous System Documentation](./docs/AUTONOMOUS_ATOM_AGENT.md):** Deep dive into Atom's autonomous multi-agent architecture
+*   **[Features Overview](./FEATURES.md):** Complete 70+ skill matrix across 12+ integrated platforms
+*   **[Docker Compose Deployment](./atomic-docker/README.md):** Instructions for setting up and running Atom locally using Docker Compose
+*   **[AWS Cloud Deployment](./deployment/aws/README.md):** Guide for deploying Atom to your own AWS account for scalable self-hosting
+*   **[Technical Documentation](./atomic-docker/docs/):** Advanced technical details, API guides, and development information
 
 ## Features
 

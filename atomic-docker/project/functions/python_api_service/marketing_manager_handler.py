@@ -11,15 +11,28 @@ async def create_mailchimp_campaign_from_salesforce_campaign():
     data = request.get_json()
     user_id = data.get('user_id')
     salesforce_campaign_id = data.get('salesforce_campaign_id')
-    if not all([user_id, salesforce_campaign_id]):
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id and salesforce_campaign_id are required."}}), 400
+    list_id = data.get('list_id')
+    from_name = data.get('from_name')
+    reply_to = data.get('reply_to')
+    template_id = data.get('template_id')
+
+    if not all([user_id, salesforce_campaign_id, list_id, from_name, reply_to]):
+        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id, salesforce_campaign_id, list_id, from_name, and reply_to are required."}}), 400
 
     db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')
     if not db_conn_pool:
         return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Database connection not available."}}), 500
 
     try:
-        result = await marketing_manager_service.create_mailchimp_campaign_from_salesforce_campaign(user_id, salesforce_campaign_id, db_conn_pool)
+        result = await marketing_manager_service.create_mailchimp_campaign_from_salesforce_campaign(
+            user_id,
+            salesforce_campaign_id,
+            list_id,
+            from_name,
+            reply_to,
+            template_id,
+            db_conn_pool
+        )
         return jsonify({"ok": True, "data": result})
     except Exception as e:
         logger.error(f"Error creating Mailchimp campaign from Salesforce campaign for user {user_id}: {e}", exc_info=True)

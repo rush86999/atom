@@ -25,6 +25,7 @@ from .project_manager_handler import project_manager_bp
 from .personal_assistant_handler import personal_assistant_bp
 from .financial_analyst_handler import financial_analyst_bp
 from .marketing_manager_handler import marketing_manager_bp
+from .mailchimp_handler import mailchimp_bp
 from .customer_support_manager_handler import customer_support_manager_bp
 from .legal_handler import legal_bp
 from .it_manager_handler import it_manager_bp
@@ -122,6 +123,8 @@ def create_app(db_pool=None):
     logger.info("Registered 'personal_assistant_bp' blueprint.")
     app.register_blueprint(marketing_manager_bp)
     logger.info("Registered 'marketing_manager_bp' blueprint.")
+    app.register_blueprint(mailchimp_bp)
+    logger.info("Registered 'mailchimp_bp' blueprint.")
     app.register_blueprint(customer_support_manager_bp)
     logger.info("Registered 'customer_support_manager_bp' blueprint.")
     app.register_blueprint(legal_bp)
@@ -136,6 +139,12 @@ def create_app(db_pool=None):
     logger.info("Registered 'mcp_bp' blueprint.")
     app.register_blueprint(account_bp)
     logger.info("Registered 'account_bp' blueprint.")
+
+    # Goals API
+    from .goals_handler import goals_bp
+    app.register_blueprint(goals_bp)
+    logger.info("Registered 'goals_bp' blueprint.")
+
     app.register_blueprint(transaction_bp)
     logger.info("Registered 'transaction_bp' blueprint.")
     app.register_blueprint(investment_bp)
@@ -182,6 +191,13 @@ def create_app(db_pool=None):
     logger.info("Registered 'zoho_bp' blueprint.")
 
     from .github_handler import github_bp
+    app.register_blueprint(github_bp)
+    logger.info("Registered 'github_bp' blueprint.")
+
+    # Register goals API
+    from .goals_handler import goals_bp
+    app.register_blueprint(goals_bp)
+    logger.info("Registered 'goals_bp' blueprint.")
     app.register_blueprint(github_bp)
     logger.info("Registered 'github_bp' blueprint.")
 
