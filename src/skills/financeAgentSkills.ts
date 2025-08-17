@@ -2,10 +2,11 @@ import { SkillResponse, ToolImplementation } from '../types';
 import { z } from 'zod';
 import axios, { AxiosError } from 'axios';
 import { handleTaxQuery } from './taxExpertSkills';
+import { TradingAgentService } from '../services/tradingAgentService';
 
 // Enhanced types for finance interactions
 export interface FinanceQuery {
-  intent: 'net_worth' | 'budgets' | 'spending' | 'goals' | 'accounts' | 'investments' | 'insights' | 'create_budget' | 'create_goal' | 'tax_question';
+  intent: 'net_worth' | 'budgets' | 'spending' | 'goals' | 'accounts' | 'investments' | 'insights' | 'create_budget' | 'create_goal' | 'tax_question' | 'buy_asset' | 'sell_asset';
   parameters: Record<string, any>;
   timeframe?: 'current' | 'last_month' | 'last_week' | 'this_quarter' | 'year_to_date' | 'custom';
   category?: string;
@@ -54,6 +55,12 @@ export async function handleFinanceQuery(
       case 'tax_question':
         return await handleTaxQuery(userId, query, context);
 
+      case 'buy_asset':
+        return await getBuyResponse(userId, intent.parameters);
+
+      case 'sell_asset':
+        return await getSellResponse(userId, intent.parameters);
+
       default:
         return await provideFinanceHelp(userId);
     }
@@ -72,6 +79,21 @@ export async function handleFinanceQuery(
 // Intent recognition for natural language finance queries
 async function extractFinanceIntent(query: string, context?: any): Promise<FinanceQuery> {
   const normalizedQuery = query.toLowerCase().trim();
+
+  // Buy/Sell detection
+  if (normalizedQuery.startsWith('buy') || normalizedQuery.startsWith('sell')) {
+    const tradeType = normalizedQuery.startsWith('buy') ? 'buy' : 'sell';
+    const match = normalizedQuery.match(/(buy|sell)\s+(\d+)\s+shares\s+of\s+([a-z]+)/);
+    if (match) {
+      return {
+        intent: tradeType === 'buy' ? 'buy_asset' : 'sell_asset',
+        parameters: {
+          quantity: parseInt(match[2]),
+          ticker: match[3].toUpperCase(),
+        },
+      };
+    }
+  }
 
   // Net worth detection
   if (normalizedQuery.includes('net worth') ||

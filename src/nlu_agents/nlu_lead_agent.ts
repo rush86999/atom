@@ -25,6 +25,7 @@ import { WorkflowGenerator } from './workflow_generator';
 import { runAutonomousWebAppFlow } from '../orchestration/devOpsOrchestrator';
 import { runShopifyReport } from '../orchestration/autonomousSystemOrchestrator';
 import { SocialMediaAgent } from './socialMediaAgent';
+import { AutonomousTradingAgent } from './trading_agent';
 
 export class NLULeadAgent {
   private analyticalAgent: AnalyticalAgent;
@@ -43,6 +44,7 @@ export class NLULeadAgent {
   private marketingAutomationAgent: MarketingAutomationAgent;
   private socialMediaAgent: SocialMediaAgent;
   private workflowAgent: WorkflowAgent;
+  private tradingAgent: AutonomousTradingAgent;
   private workflowGenerator: WorkflowGenerator;
   private agentName: string = 'NLULeadAgent';
 
@@ -71,6 +73,7 @@ export class NLULeadAgent {
     this.socialMediaAgent = new SocialMediaAgent(llmService);
     this.workflowAgent = new WorkflowAgent(llmService);
     this.workflowGenerator = new WorkflowGenerator();
+    this.tradingAgent = new AutonomousTradingAgent(llmService);
   }
 
   public async analyzeIntent(input: SubAgentInput): Promise<EnrichedIntent> {
@@ -89,6 +92,7 @@ export class NLULeadAgent {
       taxResponse,
       marketingAutomationResponse,
       workflowResponse,
+      tradingResponse,
     ] = await Promise.all([
       this.analyticalAgent.analyze(input).catch((e) => {
         console.error('AnalyticalAgent failed:', e);
@@ -130,6 +134,10 @@ export class NLULeadAgent {
         console.error('WorkflowAgent failed:', e);
         return null;
       }),
+      this.tradingAgent.analyze(input).catch((e) => {
+        console.error('TradingAgent failed:', e);
+        return null;
+      }),
       this.socialMediaAgent.analyzeAndAct(input).catch((e) => {
         console.error('SocialMediaAgent failed:', e);
         return null;
@@ -148,7 +156,8 @@ export class NLULeadAgent {
       vibeHackingResponse,
       taxResponse,
       marketingAutomationResponse,
-      workflowResponse
+      workflowResponse,
+      tradingResponse
     );
 
     if (synthesisResult.suggestedNextAction?.actionType === 'create_workflow') {
@@ -232,6 +241,7 @@ export class NLULeadAgent {
         tax: taxResponse,
         marketingAutomation: marketingAutomationResponse,
         workflow: workflowResponse,
+        trading: tradingResponse,
       },
       synthesisLog: synthesisResult.synthesisLog || [
         'Synthesis log not initialized.',
