@@ -1,9 +1,29 @@
 name: Cloud Preview Deployment
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [ main, develop ]
+    paths:
+      - 'atomic-docker/app_build_docker/**'
+      - 'desktop/tauri/**'
+      - 'src/**'
+      - 'package*.json'
+      - 'Dockerfile*'
+      - '!**/*.md'
+      - '!docs/**'
+      - '!README*'
+      - '!**/.*'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'atomic-docker/app_build_docker/**'
+      - 'desktop/tauri/**'
+      - 'src/**'
+      - 'package*.json'
+      - 'Dockerfile*'
+      - '!**/*.md'
+      - '!docs/**'
+      - '!README*'
+      - '!**/.*'
 
 jobs:
   build-web:

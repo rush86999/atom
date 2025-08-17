@@ -152,3 +152,83 @@ export async function listGithubRepos(userId: string): Promise<SkillResponse<any
         };
     }
 }
+
+export interface CreateGithubRepoParams {
+    name: string;
+    description?: string;
+    private?: boolean;
+    template?: 'nextjs' | 'react' | 'vanilla' | 'node-express';
+    auto_init?: boolean;
+}
+
+export async function createGithubRepo(
+    userId: string,
+    params: CreateGithubRepoParams
+): Promise<SkillResponse<any>> {
+    try {
+        const accessToken = await getGitHubAccessToken(userId);
+        if (!accessToken) {
+            return {
+                ok: false,
+                error: {
+                    code: 'CONFIG_ERROR',
+                    message: 'GitHub access token not configured for this user.',
+                },
+            };
+        }
+
+        // Sanitize repo name
+        const safeName = params.name
+            .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/--+/g, '-')
+            .replace(/^-|-$/g, '')
+            .substring(0, 100);
+
+        const timestamp = Date.now();
+        const repoName = `${safeName}-${timestamp}`;
+
+        // Create repository
+        const repoResponse = await axios.post(
+            `${GITHUB_API_BASE_URL}/user/repos`,
+            {
+                name: repoName,
+                description: params.description || 'ATOM AI generated web application',
+                private: params.private || false,
+                auto_init: params.auto_init !== false,
+                gitignore_template: 'node',
+                license_template: 'mit'
+            },
+            {
+                headers: {
+                    Authorization: `token ${accessToken}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                },
+            }
+        );
+
+        // Get user info to construct full repo URL
+        const userResponse = await axios.get(`${GITHUB_API_BASE_URL}/user`, {
+            headers: {
+                Authorization: `token ${accessToken}`,
+            },
+        });
+
+        const repoData = {
+            ...repoResponse.data,
+            full_url: `https://github.com/${userResponse.data.login}/${repoName}`,
+            clone_url: `https://github.com/${userResponse.data.login}/${repoName}.git`
+        };
+
+        return { ok: true, data: repoData };
+    } catch (error: any) {
+        return {
+            ok: false,
+            error: {
+                code: 'GITHUB_API_ERROR',
+                message: "Sorry, I couldn't create the GitHub repository due to an error.",
+                details: error,
+            },
+        };
+    }
+}
