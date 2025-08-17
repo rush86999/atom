@@ -1,9 +1,18 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const shopifyStoreUrl = 'YOUR_SHOPIFY_STORE_URL';
 const shopifyAccessToken = 'YOUR_ACCESS_TOKEN';
 
-async function updateInventory(variantId, newQuantity) {
+interface InventoryLevel {
+  inventory_item_id: string;
+  available: number;
+}
+
+interface ResponseData {
+  inventory_level: InventoryLevel;
+}
+
+async function updateInventory(variantId: string, newQuantity: number): Promise<ResponseData> {
   try {
     const response = await axios.post(`${shopifyStoreUrl}/admin/api/2023-01/inventory_levels/set.json`, {
       inventory_level: {
@@ -18,7 +27,7 @@ async function updateInventory(variantId, newQuantity) {
     });
     console.log('Inventory updated successfully:', response.data);
     return response.data;
-  } catch (error) {
+  } catch (error: any) { // AxiosError is not a valid type for catch clause
     console.error('Error updating inventory:', error);
     throw error; // Rethrow the error to handle it upstream
   }
