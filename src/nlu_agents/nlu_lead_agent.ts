@@ -34,7 +34,6 @@ export class NLULeadAgent {
   private dataAnalystSkill: DataAnalystSkill;
   private advancedResearchSkill: AdvancedResearchSkill;
   private legalDocumentAnalysisSkill: LegalDocumentAnalysisSkill;
-  private socialMediaAgent: SocialMediaAgent;
   private contentCreationAgent: ContentCreationAgent;
   private personalizedShoppingAgent: PersonalizedShoppingAgent;
   private recruitmentRecommendationAgent: RecruitmentRecommendationAgent;
@@ -59,7 +58,6 @@ export class NLULeadAgent {
     this.dataAnalystSkill = new DataAnalystSkill(context, memory, functions);
     this.advancedResearchSkill = new AdvancedResearchSkill();
     this.legalDocumentAnalysisSkill = new LegalDocumentAnalysisSkill();
-    this.socialMediaAgent = new SocialMediaAgent(llmService);
     this.contentCreationAgent = new ContentCreationAgent(llmService);
     this.personalizedShoppingAgent = new PersonalizedShoppingAgent(llmService);
     this.recruitmentRecommendationAgent = new RecruitmentRecommendationAgent(
@@ -130,11 +128,12 @@ export class NLULeadAgent {
         console.error('WorkflowAgent failed:', e);
         return null;
       }),
-      this.socialMediaAgent.analyzeAndAct(input).catch((e) => {
-        console.error('SocialMediaAgent failed:', e);
-        return null;
-      }),
     ]);
+
+    this.socialMediaAgent.analyzeAndAct(input).catch((e) => {
+        console.error('SocialMediaAgent failed:', e);
+    });
+
     console.timeEnd(P_LEAD_SUB_AGENTS_TIMER_LABEL);
 
     const synthesisResult = await this.synthesizingAgent.synthesize(
@@ -238,7 +237,6 @@ export class NLULeadAgent {
       ],
     };
   }
-}
 
   private async saveWorkflow(name: string, definition: object): Promise<void> {
     const workflow = {
