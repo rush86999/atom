@@ -36,19 +36,70 @@ const response = await orchestration.processUserMessage(
 );
 ```
 
-### **The Architecture Stack**
-```typescript
-// 9 Specialized Agent Stack
-├── Business Intelligence Agent: markets & strategy analysis
-├── Financial Planning Agent: retirement + business growth
-├── Customer Experience Agent: retention & lifetime value
-├── Marketing Orchestration Agent: campaigns & social media
-├── Operations Coordinator Agent: workflow automation
-├── Analytics Intelligence Agent: data-driven insights
-├── Communications Hub Agent: multi-channel coordination
-├── Emergency Response Agent: business continuity
-└── Full-Stack Engineer Agent: custom development automation
-```
+### **The Agent Stack**
+
+When you speak, this team of specialized agents activates to handle your request:
+
+| Agent | Specialty | Example Triggers |
+|---|---|---|
+| **Business Intelligence Officer** | Market analysis & expansion strategy | "I want to grow my business" |
+| **Personal Finance Advisor** | Retirement & investment planning | "Planning for retirement while running my business" |
+| **Customer Experience Manager** | Retention & repeat sales automation | "My customers don't come back" |
+| **Digital Marketing Coordinator** | Complete marketing automation | "Marketing takes too much time" |
+| **Analytics & Intelligence Officer** | Data insights & predictions | "My business decisions feel random" |
+| **Operations Coordinator** | Workflow optimization | "Manual processes are killing me" |
+| **Multi-Channel Communicator** | Appointment & customer communication | "I'm missing customer appointments" |
+| **Emergency Response Manager** | Business continuity & system health | "What if the system goes down?" |
+| **Full-Stack Engineer** | Custom feature development | "I need a tool that does X" |
+
+---
+
+## 🔌 **Extensive Integrations**
+
+Atom connects with the tools you already use, creating a seamless, automated ecosystem for your business. For a complete and detailed list, see the [**Full Integration Documentation**](docs/INTEGRATIONS.md).
+
+Here are some of the key platforms we support:
+
+**Communication & Collaboration**
+- **Email:** Gmail, Outlook
+- **Chat:** Slack, Microsoft Teams, Discord
+
+**Calendar & Scheduling**
+- **Calendars:** Google Calendar, Outlook Calendar
+- **Scheduling:** Calendly, Zoom
+
+**Task Management & Productivity**
+- **Project Management:** Notion, Trello, Asana, Jira
+- **Collaboration:** Miro, GitHub
+
+**Cloud Storage**
+- Google Drive, Dropbox, OneDrive, Box
+
+**Finance & Accounting**
+- **Payments:** Stripe, PayPal
+- **Accounting:** Quickbooks, Xero
+- **Financial Data:** Plaid
+
+**CRM & Sales**
+- Salesforce, HubSpot
+
+**And many more, including Zapier for custom connections.**
+
+---
+
+## ✨ **Beyond Autonomous Workflows: Core AI Skills**
+
+Beyond the 9-agent orchestration system, Atom is equipped with powerful, fine-tuned AI skills that you can use in your daily work.
+
+### **Meeting Transcription and Summarization**
+- **Capture and Transcribe**: Record audio from online meetings (like Zoom, Google Meet) or your desktop. Atom transcribes the conversation using advanced speech-to-text models.
+- **Automated Note-Taking**: Once transcribed, Atom automatically generates a summary, identifies key decisions, and lists out action items.
+- **Seamless Integration**: The notes and transcript are saved directly to your Notion workspace for easy access and sharing.
+
+### **Intelligent Follow-up Suggestions**
+- **Context-Aware Analysis**: Ask Atom to suggest follow-ups for any meeting or document. It analyzes the content to identify potential action items, decisions, and open questions.
+- **Task Management Integration**: Atom can check if a suggested follow-up item is related to an existing task in your project management tool (e.g., Notion), helping you avoid duplicate work.
+- **Never Miss a Beat**: This feature ensures that you never miss an important action item or decision from a meeting or document.
 
 ---
 
@@ -200,6 +251,8 @@ npm run orchestration:demo            # See system in action
 ---
 
 ## 🎯 **Business Use Cases**
+For a complete list of use cases, see the [**Comprehensive Use Cases**](USE_CASES.md) document.
+
 [**Specific Examples** → `ORCHESTRATION_INTEGRATION_GUIDE.md`](ORCHESTRATION_INTEGRATION_GUIDE.md)
 
 ### **🏪 Small Business Owners**
