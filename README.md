@@ -45,6 +45,12 @@ For entrepreneurs and small business owners, Atom is like having a personal oper
 - **Financial Insights**: Connect your bank accounts (via Plaid), and get a clear view of your business's financial health.
 - **Streamline Operations**: From generating invoices in Quickbooks to managing your Shopify store, Atom can handle the repetitive tasks so you can focus on growth.
 
+### **🧠 Unified Search: Your Personal Memory**
+Atom's most powerful feature is its ability to search across all your connected apps and documents at once. Think of it as your personal memory, instantly accessible.
+- **Cross-Platform Search**: When you ask "find my notes on the Q3 project," Atom doesn't just search one place. It looks through your documents, emails, and Notion pages to find the most relevant information.
+- **Semantic Understanding**: Powered by LanceDB, Atom understands the meaning behind your words, not just keywords. This means you can search for concepts and ideas, and Atom will find what you're looking for, even if the words don't match exactly.
+- **Your Data, Your Control**: All of this happens securely on your local machine or your private cloud, ensuring your personal and professional information remains private.
+
 ---
 ### **The Technology Behind the Magic**
 
@@ -201,4 +207,4 @@ npm run dev                          # Ready to use immediately
 ---
 
 ## 📱 **Available Now - Zero Additional Setup**
-**Open Atom and talk to it normally. Your advanced 9-agent business team is ready and waiting.**
+**Open Atom and talk to it normally. Your super-powered personal assistant is ready and waiting.**
