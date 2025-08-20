@@ -17,6 +17,7 @@ const withTM = require('next-transpile-modules')([
 const nextConfig = {
   reactStrictMode: false,
   transpilePackages: [
+    'nanoid',
     '@rneui/base',
     '@rneui/themed',
     '@react-native-picker/picker',
