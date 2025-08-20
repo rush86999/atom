@@ -1,56 +1,52 @@
-import ThirdPartyEmailPasswordNode from 'supertokens-node/recipe/thirdpartyemailpassword';
-import SessionNode from 'supertokens-node/recipe/session';
-import { appInfo } from './appInfo';
-import { TypeInput } from 'supertokens-node/types';
+import ThirdPartyEmailPasswordNode from "supertokens-node/recipe/thirdpartyemailpassword";
+import SessionNode from "supertokens-node/recipe/session";
+import { appInfo } from "./appInfo";
+import { TypeInput } from "supertokens-node/types";
 
 export const backendConfig = (): TypeInput => {
   return {
-    framework: 'express',
+    framework: "express",
     supertokens: {
-      // https://try.supertokens.com is for demo purposes. Replace this with the address of your core instance (sign up on supertokens.com), or self host a core.
-      connectionURI: 'http://supertokens:3567',
-      // apiKey: <API_KEY(if configured)>,
+      connectionURI:
+        process.env.SUPERTOKENS_CONNECTION_URI || "http://supertokens:3567",
+      // apiKey: process.env.SUPERTOKENS_API_KEY, // Optional: Add if using API key authentication
     },
     appInfo,
     recipeList: [
       ThirdPartyEmailPasswordNode.init({
-        // We have provided you with development keys which you can use for testing.
-        // IMPORTANT: Please replace them with your own OAuth keys for production use.
         providers: [
           {
             config: {
-              thirdPartyId: 'google',
+              thirdPartyId: "google",
               clients: [
                 {
-                  clientId:
-                    '1060725074195-kmeum4crr01uirfl2op9kd5acmi9jutn.apps.googleusercontent.com',
-                  clientSecret: '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',
+                  clientId: process.env.GOOGLE_CLIENT_ID || "",
+                  clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
                 },
               ],
             },
           },
           {
             config: {
-              thirdPartyId: 'github',
+              thirdPartyId: "github",
               clients: [
                 {
-                  clientId: '467101b197249757c71f',
-                  clientSecret: 'e97051221f4b6426e8fe8d51486396703012f5bd',
+                  clientId: process.env.GITHUB_CLIENT_ID || "",
+                  clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
                 },
               ],
             },
           },
           {
             config: {
-              thirdPartyId: 'apple',
+              thirdPartyId: "apple",
               clients: [
                 {
-                  clientId: '4398792-io.supertokens.example.service',
+                  clientId: process.env.APPLE_CLIENT_ID || "",
                   additionalConfig: {
-                    keyId: '7M48Y4RYDL',
-                    privateKey:
-                      '-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgu8gXs+XYkqXD6Ala9Sf/iJXzhbwcoG5dMh1OonpdJUmgCgYIKoZIzj0DAQehRANCAASfrvlFbFCYqn3I2zeknYXLwtH30JuOKestDbSfZYxZNMqhF/OzdZFTV0zc5u5s3eN+oCWbnvl0hM+9IW0UlkdA\n-----END PRIVATE KEY-----',
-                    teamId: 'YWQCXGJRJL',
+                    keyId: process.env.APPLE_KEY_ID || "",
+                    privateKey: process.env.APPLE_PRIVATE_KEY || "",
+                    teamId: process.env.APPLE_TEAM_ID || "",
                   },
                 },
               ],
@@ -67,10 +63,10 @@ export const backendConfig = (): TypeInput => {
               createNewSession: async function (input) {
                 input.accessTokenPayload = {
                   ...input.accessTokenPayload,
-                  'https://hasura.io/jwt/claims': {
-                    'x-hasura-user-id': input.userId,
-                    'x-hasura-default-role': 'user',
-                    'x-hasura-allowed-roles': ['user'],
+                  "https://hasura.io/jwt/claims": {
+                    "x-hasura-user-id": input.userId,
+                    "x-hasura-default-role": "user",
+                    "x-hasura-allowed-roles": ["user"],
                   },
                 };
 
