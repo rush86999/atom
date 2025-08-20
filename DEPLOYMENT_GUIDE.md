@@ -49,12 +49,12 @@ fly scale count app=2 functions=2 handshake=1 oauth=1 optaplanner=1 python-agent
 
 ```bash
 # All required environment variables
-export OPENAI_API_KEY="sk-..."
-export GOOGLE_CLIENT_ID="..."
-export GOOGLE_CLIENT_SECRET="..."
-export LINKEDIN_CLIENT_ID="..."
-export LINKEDIN_CLIENT_SECRET="..."
-export TWITTER_CONSUMER_KEY="..."
+export OPENAI_API_KEY="your-openai-api-key"
+export GOOGLE_CLIENT_ID="your-google-client-id"
+export GOOGLE_CLIENT_SECRET="your-google-client-secret"
+export LINKEDIN_CLIENT_ID="your-linkedin-client-id"
+export LINKEDIN_CLIENT_SECRET="your-linkedin-client-secret"
+export TWITTER_CONSUMER_KEY="your-twitter-api-key"
 export JWT_SECRET="your-production-jwt-secret-here"
 export POSTGRAPHILE_URL="http://localhost:5000/graphql"
 ```

@@ -73,8 +73,8 @@ POST /api/agent/create-repository
 +
 +### Environment Variables Required
 +```bash
-+GITHUB_TOKEN=your_github_personal_access_token
-+ATOM_AGENT_SECRET=your_agent_secret_key
++GITHUB_TOKEN=your_github_token_here
++ATOM_AGENT_SECRET=your_agent_secret_key_here
 +```
 +
 +### Registering with ATOM Agent System

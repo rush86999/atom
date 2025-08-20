@@ -83,7 +83,7 @@ query CurrentUser {
 
 ```bash
 # JWT Configuration
-export JWT_SECRET="your-local-development-jwt-secret"
+export JWT_SECRET="your-jwt-secret-key"
 export POSTGRAPHILE_URL="http://localhost:5000/graphql"
 
 # Database
@@ -91,7 +91,7 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=atom_production
 POSTGRES_USER=atom_user
-POSTGRES_PASSWORD=atom_secure_2024
+POSTGRES_PASSWORD=your-secure-database-password
 
 # Services
 NODE_ENV=development

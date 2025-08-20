@@ -110,8 +110,8 @@ Use these commands to access performance data:
 Configuration options will be available via environment variables:
 ```bash
 # Trading API configuration
-export TRADE_API_KEY="your_api_key"
-export TRADE_API_SECRET="your_api_secret"
+export TRADE_API_KEY="your-trading-api-key"
+export TRADE_API_SECRET="your-trading-api-secret"
 ```
 
 ## 📈 Example Workflows
