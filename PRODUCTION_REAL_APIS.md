@@ -40,14 +40,14 @@ export LINKEDIN_CLIENT_ID="your_linkedin_client_id"
 export LINKEDIN_CLIENT_SECRET="your_linkedin_secret"
 
 # Twitter/X API
-export TWITTER_CONSUMER_KEY="your_twitter_api_key"
-export TWITTER_CONSUMER_SECRET="your_twitter_api_secret"
+export TWITTER_CONSUMER_KEY="your_twitter_consumer_key"
+export TWITTER_CONSUMER_SECRET="your_twitter_consumer_secret"
 export TWITTER_ACCESS_TOKEN="your_twitter_access_token"
-export TWITTER_ACCESS_TOKEN_SECRET="your_twitter_access_secret"
+export TWITTER_ACCESS_TOKEN_SECRET="your_twitter_access_token_secret"
 
 # AWS (if using)
-export AWS_ACCESS_KEY_ID="your_aws_access_key"
-export AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
+export AWS_ACCESS_KEY_ID="your_aws_access_key_id"
+export AWS_SECRET_ACCESS_KEY="your_aws_secret_access_key"
 export AWS_REGION="us-east-1"
 
 # OpenAI (if enhanced AI)
@@ -152,21 +152,21 @@ touch .env.production
 # Add all real API credentials
 cat > .env.production << 'EOF'
 # PLAID
-PLAID_CLIENT_ID=your_real_client_id
-PLAID_SECRET=your_real_secret
+PLAID_CLIENT_ID=your_plaid_client_id
+PLAID_SECRET=your_plaid_secret
 PLAID_ENV=production
 
 # GOOGLE
-GOOGLE_CLIENT_ID=your_real_client_id
-GOOGLE_CLIENT_SECRET=your_real_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # LINKEDIN
-LINKEDIN_CLIENT_ID=your_real_client_id
-LINKEDIN_CLIENT_SECRET=your_real_secret
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
 
 # TWITTER
-TWITTER_CONSUMER_KEY=your_real_key
-TWITTER_CONSUMER_SECRET=your_real_secret
+TWITTER_CONSUMER_KEY=your_twitter_consumer_key
+TWITTER_CONSUMER_SECRET=your_twitter_consumer_secret
 EOF
 ```
 

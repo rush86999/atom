@@ -118,7 +118,7 @@ NEXT_PUBLIC_MOCK_WAKE_WORD_DETECTION=true
 NEXT_PUBLIC_CONNECTION_STATUS_API=http://localhost:8005
 
 # Music Services (for production)
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://your-redis-host:6379
 ```
 
 ## 🎯 Next Steps for Deployment
