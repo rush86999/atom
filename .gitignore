@@ -464,6 +464,24 @@ yarn-error.log*
 *.swp
 *~
 
+# ===== TYPESCRIPT BUILD PREVENTION =====
+# Prevent compiled TypeScript JavaScript files (source .ts files should be used)
+# This prevents duplicate JS files from being committed
+atomic-docker/*/src/**/*.js
+atomic-docker/functions_build_docker/**/*.js
+atomic-docker/project/functions/**/*.js
+atomic-docker/app_build_docker/**/components/**/*.js
+atomic-docker/app_build_docker/**/lib/**/*.js
+atomic-docker/app_build_docker/**/src/**/*.js
+atomic-docker/oauth_build_docker/**/*.js
+atomic-docker/handshake_build_docker/**/*.js
+atomic-docker/allure-results/**/*.js
+!atomic-docker/**/next.config.js
+!atomic-docker/**/postcss.config.js
+!atomic-docker/**/tailwind.config.js
+!atomic-docker/**/jest.config.js
+!atomic-docker/**/babel.config.js
+
 # === CACHE CONFLICT PREVENTION ===
 # Systematically prevent .pyc, __pycache__, and build artifacts
 **/__pycache__/
@@ -501,6 +519,43 @@ yarn-error.log*
 **/share/python-wheels/
 **/*.egg-info/
 **/.installed.cfg
+
+# ===== TYPESCRIPT BUILD FILES TO IGNORE =====
+# Build directory patterns
+**/*.js.map
+**/*.d.ts.map
+**/*.tsbuildinfo
+
+# Source directory build outputs (only .ts files should be committed)
+**/src/**/*.js
+**/src/**/*.mjs
+**/src/**/*.cjs
+
+# Exclude compiled JS files that have TS source
+**/lib/**/*.js
+**/components/**/*.js
+**/functions/**/*.js
+**/utils/**/*.js
+**/services/**/*.js
+**/hooks/**/*.js
+
+# Allow specific config files (even though they're JS)
+!**/next.config.js
+!**/postcss.config.js
+!**/tailwind.config.js
+!**/jest.config.js
+!**/babel.config.js
+!**/webpack.config.js
+!**/rollup.config.js
+!**/vite.config.js
+!**/esbuild.config.js
+!**/eslint.config.js
+!**/.eslintrc.js
+!**/prettier.config.js
+!**/.prettierrc.js
+
+# Allow build/external directories that legitimately have JS files
+!**/node_modules/**
 
 # Development tool caches
 **/.pip-cache/
