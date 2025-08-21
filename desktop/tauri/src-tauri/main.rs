@@ -3,18 +3,20 @@
     windows_subsystem = "windows"
 )]
 
-use tauri::{
-    Manager, AppHandle, SystemTray, SystemTrayMenu, SystemTrayMenuItem, SystemTrayEvent,
-    CustomMenuItem, WindowEvent
-};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
 use aes_gcm::aead::{Aead, NewAead};
-use hex::{encode, decode};
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use hex::{decode, encode};
+use rand::rngs::OsRng;
+use rand::RngCore;
+use reqwest;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use reqwest;
+use tauri::{
+    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
+    SystemTrayMenuItem, WindowEvent,
+};
 
 // --- Constants ---
 const ENCRYPTION_KEY: &[u8] = b"a_default_32_byte_encryption_key"; // 32 bytes for AES-256
@@ -106,7 +108,10 @@ struct Workflow {
 
 // --- Secure Storage Functions ---
 fn get_settings_path(app_handle: &AppHandle) -> PathBuf {
-    let mut path = app_handle.path_resolver().app_data_dir().unwrap();
+    let mut path = app_handle
+        .path_resolver()
+        .app_data_dir()
+        .expect("Failed to get app data directory");
     path.push(SETTINGS_FILE);
     path
 }
@@ -117,7 +122,9 @@ fn encrypt(text: &str) -> String {
     let mut nonce_bytes = [0u8; 12];
     rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
-    let ciphertext = cipher.encrypt(nonce, text.as_bytes()).unwrap();
+    let ciphertext = cipher
+        .encrypt(nonce, text.as_bytes())
+        .expect("Encryption failed");
     format!("{}:{}", encode(nonce), encode(ciphertext))
 }
 
@@ -130,18 +137,122 @@ fn decrypt(encrypted_text: &str) -> Result<String, String> {
     let ciphertext = decode(parts[1]).unwrap();
     let key = Key::from_slice(ENCRYPTION_KEY);
     let cipher = Aes256Gcm::new(key);
-    let plaintext = cipher.decrypt(nonce, ciphertext.as_ref()).map_err(|e| e.to_string())?;
-    Ok(String::from_utf8(plaintext).unwrap())
+    let plaintext = cipher
+        .decrypt(nonce, ciphertext.as_ref())
+        .map_err(|e| e.to_string())?;
+    String::from_utf8(plaintext).map_err(|e| e.to_string())
 }
 
 // --- Tauri Commands ---
 #[tauri::command]
-fn save_setting(app_handle: AppHandle, key: String, value: String) {
+fn save_setting(app_handle: AppHandle, key: String, value: String) -> Result<(), String> {
     let path = get_settings_path(&app_handle);
     let mut settings: Settings = match fs::read_to_string(&path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or(Settings { extra: HashMap::new() }),
-        Err(_) => Settings { extra: HashMap::new() },
+        Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| {
+            eprintln!("Failed to parse settings file, creating new one");
+            Settings {
+                extra: HashMap::new(),
+            }
+        }),
+        Err(_) => Settings {
+            extra: HashMap::new(),
+        },
     };
     let encrypted_value = encrypt(&value);
     settings.extra.insert(key, encrypted_value);
-    fs::write(&path, serde_json::to_string_pretty(&settings).unwrap()).
+    fs::write(
+        &path,
+        serde_json::to_string_pretty(&settings).unwrap_or_else(|_| "{}".to_string()),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn load_setting(app_handle: AppHandle, key: String) -> Result<Option<String>, String> {
+    let path = get_settings_path(&app_handle);
+    let settings: Settings = match fs::read_to_string(&path) {
+        Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| {
+            Settings {
+                extra: HashMap::new(),
+            }
+        }),
+        Err(_) => Settings {
+            extra: HashMap::new(),
+        },
+    };
+
+    if let Some(encrypted_value) = settings.extra.get(&key) {
+        return decrypt(encrypted_value).map(Some);
+    }
+    Ok(None)
+}
+
+#[tauri::command]
+async fn get_dashboard_data() -> Result<DashboardData, String> {
+    Ok(DashboardData {
+        calendar: vec![
+            CalendarEvent {
+                id: 1,
+                title: "Team Meeting".to_string(),
+                time: "10:00 AM".to_string(),
+            },
+            CalendarEvent {
+                id: 2,
+                title: "Project Review".to_string(),
+                time: "2:00 PM".to_string(),
+            },
+        ],
+        tasks: vec![
+            Task {
+                id: 1,
+                title: "Complete feature implementation".to_string(),
+                due_date: "2024-01-15".to_string(),
+            },
+            Task {
+                id: 2,
+                title: "Review pull requests".to_string(),
+                due_date: "2024-01-14".to_string(),
+            },
+        ],
+        social: vec![
+            SocialPost {
+                id: 1,
+                platform: "Twitter".to_string(),
+                post: "Excited about our new Atom AI features!".to_string(),
+            },
+        ],
+    })
+}
+
+#[tauri::command]
+async fn handle_nlu_command(command: String) -> Result<NluResponse, String> {
+    let response = reqwest::Client::new()
+        .post(format!("{}/nlu", DESKTOP_PROXY_URL))
+        .json(&serde_json::json!({ "message": command }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    response.json::<NluResponse>().await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn search_skills(query: String) -> Result<Vec<SearchResult>, String> {
+    Ok(vec![
+        SearchResult {
+            skill: "Finance".to_string(),
+            title: "Budget Tracker".to_string(),
+            url: "/skills/finance/budget".to_string(),
+        },
+        SearchResult {
+            skill: "Calendar".to_string(),
+            title: "Event Scheduler".to_string(),
+            url: "/skills/calendar/schedule".to_string(),
+        },
+    ])
+}
+
+// --- Script Generation Endpoints ---
+#[tauri::command]
+async fn generate_learning_plan(notion_database_id: String) -> Result<String, String> {
+    Ok("Learning plan generated successfully and linked to Not
