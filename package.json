@@ -21,7 +21,7 @@
     "test:integration": "node tests/integration-runner.js",
     "test:integration:web": "node tests/integration-runner.js --target=web",
     "test:integration:desktop": "node atomic-desktop/tauri/test-integration-complete.js --env=desktop",
-    "test:comprehensive": "npm run test:integration && npm run test:e2e"
+    "test:comprehensive": "npm run test:integration && npm run test:e2e",
     "postinstall": "cd atomic-docker/app_build_docker && npm install",
     "orchestration": "node src/orchestration/index.js",
     "orchestration:demo": "node src/orchestration/FinancialOrchestrationDemo.js",
