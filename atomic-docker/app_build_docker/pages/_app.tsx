@@ -36,7 +36,7 @@ import {
   theme as shopifyTheme, // Aliased to avoid conflict
 } from "@lib/theme/theme";
 
-// import { useRouter } from 'next/router' // useRouter seems unused here
+import { useRouter } from 'next/router' // useRouter seems unused here
 import { ThemeProvider as MUIThemeProvider } from "@mui/material/styles";
 import { CacheProvider, EmotionCache } from "@emotion/react";
 import MUITheme from "@lib/mui/theme";
