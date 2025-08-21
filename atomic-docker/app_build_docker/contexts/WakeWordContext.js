@@ -178,7 +178,11 @@ const WakeWordProvider = ({ children }) => {
           }
           if (webSocketRef.current) {
             try {
-              webSocketRef.current.send(pcm
+              webSocketRef.current.send(pcmData.buffer);
+            } catch (error) {
+              console.error("Error sending data over WebSocket:", error);
+            }
+          }
         }
       };
       source.connect(processorNodeRef.current);
