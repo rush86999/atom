@@ -9,7 +9,7 @@ sys.path.insert(0, current_dir)
 # Attempt to import Flask and the blueprint. If Flask is not installed,
 # this import will fail. We use a flag to skip the tests if it's unavailable.
 try:
-    from unittest.mock import patch, MagicMock
+
 
     # Mock the external dependencies if they don't exist
     try:
