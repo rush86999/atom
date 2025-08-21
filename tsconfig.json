@@ -21,7 +21,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "typeRoots": ["./node_modules/@types"],
-    "types": ["jest", "vite/client"],
+    "types": ["jest"],
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
