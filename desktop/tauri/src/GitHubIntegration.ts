@@ -1,8 +1,8 @@
 // atom/desktop/tauri/src/GitHubIntegration.ts
 // Real GitHub integration for desktop app - personalized repositories
 
-import { invoke } from '@tauri-apps/api/tauri';
-import { open } from '@tauri-apps/api/shell';
+import { invoke } from "@tauri-apps/api/tauri";
+import { open } from "@tauri-apps/api/shell";
 
 interface GitHubUser {
   token: string;
@@ -28,124 +28,148 @@ interface BuildResult {
   logs: string[];
 }
 
-class GitHubIntegration {
-  private baseUrl = 'https://api.github.com';
+export class GitHubIntegration {
   private userToken: string | null = null;
-  private userLogin: string | null = null;
+  private userData: GitHubUser | null = null;
 
-  async authenticate(token: string) {
-    this.userToken = token;
+  constructor(token?: string) {
+    if (token) {
+      this.userToken = token;
+    }
+  }
 
+  async authenticate(token: string): Promise<GitHubUser> {
     try {
-      const response = await fetch(`${this.baseUrl}/user`, {
+      const response = await fetch("https://api.github.com/user", {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
       });
-      const userData = await response.json();
 
-      if (userData.login) {
-        this.userLogin = userData.login;
-        await invoke('store_user_token', { token, login: userData.login });
+      if (!response.ok) {
+        throw new Error(`GitHub authentication failed: ${response.statusText}`);
       }
 
-      return this.userLogin;
+      const userData = await response.json();
+      this.userToken = token;
+      this.userData = userData;
+
+      return userData;
     } catch (error) {
-      throw new Error('Invalid GitHub token');
+      console.error("GitHub authentication error:", error);
+      throw error;
     }
   }
 
-  async getAuthenticatedUser(): Promise<GitHubUser | null> {
-    if (!this.userToken) return null;
+  async createRepository(
+    name: string,
+    description: string,
+    isPrivate: boolean = false,
+  ): Promise<RepositoryData> {
+    if (!this.userToken) {
+      throw new Error("Not authenticated. Call authenticate() first.");
+    }
 
     try {
-      const response = await fetch(`${this.baseUrl}/user`, {
+      const response = await fetch("https://api.github.com/user/repos", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${this.userToken}`,
-          'Accept': 'application/vnd.github.v3+json'
-        }
+          Authorization: `Bearer ${this.userToken}`,
+          Accept: "application/vnd.github.v3+json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          private: isPrivate,
+          auto_init: true,
+          license_template: "mit",
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create repository: ${response.statusText}`);
+      }
+
       return await response.json();
     } catch (error) {
-      console.error('Failed to get user:', error);
-      return null;
+      console.error("Repository creation error:", error);
+      throw error;
     }
   }
 
-  async createProject(projectName: string, instruction: string): Promise<BuildResult> {
-    if (!this.userLogin) throw new Error('User not authenticated');
-
-    const repoName = `atom-${projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now().toString(36)}`;
-
-    // Create repository via Tauri
-    const repo = await this.createRepository(repoName, instruction);
-
-    // Setup Vercel deployment
-    const vercelUrl = await this.setupVercelDeployment(repo.full_name, repoName);
-
-    // Setup Netlify as fallback
-    const netlifyUrl = await this.setupNetlifyDeployment(repo.full_name);
-
-    return {
-      repo,
-      vercelUrl,
-      netlifyUrl,
-      logs: [`Created repository: ${repo.full_name}`, `Vercel deployed to: ${vercelUrl}`]
-    };
-  }
-
-  private async createRepository(name: string, description: string): Promise<RepositoryData> {
-    if (!this.userToken) throw new Error('Not authenticated');
-
-    // Create empty repository
-    const response = await fetch(`${this.baseUrl}/user/repos`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.userToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name,
-        description: `AI-generated via ATOM: ${description}`,
-        auto_init: true,
-        private: false,
-        gitignore_template: 'Node'
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create repository: ${response.statusText}`);
-    }
-
-    return await response.json();
-  }
-
-  async pushStarterTemplate(repoFullName: string, template: string = 'nextjs-basic'): Promise<void> {
+  async pushStarterTemplate(
+    repoFullName: string,
+    template: string = "nextjs-basic",
+  ): Promise<void> {
     const templates = {
-      'nextjs-basic': {
+      "nextjs-basic": {
         files: {
-          'package.json': JSON.stringify({
-            name: repoFullName.split('/')[1],
-            version: "1.0.0",
-            scripts: {
-              dev: "next dev",
-              build: "next build",
-              start: "next start"
+          "package.json": JSON.stringify(
+            {
+              name: repoFullName.split("/")[1],
+              version: "1.0.0",
+              scripts: {
+                dev: "next dev",
+                build: "next build",
+                start: "next start",
+              },
+              dependencies: {
+                next: "^14.0.0",
+                react: "^18.2.0",
+                "react-dom": "^18.2.0",
+                tailwindcss: "^3.3.0",
+                autoprefixer: "^10.4.0",
+              },
             },
-            dependencies: {
-              next: "^14.0.0",
-              react: "^18.2.0",
-              "react-dom": "^18.2.0",
-              tailwindcss: "^3.3.0",
-              autoprefixer: "^10.4.0"
-            }
-          }, null, 2),
-          'next.config.js': `module.exports = {
+            null,
+            2,
+          ),
+          "next.config.js": `module.exports = {
   output: 'export',
   images: { unoptimized: true },
   trailingSlash: true
 }`,
-          'tailwind.config.js': `module.exports = {
-  content: ['./pages/**/*.{js
+          "tailwind.config.js": `module.exports = {
+  content: ['./pages/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}`,
+        },
+      },
+    };
+
+    // Implementation for pushing template files would go here
+    // This would use the GitHub API to create files in the repository
+    console.log(`Pushing ${template} template to ${repoFullName}`);
+  }
+
+  async triggerVercelDeployment(repoFullName: string): Promise<string> {
+    try {
+      // This would integrate with Vercel API to trigger deployment
+      const deploymentUrl = `https://${repoFullName.split("/")[1]}-atom.vercel.app`;
+      console.log(`Triggering Vercel deployment for ${repoFullName}`);
+      return deploymentUrl;
+    } catch (error) {
+      console.error("Vercel deployment error:", error);
+      throw error;
+    }
+  }
+
+  async openInBrowser(url: string): Promise<void> {
+    await open(url);
+  }
+
+  getUser(): GitHubUser | null {
+    return this.userData;
+  }
+
+  isAuthenticated(): boolean {
+    return this.userToken !== null;
+  }
+}
+
+export default GitHubIntegration;

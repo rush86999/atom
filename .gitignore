@@ -564,3 +564,7 @@ atomic-docker/allure-results/**/*.js
 **/.next/cache/
 **/node_modules/.cache/
 **/dist/prod/
+
+
+# coding orchestrator
+ai-coding-orchestrator/
