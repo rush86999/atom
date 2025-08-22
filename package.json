@@ -21,7 +21,12 @@
     "test:integration": "node tests/integration-runner.js",
     "test:integration:web": "node tests/integration-runner.js --target=web",
     "test:integration:desktop": "node atomic-desktop/tauri/test-integration-complete.js --env=desktop",
-    "test:comprehensive": "npm run test:integration && npm run test:e2e",
+    "test:integration:comprehensive": "node tests/comprehensive-integration.test.js",
+    "test:integration:auto-fix": "node tests/integration-test-runner.js",
+    "test:integration:all": "npm run test:integration && npm run test:integration:comprehensive && npm run test:integration:auto-fix",
+    "test:setup": "node tests/setup-test-env.js setup",
+    "test:cleanup": "node tests/setup-test-env.js cleanup",
+    "test:comprehensive": "npm run test:integration:all && npm run test:e2e",
     "postinstall": "cd atomic-docker/app_build_docker && npm install",
     "orchestration": "node src/orchestration/index.js",
     "orchestration:demo": "node src/orchestration/FinancialOrchestrationDemo.js",
@@ -52,7 +57,9 @@
     "node-cron": "^2.0.3",
     "form-data": "^4.0.4",
     "qrcode": "^1.5.3",
-    "date-fns": "^3.6.0"
+    "date-fns": "^3.6.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.0",

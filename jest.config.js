@@ -6,6 +6,7 @@ module.exports = {
     "**/__tests__/**/*.(test|spec).(js|jsx|ts|tsx)",
     "**/**/test*.{js,jsx,ts,tsx}",
     "**/**/*.{test,spec}.{js,jsx,ts,tsx}",
+    "**/tests/**/*.(test|spec).(js|jsx|ts|tsx)",
     "!**/atomic-docker/project/functions/atom-agent/templates/**",
     "!**/features-apply/_libs/temp_tests/**",
     "!**/google-calendar-sync/_libs/event2VectorsWorker/test*.js",
@@ -41,5 +42,5 @@ module.exports = {
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
   setupFilesAfterEnv: ["<rootDir>/tests/setup/jest.setup.js"],
   testTimeout: 60000,
-  testPathIgnorePatterns: ["node_modules", "cdk.out"],
+  testPathIgnorePatterns: ["node_modules", "cdk.out", "tests/setup"],
 };
