@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Manager};
 
 // --- Constants ---
 const SETTINGS_FILE: &str = "atom-settings.json";
@@ -208,7 +208,7 @@ async fn handle_nlu_command(command: String) -> Result<NluResponse, String> {
 }
 
 #[tauri::command]
-async fn search_skills(query: String) -> Result<Vec<SearchResult>, String> {
+async fn search_skills(_query: String) -> Result<Vec<SearchResult>, String> {
     Ok(vec![
         SearchResult {
             skill: "Finance".to_string(),
@@ -225,7 +225,7 @@ async fn search_skills(query: String) -> Result<Vec<SearchResult>, String> {
 
 // --- Script Generation Endpoints ---
 #[tauri::command]
-async fn generate_learning_plan(notion_database_id: String) -> Result<String, String> {
+fn generate_learning_plan(_notion_database_id: String) -> Result<String, String> {
     Ok("Learning plan generated successfully and linked to Notion".to_string())
 }
 
