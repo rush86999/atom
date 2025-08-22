@@ -3,10 +3,16 @@ import { invoke } from "@tauri-apps/api/tauri";
 
 const SmartSearch = () => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<
+    Array<{ skill: string; url: string; title: string }>
+  >([]);
 
   const handleSearch = async () => {
-    const data = await invoke("smart_search", { query });
+    const data = (await invoke("smart_search", { query })) as Array<{
+      skill: string;
+      url: string;
+      title: string;
+    }>;
     setResults(data);
   };
 

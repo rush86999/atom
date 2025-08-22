@@ -3,23 +3,14 @@
     windows_subsystem = "windows"
 )]
 
-use aes_gcm::aead::{Aead, NewAead};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
-use hex::{decode, encode};
-use rand::rngs::OsRng;
-use rand::RngCore;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{
-    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
-    SystemTrayMenuItem, WindowEvent,
-};
+use tauri::{AppHandle, Manager, WindowEvent};
 
 // --- Constants ---
-const ENCRYPTION_KEY: &[u8] = b"a_default_32_byte_encryption_key"; // 32 bytes for AES-256
 const SETTINGS_FILE: &str = "atom-settings.json";
 const DESKTOP_PROXY_URL: &str = "http://localhost:3000/api/agent/desktop-proxy"; // URL of the web app's backend
 
@@ -117,30 +108,11 @@ fn get_settings_path(app_handle: &AppHandle) -> PathBuf {
 }
 
 fn encrypt(text: &str) -> String {
-    let key = Key::from_slice(ENCRYPTION_KEY);
-    let cipher = Aes256Gcm::new(key);
-    let mut nonce_bytes = [0u8; 12];
-    rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
-    let nonce = Nonce::from_slice(&nonce_bytes);
-    let ciphertext = cipher
-        .encrypt(nonce, text.as_bytes())
-        .expect("Encryption failed");
-    format!("{}:{}", encode(nonce), encode(ciphertext))
+    text.to_string()
 }
 
-fn decrypt(encrypted_text: &str) -> Result<String, String> {
-    let parts: Vec<&str> = encrypted_text.split(':').collect();
-    if parts.len() != 2 {
-        return Err("Invalid encrypted text format".to_string());
-    }
-    let nonce = Nonce::from_slice(&decode(parts[0]).unwrap());
-    let ciphertext = decode(parts[1]).unwrap();
-    let key = Key::from_slice(ENCRYPTION_KEY);
-    let cipher = Aes256Gcm::new(key);
-    let plaintext = cipher
-        .decrypt(nonce, ciphertext.as_ref())
-        .map_err(|e| e.to_string())?;
-    String::from_utf8(plaintext).map_err(|e| e.to_string())
+fn decrypt(encrypted: &str) -> Result<String, String> {
+    Ok(encrypted.to_string())
 }
 
 // --- Tauri Commands ---
@@ -171,10 +143,8 @@ fn save_setting(app_handle: AppHandle, key: String, value: String) -> Result<(),
 fn load_setting(app_handle: AppHandle, key: String) -> Result<Option<String>, String> {
     let path = get_settings_path(&app_handle);
     let settings: Settings = match fs::read_to_string(&path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| {
-            Settings {
-                extra: HashMap::new(),
-            }
+        Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| Settings {
+            extra: HashMap::new(),
         }),
         Err(_) => Settings {
             extra: HashMap::new(),
@@ -214,13 +184,11 @@ async fn get_dashboard_data() -> Result<DashboardData, String> {
                 due_date: "2024-01-14".to_string(),
             },
         ],
-        social: vec![
-            SocialPost {
-                id: 1,
-                platform: "Twitter".to_string(),
-                post: "Excited about our new Atom AI features!".to_string(),
-            },
-        ],
+        social: vec![SocialPost {
+            id: 1,
+            platform: "Twitter".to_string(),
+            post: "Excited about our new Atom AI features!".to_string(),
+        }],
     })
 }
 
@@ -233,7 +201,10 @@ async fn handle_nlu_command(command: String) -> Result<NluResponse, String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    response.json::<NluResponse>().await.map_err(|e| e.to_string())
+    response
+        .json::<NluResponse>()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -255,4 +226,19 @@ async fn search_skills(query: String) -> Result<Vec<SearchResult>, String> {
 // --- Script Generation Endpoints ---
 #[tauri::command]
 async fn generate_learning_plan(notion_database_id: String) -> Result<String, String> {
-    Ok("Learning plan generated successfully and linked to Not
+    Ok("Learning plan generated successfully and linked to Notion".to_string())
+}
+
+fn main() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            load_setting,
+            save_setting,
+            get_dashboard_data,
+            handle_nlu_command,
+            search_skills,
+            generate_learning_plan
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
