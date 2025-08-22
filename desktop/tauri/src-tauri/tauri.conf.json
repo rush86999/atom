@@ -47,12 +47,7 @@
         "all": true
       },
       "os": {
-        "all": false,
-        "platform": true,
-        "version": true
-      },
-      "systemTray": {
-        "all": true
+        "all": false
       }
     },
     "bundle": {
@@ -62,13 +57,7 @@
       "targets": ["deb", "msi", "dmg", "app", "appimage"],
       "shortDescription": "AI-powered web development via conversation",
       "longDescription": "Build modern Next.js applications entirely through conversation. No local development setup required - everything happens in the cloud with real-time preview.",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
+      "icon": ["icons/atom-ai-2.ico"],
       "resources": ["resources/*"],
       "deb": {
         "depends": []
@@ -76,7 +65,6 @@
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.15",
-        "useBootstrapper": false,
         "exceptionDomain": "localhost"
       },
       "windows": {
@@ -88,29 +76,20 @@
     "security": {
       "csp": "default-src 'self' blob: data: filesystem: ws: wss: ; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:"
     },
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://release.atomai.com/web-studio/latest.json"
-      ],
-      "dialog": true
-    },
-    "windows": [{
-      "fullscreen": false,
-      "resizable": true,
-      "title": "ATOM AI Web Studio",
-      "width": 1200,
-      "height": 800,
-      "minWidth": 800,
-      "minHeight": 600,
-      "center": true,
-      "transparent": false,
-      "maximized": true
-    }],
-    "systemTray": {
-      "iconPath": "icons/tray_icon.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": true
-    }
+
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "ATOM AI Web Studio",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "center": true,
+        "transparent": false,
+        "maximized": true
+      }
+    ]
   }
 }
