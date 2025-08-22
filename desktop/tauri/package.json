@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsc && esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm --watch",
     "build": "tsc && esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm",
-    "preview": "vite preview",
+    "preview": "echo 'Preview not available with esbuild - use dev instead'",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -26,8 +26,7 @@
     "@tauri-apps/cli": "^1.0.0",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
-    "@vitejs/plugin-react": "^2.0.1",
-    "typescript": "^5.9.2",
-    "vite": "^3.0.9"
+    "esbuild": "^0.25.9",
+    "typescript": "^5.9.2"
   }
 }
