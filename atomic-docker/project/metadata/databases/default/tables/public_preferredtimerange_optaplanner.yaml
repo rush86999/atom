@@ -1,7 +1,0 @@
-table:
-  name: preferredtimerange_optaplanner
-  schema: public
-object_relationships:
-  - name: event_optaplanner
-    using:
-      foreign_key_constraint_on: eventid

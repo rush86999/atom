@@ -1,7 +1,0 @@
-table:
-  name: user_metadata
-  schema: public
-object_relationships:
-  - name: app
-    using:
-      foreign_key_constraint_on: app_id
