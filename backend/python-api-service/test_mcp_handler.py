@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from python_api_service.main_api_app import create_app
+from main_api_app import create_app
 
 class McpHandlerTestCase(unittest.TestCase):
 
@@ -8,7 +8,7 @@ class McpHandlerTestCase(unittest.TestCase):
         self.app = create_app(db_pool=MagicMock())
         self.client = self.app.test_client()
 
-    @patch('python_api_service.mcp_handler.get_mcp_credentials')
+    @patch('mcp_handler.get_mcp_credentials')
     @patch('python_api_service.gdrive_service._get_drive_service')
     def test_list_files_route(self, mock_get_drive_service, mock_get_mcp_credentials):
         mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='gdrive', refresh_token='test_refresh_token', token_uri='test_token_uri', client_id='test_client_id', client_secret='test_client_secret')

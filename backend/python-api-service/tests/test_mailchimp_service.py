@@ -1,12 +1,12 @@
 import unittest
 import asyncio
 from unittest.mock import MagicMock, patch, AsyncMock
-from python_api_service.mailchimp_service import get_mailchimp_client, set_mailchimp_credentials
+from mailchimp_service import get_mailchimp_client, set_mailchimp_credentials
 
 class TestMailchimpService(unittest.TestCase):
 
     @patch('os.environ.get')
-    @patch('python_api_service.mailchimp_service.decrypt')
+    @patch('mailchimp_service.decrypt')
     def test_get_mailchimp_client_success(self, mock_decrypt, mock_os_get):
         async def run_test():
             # Arrange
@@ -31,7 +31,7 @@ class TestMailchimpService(unittest.TestCase):
         asyncio.run(run_test())
 
     @patch('os.environ.get')
-    @patch('python_api_service.mailchimp_service.encrypt')
+    @patch('mailchimp_service.decrypt')
     def test_set_mailchimp_credentials_success(self, mock_encrypt, mock_os_get):
         async def run_test():
             # Arrange
