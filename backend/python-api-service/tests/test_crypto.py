@@ -1,6 +1,6 @@
 import os
 import unittest
-from python_api_service.crypto import encrypt, decrypt
+from crypto import encrypt, decrypt
 
 class TestCrypto(unittest.TestCase):
 
