@@ -1,4 +1,0 @@
--Xms1g
--Xmx1g
--Dopensearch.path.data=/usr/share/opensearch/data
--Dopensearch.path.logs=/usr/share/opensearch/logs

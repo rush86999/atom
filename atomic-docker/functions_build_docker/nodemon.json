@@ -1,9 +1,0 @@
-{
-    "ignore": [
-      "!(package.json)"
-    ],
-    "execMap": {
-      "json": "cd $FUNCTIONS_WORKING_DIR ; ni ; nodemon -L --ext 'js,ts' -w $FUNCTIONS_RELATIVE_PATH -x 'tsx' $SERVER_PATH/server.ts"
-    },
-    "ext": "json"
-  }
