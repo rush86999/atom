@@ -1,7 +1,0 @@
-table:
-  name: supertokens_user_last_active
-  schema: public
-object_relationships:
-  - name: supertokens_app
-    using:
-      foreign_key_constraint_on: app_id
