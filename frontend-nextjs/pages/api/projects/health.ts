@@ -1,12 +1,15 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getSession } from "supertokens-node/nextjs";
 import { SessionContainer } from "supertokens-node/recipe/session";
+// TODO: Projects health API temporarily disabled due to missing dependencies
+/*
 import { queryNotionTasks } from "../../../../project/functions/atom-agent/skills/notionAndResearchSkills";
 import { getRepoCommitActivity } from "../../../../project/functions/atom-agent/skills/githubSkills";
 import { searchMySlackMessages } from "../../../../project/functions/atom-agent/skills/slackSkills";
 import { getMeetingLoad } from "../../../../project/functions/atom-agent/skills/calendarSkills";
-import { analyzeSentiment } from "../../../../src/utils/sentiment";
+import { analyzeSentiment } from "../../../src/utils/sentiment";
 import { NotionTask } from "../../../../project/functions/types";
+*/
 
 export default async function handler(
   req: NextApiRequest,

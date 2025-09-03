@@ -1,4 +1,32 @@
 services:
+  llama-cpp:
+    image: ghcr.io/ggerganov/llama.cpp:server-latest
+    container_name: llama-cpp-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./llama-models:/models
+    environment:
+      - MODEL=/models/llama-3-8b-instruct.Q4_K_M.gguf
+      - HOST=0.0.0.0
+      - PORT=8080
+      - N_CTX=4096
+      - N_GPU_LAYERS=28
+      - N_BATCH=512
+      - N_THREADS=8
+    command: --model ${MODEL} --host ${HOST} --port ${PORT} --ctx-size ${N_CTX} --n-gpu-layers ${N_GPU_LAYERS} --batch-size ${N_BATCH} --threads ${N_THREADS}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llama-cpp.rule=Host(`${HOST_NAME}`) && PathPrefix(`/v1/llama`)"
+      - "traefik.http.routers.llama-cpp.entrypoints=web"
+      - "traefik.http.services.llama-cpp-service.loadbalancer.server.port=8080"
   traefik:
     image: "traefik:v2.10.4"
     container_name: "traefik"
@@ -102,6 +130,7 @@ services:
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
       POSTGRAPHILE_GRAPHQL_URL: http://postgraphile:5000/graphql
       PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+      LLAMA_CPP_URL: http://llama-cpp:8080
       DOMAIN: ${DOMAIN}
       S3_ENDPOINT: http://minio:8484
       S3_BUCKET: nhost
@@ -248,6 +277,7 @@ services:
     environment:
       NEXT_PUBLIC_LIVE_MEETING_WORKER_URL: http://live-meeting-worker:8001
       PYTHON_API_SERVICE_BASE_URL: ${PYTHON_API_SERVICE_BASE_URL:-http://python-agent:5000}
+      LLAMA_CPP_URL: http://llama-cpp:8080
   python-agent:
     build:
       context: ../python_agent_build_docker
@@ -302,3 +332,4 @@ volumes:
   project_node_modules:
   functions_node_modules:
   mongo-data: {}
+  llama-models:

@@ -26,7 +26,11 @@
       "@styles/*": ["styles/*"],
       "@shared/*": ["../../src/ui-shared/*"],
       "@shared-components/*": ["../../src/ui-shared/components/*"],
-      "@shared-hooks/*": ["../../src/ui-shared/hooks/*"]
+      "@shared-hooks/*": ["../../src/ui-shared/hooks/*"],
+      "@/services/*": ["../../src/services/*"],
+      "@/orchestration/*": ["../../src/orchestration/*"],
+      "@/llm/*": ["../../src/llm/*"],
+      "@/utils/*": ["../../src/utils/*"]
     },
     "jsx": "preserve",
     "incremental": true

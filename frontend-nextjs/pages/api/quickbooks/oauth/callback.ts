@@ -1,12 +1,13 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'supertokens-node/nextjs';
-import { SessionContainer } from 'supertokens-node/recipe/session';
-import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
-import OAuthClient from 'intuit-oauth';
+import { NextApiRequest, NextApiResponse } from "next";
+import { getSession } from "supertokens-node/nextjs";
+import { SessionContainer } from "supertokens-node/recipe/session";
+// TODO: QuickBooks OAuth implementation pending dependencies
+// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
+// import { OAuthClient } from 'intuit-oauth';
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   let session: SessionContainer;
   try {
@@ -14,16 +15,16 @@ export default async function handler(
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   const userId = session.getUserId();
-  const oauthClient = new OAuthClient({
-    clientId: process.env.QUICKBOOKS_CLIENT_ID,
-    clientSecret: process.env.QUICKBOOKS_CLIENT_SECRET,
-    environment: 'sandbox', // or 'production'
-    redirectUri: process.env.QUICKBOOKS_REDIRECT_URI,
-  });
+  // const oauthClient = new OAuthClient({
+  //     clientId: process.env.QUICKBOOKS_CLIENT_ID!,
+  //     clientSecret: process.env.QUICKBOOKS_CLIENT_SECRET!,
+  //     environment: process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox',
+  //     redirectUri: process.env.QUICKBOOKS_REDIRECT_URI!,
+  // });
 
   try {
     const authResponse = await oauthClient.createToken(req.url);
@@ -32,33 +33,34 @@ export default async function handler(
     const accessToken = token.access_token;
     const refreshToken = token.refresh_token;
     const expiresAt = new Date(
-      Date.now() + token.expires_in * 1000
+      Date.now() + token.expires_in * 1000,
     ).toISOString();
     const realmId = token.realmId;
 
     // Save the tokens to the user_tokens table
-    const mutation = `
-            mutation InsertUserToken($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String, $expiresAt: timestamptz!, $meta: jsonb) {
-                insert_user_tokens_one(object: {user_id: $userId, service: $service, access_token: $accessToken, refresh_token: $refreshToken, expires_at: $expiresAt, meta: $meta}) {
-                    id
-                }
-            }
-        `;
-    const variables = {
-      userId,
-      service: 'quickbooks',
-      accessToken,
-      refreshToken,
-      expiresAt,
-      meta: { realmId },
-    };
-    await executeGraphQLQuery(mutation, variables, 'InsertUserToken', userId);
+    // const mutation = `
+    //     mutation InsertUserToken($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String, $expiresAt: timestamptz!) {
+    //         insert_user_tokens_one(object: {user_id: $userId, service: $service, access_token: $accessToken, refresh_token: $refreshToken, expires_at: $expiresAt}) {
+    //             id
+    //         }
+    //     }
+    // `;
+    // const variables = {
+    //     userId,
+    //     service: 'quickbooks',
+    //     accessToken,
+    //     refreshToken,
+    //     expiresAt,
+    // };
+    // await executeGraphQLQuery(mutation, variables, 'InsertUserToken', userId);
 
-    return res.redirect('/Settings/UserViewSettings');
+    return res
+      .status(501)
+      .json({ message: "QuickBooks OAuth temporarily disabled" });
   } catch (error) {
-    console.error('Error during QuickBooks OAuth callback:', error);
+    console.error("Error during QuickBooks OAuth callback:", error);
     return res
       .status(500)
-      .json({ message: 'Failed to complete QuickBooks OAuth flow' });
+      .json({ message: "Failed to complete QuickBooks OAuth flow" });
   }
 }
