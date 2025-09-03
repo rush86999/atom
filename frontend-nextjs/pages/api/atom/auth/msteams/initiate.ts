@@ -1,33 +1,33 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from "next";
 import {
   PublicClientApplication,
   Configuration,
   LogLevel,
   AuthorizationUrlRequest,
-} from '@azure/msal-node';
-import { superTokensNextWrapper } from 'supertokens-node/nextjs';
-import { verifySession } from 'supertokens-node/recipe/session/framework/express';
-import supertokens from 'supertokens-node';
-import { backendConfig } from '../../../../../config/backendConfig'; // Adjusted path
-import { logger } from '../../../../../../project/functions/_utils/logger';
+} from "@azure/msal-node";
+import { superTokensNextWrapper } from "supertokens-node/nextjs";
+import { verifySession } from "supertokens-node/recipe/session/framework/express";
+import supertokens from "supertokens-node";
+import { backendConfig } from "../../../../../config/backendConfig"; // Adjusted path
+import { logger } from "@lib/logger";
 
 // TODO: Move these to a central constants file and manage via environment variables
 const MSTEAMS_CLIENT_ID =
-  process.env.MSTEAMS_CLIENT_ID || 'YOUR_MSTEAMS_APP_CLIENT_ID';
+  process.env.MSTEAMS_CLIENT_ID || "YOUR_MSTEAMS_APP_CLIENT_ID";
 const MSTEAMS_CLIENT_SECRET =
-  process.env.MSTEAMS_CLIENT_SECRET || 'YOUR_MSTEAMS_APP_CLIENT_SECRET'; // Needed for token exchange in callback
+  process.env.MSTEAMS_CLIENT_SECRET || "YOUR_MSTEAMS_APP_CLIENT_SECRET"; // Needed for token exchange in callback
 const MSTEAMS_REDIRECT_URI =
   process.env.MSTEAMS_REDIRECT_URI ||
-  'http://localhost:3000/api/atom/auth/msteams/callback';
+  "http://localhost:3000/api/atom/auth/msteams/callback";
 const MSTEAMS_AUTHORITY =
-  process.env.MSTEAMS_AUTHORITY || 'https://login.microsoftonline.com/common'; // Or your tenant ID
+  process.env.MSTEAMS_AUTHORITY || "https://login.microsoftonline.com/common"; // Or your tenant ID
 
 // Define the scopes required for reading chats and channel messages
 const MSTEAMS_SCOPES = [
-  'Chat.Read',
-  'ChannelMessage.Read.All',
-  'User.Read',
-  'offline_access',
+  "Chat.Read",
+  "ChannelMessage.Read.All",
+  "User.Read",
+  "offline_access",
 ];
 
 supertokens.init(backendConfig());
@@ -51,28 +51,28 @@ const msalConfig: Configuration = {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   await superTokensNextWrapper(
     async (next) => verifySession()(req as any, res as any, next),
     req,
-    res
+    res,
   );
 
   const userId = req.session?.getUserId();
   if (!userId) {
-    logger.warn('[MSTeamsAuthInitiate] User not authenticated.');
-    return res.status(401).json({ message: 'Authentication required.' });
+    logger.warn("[MSTeamsAuthInitiate] User not authenticated.");
+    return res.status(401).json({ message: "Authentication required." });
   }
 
   if (
     !MSTEAMS_CLIENT_ID ||
-    MSTEAMS_CLIENT_ID === 'YOUR_MSTEAMS_APP_CLIENT_ID'
+    MSTEAMS_CLIENT_ID === "YOUR_MSTEAMS_APP_CLIENT_ID"
   ) {
-    logger.error('[MSTeamsAuthInitiate] MS Teams Client ID not configured.');
+    logger.error("[MSTeamsAuthInitiate] MS Teams Client ID not configured.");
     return res
       .status(500)
-      .json({ message: 'MS Teams OAuth configuration error on server.' });
+      .json({ message: "MS Teams OAuth configuration error on server." });
   }
 
   const pca = new PublicClientApplication(msalConfig); // For auth code flow, server-side usually uses ConfidentialClientApplication
@@ -88,7 +88,7 @@ export default async function handler(
     scopes: MSTEAMS_SCOPES,
     redirectUri: MSTEAMS_REDIRECT_URI,
     state: userId, // Using userId as state to verify in callback & link tokens
-    prompt: 'select_account', // Can be 'login', 'consent', 'select_account', or 'none'
+    prompt: "select_account", // Can be 'login', 'consent', 'select_account', or 'none'
   };
 
   try {
@@ -100,16 +100,16 @@ export default async function handler(
     const authUrl = await pca.getAuthCodeUrl(authCodeUrlParameters);
 
     logger.info(
-      `[MSTeamsAuthInitiate] Redirecting user ${userId} to MS Teams auth URL.`
+      `[MSTeamsAuthInitiate] Redirecting user ${userId} to MS Teams auth URL.`,
     );
     res.redirect(authUrl);
   } catch (error) {
     logger.error(
-      '[MSTeamsAuthInitiate] Error generating MS Teams auth URL:',
-      error
+      "[MSTeamsAuthInitiate] Error generating MS Teams auth URL:",
+      error,
     );
     res
       .status(500)
-      .json({ message: 'Failed to initiate MS Teams authentication.' });
+      .json({ message: "Failed to initiate MS Teams authentication." });
   }
 }

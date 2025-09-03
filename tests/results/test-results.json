@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "/app/playwright.config.ts",
-    "rootDir": "/app/tests/e2e",
+    "configFile": "/Users/rushiparikh/projects/atom/atom/playwright.config.ts",
+    "rootDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -18,7 +18,7 @@
         null
       ],
       [
-        "/app/node_modules/allure-playwright/dist/index.js",
+        "/Users/rushiparikh/projects/atom/atom/node_modules/allure-playwright/dist/index.js",
         null
       ],
       [
@@ -35,13 +35,13 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "/app/test-results",
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/app/tests/e2e",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -49,13 +49,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/app/test-results",
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "firefox",
         "name": "firefox",
-        "testDir": "/app/tests/e2e",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -63,13 +63,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/app/test-results",
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "webkit",
         "name": "webkit",
-        "testDir": "/app/tests/e2e",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -77,13 +77,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/app/test-results",
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "mobile-chrome",
         "name": "mobile-chrome",
-        "testDir": "/app/tests/e2e",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -91,13 +91,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/app/test-results",
+        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "mobile-safari",
         "name": "mobile-safari",
-        "testDir": "/app/tests/e2e",
+        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -108,7 +108,7 @@
     "shard": null,
     "updateSnapshots": "missing",
     "updateSourceMethod": "patch",
-    "version": "1.54.2",
+    "version": "1.55.0",
     "workers": 2,
     "webServer": {
       "command": "cd atomic-docker/app_build_docker && npm run dev",
@@ -119,13 +119,13 @@
   "suites": [],
   "errors": [
     {
-      "message": "Error: Timed out waiting 60000ms from config.webServer.",
-      "stack": "Error: Timed out waiting 60000ms from config.webServer."
+      "message": "Error: Process from config.webServer exited early.",
+      "stack": "Error: Process from config.webServer exited early."
     }
   ],
   "stats": {
-    "startTime": "2025-08-21T11:11:06.296Z",
-    "duration": 60384.332,
+    "startTime": "2025-08-31T04:04:18.854Z",
+    "duration": 7944.563,
     "expected": 0,
     "skipped": 0,
     "unexpected": 0,

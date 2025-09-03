@@ -4,12 +4,10 @@ app = "atomic-calendar"
 primary_region = "iad"
 
 [build]
-  dockerfile_app = "atomic-docker/app_build_docker/Dockerfile.fly"
-  dockerfile_functions = "atomic-docker/functions_build_docker/Dockerfile.fly"
-  dockerfile_handshake = "atomic-docker/handshake_build_docker/Dockerfile.fly"
-  dockerfile_oauth = "atomic-docker/oauth_build_docker/Dockerfile.fly"
-  dockerfile_optaplanner = "atomic-docker/optaplanner_build_docker/Dockerfile.fly"
-  dockerfile_python_agent = "atomic-docker/python_agent_build_docker/Dockerfile.fly"
+  dockerfile_app = "frontend-nextjs/app_build_docker/Dockerfile.fly"
+  dockerfile_functions = "frontend-nextjs/project/functions/Dockerfile.fly"
+  dockerfile_optaplanner = "frontend-nextjs/optaplanner_build_docker/Dockerfile.fly"
+  dockerfile_python_agent = "backend/python_agent_build_docker/Dockerfile.fly"
 
 [http_service]
   internal_port = 3000
@@ -33,33 +31,7 @@ primary_region = "iad"
     timeout = "2s"
     grace_period = "1s"
 
-[[services]]
-  internal_port = 8080
-  processes = ["handshake"]
 
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-    force_https = true
-
-  [[services.tcp_checks]]
-    interval = "15s"
-    timeout = "2s"
-    grace_period = "1s"
-
-[[services]]
-  internal_port = 8080
-  processes = ["oauth"]
-
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-    force_https = true
-
-  [[services.tcp_checks]]
-    interval = "15s"
-    timeout = "2s"
-    grace_period = "1s"
 
 [[services]]
   internal_port = 8081
@@ -79,9 +51,7 @@ primary_region = "iad"
   processes = ["python-agent"]
 
 [processes]
-  app = "sh -c 'cd atomic-docker/app_build_docker && exec node server.js'"
-  functions = "sh -c 'cd atomic-docker/functions_build_docker && exec /app/start.sh'"
-  handshake = "sh -c 'cd atomic-docker/handshake_build_docker && exec node server.js'"
-  oauth = "sh -c 'cd atomic-docker/oauth_build_docker && exec node server.js'"
-  optaplanner = "sh -c 'cd atomic-docker/optaplanner_build_docker/kotlin-quarkus && exec /deployments/run-java.sh'"
-  python-agent = "sh -c 'cd atomic-docker/python_agent_build_docker && exec tail -f /dev/null'"
+  app = "sh -c 'cd frontend-nextjs/app_build_docker && exec node server.js'"
+  functions = "sh -c 'cd frontend-nextjs/project/functions && exec /app/start.sh'"
+  optaplanner = "sh -c 'cd frontend-nextjs/optaplanner_build_docker/kotlin-quarkus && exec /deployments/run-java.sh'"
+  python-agent = "sh -c 'cd backend/python_agent_build_docker && exec tail -f /dev/null'"
