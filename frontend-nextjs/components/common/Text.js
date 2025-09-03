@@ -1,0 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const restyle_1 = require("@shopify/restyle");
+const Text = (0, restyle_1.createText)();
+exports.default = Text;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVGV4dC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIlRleHQudHN4Il0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7O0FBQUEsOENBRzBCO0FBSTFCLE1BQU0sSUFBSSxHQUFHLElBQUEsb0JBQVUsR0FBUyxDQUFDO0FBRWpDLGtCQUFlLElBQUksQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7XG4gIGNyZWF0ZVJlc3R5bGVDb21wb25lbnQsXG4gIGNyZWF0ZVRleHQsIGNyZWF0ZVZhcmlhbnQsIFZhcmlhbnRQcm9wcyxcbn0gZnJvbSAnQHNob3BpZnkvcmVzdHlsZSc7XG5pbXBvcnQge1RoZW1lfSBmcm9tICdAbGliL3RoZW1lL3RoZW1lJztcblxuXG5jb25zdCBUZXh0ID0gY3JlYXRlVGV4dDxUaGVtZT4oKTtcblxuZXhwb3J0IGRlZmF1bHQgVGV4dDtcbiJdfQ==
