@@ -1,39 +1,43 @@
 import { EnrichedIntent } from './nlu_types';
-import { Pool } from 'pg';
 
-async function getComponent(db: Pool, service: string, name: string, type: 'trigger' | 'action') {
-    const result = await db.query(
-      'SELECT * FROM workflow_components WHERE service = $1 AND name = $2 AND type = $3',
-      [service, name, type]
-    );
-    if (result.rows.length === 0) {
-      return null;
-    }
-    const component = result.rows[0];
-
-    const schemaResult = await db.query(
-      'SELECT * FROM workflow_component_schemas WHERE component_id = $1',
-      [component.id]
-    );
-
-    component.schemas = {};
-    for (const row of schemaResult.rows) {
-        component.schemas[row.type] = row.schema;
-    }
-
-    return component;
+// A mapping from the service/action names from the NLU to the node types in React Flow.
+const NODE_TYPE_MAP = {
+  gmail: {
+    new_email: 'gmailTrigger',
+  },
+  ai: {
+    extract_action_items: 'aiTask',
+  },
+  notion: {
+    create_task: 'notionAction',
+  },
+  asana: {
+    create_task: 'asanaCreateTask',
+  },
+  trello: {
+    create_card: 'trelloCreateCard',
+  },
+  slack: {
+    send_message: 'slackSendMessage',
+  },
+  email: {
+    send_email: 'sendEmail',
+  },
+  reminder: {
+    create_reminder: 'reminder',
+  },
+  google_calendar: {
+    create_event: 'googleCalendarCreateEvent',
+  },
+  utils: {
+    flatten: 'flatten',
+    delay: 'delay',
+    filter: 'llmFilter',
   }
+};
 
 export class WorkflowGenerator {
-    private db: Pool;
-
-    constructor() {
-        this.db = new Pool({
-            connectionString: process.env.HASURA_GRAPHQL_DATABASE_URL,
-        });
-    }
-
-  public async generate(intent: EnrichedIntent): Promise<object | null> {
+  public generate(intent: EnrichedIntent): object | null {
     const { trigger, actions } = intent.extractedParameters as any;
 
     if (!trigger || !actions) {
@@ -47,48 +51,37 @@ export class WorkflowGenerator {
     let yPos = 50;
 
     // Create trigger node
-    const triggerComponent = await getComponent(this.db, trigger.service, trigger.event, 'trigger');
-    if (!triggerComponent) {
+    const triggerNodeType = NODE_TYPE_MAP[trigger.service]?.[trigger.event];
+    if (!triggerNodeType) {
       console.error(`Unknown trigger: ${trigger.service}.${trigger.event}`);
       return null;
     }
-
     const triggerNode = {
-        id: '1',
-        type: 'genericNode', // Use the new generic node
-        position: { x: 250, y: yPos },
-        data: {
-          name: triggerComponent.name,
-          service: triggerComponent.service,
-          description: triggerComponent.description,
-          inputSchema: triggerComponent.schemas.input,
-          values: trigger.parameters || {},
-        },
-      };
-      nodes.push(triggerNode);
-      lastNodeId = triggerNode.id;
-      yPos += 250;
-
+      id: '1',
+      type: triggerNodeType,
+      position: { x: 250, y: yPos },
+      data: { label: `${trigger.service} - ${trigger.event}` },
+    };
+    nodes.push(triggerNode);
+    lastNodeId = triggerNode.id;
+    yPos += 150;
 
     // Create action nodes
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i];
-      const actionComponent = await getComponent(this.db, action.service, action.action, 'action');
-      if (!actionComponent) {
+      const actionNodeType = NODE_TYPE_MAP[action.service]?.[action.action];
+      if (!actionNodeType) {
         console.error(`Unknown action: ${action.service}.${action.action}`);
         continue;
       }
 
       const actionNode = {
         id: `${i + 2}`,
-        type: 'genericNode',
+        type: actionNodeType,
         position: { x: 250, y: yPos },
         data: {
-            name: actionComponent.name,
-            service: actionComponent.service,
-            description: actionComponent.description,
-            inputSchema: actionComponent.schemas.input,
-            values: action.parameters || {},
+          label: `${action.service} - ${action.action}`,
+          ...action.parameters,
         },
       };
       nodes.push(actionNode);
@@ -101,7 +94,7 @@ export class WorkflowGenerator {
       edges.push(edge);
 
       lastNodeId = actionNode.id;
-      yPos += 250;
+      yPos += 150;
     }
 
     return { nodes, edges };
