@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # Local PostgreSQL for development
+  postgres-local:
+    image: postgres:15-alpine
+    container_name: atom-postgres-local
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-atom_local}
+      POSTGRES_USER: ${POSTGRES_USER:-atom_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
++      - ./init-test-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
++    profiles:
++      - local
++    networks:
++      - atom-local-net
++    healthcheck:
++      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atom_user} -d ${POSTGRES_DB:-atom_local}"]
++      interval: 5s
++      timeout: 5s
++      retries: 5
++    labels:
++      - "atom.environment=local"
++      - "atom.service=database"
+
++  # Local Redis for caching
++  redis-local:
++    image: redis:7-alpine
++    container_name: atom-redis-local
++    ports:
++      - "${REDIS_PORT:-6379}:6379"
++    volumes:
++      - redis_local_data:/data
++    profiles:
++      - local
++    networks:
++      - atom-local-net
++    healthcheck:
++      test: ["CMD", "redis-cli", "ping"]
++      interval: 10s
++      timeout: 5s
++      retries: 3
++    labels:
++      - "atom.environment=local"
++      - "atom.service=cache"
+
++  # Development server with hot reload
++  app-dev:
++    build:
++      context: .
++      dockerfile: Dockerfile.dev
++    container_name: atom-app-dev
++    ports:
++      - "${PORT:-3000}:3000"
++    environment:
++      NODE_ENV: development
++      POSTGRES_HOST: postgres-local
++      POSTGRES_PORT: 5432
++      POSTGRES_DB: ${POSTGRES_DB:-atom_local}
++      POSTGRES_USER: ${POSTGRES_USER:-atom_user}
++      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
++      DATABASE_URL: postgresql://${POSTGRES_USER:-atom_user}:${POSTGRES_PASSWORD:-local_password}@postgres-local:5432/${POSTGRES_DB:-atom_local}
++      REDIS_URL: redis://redis-local:6379
++    volumes:
++      - .:/app
++      - /app/node_modules
++      - /app/.next
++    depends_on:
++      postgres-local:
++        condition: service_healthy
++      redis-local:
++        condition: service_healthy
++    profiles:
++      - dev
++      - local
++    networks:
++      - atom-local-net
++    labels:
++      - "atom.environment=local"
++      - "atom.service=app"
+
++  # Production server (for local testing)
++  app-prod:
++    build:
++      context: .
++      dockerfile: Dockerfile
++    container_name: atom-app-prod
++    ports:
++      - "${PORT:-3000}:3000"
++    environment:
++      NODE_ENV: production
++      POSTGRES_HOST: postgres-local
++      POSTGRES_PORT: 5432
++      POSTGRES_DB: ${POSTGRES_DB:-atom_local}
++      POSTGRES_USER: ${POSTGRES_USER:-atom_user}
++      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_password}
++      DATABASE_URL: postgresql://${POSTGRES_USER:-atom_user}:${POSTGRES_PASSWORD:-local_password}@postgres-local:5432/${POSTGRES_DB:-atom_local}
++    depends_on:
++      postgres-local:
++        condition: service_healthy
++    profiles:
++      - prod
++    networks:
++      - atom-local-net
++    labels:
++      - "atom.environment=local"
++      - "atom.service=app"
+
++  # Prisma studio for database management
++  prisma-studio:
++    image: node:18-alpine
++    container_name: atom-prisma-studio
++    working_dir: /app
++    command: sh -c "npx prisma studio --host 0.0.0.0 --port 5555"
++    ports:
++      - "5555:5555"
++    environment:
++      DATABASE_URL: postgresql://${POSTGRES_USER:-atom_user}:${POSTGRES_PASSWORD:-local_password}@postgres-local:5432/${POSTGRES_DB:-atom_local}
++    volumes:
++      - .:/app
++    depends_on:
++      postgres-local:
++        condition: service_healthy
++    profiles:
++      - studio
++    networks:
++      - atom-local-net
++    labels:
++      - "atom.environment=local"
++      - "atom.service=tool"
++
++volumes:
++  postgres_local_data:
++  redis_local_data:
++
++networks:
++  atom-local-net:
++    driver: bridge
