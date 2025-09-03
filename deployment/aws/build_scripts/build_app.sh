@@ -2,7 +2,7 @@
 set -e
 SERVICE_NAME="app"
 IMAGE_NAME="atomic-${SERVICE_NAME}"
-CONTEXT_PATH="../../atomic-docker/app_build_docker"
+CONTEXT_PATH="../../frontend-nextjs/app_build_docker"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 BUILD_CONTEXT="${SCRIPT_DIR}/${CONTEXT_PATH}"

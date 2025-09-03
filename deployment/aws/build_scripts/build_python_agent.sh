@@ -4,7 +4,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 LOCAL_IMAGE_NAME="atomic-python-agent" # Standardized local image name
 IMAGE_TAG="latest"
 # Path to the Dockerfile directory, relative to this script's location (deployment/aws/build_scripts/)
-DOCKERFILE_DIR="../../atomic-docker/python_agent_build_docker"
+DOCKERFILE_DIR="../../backend/python_agent_build_docker"
 
 echo "Building local Docker image: $LOCAL_IMAGE_NAME:$IMAGE_TAG"
 

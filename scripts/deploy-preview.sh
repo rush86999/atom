@@ -50,7 +50,7 @@ fi
 
 # Build the application
 log "Building ATOM web application..."
-cd atomic-docker/app_build_docker
+cd frontend-nextjs/app_build_docker
 npm ci --silent
 npm run build
 

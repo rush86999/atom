@@ -9,7 +9,7 @@ set -euo pipefail
 VERSION=${1:-$(date +%Y.%m.%d)}
 BUILD_DIR="dist/atom-web-dev-studio-$VERSION"
 DESKTOP_DIR="desktop/tauri"
-NEXTJS_DIR="atomic-docker/app_build_docker"
+NEXTJS_DIR="frontend-nextjs/app_build_docker"
 
 echo "🚀 Building ATOM AI Web Development Studio v$VERSION"
 echo "📦 This creates user-ready distribution (zero local setup required)"

@@ -99,7 +99,7 @@ EOF
 init_nextjs_app() {
     echo "⚛️ Setting up Next.js project..."
 
-    cd atomic-docker/app_build_docker
+    cd frontend-nextjs/app_build_docker
 
     # Install dependencies
     npm ci

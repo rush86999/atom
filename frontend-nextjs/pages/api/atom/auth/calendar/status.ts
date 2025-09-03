@@ -1,22 +1,19 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { superTokensNextWrapper } from 'supertokens-node/nextjs';
-import { verifySession } from 'supertokens-node/recipe/session/framework/express';
-import supertokens from 'supertokens-node';
-import { backendConfig } from '../../../../../config/backendConfig'; // Adjusted path
-import {
-  HASURA_ADMIN_SECRET,
-  HASURA_GRAPHQL_URL,
-} from '../../../../../../project/functions/atom-agent/_libs/constants';
-import { executeGraphQLQuery } from '../../../../../../project/functions/atom-agent/_libs/graphqlClient';
-import { google } from 'googleapis';
+import type { NextApiRequest, NextApiResponse } from "next";
+import { superTokensNextWrapper } from "supertokens-node/nextjs";
+import { verifySession } from "supertokens-node/recipe/session/framework/express";
+import supertokens from "supertokens-node";
+import { backendConfig } from "../../../../../config/backendConfig"; // Adjusted path
+import { postgraphileAdminSecret, postgraphileGraphUrl } from "@lib/constants";
+import { executeGraphQLQuery } from "@lib/graphqlClient";
+import { google } from "googleapis";
 import {
   ATOM_GOOGLE_CALENDAR_CLIENT_ID,
   ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
-} from '../../../../../../project/functions/atom-agent/_libs/constants';
+} from "@lib/constants";
 
 supertokens.init(backendConfig());
 
-const GOOGLE_CALENDAR_SERVICE_NAME = 'google_calendar';
+const GOOGLE_CALENDAR_SERVICE_NAME = "google_calendar";
 
 interface UserTokenRecord {
   access_token: string;
@@ -28,11 +25,11 @@ interface UserTokenRecord {
 // Basic check if token seems present and not obviously expired
 // For a more robust check, an actual API call to Google is better.
 async function checkTokenValidity(
-  userId: string
+  userId: string,
 ): Promise<{ isConnected: boolean; email?: string; error?: string }> {
-  if (!HASURA_GRAPHQL_URL || !HASURA_ADMIN_SECRET) {
-    console.error('STATUS: GraphQL client is not configured.');
-    return { isConnected: false, error: 'config_error' };
+  if (!postgraphileGraphUrl || !postgraphileAdminSecret) {
+    console.error("STATUS: GraphQL client is not configured.");
+    return { isConnected: false, error: "config_error" };
   }
 
   const query = `
@@ -49,7 +46,7 @@ async function checkTokenValidity(
         }
     `;
   const variables = { userId, serviceName: GOOGLE_CALENDAR_SERVICE_NAME };
-  const operationName = 'GetUserTokenForStatusCheck';
+  const operationName = "GetUserTokenForStatusCheck";
 
   try {
     const response = await executeGraphQLQuery<{
@@ -78,12 +75,12 @@ async function checkTokenValidity(
         // For status, if there's a refresh token, we can still consider it "connected" as it's refreshable.
         if (!tokenRecord.refresh_token) {
           console.log(
-            `STATUS: Access token for user ${userId} is expired and no refresh token found.`
+            `STATUS: Access token for user ${userId} is expired and no refresh token found.`,
           );
-          return { isConnected: false, error: 'token_expired_no_refresh' };
+          return { isConnected: false, error: "token_expired_no_refresh" };
         }
         console.log(
-          `STATUS: Access token for user ${userId} is near expiry/expired, but refresh token exists.`
+          `STATUS: Access token for user ${userId} is near expiry/expired, but refresh token exists.`,
         );
       }
     }
@@ -95,14 +92,14 @@ async function checkTokenValidity(
         !ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
       ) {
         console.error(
-          'STATUS: Google OAuth client credentials not configured for API test call.'
+          "STATUS: Google OAuth client credentials not configured for API test call.",
         );
         // Fallback: if token exists in DB, assume connected for now, but log this issue.
         return { isConnected: true, email: undefined }; // Cannot fetch email without API call
       }
       const oauth2Client = new google.auth.OAuth2(
         ATOM_GOOGLE_CALENDAR_CLIENT_ID,
-        ATOM_GOOGLE_CALENDAR_CLIENT_SECRET
+        ATOM_GOOGLE_CALENDAR_CLIENT_SECRET,
       );
       oauth2Client.setCredentials({
         access_token: tokenRecord.access_token,
@@ -110,8 +107,8 @@ async function checkTokenValidity(
       });
 
       try {
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-        await calendar.calendarList.get({ calendarId: 'primary' }); // A simple, lightweight call
+        const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+        await calendar.calendarList.get({ calendarId: "primary" }); // A simple, lightweight call
 
         // Try to get user's email from People API if scope allows (optional)
         // Requires 'https://www.googleapis.com/auth/userinfo.email' or similar scope
@@ -123,22 +120,22 @@ async function checkTokenValidity(
         // const userEmail = person.emailAddresses?.[0]?.value;
         // return { isConnected: true, email: userEmail || undefined };
         console.log(
-          `STATUS: Token for user ${userId} is valid (tested with calendarList.get).`
+          `STATUS: Token for user ${userId} is valid (tested with calendarList.get).`,
         );
         return { isConnected: true }; // Email fetching can be added if needed and scopes permit
       } catch (apiError: any) {
         console.warn(
-          `STATUS: Google API call failed for user ${userId} with stored token. Error: ${apiError.message}`
+          `STATUS: Google API call failed for user ${userId} with stored token. Error: ${apiError.message}`,
         );
         // If 'invalid_grant' or similar, token is bad.
         if (
-          apiError.response?.data?.error === 'invalid_grant' ||
+          apiError.response?.data?.error === "invalid_grant" ||
           apiError.code === 401
         ) {
-          return { isConnected: false, error: 'token_invalid_or_expired' };
+          return { isConnected: false, error: "token_invalid_or_expired" };
         }
         // Other errors might be temporary, but for status, safer to say not connected if API fails.
-        return { isConnected: false, error: 'api_call_failed' };
+        return { isConnected: false, error: "api_call_failed" };
       }
     }
 
@@ -146,24 +143,24 @@ async function checkTokenValidity(
   } catch (error: any) {
     console.error(
       `STATUS: Exception during token status check for userId ${userId}:`,
-      error
+      error,
     );
-    return { isConnected: false, error: 'status_check_exception' };
+    return { isConnected: false, error: "status_check_exception" };
   }
 }
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   await superTokensNextWrapper(
     async (next) => verifySession()(req as any, res as any, next),
     req,
-    res
+    res,
   );
 
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', ['GET']);
+  if (req.method !== "GET") {
+    res.setHeader("Allow", ["GET"]);
     return res
       .status(405)
       .json({ message: `Method ${req.method} Not Allowed` });
@@ -173,25 +170,25 @@ export default async function handler(
   const userId = session?.getUserId();
 
   if (!userId) {
-    console.error('STATUS: User not authenticated for status check.');
+    console.error("STATUS: User not authenticated for status check.");
     return res
       .status(401)
-      .json({ isConnected: false, error: 'User not authenticated.' });
+      .json({ isConnected: false, error: "User not authenticated." });
   }
 
   try {
     const status = await checkTokenValidity(userId);
     console.log(
-      `STATUS: Google Calendar connection status for user ${userId}: ${status.isConnected}`
+      `STATUS: Google Calendar connection status for user ${userId}: ${status.isConnected}`,
     );
     return res.status(200).json(status);
   } catch (error: any) {
     console.error(
       `STATUS: Error getting Google Calendar connection status for user ${userId}:`,
-      error
+      error,
     );
     return res
       .status(500)
-      .json({ isConnected: false, error: 'Failed to get connection status.' });
+      .json({ isConnected: false, error: "Failed to get connection status." });
   }
 }

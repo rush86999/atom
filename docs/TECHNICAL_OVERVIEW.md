@@ -10,10 +10,10 @@
                    │
 ┌──────────────────┴──────────────────────────┐
 │        Autonomous Orchestrator              │
-│   atomic-docker/project/functions/          │
+│   frontend-nextjs/project/functions/          │
 │   ├── atom-agent/ (70+ skills)              │
 │   ├── autopilot/ (daily scheduler)          │
-└── _tests/ (complete test coverage)      │
+└── _tests/ (complete test coverage)          │
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────┴──────────────────────────┐
@@ -33,9 +33,9 @@
 ## Key Component Files
 
 ### Autonomous Core
-- **Handler**: `atomic-docker/project/functions/atom-agent/handler.ts`
-- **Skill Orchestrator**: `atomic-docker/project/functions/atom-agent/skills/taskOrchestrator.ts`
-- **Autopilot Engine**: `atomic-docker/project/functions/autopilot/`
+- **Handler**: `frontend-nextjs/project/functions/atom-agent/handler.ts`
+- **Skill Orchestrator**: `frontend-nextjs/project/functions/atom-agent/skills/taskOrchestrator.ts`
+- **Autopilot Engine**: `frontend-nextjs/project/functions/autopilot/`
 
 ### Individual Skill Files
 ```
@@ -54,19 +54,19 @@
 ### Development Environment
 ```bash
 # Clone and setup
-cd atomic-docker/project/
+cd frontend-nextjs/project/
 npm install
 npm run dev              # Frontend + backend
 npm run test:watch      # Continuous testing
 
 # Agent skill testing
-npm test atomic-docker/project/functions/atom-agent/skills/
+npm test frontend-nextjs/project/functions/atom-agent/skills/
 ```
 
 ### Production Deployment
 ```bash
 # Docker deployment
-cd atomic-docker/project/
+cd frontend-nextjs/project/
 docker-compose up -d    # Complete autonomous system
 
 # AWS deployment with CDK
@@ -94,7 +94,7 @@ SHOPIFY_ACCESS_TOKEN=...     # E-commerce automation
 
 ### Quick Verification Test
 ```bash
-npm test atomic-docker/project/functions/atom-agent/skills/tests/
+npm test frontend-nextjs/project/functions/atom-agent/skills/tests/
 
 # Individual skill testing
 npm test calendar.test.js
@@ -156,7 +156,7 @@ skills.register('newSkill', newSkill);
 ```
 
 ### Autopilot Configuration
-- **Location**: `atomic-docker/project/functions/autopilot/`
+- **Location**: `frontend-nextjs/project/functions/autopilot/`
 - **Training**: Define templates in `/templates/`
 - **Scheduling**: Configure via environment variables
 - **Monitoring**: View via `/admin/dashboard`

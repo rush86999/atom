@@ -1,22 +1,20 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from "next";
 import {
   handleMessage,
   HandleMessageResponse,
-} from '../../../../project/functions/atom-agent/handler'; // Adjust path as necessary
-import pino from 'pino';
-import { trace, context as otelContext } from '@opentelemetry/api';
+} from "../../../project/functions/atom-agent/src/handler"; // Adjust path as necessary
+import pino from "pino";
+import { trace, context as otelContext } from "@opentelemetry/api";
 
-// Import custom metrics
-import {
-  apiRequestCounter,
-  apiRequestLatencyHistogram,
-} from '../../../instrumentation.node'; // Adjust path as needed relative to pages/api/atom/message.ts
+// Custom metrics (instrumentation.node file not found - metrics disabled)
+const apiRequestCounter = { add: () => {} };
+const apiRequestLatencyHistogram = { record: () => {} };
 
-const serviceName = process.env.OTEL_SERVICE_NAME || 'app-service';
-const serviceVersion = process.env.OTEL_SERVICE_VERSION || '1.0.0';
+const serviceName = process.env.OTEL_SERVICE_NAME || "app-service";
+const serviceVersion = process.env.OTEL_SERVICE_VERSION || "1.0.0";
 
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   formatters: {
     level: (label) => ({ level: label.toUpperCase() }),
     log: (object) => {
@@ -42,17 +40,17 @@ type Data = HandleMessageResponse;
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse<Data>,
 ) {
-  const operation_name = 'POST /api/atom/message'; // For logging and metrics
+  const operation_name = "POST /api/atom/message"; // For logging and metrics
   const startTime = Date.now();
 
   // Attach a response.finish listener to log response and record metrics
-  res.on('finish', () => {
+  res.on("finish", () => {
     const durationMs = Date.now() - startTime;
     const attributes = {
       http_method: req.method,
-      http_route: '/api/atom/message', // Or a more parameterized route if applicable
+      http_route: "/api/atom/message", // Or a more parameterized route if applicable
       status_code: res.statusCode,
     };
     apiRequestCounter.add(1, attributes);
@@ -65,11 +63,11 @@ export default async function handler(
         duration_ms: durationMs,
         success: res.statusCode >= 200 && res.statusCode < 300,
       },
-      `Finished ${operation_name}`
+      `Finished ${operation_name}`,
     );
   });
 
-  if (req.method === 'POST') {
+  if (req.method === "POST") {
     const { message, userId, conversationId, intentName, entities } = req.body; // Assuming these might be passed
 
     logger.info(
@@ -79,17 +77,17 @@ export default async function handler(
         user_id: userId,
         conversation_id: conversationId,
       },
-      `Received request for ${operation_name}`
+      `Received request for ${operation_name}`,
     );
 
     if (!message) {
       logger.warn(
-        { operation_name, error_code: 'MISSING_MESSAGE', success: false },
-        'Missing message in request body'
+        { operation_name, error_code: "MISSING_MESSAGE", success: false },
+        "Missing message in request body",
       );
       return res
         .status(400)
-        .json({ text: '', error: 'Missing message in request body' });
+        .json({ text: "", error: "Missing message in request body" });
     }
 
     try {
@@ -115,19 +113,19 @@ export default async function handler(
 
       if (!userId) {
         logger.warn(
-          { operation_name, error_code: 'MISSING_USERID', success: false },
-          'Missing userId in request body for handleMessage'
+          { operation_name, error_code: "MISSING_USERID", success: false },
+          "Missing userId in request body for handleMessage",
         );
         return res
           .status(400)
-          .json({ text: '', error: 'Missing userId in request body' });
+          .json({ text: "", error: "Missing userId in request body" });
       }
 
       const atomResponse: HandleMessageResponse = await handleMessage(
-        'text', // interfaceType
+        "text", // interfaceType
         message as string,
         userId as string, // Assuming userId is passed in body
-        options // Contains conversationId, intentName, entities if passed
+        options, // Contains conversationId, intentName, entities if passed
       );
 
       // Note: res.on('finish') will log the final status and duration.
@@ -142,22 +140,20 @@ export default async function handler(
           exception_type: error.name,
           success: false,
         },
-        'Error calling Atom agent handleMessage'
+        "Error calling Atom agent handleMessage",
       );
       // res.on('finish') will log the 500 status.
-      return res
-        .status(500)
-        .json({
-          text: '',
-          error: error.message || 'Internal Server Error from Atom agent',
-        });
+      return res.status(500).json({
+        text: "",
+        error: error.message || "Internal Server Error from Atom agent",
+      });
     }
   } else {
     logger.warn(
       { operation_name, http_method: req.method, success: false },
-      `Method ${req.method} Not Allowed`
+      `Method ${req.method} Not Allowed`,
     );
-    res.setHeader('Allow', ['POST']);
+    res.setHeader("Allow", ["POST"]);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

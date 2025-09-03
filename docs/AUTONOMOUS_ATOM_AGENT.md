@@ -7,12 +7,12 @@ Atom is not just a basic AI assistant—it's a sophisticated autonomous multi-ag
 The Atom autonomous system consists of three interconnected layers:
 
 ### 1. **Core Atom Agent Engine**
-- **Path**: `atomic-docker/project/functions/atom-agent/`
+- **Path**: `frontend-nextjs/project/functions/atom-agent/`
 - **Function**: Advanced orchestration layer that processes natural language queries into executable commands
 - **Capabilities**: 70+ integrated business skills across 12+ major platforms
 
 ### 2. **Autopilot Scheduler**
-- **Path**: `atomic-docker/project/functions/autopilot/`
+- **Path**: `frontend-nextjs/project/functions/autopilot/`
 - **Function**: Proactive daily management system that learns patterns and implements optimizations
 - **Trigger**: Runs automatically daily without user intervention
 

@@ -1,16 +1,16 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'supertokens-node/nextjs';
-import { SessionContainer } from 'supertokens-node/recipe/session';
-import { queryNotionTasks } from '../../../../project/functions/atom-agent/skills/notionAndResearchSkills';
-import { getRepoCommitActivity } from '../../../../project/functions/atom-agent/skills/githubSkills';
-import { searchMySlackMessages } from '../../../../project/functions/atom-agent/skills/slackSkills';
-import { getMeetingLoad } from '../../../../project/functions/atom-agent/skills/calendarSkills';
-import { analyzeSentiment } from '../../../../desktop/tauri/src/lib/sentiment';
-import { NotionTask } from '../../../../project/functions/types';
+import { NextApiRequest, NextApiResponse } from "next";
+import { getSession } from "supertokens-node/nextjs";
+import { SessionContainer } from "supertokens-node/recipe/session";
+import { queryNotionTasks } from "../../../../project/functions/atom-agent/skills/notionAndResearchSkills";
+import { getRepoCommitActivity } from "../../../../project/functions/atom-agent/skills/githubSkills";
+import { searchMySlackMessages } from "../../../../project/functions/atom-agent/skills/slackSkills";
+import { getMeetingLoad } from "../../../../project/functions/atom-agent/skills/calendarSkills";
+import { analyzeSentiment } from "../../../../src/utils/sentiment";
+import { NotionTask } from "../../../../project/functions/types";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   let session: SessionContainer;
   try {
@@ -18,7 +18,7 @@ export default async function handler(
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   const userId = session.getUserId();
@@ -39,7 +39,7 @@ export default async function handler(
   ) {
     return res
       .status(400)
-      .json({ message: 'Notion, GitHub, and Slack credentials are required' });
+      .json({ message: "Notion, GitHub, and Slack credentials are required" });
   }
 
   try {
@@ -47,14 +47,14 @@ export default async function handler(
     const tasksResponse = await queryNotionTasks(
       userId,
       { database_id: notionDatabaseId },
-      notionApiKey
+      notionApiKey,
     );
     let notionScore = 0;
     if (tasksResponse.ok && tasksResponse.data) {
       const tasks: NotionTask[] = tasksResponse.data.tasks;
       if (tasks.length > 0) {
         const completedTasks = tasks.filter(
-          (task) => task.status === 'Done'
+          (task) => task.status === "Done",
         ).length;
         notionScore = Math.round((completedTasks / tasks.length) * 100);
       } else {
@@ -66,12 +66,12 @@ export default async function handler(
     const commitActivity = await getRepoCommitActivity(
       userId,
       githubOwner,
-      githubRepo
+      githubRepo,
     );
     const pullRequests = await getRepoPullRequestActivity(
       userId,
       githubOwner,
-      githubRepo
+      githubRepo,
     );
     let githubScore = 0;
     if (commitActivity && pullRequests) {
@@ -79,7 +79,7 @@ export default async function handler(
         commitActivity.slice(-10).filter((week: any) => week.total > 0).length *
         5;
       const openPRs = pullRequests.filter(
-        (pr: any) => pr.state === 'open'
+        (pr: any) => pr.state === "open",
       ).length;
       const prScore = Math.max(0, 50 - openPRs * 10);
       githubScore = commitScore + prScore;
@@ -89,13 +89,13 @@ export default async function handler(
     const messages = await searchMySlackMessages(
       userId,
       `in:${slackChannelId}`,
-      100
+      100,
     );
     let sentimentScore = 50; // Default to neutral
     if (messages.length > 0) {
       const totalScore = messages.reduce(
         (acc, msg) => acc + analyzeSentiment(msg.text),
-        0
+        0,
       );
       sentimentScore = Math.round((totalScore / messages.length) * 10 + 50);
     }
@@ -107,7 +107,7 @@ export default async function handler(
     const events = await getMeetingLoad(
       userId,
       timeMin.toISOString(),
-      timeMax.toISOString()
+      timeMax.toISOString(),
     );
     let meetingLoadScore = 100;
     if (events) {
@@ -122,14 +122,14 @@ export default async function handler(
 
     // Combine scores
     const score = Math.round(
-      (notionScore + githubScore + sentimentScore + meetingLoadScore) / 4
+      (notionScore + githubScore + sentimentScore + meetingLoadScore) / 4,
     );
 
     return res.status(200).json({ score });
   } catch (error) {
-    console.error('Error calculating project health score:', error);
+    console.error("Error calculating project health score:", error);
     return res
       .status(500)
-      .json({ message: 'Failed to calculate project health score' });
+      .json({ message: "Failed to calculate project health score" });
   }
 }

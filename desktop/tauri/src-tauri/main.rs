@@ -8,11 +8,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::process::{Child, Command};
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
 // --- Constants ---
 const SETTINGS_FILE: &str = "atom-settings.json";
 const DESKTOP_PROXY_URL: &str = "http://localhost:3000/api/agent/desktop-proxy"; // URL of the web app's backend
+const PYTHON_BACKEND_URL: &str = "http://localhost:8083"; // URL of the local Python backend
 
 // --- Structs ---
 #[derive(Serialize, Deserialize, Debug)]
@@ -113,6 +116,11 @@ fn encrypt(text: &str) -> String {
 
 fn decrypt(encrypted: &str) -> Result<String, String> {
     Ok(encrypted.to_string())
+}
+
+// --- Global State ---
+struct BackendState {
+    python_process: Mutex<Option<Child>>,
 }
 
 // --- Tauri Commands ---
@@ -223,6 +231,145 @@ async fn search_skills(_query: String) -> Result<Vec<SearchResult>, String> {
     ])
 }
 
+// --- Python Backend Integration ---
+#[tauri::command]
+async fn start_python_backend() -> Result<bool, String> {
+    let output = Command::new("python3")
+        .arg("src-tauri/python-backend/start_backend.py")
+        .arg("start")
+        .current_dir(".")
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    // Store the process in global state
+    if let Some(app_handle) = tauri::AppHandle::global() {
+        if let Some(state) = app_handle.try_state::<BackendState>() {
+            let mut process = state.python_process.lock().unwrap();
+            *process = Some(output);
+        }
+    }
+
+    // Wait a bit for the backend to start
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
+    // Check if backend is running
+    let client = reqwest::Client::new();
+    match client
+        .get(format!("{}/health", PYTHON_BACKEND_URL))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+    {
+        Ok(response) if response.status().is_success() => Ok(true),
+        _ => Err("Python backend failed to start".to_string()),
+    }
+}
+
+#[tauri::command]
+async fn stop_python_backend() -> Result<bool, String> {
+    if let Some(app_handle) = tauri::AppHandle::global() {
+        if let Some(state) = app_handle.try_state::<BackendState>() {
+            let mut process = state.python_process.lock().unwrap();
+            if let Some(mut child) = process.take() {
+                child.kill().map_err(|e| e.to_string())?;
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+#[tauri::command]
+async fn wake_word_start() -> Result<bool, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/api/wake-word/start", PYTHON_BACKEND_URL))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        Ok(true)
+    } else {
+        Err("Failed to start wake word detection".to_string())
+    }
+}
+
+#[tauri::command]
+async fn wake_word_stop() -> Result<bool, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/api/wake-word/stop", PYTHON_BACKEND_URL))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        Ok(true)
+    } else {
+        Err("Failed to stop wake word detection".to_string())
+    }
+}
+
+#[tauri::command]
+async fn wake_word_status() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(format!("{}/api/wake-word/status", PYTHON_BACKEND_URL))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get wake word status".to_string())
+    }
+}
+
+#[tauri::command]
+async fn transcribe_audio(audio_data: Vec<u8>) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/api/voice/transcribe", PYTHON_BACKEND_URL))
+        .json(&serde_json::json!({ "audio_data": audio_data }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to transcribe audio".to_string())
+    }
+}
+
+#[tauri::command]
+async fn search_meetings(query: String, user_id: String) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{}/api/search/meetings", PYTHON_BACKEND_URL))
+        .json(&serde_json::json!({ "query": query, "user_id": user_id }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to search meetings".to_string())
+    }
+}
+
 // --- Script Generation Endpoints ---
 #[tauri::command]
 fn generate_learning_plan(_notion_database_id: String) -> Result<String, String> {
@@ -231,13 +378,23 @@ fn generate_learning_plan(_notion_database_id: String) -> Result<String, String>
 
 fn main() {
     tauri::Builder::default()
+        .manage(BackendState {
+            python_process: Mutex::new(None),
+        })
         .invoke_handler(tauri::generate_handler![
             load_setting,
             save_setting,
             get_dashboard_data,
             handle_nlu_command,
             search_skills,
-            generate_learning_plan
+            generate_learning_plan,
+            start_python_backend,
+            stop_python_backend,
+            wake_word_start,
+            wake_word_stop,
+            wake_word_status,
+            transcribe_audio,
+            search_meetings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
