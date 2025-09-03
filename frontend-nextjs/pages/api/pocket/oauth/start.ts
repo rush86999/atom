@@ -1,9 +1,10 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import PocketAPI from 'pocket-api';
+import { NextApiRequest, NextApiResponse } from "next";
+// TODO: Pocket OAuth implementation pending dependencies
+// import PocketAPI from 'pocket-api';
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   const consumerKey = process.env.POCKET_CONSUMER_KEY;
   const redirectUri = process.env.POCKET_REDIRECT_URI;
@@ -11,7 +12,7 @@ export default async function handler(
   if (!consumerKey || !redirectUri) {
     return res
       .status(500)
-      .json({ message: 'Pocket environment variables not configured.' });
+      .json({ message: "Pocket environment variables not configured." });
   }
 
   const pocket = new PocketAPI({
@@ -29,9 +30,9 @@ export default async function handler(
 
     res.redirect(authorizationUrl);
   } catch (error) {
-    console.error('Error getting Pocket request token:', error);
+    console.error("Error getting Pocket request token:", error);
     return res
       .status(500)
-      .json({ message: 'Failed to start Pocket authentication' });
+      .json({ message: "Failed to start Pocket authentication" });
   }
 }

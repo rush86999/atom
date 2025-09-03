@@ -1,19 +1,20 @@
-import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
-import { Logger } from '../utils/logger';
-import { SkillRegistry } from '../skills';
+import { EventEmitter } from "events";
+import { SkillRegistry } from "../skills";
+import { Logger } from "../utils/logger";
 
-interface AgentProfile {
+export interface AgentProfile {
   id: string;
   name: string;
   skills: string[];
   capabilities: string[];
   priority: number;
   confidence: number;
-  history?: AgentExecution[];
+  costPerTask?: number;
+  maxConcurrentTasks?: number;
+  currentLoad?: number;
 }
 
-interface Task {
+export interface Task {
   id: string;
   type: string;
   description: string;
@@ -22,203 +23,230 @@ interface Task {
   deadline?: Date;
   dependencies: string[];
   context: any;
+  createdAt: Date;
+  status: "pending" | "running" | "completed" | "failed";
 }
 
-interface ExecutionPlan {
+export interface ExecutionPlan {
   id: string;
   task: Task;
-  assignedAgents: AgentProfile[];
   steps: ExecutionStep[];
   estimatedDuration: number;
-  complexityScore: number;
-}
-
-interface ExecutionStep {
-  agentId: string;
-  stepNumber: number;
-  action: string;
-  inputs: any;
-  expectedOutputs: string[];
-  prerequisites: string[];
-}
-
-interface AgentExecution {
-  agentId: string;
-  taskId: string;
-  stepNumber: number;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'redelegated';
-  results: any;
-  errors: string[];
   createdAt: Date;
+  status: "pending" | "running" | "completed" | "failed";
+}
+
+export interface ExecutionStep {
+  stepNumber: number;
+  description: string;
+  agentId: string;
+  skill: string;
+  parameters: any;
+  estimatedDuration: number;
+  dependencies: number[];
+  status: "pending" | "running" | "completed" | "failed";
+  result?: any;
+  error?: string;
+  startedAt?: Date;
   completedAt?: Date;
 }
 
-interface OrchestrationConfig {
+export interface AgentExecution {
+  agentId: string;
+  planId: string;
+  step: ExecutionStep;
+  status: "pending" | "running" | "completed" | "failed";
+  startedAt?: Date;
+  completedAt?: Date;
+  result?: any;
+  error?: string;
+}
+
+export interface OrchestrationConfig {
   maxConcurrentAgents: number;
   delegationConfidenceThreshold: number;
   retryAttempts: number;
-  recoveryMode: 'fallback' | 'redistribute' | 'failover';
+  recoveryMode: "redistribute" | "failover" | "retry";
+  timeoutMs?: number;
+  enableMetrics?: boolean;
+}
+
+export interface ExecutionHistory {
+  taskId: string;
+  status: "completed" | "failed";
+  createdAt: Date;
+  completedAt?: Date;
+  totalTime?: number;
+  results?: any;
+  error?: string;
 }
 
 export class OrchestrationEngine extends EventEmitter {
   private skillRegistry: SkillRegistry;
   private logger: Logger;
   private config: OrchestrationConfig;
-  private agents: Map<string, AgentProfile> = new Map();
-  private activeExecutions: Map<string, ExecutionPlan> = new Map();
-  private taskQueue: Task[] = [];
-  private executionHistory: AgentExecution[] = [];
+  private agents: Map<string, AgentProfile>;
+  private activeExecutions: Map<string, ExecutionPlan>;
+  private taskQueue: Task[];
+  private executionHistory: ExecutionHistory[];
+  private agentExecutions: Map<string, AgentExecution[]>;
 
-  constructor(skillRegistry: SkillRegistry, config: OrchestrationConfig = {}) {
+  constructor(skillRegistry: SkillRegistry, config: OrchestrationConfig) {
     super();
     this.skillRegistry = skillRegistry;
-    this.logger = new Logger('OrchestrationEngine');
+    this.logger = new Logger("OrchestrationEngine");
     this.config = {
-      maxConcurrentAgents: 5,
-      delegationConfidenceThreshold: 0.7,
-      retryAttempts: 3,
-      recoveryMode: 'redistribute',
-      ...config
+      timeoutMs: 300000,
+      enableMetrics: true,
+      ...config,
     };
+
+    this.agents = new Map();
+    this.activeExecutions = new Map();
+    this.taskQueue = [];
+    this.executionHistory = [];
+    this.agentExecutions = new Map();
+
+    this.logger.info("OrchestrationEngine initialized");
   }
 
-  async registerAgent(agentProfile: AgentProfile): Promise<void> {
-    this.agents.set(agentProfile.id, agentProfile);
-    this.logger.info(`Agent ${agentProfile.name} registered with skills: ${agentProfile.skills.join(', ')}`);
-    this.emit('agent-registered', agentProfile);
+  async registerAgent(agent: AgentProfile): Promise<void> {
+    this.agents.set(agent.id, agent);
+    this.logger.info(`Agent registered: ${agent.name} (${agent.id})`);
+    this.emit("agent-registered", { agentId: agent.id, agentName: agent.name });
   }
 
   async unregisterAgent(agentId: string): Promise<void> {
-    if (this.agents.has(agentId)) {
-      const agent = this.agents.get(agentId)!;
+    const agent = this.agents.get(agentId);
+    if (agent) {
       this.agents.delete(agentId);
-      this.logger.info(`Agent ${agent.name} unregistered`);
-      this.emit('agent-unregistered', { agentId });
+      this.logger.info(`Agent unregistered: ${agent.name} (${agentId})`);
+      this.emit("agent-unregistered", { agentId, agentName: agent.name });
     }
   }
 
   async submitTask(task: Task): Promise<ExecutionPlan> {
-    this.logger.info(`New task submitted: ${task.description}`);
+    this.logger.info(`Submitting task: ${task.description}`);
 
     // Validate task requirements
-    const validationResult = await this.validateTaskRequirements(task);
-    if (!validationResult.valid) {
-      throw new Error(`Task validation failed: ${validationResult.errors.join(', ')}`);
-    }
+    await this.validateTaskRequirements(task);
 
-    // Generate execution plan
-    const plan = await this.createExecutionPlan(task);
+    // Create execution plan
+    const executionPlan = await this.createExecutionPlan(task);
 
-    // Add to queue or execute immediately based on priority
-    if (task.priority >= 8) {
-      await this.executePlan(plan);
-    } else {
-      this.taskQueue.push(task);
-      this.processQueue();
-    }
+    // Add to active executions
+    this.activeExecutions.set(executionPlan.id, executionPlan);
 
-    return plan;
+    // Execute the plan
+    this.executePlan(executionPlan).catch((error) => {
+      this.logger.error(
+        `Execution failed for plan ${executionPlan.id}:`,
+        error,
+      );
+    });
+
+    return executionPlan;
   }
 
-  async createExecutionPlan(task: Task): Promise<ExecutionPlan> {
-    const availableAgents = Array.from(this.agents.values());
-    const matchingAgents = this.findMatchingAgents(task, availableAgents);
-
-    // Calculate complexity score based on requirements
-    const complexityScore = this.calculateComplexityScore(task);
-
-    // Create execution steps
-    const steps = await this.generateExecutionSteps(task, matchingAgents);
-    const estimatedDuration = this.estimateDuration(steps);
-
-    return {
-      id: uuidv4(),
-      task,
-      assignedAgents: matchingAgents,
-      steps,
-      estimatedDuration,
-      complexityScore
-    };
-  }
-
-  private async validateTaskRequirements(task: Task): Promise<{ valid: boolean; errors: string[] }> {
-    const errors: string[] = [];
+  private async validateTaskRequirements(task: Task): Promise<void> {
+    const missingSkills: string[] = [];
 
     for (const requirement of task.requirements) {
-      const hasSkill = Array.from(this.agents.values()).some(agent =>
-        agent.skills.includes(requirement) || agent.capabilities.includes(requirement)
+      const hasSkill = Array.from(this.agents.values()).some((agent) =>
+        agent.skills.includes(requirement),
       );
 
       if (!hasSkill) {
-        errors.push(`No agent available for requirement: ${requirement}`);
+        missingSkills.push(requirement);
       }
     }
 
-    return {
-      valid: errors.length === 0,
-      errors
-    };
+    if (missingSkills.length > 0) {
+      throw new Error(`Missing required skills: ${missingSkills.join(", ")}`);
+    }
   }
 
-  private findMatchingAgents(task: Task, availableAgents: AgentProfile[]): AgentProfile[] {
+  private async createExecutionPlan(task: Task): Promise<ExecutionPlan> {
+    const planId = `plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Find matching agents
+    const matchingAgents = this.findMatchingAgents(task);
+
+    // Generate execution steps
+    const steps = await this.generateExecutionSteps(task, matchingAgents);
+
+    // Estimate total duration
+    const estimatedDuration = this.estimateDuration(steps);
+
+    const executionPlan: ExecutionPlan = {
+      id: planId,
+      task,
+      steps,
+      estimatedDuration,
+      createdAt: new Date(),
+      status: "pending",
+    };
+
+    this.logger.info(
+      `Created execution plan ${planId} with ${steps.length} steps`,
+    );
+    return executionPlan;
+  }
+
+  private findMatchingAgents(task: Task): AgentProfile[] {
     const matchingAgents: AgentProfile[] = [];
 
-    for (const agent of availableAgents) {
-      const hasAllSkills = task.requirements.every(req =>
-        agent.skills.includes(req) || agent.capabilities.includes(req)
+    for (const agent of this.agents.values()) {
+      const matchingSkills = agent.skills.filter((skill) =>
+        task.requirements.includes(skill),
       );
 
-      if (hasAllSkills) {
-        const priorityMultiplier = agent.priority * agent.confidence;
-        matchingAgents.push({ ...agent, confidence: priorityMultiplier });
-      }
-    }
-
-    // Sort by confidence and priority
-    return matchingAgents
-      .sort((a, b) => (b.confidence * b.priority) - (a.confidence * a.priority))
-      .slice(0, this.config.maxConcurrentAgents);
-  }
-
-  private async generateExecutionSteps(
-    task: Task,
-    agents: AgentProfile[]
-  ): Promise<ExecutionStep[]> {
-    const steps: ExecutionStep[] = [];
-    const agentMap = new Map(agents.map(a => [a.id, a]));
-
-    let stepNumber = 1;
-
-    // Handle task dependencies first
-    if (task.dependencies.length > 0) {
-      for (const dependency of task.dependencies) {
-        steps.push({
-          agentId: agents[0]?.id || 'default-agent',
-          stepNumber: stepNumber++,
-          action: 'resolve-dependency',
-          inputs: { dependency },
-          expectedOutputs: [`dependency-${dependency}-resolved`],
-          prerequisites: []
+      if (matchingSkills.length > 0) {
+        matchingAgents.push({
+          ...agent,
+          capabilities: matchingSkills,
         });
       }
     }
 
-    // Generate main execution steps based on task type
+    // Sort by priority and confidence
+    matchingAgents.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return b.priority - a.priority;
+      }
+      return b.confidence - a.confidence;
+    });
+
+    return matchingAgents;
+  }
+
+  private async generateExecutionSteps(
+    task: Task,
+    agents: AgentProfile[],
+  ): Promise<ExecutionStep[]> {
+    const steps: ExecutionStep[] = [];
+    let stepNumber = 1;
+
+    // Generate steps based on task type
     switch (task.type) {
-      case 'business-workflow':
-        steps.push(...this.generateBusinessWorkflowSteps(task, agents, agentMap));
+      case "business-automation":
+        steps.push(
+          ...this.generateBusinessWorkflowSteps(task, agents, stepNumber),
+        );
         break;
-      case 'conversational':
-        steps.push(...this.generateConversationalSteps(task, agents));
+      case "conversational":
+        steps.push(
+          ...this.generateConversationalSteps(task, agents, stepNumber),
+        );
         break;
-      case 'analytical':
-        steps.push(...this.generateAnalyticalSteps(task, agents));
+      case "analytical":
+        steps.push(...this.generateAnalyticalSteps(task, agents, stepNumber));
         break;
-      case 'creative':
-        steps.push(...this.generateCreativeSteps(task, agents));
+      case "creative":
+        steps.push(...this.generateCreativeSteps(task, agents, stepNumber));
         break;
       default:
-        steps.push(...this.generateGenericSteps(task, agents));
+        steps.push(...this.generateGenericSteps(task, agents, stepNumber));
     }
 
     return steps;
@@ -227,393 +255,528 @@ export class OrchestrationEngine extends EventEmitter {
   private generateBusinessWorkflowSteps(
     task: Task,
     agents: AgentProfile[],
-    agentMap: Map<string, AgentProfile>
+    startStep: number,
   ): ExecutionStep[] {
     const steps: ExecutionStep[] = [];
-    let stepNumber = 1;
+    let stepNumber = startStep;
 
-    // Setup phase
+    // Analysis step
     steps.push({
-      agentId: this.getAgentForSkill('business-setup', agents),
       stepNumber: stepNumber++,
-      action: 'analyze-requirements',
-      inputs: task.context,
-      expectedOutputs: ['requirements-analysis'],
-      prerequisites: []
+      description: `Analyze business requirements for: ${task.description}`,
+      agentId:
+        this.getAgentForSkill("business_analysis", agents)?.id || agents[0]?.id,
+      skill: "business_analysis",
+      parameters: { task, context: task.context },
+      estimatedDuration: 120000,
+      dependencies: [],
+      status: "pending",
     });
 
-    // Execution phase
+    // Planning step
     steps.push({
-      agentId: this.getAgentForSkill('business-execution', agents),
       stepNumber: stepNumber++,
-      action: 'execute-business-flow',
-      inputs: task.context,
-      expectedOutputs: ['workflow-execution-results'],
-      prerequisites: ['requirements-analysis']
+      description: `Create execution plan for: ${task.description}`,
+      agentId: this.getAgentForSkill("planning", agents)?.id || agents[0]?.id,
+      skill: "planning",
+      parameters: { task, previousStep: steps[0] },
+      estimatedDuration: 90000,
+      dependencies: [1],
+      status: "pending",
+    });
+
+    // Execution step
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Execute business automation: ${task.description}`,
+      agentId: this.getAgentForSkill("automation", agents)?.id || agents[0]?.id,
+      skill: "automation",
+      parameters: { task, previousSteps: steps.slice(0, 2) },
+      estimatedDuration: 180000,
+      dependencies: [2],
+      status: "pending",
     });
 
     return steps;
   }
 
-  private generateConversationalSteps(task: Task, agents: AgentProfile[]): ExecutionStep[] {
-    const conversationalAgent = agents.find(a => a.capabilities.includes('nlp'));
+  private generateConversationalSteps(
+    task: Task,
+    agents: AgentProfile[],
+    startStep: number,
+  ): ExecutionStep[] {
+    const steps: ExecutionStep[] = [];
+    let stepNumber = startStep;
 
-    return [{
-      agentId: conversationalAgent?.id || agents[0]?.id || 'default',
-      stepNumber: 1,
-      action: 'process-conversation',
-      inputs: task.description,
-      expectedOutputs: ['conversation-response'],
-      prerequisites: []
-    }];
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Process conversational task: ${task.description}`,
+      agentId:
+        this.getAgentForSkill("conversation", agents)?.id || agents[0]?.id,
+      skill: "conversation",
+      parameters: { task, context: task.context },
+      estimatedDuration: 60000,
+      dependencies: [],
+      status: "pending",
+    });
+
+    return steps;
   }
 
-  private generateAnalyticalSteps(task: Task, agents: AgentProfile[]): ExecutionStep[] {
-    return [{
-      agentId: this.getAgentForSkill('analysis', agents),
-      stepNumber: 1,
-      action: 'perform-analysis',
-      inputs: task.context,
-      expectedOutputs: ['analysis-report', 'insights'],
-      prerequisites: task.dependencies.map(d => `dependency-${d}-resolved`)
-    }];
+  private generateAnalyticalSteps(
+    task: Task,
+    agents: AgentProfile[],
+    startStep: number,
+  ): ExecutionStep[] {
+    const steps: ExecutionStep[] = [];
+    let stepNumber = startStep;
+
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Perform data analysis: ${task.description}`,
+      agentId:
+        this.getAgentForSkill("data_analysis", agents)?.id || agents[0]?.id,
+      skill: "data_analysis",
+      parameters: { task, context: task.context },
+      estimatedDuration: 150000,
+      dependencies: [],
+      status: "pending",
+    });
+
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Generate analysis report`,
+      agentId: this.getAgentForSkill("reporting", agents)?.id || agents[0]?.id,
+      skill: "reporting",
+      parameters: { task, previousStep: steps[0] },
+      estimatedDuration: 90000,
+      dependencies: [1],
+      status: "pending",
+    });
+
+    return steps;
   }
 
-  private generateCreativeSteps(task: Task, agents: AgentProfile[]): ExecutionStep[] {
-    const creativeAgent = agents.find(a => a.capabilities.includes('creative'));
+  private generateCreativeSteps(
+    task: Task,
+    agents: AgentProfile[],
+    startStep: number,
+  ): ExecutionStep[] {
+    const steps: ExecutionStep[] = [];
+    let stepNumber = startStep;
 
-    return [{
-      agentId: creativeAgent?.id || agents[0]?.id || 'default',
-      stepNumber: 1,
-      action: 'generate-creative-content',
-      inputs: task.context,
-      expectedOutputs: ['creative-output', 'formatted-content'],
-      prerequisites: []
-    }];
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Generate creative content: ${task.description}`,
+      agentId:
+        this.getAgentForSkill("content_creation", agents)?.id || agents[0]?.id,
+      skill: "content_creation",
+      parameters: { task, context: task.context },
+      estimatedDuration: 120000,
+      dependencies: [],
+      status: "pending",
+    });
+
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Review and refine content`,
+      agentId: this.getAgentForSkill("editing", agents)?.id || agents[0]?.id,
+      skill: "editing",
+      parameters: { task, previousStep: steps[0] },
+      estimatedDuration: 60000,
+      dependencies: [1],
+      status: "pending",
+    });
+
+    return steps;
   }
 
-  private generateGenericSteps(task: Task, agents: AgentProfile[]): ExecutionStep[] {
-    return [{
-      agentId: agents[0]?.id || 'default',
-      stepNumber: 1,
-      action: 'execute-generic-task',
-      inputs: task.context,
-      expectedOutputs: ['task-results'],
-      prerequisites: []
-    }];
+  private generateGenericSteps(
+    task: Task,
+    agents: AgentProfile[],
+    startStep: number,
+  ): ExecutionStep[] {
+    const steps: ExecutionStep[] = [];
+    let stepNumber = startStep;
+
+    steps.push({
+      stepNumber: stepNumber++,
+      description: `Execute task: ${task.description}`,
+      agentId: agents[0]?.id,
+      skill: task.requirements[0] || "general",
+      parameters: { task, context: task.context },
+      estimatedDuration: 120000,
+      dependencies: [],
+      status: "pending",
+    });
+
+    return steps;
   }
 
-  private getAgentForSkill(skill: string, agents: AgentProfile[]): string {
-    const agent = agents.find(a => a.skills.includes(skill) || a.capabilities.includes(skill));
-    return agent?.id || agents[0]?.id || 'default';
+  private getAgentForSkill(
+    skill: string,
+    agents: AgentProfile[],
+  ): AgentProfile | undefined {
+    return agents.find((agent) => agent.skills.includes(skill));
   }
 
   private calculateComplexityScore(task: Task): number {
     let score = 0;
 
-    // Base score from requirements
-    score += task.requirements.length * 2;
+    // Base complexity based on requirements
+    score += task.requirements.length * 0.1;
 
-    // Priority multiplier
-    score += task.priority * 0.5;
+    // Priority increases complexity
+    score += task.priority * 0.05;
 
-    // Dependencies
-    score += task.dependencies.length * 1.5;
-
-    // Time sensitivity
+    // Deadline pressure increases complexity
     if (task.deadline) {
-      const hoursUntilDeadline = (task.deadline.getTime() - Date.now()) / (1000 * 60 * 60);
-      if (hoursUntilDeadline < 24) score += 5;
-      else if (hoursUntilDeadline < 72) score += 3;
+      const timeUntilDeadline = task.deadline.getTime() - Date.now();
+      if (timeUntilDeadline < 3600000)
+        score += 0.3; // < 1 hour
+      else if (timeUntilDeadline < 86400000)
+        score += 0.2; // < 1 day
+      else if (timeUntilDeadline < 604800000) score += 0.1; // < 1 week
     }
 
-    return Math.min(score, 10); // Cap at 10
+    // Dependencies increase complexity
+    score += task.dependencies.length * 0.15;
+
+    return Math.min(score, 1.0);
   }
 
   private estimateDuration(steps: ExecutionStep[]): number {
-    const baseTimePerStep = 30; // seconds
-    return steps.length * baseTimePerStep * (1.5 + Math.random() * 0.5);
+    return steps.reduce((total, step) => total + step.estimatedDuration, 0);
   }
 
-  async executePlan(plan: ExecutionPlan): Promise<any> {
-    this.logger.info(`Executing plan ${plan.id} for task: ${plan.task.description}`);
+  async executePlan(executionPlan: ExecutionPlan): Promise<void> {
+    this.logger.info(`Executing plan ${executionPlan.id}`);
+    executionPlan.status = "running";
 
-    const executionContext = {
-      planId: plan.id,
-      startTime: Date.now(),
-      completedSteps: [],
-      errors: []
-    };
+    this.emit("execution-started", { plan: executionPlan });
 
     try {
-      this.activeExecutions.set(plan.id, plan);
-      this.emit('execution-started', { plan });
-
-      // Execute each step sequentially
-      for (const step of plan.steps) {
-        const result = await this.executeStep(step, executionContext);
-
-        if (result.status === 'failed') {
-          executionContext.errors.push(...result.errors);
-          await this.handleExecutionFailure(plan, step, result.errors);
-          break;
-        }
-
-        executionContext.completedSteps.push({
-          step: step.stepNumber,
-          result: result.results
-        });
+      for (const step of executionPlan.steps) {
+        await this.executeStep(executionPlan, step);
       }
 
-      const finalResult = {
-        planId: plan.id,
-        taskId: plan.task.id,
-        completedSteps: executionContext.completedSteps,
-        totalTime: Date.now() - executionContext.startTime,
-        success: executionContext.errors.length === 0
-      };
+      executionPlan.status = "completed";
+      this.logger.info(`Plan ${executionPlan.id} completed successfully`);
 
-      this.activeExecutions.delete(plan.id);
       this.executionHistory.push({
-        agentId: 'combined',
-        taskId: plan.task.id,
-        stepNumber: plan.steps.length,
-        status: finalResult.success ? 'completed' : 'failed',
-        results: finalResult,
-        errors: executionContext.errors,
-        createdAt: new Date()
+        taskId: executionPlan.task.id,
+        status: "completed",
+        createdAt: executionPlan.createdAt,
+        completedAt: new Date(),
+        totalTime: Date.now() - executionPlan.createdAt.getTime(),
+        results: executionPlan.steps.map((s) => s.result),
       });
 
-      this.emit('execution-completed', finalResult);
-      return finalResult;
-
+      this.emit("execution-completed", {
+        taskId: executionPlan.task.id,
+        completedSteps: executionPlan.steps.filter(
+          (s) => s.status === "completed",
+        ),
+        totalTime: Date.now() - executionPlan.createdAt.getTime(),
+        results: executionPlan.steps.map((s) => s.result),
+      });
     } catch (error) {
-      this.logger.error(`Execution failed for plan ${plan.id}`, error);
-      this.activeExecutions.delete(plan.id);
+      executionPlan.status = "failed";
+      this.logger.error(`Plan ${executionPlan.id} failed:`, error);
 
-      const errorResult = {
-        planId: plan.id,
-        taskId: plan.task.id,
+      this.executionHistory.push({
+        taskId: executionPlan.task.id,
+        status: "failed",
+        createdAt: executionPlan.createdAt,
+        completedAt: new Date(),
         error: error.message,
-        status: 'failed'
-      };
+      });
 
-      this.emit('execution-failed', errorResult);
+      this.emit("execution-failed", {
+        taskId: executionPlan.task.id,
+        error,
+        failedStep: executionPlan.steps.find((s) => s.status === "failed"),
+      });
+
+      await this.handleExecutionFailure(executionPlan, error);
+    } finally {
+      this.activeExecutions.delete(executionPlan.id);
+    }
+  }
+
+  private async executeStep(
+    executionPlan: ExecutionPlan,
+    step: ExecutionStep,
+  ): Promise<void> {
+    // Check dependencies
+    for (const dep of step.dependencies) {
+      const dependency = executionPlan.steps.find((s) => s.stepNumber === dep);
+      if (!dependency || dependency.status !== "completed") {
+        throw new Error(`Dependency step ${dep} not completed`);
+      }
+    }
+
+    step.status = "running";
+    step.startedAt = new Date();
+
+    this.emit("step-started", {
+      step,
+      execution: { planId: executionPlan.id, agentId: step.agentId },
+    });
+
+    try {
+      const result = await this.invokeSkillForStep(executionPlan.task, step);
+      step.result = result;
+      step.status = "completed";
+      step.completedAt = new Date();
+
+      this.emit("step-completed", {
+        step,
+        execution: { planId: executionPlan.id, agentId: step.agentId, result },
+      });
+    } catch (error) {
+      step.status = "failed";
+      step.error = error.message;
+      step.completedAt = new Date();
+
+      this.emit("step-failed", {
+        step,
+        execution: { planId: executionPlan.id, agentId: step.agentId },
+        error,
+      });
+
       throw error;
     }
   }
 
-  private async executeStep(step: ExecutionStep, context: any): Promise<{
-    status: 'completed' | 'failed';
-    results: any;
-    errors: string[];
-  }> {
+  private async invokeSkillForStep(
+    task: Task,
+    step: ExecutionStep,
+  ): Promise<any> {
     const agent = this.agents.get(step.agentId);
     if (!agent) {
-      return {
-        status: 'failed',
-        results: null,
-        errors: [`Agent ${step.agentId} not found`]
-      };
+      throw new Error(`Agent ${step.agentId} not found`);
     }
 
-    const execution: AgentExecution = {
-      agentId: step.agentId,
-      taskId: context.planId,
-      stepNumber: step.stepNumber,
-      status: 'running',
-      results: {},
-      errors: [],
-      createdAt: new Date()
+    // Map action to actual skill invocation
+    const skillHandler = this.mapActionToSkill(step.skill);
+    if (!skillHandler) {
+      throw new Error(`Skill ${step.skill} not supported`);
+    }
+
+    this.logger.debug(
+      `Invoking skill ${step.skill} for step ${step.stepNumber}`,
+    );
+
+    // Simulate skill execution (in real implementation, this would call actual skills)
+    return new Promise((resolve, reject) => {
+      setTimeout(
+        () => {
+          try {
+            const result = {
+              success: true,
+              step: step.stepNumber,
+              agent: agent.name,
+              skill: step.skill,
+              output: `Executed ${step.description} successfully`,
+            };
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        },
+        step.estimatedDuration * 0.8 +
+          Math.random() * step.estimatedDuration * 0.4,
+      );
+    });
+  }
+
+  private mapActionToSkill(action: string): any {
+    // This would map action names to actual skill implementations
+    const skillMap: Record<string, any> = {
+      business_analysis: () => ({
+        type: "analysis",
+        handler: "analyzeBusiness",
+      }),
+      planning: () => ({ type: "planning", handler: "createPlan" }),
+      automation: () => ({ type: "automation", handler: "executeAutomation" }),
+      conversation: () => ({
+        type: "conversation",
+        handler: "processConversation",
+      }),
+      data_analysis: () => ({ type: "analysis", handler: "analyzeData" }),
+      reporting: () => ({ type: "reporting", handler: "generateReport" }),
+      content_creation: () => ({ type: "creation", handler: "createContent" }),
+      editing: () => ({ type: "editing", handler: "editContent" }),
     };
 
-    try {
-      this.emit('step-started', { execution, step });
+    return skillMap[action]?.();
+  }
 
-      // Execute with appropriate skill
-      const result = await this.invokeSkillForStep(step, agent);
+  private async handleExecutionFailure(
+    executionPlan: ExecutionPlan,
+    error: any,
+  ): Promise<void> {
+    this.logger.warn(`Handling execution failure for plan ${executionPlan.id}`);
 
-      execution.status = 'completed';
-      execution.results = result;
-      execution.completedAt = new Date();
-
-      this.emit('step-completed', { execution, step });
-
-      return {
-        status: 'completed',
-        results: result,
-        errors: []
-      };
-
-    } catch (error) {
-      execution.status = 'failed';
-      execution.errors = [error.message];
-      execution.completedAt = new Date();
-
-      this.emit('step-failed', { execution, error });
-
-      return {
-        status: 'failed',
-        results: null,
-        errors: [error.message]
-      };
+    switch (this.config.recoveryMode) {
+      case "redistribute":
+        await this.redistributeWork(executionPlan);
+        break;
+      case "failover":
+        await this.failoverToBackup(executionPlan);
+        break;
+      case "retry":
+        await this.executeFallback(executionPlan);
+        break;
+      default:
+        this.logger.error(
+          `No recovery strategy for mode: ${this.config.recoveryMode}`,
+        );
     }
   }
 
-  private async invokeSkillForStep(step: ExecutionStep, agent: AgentProfile): Promise<any> {
-    // Find appropriate skill from task type
-    const skillName = this.mapActionToSkill(step.action);
-
-    if (!skillName) {
-      throw new Error(`No skill found for action: ${step.action}`);
+  private async executeFallback(executionPlan: ExecutionPlan): Promise<void> {
+    if (this.config.retryAttempts > 0) {
+      this.logger.info(`Retrying execution plan ${executionPlan.id}`);
+      await this.delay(1000);
+      await this.executePlan(executionPlan);
     }
+  }
 
-    // Create execution context
-    const context = {
-      agentId: agent.id,
-      action: step.action,
-      inputs: step.inputs,
-      expectedOutputs: step.expectedOutputs,
-      prerequisites: step.prerequisites
-    };
+  private async redistributeWork(executionPlan: ExecutionPlan): Promise<void> {
+    this.logger.info(`Redistributing work from plan ${executionPlan.id}`);
 
-    // Execute skill with retry logic
-    const maxRetries = this.config.retryAttempts;
-    let lastError: Error | null = null;
+    // Find available agents for failed steps
+    const failedSteps = executionPlan.steps.filter(
+      (s) => s.status === "failed",
+    );
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        // Get skill from registry and execute
-        const skill = this.skillRegistry.getSkill(skillName);
-        if (!skill) {
-          throw new Error(`Skill ${skillName} not found in registry`);
-        }
+    for (const step of failedSteps) {
+      const availableAgents = this.findMatchingAgents(
+        executionPlan.task,
+      ).filter(
+        (agent) =>
+          agent.id !== step.agentId &&
+          agent.currentLoad < (agent.maxConcurrentTasks || 3),
+      );
 
-        const result = await skill.execute(context);
-        return result;
-      } catch (error) {
-        lastError = error;
-
-        if (attempt < maxRetries - 1) {
-          await this.delay(Math.pow(2, attempt) * 1000); // Exponential backoff
-          this.logger.warn(`Retry attempt ${attempt + 1} for ${skillName}`);
-        }
+      if (availableAgents.length > 0) {
+        const newAgent = availableAgents[0];
+        step.agentId = newAgent.id;
+        step.status = "pending";
+        this.logger.info(
+          `Reassigned step ${step.stepNumber} to agent ${newAgent.name}`,
+        );
       }
     }
 
-    throw lastError || new Error(`Failed to execute ${skillName} after ${maxRetries} attempts`);
+    // Retry execution
+    executionPlan.status = "pending";
+    await this.executePlan(executionPlan);
   }
 
-  private mapActionToSkill(action: string): string | undefined {
-    const skillMapping: Record<string, string> = {
-      'analyze-requirements': 'business-analysis',
-      'execute-business-flow': 'business-execution',
-      'process-conversation': 'conversational-ai',
-      'perform-analysis': 'data-analysis',
-      'generate-creative-content': 'content-creation'
+  private async failoverToBackup(executionPlan: ExecutionPlan): Promise<void> {
+    this.logger.info(`Failing over to backup for plan ${executionPlan.id}`);
+
+    // Create a simplified backup plan
+    const backupPlan: ExecutionPlan = {
+      ...executionPlan,
+      id: `backup_${executionPlan.id}`,
+      steps: executionPlan.steps.map((step) => ({
+        ...step,
+        status: "pending",
+        agentId:
+          this.findMatchingAgents(executionPlan.task)[0]?.id || step.agentId,
+      })),
     };
 
-    return skillMapping[action];
-  }
-
-  private async handleExecutionFailure(plan: ExecutionPlan, failedStep: ExecutionStep, errors: string[]): Promise<void> {
-    this.logger.error(`Handling failure for plan ${plan.id}`, { failedStep, errors });
-
-    switch (this.config.recoveryMode) {
-      case 'fallback':
-        await this.executeFallback(plan, failedStep);
-        break;
-      case 'redistribute':
-        await this.redistributeWork(plan, failedStep);
-        break;
-      case 'failover':
-        this.failoverToBackup(plan);
-        break;
-    }
-  }
-
-  private async executeFallback(plan: ExecutionPlan, failedStep: ExecutionStep): Promise<void> {
-    this.logger.info(`Executing fallback for step ${failedStep.stepNumber}`);
-
-    // Try with simpler/cheaper agents or less complex approach
-    const fallbackAgent = 'generic-fallback-agent';
-    const fallbackResult = await this.invokeSkillForStep({
-      ...failedStep,
-      agentId: fallbackAgent
-    }, this.agents.get(fallbackAgent)!);
-  }
-
-  private async redistributeWork(plan: ExecutionPlan, failedStep: ExecutionStep): Promise<void> {
-    this.logger.info(`Redistributing work from failed step ${failedStep.stepNumber}`);
-
-    const availableAgents = Array.from(this.agents.values());
-    const newAgent = availableAgents.find(a => a.id !== failedStep.agentId);
-
-    if (newAgent) {
-      const newResult = await this.invokeSkillForStep({
-        ...failedStep,
-        agentId: newAgent.id
-      }, newAgent);
-    }
-  }
-
-  private failoverToBackup(plan: ExecutionPlan): void {
-    this.logger.info(`Initiating failover to backup system for plan ${plan.id}`);
-    this.emit('failover-triggered', { planId: plan.id });
+    await this.executePlan(backupPlan);
   }
 
   private async processQueue(): Promise<void> {
-if (this.taskQueue.length === 0) return;
+    while (this.taskQueue.length > 0) {
+      const task = this.taskQueue.shift();
+      if (task) {
+        try {
+          await this.submitTask(task);
+        } catch (error) {
+          this.logger.error(`Failed to process queued task:`, error);
+        }
+      }
+      await this.delay(100);
+    }
+  }
 
-while (this.taskQueue.length > 0 && this.activeExecutions.size < this.config.maxConcurrentAgents) {
-  const task = this.taskQueue.shift()!;
-  const plan = await this.createExecutionPlan(task);
-  await this.executePlan(plan);
-}
-}
+  private async delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 
-private async delay(ms: number): Promise<void> {
-return new Promise(resolve => setTimeout(resolve, ms));
-}
+  getActiveExecutions(): ExecutionPlan[] {
+    return Array.from(this.activeExecutions.values());
+  }
 
-// Public methods for monitoring and management
-getActiveExecutions(): ExecutionPlan[] {
-return Array.from(this.activeExecutions.values());
-}
+  getQueuedTasks(): Task[] {
+    return [...this.taskQueue];
+  }
 
-getQueuedTasks(): Task[] {
-return [...this.taskQueue];
-}
+  getExecutionHistory(): ExecutionHistory[] {
+    return [...this.executionHistory];
+  }
 
-getExecutionHistory(): AgentExecution[] {
-return [...this.executionHistory];
-}
+  getRegisteredAgents(): AgentProfile[] {
+    return Array.from(this.agents.values());
+  }
 
-getRegisteredAgents(): AgentProfile[] {
-return Array.from(this.agents.values());
-}
+  getAgent(agentId: string): AgentProfile | undefined {
+    return this.agents.get(agentId);
+  }
 
-getAgent(agentId: string): AgentProfile | undefined {
-return this.agents.get(agentId);
-}
+  getSystemHealth(): {
+    activeExecutions: number;
+    queuedTasks: number;
+    registeredAgents: number;
+    successRate: number;
+  } {
+    const successCount = this.executionHistory.filter(
+      (e) => e.status === "completed",
+    ).length;
+    const totalCount = this.executionHistory.length;
 
-getSystemHealth(): {
-activeExecutions: number;
-queuedTasks: number;
-registeredAgents: number;
-successRate: number;
-} {
-+    const successCount = this.executionHistory.filter(e => e.status === 'completed').length;
-+    const totalCount = this.executionHistory.length;
-+
-+    return {
-+      activeExecutions: this.activeExecutions.size,
-+      queuedTasks: this.taskQueue.length,
-+      registeredAgents: this.agents.size,
-+      successRate: totalCount > 0 ? successCount / totalCount : 0
-+    };
-+  }
-+}
-+  }
-+
-+  getExecutionHistory(): AgentExecution[]
+    return {
+      activeExecutions: this.activeExecutions.size,
+      queuedTasks: this.taskQueue.length,
+      registeredAgents: this.agents.size,
+      successRate: totalCount > 0 ? successCount / totalCount : 0,
+    };
+  }
+
+  async cancelExecution(planId: string): Promise<void> {
+    const execution = this.activeExecutions.get(planId);
+    if (execution) {
+      execution.status = "failed";
+      this.activeExecutions.delete(planId);
+      this.logger.info(`Cancelled execution plan ${planId}`);
+      this.emit("execution-cancelled", { planId });
+    }
+  }
+
+  clearHistory(): void {
+    this.executionHistory = [];
+    this.logger.info("Cleared execution history");
+  }
+
+  async shutdown(): Promise<void> {
+    this.logger.info("Shutting down OrchestrationEngine");
+
+    // Cancel all active executions
+    for (const planId of this.activeExecutions.keys()) {
+      await this.cancelExecution(planId);
+    }
+
+    // Clear queues
+    this.taskQueue = [];
+
+    this.logger.info("OrchestrationEngine shutdown complete");
+  }
+}

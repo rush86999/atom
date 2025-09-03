@@ -1,11 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'supertokens-node/nextjs';
-import { SessionContainer } from 'supertokens-node/recipe/session';
-import { runCompetitorAnalysis } from '../../../../project/functions/atom-agent/skills/competitorAnalysisSkills';
+import { NextApiRequest, NextApiResponse } from "next";
+import { getSession } from "supertokens-node/nextjs";
+import { SessionContainer } from "supertokens-node/recipe/session";
+// TODO: Competitor analysis API temporarily disabled due to missing dependencies
+// import { analyzeCompetitors } from "../../../../project/functions/atom-agent/skills/competitorAnalysisSkills";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   let session: SessionContainer;
   try {
@@ -13,7 +14,7 @@ export default async function handler(
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   const userId = session.getUserId();
@@ -22,16 +23,16 @@ export default async function handler(
   if (!competitors || !notionDatabaseId) {
     return res
       .status(400)
-      .json({ message: 'Competitors and Notion Database ID are required' });
+      .json({ message: "Competitors and Notion Database ID are required" });
   }
 
   try {
     await runCompetitorAnalysis(userId, competitors, notionDatabaseId);
-    return res.status(200).json({ message: 'Competitor analysis complete' });
+    return res.status(200).json({ message: "Competitor analysis complete" });
   } catch (error) {
-    console.error('Error running competitor analysis:', error);
+    console.error("Error running competitor analysis:", error);
     return res
       .status(500)
-      .json({ message: 'Failed to run competitor analysis' });
+      .json({ message: "Failed to run competitor analysis" });
   }
 }

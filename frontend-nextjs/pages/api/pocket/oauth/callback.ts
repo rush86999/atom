@@ -1,12 +1,13 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'supertokens-node/nextjs';
-import { SessionContainer } from 'supertokens-node/recipe/session';
-import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
-import PocketAPI from 'pocket-api';
+import { NextApiRequest, NextApiResponse } from "next";
+import { getSession } from "supertokens-node/nextjs";
+import { SessionContainer } from "supertokens-node/recipe/session";
+// TODO: Pocket OAuth implementation pending dependencies
+// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
+// import PocketAPI from 'pocket-api';
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   let session: SessionContainer;
   try {
@@ -14,7 +15,7 @@ export default async function handler(
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   const userId = session.getUserId();
@@ -24,7 +25,7 @@ export default async function handler(
   if (!consumerKey) {
     return res
       .status(500)
-      .json({ message: 'Pocket consumer key not configured.' });
+      .json({ message: "Pocket consumer key not configured." });
   }
 
   const pocket = new PocketAPI({ consumer_key: consumerKey });
@@ -44,16 +45,16 @@ export default async function handler(
         `;
     const variables = {
       userId,
-      service: 'pocket',
+      service: "pocket",
       accessToken: access_token,
     };
-    await executeGraphQLQuery(mutation, variables, 'InsertUserToken', userId);
+    await executeGraphQLQuery(mutation, variables, "InsertUserToken", userId);
 
-    return res.redirect('/Settings/UserViewSettings');
+    return res.redirect("/Settings/UserViewSettings");
   } catch (error) {
-    console.error('Error during Pocket OAuth callback:', error);
+    console.error("Error during Pocket OAuth callback:", error);
     return res
       .status(500)
-      .json({ message: 'Failed to complete Pocket OAuth flow' });
+      .json({ message: "Failed to complete Pocket OAuth flow" });
   }
 }

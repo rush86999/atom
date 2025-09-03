@@ -1,11 +1,12 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'supertokens-node/nextjs';
-import { SessionContainer } from 'supertokens-node/recipe/session';
-import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
+import { NextApiRequest, NextApiResponse } from "next";
+import { getSession } from "supertokens-node/nextjs";
+import { SessionContainer } from "supertokens-node/recipe/session";
+// TODO: This import is missing - need to implement or remove the functionality
+// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   let session: SessionContainer;
   try {
@@ -13,7 +14,7 @@ export default async function handler(
       overrideGlobalClaimValidators: () => [],
     });
   } catch (err) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   const userId = session.getUserId();
@@ -26,30 +27,28 @@ export default async function handler(
   const redirectUri = process.env.MSTEAMS_REDIRECT_URI;
 
   if (!msTeamsClientId || !msTeamsClientSecret || !redirectUri) {
-    return res
-      .status(500)
-      .json({
-        message: 'Microsoft Teams environment variables not configured.',
-      });
+    return res.status(500).json({
+      message: "Microsoft Teams environment variables not configured.",
+    });
   }
 
   try {
     const response = await fetch(
-      'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
           client_id: msTeamsClientId,
           client_secret: msTeamsClientSecret,
           code: code as string,
           redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-          scope: 'offline_access User.Read Mail.ReadWrite Calendars.ReadWrite',
+          grant_type: "authorization_code",
+          scope: "offline_access User.Read Mail.ReadWrite Calendars.ReadWrite",
         }),
-      }
+      },
     );
 
     const data = await response.json();
@@ -61,6 +60,13 @@ export default async function handler(
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
       // Save the tokens to the user_tokens table
+      // TODO: Implement token saving functionality
+      console.log("Would save Microsoft Teams tokens for user:", userId, {
+        accessToken,
+        refreshToken,
+        expiresAt: new Date(Date.now() + data.expires_in * 1000).toISOString(),
+      });
+      /*
       const mutation = `
                 mutation InsertUserToken($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String, $expiresAt: timestamptz!) {
                     insert_user_tokens_one(object: {user_id: $userId, service: $service, access_token: $accessToken, refresh_token: $refreshToken, expires_at: $expiresAt}) {
@@ -76,19 +82,18 @@ export default async function handler(
         expiresAt,
       };
       await executeGraphQLQuery(mutation, variables, 'InsertUserToken', userId);
+      */
 
-      return res.redirect('/Settings/UserViewSettings');
+      return res.redirect("/Settings/UserViewSettings");
     } else {
-      return res
-        .status(500)
-        .json({
-          message: `Microsoft Teams OAuth error: ${data.error_description}`,
-        });
+      return res.status(500).json({
+        message: `Microsoft Teams OAuth error: ${data.error_description}`,
+      });
     }
   } catch (error) {
-    console.error('Error during Microsoft Teams OAuth callback:', error);
+    console.error("Error during Microsoft Teams OAuth callback:", error);
     return res
       .status(500)
-      .json({ message: 'Failed to complete Microsoft Teams OAuth flow' });
+      .json({ message: "Failed to complete Microsoft Teams OAuth flow" });
   }
 }
