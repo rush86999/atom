@@ -2,6 +2,8 @@
 # Install with: pip install pre-commit && pre-commit install
 # Run on all files: pre-commit run --all-files
 
+default_stages: [commit]
+
 repos:
   # Clean cache files before commits
   - repo: local

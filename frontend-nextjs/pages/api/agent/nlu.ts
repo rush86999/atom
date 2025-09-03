@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { understandMessage } from "../../../../src/services/nluService";
+// TODO: Agent NLU API temporarily disabled due to missing dependencies
+// import { understandMessage } from "../../../../src/services/nluService";
 import { getSession } from "supertokens-node/nextjs";
 import { SessionContainer } from "supertokens-node/recipe/session";
 

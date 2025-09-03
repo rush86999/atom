@@ -83,6 +83,11 @@ const nextConfig = {
       ),
       "@shared-hooks": path.resolve(__dirname, "../src/ui-shared/hooks"),
       "@shared": path.resolve(__dirname, "../src/ui-shared"),
+      // Main project src directory aliases
+      "@/services": path.resolve(__dirname, "../../src/services"),
+      "@/orchestration": path.resolve(__dirname, "../../src/orchestration"),
+      "@/llm": path.resolve(__dirname, "../../src/llm"),
+      "@/utils": path.resolve(__dirname, "../../src/utils"),
     };
 
     config.resolve.extensions = [
