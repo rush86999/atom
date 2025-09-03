@@ -4,7 +4,7 @@ import { Handle, Position } from 'reactflow';
 export default memo(({ data }) => {
   return (
     <div style={{
-      background: '#fff',
+      background: '#f0f0f0',
       border: '1px solid #ddd',
       padding: '10px 15px',
       borderRadius: '5px',
@@ -16,10 +16,7 @@ export default memo(({ data }) => {
         style={{ background: '#555' }}
       />
       <div>
-        <strong>Google Calendar</strong>
-      </div>
-      <div style={{ marginTop: '5px' }}>
-        <label style={{ fontSize: '12px' }}>On New Event</label>
+        <strong>Flatten List</strong>
       </div>
       <Handle
         type="source"
@@ -29,3 +26,12 @@ export default memo(({ data }) => {
     </div>
   );
 });
+
+export const schema = {
+  inputs: [
+    { id: 'list_to_flatten', label: 'List to Flatten', type: 'array' },
+  ],
+  outputs: [
+    { id: 'flattened_list', label: 'Flattened List', type: 'array' },
+  ],
+};
