@@ -532,14 +532,21 @@ atomic-docker/allure-results/**/*.js
 **/src/**/*.js
 **/src/**/*.mjs
 **/src/**/*.cjs
+**/src/**/*.d.ts
 
 # Exclude compiled JS files that have TS source
 **/lib/**/*.js
+**/lib/**/*.d.ts
 **/components/**/*.js
+**/components/**/*.d.ts
 **/functions/**/*.js
+**/functions/**/*.d.ts
 **/utils/**/*.js
+**/utils/**/*.d.ts
 **/services/**/*.js
+**/services/**/*.d.ts
 **/hooks/**/*.js
+**/hooks/**/*.d.ts
 
 # Allow specific config files (even though they're JS)
 !**/next.config.js
@@ -558,6 +565,10 @@ atomic-docker/allure-results/**/*.js
 
 # Allow build/external directories that legitimately have JS files
 !**/node_modules/**
+
+# Exclude test build artifacts
+**/tests/**/*.d.ts
+**/tests/**/*.js
 
 # Development tool caches
 **/.pip-cache/
