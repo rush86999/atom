@@ -1,0 +1,33 @@
+# Python dependencies for Atom Functions
+# This file contains the Python packages required for the functions service
+
+# Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# Database and ORM
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Utilities
+requests==2.31.0
+python-dotenv==1.0.0
+python-dateutil==2.8.2
+pytz==2023.3.post1
+
+# AI/ML dependencies (if needed)
+openai==1.3.5
+langchain==0.0.349
+transformers==4.35.2
+torch==2.1.1
+numpy==1.24.3
+pandas==2.0.3
+
+# Audio processing (if needed)
+librosa==0.10.1
+soundfile==0.12.1
+
+# Note: Some packages may require system dependencies that are installed in the Dockerfile
