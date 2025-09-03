@@ -82,11 +82,8 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-      - id: forbid-files
-        name: Prevent Python caches
-        entry: Found Python cache files in commit
-        language: fail
-        files: '.*\.pyc$|__pycache__/.*|\.pyo$|\.pyd$'
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
 
   # Validate .gitignore is protecting caches
   - repo: local

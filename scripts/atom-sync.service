@@ -1,0 +1,31 @@
+[Unit]
+Description=Atom Repository Periodic Sync Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/Users/rushiparikh/projects/atom/atom
+ExecStart=/Users/rushiparikh/projects/atom/atom/scripts/periodic-sync.sh --continuous
+Restart=always
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

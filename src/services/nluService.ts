@@ -349,26 +349,24 @@ export class NLUService {
   ): Promise<NLUResponse> {
     const prompt = this.buildOpenAIPrompt(message, context);
 
-    const response = await this.openaiService.chatCompletion(
+    const messages = [
       {
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: prompt.system,
-          },
-          {
-            role: "user",
-            content: prompt.user,
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 500,
+        role: "system",
+        content: prompt.system,
       },
-      options?.apiKey,
-    );
+      {
+        role: "user",
+        content: prompt.user,
+      },
+    ];
 
-    return this.parseOpenAIResponse(response);
+    const response = await this.openaiService.chatCompletion(messages, {
+      model: "gpt-4",
+      temperature: 0.1,
+      maxTokens: 500,
+    });
+
+    return this.parseOpenAIResponse(response.content);
   }
 
   private understandWithRules(
