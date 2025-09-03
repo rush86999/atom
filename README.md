@@ -1,392 +1,242 @@
-# Atom Project - Complete OAuth & API Key Management System
+# 🚀 Atom: Your Super-Powered Personal Assistant
 
-## 🚀 OAuth System Overview
+**One assistant to manage your entire life—from personal tasks and scheduling to professional projects and even your small business.**
 
-The Atom project features a comprehensive OAuth 2.0 implementation for third-party integrations. The system supports multiple providers with secure token storage, automatic refresh, and full integration management.
+> ⚡ **As simple as talking to Siri or Alexa, but powerful enough to run your life.**
 
-### Supported OAuth Providers
-- ✅ **Google Drive** - File access and management
-- ✅ **Asana** - Task and project management  
-- ✅ **Dropbox** - Cloud storage integration
-- ✅ **Box** - Enterprise file sharing
-- ✅ **Trello** - Project management boards
-- ✅ **Shopify** - E-commerce platform
-- ✅ **Zoho** - Business applications suite
+[**Quick Start** → See What You Can Do](#-key-features) | [**For Developers** → Installation Guide](#-installation--setup-guide) | [**Use Cases** → Real-World Examples](#-business-use-cases)
 
-## 🔑 API Key Management
+**Built to be your single point of command for everything you do.**
 
-The system also includes secure API key management for services that don't support OAuth:
-- Secure encryption of API keys at rest
-- User-friendly interface for key management
-- Integration with the orchestration system
+---
 
-## 🛠️ Setup & Configuration
+## ✨ **One Assistant for Everything**
 
-### Quick Start
-1. Copy `.env.template` to `.env` and configure values
-2. Run services:
-   - Python API: `cd backend && docker-compose up`
-   - Frontend: `cd frontend-nextjs && npm run dev`
-   - Desktop: `cd desktop && npm run tauri dev`
+Atom is a next-generation AI assistant that understands your personal and professional contexts. It connects to all your apps and services to become the central hub for your productivity, communication, and planning. Stop juggling apps and start living smarter.
 
-### OAuth Provider Setup
-For each OAuth provider, you need to:
+---
 
-1. **Register your application** with the provider's developer portal
-2. **Add credentials** to your `.env` file:
-   ```bash
-   # Google
-   GOOGLE_CLIENT_ID=your_google_client_id
-   GOOGLE_CLIENT_SECRET=your_google_client_secret
-   
-   # Asana
-   ASANA_CLIENT_ID=your_asana_client_id
-   ASANA_CLIENT_SECRET=your_asana_client_secret
-   
-   # Dropbox
-   DROPBOX_CLIENT_ID=your_dropbox_client_id
-   DROPBOX_CLIENT_SECRET=your_dropbox_client_secret
-   
-   # Box
-   BOX_CLIENT_ID=your_box_client_id
-   BOX_CLIENT_SECRET=your_box_client_secret
-   
-   # Trello
-   TRELLO_CLIENT_ID=your_trello_client_id
-   TRELLO_CLIENT_SECRET=your_trello_client_secret
-   
-   # Shopify
-   SHOPIFY_CLIENT_ID=your_shopify_client_id
-   SHOPIFY_CLIENT_SECRET=your_shopify_client_secret
-   
-   # Zoho
-   ZOHO_CLIENT_ID=your_zoho_client_id
-   ZOHO_CLIENT_SECRET=your_zoho_client_secret
-   ```
+## 🤖 **What Atom Can Do For You**
 
-3. **Configure redirect URIs** in your provider dashboard:
-   - All services: `http://localhost:3000/api/oauth/[service]/callback`
-   - Replace `[service]` with the provider name (google, asana, dropbox, etc.)
+Atom is more than just an assistant; it's your life's co-pilot. Here are some of the things it can help you with:
 
-### Encryption Setup
-Generate a secure encryption key for API key storage:
+### **🗓️ Your Unified Calendar & Schedule**
+
+Stop juggling different calendar apps. Atom brings all your schedules into one place.
+
+- **Unified View**: See your personal and work calendars in a single view.
+- **Smart Scheduling**: "Find a 30-minute slot for me and John next week." Atom will check both your calendars and suggest times.
+- **Meeting Superpowers**:
+  - **Transcription & Summarization**: Atom can join your online meetings, transcribe them, and provide you with a summary of key decisions and action items.
+  - **Intelligent Follow-ups**: Never forget a task. Atom analyzes meeting notes and suggests follow-ups.
+
+### **💬 Your Communication Hub**
+
+Tired of checking multiple apps for messages? Atom unifies your communications.
+
+- **All Your Messages in One Place**: Connect Gmail, Outlook, Slack, Teams, and Discord. Search all of them from one place.
+- **AI-Powered Inbox**: Atom can prioritize your emails, summarize long threads, and even draft replies for you.
+
+### **✅ Effortless Task & Project Management**
+
+Whether it's a grocery list or a major work project, Atom keeps you on track.
+
+- **Connect Your Tools**: Integrates with Notion, Trello, Asana, Jira, and more.
+- **Voice-Powered Productivity**: "Add 'buy milk' to my shopping list." "What are my deadlines for the 'Q3 Report' project?"
+- **Automated Workflows**: "When I add a new task to my 'To-Do' list in Trello, add it to my Google Calendar."
+
+### **💼 Power-Up Your Small Business**
+
+For entrepreneurs and small business owners, Atom is like having a personal operations team.
+
+- **Automate Customer Follow-ups**: Automatically send personalized emails to new customers or clients.
+- **Financial Insights**: Connect your bank accounts (via Plaid), and get a clear view of your business's financial health.
+- **Streamline Operations**: From generating invoices in Quickbooks to managing your Shopify store, Atom can handle the repetitive tasks so you can focus on growth.
+
+### **🧠 Unified Search: Your Personal Memory**
+
+Atom's most powerful feature is its ability to search across all your connected apps and documents at once. Think of it as your personal memory, instantly accessible.
+
+- **Cross-Platform Search**: When you ask "find my notes on the Q3 project," Atom doesn't just search one place. It looks through your documents, emails, Slack/Teams messages, and Notion pages to find the most relevant information.
+- **Semantic Understanding**: Powered by LanceDB, Atom understands the meaning behind your words, not just keywords. This means you can search for concepts and ideas, and Atom will find what you're looking for, even if the words don't match exactly.
+- **Your Data, Your Control**: All of this happens securely on your local machine or your private cloud, ensuring your personal and professional information remains private.
+
+---
+
+### **The Technology Behind the Magic**
+
+While Atom is simple to use, it's powered by a sophisticated engine. For those who are interested, here's a peek under the hood:
+
+<details>
+<summary><b>The Agent Stack (Click to Expand)</b></summary>
+
+When you speak, a team of specialized agents activates to handle your request:
+
+| Agent                                | Specialty                            | Example Triggers                                    |
+| ------------------------------------ | ------------------------------------ | --------------------------------------------------- |
+| **Business Intelligence Officer**    | Market analysis & expansion strategy | "I want to grow my business"                        |
+| **Personal Finance Advisor**         | Retirement & investment planning     | "Planning for retirement while running my business" |
+| **Customer Experience Manager**      | Retention & repeat sales automation  | "My customers don't come back"                      |
+| **Digital Marketing Coordinator**    | Complete marketing automation        | "Marketing takes too much time"                     |
+| **Analytics & Intelligence Officer** | Data insights & predictions          | "My business decisions feel random"                 |
+| **Operations Coordinator**           | Workflow optimization                | "Manual processes are killing me"                   |
+| **Multi-Channel Communicator**       | Appointment & customer communication | "I'm missing customer appointments"                 |
+| **Emergency Response Manager**       | Business continuity & system health  | "What if the system goes down?"                     |
+| **Full-Stack Engineer**              | Custom feature development           | "I need a tool that does X"                         |
+
+</details>
+
+<details>
+<summary><b>Extensive Integrations (Click to Expand)</b></summary>
+
+Atom connects with the tools you already use, creating a seamless, automated ecosystem for your business. For a complete and detailed list, see the [**Full Integration Documentation**](docs/INTEGRATIONS.md).
+
+Here are some of the key platforms we support:
+
+**Communication & Collaboration**
+
+- **Email:** Gmail, Outlook
+- **Chat:** Slack, Microsoft Teams, Discord
+
+**Calendar & Scheduling**
+
+- **Calendars:** Google Calendar, Outlook Calendar
+- **Scheduling:** Calendly, Zoom
+
+**Task Management & Productivity**
+
+- **Project Management:** Notion, Trello, Asana, Jira
+- **Collaboration:** Miro, GitHub
+
+**Cloud Storage**
+
+- Google Drive, Dropbox, OneDrive, Box
+
+**Finance & Accounting**
+
+- **Payments:** Stripe, PayPal
+- **Accounting:** Quickbooks, Xero
+- **Financial Data:** Plaid
+
+**CRM & Sales**
+
+- Salesforce, HubSpot
+
+**And many more, including Zapier for custom connections.**
+
+</details>
+
+---
+
+## 📥 **Installation & Setup Guide**
+
+### **For End Users - Zero Additional Setup**
+
+```
+1. Open Atom (your existing app) ✓ DONE
+2. Start chatting normally ✓
+3. Describe your business challenge ✓
+4. Complete AI team activates ✓
+```
+
+### **For Developers - Full Architecture**
+
 ```bash
-# Generate a 256-bit encryption key
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Clone and setup complete system
+git clone https://github.com/rush86999/atom.git
+cd atom
+npm install
+npm run dev                            # Start development server
+npm run orchestration:demo            # See system in action
 ```
 
-Add the key to your `.env` file:
+### **Environment Options**
+
+- **Local Setup**: Zero configuration required
+- **Cloud Integration**: Automatic provider selection
+- **Privacy Mode**: 100% local processing available
+
+### **System Requirements**
+
+- **Node.js**: 16+ or newer
+- **Storage**: 2GB free space for models
+- **Memory**: 8GB RAM recommended for optimal performance
+- **OS**: Windows, Mac, Linux all supported
+
+---
+
+---
+
+## 💡 **Real-World Examples**
+
+See how Atom can help in your day-to-day life. For more detailed scenarios, check out our [**Comprehensive Use Cases**](USE_CASES.md) document.
+
+### **Managing Your Personal Life**
+
+- **The Goal**: "I want to save for a down payment on a house while still having a social life."
+- **How Atom Helps**: Connects to your bank accounts, tracks your spending, sets up a budget, and helps you find ways to save without sacrificing your lifestyle.
+
+### **Juggling a Side Hustle**
+
+- **The Goal**: "I have a full-time job and a freelance design business on the side. I'm struggling to keep up with both."
+- **How Atom Helps**: Manages your schedule, keeps your work and personal calendars in sync, tracks your freelance projects, and even helps you with invoicing.
+
+### **Running a Small Business**
+
+- **The Goal**: "I run a small online store, and I'm overwhelmed with the day-to-day operations."
+- **How Atom Helps**: Automates customer service emails, tracks inventory, manages your social media presence, and gives you a clear overview of your sales and finances.
+
+---
+
+## 📋 **Getting Started - Choose Your Path**
+
+<a name="installation-guide"></a>
+
+### **🚀 Quick Start (2 minutes)**
+
+1. **Talk to Atom normally** (no setup)
+2. **Describe your biggest business challenge**
+3. **Watch complete automation activate**
+4. **Check progress through regular conversations**
+
+### **📝 Detailed Setup (5 minutes)**
+
+See: [Complete Setup Guide](ORCHESTRATION_USER_GUIDE.md#zero-setup-instant-usage)
+
+### **🏗️ Technical Integration (10 minutes)**
+
+For developers: [Integration Guide](ORCHESTRATION_INTEGRATION_GUIDE.md)
+
+---
+
+## 📚 **Documentation Resources**
+
+**[Complete User Guide → ORCHESTRATION_USER_GUIDE.md]**
+**[Technical Integration → ORCHESTRATION_INTEGRATION_GUIDE.md]**
+**[System Overview → ORCHESTRATION_SYSTEM_OVERVIEW.md]**
+**[Advanced Features → ENHANCED_AUTONOMOUS_DOCS.md]**
+
+---
+
+## 📚 **Learn More**
+
+- **[Comprehensive Use Cases](USE_CASES.md)**: See more detailed examples of what you can do with Atom.
+- **[Full Integration List](docs/INTEGRATIONS.md)**: A complete list of all the apps and services Atom connects with.
+- **[Technical Documentation](ORCHESTRATION_SYSTEM_OVERVIEW.md)**: For developers who want to dive deeper into the architecture.
+
+---
+
+## 🚀 **Getting Started - One Command**
+
 ```bash
-ENCRYPTION_KEY=your_generated_64_character_hex_key_here
+git clone https://github.com/rush86999/atom.git
+cd atom
+npm install
+npm run dev                          # Ready to use immediately
 ```
 
-## 🏗️ Architecture & OAuth Flow
+---
 
-### OAuth Architecture
+## 📱 **Available Now - Zero Additional Setup**
 
-The OAuth system consists of three main components:
-
-1. **OAuth Service** (`src/services/oauthService.ts`) - Handles OAuth flows and token management
-2. **Database Service** (`src/services/oauthDatabaseService.ts`) - Manages token storage and retrieval
-3. **API Routes** (`pages/api/oauth/`) - Handles HTTP endpoints for OAuth flows
-
-### OAuth Flow Sequence
-
-1. **Initiation**: User clicks "Connect" on integrations page
-2. **Redirect**: Browser redirects to OAuth provider's authorization page
-3. **Callback**: Provider redirects back with authorization code
-4. **Token Exchange**: Server exchanges code for access/refresh tokens
-5. **Storage**: Tokens are encrypted and stored in database
-6. **Usage**: Tokens are used for API calls to integrated services
-
-### API Key Management Flow
-
-1. **Storage**: User enters API key in settings interface
-2. **Encryption**: Key is encrypted using AES-256-GCM before storage
-3. **Retrieval**: Keys are decrypted on-demand for API calls
-4. **Rotation**: Users can update or delete keys as needed
-
-## 📊 Database Schema
-
-### OAuth Token Tables
-```sql
--- Google Drive OAuth Tokens
-CREATE TABLE user_gdrive_oauth_tokens (
-    user_id VARCHAR(255) PRIMARY KEY,
-    gdrive_user_email VARCHAR(255) NOT NULL,
-    access_token TEXT NOT NULL,
-    refresh_token TEXT,
-    expires_at TIMESTAMP,
-    token_type VARCHAR(50),
-    scope TEXT,
-    external_user_id VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Similar tables exist for all supported providers
-```
-
-### API Key Table
-```sql
-CREATE TABLE user_api_keys (
-    id VARCHAR(255) PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    service VARCHAR(100) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    encrypted_key TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## 🔧 API Endpoints
-
-### OAuth Endpoints
-- `GET /api/oauth/[service]/initiate` - Start OAuth flow
-- `GET /api/oauth/[service]/callback` - Handle OAuth callback
-- `POST /api/integrations/disconnect` - Disconnect integration
-
-### Integration Management
-- `GET /api/integrations/status` - Get connection status
-- `GET/POST/PUT/DELETE /api/integrations/apikeys` - Manage API keys
-
-## 🛡️ Security Features
-
-### Token Security
-- Refresh token rotation support
-- Automatic token expiration handling
-- Secure token revocation
-- CSRF protection with state parameters
-
-### API Key Security
-- AES-256-GCM encryption at rest
-- Secure key generation and storage
-- No plaintext key exposure in UI
-- Proper key rotation procedures
-
-### Database Security
-- Separate tables per service for isolation
-- Indexed queries for performance
-- Automatic timestamp tracking
-- Foreign key constraints
-
-## 🚀 Usage Examples
-
-### Connecting to Google Drive
-```typescript
-// Initiate OAuth flow
-window.location.href = '/api/oauth/google/initiate';
-
-// Handle callback automatically
-// Tokens are stored and managed by the system
-```
-
-### Managing API Keys
-```typescript
-// Save a new API key
-const response = await fetch('/api/integrations/apikeys', {
-  method: 'POST',
-  body: JSON.stringify({
-    service: 'openai',
-    name: 'Production API Key',
-    key: 'sk-...'
-  })
-});
-
-// Get all API keys
-const keys = await fetch('/api/integrations/apikeys');
-```
-
-### Checking Integration Status
-```typescript
-const status = await fetch('/api/integrations/status');
-// Returns: {
-//   google: { connected: true, email: 'user@example.com', lastConnected: '...' },
-//   asana: { connected: false },
-//   // ... other services
-// }
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Redirect URI Mismatch**
-   - Ensure redirect URIs match exactly in provider dashboard
-   - Use `http://localhost:3000/api/oauth/[service]/callback` for development
-
-2. **Invalid OAuth Credentials**
-   - Verify client ID and secret are correct
-   - Check that OAuth scopes are properly configured
-
-3. **Token Refresh Issues**
-   - Ensure refresh tokens are being stored properly
-   - Check token expiration handling
-
-4. **Database Connection Issues**
-   - Verify DATABASE_URL is set correctly
-   - Check database permissions and table existence
-
-### Debugging
-
-Enable debug logging by setting:
-```bash
-LOG_LEVEL=debug
-```
-
-Check browser console and server logs for detailed error messages.
-
-## 📝 Future Enhancements
-
-### Planned Features
-- [ ] Webhook-based token refresh notifications
-- [ ] Multi-account support per service
-- [ ] Token usage analytics and reporting
-- [ ] Automated token rotation policies
-- [ ] Integration with secret management systems
-- [ ] Audit logging for all token operations
-
-### Security Improvements
-- [ ] Hardware Security Module (HSM) integration
-- [ ] Key rotation automation
-- [ ] Advanced threat detection
-- [ ] Compliance reporting (SOC 2, ISO 27001)
-
-## 🚀 OAuth System Overview
-
-The Atom project features a comprehensive OAuth 2.0 implementation for third-party integrations. The system supports multiple providers with secure token storage, automatic refresh, and full integration management.
-
-### Supported OAuth Providers
-- ✅ **Google Drive** - File access and management
-- ✅ **Asana** - Task and project management  
-- ✅ **Dropbox** - Cloud storage integration
-- ✅ **Box** - Enterprise file sharing
-- ✅ **Trello** - Project management boards
-- ✅ **Shopify** - E-commerce platform
-- ✅ **Zoho** - Business applications suite
-
-## 🛠️ Setup & OAuth Configuration
-
-### Quick Start
-1. Copy `.env.example` to `.env` and configure values
-2. Run services:
-   - Python API: `cd backend && docker-compose up`
-   - Frontend: `cd frontend-nextjs && npm run dev`
-   - Desktop: `cd desktop && npm run tauri dev`
-
-### OAuth Provider Setup
-For each OAuth provider, you need to:
-
-1. **Register your application** with the provider's developer portal
-2. **Add credentials** to your `.env` file:
-   ```bash
-   # Google Drive
-   ATOM_GDRIVE_CLIENT_ID=your_google_client_id
-   ATOM_GDRIVE_CLIENT_SECRET=your_google_client_secret
-   
-   # Asana
-   ASANA_CLIENT_ID=your_asana_client_id
-   ASANA_CLIENT_SECRET=your_asana_client_secret
-   
-   # Other providers follow similar pattern
-   ```
-
-3. **Configure redirect URIs** in your provider dashboard:
-   - Google: `http://localhost:5058/api/auth/gdrive/oauth2callback`
-   - Asana: `http://localhost:5058/api/auth/asana/callback`
-   - Dropbox: `http://localhost:5058/api/auth/dropbox/callback`
-   - etc.
-
-## 🏗️ Architecture & OAuth Flow
-
-### System Architecture
-- **Frontend**: Next.js (port 3000) - Integration management UI
-- **API**: Flask (port 5058) - OAuth endpoints and token management
-- **Database**: PostgreSQL - Encrypted token storage
-- **Desktop**: Tauri wrapper
-
-### OAuth Flow Sequence
-1. **Initiation**: User clicks "Connect" in frontend → Redirect to provider auth page
-2. **Authorization**: User grants permissions on provider's site
-3. **Callback**: Provider redirects to Atom callback endpoint with auth code
-4. **Token Exchange**: Backend exchanges code for access/refresh tokens
-5. **Storage**: Tokens encrypted and stored in database
-6. **Usage**: Services use stored tokens for API calls
-
-### Security Features
-- 🔒 **Token Encryption**: All tokens encrypted before database storage
-- 🛡️ **CSRF Protection**: State parameters prevent CSRF attacks
-- 🔄 **Automatic Refresh**: Refresh tokens handled automatically
-- 🗑️ **Secure Disconnect**: Proper token revocation support
-
-## 🔧 Environment Variables
-
-### Required for OAuth
-```bash
-# Flask & Database
-FLASK_SECRET_KEY=your_very_secret_key_here
-DATABASE_URL=postgresql://user:pass@localhost:5432/atom_db
-PYTHON_API_PORT=5058
-
-# Google Drive OAuth
-ATOM_GDRIVE_CLIENT_ID=your_google_client_id
-ATOM_GDRIVE_CLIENT_SECRET=your_google_client_secret
-ATOM_GDRIVE_REDIRECT_URI=http://localhost:5058/api/auth/gdrive/oauth2callback
-
-# Asana OAuth
-ASANA_CLIENT_ID=your_asana_client_id
-ASANA_CLIENT_SECRET=your_asana_client_secret
-
-# Dropbox OAuth
-DROPBOX_APP_KEY=your_dropbox_app_key
-DROPBOX_APP_SECRET=your_dropbox_app_secret
-
-# Frontend URLs
-APP_CLIENT_URL=http://localhost:3000
-FRONTEND_OAUTH_SUCCESS_URL=/integrations?status=success
-FRONTEND_OAUTH_FAILURE_URL=/integrations?status=failure
-```
-
-See `.env.example` for complete reference of all supported providers.
-
-## 📁 Project Structure & OAuth Components
-
-### Key OAuth Directories
-```
-atom/
-├── backend/
-│   └── python-api-service/
-│       ├── auth_handler_*.py          # OAuth handlers (gdrive, asana, dropbox, etc.)
-│       ├── db_oauth_*.py              # Database operations for each provider
-│       ├── crypto_utils.py            # Token encryption/decryption
-│       └── main_api_app.py            # Flask app with OAuth blueprints
-├── frontend-nextjs/
-│   ├── pages/
-│   │   ├── integrations.tsx           # OAuth connection management UI
-│   │   └── api/
-│   │       └── integrations/          # Integration status API
-│   └── src/
-│       └── components/
-│           └── Integrations/          # OAuth UI components
-├── scripts/
-│   ├── start-dev.sh                   # Development startup script
-│   ├── test-oauth-endpoints.py        # OAuth health check
-│   └── create-oauth-tables.sql        # Database schema
-└── .env.example                       # OAuth configuration template
-```
-
-### OAuth API Endpoints
-- `GET /api/auth/{provider}/initiate` - Start OAuth flow
-- `GET /api/auth/{provider}/callback` - Handle OAuth callback
-- `POST /api/auth/{provider}/disconnect` - Revoke connection
-- `GET /api/auth/{provider}/status` - Check connection status
-- `GET /api/integrations/status` - Get all integration statuses
-
-### Database Schema
-OAuth tokens are stored in provider-specific tables with:
-- User ID reference
-- Encrypted access and refresh tokens
-- Expiration timestamps
-- User email/identification
-- Audit timestamps
+**Open Atom and talk to it normally. Your super-powered personal assistant is ready and waiting.**

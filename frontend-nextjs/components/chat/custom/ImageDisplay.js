@@ -1,0 +1,8 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const jsx_runtime_1 = require("react/jsx-runtime");
+const ImageDisplay = ({ imageUrl, altText = 'Image' }) => {
+    return ((0, jsx_runtime_1.jsx)("div", { className: "my-2", children: (0, jsx_runtime_1.jsx)("img", { src: imageUrl, alt: altText, className: "rounded-lg max-w-full h-auto" }) }));
+};
+exports.default = ImageDisplay;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiSW1hZ2VEaXNwbGF5LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiSW1hZ2VEaXNwbGF5LnRzeCJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFPQSxNQUFNLFlBQVksR0FBRyxDQUFDLEVBQUUsUUFBUSxFQUFFLE9BQU8sR0FBRyxPQUFPLEVBQVMsRUFBRSxFQUFFO0lBQzVELE9BQU8sQ0FDSCxnQ0FBSyxTQUFTLEVBQUMsTUFBTSxZQUNqQixnQ0FDSSxHQUFHLEVBQUUsUUFBUSxFQUNiLEdBQUcsRUFBRSxPQUFPLEVBQ1osU0FBUyxFQUFDLDhCQUE4QixHQUMxQyxHQUNBLENBQ1QsQ0FBQztBQUNOLENBQUMsQ0FBQztBQUVGLGtCQUFlLFlBQVksQ0FBQyIsInNvdXJjZXNDb250ZW50IjpbImltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG5cbnR5cGUgUHJvcHMgPSB7XG4gICAgaW1hZ2VVcmw6IHN0cmluZztcbiAgICBhbHRUZXh0Pzogc3RyaW5nO1xufTtcblxuY29uc3QgSW1hZ2VEaXNwbGF5ID0gKHsgaW1hZ2VVcmwsIGFsdFRleHQgPSAnSW1hZ2UnIH06IFByb3BzKSA9PiB7XG4gICAgcmV0dXJuIChcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJteS0yXCI+XG4gICAgICAgICAgICA8aW1nXG4gICAgICAgICAgICAgICAgc3JjPXtpbWFnZVVybH1cbiAgICAgICAgICAgICAgICBhbHQ9e2FsdFRleHR9XG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwicm91bmRlZC1sZyBtYXgtdy1mdWxsIGgtYXV0b1wiXG4gICAgICAgICAgICAvPlxuICAgICAgICA8L2Rpdj5cbiAgICApO1xufTtcblxuZXhwb3J0IGRlZmF1bHQgSW1hZ2VEaXNwbGF5O1xuIl19
