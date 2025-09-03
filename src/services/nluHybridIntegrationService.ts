@@ -2,13 +2,31 @@ import { NLUService } from "./nluService";
 import { OpenAIService } from "./openaiService";
 import { WorkflowService } from "./workflowService";
 import { SkillService } from "./skillService";
+import { hybridLLMService } from "./hybridLLMService";
+
+// Simple local model for fallback processing
+interface LocalModelConfig {
+  enabled: boolean;
+  confidenceThreshold: number;
+  maxQueryLength: number;
+}
+
+interface LocalModelPrediction {
+  intent: string;
+  confidence: number;
+  entities: Record<string, any>;
+}
 
 export interface NLUHybridConfig {
   enableHybridMode: boolean;
   complexityThreshold: number;
   enableFallbackToAI: boolean;
+  enableLocalModel: boolean;
+  localModelConfidenceThreshold: number;
   maxBatchSize: number;
   cacheResponses: boolean;
+  useLlamaCPP: boolean;
+  llamaCPPThreshold: number;
 }
 
 export interface NLUHybridResponse {
@@ -31,6 +49,7 @@ export class NLUHybridIntegrationService {
   private workflowService: WorkflowService;
   private skillService: SkillService;
   private config: NLUHybridConfig;
+  private localModelConfig: LocalModelConfig;
 
   constructor(
     nluService: NLUService,
@@ -47,9 +66,20 @@ export class NLUHybridIntegrationService {
       enableHybridMode: true,
       complexityThreshold: 0.7,
       enableFallbackToAI: true,
+      enableLocalModel: true,
+      localModelConfidenceThreshold: 0.6,
       maxBatchSize: 10,
       cacheResponses: true,
+      useLlamaCPP: true,
+      llamaCPPThreshold: 0.4,
     };
+
+    this.localModelConfig = {
+      enabled: true,
+      confidenceThreshold: 0.6,
+      maxQueryLength: 50,
+    };
+  }
   }
 
   async understandMessage(
@@ -73,16 +103,30 @@ export class NLUHybridIntegrationService {
         this.config.enableHybridMode &&
         complexity > this.config.complexityThreshold
       ) {
-        const enhancedResult = await this.enhanceWithAI(
-          rulesResult,
-          message,
-          context,
-        );
-        return {
-          ...enhancedResult,
-          providerUsed: "hybrid" as const,
-          processingTime: Math.max(1, Date.now() - startTime),
-        };
+        // Check if we should use llama.cpp for AI enhancement
+        if (this.config.useLlamaCPP && complexity < this.config.llamaCPPThreshold) {
+          const enhancedResult = await this.enhanceWithLlamaCPP(
+            rulesResult,
+            message,
+            context,
+          );
+          return {
+            ...enhancedResult,
+            providerUsed: "llama-hybrid" as const,
+            processingTime: Math.max(1, Date.now() - startTime),
+          };
+        } else {
+          const enhancedResult = await this.enhanceWithAI(
+            rulesResult,
+            message,
+            context,
+          );
+          return {
+            ...enhancedResult,
+            providerUsed: "hybrid" as const,
+            processingTime: Math.max(1, Date.now() - startTime),
+          };
+        }
       }
 
       return {
@@ -95,9 +139,51 @@ export class NLUHybridIntegrationService {
         processingTime: Math.max(1, Date.now() - startTime),
       };
     } catch (error) {
+      // First try llama.cpp fallback if enabled and appropriate
+      if (this.config.useLlamaCPP && this.isSuitableForLlamaCPP(message)) {
+        try {
+          const llamaResult = await this.fallbackToLlamaCPP(message, context);
+          return {
+            ...llamaResult,
+            providerUsed: "llama" as const,
+            processingTime: Math.max(1, Date.now() - startTime),
+          };
+        } catch (llamaError) {
+          console.warn("Llama.cpp fallback failed:", llamaError);
+        }
+      }
+
+      // Then try local model fallback if enabled and appropriate
+      if (this.config.enableLocalModel && this.isSuitableForLocalModel(message)) {
+        try {
+          const localResult = await this.fallbackToLocalModel(message, context);
+          return {
+            ...localResult,
+            providerUsed: "local" as const,
+            processingTime: Math.max(1, Date.now() - startTime),
+          };
+        } catch (localError) {
+          console.warn("Local model fallback failed, trying AI:", localError);
+        }
+      }
+
       // Fallback to AI if rules-based fails and fallback is enabled
       if (this.config.enableFallbackToAI) {
         try {
+          // Try llama.cpp first for AI fallback if enabled
+          if (this.config.useLlamaCPP) {
+            try {
+              const llamaResult = await this.fallbackToLlamaCPP(message, context);
+              return {
+                ...llamaResult,
+                providerUsed: "llama" as const,
+                processingTime: Math.max(1, Date.now() - startTime),
+              };
+            } catch (llamaError) {
+              console.warn("Llama.cpp AI fallback failed, trying cloud AI:", llamaError);
+            }
+          }
+
           const aiResult = await this.fallbackToAI(message, context);
           return {
             ...aiResult,
@@ -128,6 +214,183 @@ export class NLUHybridIntegrationService {
     for (const message of messages) {
       const result = await this.understandMessage(message, context);
       results.push(result);
+    }
+
+    private isSuitableForLocalModel(message: string): boolean {
+      // Simple heuristic for when to use local model
+      return (
+        message.length <= this.localModelConfig.maxQueryLength &&
+        this.calculateMessageComplexity(message) < 0.4
+      );
+    }
+
+    private isSuitableForLlamaCPP(message: string): boolean {
+      // Heuristic for when to use llama.cpp
+      const complexity = this.calculateMessageComplexity(message);
+      return (
+        message.length <= 200 && // Moderate length queries
+        complexity >= 0.3 && complexity <= 0.7 && // Medium complexity
+        !message.includes("urgent") && // Not time-sensitive
+        !message.includes("critical") // Not critical tasks
+      );
+    }
+
+    private async fallbackToLocalModel(
+      message: string,
+      context?: any,
+    ): Promise<any> {
+      try {
+        const prediction = this.predictWithLocalModel(message);
+
+        if (prediction.confidence >= this.localModelConfig.confidenceThreshold) {
+          return {
+            intent: prediction.intent,
+            confidence: prediction.confidence,
+            entities: prediction.entities,
+            action: this.getActionForIntent(prediction.intent),
+            parameters: {},
+            workflow: undefined,
+            requiresConfirmation: false,
+            suggestedResponses: this.getSuggestedResponses(prediction.intent),
+            context,
+          };
+        }
+
+        throw new Error("Local model confidence too low");
+      } catch (error) {
+        throw new Error(
+          `Local model processing failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    }
+
+    private async fallbackToLlamaCPP(
+      message: string,
+      context?: any,
+    ): Promise<any> {
+      try {
+        const prompt = `Analyze this user message and extract intent, entities, and suggest appropriate action:
+
+Message: "${message}"
+Context: ${JSON.stringify(context || {})}
+
+Please respond with a JSON object containing:
+- intent: the main intent detected
+- confidence: confidence score (0-1)
+- entities: key-value pairs of extracted entities
+- action: suggested action to take
+- requiresConfirmation: boolean if confirmation needed
+- suggestedResponses: array of possible responses`;
+
+        const response = await hybridLLMService.generate(
+          prompt,
+          "llama-3-8b-instruct",
+          {
+            temperature: 0.3,
+            maxTokens: 500,
+            isJsonOutput: true,
+          }
+        );
+
+        const result = JSON.parse(response.content);
+
+        return {
+          intent: result.intent || "unknown",
+          confidence: result.confidence || 0.7,
+          entities: result.entities || {},
+          action: result.action || "respond",
+          parameters: {},
+          workflow: undefined,
+          requiresConfirmation: result.requiresConfirmation || false,
+          suggestedResponses: result.suggestedResponses || ["I need more information to help you with that."],
+          context,
+        };
+      } catch (error) {
+        throw new Error(
+          `Llama.cpp processing failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    }
+
+    private predictWithLocalModel(message: string): LocalModelPrediction {
+      // Simple pattern-based local model
+      const lowerMessage = message.toLowerCase();
+
+      // Common greetings
+      if (/(hello|hi|hey|greetings|good morning|good afternoon|good evening)/i.test(lowerMessage)) {
+        return {
+          intent: "greeting",
+          confidence: 0.85,
+          entities: {},
+        };
+      }
+
+      // Simple questions
+      if (/(what|who|where|when|why|how|which).*\?/.test(lowerMessage)) {
+        return {
+          intent: "simple_question",
+          confidence: 0.75,
+          entities: { question_type: this.detectQuestionType(lowerMessage) },
+        };
+      }
+
+      // Basic commands
+      if (/(help|assist|support)/i.test(lowerMessage)) {
+        return {
+          intent: "help_request",
+          confidence: 0.8,
+          entities: {},
+        };
+      }
+
+      // Thank you messages
+      if (/(thanks|thank you|appreciate|grateful)/i.test(lowerMessage)) {
+        return {
+          intent: "gratitude",
+          confidence: 0.9,
+          entities: {},
+        };
+      }
+
+      // Default fallback
+      return {
+        intent: "unknown",
+        confidence: 0.3,
+        entities: {},
+      };
+    }
+
+    private detectQuestionType(message: string): string {
+      if (message.includes("what")) return "what";
+      if (message.includes("who")) return "who";
+      if (message.includes("where")) return "where";
+      if (message.includes("when")) return "when";
+      if (message.includes("why")) return "why";
+      if (message.includes("how")) return "how";
+      if (message.includes("which")) return "which";
+      return "general";
+    }
+
+    private getActionForIntent(intent: string): string {
+      const actionMap: Record<string, string> = {
+        greeting: "respond",
+        simple_question: "respond",
+        help_request: "respond",
+        gratitude: "respond",
+        unknown: "respond",
+      };
+      return actionMap[intent] || "respond";
+    }
+
+    private getSuggestedResponses(intent: string): string[] {
+      const responseMap: Record<string, string[]> = {
+        greeting: ["Hello! How can I help you today?", "Hi there! What can I assist you with?"],
+        simple_question: ["I'd be happy to help with that.", "Let me think about that question."],
+        help_request: ["I'm here to help! What do you need assistance with?", "How can I assist you today?"],
+        gratitude: ["You're welcome!", "Happy to help!", "Glad I could assist!"],
+        unknown: ["I'm not sure I understand. Could you rephrase that?", "Could you provide more details?"],
+      };
+      return responseMap[intent] || ["I need more information to help you with that."];
     }
 
     return results;
@@ -191,6 +454,52 @@ export class NLUHybridIntegrationService {
       // If AI enhancement fails, return the original result
       console.warn(
         "AI enhancement failed, falling back to rules-based result:",
+        error,
+      );
+      return baseResult;
+    }
+  }
+
+  private async enhanceWithLlamaCPP(
+    baseResult: any,
+    message: string,
+    context?: any,
+  ): Promise<any> {
+    try {
+      const prompt = `Enhance this NLU result with better entity extraction and context awareness:
+
+Original Message: "${message}"
+Current Result: ${JSON.stringify(baseResult)}
+Context: ${JSON.stringify(context || {})}
+
+Please enhance the result by:
+1. Improving entity extraction from the message
+2. Adding context awareness based on the provided context
+3. Refining the confidence score
+4. Generating more appropriate suggested responses
+
+Respond with a JSON object containing the enhanced result.`;
+
+      const response = await hybridLLMService.generate(
+        prompt,
+        "llama-3-8b-instruct",
+        {
+          temperature: 0.2,
+          maxTokens: 800,
+          isJsonOutput: true,
+        }
+      );
+
+      const enhancedResult = JSON.parse(response.content);
+
+      return {
+        ...baseResult,
+        ...enhancedResult,
+        confidence: Math.min((baseResult.confidence + enhancedResult.confidence) / 2, 1.0),
+      };
+    } catch (error) {
+      console.warn(
+        "Llama.cpp enhancement failed, falling back to base result:",
         error,
       );
       return baseResult;
