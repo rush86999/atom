@@ -2,14 +2,14 @@
 // Real continued development environment with advanced features
 // Self-contained development server for entire ATOM ecosystem
 
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const fs = require('fs').promises;
-const path = require('path');
-const { exec } = require('child_process');
-const { promisify } = require('util');
+require("dotenv").config();
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+const fs = require("fs").promises;
+const path = require("path");
+const { exec } = require("child_process");
+const { promisify } = require("util");
 const execAsync = promisify(exec);
 
 class DevelopmentServer {
@@ -19,8 +19,8 @@ class DevelopmentServer {
     this.io = socketIo(this.server, {
       cors: {
         origin: ["http://localhost:1420", "http://localhost:3002"],
-        credentials: true
-      }
+        credentials: true,
+      },
     });
 
     this.projects = new Map();
@@ -31,29 +31,29 @@ class DevelopmentServer {
 
   setupRoutes() {
     this.app.use(express.json());
-    this.app.use(express.static(path.join(__dirname, '..', 'public')));
+    this.app.use(express.static(path.join(__dirname, "..", "public")));
 
     // Real health check
-    this.app.get('/health', (req, res) => {
+    this.app.get("/health", (req, res) => {
       res.json({
-        status: 'healthy',
+        status: "healthy",
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         activeProjects: this.projects.size,
-        activeBuilds: this.activeBuilds.size
+        activeBuilds: this.activeBuilds.size,
       });
     });
 
     // Real project creation
-    this.app.post('/api/create-project', async (req, res) => {
+    this.app.post("/api/create-project", async (req, res) => {
       const { projectName, userLogin, template, githubToken } = req.body;
 
       try {
         const projectConfig = await this.createProject({
           name: projectName,
           user: userLogin,
-          template: template || 'nextjs',
-          githubToken
+          template: template || "nextjs",
+          githubToken,
         });
 
         res.json({
@@ -61,10 +61,14 @@ class DevelopmentServer {
           projectId: projectConfig.id,
           repoUrl: projectConfig.repoUrl,
           liveUrl: projectConfig.liveUrl,
-          status: 'created'
+          status: "created",
         });
 
-        this.emitProgress(projectConfig.id, 'Project created successfully', 100);
+        this.emitProgress(
+          projectConfig.id,
+          "Project created successfully",
+          100,
+        );
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
         this.emitError(projectConfig?.id, error.message);
@@ -72,11 +76,15 @@ class DevelopmentServer {
     });
 
     // Real build trigger from conversation
-    this.app.post('/api/build', async (req, res) => {
+    this.app.post("/api/build", async (req, res) => {
       const { projectId, instruction, githubToken } = req.body;
 
       try {
-        const buildId = await this.triggerBuild(projectId, instruction, githubToken);
+        const buildId = await this.triggerBuild(
+          projectId,
+          instruction,
+          githubToken,
+        );
         res.json({ success: true, buildId });
       } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -84,66 +92,79 @@ class DevelopmentServer {
     });
 
     // Real project status
-    this.app.get('/api/projects/:id', (req, res) => {
+    this.app.get("/api/projects/:id", (req, res) => {
       const project = this.projects.get(req.params.id);
       const build = this.activeBuilds.get(req.params.id);
 
       res.json({
         project: project || null,
-        build: build || null
+        build: build || null,
       });
     });
 
     // Real build status endpoint
-    this.app.get('/api/builds/:id', (req, res) => {
+    this.app.get("/api/builds/:id", (req, res) => {
       const build = this.activeBuilds.get(req.params.id);
-      res.json(build || { status: 'not_found' });
+      res.json(build || { status: "not_found" });
     });
 
     // Real project list
-    this.app.get('/api/projects', (req, res) => {
+    this.app.get("/api/projects", (req, res) => {
       const projects = Array.from(this.projects.values());
       res.json({ projects });
     });
   }
 
   setupWebSocket() {
-    this.io.on('connection', (socket) => {
-      console.log('Desktop connected:', socket.id);
+    this.io.on("connection", (socket) => {
+      console.log("Desktop connected:", socket.id);
 
-      socket.on('join_project', (projectId) => {
+      socket.on("join_project", (projectId) => {
         socket.join(`project-${projectId}`);
         const project = this.projects.get(projectId);
         if (project) {
-          socket.emit('project_loaded', project);
+          socket.emit("project_loaded", project);
         }
       });
 
-      socket.on('start_development', async (data) => {
+      socket.on("start_development", async (data) => {
         const { name, instruction, userLogin, githubToken } = data;
 
-        this.emitProgress('initial', 'Setting up development environment...', 10);
+        this.emitProgress(
+          "initial",
+          "Setting up development environment...",
+          10,
+        );
 
         try {
-          await this.createProject({ name, user: userLogin, instruction, githubToken });
-          this.emitProgress('initial', 'Development environment ready', 100);
+          await this.createProject({
+            name,
+            user: userLogin,
+            instruction,
+            githubToken,
+          });
+          this.emitProgress("initial", "Development environment ready", 100);
         } catch (error) {
-          this.emitError('initial', error.message);
+          this.emitError("initial", error.message);
         }
       });
 
-      socket.on('execute_instruction', async (data) => {
+      socket.on("execute_instruction", async (data) => {
         const { instruction, projectId, githubToken } = data;
-        await this.executeDevelopmentInstruction(instruction, projectId, githubToken);
+        await this.executeDevelopmentInstruction(
+          instruction,
+          projectId,
+          githubToken,
+        );
       });
 
-      socket.on('get_build_status', (projectId) => {
+      socket.on("get_build_status", (projectId) => {
         const build = this.activeBuilds.get(projectId);
-        socket.emit('build_status', { projectId, build });
+        socket.emit("build_status", { projectId, build });
       });
 
-      socket.on('disconnect', () => {
-        console.log('Desktop disconnected:', socket.id);
+      socket.on("disconnect", () => {
+        console.log("Desktop disconnected:", socket.id);
       });
     });
   }
@@ -158,14 +179,14 @@ class DevelopmentServer {
       user,
       template,
       repoName,
-      status: 'creating',
+      status: "creating",
       createdAt: new Date(),
       instruction,
-      progress: 0
+      progress: 0,
     };
 
     this.projects.set(projectId, project);
-    this.emitProgress(projectId, 'Creating project repository...', 20);
+    this.emitProgress(projectId, "Creating project repository...", 20);
 
     try {
       // Create GitHub repository
@@ -173,27 +194,34 @@ class DevelopmentServer {
       project.repoUrl = repo.html_url;
       project.cloneUrl = repo.clone_url;
 
-      this.emitProgress(projectId, 'Repository created, setting up template...', 40);
+      this.emitProgress(
+        projectId,
+        "Repository created, setting up template...",
+        40,
+      );
 
       // Setup template files
       await this.setupProjectTemplate(repoName, template, githubToken);
 
-      this.emitProgress(projectId, 'Template setup complete', 60);
+      this.emitProgress(projectId, "Template setup complete", 60);
 
       // Trigger initial build
-      const buildId = await this.triggerBuild(projectId, instruction, githubToken);
+      const buildId = await this.triggerBuild(
+        projectId,
+        instruction,
+        githubToken,
+      );
 
-      project.status = 'created';
+      project.status = "created";
       project.buildId = buildId;
       project.liveUrl = `https://${user}.github.io/${repoName}`;
 
       this.projects.set(projectId, project);
-      this.emitProgress(projectId, 'Project created successfully', 100);
+      this.emitProgress(projectId, "Project created successfully", 100);
 
       return project;
-
     } catch (error) {
-      project.status = 'error';
+      project.status = "error";
       project.error = error.message;
       this.projects.set(projectId, project);
       this.emitError(projectId, error.message);
@@ -202,25 +230,27 @@ class DevelopmentServer {
   }
 
   async createGitHubRepository(repoName, githubToken) {
-    const response = await fetch('https://api.github.com/user/repos', {
-      method: 'POST',
+    const response = await fetch("https://api.github.com/user/repos", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${githubToken}`,
+        Accept: "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         name: repoName,
-        description: 'ATOM AI generated project via conversation',
+        description: "ATOM AI generated project via conversation",
         private: false,
         auto_init: true,
-        gitignore_template: 'Node',
-        license_template: 'mit'
-      })
+        gitignore_template: "Node",
+        license_template: "mit",
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `GitHub API error: ${response.status} ${response.statusText}`,
+      );
     }
 
     return response.json();
@@ -232,7 +262,12 @@ class DevelopmentServer {
     const templateFiles = this.getTemplateFiles(template);
 
     for (const file of templateFiles) {
-      await this.commitFileToRepo(repoName, file.path, file.content, githubToken);
+      await this.commitFileToRepo(
+        repoName,
+        file.path,
+        file.content,
+        githubToken,
+      );
     }
   }
 
@@ -240,37 +275,41 @@ class DevelopmentServer {
     const templates = {
       nextjs: [
         {
-          path: 'package.json',
-          content: JSON.stringify({
-            name: 'atom-generated-site',
-            version: '1.0.0',
-            scripts: {
-              dev: 'next dev',
-              build: 'next build',
-              start: 'next start',
-              export: 'next export'
+          path: "package.json",
+          content: JSON.stringify(
+            {
+              name: "atom-generated-site",
+              version: "1.0.0",
+              scripts: {
+                dev: "next dev",
+                build: "next build",
+                start: "next start",
+                export: "next export",
+              },
+              dependencies: {
+                next: "^14.0.0",
+                react: "^18.2.0",
+                "react-dom": "^18.2.0",
+                tailwindcss: "^3.3.0",
+                autoprefixer: "^10.4.0",
+                postcss: "^8.4.0",
+              },
             },
-            dependencies: {
-              next: '^14.0.0',
-              react: '^18.2.0',
-              react-dom: '^18.2.0',
-              tailwindcss: '^3.3.0',
-              autoprefixer: '^10.4.0',
-              postcss: '^8.4.0'
-            }
-          }, null, 2)
+            null,
+            2,
+          ),
         },
         {
-          path: 'next.config.js',
+          path: "next.config.js",
           content: `module.exports = {
   output: 'export',
   images: {
     unoptimized: true
   }
-}`
+}`,
         },
         {
-          path: 'pages/index.js',
+          path: "pages/index.js",
           content: `import Head from 'next/head'
 
 export default function Home({ features = [] }) {
@@ -293,10 +332,10 @@ export default function Home({ features = [] }) {
       </main>
     </div>
   );
-}`
+}`,
         },
         {
-          path: 'tailwind.config.js',
+          path: "tailwind.config.js",
           content: `module.exports = {
   content: [
     './pages/**/*.{js,ts,jsx,tsx}',
@@ -306,9 +345,9 @@ export default function Home({ features = [] }) {
     extend: {},
   },
   plugins: [],
-}`
-        }
-      ]
+}`,
+        },
+      ],
     };
 
     return templates[template] || templates.nextjs;
@@ -317,20 +356,23 @@ export default function Home({ features = [] }) {
   async commitFileToRepo(repoName, filePath, content, githubToken) {
     // Implementation for committing files to GitHub repository
     // This would use the GitHub API to create commits
-    const encodedContent = Buffer.from(content).toString('base64');
+    const encodedContent = Buffer.from(content).toString("base64");
 
-    const response = await fetch(`https://api.github.com/repos/${repoName}/contents/${filePath}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `https://api.github.com/repos/${repoName}/contents/${filePath}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${githubToken}`,
+          Accept: "application/vnd.github.v3+json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `Add ${filePath}`,
+          content: encodedContent,
+        }),
       },
-      body: JSON.stringify({
-        message: `Add ${filePath}`,
-        content: encodedContent
-      })
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to commit file: ${response.status}`);
@@ -351,20 +393,20 @@ export default function Home({ features = [] }) {
       id: buildId,
       projectId,
       instruction,
-      status: 'queued',
+      status: "queued",
       progress: 0,
       logs: [],
       startTime: new Date(),
-      githubToken
+      githubToken,
     };
 
     this.activeBuilds.set(buildId, build);
     this.emitBuildUpdate(buildId, build);
 
     // Start build process asynchronously
-    this.executeBuild(buildId).catch(error => {
+    this.executeBuild(buildId).catch((error) => {
       const failedBuild = this.activeBuilds.get(buildId);
-      failedBuild.status = 'failed';
+      failedBuild.status = "failed";
       failedBuild.error = error.message;
       failedBuild.endTime = new Date();
       this.activeBuilds.set(buildId, failedBuild);
@@ -378,43 +420,42 @@ export default function Home({ features = [] }) {
     const build = this.activeBuilds.get(buildId);
     if (!build) return;
 
-    build.status = 'running';
+    build.status = "running";
     this.emitBuildUpdate(buildId, build);
 
     try {
       // Simulate build process with progress updates
-      this.addBuildLog(buildId, 'Starting build process...');
+      this.addBuildLog(buildId, "Starting build process...");
       await this.delay(1000);
 
-      this.addBuildLog(buildId, 'Analyzing instruction...');
+      this.addBuildLog(buildId, "Analyzing instruction...");
       build.progress = 20;
       this.emitBuildUpdate(buildId, build);
       await this.delay(2000);
 
-      this.addBuildLog(buildId, 'Generating code...');
+      this.addBuildLog(buildId, "Generating code...");
       build.progress = 40;
       this.emitBuildUpdate(buildId, build);
       await this.delay(3000);
 
-      this.addBuildLog(buildId, 'Committing changes...');
+      this.addBuildLog(buildId, "Committing changes...");
       build.progress = 60;
       this.emitBuildUpdate(buildId, build);
       await this.delay(2000);
 
-      this.addBuildLog(buildId, 'Deploying to GitHub Pages...');
+      this.addBuildLog(buildId, "Deploying to GitHub Pages...");
       build.progress = 80;
       this.emitBuildUpdate(buildId, build);
       await this.delay(4000);
 
-      this.addBuildLog(buildId, 'Build completed successfully!');
-      build.status = 'completed';
+      this.addBuildLog(buildId, "Build completed successfully!");
+      build.status = "completed";
       build.progress = 100;
       build.endTime = new Date();
       this.emitBuildUpdate(buildId, build);
-
     } catch (error) {
       this.addBuildLog(buildId, `Build failed: ${error.message}`);
-      build.status = 'failed';
+      build.status = "failed";
       build.error = error.message;
       build.endTime = new Date();
       this.emitBuildUpdate(buildId, build);
@@ -433,20 +474,22 @@ export default function Home({ features = [] }) {
     try {
       // Simulate instruction execution
       await this.delay(2000);
-      this.emitProgress(projectId, 'Analyzing instruction...', 25);
+      this.emitProgress(projectId, "Analyzing instruction...", 25);
       await this.delay(2000);
 
-      this.emitProgress(projectId, 'Generating code changes...', 50);
+      this.emitProgress(projectId, "Generating code changes...", 50);
       await this.delay(3000);
 
-      this.emitProgress(projectId, 'Applying changes to repository...', 75);
+      this.emitProgress(projectId, "Applying changes to repository...", 75);
       await this.delay(2000);
 
-      this.emitProgress(projectId, 'Instruction executed successfully!', 100);
+      this.emitProgress(projectId, "Instruction executed successfully!", 100);
       await this.delay(1000);
-
     } catch (error) {
-      this.emitError(projectId, `Failed to execute instruction: ${error.message}`);
+      this.emitError(
+        projectId,
+        `Failed to execute instruction: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -456,7 +499,7 @@ export default function Home({ features = [] }) {
     if (build) {
       build.logs.push({
         timestamp: new Date().toISOString(),
-        message
+        message,
       });
       this.activeBuilds.set(buildId, build);
       this.emitBuildUpdate(buildId, build);
@@ -464,31 +507,31 @@ export default function Home({ features = [] }) {
   }
 
   emitProgress(projectId, message, progress) {
-    this.io.to(`project-${projectId}`).emit('progress', {
+    this.io.to(`project-${projectId}`).emit("progress", {
       projectId,
       message,
       progress,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
   emitError(projectId, error) {
-    this.io.to(`project-${projectId}`).emit('error', {
+    this.io.to(`project-${projectId}`).emit("error", {
       projectId,
       error,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
   emitBuildUpdate(buildId, build) {
-    this.io.emit('build_update', {
+    this.io.emit("build_update", {
       buildId,
-      build
+      build,
     });
   }
 
   delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   start(port = 3001) {

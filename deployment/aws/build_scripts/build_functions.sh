@@ -3,7 +3,7 @@ set -e
 SERVICE_NAME="functions"
 # Using a fixed tag for now, will be parameterized later if needed for ECR
 IMAGE_NAME="atomic-${SERVICE_NAME}"
-CONTEXT_PATH="../../atomic-docker/functions_build_docker"
+CONTEXT_PATH="../../frontend-nextjs/project/functions"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 BUILD_CONTEXT="${SCRIPT_DIR}/${CONTEXT_PATH}"

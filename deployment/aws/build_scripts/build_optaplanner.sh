@@ -3,7 +3,7 @@ set -e
 SERVICE_NAME="optaplanner"
 IMAGE_NAME="atomic-${SERVICE_NAME}"
 # This context path is an assumption. User needs to ensure Dockerfile is here.
-CONTEXT_PATH="../../atomic-docker/optaplanner_build_docker"
+CONTEXT_PATH="../../frontend-nextjs/optaplanner_build_docker"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 BUILD_CONTEXT="${SCRIPT_DIR}/${CONTEXT_PATH}"
