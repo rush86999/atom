@@ -1,4 +1,6 @@
 # Enhanced gitignore to prevent all Python and cache conflicts
+# Exclude embedded git repositories
+frontend-nextjs/optaplanner_build_docker/
 # Created by https://www.toptal.com/developers/gitignore/api/node,python,go,java,react,nextjs,django,flask,fastapi,macos,linux,windows,intellij,visualstudiocode,vim,git
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,os,macos,linux,windows,intellij,visualstudiocode
 

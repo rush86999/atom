@@ -9,7 +9,7 @@ mcp_bp = Blueprint('mcp_bp', __name__)
 
 @mcp_bp.route('/mcp/files', methods=['GET'])
 def list_files_route():
-    user_id = request.headers.get('X-Hasura-User-Id')
+    user_id = request.headers.get('X-User-Id')
     if not user_id:
         return jsonify({"status": "error", "message": "User ID is required"}), 401
 
@@ -27,7 +27,7 @@ def list_files_route():
 
 @mcp_bp.route('/mcp/files/<file_id>', methods=['GET'])
 def get_file_metadata_route(file_id):
-    user_id = request.headers.get('X-Hasura-User-Id')
+    user_id = request.headers.get('X-User-Id')
     if not user_id:
         return jsonify({"status": "error", "message": "User ID is required"}), 401
 
@@ -40,7 +40,7 @@ def get_file_metadata_route(file_id):
 
 @mcp_bp.route('/mcp/files/<file_id>/download', methods=['GET'])
 def download_file_route(file_id):
-    user_id = request.headers.get('X-Hasura-User-Id')
+    user_id = request.headers.get('X-User-Id')
     if not user_id:
         return jsonify({"status": "error", "message": "User ID is required"}), 401
 
