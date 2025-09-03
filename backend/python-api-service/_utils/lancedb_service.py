@@ -87,9 +87,18 @@ except ImportError:
 
     lancedb = MockLanceDB()
 
-from typing import List, Optional, TypedDict
+from typing import List, Optional
 from datetime import datetime, timezone
 import logging
+
+# TypedDict is available in Python 3.8+, for 3.7 we use fallback
+try:
+    from typing import TypedDict
+except ImportError:
+    # Fallback for Python 3.7
+    class TypedDict:
+        def __init_subclass__(cls, **kwargs):
+            pass
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():

@@ -16,7 +16,7 @@ class McpHandlerTestCase(unittest.TestCase):
         mock_service.files.return_value.list.return_value.execute.return_value = {"files": []}
         mock_get_drive_service.return_value = mock_service
 
-        response = self.client.get('/mcp/files', headers={'X-Hasura-User-Id': 'test-user'})
+        response = self.client.get('/mcp/files', headers={'X-User-Id': 'test-user'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"status": "success", "data": {"files": [], "nextPageToken": None}})
 
@@ -28,7 +28,7 @@ class McpHandlerTestCase(unittest.TestCase):
         mock_service.files.return_value.get.return_value.execute.return_value = {"name": "test_file"}
         mock_get_drive_service.return_value = mock_service
 
-        response = self.client.get('/mcp/files/test_file_id', headers={'X-Hasura-User-Id': 'test-user'})
+        response = self.client.get('/mcp/files/test_file_id', headers={'X-User-Id': 'test-user'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"status": "success", "data": {"name": "test_file"}})
 
@@ -44,7 +44,7 @@ class McpHandlerTestCase(unittest.TestCase):
         mock_retry_request.return_value = (mock_response, b'test_content')
         mock_get_drive_service.return_value = mock_service
 
-        response = self.client.get('/mcp/files/test_file_id/download', headers={'X-Hasura-User-Id': 'test-user'})
+        response = self.client.get('/mcp/files/test_file_id/download', headers={'X-User-Id': 'test-user'})
         self.assertEqual(response.status_code, 200)
         # The response will be a JSON object with the file name, content, and mime type.
         # We can't easily check the content, so we'll just check the status and the file name.
@@ -63,7 +63,7 @@ class McpDropboxHandlerTestCase(unittest.TestCase):
         mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='dropbox')
         mock_list_files.return_value = {"status": "success", "data": {"files": []}}
 
-        response = self.client.get('/mcp/files', headers={'X-Hasura-User-Id': 'test-user'})
+        response = self.client.get('/mcp/files', headers={'X-User-Id': 'test-user'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"status": "success", "data": {"files": []}})
 
@@ -79,7 +79,7 @@ class McpOneDriveHandlerTestCase(unittest.TestCase):
         mock_get_mcp_credentials.return_value = MagicMock(token='test_token', provider='onedrive')
         mock_list_files.return_value = {"status": "success", "data": {"files": []}}
 
-        response = self.client.get('/mcp/files', headers={'X-Hasura-User-Id': 'test-user'})
+        response = self.client.get('/mcp/files', headers={'X-User-Id': 'test-user'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, {"status": "success", "data": {"files": []}})
 
