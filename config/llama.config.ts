@@ -5,7 +5,7 @@ export interface LlamaModelConfig {
   // Model identification
   modelId: string;
   modelName: string;
-  modelSize: 'small' | 'medium' | 'large';
+  modelSize: "small" | "medium" | "large";
 
   // Model file configuration
   modelPath: string;
@@ -51,7 +51,7 @@ export interface LlamaServerConfig {
 export interface LlamaFallbackConfig {
   // Fallback strategies
   enableFallback: boolean;
-  fallbackStrategy: 'local-first' | 'cloud-first' | 'cost-optimized';
+  fallbackStrategy: "local-first" | "cloud-first" | "cost-optimized";
 
   // Complexity thresholds
   minComplexityForLocal: number;
@@ -121,13 +121,14 @@ export interface LlamaConfig {
 export const defaultLlamaConfig: LlamaConfig = {
   models: [
     {
-      modelId: 'llama-3-8b-instruct',
-      modelName: 'Llama 3 8B Instruct',
-      modelSize: 'small',
-      modelPath: './models/llama.cpp/llama-3-8b-instruct.Q4_K_M.gguf',
-      downloadUrl: 'https://huggingface.co/bartowski/Llama-3-8B-Instruct-GGUF/resolve/main/Llama-3-8B-Instruct-Q4_K_M.gguf',
+      modelId: "llama-3-8b-instruct",
+      modelName: "Llama 3 8B Instruct",
+      modelSize: "small",
+      modelPath: "./models/llama.cpp/llama-3-8b-instruct.Q4_K_M.gguf",
+      downloadUrl:
+        "https://huggingface.co/bartowski/Llama-3-8B-Instruct-GGUF/resolve/main/Llama-3-8B-Instruct-Q4_K_M.gguf",
       fileSize: 4740000000, // ~4.74GB
-      quantization: 'Q4_K_M',
+      quantization: "Q4_K_M",
       contextSize: 4096,
       gpuLayers: 28,
       threadCount: 4,
@@ -140,13 +141,14 @@ export const defaultLlamaConfig: LlamaConfig = {
       vramUsage: 4000,
     },
     {
-      modelId: 'llama-3-70b-instruct',
-      modelName: 'Llama 3 70B Instruct',
-      modelSize: 'large',
-      modelPath: './models/llama.cpp/llama-3-70b-instruct.IQ2_M.gguf',
-      downloadUrl: 'https://huggingface.co/bartowski/Llama-3-70B-Instruct-GGUF/resolve/main/Llama-3-70B-Instruct-IQ2_M.gguf',
+      modelId: "llama-3-70b-instruct",
+      modelName: "Llama 3 70B Instruct",
+      modelSize: "large",
+      modelPath: "./models/llama.cpp/llama-3-70b-instruct.IQ2_M.gguf",
+      downloadUrl:
+        "https://huggingface.co/bartowski/Llama-3-70B-Instruct-GGUF/resolve/main/Llama-3-70B-Instruct-IQ2_M.gguf",
       fileSize: 38900000000, // ~38.9GB
-      quantization: 'IQ2_M',
+      quantization: "IQ2_M",
       contextSize: 8192,
       gpuLayers: 83,
       threadCount: 8,
@@ -159,13 +161,14 @@ export const defaultLlamaConfig: LlamaConfig = {
       vramUsage: 35000,
     },
     {
-      modelId: 'mistral-7b-instruct',
-      modelName: 'Mistral 7B Instruct',
-      modelSize: 'small',
-      modelPath: './models/llama.cpp/mistral-7b-instruct-v0.2.Q4_K_M.gguf',
-      downloadUrl: 'https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf',
+      modelId: "mistral-7b-instruct",
+      modelName: "Mistral 7B Instruct",
+      modelSize: "small",
+      modelPath: "./models/llama.cpp/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
+      downloadUrl:
+        "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf",
       fileSize: 4260000000, // ~4.26GB
-      quantization: 'Q4_K_M',
+      quantization: "Q4_K_M",
       contextSize: 32768,
       gpuLayers: 35,
       threadCount: 4,
@@ -176,16 +179,16 @@ export const defaultLlamaConfig: LlamaConfig = {
       typicalP: 1.0,
       memoryUsage: 5500,
       vramUsage: 3500,
-    }
+    },
   ],
 
-  defaultModel: 'llama-3-8b-instruct',
+  defaultModel: "llama-3-8b-instruct",
 
   server: {
     enabled: true,
     serverPort: 8080,
-    host: 'localhost',
-    apiEndpoint: '/completion',
+    host: "localhost",
+    apiEndpoint: "/completion",
     autoStart: true,
     autoDownload: true,
     startupTimeout: 30000,
@@ -196,13 +199,13 @@ export const defaultLlamaConfig: LlamaConfig = {
 
   fallback: {
     enableFallback: true,
-    fallbackStrategy: 'local-first',
+    fallbackStrategy: "local-first",
     minComplexityForLocal: 0.3,
     maxComplexityForLocal: 0.7,
     maxResponseTime: 10000,
     minConfidenceForLocal: 0.6,
     maxCostPerToken: 0.0001,
-    preferredProviders: ['openai', 'anthropic', 'google'],
+    preferredProviders: ["openai", "anthropic", "google"],
   },
 
   cache: {
@@ -211,7 +214,7 @@ export const defaultLlamaConfig: LlamaConfig = {
     maxCacheSize: 1000,
     cacheCleanupInterval: 60000,
     cacheModels: true,
-    modelCachePath: './cache/models',
+    modelCachePath: "./cache/models",
   },
 
   monitoring: {
@@ -224,21 +227,25 @@ export const defaultLlamaConfig: LlamaConfig = {
     errorThreshold: 0.1, // 10% error rate
   },
 
-  basePath: './llama.cpp',
-  modelsPath: './models/llama.cpp',
-  binariesPath: './bin/llama.cpp',
-  tempPath: './temp/llama.cpp',
+  basePath: "./llama.cpp",
+  modelsPath: "./models/llama.cpp",
+  binariesPath: "./bin/llama.cpp",
+  tempPath: "./temp/llama.cpp",
 };
 
 // Utility functions
-export const getModelConfig = (modelId: string): LlamaModelConfig | undefined => {
-  return defaultLlamaConfig.models.find(model => model.modelId === modelId);
+export const getModelConfig = (
+  modelId: string,
+): LlamaModelConfig | undefined => {
+  return defaultLlamaConfig.models.find((model) => model.modelId === modelId);
 };
 
 export const getDefaultModelConfig = (): LlamaModelConfig => {
   const model = getModelConfig(defaultLlamaConfig.defaultModel);
   if (!model) {
-    throw new Error(`Default model ${defaultLlamaConfig.defaultModel} not found in configuration`);
+    throw new Error(
+      `Default model ${defaultLlamaConfig.defaultModel} not found in configuration`,
+    );
   }
   return model;
 };
@@ -249,7 +256,7 @@ export const isModelAvailable = (modelId: string): boolean => {
 };
 
 export const getSupportedModels = (): string[] => {
-  return defaultLlamaConfig.models.map(model => model.modelId);
+  return defaultLlamaConfig.models.map((model) => model.modelId);
 };
 
 // Environment-based configuration
@@ -266,11 +273,12 @@ export const getEnvironmentConfig = (): LlamaConfig => {
   }
 
   if (process.env.LLAMA_ENABLED) {
-    config.server.enabled = process.env.LLAMA_ENABLED.toLowerCase() === 'true';
+    config.server.enabled = process.env.LLAMA_ENABLED.toLowerCase() === "true";
   }
 
   if (process.env.LLAMA_AUTO_START) {
-    config.server.autoStart = process.env.LLAMA_AUTO_START.toLowerCase() === 'true';
+    config.server.autoStart =
+      process.env.LLAMA_AUTO_START.toLowerCase() === "true";
   }
 
   return config;
