@@ -1,0 +1,1 @@
+import { eventVectorName } from './constants';

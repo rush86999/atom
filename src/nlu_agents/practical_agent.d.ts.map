@@ -1,0 +1,1 @@
+{"version":3,"file":"practical_agent.d.ts","sourceRoot":"","sources":["practical_agent.ts"],"names":[],"mappings":"AAAA,OAAO,EACL,aAAa,EACb,sBAAsB,EACtB,eAAe,EAIhB,MAAM,aAAa,CAAC;AAGrB,qBAAa,cAAc;IACzB,OAAO,CAAC,UAAU,CAAkB;IACpC,OAAO,CAAC,SAAS,CAA4B;gBAEjC,UAAU,EAAE,eAAe;IAIvC,OAAO,CAAC,eAAe;IAsDV,OAAO,CAAC,KAAK,EAAE,aAAa,GAAG,OAAO,CAAC,sBAAsB,CAAC;CAuF5E"}
