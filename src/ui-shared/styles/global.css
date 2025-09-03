@@ -1,0 +1,237 @@
+/* Black Metallic Design System - Global CSS Utilities */
+/* Shared between NextJS frontend and Desktop app */
+
+:root {
+  /* Dark theme (default) */
+  --primary: #0066ff;
+  --secondary: #1a1a2e;
+  --accent: #00aaff;
+  --background: #0a0a0f;
+  --surface: #1a1a2e;
+  --card: #2d2d3a;
+  --text: #f8f8ff;
+  --text-secondary: #c0c0d0;
+  --text-muted: #8a8a9a;
+  --border: #3a3a4a;
+  --divider: #4a4a5a;
+  --success: #00cc88;
+  --warning: #ffaa00;
+  --error: #ff4466;
+  --info: #0088ff;
+  --hover: rgba(0, 136, 255, 0.125);
+  --active: rgba(0, 136, 255, 0.25);
+  --disabled: rgba(74, 74, 90, 0.375);
+  --metallic-primary: linear-gradient(135deg, #c0c0d0 0%, #e0e0f0 50%, #c0c0d0 100%);
+  --metallic-secondary: linear-gradient(135deg, #4a4a5a 0%, #5a5a6a 50%, #4a4a5a 100%);
+  --metallic-accent: linear-gradient(135deg, #1a1a2e 0%, #2d2d3a 50%, #1a1a2e 100%);
+}
+
+[data-theme="light"] {
+  --primary: #0044aa;
+  --secondary: #e0e0f0;
+  --accent: #0088ff;
+  --background: #f8f8ff;
+  --surface: #e0e0f0;
+  --card: #c0c0d0;
+  --text: #0a0a0f;
+  --text-secondary: #2d2d3a;
+  --text-muted: #4a4a5a;
+  --border: #8a8a9a;
+  --divider: #5a5a6a;
+  --success: #00cc88;
+  --warning: #ffaa00;
+  --error: #ff4466;
+  --info: #0088ff;
+  --hover: rgba(0, 136, 255, 0.094);
+  --active: rgba(0, 136, 255, 0.156);
+  --disabled: rgba(138, 138, 154, 0.25);
+  --metallic-primary: linear-gradient(135deg, #c0c0d0 0%, #e0e0f0 50%, #c0c0d0 100%);
+  --metallic-secondary: linear-gradient(135deg, #8a8a9a 0%, #c0c0d0 50%, #8a8a9a 100%);
+  --metallic-accent: linear-gradient(135deg, #e0e0f0 0%, #f8f8ff 50%, #e0e0f0 100%);
+}
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--background);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Text utilities */
+.text-primary { color: var(--primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-error { color: var(--error); }
+.text-info { color: var(--info); }
+
+/* Background utilities */
+.bg-primary { background-color: var(--primary); }
+.bg-secondary { background-color: var(--secondary); }
+.bg-surface { background-color: var(--surface); }
+.bg-card { background-color: var(--card); }
+.bg-success { background-color: var(--success); }
+.bg-warning { background-color: var(--warning); }
+.bg-error { background-color: var(--error); }
+.bg-info { background-color: var(--info); }
+
+/* Metallic background utilities */
+.bg-metallic-primary { background: var(--metallic-primary); }
+.bg-metallic-secondary { background: var(--metallic-secondary); }
+.bg-metallic-accent { background: var(--metallic-accent); }
+
+/* Border utilities */
+.border { border: 1px solid var(--border); }
+.border-primary { border-color: var(--primary); }
+.border-secondary { border-color: var(--secondary); }
+.border-success { border-color: var(--success); }
+.border-warning { border-color: var(--warning); }
+.border-error { border-color: var(--error); }
+.border-info { border-color: var(--info); }
+
+/* Interactive states */
+.hover-primary:hover { background-color: var(--hover); }
+.active-primary:active { background-color: var(--active); }
+.disabled { opacity: 0.6; pointer-events: none; }
+
+/* Spacing utilities */
+.p-0 { padding: 0; }
+.p-1 { padding: 0.25rem; }
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+.p-6 { padding: 1.5rem; }
+.p-8 { padding: 2rem; }
+
+.m-0 { margin: 0; }
+.m-1 { margin: 0.25rem; }
+.m-2 { margin: 0.5rem; }
+.m-3 { margin: 0.75rem; }
+.m-4 { margin: 1rem; }
+.m-6 { margin: 1.5rem; }
+.m-8 { margin: 2rem; }
+
+/* Flex utilities */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+
+/* Card component */
+.card {
+  background-color: var(--card);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border);
+}
+
+.card-metallic {
+  background: var(--metallic-secondary);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-metallic::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+/* Button component */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--surface);
+}
+
+.btn-metallic {
+  background: var(--metallic-primary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-metallic:hover {
+  background: var(--metallic-accent);
+}
+
+/* Input component */
+.input {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--text);
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+/* Animation utilities */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.transition-colors {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .sm\:hidden { display: none; }
+  .sm\:block { display: block; }
+}
+
+/* Theme transition */
+.theme-transition * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
