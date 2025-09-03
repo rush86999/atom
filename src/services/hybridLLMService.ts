@@ -1,10 +1,14 @@
-import { LLMServiceInterface, StructuredLLMPrompt, LLMServiceResponse } from '../lib/llmUtils';
-import { EventEmitter } from 'events';
-import axios from 'axios';
-import { spawn, exec } from 'child_process';
-import path from 'path';
-import fs from 'fs';
-import { promisify } from 'util';
+import {
+  LLMServiceInterface,
+  StructuredLLMPrompt,
+  LLMServiceResponse,
+} from "../lib/llmUtils";
+import { EventEmitter } from "events";
+import axios from "axios";
+import { spawn, exec } from "child_process";
+import * as path from "path";
+import * as fs from "fs";
+import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
@@ -37,7 +41,11 @@ export interface HybridLLMConfig {
   providers: LLMProviderConfig[];
   localModel: LocalModelConfig;
   defaultProvider: string;
-  fallbackStrategy: 'local-first' | 'api-first' | 'cost-optimized' | 'performance-optimized';
+  fallbackStrategy:
+    | "local-first"
+    | "api-first"
+    | "cost-optimized"
+    | "performance-optimized";
   timeout: number;
   maxRetries: number;
   enableCache: boolean;
@@ -59,7 +67,10 @@ export class HybridLLMService implements LLMServiceInterface {
   private config: HybridLLMConfig;
   private isLocalModelAvailable: boolean = false;
   private serverProcess: any = null;
-  private cache: Map<string, { response: LLMServiceResponse; timestamp: number }> = new Map();
+  private cache: Map<
+    string,
+    { response: LLMServiceResponse; timestamp: number }
+  > = new Map();
   private eventEmitter: EventEmitter = new EventEmitter();
 
   constructor(config: Partial<HybridLLMConfig> = {}) {
@@ -67,7 +78,7 @@ export class HybridLLMService implements LLMServiceInterface {
       providers: config.providers || [],
       localModel: {
         enabled: config.localModel?.enabled ?? true,
-        modelPath: config.localModel?.modelPath || './models/llama.cpp',
+        modelPath: config.localModel?.modelPath || "./models/llama.cpp",
         serverPort: config.localModel?.serverPort || 8080,
         contextSize: config.localModel?.contextSize || 4096,
         gpuLayers: config.localModel?.gpuLayers || 0,
@@ -75,8 +86,8 @@ export class HybridLLMService implements LLMServiceInterface {
         maxPromptLength: config.localModel?.maxPromptLength || 2048,
         confidenceThreshold: config.localModel?.confidenceThreshold || 0.6,
       },
-      defaultProvider: config.defaultProvider || 'openai',
-      fallbackStrategy: config.fallbackStrategy || 'local-first',
+      defaultProvider: config.defaultProvider || "openai",
+      fallbackStrategy: config.fallbackStrategy || "local-first",
       timeout: config.timeout || 30000,
       maxRetries: config.maxRetries || 3,
       enableCache: config.enableCache ?? true,
@@ -88,20 +99,22 @@ export class HybridLLMService implements LLMServiceInterface {
 
   private async initializeLocalModel(): Promise<void> {
     if (!this.config.localModel.enabled) {
-      console.log('Local model disabled in configuration');
+      console.log("Local model disabled in configuration");
       return;
     }
 
     try {
       // Check if llama.cpp is available
       this.isLocalModelAvailable = await this.checkLocalModelAvailability();
-      console.log(`Local model ${this.isLocalModelAvailable ? 'available' : 'unavailable'}`);
+      console.log(
+        `Local model ${this.isLocalModelAvailable ? "available" : "unavailable"}`,
+      );
 
       if (this.isLocalModelAvailable) {
         await this.startLlamaServer();
       }
     } catch (error) {
-      console.warn('Local model initialization failed:', error);
+      console.warn("Local model initialization failed:", error);
       this.isLocalModelAvailable = false;
     }
   }
@@ -118,13 +131,13 @@ export class HybridLLMService implements LLMServiceInterface {
       // Check if llama.cpp server binary exists or can be downloaded
       const llamaBinary = await this.getLlamaBinaryPath();
       if (!llamaBinary) {
-        console.log('Llama.cpp binary not available');
+        console.log("Llama.cpp binary not available");
         return false;
       }
 
       return true;
     } catch (error) {
-      console.warn('Local model availability check failed:', error);
+      console.warn("Local model availability check failed:", error);
       return false;
     }
   }
@@ -133,8 +146,9 @@ export class HybridLLMService implements LLMServiceInterface {
     const platform = process.platform;
     const arch = process.arch;
 
-    const binaryName = platform === 'win32' ? 'llama-server.exe' : 'llama-server';
-    const binaryPath = path.join(__dirname, '../../bin/llama.cpp', binaryName);
+    const binaryName =
+      platform === "win32" ? "llama-server.exe" : "llama-server";
+    const binaryPath = path.join(__dirname, "../../bin/llama.cpp", binaryName);
 
     if (fs.existsSync(binaryPath)) {
       return binaryPath;
@@ -145,7 +159,7 @@ export class HybridLLMService implements LLMServiceInterface {
       await this.downloadLlamaCPP();
       return fs.existsSync(binaryPath) ? binaryPath : null;
     } catch (error) {
-      console.warn('Failed to download llama.cpp:', error);
+      console.warn("Failed to download llama.cpp:", error);
       return null;
     }
   }
@@ -153,17 +167,21 @@ export class HybridLLMService implements LLMServiceInterface {
   private async downloadLlamaCPP(): Promise<void> {
     const platform = process.platform;
     const arch = process.arch;
-    const binDir = path.join(__dirname, '../../bin/llama.cpp');
+    const binDir = path.join(__dirname, "../../bin/llama.cpp");
 
     if (!fs.existsSync(binDir)) {
       fs.mkdirSync(binDir, { recursive: true });
     }
 
     const urls: Record<string, string> = {
-      'win32-x64': 'https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-win-avx2-x64.zip',
-      'darwin-arm64': 'https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-macos-arm64.zip',
-      'darwin-x64': 'https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-macos-x64.zip',
-      'linux-x64': 'https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-ubuntu-x64.zip',
+      "win32-x64":
+        "https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-win-avx2-x64.zip",
+      "darwin-arm64":
+        "https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-macos-arm64.zip",
+      "darwin-x64":
+        "https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-macos-x64.zip",
+      "linux-x64":
+        "https://github.com/ggerganov/llama.cpp/releases/latest/download/llama-b1715-bin-ubuntu-x64.zip",
     };
 
     const downloadUrl = urls[`${platform}-${arch}`];
@@ -180,115 +198,146 @@ export class HybridLLMService implements LLMServiceInterface {
     try {
       const binaryPath = await this.getLlamaBinaryPath();
       if (!binaryPath) {
-        throw new Error('Llama.cpp binary not available');
+        throw new Error("Llama.cpp binary not available");
       }
 
       const modelPath = this.config.localModel.modelPath;
       const args = [
-        '--model', modelPath,
-        '--port', this.config.localModel.serverPort.toString(),
-        '--ctx-size', this.config.localModel.contextSize.toString(),
-        '--n-gpu-layers', this.config.localModel.gpuLayers.toString(),
-        '--threads', this.config.localModel.threadCount.toString(),
-        '--log-disable',
+        "--model",
+        modelPath,
+        "--port",
+        this.config.localModel.serverPort.toString(),
+        "--ctx-size",
+        this.config.localModel.contextSize.toString(),
+        "--n-gpu-layers",
+        this.config.localModel.gpuLayers.toString(),
+        "--threads",
+        this.config.localModel.threadCount.toString(),
+        "--log-disable",
       ];
 
       this.serverProcess = spawn(binaryPath, args);
 
-      this.serverProcess.stdout.on('data', (data: Buffer) => {
+      this.serverProcess.stdout.on("data", (data: Buffer) => {
         console.log(`Llama.cpp: ${data.toString()}`);
       });
 
-      this.serverProcess.stderr.on('data', (data: Buffer) => {
+      this.serverProcess.stderr.on("data", (data: Buffer) => {
         console.error(`Llama.cpp error: ${data.toString()}`);
       });
 
-      this.serverProcess.on('close', (code: number) => {
+      this.serverProcess.on("close", (code: number) => {
         console.log(`Llama.cpp server process exited with code ${code}`);
         this.isLocalModelAvailable = false;
       });
 
       // Wait for server to start
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log('Llama.cpp server started successfully');
-
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("Llama.cpp server started successfully");
     } catch (error) {
-      console.error('Failed to start llama.cpp server:', error);
+      console.error("Failed to start llama.cpp server:", error);
       this.isLocalModelAvailable = false;
     }
   }
 
-  private async callLocalLlama(prompt: string, maxTokens: number, temperature: number = 0.7): Promise<LlamaCPPResponse> {
+  private async callLocalLlama(
+    prompt: string,
+    maxTokens: number,
+    temperature: number = 0.7,
+  ): Promise<LlamaCPPResponse> {
     const url = `http://localhost:${this.config.localModel.serverPort}/completion`;
 
     try {
-      const response = await axios.post(url, {
-        prompt,
-        n_predict: maxTokens,
-        temperature,
-        top_p: 0.9,
-        typical_p: 1.0,
-        presence_penalty: 0.0,
-        frequency_penalty: 0.0,
-      }, {
-        timeout: this.config.timeout,
-      });
+      const response = await axios.post(
+        url,
+        {
+          prompt,
+          n_predict: maxTokens,
+          temperature,
+          top_p: 0.9,
+          typical_p: 1.0,
+          presence_penalty: 0.0,
+          frequency_penalty: 0.0,
+        },
+        {
+          timeout: this.config.timeout,
+        },
+      );
 
       return response.data;
     } catch (error) {
-      throw new Error(`Local llama.cpp call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Local llama.cpp call failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
-  private async callOpenAI(provider: LLMProviderConfig, prompt: string, maxTokens: number, temperature: number = 0.7): Promise<LLMServiceResponse> {
+  private async callOpenAI(
+    provider: LLMProviderConfig,
+    prompt: string,
+    maxTokens: number,
+    temperature: number = 0.7,
+  ): Promise<LLMServiceResponse> {
     try {
       const response = await axios.post(
         `${provider.baseURL}/chat/completions`,
         {
           model: provider.defaultModel,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [{ role: "user", content: prompt }],
           max_tokens: maxTokens,
           temperature,
         },
         {
           headers: {
             Authorization: `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           timeout: this.config.timeout,
-        }
+        },
       );
 
       const content = response.data.choices[0].message.content;
       const tokens = {
-        input: response.data.usage?.prompt_tokens || Math.ceil(prompt.length / 4),
-        output: response.data.usage?.completion_tokens || Math.ceil(content.length / 4),
+        input:
+          response.data.usage?.prompt_tokens || Math.ceil(prompt.length / 4),
+        output:
+          response.data.usage?.completion_tokens ||
+          Math.ceil(content.length / 4),
       };
 
-      const cost = tokens.input * (provider.costPerToken?.input || 0) +
-                   tokens.output * (provider.costPerToken?.output || 0);
+      const cost =
+        tokens.input * (provider.costPerToken?.input || 0) +
+        tokens.output * (provider.costPerToken?.output || 0);
 
       return {
+        success: true,
         content,
-        tokens,
-        cost,
-        model: provider.defaultModel,
-        provider: provider.name,
+        usage: {
+          promptTokens: tokens.input,
+          completionTokens: tokens.output,
+          totalTokens: tokens.input + tokens.output,
+        },
       };
     } catch (error) {
-      throw new Error(`OpenAI API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `OpenAI API call failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
   private calculateMessageComplexity(message: string): number {
-    const words = message.split(/\s+/).filter(word => word.length > 0);
+    const words = message.split(/\s+/).filter((word) => word.length > 0);
     const lengthComplexity = Math.min(message.length / 100, 1.0);
     const wordCountComplexity = Math.min(words.length / 10, 1.0);
 
-    const hasComplexPatterns = /(\b\d+\b|\b\w{10,}\b|@|\#|\$|\%|\^|\&|\*|\(|\)|\-|\+|\=)/.test(message);
+    const hasComplexPatterns =
+      /(\b\d+\b|\b\w{10,}\b|@|\#|\$|\%|\^|\&|\*|\(|\)|\-|\+|\=)/.test(message);
     const patternComplexity = hasComplexPatterns ? 0.3 : 0;
 
-    return Math.min(lengthComplexity * 0.4 + wordCountComplexity * 0.4 + patternComplexity, 1.0);
+    return Math.min(
+      lengthComplexity * 0.4 + wordCountComplexity * 0.4 + patternComplexity,
+      1.0,
+    );
   }
 
   private shouldUseLocalModel(prompt: string): boolean {
@@ -297,8 +346,10 @@ export class HybridLLMService implements LLMServiceInterface {
     }
 
     const complexity = this.calculateMessageComplexity(prompt);
-    return complexity < this.config.localModel.confidenceThreshold &&
-           prompt.length <= this.config.localModel.maxPromptLength;
+    return (
+      complexity < this.config.localModel.confidenceThreshold &&
+      prompt.length <= this.config.localModel.maxPromptLength
+    );
   }
 
   private getCacheKey(prompt: string, model: string): string {
@@ -313,12 +364,13 @@ export class HybridLLMService implements LLMServiceInterface {
       maxTokens?: number;
       isJsonOutput?: boolean;
       provider?: string;
-    }
+    },
   ): Promise<LLMServiceResponse> {
     const providerName = options?.provider || this.config.defaultProvider;
     const temperature = options?.temperature || 0.7;
     const maxTokens = options?.maxTokens || 2048;
-    const promptText = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
+    const promptText =
+      typeof prompt === "string" ? prompt : JSON.stringify(prompt);
 
     // Check cache first
     const cacheKey = this.getCacheKey(promptText, model);
@@ -337,31 +389,49 @@ export class HybridLLMService implements LLMServiceInterface {
         let response: LLMServiceResponse;
 
         // Determine which provider to use based on strategy
-        if (this.shouldUseLocalModel(promptText) && this.config.fallbackStrategy === 'local-first') {
+        if (
+          this.shouldUseLocalModel(promptText) &&
+          this.config.fallbackStrategy === "local-first"
+        ) {
           // Use local llama.cpp
-          const llamaResponse = await this.callLocalLlama(promptText, maxTokens, temperature);
+          const llamaResponse = await this.callLocalLlama(
+            promptText,
+            maxTokens,
+            temperature,
+          );
           response = {
+            success: true,
             content: llamaResponse.content,
-            tokens: {
-              input: llamaResponse.usage.prompt_tokens,
-              output: llamaResponse.usage.completion_tokens,
+            usage: {
+              promptTokens: llamaResponse.usage.prompt_tokens,
+              completionTokens: llamaResponse.usage.completion_tokens,
+              totalTokens: llamaResponse.usage.total_tokens,
             },
-            cost: 0,
-            model: llamaResponse.model,
-            provider: 'llama.cpp-local',
           };
         } else {
           // Use cloud provider
-          const provider = this.config.providers.find(p => p.name === providerName);
+          const provider = this.config.providers.find(
+            (p) => p.name === providerName,
+          );
           if (!provider) {
             throw new Error(`Provider ${providerName} not found`);
           }
 
-          if (provider.name.toLowerCase().includes('openai')) {
-            response = await this.callOpenAI(provider, promptText, maxTokens, temperature);
+          if (provider.name.toLowerCase().includes("openai")) {
+            response = await this.callOpenAI(
+              provider,
+              promptText,
+              maxTokens,
+              temperature,
+            );
           } else {
             // Generic API call for other providers
-            response = await this.callGenericAPI(provider, promptText, maxTokens, temperature);
+            response = await this.callGenericAPI(
+              provider,
+              promptText,
+              maxTokens,
+              temperature,
+            );
           }
         }
 
@@ -380,15 +450,24 @@ export class HybridLLMService implements LLMServiceInterface {
 
         if (retries < this.config.maxRetries) {
           // Exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retries)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * Math.pow(2, retries)),
+          );
         }
       }
     }
 
-    throw new Error(`All retries failed: ${lastError?.message || 'Unknown error'}`);
+    throw new Error(
+      `All retries failed: ${lastError?.message || "Unknown error"}`,
+    );
   }
 
-  private async callGenericAPI(provider: LLMProviderConfig, prompt: string, maxTokens: number, temperature: number): Promise<LLMServiceResponse> {
+  private async callGenericAPI(
+    provider: LLMProviderConfig,
+    prompt: string,
+    maxTokens: number,
+    temperature: number,
+  ): Promise<LLMServiceResponse> {
     // Generic implementation for other API providers
     // This would be extended for specific providers like Anthropic, Gemini, etc.
     try {
@@ -396,40 +475,49 @@ export class HybridLLMService implements LLMServiceInterface {
         provider.baseURL,
         {
           model: provider.defaultModel,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [{ role: "user", content: prompt }],
           max_tokens: maxTokens,
           temperature,
         },
         {
           headers: {
             Authorization: `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           timeout: this.config.timeout,
-        }
+        },
       );
 
-      const content = response.data.choices?.[0]?.message?.content ||
-                     response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
-                     response.data.content;
+      const content =
+        response.data.choices?.[0]?.message?.content ||
+        response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        response.data.content;
 
       const tokens = {
-        input: response.data.usage?.prompt_tokens || Math.ceil(prompt.length / 4),
-        output: response.data.usage?.completion_tokens || Math.ceil(content.length / 4),
+        input:
+          response.data.usage?.prompt_tokens || Math.ceil(prompt.length / 4),
+        output:
+          response.data.usage?.completion_tokens ||
+          Math.ceil(content.length / 4),
       };
 
-      const cost = tokens.input * (provider.costPerToken?.input || 0) +
-                   tokens.output * (provider.costPerToken?.output || 0);
+      const cost =
+        tokens.input * (provider.costPerToken?.input || 0) +
+        tokens.output * (provider.costPerToken?.output || 0);
 
       return {
+        success: true,
         content,
-        tokens,
-        cost,
-        model: provider.defaultModel,
-        provider: provider.name,
+        usage: {
+          promptTokens: tokens.input,
+          completionTokens: tokens.output,
+          totalTokens: tokens.input + tokens.output,
+        },
       };
     } catch (error) {
-      throw new Error(`${provider.name} API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `${provider.name} API call failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -452,8 +540,11 @@ export class HybridLLMService implements LLMServiceInterface {
     this.cache.clear();
   }
 
-  on(event: 'localModelStatusChange', listener: (available: boolean) => void): void;
-  on(event: 'cacheHit', listener: (key: string) => void): void;
+  on(
+    event: "localModelStatusChange",
+    listener: (available: boolean) => void,
+  ): void;
+  on(event: "cacheHit", listener: (key: string) => void): void;
   on(event: string, listener: (...args: any[]) => void): void {
     this.eventEmitter.on(event, listener);
   }
@@ -465,6 +556,3 @@ export class HybridLLMService implements LLMServiceInterface {
 
 // Export default instance
 export const hybridLLMService = new HybridLLMService();
-```
-
-Now I need to update the NLU hybrid integration service to use the new llama.cpp integration. Let me modify it:
