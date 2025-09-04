@@ -2,7 +2,7 @@ import os
 import logging
 from flask import Blueprint, request, jsonify, redirect, current_app
 import shopify
-from .db_utils import get_db_connection
+from db_utils import get_db_connection
 
 logger = logging.getLogger(__name__)
 

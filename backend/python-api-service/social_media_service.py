@@ -1,8 +1,8 @@
 import logging
-from . import twitter_service
-from . import trello_service
-from . import salesforce_service
-from . import agenda_service # We'll need a way to schedule tasks
+import twitter_service
+import trello_service
+import salesforce_service
+import agenda_service # We'll need a way to schedule tasks
 
 logger = logging.getLogger(__name__)
 

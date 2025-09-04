@@ -1,9 +1,9 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
 
-from . import gdrive_service
-from . import db_oauth_gdrive
-from . import document_processor
+import gdrive_service
+import db_oauth_gdrive
+import document_processor
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +192,7 @@ async def ingest_gdrive_document_route():
 def search_gdrive(query: str, user_id: str = "test_user"):
     import asyncio
     from flask import current_app
-    from . import gdrive_service
+    import gdrive_service
 
     async def _search_async():
         db_conn_pool = current_app.config.get('DB_CONNECTION_POOL')

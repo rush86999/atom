@@ -1,7 +1,7 @@
 import logging
-from . import jira_service
-from . import github_service # We need to create this
-from . import trello_service
+import jira_service
+import github_service # We need to create this
+import trello_service
 
 logger = logging.getLogger(__name__)
 

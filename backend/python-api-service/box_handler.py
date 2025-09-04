@@ -1,13 +1,13 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import box_service
+import box_service
 
 logger = logging.getLogger(__name__)
 
 box_bp = Blueprint('box_bp', __name__)
 
 from boxsdk import OAuth2
-from . import db_oauth_box, crypto_utils
+import db_oauth_box, crypto_utils
 
 async def get_box_client(user_id: str, db_conn_pool):
     tokens = await db_oauth_box.get_tokens(db_conn_pool, user_id)

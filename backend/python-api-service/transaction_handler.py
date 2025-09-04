@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import transaction_service
+import transaction_service
 
 logger = logging.getLogger(__name__)
 

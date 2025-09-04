@@ -1,0 +1,58 @@
+{
+  "site": {
+    "title": "Atom - Your Super-Powered Personal Assistant",
+    "meta_title": "Atom - Unified Personal Assistant",
+    "description": "One assistant to manage your entire life—from personal tasks and scheduling to professional projects and even your small business.",
+    "image": "/assets/images/atom-logo.png",
+    "noindex": false,
+    "canonical": ""
+  },
+  "api": {
+    "baseUrl": "http://localhost:5058",
+    "pythonApiUrl": "http://localhost:5058",
+    "functionsUrl": "http://localhost:3000/v1/functions",
+    "graphqlUrl": "http://localhost:5000/graphql"
+  },
+  "features": {
+    "calendar": true,
+    "tasks": true,
+    "messages": true,
+    "automations": true,
+    "meetingTranscription": true,
+    "voiceCommands": true,
+    "financialInsights": true
+  },
+  "integrations": {
+    "google": {
+      "enabled": true,
+      "clientId": ""
+    },
+    "outlook": {
+      "enabled": true
+    },
+    "slack": {
+      "enabled": true
+    },
+    "teams": {
+      "enabled": true
+    },
+    "notion": {
+      "enabled": true
+    },
+    "trello": {
+      "enabled": true
+    },
+    "asana": {
+      "enabled": true
+    },
+    "plaid": {
+      "enabled": false
+    }
+  },
+  "ui": {
+    "theme": "light",
+    "primaryColor": "#3B82F6",
+    "secondaryColor": "#10B981",
+    "accentColor": "#8B5CF6"
+  }
+}

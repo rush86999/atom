@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 # --- Utility Imports ---
 # Assuming these new files are in the same directory or python path is set correctly
 try:
-    from .crypto_utils import encrypt_data, decrypt_data, _initialize_cipher_suite as initialize_crypto
+    from crypto_utils import encrypt_data, decrypt_data, _initialize_cipher_suite as initialize_crypto
     CRYPTO_AVAILABLE = initialize_crypto() # Initialize cipher on module load
 except ImportError as e_crypto:
     print(f"FATAL: Could not import crypto_utils or initialize cipher: {e_crypto}. OAuth token handling will fail.", file=sys.stderr)
@@ -457,7 +457,7 @@ def gdrive_auth_disconnect():
 # For standalone running and registration with a main app
 # This part would typically be in the main app.py or similar of the python_api_service
 # For example:
-# from .auth_handler import auth_bp
+# from auth_handler import auth_bp
 # app.register_blueprint(auth_bp)
 
 if __name__ == '__main__':

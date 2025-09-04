@@ -20,8 +20,8 @@ except ImportError:
 
 # Internal imports
 try:
-    from . import db_oauth_dropbox
-    from . import crypto_utils
+    import db_oauth_dropbox
+    import crypto_utils
 except ImportError:
     import db_oauth_dropbox
     import crypto_utils

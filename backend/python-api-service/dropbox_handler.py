@@ -3,9 +3,9 @@ import logging
 import dropbox
 from flask import Blueprint, request, jsonify, current_app
 
-from . import dropbox_service
-from . import db_oauth_dropbox
-from . import document_processor
+import dropbox_service
+import db_oauth_dropbox
+import document_processor
 
 
 logger = logging.getLogger(__name__)

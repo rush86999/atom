@@ -95,8 +95,8 @@ except ImportError:
     Flow = MockFlow
     build = mock_build
 
-from .db_oauth_gdrive import save_token
-from .crypto_utils import encrypt_data as encrypt_token
+from db_oauth_gdrive import save_token
+from crypto_utils import encrypt_data as encrypt_token
 
 logger = logging.getLogger(__name__)
 

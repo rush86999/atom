@@ -1,6 +1,6 @@
 import logging
-from . import account_service
-from . import investment_service
+import account_service
+import investment_service
 import yfinance as yf
 
 logger = logging.getLogger(__name__)

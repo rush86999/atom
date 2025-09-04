@@ -2,64 +2,70 @@ import os
 import logging
 from flask import Flask
 from psycopg2 import pool
+from db_utils import init_db_pool, close_db_pool, get_db_pool
+from init_database import initialize_database
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Import Blueprints from all the handlers
 # Note: The handlers themselves will need to be slightly modified to not create their own app = Flask(__name__)
 # if it's at the global scope, but instead define their routes on a Blueprint.
 # Let's assume for now they are already using Blueprints correctly.
 
-# from .document_handler import document_bp # Example
-# from .search_routes import search_routes_bp # Example
-from .auth_handler_dropbox import dropbox_auth_bp
-from .dropbox_handler import dropbox_bp
-from .auth_handler_gdrive import gdrive_auth_bp
-from .gdrive_handler import gdrive_bp
-from .trello_handler import trello_bp
-from .salesforce_handler import salesforce_bp
-from .xero_handler import xero_bp
-from .shopify_handler import shopify_bp
-from .twitter_handler import twitter_bp
-from .social_media_handler import social_media_bp
-from .sales_manager_handler import sales_manager_bp
-from .project_manager_handler import project_manager_bp
-from .personal_assistant_handler import personal_assistant_bp
-from .financial_analyst_handler import financial_analyst_bp
-from .marketing_manager_handler import marketing_manager_bp
-from .mailchimp_handler import mailchimp_bp
-from .customer_support_manager_handler import customer_support_manager_bp
-from .legal_handler import legal_bp
-from .it_manager_handler import it_manager_bp
-from .devops_manager_handler import devops_manager_bp
-from .content_marketer_handler import content_marketer_bp
-from .meeting_prep import meeting_prep_bp
-from .mcp_handler import mcp_bp
-from .account_handler import account_bp
-from .transaction_handler import transaction_bp
-from .investment_handler import investment_bp
-from .financial_calculation_handler import financial_calculation_bp
-from .financial_handler import financial_bp
-from .budgeting_handler import budgeting_bp
-from .bookkeeping_handler import bookkeeping_bp
-from .net_worth_handler import net_worth_bp
-from .invoicing_handler import invoicing_bp
-from .billing_handler import billing_bp
-from .payroll_handler import payroll_bp
-from .manual_account_handler import manual_account_bp
-from .manual_transaction_handler import manual_transaction_bp
-from .reporting_handler import reporting_bp
-from .box_handler import box_bp
-from .asana_handler import asana_bp
-from .jira_handler import jira_bp
-from .auth_handler_box import box_auth_bp
-from .auth_handler_asana import asana_auth_bp
-from .auth_handler_trello import trello_auth_bp
-from .auth_handler_zoho import zoho_auth_bp
-from .auth_handler_shopify import shopify_auth_bp
-from .zoho_handler import zoho_bp
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# from document_handler import document_bp # Example
+from search_routes import search_routes_bp # Example
+from auth_handler_dropbox import dropbox_auth_bp
+from dropbox_handler import dropbox_bp
+from auth_handler_gdrive import gdrive_auth_bp
+from gdrive_handler import gdrive_bp
+from trello_handler import trello_bp
+from salesforce_handler import salesforce_bp
+from xero_handler import xero_bp
+from shopify_handler import shopify_bp
+from twitter_handler import twitter_bp
+from social_media_handler import social_media_bp
+from sales_manager_handler import sales_manager_bp
+from project_manager_handler import project_manager_bp
+from personal_assistant_handler import personal_assistant_bp
+from financial_analyst_handler import financial_analyst_bp
+from marketing_manager_handler import marketing_manager_bp
+from mailchimp_handler import mailchimp_bp
+from customer_support_manager_handler import customer_support_manager_bp
+from legal_handler import legal_bp
+from it_manager_handler import it_manager_bp
+from devops_manager_handler import devops_manager_bp
+from content_marketer_handler import content_marketer_bp
+from meeting_prep import meeting_prep_bp
+from mcp_handler import mcp_bp
+from account_handler import account_bp
+from transaction_handler import transaction_bp
+from investment_handler import investment_bp
+from financial_calculation_handler import financial_calculation_bp
+from financial_handler import financial_bp
+from budgeting_handler import budgeting_bp
+from bookkeeping_handler import bookkeeping_bp
+from net_worth_handler import net_worth_bp
+from invoicing_handler import invoicing_bp
+from billing_handler import billing_bp
+from payroll_handler import payroll_bp
+from manual_account_handler import manual_account_bp
+from manual_transaction_handler import manual_transaction_bp
+from reporting_handler import reporting_bp
+from box_handler import box_bp
+from asana_handler import asana_bp
+from jira_handler import jira_bp
+from auth_handler_box import box_auth_bp
+from auth_handler_asana import asana_auth_bp
+from auth_handler_trello import trello_auth_bp
+from auth_handler_zoho import zoho_auth_bp
+from auth_handler_shopify import shopify_auth_bp
+from zoho_handler import zoho_bp
+from calendar_handler import calendar_bp
+from task_handler import task_bp
+from message_handler import message_bp
+from transcription_handler import transcription_bp
 
 def create_app(db_pool=None):
     """
@@ -78,15 +84,25 @@ def create_app(db_pool=None):
         app.config['DB_CONNECTION_POOL'] = db_pool
     else:
         try:
+            logger.info("Initializing database...")
+            # Initialize database tables
+            if initialize_database():
+                logger.info("Database tables initialized successfully")
+            else:
+                logger.warning("Database table initialization failed. Some features may not work.")
+
             logger.info("Initializing PostgreSQL connection pool...")
-            app.config['DB_CONNECTION_POOL'] = pool.SimpleConnectionPool(
-                minconn=1,
-                maxconn=10,
-                dsn=os.getenv("DATABASE_URL") # Assumes DATABASE_URL is in the format: postgresql://user:password@host:port/dbname
-            )
-            logger.info("PostgreSQL connection pool initialized successfully.")
+            # Initialize the database connection pool
+            db_pool = init_db_pool()
+            app.config['DB_CONNECTION_POOL'] = db_pool
+
+            if db_pool:
+                logger.info("PostgreSQL connection pool initialized successfully.")
+            else:
+                logger.warning("Database connection pool initialization failed. Some features may not work.")
+                app.config['DB_CONNECTION_POOL'] = None
         except Exception as e:
-            logger.error(f"Failed to initialize database connection pool: {e}", exc_info=True)
+            logger.error(f"Failed to initialize database: {e}", exc_info=True)
             # Depending on strictness, we could exit or continue with the pool as None.
             app.config['DB_CONNECTION_POOL'] = None
 
@@ -141,7 +157,7 @@ def create_app(db_pool=None):
     logger.info("Registered 'account_bp' blueprint.")
 
     # Goals API
-    from .goals_handler import goals_bp
+    from goals_handler import goals_bp
     app.register_blueprint(goals_bp)
     logger.info("Registered 'goals_bp' blueprint.")
 
@@ -190,12 +206,28 @@ def create_app(db_pool=None):
     app.register_blueprint(zoho_bp)
     logger.info("Registered 'zoho_bp' blueprint.")
 
-    from .github_handler import github_bp
+    # Register calendar blueprint
+    app.register_blueprint(calendar_bp)
+    logger.info("Registered 'calendar_bp' blueprint.")
+
+    # Register task blueprint
+    app.register_blueprint(task_bp)
+    logger.info("Registered 'task_bp' blueprint.")
+
+    # Register message blueprint
+    app.register_blueprint(message_bp)
+    logger.info("Registered 'message_bp' blueprint.")
+
+    # Register transcription blueprint
+    app.register_blueprint(transcription_bp)
+    logger.info("Registered 'transcription_bp' blueprint.")
+
+    from github_handler import github_bp
     app.register_blueprint(github_bp)
     logger.info("Registered 'github_bp' blueprint.")
 
     # Register goals API
-    from .goals_handler import goals_bp
+    from goals_handler import goals_bp
     app.register_blueprint(goals_bp)
     logger.info("Registered 'goals_bp' blueprint.")
     app.register_blueprint(github_bp)
@@ -203,11 +235,26 @@ def create_app(db_pool=None):
 
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)
-    # app.register_blueprint(search_routes_bp)
+    app.register_blueprint(search_routes_bp)
 
     @app.route('/healthz')
     def healthz():
-        return "OK", 200
+        # Check database connection as part of health check
+        db_pool = get_db_pool()
+        db_status = "healthy" if db_pool else "unhealthy"
+        return {
+            "status": "ok",
+            "database": db_status,
+            "version": "1.0.0"
+        }, 200
+
+    # Add cleanup on app teardown
+    @app.teardown_appcontext
+    def teardown_db(exception):
+        """Clean up database connections when app context is torn down"""
+        if exception:
+            logger.error(f"App context teardown with exception: {exception}")
+        # Connection pool cleanup is handled by db_utils
 
     logger.info("Flask app created and configured.")
     return app

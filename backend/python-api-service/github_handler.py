@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, request, jsonify
-from .github_service import get_user_repositories, create_repository
+from github_service import get_user_repositories, create_repository
 
 github_bp = Blueprint('github_bp', __name__)
 

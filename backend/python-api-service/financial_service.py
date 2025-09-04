@@ -1,6 +1,6 @@
 import logging
-from . import plaid_service
-from . import db_utils # This will be a new file to handle db operations
+import plaid_service
+import db_utils # This will be a new file to handle db operations
 
 logger = logging.getLogger(__name__)
 

@@ -38,7 +38,7 @@ except ImportError as e:
     get_text_embedding_openai = None
     EMBEDDING_FUNCTION_AVAILABLE = False
 
-from . import lancedb_handler
+import lancedb_handler
 
 
 logger = logging.getLogger(__name__)

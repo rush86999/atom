@@ -1,8 +1,8 @@
-from .gdrive_service import GDriveApiClient
-from .dropbox_service import DropboxService
-from .auth_handler import get_mcp_provider
+from gdrive_service import GDriveApiClient
+from dropbox_service import DropboxService
+from auth_handler import get_mcp_provider
 
-from .onedrive_service import OneDriveService
+from onedrive_service import OneDriveService
 
 def list_mcp_files(creds, folder_id, query, page_size, page_token):
     provider = get_mcp_provider(creds)

@@ -1,5 +1,5 @@
 import logging
-from . import financial_service
+import financial_service
 
 logger = logging.getLogger(__name__)
 

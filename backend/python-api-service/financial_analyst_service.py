@@ -1,8 +1,8 @@
 import logging
-from . import xero_service
-from . import quickbooks_service # We need to create this
-from . import salesforce_service
-from . import trello_service
+import xero_service
+import quickbooks_service # We need to create this
+import salesforce_service
+import trello_service
 
 logger = logging.getLogger(__name__)
 

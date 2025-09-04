@@ -1,13 +1,13 @@
 import logging
 from flask import Blueprint, request, jsonify
-from . import asana_service
+import asana_service
 
 logger = logging.getLogger(__name__)
 
 asana_bp = Blueprint('asana_bp', __name__)
 
 import asana
-from . import db_oauth_asana, crypto_utils
+import db_oauth_asana, crypto_utils
 
 async def get_asana_client(user_id: str, db_conn_pool):
     tokens = await db_oauth_asana.get_tokens(db_conn_pool, user_id)

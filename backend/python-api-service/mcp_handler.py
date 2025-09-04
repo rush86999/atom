@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from .mcp_service import list_mcp_files, get_mcp_file_metadata, download_mcp_file
-from .auth_handler import get_mcp_credentials
+from mcp_service import list_mcp_files, get_mcp_file_metadata, download_mcp_file
+from auth_handler import get_mcp_credentials
 import logging
 
 logger = logging.getLogger(__name__)

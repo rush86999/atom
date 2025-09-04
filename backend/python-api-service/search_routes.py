@@ -146,14 +146,14 @@ class MockLanceDBService:
 
 # Try to import real implementations, fall back to mocks
 try:
-    from ._utils import lancedb_service  # type: ignore
+    from _utils import lancedb_service  # type: ignore
     logger.info("Successfully imported lancedb_service")
 except ImportError:
     logger.warning("Could not import lancedb_service, using mock")
     lancedb_service = MockLanceDBService()
 
 try:
-    from .note_utils import get_text_embedding_openai, create_note, update_note, delete_note, get_note  # type: ignore
+    from note_utils import get_text_embedding_openai, create_note, update_note, delete_note, get_note  # type: ignore
     note_utils = None  # We imported individual functions
     logger.info("Successfully imported note_utils functions")
 except ImportError:

@@ -8,7 +8,7 @@ import shopify
 
 logger = logging.getLogger(__name__)
 
-from .db_utils import get_db_connection
+from db_utils import get_db_connection
 
 def get_shopify_client(user_id: str, db_conn_pool) -> Optional[types.ModuleType]:
     """

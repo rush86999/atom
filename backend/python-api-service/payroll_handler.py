@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import payroll_service
+import payroll_service
 
 logger = logging.getLogger(__name__)
 

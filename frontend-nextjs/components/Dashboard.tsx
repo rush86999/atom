@@ -79,7 +79,7 @@ const Dashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch("/api/dashboard");
+      const response = await fetch("/api/dashboard-dev");
       if (!response.ok) {
         throw new Error("Failed to fetch dashboard data");
       }
@@ -113,6 +113,10 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch(`/api/tasks/${taskId}/complete`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "completed" }),
       });
       if (response.ok) {
         toast({
@@ -138,6 +142,10 @@ const Dashboard: React.FC = () => {
     try {
       const response = await fetch(`/api/messages/${messageId}/read`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ read: true }),
       });
       if (response.ok) {
         fetchDashboardData(); // Refresh data
