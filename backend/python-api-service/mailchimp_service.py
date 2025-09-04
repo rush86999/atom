@@ -4,7 +4,7 @@ import json
 from typing import Optional, Dict, Any
 from mailchimp_marketing import Client
 from mailchimp_marketing.api_client import ApiClientError
-from .crypto import decrypt, encrypt
+from crypto import decrypt, encrypt
 
 logger = logging.getLogger(__name__)
 

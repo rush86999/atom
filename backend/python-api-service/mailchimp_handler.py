@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import mailchimp_service
+import mailchimp_service
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import logging
-from . import gdrive_service
-from . import wordpress_service # We need to create this
-from . import trello_service
+import gdrive_service
+import wordpress_service # We need to create this
+import trello_service
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ from jira import JIRA
 from typing import Dict, Any, Optional
 import os
 
-from .mcp_base import MCPBase
+from mcp_base import MCPBase
 
 class JiraService(MCPBase):
     def __init__(self, client: JIRA):

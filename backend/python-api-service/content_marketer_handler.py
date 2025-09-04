@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import content_marketer_service
+import content_marketer_service
 
 logger = logging.getLogger(__name__)
 

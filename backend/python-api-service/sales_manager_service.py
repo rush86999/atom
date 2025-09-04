@@ -1,7 +1,7 @@
 import logging
-from . import salesforce_service
-from . import xero_service
-from . import trello_service
+import salesforce_service
+import xero_service
+import trello_service
 
 logger = logging.getLogger(__name__)
 

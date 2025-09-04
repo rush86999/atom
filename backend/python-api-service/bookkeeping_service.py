@@ -1,6 +1,6 @@
 import logging
-from . import plaid_service
-from . import db_utils
+import plaid_service
+import db_utils
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,6 @@ async def send_to_zoho(user_id, org_id, db_conn_pool):
     """
     Sends bookkeeping data to Zoho.
     """
-    from . import zoho_service
+    import zoho_service
     bookkeeping_data = await get_bookkeeping_report(user_id, db_conn_pool)
     return await zoho_service.send_to_zoho(user_id, org_id, bookkeeping_data, db_conn_pool)

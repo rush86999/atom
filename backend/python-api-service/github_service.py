@@ -1,6 +1,6 @@
 import os
 import requests
-from .db_utils import get_decrypted_credential
+from db_utils import get_decrypted_credential
 
 GITHUB_API_URL = "https://api.github.com"
 
