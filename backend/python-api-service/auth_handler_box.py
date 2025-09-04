@@ -61,7 +61,7 @@ async def oauth2callback():
         # This is a simplified example.
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
-        from . import crypto_utils, db_oauth_box
+        import crypto_utils, db_oauth_box
         encrypted_access_token = crypto_utils.encrypt_message(access_token)
         encrypted_refresh_token = crypto_utils.encrypt_message(refresh_token) if refresh_token else None
 

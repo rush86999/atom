@@ -1,7 +1,7 @@
 import logging
-from . import salesforce_service
-from . import zendesk_service # We need to create this
-from . import trello_service
+import salesforce_service
+import zendesk_service # We need to create this
+import trello_service
 
 logger = logging.getLogger(__name__)
 

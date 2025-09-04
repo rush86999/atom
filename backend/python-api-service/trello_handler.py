@@ -1,13 +1,13 @@
 import logging
 from flask import Blueprint, request, jsonify
-from . import trello_service
+import trello_service
 
 logger = logging.getLogger(__name__)
 
 trello_bp = Blueprint('trello_bp', __name__)
 
-from trello import TrelloClient
-from . import db_oauth_trello, crypto_utils
+from trello.trello import Trello as TrelloClient
+import db_oauth_trello, crypto_utils
 import os
 
 async def get_trello_client(user_id: str, db_conn_pool):

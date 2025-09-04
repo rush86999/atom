@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify
-from . import jira_service
+import jira_service
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 import dropbox
-from .mcp_base import MCPBase
+from mcp_base import MCPBase
 from typing import Dict, Any, Optional
 
 class DropboxService(MCPBase):

@@ -1,7 +1,7 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import financial_service
-from . import plaid_service
+import financial_service
+import plaid_service
 
 logger = logging.getLogger(__name__)
 

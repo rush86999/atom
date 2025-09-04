@@ -1,5 +1,5 @@
 import requests
-from .mcp_base import MCPBase
+from mcp_base import MCPBase
 from typing import Dict, Any, Optional
 
 class OneDriveService(MCPBase):

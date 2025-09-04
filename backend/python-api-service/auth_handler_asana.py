@@ -74,7 +74,7 @@ async def oauth2callback():
         expires_in = token_data.get('expires_in')
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in) if expires_in else None
 
-        from . import crypto_utils, db_oauth_asana
+        import crypto_utils, db_oauth_asana
         encrypted_access_token = crypto_utils.encrypt_message(access_token)
         encrypted_refresh_token = crypto_utils.encrypt_message(refresh_token) if refresh_token else None
 

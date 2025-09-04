@@ -1,7 +1,7 @@
 import logging
 import httpx
-from . import trello_service
-from . import gdrive_service
+import trello_service
+import gdrive_service
 
 logger = logging.getLogger(__name__)
 

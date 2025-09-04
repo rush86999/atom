@@ -1,8 +1,8 @@
 from boxsdk import Client, OAuth2
 from typing import Dict, Any, Optional
-from . import db_oauth_box, crypto_utils
+import db_oauth_box, crypto_utils
 
-from .mcp_base import MCPBase
+from mcp_base import MCPBase
 
 class BoxService(MCPBase):
     def __init__(self, oauth: OAuth2):

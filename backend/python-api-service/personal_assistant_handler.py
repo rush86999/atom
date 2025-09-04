@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import personal_assistant_service
+import personal_assistant_service
 
 logger = logging.getLogger(__name__)
 

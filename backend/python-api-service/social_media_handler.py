@@ -1,6 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-from . import social_media_service
+import social_media_service
 
 logger = logging.getLogger(__name__)
 

@@ -62,7 +62,7 @@ async def oauth1callback():
         access_token = access_token_data.get('oauth_token')
         access_token_secret = access_token_data.get('oauth_token_secret')
 
-        from . import crypto_utils, db_oauth_trello
+        import crypto_utils, db_oauth_trello
         encrypted_access_token = crypto_utils.encrypt_message(access_token)
         encrypted_refresh_token = crypto_utils.encrypt_message(access_token_secret) # Storing secret as refresh token
 

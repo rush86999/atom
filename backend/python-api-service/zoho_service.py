@@ -1,7 +1,7 @@
 import logging
 import os
 import requests
-from . import db_oauth_zoho
+import db_oauth_zoho
 
 logger = logging.getLogger(__name__)
 
