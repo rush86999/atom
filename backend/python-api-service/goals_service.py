@@ -272,3 +272,49 @@ class GoalsService:
         try:
             conn = db_conn_pool.getconn()
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                # Verify goal belongs to user
+                cursor.execute(
+                    "SELECT id FROM financial_goals WHERE id = %s AND user_id = %s",
+                    (goal_id, user_id)
+                )
+                if not cursor.fetchone():
+                    raise ValueError("Goal not found or not owned by user")
+
+                # Get all contributions for the goal
+                query = """
+                    SELECT
+                        gc.id,
+                        gc.goal_id,
+                        gc.amount,
+                        gc.contribution_date,
+                        gc.source_account_id,
+                        gc.description,
+                        gc.created_at,
+                        a.name AS account_name
+                    FROM goal_contributions gc
+                    LEFT JOIN accounts a ON gc.source_account_id = a.id
+                    WHERE gc.goal_id = %s
+                    ORDER BY gc.contribution_date DESC, gc.created_at DESC
+                """
+                cursor.execute(query, [goal_id])
+                contributions = cursor.fetchall()
+
+                # Convert to list of dictionaries and format amounts
+                result = []
+                for contribution in contributions:
+                    contrib_dict = dict(contribution)
+                    contrib_dict['amount'] = float(contrib_dict['amount'])
+                    # Format dates
+                    for date_key in ['contribution_date', 'created_at']:
+                        if contrib_dict.get(date_key):
+                            contrib_dict[date_key] = str(contrib_dict[date_key])
+                    result.append(contrib_dict)
+
+                return result
+
+        except Exception as e:
+            logger.error(f"Error fetching contributions: {e}")
+            return []
+        finally:
+            if conn:
+                db_conn_pool.putconn(conn)

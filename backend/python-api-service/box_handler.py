@@ -1,12 +1,12 @@
 import logging
 from flask import Blueprint, request, jsonify, current_app
-import box_service
+import box_service_real
 
 logger = logging.getLogger(__name__)
 
 box_bp = Blueprint('box_bp', __name__)
 
-from boxsdk import OAuth2
+from boxsdk import BoxClient, BoxOAuth, OAuthConfig
 import db_oauth_box, crypto_utils
 
 async def get_box_client(user_id: str, db_conn_pool):
@@ -17,13 +17,7 @@ async def get_box_client(user_id: str, db_conn_pool):
     access_token = crypto_utils.decrypt_message(tokens[0])
     refresh_token = crypto_utils.decrypt_message(tokens[1]) if tokens[1] else None
 
-    oauth = OAuth2(
-        client_id=os.getenv("BOX_CLIENT_ID"),
-        client_secret=os.getenv("BOX_CLIENT_SECRET"),
-        access_token=access_token,
-        refresh_token=refresh_token,
-    )
-    return box_service.BoxService(oauth)
+    return box_service_real.get_box_client_real(access_token, refresh_token)
 
 @box_bp.route('/api/box/search', methods=['POST'])
 async def search_box_route():

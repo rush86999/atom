@@ -35,6 +35,9 @@ python-wordpress-xmlrpc>=2.6.0,<3.0.0
 kafka-python>=2.0.0,<3.0.0
 elevenlabs>=0.2.0,<1.0.0
 pyotp>=2.6.0,<3.0.0
+boxsdk>=3.0.0,<4.0.0
+asana>=1.0.0,<2.0.0
+py-trello>=0.19.0,<0.20.0
 asyncio
 aiohttp>=3.8.0,<4.0.0
 asyncpg>=0.28.0,<1.0.0

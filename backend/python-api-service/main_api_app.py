@@ -4,6 +4,15 @@ from flask import Flask
 from psycopg2 import pool
 from db_utils import init_db_pool, close_db_pool, get_db_pool
 from init_database import initialize_database
+from lancedb_handler import get_lancedb_connection, LANCEDB_AVAILABLE
+
+# Import fallback database utilities
+try:
+    from db_utils_fallback import get_db_connection as get_sqlite_connection, health_check_sqlite
+    SQLITE_AVAILABLE = True
+except ImportError:
+    SQLITE_AVAILABLE = False
+    logging.warning("SQLite fallback not available")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -54,9 +63,9 @@ from manual_account_handler import manual_account_bp
 from manual_transaction_handler import manual_transaction_bp
 from reporting_handler import reporting_bp
 from box_handler import box_bp
-from asana_handler import asana_bp
+from asana_handler_mock import asana_bp
 from jira_handler import jira_bp
-from auth_handler_box import box_auth_bp
+from auth_handler_box_real import box_auth_bp
 from auth_handler_asana import asana_auth_bp
 from auth_handler_trello import trello_auth_bp
 from auth_handler_zoho import zoho_auth_bp
@@ -188,13 +197,13 @@ def create_app(db_pool=None):
     app.register_blueprint(reporting_bp)
     logger.info("Registered 'reporting_bp' blueprint.")
     app.register_blueprint(box_bp)
-    logger.info("Registered 'box_bp' blueprint.")
+    logger.info("Registered 'box_bp' blueprint (real implementation).")
     app.register_blueprint(asana_bp)
-    logger.info("Registered 'asana_bp' blueprint.")
+    logger.info("Registered 'asana_bp' blueprint (mock version).")
     app.register_blueprint(jira_bp)
     logger.info("Registered 'jira_bp' blueprint.")
     app.register_blueprint(box_auth_bp)
-    logger.info("Registered 'box_auth_bp' blueprint.")
+    logger.info("Registered 'box_auth_bp' blueprint (real implementation).")
     app.register_blueprint(asana_auth_bp)
     logger.info("Registered 'asana_auth_bp' blueprint.")
     app.register_blueprint(trello_auth_bp)
@@ -226,25 +235,43 @@ def create_app(db_pool=None):
     app.register_blueprint(github_bp)
     logger.info("Registered 'github_bp' blueprint.")
 
-    # Register goals API
-    from goals_handler import goals_bp
-    app.register_blueprint(goals_bp)
-    logger.info("Registered 'goals_bp' blueprint.")
-    app.register_blueprint(github_bp)
-    logger.info("Registered 'github_bp' blueprint.")
-
     # Example of registering other blueprints:
     # app.register_blueprint(document_bp)
     app.register_blueprint(search_routes_bp)
 
     @app.route('/healthz')
     def healthz():
-        # Check database connection as part of health check
+        # Check PostgreSQL database connection
         db_pool = get_db_pool()
         db_status = "healthy" if db_pool else "unhealthy"
+
+        # If PostgreSQL is unavailable, try SQLite fallback
+        sqlite_status = "not_configured"
+        if db_status == "unhealthy" and SQLITE_AVAILABLE:
+            sqlite_healthy = health_check_sqlite()
+            sqlite_status = "healthy" if sqlite_healthy else "unhealthy"
+            if sqlite_healthy:
+                db_status = "healthy (sqlite fallback)"
+
+        # Check LanceDB connection
+        lancedb_status = "unavailable"
+        if LANCEDB_AVAILABLE:
+            try:
+                lancedb_conn = get_lancedb_connection()
+                lancedb_status = "healthy" if lancedb_conn else "unhealthy"
+            except Exception as e:
+                logger.error(f"LanceDB health check failed: {e}")
+                lancedb_status = "error"
+        else:
+            lancedb_status = "not_configured"
+
         return {
             "status": "ok",
-            "database": db_status,
+            "database": {
+                "postgresql": db_status,
+                "sqlite_fallback": sqlite_status,
+                "lancedb": lancedb_status
+            },
             "version": "1.0.0"
         }, 200
 
