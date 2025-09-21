@@ -1,6 +1,6 @@
 import logging
 import gdrive_service
-import wordpress_service # We need to create this
+import wordpress_service_real as wordpress_service
 import trello_service
 
 logger = logging.getLogger(__name__)

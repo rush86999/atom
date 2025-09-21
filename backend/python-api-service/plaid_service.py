@@ -43,11 +43,16 @@ PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
 PLAID_SECRET = os.getenv("PLAID_SECRET")
 PLAID_ENVIRONMENT = os.getenv("PLAID_ENV", "sandbox")  # sandbox|development|production
 
-# Production validation
-if not PLAID_CLIENT_ID:
-    raise ValueError("PLAID_CLIENT_ID environment variable is required for production")
-if not PLAID_SECRET:
-    raise ValueError("PLAID_SECRET environment variable is required for production")
+# Production validation - only enforce in production environment
+environment = os.getenv("ENVIRONMENT", "development")
+if environment == "production":
+    if not PLAID_CLIENT_ID:
+        raise ValueError("PLAID_CLIENT_ID environment variable is required for production")
+    if not PLAID_SECRET:
+        raise ValueError("PLAID_SECRET environment variable is required for production")
+else:
+    # Development mode - use mock implementation
+    logger.warning("Plaid not configured - using mock implementation for development")
 
 @dataclass
 class BankAccount:
