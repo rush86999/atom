@@ -20,9 +20,9 @@ except ImportError as e_crypto:
     def decrypt_data(encrypted_str: str) -> Optional[str]: logger.critical("Crypto utils not loaded, decryption placeholder called."); return None
 
 try:
-    from .db_oauth_gdrive import (
-        save_or_update_gdrive_tokens,
-        get_gdrive_oauth_details,
+    from db_oauth_gdrive import (
+        save_token,
+        get_token,
         update_gdrive_access_token,
         delete_gdrive_tokens # Added for disconnect
     )
@@ -31,8 +31,8 @@ except ImportError as e_db:
     print(f"FATAL: Could not import db_oauth_gdrive: {e_db}. OAuth DB operations will fail.", file=sys.stderr)
     DB_UTILS_AVAILABLE = False
     # Define dummy functions
-    def save_or_update_gdrive_tokens(*args, **kwargs) -> bool: logger.critical("DB utils not loaded, save_or_update_gdrive_tokens placeholder."); return False
-    def get_gdrive_oauth_details(*args, **kwargs) -> Optional[Dict[str, Any]]: logger.critical("DB utils not loaded, get_gdrive_oauth_details placeholder."); return None
+    def save_token(*args, **kwargs) -> bool: logger.critical("DB utils not loaded, save_token placeholder."); return False
+    def get_token(*args, **kwargs) -> Optional[Dict[str, Any]]: logger.critical("DB utils not loaded, get_token placeholder."); return None
     def update_gdrive_access_token(*args, **kwargs) -> bool: logger.critical("DB utils not loaded, update_gdrive_access_token placeholder."); return False
 
 

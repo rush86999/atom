@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 box_bp = Blueprint('box_bp', __name__)
 
-from boxsdk import BoxClient, BoxOAuth, OAuthConfig
+from box_sdk_gen import BoxClient, BoxOAuth, OAuthConfig
 import db_oauth_box, crypto_utils
 
 async def get_box_client(user_id: str, db_conn_pool):

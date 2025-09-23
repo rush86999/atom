@@ -63,7 +63,7 @@ from manual_account_handler import manual_account_bp
 from manual_transaction_handler import manual_transaction_bp
 from reporting_handler import reporting_bp
 from box_handler import box_bp
-from asana_handler_mock import asana_bp
+from asana_handler import asana_bp
 from jira_handler import jira_bp
 from auth_handler_box_real import box_auth_bp
 from auth_handler_asana import asana_auth_bp
@@ -199,9 +199,9 @@ def create_app(db_pool=None):
     app.register_blueprint(box_bp)
     logger.info("Registered 'box_bp' blueprint (real implementation).")
     app.register_blueprint(asana_bp)
-    logger.info("Registered 'asana_bp' blueprint (mock version).")
+    logger.info("Registered 'asana_bp' blueprint (real implementation).")
     app.register_blueprint(jira_bp)
-    logger.info("Registered 'jira_bp' blueprint.")
+    logger.info("Registered 'jira_bp' blueprint (real implementation).")
     app.register_blueprint(box_auth_bp)
     logger.info("Registered 'box_auth_bp' blueprint (real implementation).")
     app.register_blueprint(asana_auth_bp)
