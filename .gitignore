@@ -144,6 +144,15 @@ venv.bak/
 .spyderproject
 .spyproject
 
+# ATOM application temporary files
+*.log
+tmp/
+data/
+integration_test_report_*.json
+.env.development
+.env.postgres
+.env.test
+
 # Rope project settings
 .ropeproject
 
