@@ -25,7 +25,7 @@ def create_tables(conn) -> bool:
     """Create all required database tables"""
     try:
         with conn.cursor() as cursor:
-            # User OAuth tokens table
+            # Generic user OAuth tokens table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS user_oauth_tokens (
                     id SERIAL PRIMARY KEY,
@@ -42,6 +42,32 @@ def create_tables(conn) -> bool:
                 )
             """)
             logger.info("Created user_oauth_tokens table")
+
+            # Service-specific OAuth tokens tables
+            service_tables = [
+                ("user_asana_oauth_tokens", "Asana"),
+                ("user_box_oauth_tokens", "Box"),
+                ("user_dropbox_oauth_tokens", "Dropbox"),
+                ("user_gdrive_oauth_tokens", "Google Drive"),
+                ("user_trello_oauth_tokens", "Trello"),
+                ("user_zoho_oauth_tokens", "Zoho"),
+                ("user_jira_oauth_tokens", "Jira")
+            ]
+
+            for table_name, service_name in service_tables:
+                cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(255) NOT NULL UNIQUE,
+                        encrypted_access_token BYTEA NOT NULL,
+                        encrypted_refresh_token BYTEA,
+                        expires_at TIMESTAMP,
+                        scope TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                logger.info(f"Created {table_name} table")
 
             # Tasks table
             cursor.execute("""
@@ -152,6 +178,20 @@ def create_tables(conn) -> bool:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_calendar_events_start_time ON calendar_events(start_time)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_plaid_items_user_id ON plaid_items(user_id)")
 
+            # Create indexes for service-specific OAuth tables
+            service_tables = [
+                "user_asana_oauth_tokens",
+                "user_box_oauth_tokens",
+                "user_dropbox_oauth_tokens",
+                "user_gdrive_oauth_tokens",
+                "user_trello_oauth_tokens",
+                "user_zoho_oauth_tokens",
+                "user_jira_oauth_tokens"
+            ]
+
+            for table_name in service_tables:
+                cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_{table_name}_user_id ON {table_name}(user_id)")
+
             logger.info("Created all indexes")
 
             return True
@@ -170,7 +210,14 @@ def check_tables_exist(conn) -> bool:
                 'messages',
                 'calendar_events',
                 'meeting_transcriptions',
-                'plaid_items'
+                'plaid_items',
+                'user_asana_oauth_tokens',
+                'user_box_oauth_tokens',
+                'user_dropbox_oauth_tokens',
+                'user_gdrive_oauth_tokens',
+                'user_trello_oauth_tokens',
+                'user_zoho_oauth_tokens',
+                'user_jira_oauth_tokens'
             ]
 
             for table in tables_to_check:
