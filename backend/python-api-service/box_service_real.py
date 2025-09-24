@@ -3,9 +3,9 @@
 
 import os
 from typing import Dict, Any, Optional, List
-from boxsdk import BoxClient, BoxOAuth, OAuthConfig
-from boxsdk.networking.network import NetworkSession
-from boxsdk.schemas.access_token import AccessToken
+from box_sdk_gen import BoxClient, BoxOAuth, OAuthConfig
+from box_sdk_gen.networking.network import NetworkSession
+from box_sdk_gen.schemas.access_token import AccessToken
 import db_oauth_box, crypto_utils
 import logging
 

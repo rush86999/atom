@@ -1,13 +1,11 @@
 import logging
-from flask import Blueprint, request, jsonify
-import asana_service
+from flask import Blueprint, request, jsonify, current_app
+from asana_service_real import get_asana_service_real
+import db_oauth_asana, crypto_utils
 
 logger = logging.getLogger(__name__)
 
 asana_bp = Blueprint('asana_bp', __name__)
-
-import asana
-import db_oauth_asana, crypto_utils
 
 async def get_asana_client(user_id: str, db_conn_pool):
     tokens = await db_oauth_asana.get_tokens(db_conn_pool, user_id)
@@ -16,8 +14,7 @@ async def get_asana_client(user_id: str, db_conn_pool):
 
     access_token = crypto_utils.decrypt_message(tokens[0])
 
-    client = asana.Client.access_token(access_token)
-    return asana_service.AsanaService(client)
+    return get_asana_service_real(access_token)
 
 @asana_bp.route('/api/asana/search', methods=['POST'])
 async def search_asana_route():
