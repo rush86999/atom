@@ -4,7 +4,7 @@ from flask import Blueprint, request, redirect, session, jsonify, url_for
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 import requests
-from boxsdk import OAuthConfig, BoxOAuth
+from box_sdk_gen import OAuthConfig, BoxOAuth
 
 logger = logging.getLogger(__name__)
 
