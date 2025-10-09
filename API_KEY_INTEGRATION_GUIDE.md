@@ -75,16 +75,22 @@ This guide provides step-by-step instructions for obtaining and configuring real
    - `DROPBOX_APP_SECRET=your-app-secret`
    - `DROPBOX_ACCESS_TOKEN=your-access-token`
 
-### 5. Trello API Keys
+### 5. Trello API Keys (Frontend API Key Model)
 **URL**: https://trello.com/power-ups/admin
+
+**Authentication Model**: Frontend API Keys (each user provides their own API key and token)
 
 1. Go to Trello Developer Portal
 2. Click "Generate a new API key"
 3. Copy the API Key
 4. Manually generate a token using: https://trello.com/1/authorize?expiration=never&scope=read,write,account&response_type=token&key=YOUR_API_KEY
-5. Set environment variables:
-   - `TRELLO_API_KEY=your-api-key`
-   - `TRELLO_API_SECRET=your-api-secret`
+5. **Users enter these in the frontend** (no server environment variables needed):
+   - API Key: `your-api-key`
+   - API Token: `your-generated-token`
+
+**Frontend Headers**:
+- `X-Trello-API-Key`: Your Trello API key
+- `X-Trello-API-Token`: Your Trello API token
 
 ### 6. Asana OAuth App
 **URL**: https://app.asana.com/0/developer-console
@@ -118,9 +124,10 @@ NOTION_API_TOKEN=secret_your-actual-notion-token
 DROPBOX_APP_KEY=your-dropbox-app-key
 DROPBOX_APP_SECRET=your-dropbox-app-secret
 
-# Trello
+# Trello (Optional - for development only)
+# Note: Trello now uses frontend API keys, but you can still set these for testing
 TRELLO_API_KEY=your-trello-api-key
-TRELLO_API_SECRET=your-trello-api-secret
+TRELLO_API_TOKEN=your-trello-generated-token
 
 # Asana
 ASANA_CLIENT_ID=your-asana-client-id

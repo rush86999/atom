@@ -1,85 +1,222 @@
 import os
 import logging
-from flask import Blueprint, request, redirect, session, jsonify, url_for
-from requests_oauthlib import OAuth1Session
+from flask import Blueprint, request, jsonify
+from trello import TrelloClient
 
 logger = logging.getLogger(__name__)
 
-trello_auth_bp = Blueprint('trello_auth_bp', __name__)
+trello_auth_bp = Blueprint("trello_auth_bp", __name__)
 
-TRELLO_API_KEY = os.getenv("TRELLO_API_KEY")
-TRELLO_API_SECRET = os.getenv("TRELLO_API_SECRET")
-FRONTEND_REDIRECT_URL = os.getenv("APP_CLIENT_URL", "http://localhost:3000") + "/settings"
 
-REQUEST_TOKEN_URL = "https://trello.com/1/OAuthGetRequestToken"
-AUTHORIZE_URL = "https://trello.com/1/OAuthAuthorizeToken"
-ACCESS_TOKEN_URL = "https://trello.com/1/OAuthGetAccessToken"
-
-@trello_auth_bp.route('/api/auth/trello/initiate')
-def initiate_trello_auth():
-    if not TRELLO_API_KEY or not TRELLO_API_SECRET:
-        return jsonify({"ok": False, "error": {"code": "CONFIG_ERROR", "message": "Trello integration is not configured correctly on the server."}}), 500
-
-    user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({"ok": False, "error": {"code": "VALIDATION_ERROR", "message": "user_id is required."}}), 400
-
-    session['trello_auth_user_id'] = user_id
-
+@trello_auth_bp.route("/api/auth/trello/validate", methods=["POST"])
+def validate_trello_credentials():
+    """
+    Validate Trello API key and token provided by frontend
+    This replaces the OAuth flow with simple API key validation
+    """
     try:
-        oauth = OAuth1Session(TRELLO_API_KEY, client_secret=TRELLO_API_SECRET, callback_uri=url_for('trello_auth_bp.oauth1callback', _external=True))
-        fetch_response = oauth.fetch_request_token(REQUEST_TOKEN_URL)
-        session['trello_request_token'] = fetch_response
-        authorization_url = oauth.authorization_url(AUTHORIZE_URL)
-        return redirect(authorization_url)
+        data = request.get_json()
+        if not data:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "JSON data is required",
+                    },
+                }
+            ), 400
+
+        api_key = data.get("api_key")
+        api_token = data.get("api_token")
+        user_id = data.get("user_id")
+
+        if not api_key or not api_token:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "api_key and api_token are required",
+                    },
+                }
+            ), 400
+
+        if not user_id:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "user_id is required",
+                    },
+                }
+            ), 400
+
+        logger.info(f"Validating Trello credentials for user {user_id}")
+
+        # Test the credentials by making a simple API call
+        try:
+            client = TrelloClient(api_key=api_key, token=api_token)
+
+            # Test connectivity by getting user info
+            me = client.get_member("me")
+
+            return jsonify(
+                {
+                    "ok": True,
+                    "data": {
+                        "user_id": user_id,
+                        "trello_user": me.full_name
+                        if hasattr(me, "full_name")
+                        else me.username,
+                        "trello_username": me.username,
+                        "status": "connected",
+                        "message": "Trello credentials validated successfully",
+                    },
+                }
+            )
+
+        except Exception as api_error:
+            logger.error(
+                f"Trello API validation failed for user {user_id}: {api_error}"
+            )
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "AUTH_ERROR",
+                        "message": f"Invalid Trello credentials: {str(api_error)}",
+                    },
+                }
+            ), 401
+
     except Exception as e:
-        logger.error(f"Error initiating Trello auth for user {user_id}: {e}", exc_info=True)
-        return "Error initiating Trello auth.", 500
+        logger.error(f"Error validating Trello credentials: {e}", exc_info=True)
+        return jsonify(
+            {
+                "ok": False,
+                "error": {
+                    "code": "VALIDATION_FAILED",
+                    "message": f"Credential validation failed: {str(e)}",
+                },
+            }
+        ), 500
 
-@trello_auth_bp.route('/api/auth/trello/callback')
-async def oauth1callback():
-    from flask import current_app
-    db_conn_pool = current_app.config.get('DB_CONNECTION_POOL', None)
-    if not db_conn_pool:
-         return "Error: Database connection pool is not available.", 500
 
-    user_id = session.get('trello_auth_user_id')
-    if not user_id:
-        return "Error: No user_id found in session. Please try the connection process again.", 400
-
-    request_token = session.pop('trello_request_token', None)
-    if not request_token:
-        return "Error: No request token found in session.", 400
-
+@trello_auth_bp.route("/api/auth/trello/status", methods=["GET"])
+def get_trello_status():
+    """
+    Get current Trello integration status for a user
+    This checks if valid API keys are provided in headers
+    """
     try:
-        oauth = OAuth1Session(TRELLO_API_KEY, client_secret=TRELLO_API_SECRET,
-                              resource_owner_key=request_token['oauth_token'],
-                              resource_owner_secret=request_token['oauth_token_secret'],
-                              verifier=request.args.get('oauth_verifier'))
+        api_key = request.headers.get("X-Trello-API-Key")
+        api_token = request.headers.get("X-Trello-API-Token")
+        user_id = request.args.get("user_id")
 
-        access_token_data = oauth.fetch_access_token(ACCESS_TOKEN_URL)
+        if not user_id:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "user_id is required",
+                    },
+                }
+            ), 400
 
-        access_token = access_token_data.get('oauth_token')
-        access_token_secret = access_token_data.get('oauth_token_secret')
+        if not api_key or not api_token:
+            return jsonify(
+                {
+                    "ok": True,
+                    "service": "trello",
+                    "status": "disconnected",
+                    "message": "Trello API keys not provided in headers",
+                    "available": False,
+                    "mock_data": False,
+                }
+            )
 
-        import crypto_utils, db_oauth_trello
-        encrypted_access_token = crypto_utils.encrypt_message(access_token)
-        encrypted_refresh_token = crypto_utils.encrypt_message(access_token_secret) # Storing secret as refresh token
+        # Test the credentials
+        try:
+            client = TrelloClient(api_key=api_key, token=api_token)
+            me = client.get_member("me")
 
-        await db_oauth_trello.save_tokens(
-            db_conn_pool=db_conn_pool,
-            user_id=user_id,
-            encrypted_access_token=encrypted_access_token,
-            encrypted_refresh_token=encrypted_refresh_token,
-            expires_at=None,
-            scope=""
-        )
+            return jsonify(
+                {
+                    "ok": True,
+                    "service": "trello",
+                    "status": "connected",
+                    "message": "Trello service connected successfully",
+                    "available": True,
+                    "mock_data": False,
+                    "user": me.full_name if hasattr(me, "full_name") else me.username,
+                }
+            )
 
-        logger.info(f"Successfully completed Trello OAuth and saved tokens for user {user_id}.")
-        return redirect(f"{FRONTEND_REDIRECT_URL}?trello_status=success")
+        except Exception as api_error:
+            logger.error(f"Trello status check failed for user {user_id}: {api_error}")
+            return jsonify(
+                {
+                    "ok": True,
+                    "service": "trello",
+                    "status": "disconnected",
+                    "message": f"Trello connection failed: {str(api_error)}",
+                    "available": False,
+                    "mock_data": False,
+                }
+            )
 
     except Exception as e:
-        logger.error(f"An unexpected error occurred during Trello OAuth callback for user {user_id}: {e}", exc_info=True)
-        return "An unexpected server error occurred.", 500
-    finally:
-        session.pop('trello_auth_user_id', None)
+        logger.error(f"Error checking Trello status: {e}")
+        return jsonify(
+            {
+                "ok": False,
+                "service": "trello",
+                "status": "error",
+                "message": f"Status check failed: {str(e)}",
+            }
+        ), 500
+
+
+@trello_auth_bp.route("/api/auth/trello/instructions", methods=["GET"])
+def get_trello_instructions():
+    """
+    Provide instructions for users to get their Trello API key and token
+    """
+    return jsonify(
+        {
+            "ok": True,
+            "data": {
+                "service": "trello",
+                "instructions": {
+                    "title": "Connect Your Trello Account",
+                    "description": "Trello uses API keys and tokens for authentication. Each user needs their own API token.",
+                    "steps": [
+                        {
+                            "step": 1,
+                            "title": "Get Your API Key",
+                            "description": "Go to https://trello.com/power-ups/admin and generate a new API key for your Power-Up",
+                        },
+                        {
+                            "step": 2,
+                            "title": "Generate Your Token",
+                            "description": "On the same page, click the 'Token' link next to your API key to generate a token",
+                        },
+                        {
+                            "step": 3,
+                            "title": "Enter Credentials",
+                            "description": "Enter your API key and token in the ATOM settings page",
+                        },
+                        {
+                            "step": 4,
+                            "title": "Validate Connection",
+                            "description": "Click 'Validate' to test your connection to Trello",
+                        },
+                    ],
+                    "note": "Your API key identifies the application, while your token grants access to your specific Trello account. Keep your token secure!",
+                },
+            },
+        }
+    )

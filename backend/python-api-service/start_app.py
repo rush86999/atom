@@ -12,50 +12,60 @@ import logging
 import signal
 import subprocess
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/tmp/atom_app.log')
-    ]
+        logging.FileHandler("/tmp/atom_app.log"),
+    ],
 )
 logger = logging.getLogger(__name__)
 
+
 def setup_environment():
-    """Setup environment variables for development"""
+    """Setup environment variables - loads from .env.production if available, falls back to development defaults"""
+    # First, try to load production environment
+    env_file = Path(__file__).parent.parent.parent / ".env.production"
+    if env_file.exists():
+        load_dotenv(env_file)
+        logger.info(f"Loaded production environment from {env_file}")
+    else:
+        logger.info("No production environment file found, using development defaults")
+
     env_vars = {
         # Database configuration
-        'DATABASE_URL': 'sqlite:///tmp/atom_dev.db',
-
+        "DATABASE_URL": os.getenv("DATABASE_URL", "sqlite:///tmp/atom_dev.db"),
         # Encryption key (32-byte base64 encoded)
-        'ATOM_OAUTH_ENCRYPTION_KEY': 'nCsfAph2Gln5Ag0uuEeqUVOvSEPtl7OLGT_jKsyzP84=',
-
+        "ATOM_OAUTH_ENCRYPTION_KEY": os.getenv(
+            "ATOM_OAUTH_ENCRYPTION_KEY", "nCsfAph2Gln5Ag0uuEeqUVOvSEPtl7OLGT_jKsyzP84="
+        ),
         # Flask configuration
-        'FLASK_SECRET_KEY': 'dev-secret-key-change-in-production',
-        'FLASK_ENV': 'development',
-        'PYTHON_API_PORT': '5058',
-
+        "FLASK_SECRET_KEY": os.getenv(
+            "FLASK_SECRET_KEY", "dev-secret-key-change-in-production"
+        ),
+        "FLASK_ENV": os.getenv("FLASK_ENV", "development"),
+        "PYTHON_API_PORT": os.getenv("PYTHON_API_PORT", "5058"),
         # Development flags
-        'DEBUG': 'true',
-        'ENABLE_MOCK_SERVICES': 'true',
-        'USE_SQLITE_FALLBACK': 'true',
-
+        "DEBUG": os.getenv("DEBUG", "true"),
+        "ENABLE_MOCK_SERVICES": os.getenv("ENABLE_MOCK_SERVICES", "true"),
+        "USE_SQLITE_FALLBACK": os.getenv("USE_SQLITE_FALLBACK", "true"),
         # Logging
-        'LOG_LEVEL': 'INFO',
-
+        "LOG_LEVEL": os.getenv("LOG_LEVEL", "INFO"),
         # Feature flags
-        'ENABLE_GOALS': 'true',
-        'ENABLE_CALENDAR': 'true',
-        'ENABLE_TASKS': 'true',
-        'ENABLE_MESSAGES': 'true'
+        "ENABLE_GOALS": os.getenv("ENABLE_GOALS", "true"),
+        "ENABLE_CALENDAR": "true",
+        "ENABLE_TASKS": "true",
+        "ENABLE_MESSAGES": "true",
     }
 
     for key, value in env_vars.items():
         os.environ[key] = value
         logger.info(f"Set {key}={value}")
+
 
 def check_dependencies():
     """Check if required dependencies are installed"""
@@ -73,8 +83,11 @@ def check_dependencies():
 
     except ImportError as e:
         logger.error(f"❌ Missing dependency: {e}")
-        logger.error("Run: pip install flask psycopg2-binary requests cryptography aiohttp pandas lancedb")
+        logger.error(
+            "Run: pip install flask psycopg2-binary requests cryptography aiohttp pandas lancedb"
+        )
         return False
+
 
 def start_application():
     """Start the Flask application"""
@@ -107,10 +120,12 @@ def start_application():
 
     return True
 
+
 def signal_handler(sig, frame):
     """Handle shutdown signals gracefully"""
     logger.info("🛑 Shutdown signal received. Stopping application...")
     sys.exit(0)
+
 
 def main():
     """Main application entry point"""
@@ -138,6 +153,7 @@ def main():
     if not success:
         logger.error("Application failed to start")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
