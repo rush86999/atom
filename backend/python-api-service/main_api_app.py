@@ -8,14 +8,20 @@ from lancedb_handler import get_lancedb_connection, LANCEDB_AVAILABLE
 
 # Import fallback database utilities
 try:
-    from db_utils_fallback import get_db_connection as get_sqlite_connection, health_check_sqlite
+    from db_utils_fallback import (
+        get_db_connection as get_sqlite_connection,
+        health_check_sqlite,
+    )
+
     SQLITE_AVAILABLE = True
 except ImportError:
     SQLITE_AVAILABLE = False
     logging.warning("SQLite fallback not available")
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Import Blueprints from all the handlers
@@ -24,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Let's assume for now they are already using Blueprints correctly.
 
 # from document_handler import document_bp # Example
-from search_routes import search_routes_bp # Example
+from search_routes import search_routes_bp  # Example
 from auth_handler_dropbox import dropbox_auth_bp
 from dropbox_handler import dropbox_bp
 from auth_handler_gdrive import gdrive_auth_bp
@@ -68,13 +74,16 @@ from jira_handler import jira_bp
 from auth_handler_box_real import box_auth_bp
 from auth_handler_asana import asana_auth_bp
 from auth_handler_trello import trello_auth_bp
+from auth_handler_notion import notion_auth_bp
 from auth_handler_zoho import zoho_auth_bp
 from auth_handler_shopify import shopify_auth_bp
 from zoho_handler import zoho_bp
+from notion_handler_real import notion_bp
 from calendar_handler import calendar_bp
 from task_handler import task_bp
 from message_handler import message_bp
 from transcription_handler import transcription_bp
+
 
 def create_app(db_pool=None):
     """
@@ -86,11 +95,13 @@ def create_app(db_pool=None):
     # It's crucial for session management that a secret key is set.
     app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_dev_secret_key_change_me")
     if app.secret_key == "a_default_dev_secret_key_change_me":
-        logger.warning("Using default Flask secret key. This is not secure for production.")
+        logger.warning(
+            "Using default Flask secret key. This is not secure for production."
+        )
 
     # --- Database Connection Pool ---
     if db_pool:
-        app.config['DB_CONNECTION_POOL'] = db_pool
+        app.config["DB_CONNECTION_POOL"] = db_pool
     else:
         try:
             logger.info("Initializing database...")
@@ -98,23 +109,26 @@ def create_app(db_pool=None):
             if initialize_database():
                 logger.info("Database tables initialized successfully")
             else:
-                logger.warning("Database table initialization failed. Some features may not work.")
+                logger.warning(
+                    "Database table initialization failed. Some features may not work."
+                )
 
             logger.info("Initializing PostgreSQL connection pool...")
             # Initialize the database connection pool
             db_pool = init_db_pool()
-            app.config['DB_CONNECTION_POOL'] = db_pool
+            app.config["DB_CONNECTION_POOL"] = db_pool
 
             if db_pool:
                 logger.info("PostgreSQL connection pool initialized successfully.")
             else:
-                logger.warning("Database connection pool initialization failed. Some features may not work.")
-                app.config['DB_CONNECTION_POOL'] = None
+                logger.warning(
+                    "Database connection pool initialization failed. Some features may not work."
+                )
+                app.config["DB_CONNECTION_POOL"] = None
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}", exc_info=True)
             # Depending on strictness, we could exit or continue with the pool as None.
-            app.config['DB_CONNECTION_POOL'] = None
-
+            app.config["DB_CONNECTION_POOL"] = None
 
     # --- Register Blueprints ---
     # A real implementation would refactor other handlers to use blueprints and register them here.
@@ -167,6 +181,7 @@ def create_app(db_pool=None):
 
     # Goals API
     from goals_handler import goals_bp
+
     app.register_blueprint(goals_bp)
     logger.info("Registered 'goals_bp' blueprint.")
 
@@ -201,12 +216,16 @@ def create_app(db_pool=None):
     app.register_blueprint(asana_bp)
     logger.info("Registered 'asana_bp' blueprint (real implementation).")
     app.register_blueprint(jira_bp)
+    app.register_blueprint(notion_bp)
+    logger.info("Registered 'notion_bp' blueprint (real implementation).")
     logger.info("Registered 'jira_bp' blueprint (real implementation).")
     app.register_blueprint(box_auth_bp)
     logger.info("Registered 'box_auth_bp' blueprint (real implementation).")
     app.register_blueprint(asana_auth_bp)
     logger.info("Registered 'asana_auth_bp' blueprint.")
     app.register_blueprint(trello_auth_bp)
+    app.register_blueprint(notion_auth_bp)
+    logger.info("Registered 'notion_auth_bp' blueprint.")
     logger.info("Registered 'trello_auth_bp' blueprint.")
     app.register_blueprint(zoho_auth_bp)
     logger.info("Registered 'zoho_auth_bp' blueprint.")
@@ -232,6 +251,7 @@ def create_app(db_pool=None):
     logger.info("Registered 'transcription_bp' blueprint.")
 
     from github_handler import github_bp
+
     app.register_blueprint(github_bp)
     logger.info("Registered 'github_bp' blueprint.")
 
@@ -239,7 +259,7 @@ def create_app(db_pool=None):
     # app.register_blueprint(document_bp)
     app.register_blueprint(search_routes_bp)
 
-    @app.route('/healthz')
+    @app.route("/healthz")
     def healthz():
         # Check PostgreSQL database connection
         db_pool = get_db_pool()
@@ -270,9 +290,9 @@ def create_app(db_pool=None):
             "database": {
                 "postgresql": db_status,
                 "sqlite_fallback": sqlite_status,
-                "lancedb": lancedb_status
+                "lancedb": lancedb_status,
             },
-            "version": "1.0.0"
+            "version": "1.0.0",
         }, 200
 
     # Add cleanup on app teardown
@@ -286,9 +306,12 @@ def create_app(db_pool=None):
     logger.info("Flask app created and configured.")
     return app
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # This allows running the app directly for development/debugging
     # In production, a WSGI server like Gunicorn would call create_app()
     app = create_app()
-    port = int(os.environ.get("PYTHON_API_PORT", 5058)) # Using a new port for the combined service
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(
+        os.environ.get("PYTHON_API_PORT", 5058)
+    )  # Using a new port for the combined service
+    app.run(host="0.0.0.0", port=port, debug=True)
