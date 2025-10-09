@@ -152,6 +152,7 @@ integration_test_report_*.json
 .env.development
 .env.postgres
 .env.test
+.env.production
 
 # Rope project settings
 .ropeproject
@@ -351,6 +352,7 @@ out
 secrets.json
 *.pem
 *.key
+google_client_secrets.json
 
 # Backup files
 *.bak
@@ -427,3 +429,5 @@ frontend-nextjs/optaplanner_build_docker/
 
 # Coding orchestrator
 ai-coding-orchestrator/
+
+notes/
