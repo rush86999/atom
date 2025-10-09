@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Ingestion Pipeline API",
     description="API for ingesting and processing various data sources",
-    version="1.0.0"
+    version="1.0.0",
 )
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -23,11 +24,13 @@ class HealthResponse(BaseModel):
     timestamp: str
     processed_items: int = 0
 
+
 class IngestionRequest(BaseModel):
     source_type: str  # "notion", "dropbox", "gdrive", "local", etc.
     source_config: Dict[str, Any]
     processing_mode: str = "incremental"  # "full" or "incremental"
     user_id: Optional[str] = None
+
 
 class IngestionStatus(BaseModel):
     status: str  # "processing", "completed", "failed"
@@ -38,13 +41,16 @@ class IngestionStatus(BaseModel):
     end_time: Optional[str] = None
     error_message: Optional[str] = None
 
+
 # In-memory storage for demonstration (replace with database in production)
 ingestion_statuses = {}
 processed_items_count = 0
 
+
 @app.get("/")
 async def root():
     return {"message": "Ingestion Pipeline API", "version": "1.0.0"}
+
 
 @app.get("/healthz", response_model=HealthResponse)
 async def health_check():
@@ -52,8 +58,9 @@ async def health_check():
         status="ok",
         version="1.0.0",
         timestamp=datetime.datetime.now().isoformat(),
-        processed_items=processed_items_count
+        processed_items=processed_items_count,
     )
+
 
 @app.get("/ingestion-status")
 async def get_ingestion_status():
@@ -61,8 +68,11 @@ async def get_ingestion_status():
     return {
         "status": "operational",
         "total_processed": processed_items_count,
-        "active_jobs": len([s for s in ingestion_statuses.values() if s["status"] == "processing"])
+        "active_jobs": len(
+            [s for s in ingestion_statuses.values() if s["status"] == "processing"]
+        ),
     }
+
 
 @app.get("/ingestion-status/{job_id}", response_model=IngestionStatus)
 async def get_job_status(job_id: str):
@@ -72,6 +82,7 @@ async def get_job_status(job_id: str):
 
     status = ingestion_statuses[job_id]
     return IngestionStatus(**status)
+
 
 @app.post("/start-ingestion")
 async def start_ingestion(request: IngestionRequest, background_tasks: BackgroundTasks):
@@ -86,7 +97,7 @@ async def start_ingestion(request: IngestionRequest, background_tasks: Backgroun
         "failed_items": 0,
         "start_time": datetime.datetime.now().isoformat(),
         "end_time": None,
-        "error_message": None
+        "error_message": None,
     }
 
     # Start background processing
@@ -95,13 +106,16 @@ async def start_ingestion(request: IngestionRequest, background_tasks: Backgroun
     return {
         "job_id": job_id,
         "status": "started",
-        "message": f"Ingestion job {job_id} started successfully"
+        "message": f"Ingestion job {job_id} started successfully",
     }
+
 
 async def process_ingestion(job_id: str, request: IngestionRequest):
     """Background task to process ingestion"""
     try:
-        logger.info(f"Starting ingestion job {job_id} for source: {request.source_type}")
+        logger.info(
+            f"Starting ingestion job {job_id} for source: {request.source_type}"
+        )
 
         # Simulate processing different source types
         if request.source_type == "notion":
@@ -112,6 +126,8 @@ async def process_ingestion(job_id: str, request: IngestionRequest):
             items = await process_gdrive_source(request.source_config)
         elif request.source_type == "local":
             items = await process_local_source(request.source_config)
+        elif request.source_type == "trello":
+            items = await process_trello_source(request.source_config)
         else:
             raise ValueError(f"Unsupported source type: {request.source_type}")
 
@@ -137,13 +153,16 @@ async def process_ingestion(job_id: str, request: IngestionRequest):
         ingestion_statuses[job_id]["status"] = "completed"
         ingestion_statuses[job_id]["end_time"] = datetime.datetime.now().isoformat()
 
-        logger.info(f"Completed ingestion job {job_id}. Processed: {ingestion_statuses[job_id]['processed_items']}, Failed: {ingestion_statuses[job_id]['failed_items']}")
+        logger.info(
+            f"Completed ingestion job {job_id}. Processed: {ingestion_statuses[job_id]['processed_items']}, Failed: {ingestion_statuses[job_id]['failed_items']}"
+        )
 
     except Exception as e:
         logger.error(f"Error in ingestion job {job_id}: {e}")
         ingestion_statuses[job_id]["status"] = "failed"
         ingestion_statuses[job_id]["error_message"] = str(e)
         ingestion_statuses[job_id]["end_time"] = datetime.datetime.now().isoformat()
+
 
 async def process_notion_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Process Notion source using Notion API"""
@@ -162,20 +181,22 @@ async def process_notion_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         url = f"https://api.notion.com/v1/databases/{database_id}/query"
         payload = {
             "page_size": page_size,
-            "sorts": [{"timestamp": "last_edited_time", "direction": "descending"}]
+            "sorts": [{"timestamp": "last_edited_time", "direction": "descending"}],
         }
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    raise Exception(f"Notion API error: {response.status} - {error_text}")
+                    raise Exception(
+                        f"Notion API error: {response.status} - {error_text}"
+                    )
 
                 data = await response.json()
                 results = data.get("results", [])
@@ -185,27 +206,98 @@ async def process_notion_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                 for page in results:
                     page_id = page.get("id", "")
                     properties = page.get("properties", {})
+                    url = page.get("url", "")
 
-                    # Extract title from properties (adjust based on your database structure)
+                    # Extract title from properties
                     title = ""
                     for prop_name, prop_value in properties.items():
-                        if prop_value.get("type") == "title" and prop_value.get("title"):
-                            title = prop_value["title"][0].get("plain_text", "") if prop_value["title"] else ""
+                        if prop_value.get("type") == "title" and prop_value.get(
+                            "title"
+                        ):
+                            title = (
+                                prop_value["title"][0].get("plain_text", "")
+                                if prop_value["title"]
+                                else ""
+                            )
                             break
 
                     # Extract last edited time
                     last_edited = page.get("last_edited_time", "")
 
-                    items.append({
-                        "id": f"notion_{page_id}",
-                        "content": title,
-                        "metadata": {
-                            "source": "notion",
-                            "page_id": page_id,
-                            "last_edited": last_edited,
-                            "url": page.get("url", "")
+                    # Extract rich text content from all properties
+                    rich_text_content = []
+                    for prop_name, prop_value in properties.items():
+                        prop_type = prop_value.get("type")
+                        if prop_type in ["rich_text", "title"]:
+                            text_array = prop_value.get(prop_type, [])
+                            for text_item in text_array:
+                                if text_item.get("type") == "text":
+                                    text_content = text_item.get("text", {})
+                                    plain_text = text_content.get("content", "")
+                                    if plain_text.strip():
+                                        rich_text_content.append(plain_text)
+
+                    # Get page blocks content if available
+                    blocks_content = []
+                    try:
+                        blocks_url = (
+                            f"https://api.notion.com/v1/blocks/{page_id}/children"
+                        )
+                        async with session.get(
+                            blocks_url, headers=headers
+                        ) as blocks_response:
+                            if blocks_response.status == 200:
+                                blocks_data = await blocks_response.json()
+                                blocks_results = blocks_data.get("results", [])
+
+                                for block in blocks_results:
+                                    block_type = block.get("type")
+                                    block_data = block.get(block_type, {})
+                                    if block_type in [
+                                        "paragraph",
+                                        "heading_1",
+                                        "heading_2",
+                                        "heading_3",
+                                    ]:
+                                        rich_text = block_data.get("rich_text", [])
+                                        for text_item in rich_text:
+                                            if text_item.get("type") == "text":
+                                                text_content = text_item.get("text", {})
+                                                plain_text = text_content.get(
+                                                    "content", ""
+                                                )
+                                                if plain_text.strip():
+                                                    blocks_content.append(plain_text)
+                    except Exception as blocks_error:
+                        logger.warning(
+                            f"Could not fetch blocks for page {page_id}: {blocks_error}"
+                        )
+
+                    # Combine all content for embedding
+                    full_content = " ".join(
+                        [title] + rich_text_content + blocks_content
+                    ).strip()
+
+                    # If no content found, use title as fallback
+                    if not full_content:
+                        full_content = title or "No content"
+
+                    items.append(
+                        {
+                            "id": f"notion_{page_id}",
+                            "content": full_content,
+                            "metadata": {
+                                "source": "notion",
+                                "page_id": page_id,
+                                "page_title": title,
+                                "last_edited": last_edited,
+                                "url": url,
+                                "content_type": "notion_page",
+                                "properties_count": len(properties),
+                                "has_blocks": len(blocks_content) > 0,
+                            },
                         }
-                    })
+                    )
 
                 logger.info(f"Processed {len(items)} items from Notion")
                 return items
@@ -213,6 +305,104 @@ async def process_notion_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error processing Notion source: {str(e)}")
         raise
+
+
+async def extract_notion_page_content(api_key: str, page_id: str) -> Dict[str, Any]:
+    """Extract comprehensive content from a Notion page for memory search"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            # Get page details
+            page_url = f"https://api.notion.com/v1/pages/{page_id}"
+            async with session.get(page_url, headers=headers) as page_response:
+                if page_response.status != 200:
+                    error_text = await page_response.text()
+                    raise Exception(
+                        f"Notion API error: {page_response.status} - {error_text}"
+                    )
+
+                page_data = await page_response.json()
+                properties = page_data.get("properties", {})
+                url = page_data.get("url", "")
+                last_edited = page_data.get("last_edited_time", "")
+
+                # Extract title
+                title = ""
+                for prop_name, prop_value in properties.items():
+                    if prop_value.get("type") == "title" and prop_value.get("title"):
+                        title = (
+                            prop_value["title"][0].get("plain_text", "")
+                            if prop_value["title"]
+                            else ""
+                        )
+                        break
+
+                # Extract rich text from properties
+                rich_text_content = []
+                for prop_name, prop_value in properties.items():
+                    prop_type = prop_value.get("type")
+                    if prop_type in ["rich_text", "title"]:
+                        text_array = prop_value.get(prop_type, [])
+                        for text_item in text_array:
+                            if text_item.get("type") == "text":
+                                text_content = text_item.get("text", {})
+                                plain_text = text_content.get("content", "")
+                                if plain_text.strip():
+                                    rich_text_content.append(plain_text)
+
+                # Get page blocks content
+                blocks_content = []
+                blocks_url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+                async with session.get(blocks_url, headers=headers) as blocks_response:
+                    if blocks_response.status == 200:
+                        blocks_data = await blocks_response.json()
+                        blocks_results = blocks_data.get("results", [])
+
+                        for block in blocks_results:
+                            block_type = block.get("type")
+                            block_data = block.get(block_type, {})
+                            if block_type in [
+                                "paragraph",
+                                "heading_1",
+                                "heading_2",
+                                "heading_3",
+                                "bulleted_list_item",
+                                "numbered_list_item",
+                                "to_do",
+                            ]:
+                                rich_text = block_data.get("rich_text", [])
+                                for text_item in rich_text:
+                                    if text_item.get("type") == "text":
+                                        text_content = text_item.get("text", {})
+                                        plain_text = text_content.get("content", "")
+                                        if plain_text.strip():
+                                            blocks_content.append(plain_text)
+
+                # Combine all content
+                full_content = " ".join(
+                    [title] + rich_text_content + blocks_content
+                ).strip()
+
+                return {
+                    "page_id": page_id,
+                    "title": title,
+                    "content": full_content,
+                    "url": url,
+                    "last_edited": last_edited,
+                    "properties_count": len(properties),
+                    "blocks_count": len(blocks_content),
+                    "content_length": len(full_content),
+                }
+
+    except Exception as e:
+        logger.error(f"Error extracting Notion page content for {page_id}: {str(e)}")
+        raise
+
 
 async def process_dropbox_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Process Dropbox source using Dropbox API"""
@@ -230,7 +420,7 @@ async def process_dropbox_source(config: Dict[str, Any]) -> List[Dict[str, Any]]
         # List files in Dropbox folder
         headers = {
             "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         url = "https://api.dropboxapi.com/2/files/list_folder"
@@ -239,14 +429,16 @@ async def process_dropbox_source(config: Dict[str, Any]) -> List[Dict[str, Any]]
             "recursive": True,
             "include_media_info": False,
             "include_deleted": False,
-            "include_has_explicit_shared_members": False
+            "include_has_explicit_shared_members": False,
         }
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    raise Exception(f"Dropbox API error: {response.status} - {error_text}")
+                    raise Exception(
+                        f"Dropbox API error: {response.status} - {error_text}"
+                    )
 
                 data = await response.json()
                 entries = data.get("entries", [])
@@ -254,7 +446,9 @@ async def process_dropbox_source(config: Dict[str, Any]) -> List[Dict[str, Any]]
                 # Filter files by type and process them
                 items = []
                 for entry in entries:
-                    if entry.get(".tag") == "file" and any(entry.get("name", "").endswith(ext) for ext in file_types):
+                    if entry.get(".tag") == "file" and any(
+                        entry.get("name", "").endswith(ext) for ext in file_types
+                    ):
                         file_path = entry.get("path_display", "")
                         file_id = entry.get("id", "")
                         file_name = entry.get("name", "")
@@ -264,24 +458,28 @@ async def process_dropbox_source(config: Dict[str, Any]) -> List[Dict[str, Any]]
                         download_url = "https://content.dropboxapi.com/2/files/download"
                         download_headers = {
                             "Authorization": f"Bearer {access_token}",
-                            "Dropbox-API-Arg": json.dumps({"path": file_path})
+                            "Dropbox-API-Arg": json.dumps({"path": file_path}),
                         }
 
-                        async with session.post(download_url, headers=download_headers) as download_response:
+                        async with session.post(
+                            download_url, headers=download_headers
+                        ) as download_response:
                             if download_response.status == 200:
                                 content = await download_response.text()
 
-                                items.append({
-                                    "id": f"dropbox_{file_id}",
-                                    "content": content,
-                                    "metadata": {
-                                        "source": "dropbox",
-                                        "file_path": file_path,
-                                        "file_name": file_name,
-                                        "modified": modified,
-                                        "size": entry.get("size", 0)
+                                items.append(
+                                    {
+                                        "id": f"dropbox_{file_id}",
+                                        "content": content,
+                                        "metadata": {
+                                            "source": "dropbox",
+                                            "file_path": file_path,
+                                            "file_name": file_name,
+                                            "modified": modified,
+                                            "size": entry.get("size", 0),
+                                        },
                                     }
-                                })
+                                )
 
                 logger.info(f"Processed {len(items)} files from Dropbox")
                 return items
@@ -289,6 +487,7 @@ async def process_dropbox_source(config: Dict[str, Any]) -> List[Dict[str, Any]]
     except Exception as e:
         logger.error(f"Error processing Dropbox source: {str(e)}")
         raise
+
 
 async def process_gdrive_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Process Google Drive source using Google Drive API"""
@@ -298,7 +497,10 @@ async def process_gdrive_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
         # Extract configuration
         access_token = config.get("access_token")
         folder_id = config.get("folder_id", "root")
-        mime_types = config.get("mime_types", ["text/plain", "application/pdf", "application/vnd.google-apps.document"])
+        mime_types = config.get(
+            "mime_types",
+            ["text/plain", "application/pdf", "application/vnd.google-apps.document"],
+        )
 
         if not access_token:
             raise ValueError("Google Drive access token is required")
@@ -306,7 +508,7 @@ async def process_gdrive_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
         # List files in Google Drive folder
         headers = {
             "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         # Build query for specific folder and file types
@@ -322,7 +524,9 @@ async def process_gdrive_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
             async with session.get(url, headers=headers) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    raise Exception(f"Google Drive API error: {response.status} - {error_text}")
+                    raise Exception(
+                        f"Google Drive API error: {response.status} - {error_text}"
+                    )
 
                 data = await response.json()
                 files = data.get("files", [])
@@ -339,28 +543,34 @@ async def process_gdrive_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                     if mime_type == "application/vnd.google-apps.document":
                         # Export Google Docs as text
                         export_url = f"https://www.googleapis.com/drive/v3/files/{file_id}/export?mimeType=text/plain"
-                        async with session.get(export_url, headers=headers) as export_response:
+                        async with session.get(
+                            export_url, headers=headers
+                        ) as export_response:
                             if export_response.status == 200:
                                 content = await export_response.text()
                     else:
                         # Download regular files
                         download_url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
-                        async with session.get(download_url, headers=headers) as download_response:
+                        async with session.get(
+                            download_url, headers=headers
+                        ) as download_response:
                             if download_response.status == 200:
                                 content = await download_response.text()
 
-                    items.append({
-                        "id": f"gdrive_{file_id}",
-                        "content": content,
-                        "metadata": {
-                            "source": "google_drive",
-                            "file_id": file_id,
-                            "file_name": file_name,
-                            "mime_type": mime_type,
-                            "modified": modified,
-                            "size": file.get("size", 0)
+                    items.append(
+                        {
+                            "id": f"gdrive_{file_id}",
+                            "content": content,
+                            "metadata": {
+                                "source": "google_drive",
+                                "file_id": file_id,
+                                "file_name": file_name,
+                                "mime_type": mime_type,
+                                "modified": modified,
+                                "size": file.get("size", 0),
+                            },
                         }
-                    })
+                    )
 
                 logger.info(f"Processed {len(items)} files from Google Drive")
                 return items
@@ -369,6 +579,7 @@ async def process_gdrive_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
         logger.error(f"Error processing Google Drive source: {str(e)}")
         raise
 
+
 async def process_local_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Process local file system source"""
     logger.info(f"Processing local source with config: {config}")
@@ -376,7 +587,9 @@ async def process_local_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     try:
         # Extract configuration
         directory_path = config.get("directory_path", ".")
-        file_extensions = config.get("file_extensions", [".txt", ".md", ".pdf", ".docx", ".pptx", ".xlsx"])
+        file_extensions = config.get(
+            "file_extensions", [".txt", ".md", ".pdf", ".docx", ".pptx", ".xlsx"]
+        )
         recursive = config.get("recursive", True)
 
         if not os.path.exists(directory_path):
@@ -390,7 +603,17 @@ async def process_local_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
         if recursive:
             walk_generator = os.walk(directory_path)
         else:
-            walk_generator = [(directory_path, [], [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))])]
+            walk_generator = [
+                (
+                    directory_path,
+                    [],
+                    [
+                        f
+                        for f in os.listdir(directory_path)
+                        if os.path.isfile(os.path.join(directory_path, f))
+                    ],
+                )
+            ]
 
         for root, dirs, files in walk_generator:
             for file_name in files:
@@ -400,59 +623,84 @@ async def process_local_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
 
                     try:
                         # Read file content based on file type
-                        if file_name.lower().endswith(('.txt', '.md', '.csv', '.json', '.xml', '.html', '.htm')):
+                        if file_name.lower().endswith(
+                            (".txt", ".md", ".csv", ".json", ".xml", ".html", ".htm")
+                        ):
                             # Text files
-                            async with aiofiles.open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            async with aiofiles.open(
+                                file_path, "r", encoding="utf-8", errors="ignore"
+                            ) as f:
                                 content = await f.read()
-                        elif file_name.lower().endswith('.pdf'):
+                        elif file_name.lower().endswith(".pdf"):
                             # PDF files
                             import pdfplumber
+
                             content = ""
                             with pdfplumber.open(file_path) as pdf:
                                 for page in pdf.pages:
                                     page_text = page.extract_text()
                                     if page_text:
                                         content += page_text + "\n"
-                        elif file_name.lower().endswith(('.docx', '.pptx', '.xlsx')):
+                        elif file_name.lower().endswith((".docx", ".pptx", ".xlsx")):
                             # Office documents
-                            if file_name.lower().endswith('.docx'):
+                            if file_name.lower().endswith(".docx"):
                                 from docx import Document
+
                                 doc = Document(file_path)
-                                content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-                            elif file_name.lower().endswith('.pptx'):
+                                content = "\n".join(
+                                    [paragraph.text for paragraph in doc.paragraphs]
+                                )
+                            elif file_name.lower().endswith(".pptx"):
                                 from pptx import Presentation
+
                                 prs = Presentation(file_path)
-                                content = "\n".join([shape.text for slide in prs.slides for shape in slide.shapes if hasattr(shape, "text")])
-                            elif file_name.lower().endswith('.xlsx'):
+                                content = "\n".join(
+                                    [
+                                        shape.text
+                                        for slide in prs.slides
+                                        for shape in slide.shapes
+                                        if hasattr(shape, "text")
+                                    ]
+                                )
+                            elif file_name.lower().endswith(".xlsx"):
                                 import pandas as pd
+
                                 content = ""
                                 xl = pd.ExcelFile(file_path)
                                 for sheet_name in xl.sheet_names:
                                     df = pd.read_excel(file_path, sheet_name=sheet_name)
-                                    content += f"Sheet: {sheet_name}\n{df.to_string()}\n\n"
+                                    content += (
+                                        f"Sheet: {sheet_name}\n{df.to_string()}\n\n"
+                                    )
                         else:
                             # Skip unsupported file types
                             continue
 
                         # Get file metadata
                         stat = os.stat(file_path)
-                        modified = datetime.datetime.fromtimestamp(stat.st_mtime).isoformat()
+                        modified = datetime.datetime.fromtimestamp(
+                            stat.st_mtime
+                        ).isoformat()
 
-                        items.append({
-                            "id": f"local_{hash(file_path)}",
-                            "content": content,
-                            "metadata": {
-                                "source": "local",
-                                "file_path": file_path,
-                                "relative_path": relative_path,
-                                "file_name": file_name,
-                                "modified": modified,
-                                "size": stat.st_size
+                        items.append(
+                            {
+                                "id": f"local_{hash(file_path)}",
+                                "content": content,
+                                "metadata": {
+                                    "source": "local",
+                                    "file_path": file_path,
+                                    "relative_path": relative_path,
+                                    "file_name": file_name,
+                                    "modified": modified,
+                                    "size": stat.st_size,
+                                },
                             }
-                        })
+                        )
 
                     except Exception as file_error:
-                        logger.warning(f"Error processing file {file_path}: {str(file_error)}")
+                        logger.warning(
+                            f"Error processing file {file_path}: {str(file_error)}"
+                        )
                         continue
 
         logger.info(f"Processed {len(items)} files from local directory")
@@ -461,6 +709,122 @@ async def process_local_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error processing local source: {str(e)}")
         raise
+
+
+async def process_trello_source(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Process Trello source using Trello API"""
+    logger.info(f"Processing Trello source with config: {config}")
+
+    try:
+        # Extract configuration
+        api_key = config.get("api_key")
+        api_token = config.get("api_token")
+        board_id = config.get("board_id")
+        page_size = config.get("page_size", 100)
+
+        if not api_key or not api_token or not board_id:
+            raise ValueError("Trello API key, API token, and board ID are required")
+
+        # Import Trello client
+        try:
+            from trello import TrelloClient
+        except ImportError:
+            logger.error("Trello package not available")
+            raise ImportError("Trello package is required for Trello integration")
+
+        # Initialize Trello client
+        client = TrelloClient(api_key=api_key, token=api_token)
+
+        # Get the board
+        board = client.get_board(board_id)
+
+        # Get all cards from the board
+        cards = board.all_cards()
+
+        # Extract content from Trello cards
+        items = []
+        for card in cards:
+            card_id = card.id
+            card_name = card.name
+            card_description = card.desc or ""
+            card_url = card.url
+            card_last_activity = card.date_last_activity
+            card_labels = [label.name for label in card.labels] if card.labels else []
+            card_members = (
+                [member.full_name for member in card.members] if card.members else []
+            )
+            card_list = card.list_name if hasattr(card, "list_name") else ""
+
+            # Get card comments
+            comments = []
+            try:
+                card_comments = card.get_comments()
+                for comment in card_comments:
+                    comments.append(comment["data"]["text"])
+            except Exception as comments_error:
+                logger.warning(
+                    f"Could not fetch comments for card {card_id}: {comments_error}"
+                )
+
+            # Get card checklists
+            checklist_items = []
+            try:
+                card_checklists = card.checklists
+                for checklist in card_checklists:
+                    for item in checklist.items:
+                        checklist_items.append(item["name"])
+            except Exception as checklist_error:
+                logger.warning(
+                    f"Could not fetch checklists for card {card_id}: {checklist_error}"
+                )
+
+            # Combine all content for embedding
+            full_content = " ".join(
+                [
+                    card_name,
+                    card_description,
+                    " ".join(comments),
+                    " ".join(checklist_items),
+                    " ".join(card_labels),
+                    " ".join(card_members),
+                ]
+            ).strip()
+
+            # If no content found, use card name as fallback
+            if not full_content:
+                full_content = card_name or "No content"
+
+            items.append(
+                {
+                    "id": f"trello_{card_id}",
+                    "content": full_content,
+                    "metadata": {
+                        "source": "trello",
+                        "card_id": card_id,
+                        "card_name": card_name,
+                        "board_id": board_id,
+                        "board_name": board.name,
+                        "url": card_url,
+                        "last_activity": card_last_activity,
+                        "labels": card_labels,
+                        "members": card_members,
+                        "list": card_list,
+                        "comments_count": len(comments),
+                        "checklist_items_count": len(checklist_items),
+                        "has_description": bool(card_description),
+                        "has_comments": len(comments) > 0,
+                        "has_checklists": len(checklist_items) > 0,
+                    },
+                }
+            )
+
+        logger.info(f"Processed {len(items)} items from Trello board {board_id}")
+        return items
+
+    except Exception as e:
+        logger.error(f"Error processing Trello source: {str(e)}")
+        raise
+
 
 async def process_item(item: Dict[str, Any], user_id: Optional[str] = None):
     """Process an individual item (extract text, generate embeddings, store in LanceDB)"""
@@ -486,19 +850,16 @@ async def process_item(item: Dict[str, Any], user_id: Optional[str] = None):
             "status": "success",
             "item_id": item_id,
             "content_length": len(cleaned_content),
-            "embedding_dimensions": len(embeddings) if embeddings else 0
+            "embedding_dimensions": len(embeddings) if embeddings else 0,
         }
 
     except Exception as e:
         logger.error(f"Error processing item {item_id}: {str(e)}")
-        return {
-            "status": "error",
-            "item_id": item_id,
-            "error": str(e)
-        }
+        return {"status": "error", "item_id": item_id, "error": str(e)}
     await asyncio.sleep(0.05)
 
     logger.debug(f"Processed item {item_id}: {content[:50]}...")
+
 
 def clean_text_content(content: str) -> str:
     """Clean and preprocess text content"""
@@ -509,15 +870,16 @@ def clean_text_content(content: str) -> str:
     cleaned = html.unescape(content)
 
     # Remove extra whitespace and newlines
-    cleaned = re.sub(r'\s+', ' ', cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned)
 
     # Remove special characters but keep basic punctuation
-    cleaned = re.sub(r'[^\w\s.,!?;:\-()\[\]{}]', '', cleaned)
+    cleaned = re.sub(r"[^\w\s.,!?;:\-()\[\]{}]", "", cleaned)
 
     # Trim whitespace
     cleaned = cleaned.strip()
 
     return cleaned
+
 
 async def generate_embeddings(text: str) -> List[float]:
     """Generate embeddings using sentence transformers"""
@@ -525,15 +887,22 @@ async def generate_embeddings(text: str) -> List[float]:
     import numpy as np
 
     # Load model (cached for performance)
-    if not hasattr(generate_embeddings, 'model'):
-        generate_embeddings.model = SentenceTransformer('all-MiniLM-L6-v2')
+    if not hasattr(generate_embeddings, "model"):
+        generate_embeddings.model = SentenceTransformer("all-MiniLM-L6-v2")
 
     # Generate embeddings
     embedding = generate_embeddings.model.encode(text)
 
     return embedding.tolist()
 
-async def store_in_lancedb(item_id: str, content: str, embedding: List[float], metadata: Dict[str, Any], user_id: Optional[str] = None):
+
+async def store_in_lancedb(
+    item_id: str,
+    content: str,
+    embedding: List[float],
+    metadata: Dict[str, Any],
+    user_id: Optional[str] = None,
+):
     """Store item in LanceDB vector database"""
     import lancedb
     import pandas as pd
@@ -551,7 +920,7 @@ async def store_in_lancedb(item_id: str, content: str, embedding: List[float], m
                 lancedb.field("content", lancedb.types.string()),
                 lancedb.field("metadata", lancedb.types.json()),
                 lancedb.field("user_id", lancedb.types.string()),
-                lancedb.field("timestamp", lancedb.types.timestamp())
+                lancedb.field("timestamp", lancedb.types.timestamp()),
             ]
         )
         table = db.create_table(table_name, schema=schema)
@@ -565,17 +934,19 @@ async def store_in_lancedb(item_id: str, content: str, embedding: List[float], m
         "content": content,
         "metadata": metadata,
         "user_id": user_id or "system",
-        "timestamp": datetime.datetime.now()
+        "timestamp": datetime.datetime.now(),
     }
 
     # Insert into table
     table.add([data])
+
 
 async def index_for_search(item_id: str, content: str, metadata: Dict[str, Any]):
     """Index content for search (optional)"""
     # This could integrate with Elasticsearch, Meilisearch, or other search engines
     # For now, we'll just log the indexing operation
     logger.info(f"Indexing item {item_id} for search: {content[:100]}...")
+
 
 @app.post("/reset-counters")
 async def reset_counters():
@@ -584,6 +955,7 @@ async def reset_counters():
     processed_items_count = 0
     ingestion_statuses.clear()
     return {"message": "Counters reset successfully"}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8002)
