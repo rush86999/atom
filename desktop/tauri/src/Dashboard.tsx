@@ -19,6 +19,9 @@ interface DashboardProps {
       | "research"
       | "social"
       | "shopping"
+      | "calendar"
+      | "tasks"
+      | "communication"
     >
   >;
 }
@@ -37,6 +40,12 @@ const Dashboard = ({ setActiveView }: DashboardProps) => {
       <button onClick={() => setActiveView("automations" as any)}>
         Automations
       </button>
+      <button onClick={() => setActiveView("calendar" as any)}>Calendar</button>
+      <button onClick={() => setActiveView("tasks" as any)}>Tasks</button>
+      <button onClick={() => setActiveView("communication" as any)}>
+        Communication
+      </button>
+      <button onClick={() => setActiveView("finance" as any)}>Finance</button>
     </div>
   );
 };
