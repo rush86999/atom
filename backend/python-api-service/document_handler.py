@@ -3,6 +3,7 @@ import sys
 import tempfile
 import uuid
 import logging
+import asyncio
 from flask import Flask, request, jsonify # Ensure Blueprint is imported if switching from local app
 # from flask import Blueprint # If this becomes a blueprint registered elsewhere
 
@@ -15,17 +16,14 @@ if FUNCTIONS_DIR not in sys.path:
     sys.path.append(FUNCTIONS_DIR)
 
 try:
-    # Changed import from process_pdf_and_store to process_document_and_store
-    from ingestion_pipeline import document_processor
-    INGESTION_SERVICES_AVAILABLE = True
-    if not hasattr(document_processor, 'process_document_and_store'):
-        # This can happen if the overwrite of document_processor.py failed or was partial
-        logging.getLogger(__name__).error("CRITICAL: document_processor.process_document_and_store not found after import!")
-        INGESTION_SERVICES_AVAILABLE = False
+    # Import enhanced document service with LanceDB integration
+    from document_service_enhanced import EnhancedDocumentService, DocumentType, DocumentStatus
+    from lancedb_handler import get_lancedb_connection
+    DOCUMENT_SERVICES_AVAILABLE = True
 except ImportError as e1:
-    print(f"Error importing document_processor: {e1}", file=sys.stderr)
-    INGESTION_SERVICES_AVAILABLE = False
-    document_processor = None
+    print(f"Error importing enhanced document service: {e1}", file=sys.stderr)
+    DOCUMENT_SERVICES_AVAILABLE = False
+    EnhancedDocumentService = None
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
@@ -44,7 +42,7 @@ def handle_generic_exception(e):
 
 @app.route('/api/ingest-document', methods=['POST'])
 async def ingest_document_route():
-    if not INGESTION_SERVICES_AVAILABLE or not document_processor:
+    if not DOCUMENT_SERVICES_AVAILABLE or not EnhancedDocumentService:
         return jsonify({"ok": False, "error": {"code": "SERVICE_UNAVAILABLE", "message": "Document processing service is not available."}}), 503
 
     if 'file' not in request.files:
@@ -101,26 +99,64 @@ async def ingest_document_route():
 
         logger.info(f"Processing uploaded document: id={document_id}, user={user_id}, original_filename='{original_filename}', processing_mime='{processing_mime_type}', original_doc_type_for_storage='{original_doc_type_for_storage}'")
 
-        result = await document_processor.process_document_and_store(
+        # Get LanceDB connection
+        lancedb_conn = await get_lancedb_connection()
+
+        # Create enhanced document service instance
+        doc_service = EnhancedDocumentService(db_pool=None, lancedb_connection=lancedb_conn)
+
+        # Read file data
+        with open(temp_file_path, 'rb') as f:
+            file_data = f.read()
+
+        # Prepare metadata
+        metadata = {
+            "original_filename": original_filename,
+            "mime_type": processing_mime_type,
+            "title": title,
+            "original_doc_type": original_doc_type_for_storage
+        }
+
+        # Process and store document using enhanced service
+        result = await doc_service.process_and_store_document(
             user_id=user_id,
-            file_path_or_bytes=temp_file_path, # Pass path to saved temp file
-            document_id=document_id,
+            file_data=file_data,
+            filename=original_filename,
             source_uri=source_uri,
-            original_doc_type=original_doc_type_for_storage,
-            processing_mime_type=processing_mime_type,
-            title=title,
-            doc_metadata_json=None,
-            openai_api_key_param=openai_api_key
+            metadata=metadata
         )
 
-        if result["status"] == "success" or result["status"] == "warning": # Treat warning (e.g. empty content) as partial success from endpoint view
-            return jsonify({"ok": True, "data": result.get("data"), "message": result.get("message")}), 201 if result["status"] == "success" else 200
+        if result.get("status") == DocumentStatus.PROCESSED.value:
+            return jsonify({
+                "ok": True,
+                "data": {
+                    "document_id": result.get("doc_id"),
+                    "filename": result.get("filename"),
+                    "status": result.get("status"),
+                    "total_chunks": result.get("total_chunks"),
+                    "lancedb_stored": result.get("lancedb_stored", False),
+                    "created_at": result.get("created_at")
+                },
+                "message": "Document successfully processed and stored in memory system"
+            }), 201
         else:
             status_code = 500
-            if result.get("code") == "UNSUPPORTED_PROCESSING_TYPE": status_code = 415 # Unsupported Media Type
-            elif result.get("code") == "TEXT_EXTRACTION_FAILED": status_code = 500
-            # Add more specific mappings if needed
-            return jsonify({"ok": False, "error": {"code": result.get("code"), "message": result.get("message")}}), status_code
+            if result.get("status") == DocumentStatus.FAILED.value:
+                return jsonify({
+                    "ok": False,
+                    "error": {
+                        "code": "DOCUMENT_PROCESSING_FAILED",
+                        "message": result.get("error_message", "Document processing failed")
+                    }
+                }), status_code
+            else:
+                return jsonify({
+                    "ok": False,
+                    "error": {
+                        "code": "DOCUMENT_PROCESSING_ERROR",
+                        "message": "Document processing did not complete successfully"
+                    }
+                }), status_code
 
     except Exception as e:
         logger.error(f"Error during document ingestion for user {user_id}, file {original_filename}: {e}", exc_info=True)
