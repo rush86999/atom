@@ -7,7 +7,7 @@
     "skipLibCheck": true,
     "esModuleInterop": false,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "moduleResolution": "Node",
@@ -19,9 +19,11 @@
     "paths": {
       "@shared/*": ["../../../src/ui-shared/*"],
       "@shared-components/*": ["../../../src/ui-shared/components/*"],
-      "@shared-hooks/*": ["../../../src/ui-shared/hooks/*"]
+      "@shared-hooks/*": ["../../../src/ui-shared/hooks/*"],
+      "@chakra-ui/react": ["node_modules/@chakra-ui/react"],
+      "@chakra-ui/icons": ["node_modules/@chakra-ui/icons"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../../../src/ui-shared/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

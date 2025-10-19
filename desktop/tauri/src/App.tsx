@@ -11,12 +11,15 @@ import Shopping from "./Shopping";
 import SmartSearch from "./SmartSearch";
 import Dashboard from "./Dashboard";
 import FeatureViewGuard from "./components/FeatureViewGuard";
-import ProjectHealth from './ProjectHealth';
-import CompetitorAnalysis from './CompetitorAnalysis';
-import LearningAssistant from './LearningAssistant';
-import Finance from './Finance';
+import ProjectHealth from "./ProjectHealth";
+import CompetitorAnalysis from "./CompetitorAnalysis";
+import LearningAssistant from "./LearningAssistant";
+import Finance from "./Finance";
 import Integrations from "./components/Integrations";
 import AutomationsPage from "./Automations";
+import Calendar from "./Calendar";
+import Tasks from "./Tasks";
+import Communication from "./Communication";
 import "./App.css";
 
 // Define the roles available in the desktop application.
@@ -40,7 +43,24 @@ const AVAILABLE_ROLES: Role[] = [
 function App() {
   // State to manage the currently displayed view. Defaults to 'chat'.
   const [activeView, setActiveView] = useState<
-    "chat" | "sales" | "projects" | "support" | "settings" | "project-health" | "competitor-analysis" | "learning-assistant" | "finance" | "research" | "social" | "content" | "shopping" | "integrations" | "automations"
+    | "sales"
+    | "support"
+    | "chat"
+    | "projects"
+    | "settings"
+    | "integrations"
+    | "automations"
+    | "content"
+    | "project-health"
+    | "competitor-analysis"
+    | "learning-assistant"
+    | "finance"
+    | "research"
+    | "social"
+    | "shopping"
+    | "calendar"
+    | "tasks"
+    | "communication"
   >("chat");
   // State to track which roles the user has activated.
   const [activeRoles, setActiveRoles] = useState<Role[]>([]);
@@ -168,6 +188,12 @@ function App() {
         );
       case "automations":
         return <AutomationsPage />;
+      case "calendar":
+        return <Calendar />;
+      case "tasks":
+        return <Tasks />;
+      case "communication":
+        return <Communication />;
       default:
         return <Chat />;
     }
@@ -176,9 +202,7 @@ function App() {
   return (
     <div className="App">
       <Dashboard setActiveView={setActiveView} />
-      <div className="content">
-        {renderContent()}
-      </div>
+      <div className="content">{renderContent()}</div>
     </div>
   );
 }
