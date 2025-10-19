@@ -6,6 +6,11 @@ yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
 
+# Rust build artifacts
+**/target/
+**/*.rs.bk
+**/Cargo.lock
+
 # Build outputs
 dist/
 build/
@@ -340,6 +345,8 @@ out
 /negative_samples
 *.npy
 /atom_wake_word_env
+backup_dead_code_*/
+.env.production.generated
 
 # Docker builds
 /optaplanner_build_docker/kotlin-quarkus/target
@@ -347,6 +354,13 @@ out
 
 # Database
 /project/postgres
+
+# Temporary and generated files
+*.log
+tmp/
+*.tmp
+*.temp
+*.backup
 
 # Secrets
 secrets.json
@@ -358,6 +372,7 @@ google_client_secrets.json
 *.bak
 *.tmp
 *.backup
+*.generated
 
 # Lock files (should be committed for reproducibility)
 # !Pipfile.lock
@@ -371,12 +386,19 @@ google_client_secrets.json
 
 # Development tools cache
 .pip-cache/
+.pytest_cache/
+.ropeproject/
 
 # Aider and AI tools
 .aider*
 .aider.chat.history.md
 .aider.input.history
 .aider.tags.cache.v4/
+
+# Build and release artifacts
+**/dist/
+**/build/
+**/release/
 
 # System tools
 *.tmp
