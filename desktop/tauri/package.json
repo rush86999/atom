@@ -3,12 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "tsc && esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm --watch",
-    "build": "tsc && esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm",
+    "dev": "tsc && esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm --external:@chakra-ui/react --external:@chakra-ui/icons --external:@emotion/react --external:@emotion/styled --external:framer-motion --external:react --external:react-dom --watch",
+    "build": "esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm --external:@chakra-ui/react --external:@chakra-ui/icons --external:@emotion/react --external:@emotion/styled --external:framer-motion --external:react --external:react-dom",
     "preview": "echo 'Preview not available with esbuild - use dev instead'",
     "tauri": "tauri"
   },
   "dependencies": {
+    "@chakra-ui/icons": "^2.0.17",
+    "@chakra-ui/react": "^2.5.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.1",
@@ -16,11 +18,13 @@
     "@types/crypto-js": "^4.2.2",
     "@types/sentiment": "^5.0.4",
     "crypto-js": "^4.2.0",
+    "framer-motion": "^12.23.24",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "reactflow": "^11.11.4",
     "recharts": "^3.1.2",
-    "sentiment": "^5.0.2"
+    "sentiment": "^5.0.2",
+    "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.0.0",
