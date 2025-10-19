@@ -1,115 +1,365 @@
-# Atomic User Guide
+# Atom User Guide
 
-This guide provides an overview of the key features of the Atom application and how to use them.
+## Welcome to Atom
 
-## Glossary of Terms
+Atom is your intelligent personal assistant that helps you manage your entire life in one place. From calendar management and task organization to financial tracking and AI-powered automation, Atom brings all your productivity tools together with advanced AI capabilities.
 
-This glossary defines common terms used within the Atomic application to help you understand its features and functionality.
+## Getting Started
 
-*   **Semantic Search:**
-    Atomic uses semantic search to understand the meaning behind your event titles or natural language queries. Instead of just matching keywords, it grasps the intent, allowing it to find genuinely similar past events. This is key for accurately applying trained event templates. For example, it can understand that "Team Catch-up" and "Weekly Sync with Team" might be similar types of events.
+### First Time Setup
 
-*   **Event Training:**
-    The process of selecting an existing calendar event and designating it as a template for future, similar events. This involves telling Atomic which properties of the event (like its duration, color, or attendees) should be remembered and potentially reused.
+1. **Account Creation**
+   - Sign up with your email or use social login
+   - Complete the onboarding wizard to configure your preferences
+   - Connect your essential services (calendar, email, etc.)
 
-*   **Event Template:**
-    A previously "trained" event. Its specific attributes (e.g., duration, color, reminders, notes structure, etc.) are stored and can be automatically applied to new events that Atomic identifies as similar, based on your "Copy" Settings.
+2. **Dashboard Overview**
+   - Access the main dashboard for an overview of your day
+   - View upcoming events, pending tasks, and recent messages
+   - Monitor connected services and system status
 
-*   **"Copy" Settings (General Definition):**
-    A collection of preferences that give you fine-grained control over event training. Each "copy" setting (like `copyAvailability`, `copyColor`, `copyReminders`) is a toggle that determines whether that specific attribute from a trained event template is actually transferred to a new, similar event during automated scheduling or when suggestions are made. These are managed in Onboarding ("Event Defaults") and general Settings.
+3. **Basic Navigation**
+   - Use the main tabs: Overview, Workflow Automation, Service Integrations, Service Management
+   - Access specialized pages: Calendar, Tasks, Communication, Finance, Agents, Automations, Voice
 
-*   **Autopilot:**
-    Atomic's automated daily scheduling assistant. Autopilot uses AI to analyze your calendar, tasks, and preferences. It can automatically schedule new items, apply event templates, adjust your schedule for optimization, and help ensure your day is well-planned according to your trained settings.
+## Core Features
 
-*   **Time Blocking:**
-    The practice of dedicating specific blocks of time in your calendar for particular tasks, projects, or types of work (e.g., "Focus Work," "Email Catch-up"). Atomic can assist in scheduling these blocks, potentially using trained templates for different types of time blocks.
+### 📅 Calendar Management
 
-*   **Smart Tags / Categories:**
-    Labels or tags that you can apply to events for organization and automation. These categories can have their own default settings (like a specific color or default duration). When Atomic's AI or Autopilot assigns a category to an event, these default settings can be automatically applied. They also help in filtering and understanding your schedule.
+**Smart Scheduling**
+- Create and manage events with natural language input
+- Automatic conflict detection and resolution
+- Find optimal meeting times across multiple calendars
+- Set recurring events with custom patterns
 
-*   **Primary Calendar:**
-    The main calendar account (e.g., your primary Google Calendar) that Atomic is configured to use for most of its scheduling operations, event creation, and updates. This is the calendar Atomic primarily "writes" to.
+**Event Templates**
+- Train events to create reusable templates
+- Apply consistent settings (duration, color, reminders) automatically
+- Use semantic search to find similar events
 
-*   **Working Hours:**
-    The time range you define within Atomic as your typical availability for work, meetings, and other professional activities. This helps Atomic make smarter scheduling decisions, such as when to schedule focus time or suggest meeting slots.
+**Multi-Calendar Support**
+- Connect Google Calendar, Outlook Calendar, and other providers
+- View all calendars in a unified interface
+- Manage availability across different accounts
 
-## Event Training and Templating
+### ✅ Task Management
 
-Event Training in Atomic is a powerful feature that allows you to turn your past events into reusable templates. When you "train" an event, you're teaching Atomic to recognize similar events in the future and automatically apply preferred settings. This saves you time and ensures consistency across your schedule.
+**Task Creation & Organization**
+- Create tasks with priorities, due dates, and categories
+- Organize tasks using Kanban boards or lists
+- Set dependencies between related tasks
+- Add detailed descriptions and attachments
 
-### How to Train an Event
+**Project Management**
+- Group tasks into projects with shared goals
+- Track progress with visual indicators
+- Assign tasks to team members (in team plans)
+- Monitor project timelines and milestones
 
-You can train an event directly from your calendar. When viewing an event, you'll typically find an option like "Train Event" (this flow is managed on the `UserTrainEvent` page in the application). This will take you through a process where you can specify which attributes of the event should be part of its template.
+**Smart Prioritization**
+- Automatic priority assignment based on due dates and importance
+- Focus mode for high-priority tasks
+- Daily task recommendations
 
-### Understanding "Copy" Settings
+### 💬 Communication Hub
 
-When you train an event, Atomic uses a set of "copy" settings to determine which attributes from the trained event (the template) should be applied to new, similar events. These settings are crucial for customizing how templates work for you.
+**Unified Inbox**
+- View messages from all connected platforms in one place
+- Email (Gmail, Outlook), Slack, Teams, Discord integration
+- Smart categorization and filtering
+- Quick reply templates
 
-Here are the common "copy" settings you can manage:
+**Message Management**
+- Thread conversations for better context
+- Search across all communication platforms
+- Set follow-up reminders for important messages
+- Archive and organize conversations
 
-*   **`copyAvailability`**: If enabled, the "free/busy" status (e.g., Opaque/Transparent) from the trained event will be applied to new similar events.
-*   **`copyTimeBlocking`**: Determines if buffer times (time set aside before or after an event) from the template are applied.
-*   **`copyColor`**: The event's background color will be reused for similar new events.
-*   **`copyPriorityLevel`**: If you assign priority levels to tasks or events, this setting will carry over the priority from the template.
-*   **`copyModifiable`**: Controls whether Atomic's assistant can modify the event. If a trained event is marked as not modifiable, new similar events will also be protected from automatic changes by the assistant.
-*   **`copyCategories`**: Tags or categories assigned to the trained event will be automatically applied to new similar events.
-*   **`copyIsBreak`**: If the trained event was a break, similar new events will also be marked as breaks.
-*   **`copyIsMeeting`**: If the trained event was a meeting, similar new events will also be identified as meetings.
-*   **`copyIsExternalMeeting`**: Specifies if the "external meeting" status is copied.
-*   **`copyReminders`**: Custom reminder settings (e.g., notify 10 minutes before) from the template will be applied.
-*   **`copyTimePreference`**: Copies preferences like "morning," "afternoon," or specific time slots if the event was scheduled with such a preference.
-*   **`copyDuration`**: Ensures that new similar events default to the same duration as the trained event.
+**Cross-Platform Coordination**
+- Send messages to multiple platforms simultaneously
+- Schedule messages for optimal delivery times
+- Track message engagement and responses
 
-You can typically manage these "copy" settings during the onboarding process in the "Event Defaults" step. They are also usually available in the main application settings, often under a section related to event preferences or defaults.
+### 💰 Financial Dashboard
 
-### Use-Case Example: Weekly Team Sync
+**Transaction Management**
+- View all financial transactions in one dashboard
+- Automatic categorization of expenses and income
+- Set custom categories and rules
+- Import transactions from multiple sources
 
-Imagine you have a "Weekly Team Sync" meeting every Monday.
+**Budget Planning**
+- Create and track monthly budgets
+- Set spending limits by category
+- Receive alerts for unusual spending
+- View budget vs. actual comparisons
 
-1.  **Create and Train:** You create the first instance of this meeting, set its duration to 60 minutes, assign it a specific color (e.g., blue), and add a reminder for 15 minutes before. You then use the "Train Event" feature.
-2.  **Configure Copy Settings:** In your settings, you ensure `copyDuration`, `copyColor`, and `copyReminders` are enabled. You might disable `copyTitle` (if that were an option) or simply expect to modify the title for each specific week's agenda.
-3.  **Future Scheduling:** The next time you type "Weekly Team Sync" or something very similar when creating an event for a Monday, Atomic recognizes it.
-4.  **Automatic Application:** Atomic automatically sets the duration to 60 minutes, colors the event blue, and adds the 15-minute reminder. You only need to fill in any unique details for that week's meeting, like the agenda in the notes.
+**Financial Insights**
+- Visual charts and reports
+- Spending patterns and trends
+- Savings goals tracking
+- Investment portfolio overview
 
-This significantly speeds up the process of populating your calendar with recurring or similar event types, ensuring they all follow your preferred setup.
+## Advanced Features
 
-## Autopilot
+### 🤖 Multi-Agent System
 
-Autopilot is Atomic's intelligent scheduling assistant designed to proactively manage and optimize your calendar. When enabled, Autopilot runs daily, typically before your workday begins, to help you stay organized and ensure your schedule aligns with your priorities and preferences.
+**Agent Management**
+- Create specialized AI agents for different tasks
+- Assign roles: Personal Assistant, Research Agent, Coding Agent, Data Analyst, etc.
+- Configure agent capabilities and permissions
+- Monitor agent performance and activity
 
-### What Autopilot Does
+**Role Configuration**
+- Define agent roles with specific capabilities
+- Set system prompts and behavior guidelines
+- Configure AI model settings per role
+- Manage permissions and access levels
 
-*   **Automated Planning:** Autopilot uses AI to analyze your existing events, tasks, and to-do items. It can then plan out your day by scheduling new items and optimizing the timing of existing ones.
-*   **Applies Trained Templates:** A key feature of Autopilot is its ability to utilize your trained event templates. When it identifies events that match patterns from your trained templates (e.g., a "Project Update Meeting" title), it can automatically apply the settings (duration, color, reminders, etc.) you've defined in those templates.
-*   **Leverages Smart Tags/Categories:** If you use smart tags or categories that have default settings (like a default duration or color for "Focus Work" blocks), Autopilot can apply these to relevant events, further automating your calendar setup.
-*   **Daily Optimization:** Autopilot reviews your schedule for potential conflicts, opportunities for better time blocking, or unscheduled high-priority tasks, making adjustments to help you have a more productive day.
+**Agent Coordination**
+- Visualize agent tasks and dependencies
+- Monitor task progress in real-time
+- Handle task conflicts and reassignments
+- View agent collaboration patterns
 
-### Benefits of Using Autopilot
+### ⚙️ Automation Workflows
 
-*   **Proactive Scheduling:** Reduces the manual effort of planning your days by having Atomic do the initial heavy lifting.
-*   **Consistency:** Ensures that similar types of events are scheduled with consistent settings (duration, reminders, etc.) by applying your trained templates.
-*   **Time-Saving:** Automates routine scheduling tasks, freeing you up to focus on your actual work rather than calendar management.
-*   **Improved Organization:** Helps maintain a well-structured calendar by applying your predefined preferences and categorizations automatically.
+**Visual Workflow Editor**
+- Create automation workflows with drag-and-drop interface
+- Connect triggers, actions, and conditions
+- Build complex multi-step automations
+- Test workflows before activation
 
-### Configuring Autopilot
+**Trigger Configuration**
+- Set up triggers from various sources:
+  - Calendar events
+  - Email messages
+  - Task completions
+  - Time-based schedules
+  - Webhook events
+  - Voice commands
 
-You can typically enable and manage Autopilot from the settings area within Atomic (often found under a section named "Autopilot" or similar, corresponding to the `UserViewAutopilotSettings.tsx` page in the application).
+**Workflow Monitoring**
+- Real-time execution tracking
+- Error handling and retry logic
+- Performance analytics
+- Execution history and logs
 
-Key aspects of Autopilot configuration may include:
+### 🎤 Voice & AI Features
 
-*   **Enabling/Disabling:** A primary toggle to turn Autopilot on or off.
-*   **Run Frequency:** While Autopilot generally runs daily, there might be settings to adjust its behavior or confirm its operation. (Specific settings depend on the application's design).
-*   **Integration with Event Defaults:** Autopilot's effectiveness is significantly enhanced by well-defined event templates and "copy" settings, as these provide the ruleset for how it should automate your event creation and modification.
+**Voice Commands**
+- Use natural language to control Atom
+- Common commands:
+  - "Open calendar" - Navigate to calendar view
+  - "Create task" - Add new task
+  - "Check messages" - View recent communications
+  - "Show finances" - Open financial dashboard
+  - "Start workflow" - Trigger automation
 
-By combining Autopilot with carefully trained event templates, you can create a highly personalized and automated scheduling system that works to keep your calendar aligned with your work style and priorities.
+**Wake Word Detection**
+- Hands-free activation with wake word "Atom"
+- Continuous listening in web version
+- Event-based activation in desktop version
+- Privacy-focused audio processing
 
-## Wake Word Detection
+**AI Chat Interface**
+- Natural conversation with AI assistant
+- Context-aware responses
+- Multi-session chat management
+- File attachments and processing
+- Model selection and configuration
 
-Atom supports hands-free operation through wake word detection. When you say the wake word (e.g., "Atom"), the application will start listening for your commands. This feature is implemented differently in the web and desktop versions:
+## Service Integrations
 
-*   **Web Version:** When enabled in the settings, the web version continuously listens for the wake word using your browser's microphone and a WebSocket-based Speech-to-Text (STT) service.
-*   **Desktop Version:** The desktop version uses a more resource-friendly approach. Wake word detection is not always on. Instead, it's activated by a specific event within the application.
+### Available Integrations
 
-## Integrations
+**Communication**
+- Email: Gmail, Outlook
+- Chat: Slack, Microsoft Teams, Discord
+- Social: Twitter, LinkedIn
 
-Atom can connect to a variety of third-party applications to extend its functionality. For a complete list of all available integrations and their setup guides, please see the [Integrations](./INTEGRATIONS.md) document.
+**Productivity**
+- Task Management: Notion, Trello, Asana, Jira
+- File Storage: Google Drive, Dropbox, OneDrive, Box
+- Calendar: Google Calendar, Outlook Calendar
+
+**Finance**
+- Banking: Plaid integration
+- Accounting: QuickBooks, Xero
+- Payments: Stripe, PayPal
+
+**CRM & Business**
+- CRM: Salesforce, HubSpot
+- E-commerce: Shopify
+- Development: GitHub
+
+### Integration Setup
+
+1. **Access Settings**
+   - Navigate to Service Management
+   - Select the service you want to connect
+   - Follow the OAuth authorization flow
+
+2. **Configuration**
+   - Set sync preferences and frequency
+   - Configure data access permissions
+   - Test connection and verify data flow
+
+3. **Management**
+   - Monitor sync status and errors
+   - Revoke access when needed
+   - Update configuration settings
+
+## Settings & Preferences
+
+### Personalization
+
+**Appearance**
+- Light/Dark theme selection
+- Custom color schemes
+- Layout preferences
+- Font size and accessibility options
+
+**Notifications**
+- Email notifications for important events
+- Browser push notifications
+- Mobile app alerts
+- Quiet hours and do-not-disturb
+
+**Privacy & Security**
+- Data retention settings
+- Export personal data
+- Account security options
+- Connected app permissions
+
+### Performance Optimization
+
+**Data Management**
+- Cache settings for faster loading
+- Data sync frequency
+- Storage usage monitoring
+- Cleanup and optimization tools
+
+**Network Settings**
+- API rate limit configuration
+- Offline mode preferences
+- Bandwidth usage optimization
+
+## Tips & Best Practices
+
+### Daily Workflow
+
+**Morning Routine**
+1. Check dashboard for daily overview
+2. Review and prioritize tasks
+3. Schedule focus time blocks
+4. Set daily intentions with AI assistant
+
+**Throughout the Day**
+- Use voice commands for quick actions
+- Let automations handle routine tasks
+- Monitor agent performance
+- Stay on top of communications
+
+**Evening Wrap-up**
+- Review completed tasks
+- Plan for tomorrow
+- Check financial updates
+- Archive completed conversations
+
+### Productivity Tips
+
+**Task Management**
+- Break large projects into smaller tasks
+- Use due dates and priorities effectively
+- Leverage templates for recurring tasks
+- Review and adjust priorities regularly
+
+**Calendar Optimization**
+- Use time blocking for focused work
+- Schedule buffer time between meetings
+- Set realistic time estimates
+- Use event templates for consistency
+
+**Communication Efficiency**
+- Use quick replies for common responses
+- Schedule messages for optimal timing
+- Leverage AI for message drafting
+- Archive completed conversations
+
+## Troubleshooting
+
+### Common Issues
+
+**Connection Problems**
+- Check internet connection
+- Verify service credentials
+- Review API rate limits
+- Check firewall settings
+
+**Sync Issues**
+- Force manual sync from settings
+- Check service status pages
+- Review error logs
+- Clear cache and retry
+
+**Performance Issues**
+- Close unused browser tabs
+- Clear application cache
+- Check system resources
+- Update to latest version
+
+### Getting Help
+
+**Support Resources**
+- In-app help and documentation
+- Community forums
+- Email support
+- Feature requests
+
+**Feedback**
+- Use the feedback button in the app
+- Report bugs with detailed descriptions
+- Suggest new features and improvements
+- Share success stories and use cases
+
+## Advanced Usage
+
+### Custom Automations
+
+**Building Workflows**
+1. Identify repetitive tasks
+2. Design workflow logic
+3. Test with sample data
+4. Deploy and monitor
+
+**Common Automation Patterns**
+- Email to task creation
+- Calendar event reminders
+- Financial transaction categorization
+- Communication follow-ups
+
+### API Integration
+
+**Developer Access**
+- REST API documentation
+- Webhook configuration
+- Custom integration development
+- Third-party app connections
+
+**Advanced Features**
+- Custom agent development
+- Workflow extensions
+- Data export and analysis
+- System monitoring
+
+---
+
+## Need More Help?
+
+- **Documentation**: Complete technical documentation available
+- **Tutorials**: Step-by-step guides for all features
+- **Community**: Join our user community for tips and support
+- **Updates**: Check for new features and improvements regularly
+
+Atom is constantly evolving to better serve your productivity needs. We welcome your feedback and suggestions for making Atom even more helpful in managing your life and work.
