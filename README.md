@@ -18,7 +18,7 @@
 
 ## ✨ What Atom Delivers
 
-Atom is a production-ready multi-agent system that orchestrates your workflows across 15+ integrated platforms. Built over 12 weeks with 96% completion, Atom brings together calendar management, task coordination, communication, and financial tracking into one intelligent interface.
+Atom is a production-ready multi-agent system that orchestrates your workflows across 15+ integrated platforms. Atom brings together calendar management, task coordination, communication, and financial tracking into one intelligent interface.
 
 ### 🎯 The Productivity Challenge We Solve
 
