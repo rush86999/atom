@@ -6,6 +6,7 @@ import time
 from workflow_handler import workflow_bp, create_workflow_tables
 from workflow_api import workflow_api_bp
 from workflow_agent_api import workflow_agent_api_bp
+from workflow_automation_api import workflow_automation_api
 
 # Configure logging
 logging.basicConfig(
@@ -88,12 +89,18 @@ def create_app():
             # Core blueprints (fast imports)
             core_blueprints = [
                 ("search_routes", "search_routes_bp", "search"),
+                ("lancedb_search_api", "lancedb_search_api", "lancedb_search"),
                 ("calendar_handler", "calendar_bp", "calendar"),
                 ("task_handler", "task_bp", "tasks"),
                 ("message_handler", "message_bp", "messages"),
                 ("transcription_handler", "transcription_bp", "transcription"),
-                ("workflow_api", "workflow_api_bp", "workflows"),
+                ("workflow_api", "workflow_api_bp", "workflow_api"),
                 ("workflow_agent_api", "workflow_agent_api_bp", "workflow_agent"),
+                (
+                    "workflow_automation_api",
+                    "workflow_automation_api",
+                    "workflow_automation",
+                ),
                 ("dashboard_routes", "dashboard_bp", "dashboard"),
                 ("service_registry_routes", "service_registry_bp", "services"),
             ]

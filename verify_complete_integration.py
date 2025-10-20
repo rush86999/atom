@@ -1,505 +1,522 @@
-#!/usr/bin/env python3
 """
-🚀 ATOM Complete Integration Verification Script
+Comprehensive Integration Verification Script for Atom
 
-Comprehensive verification of all ATOM system integrations:
-- Service UI components
-- NLU workflow integration
-- RRule scheduling
-- All service endpoints
-- Frontend-backend connectivity
+This script verifies that all third-party applications are properly integrated
+with workflow automation and accessible via the Atom agent chat interface.
 """
 
 import asyncio
-import aiohttp
 import json
-import sys
-import os
-from pathlib import Path
-from typing import Dict, List, Tuple, Any
 import logging
+import sys
 from datetime import datetime
+from typing import Dict, List, Any, Optional
+import requests
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("/tmp/atom_complete_integration_verification.log"),
+    ],
 )
-logger = logging.getLogger("integration_verifier")
+logger = logging.getLogger(__name__)
 
 
 class CompleteIntegrationVerifier:
-    def __init__(self):
-        self.base_url = "http://localhost:5058"
-        self.frontend_url = "http://localhost:3000"
-        self.timeout = aiohttp.ClientTimeout(total=15)
-        self.results = {}
-        self.start_time = None
+    """
+    Comprehensive verification of workflow automation and chat integration
+    for all third-party services in Atom.
+    """
 
-    async def verify_backend_health(self) -> Tuple[bool, str]:
-        """Verify backend server health"""
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(f"{self.base_url}/healthz") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        blueprints = data.get("blueprints", {})
-                        total_blueprints = len(blueprints)
-                        return (
-                            True,
-                            f"Backend healthy with {total_blueprints} blueprints",
-                        )
-                    else:
-                        return False, f"Backend unhealthy: HTTP {response.status}"
-        except Exception as e:
-            return False, f"Backend unreachable: {str(e)}"
+    def __init__(self, base_url: str = "http://localhost:5058"):
+        self.base_url = base_url
+        self.verification_results = {}
+        self.service_registry = {}
 
-    async def verify_service_registry(self) -> Tuple[bool, Dict]:
-        """Verify service registry is populated and functional"""
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(f"{self.base_url}/api/services") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        services = data.get("services", [])
-                        active_services = data.get("active_services", 0)
+    async def run_comprehensive_verification(self) -> Dict[str, Any]:
+        """
+        Run complete verification of all integrations
+        """
+        logger.info("🚀 Starting Complete Integration Verification")
+        logger.info("=" * 80)
 
-                        service_details = {}
-                        for service in services:
-                            service_details[service["id"]] = {
-                                "name": service["name"],
-                                "status": service["status"],
-                                "health": service["health"],
-                                "capabilities": len(service["capabilities"]),
-                            }
-
-                        return True, {
-                            "total_services": len(services),
-                            "active_services": active_services,
-                            "services": service_details,
-                        }
-                    else:
-                        return False, {"error": f"HTTP {response.status}"}
-        except Exception as e:
-            return False, {"error": str(e)}
-
-    async def verify_workflow_automation(self) -> Tuple[bool, Dict]:
-        """Verify workflow automation with NLU integration"""
-        checks = {}
-
-        # Test workflow templates
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(
-                    f"{self.base_url}/api/workflows/templates"
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        checks["templates"] = {
-                            "healthy": True,
-                            "count": data.get("count", 0),
-                            "available": len(data.get("templates", [])),
-                        }
-                    else:
-                        checks["templates"] = {
-                            "healthy": False,
-                            "error": f"HTTP {response.status}",
-                        }
-        except Exception as e:
-            checks["templates"] = {"healthy": False, "error": str(e)}
-
-        # Test workflow agent health
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(
-                    f"{self.base_url}/api/workflow-agent/health"
-                ) as response:
-                    checks["workflow_agent"] = {
-                        "healthy": response.status == 200,
-                        "status": response.status,
-                    }
-        except Exception as e:
-            checks["workflow_agent"] = {"healthy": False, "error": str(e)}
-
-        # Test natural language workflow creation
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                test_workflow = (
-                    "When I get an email from my boss, create a task in Asana"
-                )
-                async with session.post(
-                    f"{self.base_url}/api/workflow-agent/analyze",
-                    json={"user_input": test_workflow},
-                ) as response:
-                    data = await response.json() if response.status == 200 else {}
-                    checks["nl_workflow_creation"] = {
-                        "healthy": response.status in [200, 400, 500],
-                        "status": response.status,
-                        "is_workflow_request": data.get("is_workflow_request", False),
-                    }
-        except Exception as e:
-            checks["nl_workflow_creation"] = {"healthy": False, "error": str(e)}
-
-        # Test dashboard endpoint
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(f"{self.base_url}/api/dashboard") as response:
-                    checks["dashboard"] = {
-                        "healthy": response.status == 200,
-                        "status": response.status,
-                    }
-        except Exception as e:
-            checks["dashboard"] = {"healthy": False, "error": str(e)}
-
-        healthy_checks = sum(1 for check in checks.values() if check["healthy"])
-        total_checks = len(checks)
-
-        return healthy_checks >= 3, checks
-
-    async def verify_rrule_scheduling(self) -> Tuple[bool, Dict]:
-        """Verify RRule scheduling integration"""
-        test_schedules = [
-            "every day",
-            "every monday at 9 AM",
-            "every 15 minutes",
-            "first day of month",
-        ]
-
-        results = {}
-
-        for schedule in test_schedules:
-            try:
-                # This would test the RRule scheduler if endpoints were available
-                # For now, we'll simulate the functionality
-                results[schedule] = {
-                    "parsed": True,
-                    "supported": True,
-                    "tested": False,  # Endpoint not yet implemented
-                }
-            except Exception as e:
-                results[schedule] = {
-                    "parsed": False,
-                    "error": str(e),
-                    "supported": False,
-                }
-
-        successful_parses = sum(1 for r in results.values() if r["parsed"])
-        total_schedules = len(test_schedules)
-
-        return successful_parses >= 2, {
-            "test_schedules": test_schedules,
-            "results": results,
-            "success_rate": f"{successful_parses}/{total_schedules}",
+        results = {
+            "timestamp": datetime.now().isoformat(),
+            "verification_steps": {},
+            "summary": {},
+            "recommendations": [],
         }
 
-    async def verify_frontend_components(self) -> Tuple[bool, Dict]:
-        """Verify frontend components and build status"""
-        frontend_paths = [
-            "frontend-nextjs/.next",
-            "frontend-nextjs/components/ServiceManagement.tsx",
-            "frontend-nextjs/components/Dashboard.tsx",
-            "frontend-nextjs/components/WorkflowAutomation.tsx",
-            "frontend-nextjs/components/ServiceIntegrationDashboard.tsx",
-            "frontend-nextjs/pages/index.tsx",
-        ]
+        # Step 1: Verify Service Registry
+        logger.info("\n1. 📋 Verifying Service Registry...")
+        service_registry_result = await self.verify_service_registry()
+        results["verification_steps"]["service_registry"] = service_registry_result
 
-        component_checks = {}
-
-        for path in frontend_paths:
-            exists = Path(path).exists()
-            component_checks[path] = {
-                "exists": exists,
-                "type": "file" if Path(path).is_file() else "directory",
-            }
-
-        existing_components = sum(
-            1 for check in component_checks.values() if check["exists"]
+        # Step 2: Verify Workflow Automation Integration
+        logger.info("\n2. ⚙️ Verifying Workflow Automation Integration...")
+        workflow_integration_result = (
+            await self.verify_workflow_automation_integration()
         )
-        total_components = len(frontend_paths)
+        results["verification_steps"]["workflow_automation"] = (
+            workflow_integration_result
+        )
 
-        # Check if frontend is accessible
-        frontend_accessible = False
+        # Step 3: Verify Chat Interface Integration
+        logger.info("\n3. 💬 Verifying Chat Interface Integration...")
+        chat_integration_result = await self.verify_chat_interface_integration()
+        results["verification_steps"]["chat_interface"] = chat_integration_result
+
+        # Step 4: Verify Individual Service Integrations
+        logger.info("\n4. 🔗 Verifying Individual Service Integrations...")
+        service_integration_result = await self.verify_individual_service_integrations()
+        results["verification_steps"]["service_integrations"] = (
+            service_integration_result
+        )
+
+        # Step 5: Verify Workflow Execution
+        logger.info("\n5. 🚀 Verifying Workflow Execution...")
+        workflow_execution_result = await self.verify_workflow_execution()
+        results["verification_steps"]["workflow_execution"] = workflow_execution_result
+
+        # Generate Summary
+        results["summary"] = self._generate_summary(results["verification_steps"])
+        results["recommendations"] = self._generate_recommendations(
+            results["verification_steps"]
+        )
+
+        # Print Final Results
+        self._print_verification_summary(results)
+
+        return results
+
+    async def verify_service_registry(self) -> Dict[str, Any]:
+        """Verify service registry contains all third-party integrations"""
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(self.frontend_url) as response:
-                    frontend_accessible = response.status == 200
-        except:
-            frontend_accessible = False
+            response = requests.get(f"{self.base_url}/api/services", timeout=30)
 
-        return existing_components >= 4 and frontend_accessible, {
-            "components": component_checks,
-            "components_score": f"{existing_components}/{total_components}",
-            "frontend_accessible": frontend_accessible,
-            "frontend_url": self.frontend_url,
-        }
-
-    async def verify_nlu_integration(self) -> Tuple[bool, Dict]:
-        """Verify NLU system integration"""
-        nlu_tests = [
-            "Create a workflow that sends email when task is completed",
-            "Schedule daily reports every morning",
-            "When file is uploaded to Dropbox, notify on Slack",
-            "Sync calendar events with task deadlines",
-        ]
-
-        results = {}
-
-        for test in nlu_tests:
-            try:
-                async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                    async with session.post(
-                        f"{self.base_url}/api/workflow-agent/analyze",
-                        json={"user_input": test},
-                    ) as response:
-                        data = await response.json() if response.status == 200 else {}
-                        results[test] = {
-                            "status": response.status,
-                            "is_workflow_request": data.get(
-                                "is_workflow_request", False
-                            ),
-                            "success": data.get("success", False),
-                        }
-            except Exception as e:
-                results[test] = {
-                    "status": "error",
-                    "error": str(e),
-                    "is_workflow_request": False,
+            if response.status_code != 200:
+                return {
                     "success": False,
+                    "error": f"Service registry endpoint returned {response.status_code}",
+                    "services_count": 0,
+                    "workflow_enabled": 0,
+                    "chat_enabled": 0,
                 }
 
-        successful_tests = sum(1 for r in results.values() if r.get("success", False))
-        total_tests = len(nlu_tests)
+            data = response.json()
+            services = data.get("services", [])
 
-        return successful_tests >= 2, {
-            "test_cases": nlu_tests,
-            "results": results,
-            "success_rate": f"{successful_tests}/{total_tests}",
-        }
+            # Store service registry for later use
+            self.service_registry = {s["id"]: s for s in services}
 
-    async def verify_service_ui_integration(self) -> Tuple[bool, Dict]:
-        """Verify service UI components integration"""
-        services_to_check = [
-            "calendar",
-            "tasks",
-            "email",
-            "slack",
-            "notion",
-            "dropbox",
-            "gdrive",
-            "github",
-            "workflow",
-            "notifications",
-        ]
+            # Count services with workflow and chat capabilities
+            workflow_enabled = len(
+                [
+                    s
+                    for s in services
+                    if s.get("workflow_triggers") or s.get("workflow_actions")
+                ]
+            )
+            chat_enabled = len([s for s in services if s.get("chat_commands")])
 
-        ui_checks = {}
-
-        # Check if service management component exists
-        service_management_path = "frontend-nextjs/components/ServiceManagement.tsx"
-        service_management_exists = Path(service_management_path).exists()
-
-        # Check dashboard integration
-        dashboard_path = "frontend-nextjs/components/Dashboard.tsx"
-        dashboard_integrated = False
-        if Path(dashboard_path).exists():
-            with open(dashboard_path, "r") as f:
-                content = f.read()
-                dashboard_integrated = "ServiceManagement" in content
-
-        for service in services_to_check:
-            ui_checks[service] = {
-                "in_registry": True,  # Would check against service registry
-                "ui_component": True,  # Would check for specific UI components
-                "configured": True,  # Would check configuration status
+            result = {
+                "success": True,
+                "total_services": len(services),
+                "workflow_enabled": workflow_enabled,
+                "chat_enabled": chat_enabled,
+                "services": [s["id"] for s in services],
             }
 
-        configured_services = sum(
-            1 for check in ui_checks.values() if check["configured"]
-        )
-        total_services = len(services_to_check)
+            logger.info(f"   ✅ Service Registry: {len(services)} services registered")
+            logger.info(f"   📊 Workflow Enabled: {workflow_enabled} services")
+            logger.info(f"   💬 Chat Enabled: {chat_enabled} services")
 
-        return (
-            service_management_exists
-            and dashboard_integrated
-            and configured_services >= 8
-        ), {
-            "service_management_exists": service_management_exists,
-            "dashboard_integrated": dashboard_integrated,
-            "services_checked": services_to_check,
-            "configured_services": configured_services,
-            "total_services": total_services,
-        }
+            return result
 
-    async def verify_complete_integration(self) -> Dict[str, Any]:
-        """Run complete integration verification"""
-        self.start_time = datetime.now()
+        except Exception as e:
+            logger.error(f"   ❌ Service Registry Verification Failed: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "total_services": 0,
+                "workflow_enabled": 0,
+                "chat_enabled": 0,
+            }
 
-        verification_tasks = [
-            ("backend_health", self.verify_backend_health),
-            ("service_registry", self.verify_service_registry),
-            ("workflow_automation", self.verify_workflow_automation),
-            ("rrule_scheduling", self.verify_rrule_scheduling),
-            ("frontend_components", self.verify_frontend_components),
-            ("nlu_integration", self.verify_nlu_integration),
-            ("service_ui_integration", self.verify_service_ui_integration),
+    async def verify_workflow_automation_integration(self) -> Dict[str, Any]:
+        """Verify workflow automation integration endpoints"""
+        endpoints_to_test = [
+            "/api/workflow-automation/analyze",
+            "/api/workflow-automation/generate",
+            "/api/workflow-automation/execute",
+            "/api/workflow-automation/schedule",
+            "/api/workflow-automation/workflows",
         ]
 
-        logger.info("🚀 Starting Complete ATOM Integration Verification")
-        print("\n" + "=" * 70)
-        print("🚀 ATOM COMPLETE INTEGRATION VERIFICATION")
-        print("=" * 70)
+        results = {}
+        successful_endpoints = 0
 
-        for check_name, check_func in verification_tasks:
+        for endpoint in endpoints_to_test:
             try:
-                print(f"🔍 {check_name.replace('_', ' ').title()}...", end=" ")
-                healthy, details = await check_func()
-                self.results[check_name] = {
-                    "healthy": healthy,
-                    "details": details,
-                    "timestamp": datetime.now().isoformat(),
-                }
-
-                if healthy:
-                    print("✅ PASS")
+                # Test GET endpoints
+                if endpoint.endswith("/workflows"):
+                    response = requests.get(f"{self.base_url}{endpoint}", timeout=10)
+                # Test POST endpoints with sample data
                 else:
-                    print("❌ FAIL")
+                    sample_data = {
+                        "user_input": "schedule a meeting tomorrow at 2 PM",
+                        "user_id": "test_user",
+                    }
+                    response = requests.post(
+                        f"{self.base_url}{endpoint}", json=sample_data, timeout=10
+                    )
+
+                if response.status_code in [200, 201]:
+                    results[endpoint] = {
+                        "success": True,
+                        "status_code": response.status_code,
+                    }
+                    successful_endpoints += 1
+                    logger.info(f"   ✅ {endpoint}: {response.status_code}")
+                else:
+                    results[endpoint] = {
+                        "success": False,
+                        "status_code": response.status_code,
+                    }
+                    logger.info(f"   ❌ {endpoint}: {response.status_code}")
 
             except Exception as e:
-                print("❌ ERROR")
-                logger.error(f"Verification error in {check_name}: {str(e)}")
-                self.results[check_name] = {
-                    "healthy": False,
-                    "details": {"error": str(e)},
-                    "timestamp": datetime.now().isoformat(),
-                }
-
-        return self.generate_integration_report()
-
-    def generate_integration_report(self) -> Dict[str, Any]:
-        """Generate comprehensive integration report"""
-        total_checks = len(self.results)
-        passed_checks = sum(1 for result in self.results.values() if result["healthy"])
-        success_rate = (passed_checks / total_checks) * 100 if total_checks > 0 else 0
-
-        # Determine integration status
-        if success_rate >= 90:
-            integration_status = "🟢 FULLY INTEGRATED"
-        elif success_rate >= 75:
-            integration_status = "🟡 PARTIALLY INTEGRATED"
-        elif success_rate >= 50:
-            integration_status = "🟠 BASIC INTEGRATION"
-        else:
-            integration_status = "🔴 MINIMAL INTEGRATION"
-
-        # Calculate verification time
-        verification_time = (datetime.now() - self.start_time).total_seconds()
+                results[endpoint] = {"success": False, "error": str(e)}
+                logger.info(f"   ❌ {endpoint}: {str(e)}")
 
         return {
-            "integration_status": integration_status,
-            "success_rate": f"{success_rate:.1f}%",
-            "passed_checks": passed_checks,
-            "total_checks": total_checks,
-            "verification_time": f"{verification_time:.2f}s",
-            "timestamp": datetime.now().isoformat(),
-            "detailed_results": self.results,
+            "success": successful_endpoints == len(endpoints_to_test),
+            "endpoints_tested": len(endpoints_to_test),
+            "endpoints_successful": successful_endpoints,
+            "endpoint_results": results,
         }
 
+    async def verify_chat_interface_integration(self) -> Dict[str, Any]:
+        """Verify chat interface integration"""
+        try:
+            # Test chat commands endpoint
+            response = requests.get(
+                f"{self.base_url}/api/services/chat-commands", timeout=10
+            )
 
-def print_integration_report(report: Dict[str, Any]):
-    """Print comprehensive integration report"""
-    print("\n" + "=" * 70)
-    print("📊 COMPLETE INTEGRATION REPORT")
-    print("=" * 70)
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"Chat commands endpoint returned {response.status_code}",
+                    "commands_count": 0,
+                }
 
-    status = report["integration_status"]
-    if "🟢" in status:
-        status_color = "\033[92m"  # Green
-    elif "🟡" in status:
-        status_color = "\033[93m"  # Yellow
-    elif "🟠" in status:
-        status_color = "\033[33m"  # Orange
-    else:
-        status_color = "\033[91m"  # Red
+            data = response.json()
+            commands = data.get("chat_commands", [])
 
-    print(f"Integration Status: {status_color}{status}\033[0m")
-    print(
-        f"Success Rate: {report['success_rate']} ({report['passed_checks']}/{report['total_checks']} checks)"
-    )
-    print(f"Verification Time: {report['verification_time']}")
+            # Test a sample chat command
+            test_command = {
+                "service_id": "google_calendar",
+                "command": "schedule meeting",
+            }
 
-    print("\n📋 Detailed Integration Results:")
-    print("-" * 50)
+            command_response = requests.post(
+                f"{self.base_url}/api/services/test-chat-command",
+                json=test_command,
+                timeout=10,
+            )
 
-    for check_name, result in report["detailed_results"].items():
-        status = "✅ PASS" if result["healthy"] else "❌ FAIL"
-        color = "\033[92m" if result["healthy"] else "\033[91m"
-        print(f"{color}{status}\033[0m: {check_name.replace('_', ' ').title()}")
+            command_test_success = command_response.status_code in [200, 201]
 
-        # Print key details
-        details = result["details"]
-        if isinstance(details, dict):
-            for key, value in details.items():
-                if key not in ["error", "timestamp"]:
-                    if isinstance(value, dict):
-                        print(f"    {key}:")
-                        for subkey, subvalue in value.items():
-                            print(f"      {subkey}: {subvalue}")
-                    else:
-                        print(f"    {key}: {value}")
-        elif isinstance(details, str):
-            print(f"    {details}")
+            result = {
+                "success": True,
+                "commands_count": len(commands),
+                "command_test_success": command_test_success,
+                "available_commands": [
+                    cmd["command"] for cmd in commands[:10]
+                ],  # First 10 commands
+            }
 
-    print("\n🎯 Integration Recommendations:")
-    print("-" * 35)
+            logger.info(f"   ✅ Chat Commands: {len(commands)} commands available")
+            logger.info(
+                f"   🧪 Command Test: {'✅ Success' if command_test_success else '❌ Failed'}"
+            )
 
-    failed_checks = [
-        name
-        for name, result in report["detailed_results"].items()
-        if not result["healthy"]
-    ]
+            return result
 
-    if not failed_checks:
-        print("✅ All systems fully integrated and operational!")
-        print("   The ATOM system is ready for production deployment.")
-    else:
-        print(f"⚠️  Address these integration issues:")
-        for check in failed_checks:
-            if check == "backend_health":
-                print("   → Ensure backend server is running on port 5058")
-            elif check == "service_registry":
-                print("   → Check service registry API endpoints")
-            elif check == "workflow_automation":
-                print("   → Verify workflow automation and NLU integration")
-            elif check == "rrule_scheduling":
-                print("   → Implement RRule scheduling endpoints")
-            elif check == "frontend_components":
-                print("   → Build frontend and ensure components exist")
-            elif check == "nlu_integration":
-                print("   → Test NLU workflow creation endpoints")
-            elif check == "service_ui_integration":
-                print("   → Complete service UI component integration")
-            else:
-                print(f"   → Fix {check.replace('_', ' ')} integration")
+        except Exception as e:
+            logger.error(f"   ❌ Chat Interface Verification Failed: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "commands_count": 0,
+                "command_test_success": False,
+            }
 
-    print("=" * 70)
+    async def verify_individual_service_integrations(self) -> Dict[str, Any]:
+        """Verify integration status for individual services"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/api/services/integration-status", timeout=10
+            )
+
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"Integration status endpoint returned {response.status_code}",
+                    "services_tested": 0,
+                }
+
+            data = response.json()
+            integration_status = data.get("integration_status", {})
+
+            workflow_stats = integration_status.get("workflow_automation", {})
+            chat_stats = integration_status.get("chat_interface", {})
+
+            result = {
+                "success": True,
+                "workflow_automation": {
+                    "total_services": workflow_stats.get("total_services", 0),
+                    "workflow_enabled": workflow_stats.get("workflow_enabled", 0),
+                    "triggers_available": workflow_stats.get("triggers_available", 0),
+                    "actions_available": workflow_stats.get("actions_available", 0),
+                },
+                "chat_interface": {
+                    "total_services": chat_stats.get("total_services", 0),
+                    "chat_enabled": chat_stats.get("chat_enabled", 0),
+                    "commands_available": chat_stats.get("commands_available", 0),
+                },
+            }
+
+            logger.info(
+                f"   📊 Workflow Integration: {workflow_stats.get('workflow_enabled', 0)}/{workflow_stats.get('total_services', 0)} services"
+            )
+            logger.info(
+                f"   💬 Chat Integration: {chat_stats.get('chat_enabled', 0)}/{chat_stats.get('total_services', 0)} services"
+            )
+            logger.info(
+                f"   ⚡ Triggers: {workflow_stats.get('triggers_available', 0)} available"
+            )
+            logger.info(
+                f"   🎯 Actions: {workflow_stats.get('actions_available', 0)} available"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                f"   ❌ Individual Service Integration Verification Failed: {str(e)}"
+            )
+            return {"success": False, "error": str(e), "services_tested": 0}
+
+    async def verify_workflow_execution(self) -> Dict[str, Any]:
+        """Verify workflow execution capabilities"""
+        try:
+            # Test workflow generation
+            test_workflow_request = {
+                "user_input": "create a workflow to schedule a meeting and send an email",
+                "user_id": "test_user",
+            }
+
+            response = requests.post(
+                f"{self.base_url}/api/workflow-automation/generate",
+                json=test_workflow_request,
+                timeout=15,
+            )
+
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"Workflow generation returned {response.status_code}",
+                    "workflow_generated": False,
+                    "workflow_executed": False,
+                }
+
+            data = response.json()
+            workflow_generated = data.get("success", False)
+            workflow_id = data.get("workflow_id")
+
+            # Test workflow execution if generation was successful
+            workflow_executed = False
+            if workflow_generated and workflow_id:
+                execution_request = {"workflow_id": workflow_id, "user_id": "test_user"}
+
+                execution_response = requests.post(
+                    f"{self.base_url}/api/workflow-automation/execute",
+                    json=execution_request,
+                    timeout=15,
+                )
+
+                workflow_executed = execution_response.status_code == 200
+
+            result = {
+                "success": workflow_generated,
+                "workflow_generated": workflow_generated,
+                "workflow_executed": workflow_executed,
+                "workflow_id": workflow_id,
+            }
+
+            logger.info(
+                f"   🏗️ Workflow Generation: {'✅ Success' if workflow_generated else '❌ Failed'}"
+            )
+            logger.info(
+                f"   🚀 Workflow Execution: {'✅ Success' if workflow_executed else '❌ Failed'}"
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"   ❌ Workflow Execution Verification Failed: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "workflow_generated": False,
+                "workflow_executed": False,
+            }
+
+    def _generate_summary(self, verification_steps: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate verification summary"""
+        total_steps = len(verification_steps)
+        successful_steps = sum(
+            1 for step in verification_steps.values() if step.get("success", False)
+        )
+
+        # Calculate integration coverage
+        service_registry = verification_steps.get("service_registry", {})
+        workflow_integration = verification_steps.get("workflow_automation", {})
+        chat_integration = verification_steps.get("chat_interface", {})
+        service_integration = verification_steps.get("service_integrations", {})
+
+        total_services = service_registry.get("total_services", 0)
+        workflow_enabled = service_registry.get("workflow_enabled", 0)
+        chat_enabled = service_registry.get("chat_enabled", 0)
+
+        workflow_coverage = (
+            (workflow_enabled / total_services * 100) if total_services > 0 else 0
+        )
+        chat_coverage = (
+            (chat_enabled / total_services * 100) if total_services > 0 else 0
+        )
+
+        return {
+            "total_verification_steps": total_steps,
+            "successful_steps": successful_steps,
+            "success_rate": (successful_steps / total_steps * 100)
+            if total_steps > 0
+            else 0,
+            "integration_coverage": {
+                "total_services": total_services,
+                "workflow_coverage": f"{workflow_coverage:.1f}%",
+                "chat_coverage": f"{chat_coverage:.1f}%",
+                "workflow_enabled_services": workflow_enabled,
+                "chat_enabled_services": chat_enabled,
+            },
+            "overall_status": "PASS"
+            if successful_steps == total_steps
+            else "PARTIAL"
+            if successful_steps > 0
+            else "FAIL",
+        }
+
+    def _generate_recommendations(
+        self, verification_steps: Dict[str, Any]
+    ) -> List[str]:
+        """Generate recommendations based on verification results"""
+        recommendations = []
+
+        service_registry = verification_steps.get("service_registry", {})
+        workflow_integration = verification_steps.get("workflow_automation", {})
+        chat_integration = verification_steps.get("chat_interface", {})
+
+        total_services = service_registry.get("total_services", 0)
+        workflow_enabled = service_registry.get("workflow_enabled", 0)
+        chat_enabled = service_registry.get("chat_enabled", 0)
+
+        # Check for missing workflow integration
+        if workflow_enabled < total_services:
+            missing_count = total_services - workflow_enabled
+            recommendations.append(
+                f"Add workflow automation to {missing_count} services without workflow integration"
+            )
+
+        # Check for missing chat integration
+        if chat_enabled < total_services:
+            missing_count = total_services - chat_enabled
+            recommendations.append(
+                f"Add chat commands to {missing_count} services without chat integration"
+            )
+
+        # Check workflow automation endpoints
+        if not workflow_integration.get("success", False):
+            successful_endpoints = workflow_integration.get("endpoints_successful", 0)
+            total_endpoints = workflow_integration.get("endpoints_tested", 0)
+            recommendations.append(
+                f"Fix {total_endpoints - successful_endpoints} workflow automation endpoints"
+            )
+
+        # Check chat interface
+        if not chat_integration.get("success", False):
+            recommendations.append("Verify chat command handlers and endpoints")
+
+        return recommendations
+
+    def _print_verification_summary(self, results: Dict[str, Any]):
+        """Print final verification summary"""
+        summary = results["summary"]
+        recommendations = results["recommendations"]
+
+        logger.info("\n" + "=" * 80)
+        logger.info("📊 COMPLETE INTEGRATION VERIFICATION SUMMARY")
+        logger.info("=" * 80)
+
+        logger.info(f"Overall Status: {summary['overall_status']}")
+        logger.info(
+            f"Verification Steps: {summary['successful_steps']}/{summary['total_verification_steps']} passed"
+        )
+        logger.info(f"Success Rate: {summary['success_rate']:.1f}%")
+
+        logger.info(f"\nIntegration Coverage:")
+        logger.info(
+            f"  Total Services: {summary['integration_coverage']['total_services']}"
+        )
+        logger.info(
+            f"  Workflow Automation: {summary['integration_coverage']['workflow_coverage']}"
+        )
+        logger.info(
+            f"  Chat Interface: {summary['integration_coverage']['chat_coverage']}"
+        )
+
+        if recommendations:
+            logger.info(f"\n📝 Recommendations:")
+            for rec in recommendations:
+                logger.info(f"  • {rec}")
+        else:
+            logger.info(f"\n🎉 All integrations are properly configured!")
+
+        logger.info(f"\n⏰ Verification completed at: {results['timestamp']}")
+        logger.info("=" * 80)
 
 
 async def main():
-    """Main integration verification function"""
+    """Main function"""
     verifier = CompleteIntegrationVerifier()
+    results = await verifier.run_comprehensive_verification()
 
-    try:
-        report = await verifier.verify_complete_integration()
-        print_integration_report(report)
+    # Save results to file
+    with open("/tmp/atom_integration_verification_report.json", "w") as f:
+        json.dump(results, f, indent=2)
 
-        # Exit with appropriate code
-        if "🟢" in report["integration_status"]:
-            print("\n🎉 ATOM system is fully integrated and ready!")
-            sys.exit(0)
-        elif "🟡" in report["integration_status"]:
-            print("\n⚠️  ATOM system is partially integrated - review recommendations")
-            sys.exit(1)
-        else:
-            print("\n❌ ATOM system needs significant integration work")
-            sys.exit(2)
+    print(
+        f"\n📄 Detailed report saved to: /tmp/atom_integration_verification_report.json"
+    )
 
-    except Exception as e:
-        logger.error(f"Integration verification failed: {str(e)}")
+    # Exit with appropriate code
+    if results["summary"]["overall_status"] == "PASS":
+        sys.exit(0)
+    elif results["summary"]["overall_status"] == "PARTIAL":
+        sys.exit(1)
+    else:
+        sys.exit(2)
