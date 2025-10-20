@@ -46,6 +46,7 @@ const Dashboard = ({ setActiveView }: DashboardProps) => {
         Communication
       </button>
       <button onClick={() => setActiveView("finance" as any)}>Finance</button>
+      <button onClick={() => setActiveView("research" as any)}>Research</button>
     </div>
   );
 };

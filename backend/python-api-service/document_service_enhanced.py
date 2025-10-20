@@ -56,9 +56,10 @@ class DocumentChunkingStrategy(Enum):
 class EnhancedDocumentService:
     """Enhanced service for document management with LanceDB integration"""
 
-    def __init__(self, db_pool=None, lancedb_connection=None):
+    def __init__(self, db_pool=None, lancedb_connection=None, sync_service=None):
         self.db_pool = db_pool
         self.lancedb_conn = lancedb_connection
+        self.sync_service = sync_service
         self.processors = self._initialize_processors()
         self.chunk_size = 1000  # characters per chunk
         self.chunk_overlap = 200  # characters overlap between chunks
@@ -70,6 +71,7 @@ class EnhancedDocumentService:
         filename: str,
         source_uri: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_incremental_sync: bool = True,
     ) -> Dict[str, Any]:
         """
         Process document and store in LanceDB memory system
@@ -80,6 +82,7 @@ class EnhancedDocumentService:
             filename: Original filename
             source_uri: Source URI for tracking
             metadata: Additional metadata
+            use_incremental_sync: Whether to use incremental sync system
 
         Returns:
             Processing results with LanceDB storage info
@@ -129,7 +132,17 @@ class EnhancedDocumentService:
 
                 # Generate embeddings and store in LanceDB
                 if self.lancedb_conn:
-                    storage_result = await self._store_in_lancedb(document, chunks)
+                    if use_incremental_sync and self.sync_service:
+                        # Use incremental sync system for processing
+                        storage_result = await self._store_with_sync_service(
+                            document,
+                            chunks,
+                            user_id,
+                            source_uri or f"upload://{filename}",
+                        )
+                    else:
+                        # Use direct LanceDB storage
+                        storage_result = await self._store_in_lancedb(document, chunks)
                     document.update(storage_result)
 
                 # Update status to processed
@@ -513,6 +526,76 @@ class EnhancedDocumentService:
         except Exception as e:
             logger.error(f"Failed to store in LanceDB: {e}")
             return {"lancedb_stored": False, "error": str(e)}
+
+    async def _store_with_sync_service(
+        self,
+        document: Dict[str, Any],
+        chunks: List[Dict[str, Any]],
+        user_id: str,
+        source_uri: str,
+    ) -> Dict[str, Any]:
+        """
+        Store document using the incremental sync service
+
+        Args:
+            document: Document metadata
+            chunks: Document chunks with embeddings
+            user_id: User identifier
+            source_uri: Source URI for tracking
+
+        Returns:
+            Storage result
+        """
+        try:
+            if not self.sync_service:
+                return {"lancedb_stored": False, "error": "Sync service not available"}
+
+            # Prepare document data for sync service
+            document_data = {
+                "doc_id": document.get("doc_id"),
+                "doc_type": document.get("doc_type"),
+                "title": document.get("title", ""),
+                "metadata": document.get("metadata", {}),
+            }
+
+            # Prepare chunks with embeddings
+            chunks_with_embeddings = []
+            for i, chunk in enumerate(chunks):
+                chunk_data = {
+                    "text_content": chunk.get("chunk_text", ""),
+                    "embedding": chunk.get("vector_embedding", []),
+                    "metadata": {
+                        "chunk_index": i,
+                        "chunk_sequence": chunk.get("chunk_sequence", i),
+                    },
+                }
+                chunks_with_embeddings.append(chunk_data)
+
+            # Process document incrementally
+            result = await self.sync_service.process_document_incrementally(
+                user_id=user_id,
+                source_uri=source_uri,
+                document_data=document_data,
+                chunks_with_embeddings=chunks_with_embeddings,
+            )
+
+            if result["status"] == "success":
+                return {
+                    "lancedb_stored": True,
+                    "sync_service_used": True,
+                    "doc_id": result.get("doc_id"),
+                    "local_stored": result.get("local_stored", False),
+                    "remote_sync_queued": result.get("remote_sync_queued", False),
+                }
+            else:
+                logger.warning(f"Sync service failed: {result.get('message')}")
+                # Fall back to direct storage
+                return await self._store_in_lancedb(document, chunks)
+
+        except Exception as e:
+            logger.error(f"Failed to store with sync service: {e}")
+            # Fall back to direct storage
+            return await self._store_in_lancedb(document, chunks)
 
     async def _get_lancedb_table(self, table_name: str):
         """Get LanceDB table, creating if it doesn't exist"""
