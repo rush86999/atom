@@ -99,12 +99,6 @@ async def ingest_document_route():
 
         logger.info(f"Processing uploaded document: id={document_id}, user={user_id}, original_filename='{original_filename}', processing_mime='{processing_mime_type}', original_doc_type_for_storage='{original_doc_type_for_storage}'")
 
-        # Get LanceDB connection
-        lancedb_conn = await get_lancedb_connection()
-
-        # Create enhanced document service instance
-        doc_service = EnhancedDocumentService(db_pool=None, lancedb_connection=lancedb_conn)
-
         # Read file data
         with open(temp_file_path, 'rb') as f:
             file_data = f.read()
@@ -117,14 +111,51 @@ async def ingest_document_route():
             "original_doc_type": original_doc_type_for_storage
         }
 
-        # Process and store document using enhanced service
-        result = await doc_service.process_and_store_document(
-            user_id=user_id,
-            file_data=file_data,
-            filename=original_filename,
-            source_uri=source_uri,
-            metadata=metadata
-        )
+        # Try to use integration service if available
+        try:
+            from sync.integration_service import get_integration_service
+            integration_service = await get_integration_service()
+
+            # Process document using integration service
+            result = await integration_service.process_document(
+                user_id=user_id,
+                file_data=file_data,
+                filename=original_filename,
+                source_uri=source_uri,
+                metadata=metadata,
+                use_sync_system=True
+            )
+
+            # Convert integration service result to expected format
+            if result["status"] == "success":
+                result = {
+                    "status": "success",
+                    "message": "Document processed successfully",
+                    "doc_id": result.get("doc_id", document_id),
+                    "processing_method": result.get("processing_method", "integration_service")
+                }
+            else:
+                # Fall back to legacy service if integration fails
+                raise Exception(result.get("message", "Integration service failed"))
+
+        except ImportError:
+            # Fall back to legacy service if integration service not available
+            logger.info("Integration service not available, using legacy document service")
+
+            # Get LanceDB connection
+            lancedb_conn = await get_lancedb_connection()
+
+            # Create enhanced document service instance
+            doc_service = EnhancedDocumentService(db_pool=None, lancedb_connection=lancedb_conn)
+
+            # Process and store document using enhanced service
+            result = await doc_service.process_and_store_document(
+                user_id=user_id,
+                file_data=file_data,
+                filename=original_filename,
+                source_uri=source_uri,
+                metadata=metadata
+            )
 
         if result.get("status") == DocumentStatus.PROCESSED.value:
             return jsonify({
