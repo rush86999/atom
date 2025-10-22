@@ -8,6 +8,37 @@ from workflow_api import workflow_api_bp
 from workflow_agent_api import workflow_agent_api_bp
 from workflow_automation_api import workflow_automation_api
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    import os
+
+    # Load from project root .env file
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    env_path = os.path.join(project_root, ".env")
+
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        logger = logging.getLogger(__name__)
+        logger.info(f"Loaded environment variables from .env file at {env_path}")
+    else:
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f".env file not found at {env_path}, using system environment variables"
+        )
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("python-dotenv not available, using system environment variables")
+
+# Import OAuth configuration for development
+try:
+    from oauth_config import setup_oauth_environment, get_oauth_config
+
+    OAUTH_CONFIG_AVAILABLE = True
+except ImportError:
+    OAUTH_CONFIG_AVAILABLE = False
+    logging.warning("OAuth configuration module not available")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -34,12 +65,33 @@ def create_app():
     """
     app = Flask(__name__)
 
+    @app.route("/api/routes")
+    def list_routes():
+        """Debug endpoint to list all registered routes"""
+        routes = []
+        for rule in app.url_map.iter_rules():
+            routes.append(
+                {
+                    "endpoint": rule.endpoint,
+                    "methods": list(rule.methods),
+                    "path": str(rule),
+                }
+            )
+        return jsonify({"ok": True, "routes": routes, "total": len(routes)})
+
     # --- Configuration ---
     app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_dev_secret_key_change_me")
     if app.secret_key == "a_default_dev_secret_key_change_me":
         logger.warning(
             "Using default Flask secret key. This is not secure for production."
         )
+
+    # Configure OAuth for development environment
+    if OAUTH_CONFIG_AVAILABLE:
+        oauth_config = setup_oauth_environment()
+        logger.info(f"OAuth environment configured: {oauth_config}")
+    else:
+        logger.warning("OAuth configuration not available - HTTPS may be required")
 
     # Initialize blueprints dictionary (will be populated lazily)
     app.blueprints = {}
@@ -81,10 +133,10 @@ def create_app():
         except Exception as e:
             logger.error(f"Error in database initialization: {e}")
 
-    def lazy_register_blueprints():
-        """Register blueprints lazily to avoid import hangs"""
+    def register_core_blueprints():
+        """Register core blueprints synchronously during app creation"""
         try:
-            logger.info("Starting lazy blueprint registration...")
+            logger.info("Starting core blueprint registration...")
 
             # Core blueprints (fast imports)
             core_blueprints = [
@@ -103,6 +155,10 @@ def create_app():
                 ),
                 ("dashboard_routes", "dashboard_bp", "dashboard"),
                 ("service_registry_routes", "service_registry_bp", "services"),
+                ("user_service", "user_bp", "user"),
+                ("service_status_handler", "service_status_bp", "service_status"),
+                ("ai_settings_handler", "ai_settings_bp", "ai_settings"),
+                ("test_workflow_api", "test_workflow_api_bp", "test_workflow"),
             ]
 
             for module_name, bp_name, service_name in core_blueprints:
@@ -116,6 +172,16 @@ def create_app():
                     logger.warning(f"Failed to import {module_name}: {e}")
                 except Exception as e:
                     logger.warning(f"Failed to register {service_name}: {e}")
+
+            logger.info("Completed core blueprint registration")
+
+        except Exception as e:
+            logger.error(f"Error in core blueprint registration: {e}")
+
+    def lazy_register_slow_blueprints():
+        """Register slow blueprints in background thread"""
+        try:
+            logger.info("Starting slow blueprint registration...")
 
             # Slow blueprints (register in background)
             slow_blueprints = [
@@ -216,17 +282,20 @@ def create_app():
             except ImportError as e:
                 logger.warning(f"Failed to import goals_handler: {e}")
 
-            logger.info("Completed lazy blueprint registration")
+            logger.info("Completed slow blueprint registration")
 
         except Exception as e:
-            logger.error(f"Error in lazy blueprint registration: {e}")
+            logger.error(f"Error in slow blueprint registration: {e}")
 
     # Start database initialization in background thread
     db_thread = Thread(target=initialize_database_async, daemon=True)
     db_thread.start()
 
-    # Start blueprint registration in background thread
-    blueprint_thread = Thread(target=lazy_register_blueprints, daemon=True)
+    # Register core blueprints synchronously
+    register_core_blueprints()
+
+    # Start slow blueprint registration in background thread
+    blueprint_thread = Thread(target=lazy_register_slow_blueprints, daemon=True)
     blueprint_thread.start()
 
     # Create workflow tables if they don't exist

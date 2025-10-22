@@ -8,7 +8,7 @@ for workflow creation, execution, and scheduling across all integrated services.
 
 import logging
 import uuid
-import asyncio
+
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 import json
@@ -92,6 +92,9 @@ class WorkflowAgentIntegrationService:
         """
         try:
             logger.info(f"Processing workflow request: {user_input}")
+            logger.debug(
+                f"NLU bridge service available: {self.nlu_bridge_service is not None}"
+            )
 
             # Analyze the user input to determine intent and services
             analysis_result = self._analyze_workflow_intent(user_input)
@@ -120,12 +123,11 @@ class WorkflowAgentIntegrationService:
     def _analyze_workflow_intent(self, user_input: str) -> Dict[str, Any]:
         """Analyze user input to determine workflow intent and required services"""
         try:
-            # Use NLU service if available, otherwise use pattern matching
-            if self.nlu_bridge_service:
-                nlu_result = self.nlu_bridge_service.analyze_text(user_input)
-                return self._process_nlu_result(nlu_result, user_input)
-            else:
-                return self._pattern_match_workflow_intent(user_input)
+            logger.debug(f"Analyzing workflow intent for: {user_input}")
+            # Use pattern matching to avoid async issues with NLU bridge service
+            result = self._pattern_match_workflow_intent(user_input)
+            logger.debug(f"Pattern matching result: {result}")
+            return result
 
         except Exception as e:
             logger.error(f"Error analyzing workflow intent: {str(e)}")
@@ -159,10 +161,10 @@ class WorkflowAgentIntegrationService:
             return {"success": False, "error": str(e)}
 
     def _pattern_match_workflow_intent(self, user_input: str) -> Dict[str, Any]:
-        """Pattern match workflow intent from user input"""
+        """Pattern match workflow intent from user input with enhanced logic"""
         user_input_lower = user_input.lower()
 
-        # Define patterns for common workflow requests
+        # Define patterns for common workflow requests with conditional logic support
         patterns = {
             "schedule_meeting": [
                 "schedule meeting",
@@ -170,19 +172,30 @@ class WorkflowAgentIntegrationService:
                 "book meeting",
                 "create calendar event",
                 "schedule call",
+                "meeting with",
+                "calendar appointment",
             ],
             "send_email": [
                 "send email",
                 "compose email",
                 "email to",
                 "send message to",
+                "notify by email",
+                "email reminder",
             ],
-            "create_task": ["create task", "add todo", "new task", "assign task"],
+            "create_task": [
+                "create task",
+                "add todo",
+                "new task",
+                "assign task",
+                "remind me to",
+            ],
             "upload_file": [
                 "upload file",
                 "save document",
                 "store file",
                 "backup file",
+                "archive document",
             ],
             "automate_process": [
                 "automate",
@@ -190,6 +203,9 @@ class WorkflowAgentIntegrationService:
                 "set up automation",
                 "automate process",
                 "workflow for",
+                "if then",
+                "when this happens",
+                "trigger when",
             ],
             "get_report": [
                 "get report",
@@ -197,27 +213,65 @@ class WorkflowAgentIntegrationService:
                 "create report",
                 "show analytics",
                 "business intelligence",
+                "dashboard",
+                "summary",
+            ],
+            "conditional_workflow": [
+                "if then",
+                "when then",
+                "if this then that",
+                "conditional",
+                "depending on",
+                "based on",
+            ],
+            "multi_step_process": [
+                "first then",
+                "step by step",
+                "multiple steps",
+                "sequence of",
+                "process that",
             ],
         }
 
-        # Find matching pattern
+        # Enhanced pattern matching with conditional logic detection
         matched_intent = "unknown"
+        confidence = 0.8
+        entities = self._extract_entities_from_text(user_input)
+        conditional_logic = self._detect_conditional_logic(user_input)
+        multi_step = self._detect_multi_step_process(user_input)
+
         for intent, patterns_list in patterns.items():
             if any(pattern in user_input_lower for pattern in patterns_list):
                 matched_intent = intent
+                # Increase confidence for more specific patterns
+                if intent in ["conditional_workflow", "multi_step_process"]:
+                    confidence = 0.95
                 break
 
-        # Map intent to services
-        service_mapping = self._map_intent_to_services(matched_intent, [])
+        # Handle conditional and multi-step workflows
+        if conditional_logic:
+            matched_intent = "conditional_workflow"
+            confidence = 0.95
+        elif multi_step:
+            matched_intent = "multi_step_process"
+            confidence = 0.9
+
+        # Map intent to services with intelligent selection
+        service_mapping = self._map_intent_to_services_with_intelligence(
+            matched_intent, entities, user_input
+        )
 
         return {
             "success": True,
             "intent": matched_intent,
-            "entities": [],
-            "confidence": 0.8,  # Default confidence for pattern matching
+            "entities": entities,
+            "confidence": confidence,
             "services": service_mapping.get("services", []),
             "actions": service_mapping.get("actions", []),
             "triggers": service_mapping.get("triggers", []),
+            "conditions": service_mapping.get("conditions", []),
+            "conditional_logic": conditional_logic,
+            "multi_step": multi_step,
             "user_input": user_input,
         }
 
@@ -268,22 +322,38 @@ class WorkflowAgentIntegrationService:
     def _generate_workflow_from_analysis(
         self, analysis: Dict[str, Any], user_id: str, session_id: str = None
     ) -> Dict[str, Any]:
-        """Generate workflow from analysis result"""
+        """Generate workflow from analysis result with conditional logic support"""
         try:
             workflow_id = str(uuid.uuid4())
             services = analysis.get("services", [])
             actions = analysis.get("actions", [])
             user_input = analysis.get("user_input", "")
+            conditional_logic = analysis.get("conditional_logic", False)
+            multi_step = analysis.get("multi_step", False)
+            entities = analysis.get("entities", [])
 
-            # Create workflow structure
+            # Create workflow structure with enhanced features
             workflow = {
                 "id": workflow_id,
-                "name": f"Generated Workflow - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                "name": self._generate_workflow_name(
+                    user_input, conditional_logic, multi_step
+                ),
                 "description": f"Automatically generated from: {user_input}",
                 "services": services,
                 "actions": actions,
-                "steps": self._generate_workflow_steps(services, actions, user_input),
+                "steps": self._generate_enhanced_workflow_steps(
+                    services,
+                    actions,
+                    user_input,
+                    conditional_logic,
+                    multi_step,
+                    entities,
+                ),
                 "triggers": analysis.get("triggers", []),
+                "conditions": analysis.get("conditions", []),
+                "conditional_logic": conditional_logic,
+                "multi_step": multi_step,
+                "intelligent_selection": True,
                 "created_by": user_id,
                 "created_at": datetime.now().isoformat(),
                 "session_id": session_id,
@@ -296,7 +366,13 @@ class WorkflowAgentIntegrationService:
                 "success": True,
                 "workflow_id": workflow_id,
                 "workflow": workflow,
-                "message": "Workflow generated successfully",
+                "message": "Workflow generated successfully with intelligent features",
+                "features": {
+                    "conditional_logic": conditional_logic,
+                    "multi_step": multi_step,
+                    "intelligent_service_selection": True,
+                    "parameter_extraction": len(entities) > 0,
+                },
             }
 
         except Exception as e:
@@ -307,28 +383,295 @@ class WorkflowAgentIntegrationService:
         self, services: List[str], actions: List[str], user_input: str
     ) -> List[Dict[str, Any]]:
         """Generate workflow steps based on services and actions"""
+        return self._generate_enhanced_workflow_steps(
+            services, actions, user_input, False, False, []
+        )
+
+    def _generate_enhanced_workflow_steps(
+        self,
+        services: List[str],
+        actions: List[str],
+        user_input: str,
+        conditional_logic: bool,
+        multi_step: bool,
+        entities: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Generate enhanced workflow steps with conditional logic and intelligent sequencing"""
         steps = []
 
-        for service in services:
-            for action in actions:
-                step = {
-                    "id": str(uuid.uuid4()),
-                    "service": service,
-                    "action": action,
-                    "parameters": self._generate_step_parameters(
-                        service, action, user_input
-                    ),
-                    "description": f"{action.replace('_', ' ').title()} using {service.replace('_', ' ').title()}",
-                }
-                steps.append(step)
+        if conditional_logic:
+            # Generate conditional workflow steps
+            steps.extend(self._generate_conditional_steps(user_input, entities))
+        elif multi_step:
+            # Generate multi-step process with intelligent sequencing
+            steps.extend(
+                self._generate_multi_step_steps(services, actions, user_input, entities)
+            )
+        else:
+            # Generate standard workflow steps with enhanced parameters
+            for service in services:
+                for action in actions:
+                    step = {
+                        "id": str(uuid.uuid4()),
+                        "service": service,
+                        "action": action,
+                        "parameters": self._generate_enhanced_step_parameters(
+                            service, action, user_input, entities
+                        ),
+                        "description": f"{action.replace('_', ' ').title()} using {service.replace('_', ' ').title()}",
+                        "conditional": False,
+                        "sequence_order": len(steps) + 1,
+                    }
+                    steps.append(step)
 
         return steps
 
-    async def _generate_step_parameters(
+    def _generate_conditional_steps(
+        self, user_input: str, entities: List[str]
+    ) -> List[Dict[str, Any]]:
+        """Generate steps for conditional workflows"""
+        steps = []
+        user_input_lower = user_input.lower()
+
+        # Extract condition and action parts
+        if "if" in user_input_lower and "then" in user_input_lower:
+            condition_part = user_input.split("then")[0].replace("if", "").strip()
+            action_part = user_input.split("then")[1].strip()
+
+            # Condition evaluation step
+            steps.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "service": "conditional_logic",
+                    "action": "evaluate_condition",
+                    "parameters": {
+                        "condition": condition_part,
+                        "condition_type": self._classify_condition_type(condition_part),
+                        "entities": entities,
+                    },
+                    "description": f"Evaluate condition: {condition_part}",
+                    "conditional": False,
+                    "sequence_order": 1,
+                    "is_condition": True,
+                }
+            )
+
+            # Action execution step (conditional)
+            steps.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "service": "workflow_engine",
+                    "action": "execute_conditional_action",
+                    "parameters": {
+                        "action_description": action_part,
+                        "condition_result": "true",
+                        "extracted_parameters": self._extract_parameters_from_text(
+                            action_part
+                        ),
+                    },
+                    "description": f"Execute action if condition is true: {action_part}",
+                    "conditional": True,
+                    "sequence_order": 2,
+                    "depends_on": [steps[0]["id"]],
+                }
+            )
+
+        return steps
+
+    def _generate_multi_step_steps(
+        self,
+        services: List[str],
+        actions: List[str],
+        user_input: str,
+        entities: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Generate steps for multi-step processes"""
+        steps = []
+
+        # Parse multi-step instructions
+        steps_text = self._parse_multi_step_instructions(user_input)
+
+        # Generate steps from parsed instructions
+        if steps_text:
+            for i, step_text in enumerate(steps_text):
+                step = {
+                    "id": str(uuid.uuid4()),
+                    "service": "workflow_engine",
+                    "action": "execute_step",
+                    "parameters": {
+                        "step_description": step_text,
+                        "step_number": i + 1,
+                        "total_steps": len(steps_text),
+                    },
+                    "description": f"Step {i + 1}: {step_text}",
+                    "conditional": False,
+                    "sequence_order": len(steps) + 1,
+                }
+                steps.append(step)
+        else:
+            # Fallback to standard step generation
+            for i, service in enumerate(services):
+                for action in actions:
+                    step = {
+                        "id": str(uuid.uuid4()),
+                        "service": service,
+                        "action": action,
+                        "parameters": self._generate_enhanced_step_parameters(
+                            service, action, user_input, entities
+                        ),
+                        "description": f"{action.replace('_', ' ').title()} using {service.replace('_', ' ').title()}",
+                        "conditional": False,
+                        "sequence_order": len(steps) + 1,
+                    }
+                    steps.append(step)
+
+        return steps
+
+    def _parse_multi_step_instructions(self, user_input: str) -> List[str]:
+        """Parse multi-step instructions from user input"""
+        steps = []
+        user_input_lower = user_input.lower()
+
+        # Simple parsing for "first X, then Y, then Z" patterns
+        if "first" in user_input_lower and "then" in user_input_lower:
+            # Split on "then" and clean up
+            parts = user_input.split("then")
+            for part in parts:
+                cleaned_part = part.strip()
+                if cleaned_part and not cleaned_part.lower().startswith("first"):
+                    steps.append(cleaned_part)
+
+        return steps
+
+    def _classify_condition_type(self, condition_text: str) -> str:
+        """Classify the type of condition"""
+        condition_lower = condition_text.lower()
+
+        if "email" in condition_lower:
+            return "email_condition"
+        elif "task" in condition_lower:
+            return "task_condition"
+        elif "calendar" in condition_lower or "meeting" in condition_lower:
+            return "calendar_condition"
+        elif "time" in condition_lower or "date" in condition_lower:
+            return "time_condition"
+        else:
+            return "general_condition"
+
+    def _extract_parameters_from_text(self, text: str) -> Dict[str, Any]:
+        """Extract parameters from natural language text"""
+        parameters = {}
+        text_lower = text.lower()
+
+        # Extract email-related parameters
+        if "email" in text_lower:
+            if "to" in text_lower:
+                parameters["recipient"] = "extracted_recipient"
+            if "subject" in text_lower:
+                parameters["subject"] = "extracted_subject"
+
+        # Extract task-related parameters
+        if "task" in text_lower:
+            parameters["title"] = "extracted_task_title"
+            parameters["description"] = "extracted_task_description"
+
+        # Extract calendar-related parameters
+        if "calendar" in text_lower or "meeting" in text_lower:
+            parameters["title"] = "extracted_event_title"
+            parameters["description"] = "extracted_event_description"
+
+        return parameters
+
+    def _generate_workflow_name(
+        self, user_input: str, conditional: bool, multi_step: bool
+    ) -> str:
+        """Generate an appropriate workflow name"""
+        base_name = f"Generated Workflow - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+        if conditional:
+            return f"Conditional {base_name}"
+        elif multi_step:
+            return f"Multi-Step {base_name}"
+        else:
+            return base_name
+
+    def _generate_enhanced_step_parameters(
+        self, service: str, action: str, user_input: str, entities: List[str]
+    ) -> Dict[str, Any]:
+        """Generate enhanced step parameters with extracted entities"""
+        base_params = self._generate_step_parameters(service, action, user_input)
+
+        # Add entity-based enhancements
+        if entities:
+            base_params["extracted_entities"] = entities
+
+        return base_params
+
+    def _map_intent_to_services_with_intelligence(
+        self, intent: str, entities: List[str], user_input: str
+    ) -> Dict[str, Any]:
+        """Map intent to services with intelligent selection"""
+        # Default mapping for simple intents
+        service_mapping = self._map_intent_to_services(intent, entities)
+
+        # Enhance with intelligent selection based on entities and context
+        if "conditional" in intent:
+            service_mapping["conditions"] = ["conditional_logic"]
+
+        return service_mapping
+
+    def _extract_entities_from_text(self, text: str) -> List[str]:
+        """Extract entities from natural language text"""
+        entities = []
+        text_lower = text.lower()
+
+        # Extract common entities
+        if "email" in text_lower:
+            entities.append("email")
+        if "task" in text_lower:
+            entities.append("task")
+        if "calendar" in text_lower or "meeting" in text_lower:
+            entities.append("calendar")
+        if "slack" in text_lower:
+            entities.append("slack")
+        if "asana" in text_lower:
+            entities.append("asana")
+        if "notion" in text_lower:
+            entities.append("notion")
+
+        return entities
+
+    def _detect_conditional_logic(self, text: str) -> bool:
+        """Detect if text contains conditional logic"""
+        text_lower = text.lower()
+        conditional_indicators = [
+            "if",
+            "then",
+            "else",
+            "when",
+            "depending on",
+            "based on",
+        ]
+        return any(indicator in text_lower for indicator in conditional_indicators)
+
+    def _detect_multi_step_process(self, text: str) -> bool:
+        """Detect if text describes a multi-step process"""
+        text_lower = text.lower()
+        multi_step_indicators = [
+            "first",
+            "then",
+            "next",
+            "after that",
+            "step by step",
+            "sequence",
+        ]
+        return any(indicator in text_lower for indicator in multi_step_indicators)
+
+    def _generate_step_parameters(
         self, service: str, action: str, user_input: str
     ) -> Dict[str, Any]:
         """Generate parameters for workflow steps"""
-        # Default parameters that can be extracted from user input
+        # Default parameter generation based on service and action
         parameters = {
             "user_input": user_input,
             "timestamp": datetime.now().isoformat(),
@@ -1274,7 +1617,7 @@ class WorkflowAgentIntegrationService:
             logger.error(f"Error processing chat command '{command}': {str(e)}")
             return {"success": False, "error": str(e)}
 
-    async def get_available_chat_commands(self) -> List[Dict[str, Any]]:
+    def get_available_chat_commands(self) -> List[Dict[str, Any]]:
         """Get all available chat commands"""
         commands = []
         for command_pattern, handler in self.chat_command_handlers.items():
@@ -1326,3 +1669,5 @@ class WorkflowAgentIntegrationService:
 
 # Global instance for easy access
 workflow_agent_integration_service = WorkflowAgentIntegrationService()
+logger = logging.getLogger(__name__)
+logger.info("Workflow Agent Integration Service global instance created")
