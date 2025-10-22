@@ -11,6 +11,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import json
+import os
 
 # Import LanceDB service
 try:
@@ -263,7 +264,11 @@ def semantic_search():
         # Perform semantic search
         if LANCEDB_AVAILABLE:
             results = search_meeting_transcripts(
-                user_id=user_id, query_vector=query_vector, limit=limit
+                db_path=os.environ.get("LANCEDB_URI", "/tmp/lancedb"),
+                query_vector=query_vector,
+                user_id=user_id,
+                table_name="meeting_transcripts_embeddings",
+                limit=limit,
             )
         else:
             # Use mock - for semantic search, we'll use hybrid with emphasis on vector
