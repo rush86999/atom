@@ -159,6 +159,11 @@ def create_app():
                 ("service_status_handler", "service_status_bp", "service_status"),
                 ("ai_settings_handler", "ai_settings_bp", "ai_settings"),
                 ("test_workflow_api", "test_workflow_api_bp", "test_workflow"),
+                (
+                    "context_management_api",
+                    "context_management_api_bp",
+                    "context_management",
+                ),
             ]
 
             for module_name, bp_name, service_name in core_blueprints:
