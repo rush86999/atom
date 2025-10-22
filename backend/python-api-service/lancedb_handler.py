@@ -1,14 +1,15 @@
 """
-LanceDB Handler for Document Ingestion Pipeline
+LanceDB Handler for Document Ingestion Pipeline and Conversation Context
 
 This module provides functions for storing and retrieving processed documents
-in LanceDB for efficient recall and search operations.
+and conversation context in LanceDB for efficient recall and search operations.
 Integrated with incremental sync system for local + S3 storage.
 """
 
 import os
 import logging
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Union
 import asyncio
@@ -43,9 +44,42 @@ except ImportError:
     LANCEDB_CHUNKS_TABLE_NAME = os.environ.get(
         "LANCEDB_CHUNKS_TABLE_NAME", "document_chunks"
     )
+    LANCEDB_CONVERSATIONS_TABLE_NAME = os.environ.get(
+        "LANCEDB_CONVERSATIONS_TABLE_NAME", "conversation_context"
+    )
 
 # Global connection cache
 _db_connection = None
+
+# Conversation context schema
+CONVERSATION_SCHEMA = pa.schema(
+    [
+        pa.field("id", pa.string()),
+        pa.field("user_id", pa.string()),
+        pa.field("session_id", pa.string()),
+        pa.field("role", pa.string()),
+        pa.field("content", pa.string()),
+        pa.field("message_type", pa.string()),
+        pa.field("timestamp", pa.timestamp("ms")),
+        pa.field("metadata", pa.string()),
+        pa.field("embedding", pa.list_(pa.float32())),
+    ]
+)
+
+# Conversation context schema
+CONVERSATION_SCHEMA = pa.schema(
+    [
+        pa.field("id", pa.string()),
+        pa.field("user_id", pa.string()),
+        pa.field("session_id", pa.string()),
+        pa.field("role", pa.string()),
+        pa.field("content", pa.string()),
+        pa.field("message_type", pa.string()),
+        pa.field("timestamp", pa.timestamp("ms")),
+        pa.field("metadata", pa.string()),
+        pa.field("embedding", pa.list_(pa.float32())),
+    ]
+)
 
 
 async def get_lancedb_connection():
@@ -150,6 +184,13 @@ async def create_generic_document_tables_if_not_exist(db_conn):
         if sync_table_name not in db_conn.table_names():
             db_conn.create_table(sync_table_name, schema=sync_schema)
             logger.info(f"Created LanceDB table: {sync_table_name}")
+
+        # Create conversation context table if it doesn't exist
+        if LANCEDB_CONVERSATIONS_TABLE_NAME not in db_conn.table_names():
+            db_conn.create_table(
+                LANCEDB_CONVERSATIONS_TABLE_NAME, schema=CONVERSATION_SCHEMA
+            )
+            logger.info(f"Created LanceDB table: {LANCEDB_CONVERSATIONS_TABLE_NAME}")
 
         return True
 
@@ -526,4 +567,285 @@ async def get_sync_status(db_conn, user_id: str) -> Dict[str, Any]:
             "status": "error",
             "message": f"LanceDB sync status retrieval failed: {str(e)}",
             "code": "LANCEDB_SYNC_STATUS_ERROR",
+        }
+
+
+async def store_conversation_context(
+    db_conn, conversation_data: Dict[str, Any], embedding: List[float]
+) -> Dict[str, Any]:
+    """
+    Store conversation context in LanceDB for semantic search.
+
+    Args:
+        db_conn: LanceDB connection object
+        conversation_data: Conversation message data
+        embedding: Vector embedding of the conversation content
+
+    Returns:
+        Dict with storage status
+    """
+    if not LANCEDB_AVAILABLE or db_conn is None:
+        return {
+            "status": "error",
+            "message": "LanceDB not available",
+            "code": "LANCEDB_UNAVAILABLE",
+        }
+
+    try:
+        # Ensure conversation table exists
+        await create_generic_document_tables_if_not_exist(db_conn)
+
+        conversations_table = db_conn.open_table(LANCEDB_CONVERSATIONS_TABLE_NAME)
+
+        # Prepare data for storage
+        conversation_record = {
+            "id": conversation_data.get("id", str(uuid.uuid4())),
+            "user_id": conversation_data.get("user_id", ""),
+            "session_id": conversation_data.get("session_id", ""),
+            "role": conversation_data.get("role", "user"),
+            "content": conversation_data.get("content", ""),
+            "message_type": conversation_data.get("message_type", "text"),
+            "timestamp": conversation_data.get("timestamp", datetime.now(timezone.utc)),
+            "metadata": json.dumps(conversation_data.get("metadata", {})),
+            "embedding": embedding,
+        }
+
+        # Add to LanceDB
+        conversations_table.add([conversation_record])
+
+        logger.info(
+            f"Stored conversation context for user {conversation_data.get('user_id')}"
+        )
+        return {
+            "status": "success",
+            "message": "Conversation context stored successfully",
+            "conversation_id": conversation_record["id"],
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to store conversation context in LanceDB: {e}")
+        return {
+            "status": "error",
+            "message": f"LanceDB conversation storage failed: {str(e)}",
+            "code": "LANCEDB_CONVERSATION_STORAGE_ERROR",
+        }
+
+
+async def search_conversation_context(
+    db_conn,
+    query_embedding: List[float],
+    user_id: str,
+    session_id: Optional[str] = None,
+    limit: int = 10,
+    similarity_threshold: float = 0.7,
+) -> Dict[str, Any]:
+    """
+    Search conversation context using semantic similarity.
+
+    Args:
+        db_conn: LanceDB connection object
+        query_embedding: Query embedding vector
+        user_id: User ID to filter results
+        session_id: Optional session ID to filter results
+        limit: Maximum number of results
+        similarity_threshold: Minimum similarity score (0-1)
+
+    Returns:
+        Dict with search results
+    """
+    if not LANCEDB_AVAILABLE or db_conn is None:
+        return {
+            "status": "error",
+            "message": "LanceDB not available",
+            "code": "LANCEDB_UNAVAILABLE",
+        }
+
+    try:
+        conversations_table = db_conn.open_table(LANCEDB_CONVERSATIONS_TABLE_NAME)
+
+        # Build query filter
+        filter_condition = f"user_id = '{user_id}'"
+        if session_id:
+            filter_condition += f" AND session_id = '{session_id}'"
+
+        # Search for similar conversations
+        results = (
+            conversations_table.search(query_embedding)
+            .where(filter_condition)
+            .limit(limit)
+            .to_list()
+        )
+
+        # Filter by similarity threshold and process results
+        filtered_results = []
+        for result in results:
+            # LanceDB returns _distance field for similarity
+            similarity_score = 1.0 - result.get("_distance", 1.0)
+
+            if similarity_score >= similarity_threshold:
+                filtered_results.append(
+                    {
+                        "id": result.get("id"),
+                        "user_id": result.get("user_id"),
+                        "session_id": result.get("session_id"),
+                        "role": result.get("role"),
+                        "content": result.get("content"),
+                        "message_type": result.get("message_type"),
+                        "timestamp": result.get("timestamp"),
+                        "metadata": json.loads(result.get("metadata", "{}")),
+                        "similarity_score": similarity_score,
+                    }
+                )
+
+        # Sort by similarity score (highest first)
+        filtered_results.sort(key=lambda x: x["similarity_score"], reverse=True)
+
+        return {
+            "status": "success",
+            "results": filtered_results,
+            "count": len(filtered_results),
+            "query_embedding_length": len(query_embedding),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to search conversation context in LanceDB: {e}")
+        return {
+            "status": "error",
+            "message": f"LanceDB conversation search failed: {str(e)}",
+            "code": "LANCEDB_CONVERSATION_SEARCH_ERROR",
+        }
+
+
+async def get_conversation_history(
+    db_conn,
+    user_id: str,
+    session_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    """
+    Get chronological conversation history.
+
+    Args:
+        db_conn: LanceDB connection object
+        user_id: User ID to filter results
+        session_id: Optional session ID to filter results
+        limit: Maximum number of results
+        offset: Number of results to skip
+
+    Returns:
+        Dict with conversation history
+    """
+    if not LANCEDB_AVAILABLE or db_conn is None:
+        return {
+            "status": "error",
+            "message": "LanceDB not available",
+            "code": "LANCEDB_UNAVAILABLE",
+        }
+
+    try:
+        conversations_table = db_conn.open_table(LANCEDB_CONVERSATIONS_TABLE_NAME)
+
+        # Build query filter
+        filter_condition = f"user_id = '{user_id}'"
+        if session_id:
+            filter_condition += f" AND session_id = '{session_id}'"
+
+        # Get conversations ordered by timestamp
+        results = (
+            conversations_table.search(
+                [0.0] * len(CONVERSATION_SCHEMA.field("embedding").type.value_type)
+            )
+            .where(filter_condition)
+            .limit(limit + offset)
+            .to_list()
+        )
+
+        # Sort by timestamp and apply offset
+        results.sort(key=lambda x: x.get("timestamp", datetime.min))
+        paginated_results = results[offset : offset + limit]
+
+        # Process results
+        processed_results = []
+        for result in paginated_results:
+            processed_results.append(
+                {
+                    "id": result.get("id"),
+                    "user_id": result.get("user_id"),
+                    "session_id": result.get("session_id"),
+                    "role": result.get("role"),
+                    "content": result.get("content"),
+                    "message_type": result.get("message_type"),
+                    "timestamp": result.get("timestamp"),
+                    "metadata": json.loads(result.get("metadata", "{}")),
+                }
+            )
+
+        return {
+            "status": "success",
+            "conversations": processed_results,
+            "count": len(processed_results),
+            "total_count": len(results),
+            "has_more": len(results) > offset + limit,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get conversation history from LanceDB: {e}")
+        return {
+            "status": "error",
+            "message": f"LanceDB conversation history retrieval failed: {str(e)}",
+            "code": "LANCEDB_CONVERSATION_HISTORY_ERROR",
+        }
+
+
+async def delete_conversation_context(
+    db_conn,
+    user_id: str,
+    session_id: Optional[str] = None,
+    conversation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Delete conversation context from LanceDB.
+
+    Args:
+        db_conn: LanceDB connection object
+        user_id: User ID to filter deletions
+        session_id: Optional session ID to filter deletions
+        conversation_id: Optional specific conversation ID to delete
+
+    Returns:
+        Dict with deletion status
+    """
+    if not LANCEDB_AVAILABLE or db_conn is None:
+        return {
+            "status": "error",
+            "message": "LanceDB not available",
+            "code": "LANCEDB_UNAVAILABLE",
+        }
+
+    try:
+        conversations_table = db_conn.open_table(LANCEDB_CONVERSATIONS_TABLE_NAME)
+
+        # Build delete condition
+        delete_condition = f"user_id = '{user_id}'"
+        if session_id:
+            delete_condition += f" AND session_id = '{session_id}'"
+        if conversation_id:
+            delete_condition += f" AND id = '{conversation_id}'"
+
+        # Delete matching conversations
+        conversations_table.delete(delete_condition)
+
+        logger.info(f"Deleted conversation context for user {user_id}")
+        return {
+            "status": "success",
+            "message": "Conversation context deleted successfully",
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to delete conversation context from LanceDB: {e}")
+        return {
+            "status": "error",
+            "message": f"LanceDB conversation deletion failed: {str(e)}",
+            "code": "LANCEDB_CONVERSATION_DELETION_ERROR",
         }
