@@ -1,19 +1,187 @@
 .settings-container {
-  padding: 20px;
+    display: flex;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: calc(100vh - 80px);
+}
+
+.settings-sidebar {
+    width: 250px;
+    background: white;
+    border-right: 1px solid #e9ecef;
+    padding: 30px 20px;
+}
+
+.settings-sidebar h2 {
+    margin: 0 0 30px 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nav-item {
+    padding: 12px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #666;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+    background: #f8f9fa;
+    color: #333;
+}
+
+.nav-item.active {
+    background: #007bff;
+    color: white;
+}
+
+.settings-content {
+    flex: 1;
+    padding: 40px;
+    background: white;
+    margin: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.tab-content h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 2rem;
+}
+
+.tab-description {
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.5;
+    font-size: 1.1rem;
+}
+
+.integration-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.integration-section h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1.2rem;
 }
 
 .setting {
-  margin-bottom: 15px;
+    margin-bottom: 15px;
 }
 
 .setting label {
-  display: block;
-  margin-bottom: 5px;
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
 }
 
 .setting input,
 .setting select {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
+    width: 100%;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+}
+
+.setting input:focus,
+.setting select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.save-button {
+    background: #007bff;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+    background: #0056b3;
+}
+
+.save-message {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+.save-message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.save-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.account-placeholder,
+.preferences-placeholder {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+}
+
+@media (max-width: 768px) {
+    .settings-container {
+        flex-direction: column;
+    }
+
+    .settings-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .settings-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        gap: 10px;
+    }
+
+    .nav-item {
+        white-space: nowrap;
+    }
+
+    .settings-content {
+        margin: 10px;
+        padding: 20px;
+    }
+
+    .integration-section {
+        padding: 15px;
+    }
 }

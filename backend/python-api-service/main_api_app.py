@@ -7,6 +7,7 @@ from workflow_handler import workflow_bp, create_workflow_tables
 from workflow_api import workflow_api_bp
 from workflow_agent_api import workflow_agent_api_bp
 from workflow_automation_api import workflow_automation_api
+from workflow_execution_api import workflow_execution_bp
 
 # Load environment variables from .env file
 try:
@@ -164,6 +165,12 @@ def create_app():
                     "context_management_api_bp",
                     "context_management",
                 ),
+                (
+                    "test_service_availability",
+                    "test_service_availability_bp",
+                    "test_service_availability",
+                ),
+                ("user_api_key_routes", "user_api_key_bp", "user_api_keys"),
             ]
 
             for module_name, bp_name, service_name in core_blueprints:
@@ -190,7 +197,6 @@ def create_app():
 
             # Slow blueprints (register in background)
             slow_blueprints = [
-                ("auth_handler_dropbox", "dropbox_auth_bp", "dropbox_auth"),
                 ("dropbox_handler", "dropbox_bp", "dropbox"),
                 ("auth_handler_gdrive", "gdrive_auth_bp", "gdrive_auth"),
                 ("gdrive_handler", "gdrive_bp", "gdrive"),
@@ -263,6 +269,11 @@ def create_app():
                 ("zoho_handler", "zoho_bp", "zoho"),
                 ("notion_handler_real", "notion_bp", "notion"),
                 ("github_handler", "github_bp", "github"),
+                ("auth_handler_teams", "auth_teams_bp", "teams_auth"),
+                ("auth_handler_gmail", "auth_gmail_bp", "gmail_auth"),
+                ("auth_handler_outlook", "auth_outlook_bp", "outlook_auth"),
+                ("auth_handler_slack", "auth_slack_bp", "slack_auth"),
+                ("slack_handler_simple", "slack_bp", "slack"),
             ]
 
             for module_name, bp_name, service_name in slow_blueprints:
@@ -298,6 +309,14 @@ def create_app():
 
     # Register core blueprints synchronously
     register_core_blueprints()
+
+    # Register workflow execution blueprint
+    try:
+        app.register_blueprint(workflow_execution_bp)
+        app.blueprints["workflow_execution"] = True
+        logger.info("Registered workflow execution blueprint")
+    except Exception as e:
+        logger.error(f"Failed to register workflow execution blueprint: {e}")
 
     # Start slow blueprint registration in background thread
     blueprint_thread = Thread(target=lazy_register_slow_blueprints, daemon=True)
@@ -399,3 +418,9 @@ if __name__ == "__main__":
     port = int(os.environ.get("PYTHON_API_PORT", 5058))
     logger.info(f"Server starting on port {port}")
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+
+# Add Teams, Gmail, and Outlook auth handlers to the slow_blueprints list
+# Find the slow_blueprints list and add these entries:
+# ("auth_handler_teams", "auth_teams_bp", "teams_auth"),
+# ("auth_handler_gmail", "auth_gmail_bp", "gmail_auth"),
+# ("auth_handler_outlook", "auth_outlook_bp", "outlook_auth"),
