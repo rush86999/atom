@@ -1,182 +1,320 @@
-import React, { useState, useEffect } from 'react';
-import { saveSetting, getSetting, getSettingStatus } from './lib/secure-storage';
-import './Settings.css';
+import React, { useState, useEffect } from "react";
+import {
+  saveSetting,
+  getSetting,
+  getSettingStatus,
+} from "./lib/secure-storage";
+import AIProviderSettings from "./AIProviderSettings";
+import "./Settings.css";
 
 const Settings = () => {
+  const [activeTab, setActiveTab] = useState("ai-providers");
+
   // State for each setting
-  const [notionApiKey, setNotionApiKey] = useState('');
-  const [notionDatabaseId, setNotionDatabaseId] = useState('');
-  const [zapierUrl, setZapierUrl] = useState('');
-  const [ttsProvider, setTtsProvider] = useState('elevenlabs');
-  const [ttsApiKey, setTtsApiKey] = useState('');
-  const [githubApiKey, setGithubApiKey] = useState('');
-  const [githubOwner, setGithubOwner] = useState('');
-  const [githubRepo, setGithubRepo] = useState('');
-  const [slackChannelId, setSlackChannelId] = useState('');
+  const [notionApiKey, setNotionApiKey] = useState("");
+  const [notionDatabaseId, setNotionDatabaseId] = useState("");
+  const [zapierUrl, setZapierUrl] = useState("");
+  const [ttsProvider, setTtsProvider] = useState("elevenlabs");
+  const [ttsApiKey, setTtsApiKey] = useState("");
+  const [githubApiKey, setGithubApiKey] = useState("");
+  const [githubOwner, setGithubOwner] = useState("");
+  const [githubRepo, setGithubRepo] = useState("");
+  const [slackChannelId, setSlackChannelId] = useState("");
 
   // UI feedback state
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   // Load settings on component mount
   useEffect(() => {
     const loadSettings = async () => {
       // Notion
-      if (await getSettingStatus('notion_api_key')) {
-        setNotionApiKey('********');
+      if (await getSettingStatus("notion_api_key")) {
+        setNotionApiKey("********");
       }
-      const savedNotionDbId = await getSetting('notion_tasks_database_id');
-      setNotionDatabaseId(savedNotionDbId || '');
+      const savedNotionDbId = await getSetting("notion_tasks_database_id");
+      setNotionDatabaseId(savedNotionDbId || "");
       // Zapier
-      const savedZapierUrl = await getSetting('zapier_webhook_url');
-      setZapierUrl(savedZapierUrl || '');
+      const savedZapierUrl = await getSetting("zapier_webhook_url");
+      setZapierUrl(savedZapierUrl || "");
       // TTS Provider
-      const savedTtsProvider = await getSetting('tts_provider');
+      const savedTtsProvider = await getSetting("tts_provider");
       if (savedTtsProvider) {
         setTtsProvider(savedTtsProvider);
       }
       // TTS API Key (check based on the loaded provider)
-      if (await getSettingStatus(`${savedTtsProvider || ttsProvider}_api_key`)) {
-        setTtsApiKey('********');
+      if (
+        await getSettingStatus(`${savedTtsProvider || ttsProvider}_api_key`)
+      ) {
+        setTtsApiKey("********");
       }
       // GitHub
-      if (await getSettingStatus('github_api_key')) {
-        setGithubApiKey('********');
+      if (await getSettingStatus("github_api_key")) {
+        setGithubApiKey("********");
       }
-      const savedGithubOwner = await getSetting('github_owner');
-      setGithubOwner(savedGithubOwner || '');
-      const savedGithubRepo = await getSetting('github_repo');
-      setGithubRepo(savedGithubRepo || '');
-      const savedSlackChannelId = await getSetting('slack_channel_id');
-      setSlackChannelId(savedSlackChannelId || '');
+      const savedGithubOwner = await getSetting("github_owner");
+      setGithubOwner(savedGithubOwner || "");
+      const savedGithubRepo = await getSetting("github_repo");
+      setGithubRepo(savedGithubRepo || "");
+      const savedSlackChannelId = await getSetting("slack_channel_id");
+      setSlackChannelId(savedSlackChannelId || "");
     };
     loadSettings();
   }, []);
 
   const handleSave = async () => {
-    setMessage('');
-    setError('');
+    setMessage("");
+    setError("");
     try {
       // Save Notion API Key (only if it's not masked)
-      if (notionApiKey !== '********') {
-        await saveSetting('notion_api_key', notionApiKey);
+      if (notionApiKey !== "********") {
+        await saveSetting("notion_api_key", notionApiKey);
       }
       // Save Notion Database ID
-      await saveSetting('notion_tasks_database_id', notionDatabaseId);
+      await saveSetting("notion_tasks_database_id", notionDatabaseId);
       // Save Zapier URL
-      await saveSetting('zapier_webhook_url', zapierUrl);
+      await saveSetting("zapier_webhook_url", zapierUrl);
       // Save TTS Provider
-      await saveSetting('tts_provider', ttsProvider);
+      await saveSetting("tts_provider", ttsProvider);
       // Save TTS API Key (only if it's not masked)
-      if (ttsApiKey !== '********') {
+      if (ttsApiKey !== "********") {
         await saveSetting(`${ttsProvider}_api_key`, ttsApiKey);
       }
       // Save GitHub API Key (only if it's not masked)
-      if (githubApiKey !== '********') {
-        await saveSetting('github_api_key', githubApiKey);
+      if (githubApiKey !== "********") {
+        await saveSetting("github_api_key", githubApiKey);
       }
       // Save GitHub Owner and Repo
-      await saveSetting('github_owner', githubOwner);
-      await saveSetting('github_repo', githubRepo);
-      await saveSetting('slack_channel_id', slackChannelId);
-      
-      setMessage('Settings saved successfully!');
-      // Re-mask keys after saving
-      if (notionApiKey && notionApiKey !== '********') setNotionApiKey('********');
-      if (ttsApiKey && ttsApiKey !== '********') setTtsApiKey('********');
-      if (githubApiKey && githubApiKey !== '********') {
-        await saveSetting('github_api_key', githubApiKey);
-        setGithubApiKey('********');
-      }
+      await saveSetting("github_owner", githubOwner);
+      await saveSetting("github_repo", githubRepo);
+      await saveSetting("slack_channel_id", slackChannelId);
 
+      setMessage("Settings saved successfully!");
+      // Re-mask keys after saving
+      if (notionApiKey && notionApiKey !== "********")
+        setNotionApiKey("********");
+      if (ttsApiKey && ttsApiKey !== "********") setTtsApiKey("********");
+      if (githubApiKey && githubApiKey !== "********") {
+        await saveSetting("github_api_key", githubApiKey);
+        setGithubApiKey("********");
+      }
     } catch (err) {
-      setError('Failed to save settings.');
+      setError("Failed to save settings.");
       console.error(err);
+    }
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "ai-providers":
+        return (
+          <div className="tab-content">
+            <h1>AI Provider Settings</h1>
+            <p className="tab-description">
+              Configure your own API keys for different AI providers. Each user
+              brings their own keys (BYOK). This allows you to use multiple AI
+              providers simultaneously for cost optimization and enhanced
+              capabilities.
+            </p>
+            <AIProviderSettings />
+          </div>
+        );
+
+      case "integrations":
+        return (
+          <div className="tab-content">
+            <h1>Integration Settings</h1>
+            <p className="tab-description">
+              Configure third-party integrations and services.
+            </p>
+
+            {/* Notion Settings */}
+            <div className="integration-section">
+              <h3>Notion Integration</h3>
+              <div className="setting">
+                <label>Notion API Key</label>
+                <input
+                  type="password"
+                  value={notionApiKey}
+                  onChange={(e) => setNotionApiKey(e.target.value)}
+                  placeholder="Enter Notion API Key"
+                />
+              </div>
+              <div className="setting">
+                <label>Notion Tasks Database ID</label>
+                <input
+                  type="text"
+                  value={notionDatabaseId}
+                  onChange={(e) => setNotionDatabaseId(e.target.value)}
+                  placeholder="Enter Notion Tasks Database ID"
+                />
+              </div>
+            </div>
+
+            {/* GitHub Settings */}
+            <div className="integration-section">
+              <h3>GitHub Integration</h3>
+              <div className="setting">
+                <label>GitHub Personal Access Token</label>
+                <input
+                  type="password"
+                  value={githubApiKey}
+                  onChange={(e) => setGithubApiKey(e.target.value)}
+                  placeholder="Enter GitHub Personal Access Token"
+                />
+              </div>
+              <div className="setting">
+                <label>GitHub Owner</label>
+                <input
+                  type="text"
+                  value={githubOwner}
+                  onChange={(e) => setGithubOwner(e.target.value)}
+                  placeholder="Enter GitHub Owner"
+                />
+              </div>
+              <div className="setting">
+                <label>GitHub Repository</label>
+                <input
+                  type="text"
+                  value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  placeholder="Enter GitHub Repository"
+                />
+              </div>
+            </div>
+
+            {/* Slack Settings */}
+            <div className="integration-section">
+              <h3>Slack Integration</h3>
+              <div className="setting">
+                <label>Slack Channel ID</label>
+                <input
+                  type="text"
+                  value={slackChannelId}
+                  onChange={(e) => setSlackChannelId(e.target.value)}
+                  placeholder="Enter Slack Channel ID to monitor"
+                />
+              </div>
+            </div>
+
+            {/* Zapier Settings */}
+            <div className="integration-section">
+              <h3>Zapier Integration</h3>
+              <div className="setting">
+                <label>Zapier Webhook URL</label>
+                <input
+                  type="text"
+                  value={zapierUrl}
+                  onChange={(e) => setZapierUrl(e.target.value)}
+                  placeholder="Enter Zapier Webhook URL"
+                />
+              </div>
+            </div>
+
+            {/* Voice Settings */}
+            <div className="integration-section">
+              <h3>Voice Settings</h3>
+              <div className="setting">
+                <label>TTS Provider</label>
+                <select
+                  value={ttsProvider}
+                  onChange={(e) => {
+                    setTtsProvider(e.target.value);
+                    setTtsApiKey(""); // Reset API key when provider changes
+                  }}
+                >
+                  <option value="elevenlabs">ElevenLabs</option>
+                  <option value="deepgram">Deepgram</option>
+                </select>
+              </div>
+              <div className="setting">
+                <label>
+                  {ttsProvider === "elevenlabs" ? "ElevenLabs" : "Deepgram"} API
+                  Key
+                </label>
+                <input
+                  type="password"
+                  value={ttsApiKey}
+                  onChange={(e) => setTtsApiKey(e.target.value)}
+                  placeholder={`Enter ${ttsProvider === "elevenlabs" ? "ElevenLabs" : "Deepgram"} API Key`}
+                />
+              </div>
+            </div>
+
+            <button onClick={handleSave} className="save-button">
+              Save Integration Settings
+            </button>
+          </div>
+        );
+
+      case "account":
+        return (
+          <div className="tab-content">
+            <h1>Account Settings</h1>
+            <p className="tab-description">
+              Manage your account preferences and personal information.
+            </p>
+            <div className="account-placeholder">
+              <p>Account settings coming soon...</p>
+            </div>
+          </div>
+        );
+
+      case "preferences":
+        return (
+          <div className="tab-content">
+            <h1>Preferences</h1>
+            <p className="tab-description">
+              Customize your ATOM experience and interface preferences.
+            </p>
+            <div className="preferences-placeholder">
+              <p>Preference settings coming soon...</p>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
   return (
     <div className="settings-container">
-      <h2>Settings</h2>
-      {message && <div className="save-message success">{message}</div>}
-      {error && <div className="save-message error">{error}</div>}
-
-      {/* Notion Settings */}
-      <div className="setting">
-        <label>Notion API Key</label>
-        <input
-          type="password"
-          value={notionApiKey}
-          onChange={(e) => setNotionApiKey(e.target.value)}
-          placeholder="Enter Notion API Key"
-        />
-      </div>
-      <div className="setting">
-        <label>Notion Tasks Database ID</label>
-        <input
-          type="text"
-          value={notionDatabaseId}
-          onChange={(e) => setNotionDatabaseId(e.target.value)}
-          placeholder="Enter Notion Tasks Database ID"
-        />
-      </div>
-
-      {/* GitHub Settings */}
-      {/* GitHub Settings */}
-      <div className="setting">
-        <label>GitHub Personal Access Token</label>
-        <input
-          type="password"
-          value={githubApiKey}
-          onChange={(e) => setGithubApiKey(e.target.value)}
-          placeholder="Enter GitHub Personal Access Token"
-        />
+      <div className="settings-sidebar">
+        <h2>Settings</h2>
+        <nav className="settings-nav">
+          <button
+            className={`nav-item ${activeTab === "ai-providers" ? "active" : ""}`}
+            onClick={() => setActiveTab("ai-providers")}
+          >
+            AI Providers
+          </button>
+          <button
+            className={`nav-item ${activeTab === "integrations" ? "active" : ""}`}
+            onClick={() => setActiveTab("integrations")}
+          >
+            Integrations
+          </button>
+          <button
+            className={`nav-item ${activeTab === "account" ? "active" : ""}`}
+            onClick={() => setActiveTab("account")}
+          >
+            Account
+          </button>
+          <button
+            className={`nav-item ${activeTab === "preferences" ? "active" : ""}`}
+            onClick={() => setActiveTab("preferences")}
+          >
+            Preferences
+          </button>
+        </nav>
       </div>
 
-      {/* Slack Settings */}
-      <div className="setting">
-        <label>Slack Channel ID</label>
-        <input
-          type="text"
-          value={slackChannelId}
-          onChange={(e) => setSlackChannelId(e.target.value)}
-          placeholder="Enter Slack Channel ID to monitor"
-        />
+      <div className="settings-content">
+        {message && <div className="save-message success">{message}</div>}
+        {error && <div className="save-message error">{error}</div>}
+        {renderTabContent()}
       </div>
-
-      {/* Zapier Settings */}
-      <div className="setting">
-        <label>Zapier Webhook URL</label>
-        <input
-          type="text"
-          value={zapierUrl}
-          onChange={(e) => setZapierUrl(e.target.value)}
-          placeholder="Enter Zapier Webhook URL"
-        />
-      </div>
-
-      {/* Voice Settings */}
-      <div className="setting">
-        <label>TTS Provider</label>
-        <select value={ttsProvider} onChange={(e) => {
-          setTtsProvider(e.target.value);
-          setTtsApiKey(''); // Reset API key when provider changes
-        }}>
-          <option value="elevenlabs">ElevenLabs</option>
-          <option value="deepgram">Deepgram</option>
-        </select>
-      </div>
-      <div className="setting">
-        <label>{ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'Deepgram'} API Key</label>
-        <input
-          type="password"
-          value={ttsApiKey}
-          onChange={(e) => setTtsApiKey(e.target.value)}
-          placeholder={`Enter ${ttsProvider === 'elevenlabs' ? 'ElevenLabs' : 'Deepgram'} API Key`}
-        />
-      </div>
-
-      <button onClick={handleSave}>Save Settings</button>
     </div>
   );
 };
