@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-30T21:16:27.031184",
+  "results": {
+    "Trello": {
+      "status": "connected",
+      "boards_count": 0,
+      "board_names": []
+    },
+    "Notion": {
+      "status": "error",
+      "error": "API token is invalid."
+    },
+    "GitHub": {
+      "status": "connected",
+      "user": "atomaiassistant-ux",
+      "repos_count": 0
+    },
+    "Dropbox": {
+      "status": "skip",
+      "message": "DROPBOX_ACCESS_TOKEN not configured (needs OAuth)"
+    },
+    "Asana": {
+      "status": "skip",
+      "message": "ASANA_ACCESS_TOKEN not configured (needs OAuth)"
+    }
+  },
+  "summary": {
+    "connected": 2,
+    "sdk_configured": 0,
+    "skipped": 2,
+    "errors": 1,
+    "total_tested": 5
+  }
+}

@@ -6,10 +6,11 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
 def get_text_embedding_openai(
     text_to_embed: str,
     openai_api_key_param: Optional[str] = None,
-    embedding_model: str = "text-embedding-3-small"
+    embedding_model: str = "text-embedding-3-small",
 ) -> Dict[str, Any]:
     """
     Generate text embeddings using OpenAI's embedding API.
@@ -27,6 +28,7 @@ def get_text_embedding_openai(
 
     # Get API key from parameter or environment
     openai_api_key = openai_api_key_param or os.environ.get("OPENAI_API_KEY")
+    logger.info(f"OpenAI API key being used: {openai_api_key}")
     if not openai_api_key:
         logger.warning("OpenAI API key not provided. Using mock embeddings.")
         # Return mock embedding with correct dimensions for text-embedding-3-small
@@ -36,20 +38,20 @@ def get_text_embedding_openai(
     try:
         headers = {
             "Authorization": f"Bearer {openai_api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         payload = {
             "input": text_to_embed,
             "model": embedding_model,
-            "encoding_format": "float"
+            "encoding_format": "float",
         }
 
         response = requests.post(
             "https://api.openai.com/v1/embeddings",
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=30,
         )
 
         if response.status_code == 200:
@@ -70,11 +72,9 @@ def get_text_embedding_openai(
         logger.error(error_msg)
         return {"status": "error", "message": error_msg}
 
+
 def create_note(
-    user_id: str,
-    title: str,
-    content: str,
-    tags: Optional[List[str]] = None
+    user_id: str, title: str, content: str, tags: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """
     Create a new note (mock implementation for now).
@@ -97,14 +97,15 @@ def create_note(
         "title": title,
         "content": content,
         "tags": tags or [],
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
+
 
 def update_note(
     note_id: str,
     title: Optional[str] = None,
     content: Optional[str] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Update an existing note (mock implementation for now).
@@ -125,8 +126,9 @@ def update_note(
         "title": title,
         "content": content,
         "tags": tags,
-        "updated_at": datetime.now().isoformat()
+        "updated_at": datetime.now().isoformat(),
     }
+
 
 def delete_note(note_id: str) -> Dict[str, Any]:
     """
@@ -139,6 +141,7 @@ def delete_note(note_id: str) -> Dict[str, Any]:
         Dictionary with deletion status
     """
     return {"status": "success", "message": f"Note {note_id} deleted"}
+
 
 def get_note(note_id: str) -> Dict[str, Any]:
     """
@@ -157,8 +160,9 @@ def get_note(note_id: str) -> Dict[str, Any]:
         "title": "Sample Note",
         "content": "This is sample note content",
         "tags": ["sample", "test"],
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
+
 
 # For local testing and fallback
 if __name__ == "__main__":

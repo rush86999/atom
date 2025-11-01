@@ -256,67 +256,66 @@ class WorkflowAgentIntegrationService:
             logger.error(f"Error analyzing workflow intent with context: {str(e)}")
             # Fall back to basic analysis
             return self._pattern_match_workflow_intent(user_input)
-return base_result
 
-def _assess_semantic_relevance(
-self, conversation_history: List[Dict[str, Any]], current_input: str
-) -> Dict[str, Any]:
-"""Assess semantic relevance of conversation history to current input"""
-relevance = {
-"strong_matches": 0,
-"weak_matches": 0,
-"topics_alignment": [],
-"services_alignment": [],
-}
+    def _assess_semantic_relevance(
+        self, conversation_history: List[Dict[str, Any]], current_input: str
+    ) -> Dict[str, Any]:
+        """Assess semantic relevance of conversation history to current input"""
+        relevance = {
+            "strong_matches": 0,
+            "weak_matches": 0,
+            "topics_alignment": [],
+            "services_alignment": [],
+        }
 
-# Check for conversations with high similarity scores
-for conv in conversation_history:
-similarity = conv.get("similarity_score", 0)
-if similarity > 0.8:
-    relevance["strong_matches"] += 1
-elif similarity > 0.6:
-    relevance["weak_matches"] += 1
+        # Check for conversations with high similarity scores
+        for conv in conversation_history:
+            similarity = conv.get("similarity_score", 0)
+            if similarity > 0.8:
+                relevance["strong_matches"] += 1
+            elif similarity > 0.6:
+                relevance["weak_matches"] += 1
 
-# Extract topics from current input
-current_topics = set()
-current_input_lower = current_input.lower()
+        # Extract topics from current input
+        current_topics = set()
+        current_input_lower = current_input.lower()
 
-topic_keywords = {
-"email_management": ["email", "inbox", "message", "gmail"],
-"meeting_management": [
-    "meeting",
-    "calendar",
-    "schedule",
-    "appointment",
-],
-"task_management": ["task", "todo", "reminder", "deadline"],
-"file_management": ["file", "document", "folder", "organize"],
-}
+        topic_keywords = {
+            "email_management": ["email", "inbox", "message", "gmail"],
+            "meeting_management": [
+                "meeting",
+                "calendar",
+                "schedule",
+                "appointment",
+            ],
+            "task_management": ["task", "todo", "reminder", "deadline"],
+            "file_management": ["file", "document", "folder", "organize"],
+        }
 
-for topic, keywords in topic_keywords.items():
-if any(keyword in current_input_lower for keyword in keywords):
-    current_topics.add(topic)
+        for topic, keywords in topic_keywords.items():
+            if any(keyword in current_input_lower for keyword in keywords):
+                current_topics.add(topic)
 
-# Check topic alignment with conversation history
-for conv in conversation_history:
-conv_content = conv.get("content", "").lower()
-for topic in current_topics:
-    topic_keywords = topic_keywords.get(topic, [])
-    if any(keyword in conv_content for keyword in topic_keywords):
-        if topic not in relevance["topics_alignment"]:
-            relevance["topics_alignment"].append(topic)
+        # Check topic alignment with conversation history
+        for conv in conversation_history:
+            conv_content = conv.get("content", "").lower()
+            for topic in current_topics:
+                topic_keywords = topic_keywords.get(topic, [])
+                if any(keyword in conv_content for keyword in topic_keywords):
+                    if topic not in relevance["topics_alignment"]:
+                        relevance["topics_alignment"].append(topic)
 
-return relevance
+        return relevance
 
-def _extract_context_from_history(
-self, conversation_history: List[Dict[str, Any]]
-) -> Dict[str, Any]:
-"""Extract relevant context from conversation history"""
-context = {
-"recent_topics": [],
-"frequent_services": [],
-"workflow_patterns": [],
-}
+    def _extract_context_from_history(
+        self, conversation_history: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Extract relevant context from conversation history"""
+        context = {
+            "recent_topics": [],
+            "frequent_services": [],
+            "workflow_patterns": [],
+        }
 
         if not conversation_history:
             return context
