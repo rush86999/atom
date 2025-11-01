@@ -11,6 +11,7 @@ except ImportError:
     class MockLanceDB:
         class _Exceptions:
             LanceDBClientError = LanceDBClientError
+
         exceptions = _Exceptions()
 
         def connect(self, uri):
@@ -40,6 +41,7 @@ except ImportError:
 
         def to_pandas(self):
             import pandas as pd
+
             return pd.DataFrame(self.data)
 
     class MockSearchBuilder:
@@ -65,18 +67,21 @@ except ImportError:
         def to_pandas(self):
             import pandas as pd
             from datetime import datetime, timezone
+
             # Return mock search results
             mock_results = []
             for i in range(min(self.limit_value, 3)):
-                mock_results.append({
-                    'notion_page_id': f'mock-page-{i}',
-                    'notion_page_title': f'Mock Meeting {i}',
-                    'notion_page_url': f'https://notion.so/mock-{i}',
-                    'chunk_text': f'This is mock transcript content for result {i}',
-                    '_distance': 0.1 * (i + 1),
-                    'last_edited_at_notion': datetime.now(timezone.utc).isoformat(),
-                    'user_id': 'mock-user'
-                })
+                mock_results.append(
+                    {
+                        "notion_page_id": f"mock-page-{i}",
+                        "notion_page_title": f"Mock Meeting {i}",
+                        "notion_page_url": f"https://notion.so/mock-{i}",
+                        "chunk_text": f"This is mock transcript content for result {i}",
+                        "_distance": 0.1 * (i + 1),
+                        "last_edited_at_notion": datetime.now(timezone.utc).isoformat(),
+                        "user_id": "mock-user",
+                    }
+                )
             return pd.DataFrame(mock_results)
 
     class LanceModel:
@@ -100,29 +105,33 @@ except ImportError:
         def __init_subclass__(cls, **kwargs):
             pass
 
+
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
 
 # Define the structure of the search results we expect to return
 class SemanticSearchResult(TypedDict):
-    notion_page_id: str
-    notion_page_title: str
-    notion_page_url: str
-    text_chunk_preview: str # A snippet of the relevant text chunk
-    score: float # Similarity score
-    last_edited_at_notion: Optional[str] # ISO format string
+    chunk_id: str
+    doc_id: str
+    title: str
+    text_chunk_preview: str  # A snippet of the relevant text chunk
+    score: float  # Similarity score
+    created_at: str  # ISO format string
     user_id: Optional[str]
 
 
 def search_meeting_transcripts(
-    db_path: str, # Comes from LANCEDB_URI
+    db_path: str,  # Comes from LANCEDB_URI
     query_vector: List[float],
-    user_id: str, # Made non-optional for user-specific search
-    table_name: str, # Should be the same as used by ingestion pipeline, e.g., "meeting_transcripts_embeddings"
+    user_id: str,  # Made non-optional for user-specific search
+    table_name: str,  # Should be the same as used by ingestion pipeline, e.g., "meeting_transcripts_embeddings"
     limit: int = 5,
-    select_columns: Optional[List[str]] = None
+    select_columns: Optional[List[str]] = None,
 ) -> dict:
     """
     Searches for transcript chunks with vectors similar to the query_vector,
@@ -130,42 +139,76 @@ def search_meeting_transcripts(
     Uses the schema fields defined in the ingestion pipeline's lancedb_handler.TranscriptChunk.
     """
     if not db_path:
-        return {"status": "error", "message": "LanceDB path (LANCEDB_URI) is not configured.", "code": "LANCEDB_CONFIG_ERROR"}
+        return {
+            "status": "error",
+            "message": "LanceDB path (LANCEDB_URI) is not configured.",
+            "code": "LANCEDB_CONFIG_ERROR",
+        }
     if not query_vector:
-        return {"status": "error", "message": "Query vector is required for similarity search.", "code": "VALIDATION_ERROR"}
-    if not user_id: # Should always be provided for this search
-        return {"status": "error", "message": "user_id is required for searching meeting transcripts.", "code": "VALIDATION_ERROR_USERID"}
+        return {
+            "status": "error",
+            "message": "Query vector is required for similarity search.",
+            "code": "VALIDATION_ERROR",
+        }
+    if not user_id:  # Should always be provided for this search
+        return {
+            "status": "error",
+            "message": "user_id is required for searching meeting transcripts.",
+            "code": "VALIDATION_ERROR_USERID",
+        }
     if not table_name:
-        return {"status": "error", "message": "LanceDB table_name is required.", "code": "LANCEDB_CONFIG_ERROR_TABLE"}
+        return {
+            "status": "error",
+            "message": "LanceDB table_name is required.",
+            "code": "LANCEDB_CONFIG_ERROR_TABLE",
+        }
 
     try:
         db = lancedb.connect(db_path)
         try:
             table = db.open_table(table_name)
             logger.info(f"Successfully opened LanceDB table: {table_name} at {db_path}")
-        except FileNotFoundError as e: # More specific LanceDB table not found
-            logger.warning(f"LanceDB table '{table_name}' not found at {db_path}: {e}. No search performed.")
-            return {"status": "success", "data": [], "message": f"Table '{table_name}' not found. No search performed."}
-        except Exception as e: # Catch other potential errors during table open
-            logger.error(f"Failed to open LanceDB table '{table_name}' at {db_path}: {e}", exc_info=True)
-            return {"status": "error", "message": f"Failed to open LanceDB table '{table_name}': {str(e)}", "code": "LANCEDB_TABLE_ERROR"}
+        except FileNotFoundError as e:  # More specific LanceDB table not found
+            logger.warning(
+                f"LanceDB table '{table_name}' not found at {db_path}: {e}. No search performed."
+            )
+            return {
+                "status": "success",
+                "data": [],
+                "message": f"Table '{table_name}' not found. No search performed.",
+            }
+        except Exception as e:  # Catch other potential errors during table open
+            logger.error(
+                f"Failed to open LanceDB table '{table_name}' at {db_path}: {e}",
+                exc_info=True,
+            )
+            return {
+                "status": "error",
+                "message": f"Failed to open LanceDB table '{table_name}': {str(e)}",
+                "code": "LANCEDB_TABLE_ERROR",
+            }
 
         search_query = table.search(query_vector).limit(limit)
-        search_query = search_query.where(f"user_id = '{user_id}'") # Critical filter
+        search_query = search_query.where(f"user_id = '{user_id}'")  # Critical filter
 
-        # Fields to retrieve based on TranscriptChunk schema from lancedb_handler.py
-        # (embedding, text_chunk, chunk_id, notion_page_id, notion_page_title, notion_page_url, user_id,
-        #  created_at_notion, last_edited_at_notion, ingested_at)
+        # Fields to retrieve based on document_chunks table schema
+        # (chunk_id, doc_id, user_id, chunk_index, chunk_text, metadata, vector_embedding, created_at)
         default_select_columns = [
-            "notion_page_id", "notion_page_title", "notion_page_url",
-            "text_chunk", "last_edited_at_notion", "user_id"
+            "chunk_id",
+            "doc_id",
+            "user_id",
+            "chunk_text",
+            "metadata",
+            "created_at",
             # also implicitly gets _distance (score)
         ]
         columns_to_select = select_columns if select_columns else default_select_columns
         search_query = search_query.select(columns_to_select)
 
-        logger.info(f"Executing LanceDB search on table '{table_name}' for user_id '{user_id}' with limit {limit}.")
-        results_raw = search_query.to_list() # Returns a list of dicts
+        logger.info(
+            f"Executing LanceDB search on table '{table_name}' for user_id '{user_id}' with limit {limit}."
+        )
+        results_raw = search_query.to_list()  # Returns a list of dicts
         logger.info(f"LanceDB search returned {len(results_raw)} raw results.")
 
         formatted_results: List[SemanticSearchResult] = []
@@ -174,37 +217,59 @@ def search_meeting_transcripts(
             last_edited_dt = record.get("last_edited_at_notion")
             if isinstance(last_edited_dt, datetime):
                 last_edited_iso = last_edited_dt.isoformat()
-            elif isinstance(last_edited_dt, (int, float)): # LanceDB might return timestamp as int/float (nanoseconds)
+            elif isinstance(
+                last_edited_dt, (int, float)
+            ):  # LanceDB might return timestamp as int/float (nanoseconds)
                 try:
                     # Convert from nanoseconds to seconds for datetime.fromtimestamp
-                    last_edited_dt = datetime.fromtimestamp(last_edited_dt / 1e9, tz=timezone.utc)
+                    last_edited_dt = datetime.fromtimestamp(
+                        last_edited_dt / 1e9, tz=timezone.utc
+                    )
                     last_edited_iso = last_edited_dt.isoformat()
                 except Exception as e_ts:
-                    logger.warning(f"Could not parse timestamp {last_edited_dt} for page {record.get('notion_page_id')}: {e_ts}")
-            elif isinstance(last_edited_dt, str): # If already string
-                 last_edited_iso = last_edited_dt
+                    logger.warning(
+                        f"Could not parse timestamp {last_edited_dt} for page {record.get('notion_page_id')}: {e_ts}"
+                    )
+            elif isinstance(last_edited_dt, str):  # If already string
+                last_edited_iso = last_edited_dt
 
-
-            text_chunk_preview = record.get("text_chunk", "")
-            if len(text_chunk_preview) > 250: # Create a snippet
+            text_chunk_preview = record.get("chunk_text", "")
+            if len(text_chunk_preview) > 250:  # Create a snippet
                 text_chunk_preview = text_chunk_preview[:247] + "..."
 
-            formatted_results.append({
-                "notion_page_id": record.get("notion_page_id", ""),
-                "notion_page_title": record.get("notion_page_title", "Untitled"),
-                "notion_page_url": record.get("notion_page_url", ""),
-                "text_chunk_preview": text_chunk_preview,
-                "score": record.get("_distance", 0.0), # LanceDB uses _distance
-                "last_edited_at_notion": last_edited_iso,
-                "user_id": record.get("user_id")
-            })
+            # Parse metadata to get title if available
+            metadata_str = record.get("metadata", "{}")
+            try:
+                metadata = json.loads(metadata_str)
+                title = metadata.get("title", "Untitled Document")
+            except:
+                title = "Untitled Document"
+
+            formatted_results.append(
+                {
+                    "chunk_id": record.get("chunk_id", ""),
+                    "doc_id": record.get("doc_id", ""),
+                    "title": title,
+                    "text_chunk_preview": text_chunk_preview,
+                    "score": record.get("_distance", 0.0),  # LanceDB uses _distance
+                    "created_at": record.get("created_at", ""),
+                    "user_id": record.get("user_id"),
+                }
+            )
 
         logger.info(f"Formatted {len(formatted_results)} search results.")
         return {"status": "success", "data": formatted_results}
 
     except Exception as e:
-        logger.error(f"An error occurred in search_meeting_transcripts: {e}", exc_info=True)
-        return {"status": "error", "message": f"LanceDB search operation failed: {str(e)}", "code": "LANCEDB_SEARCH_ERROR"}
+        logger.error(
+            f"An error occurred in search_meeting_transcripts: {e}", exc_info=True
+        )
+        return {
+            "status": "error",
+            "message": f"LanceDB search operation failed: {str(e)}",
+            "code": "LANCEDB_SEARCH_ERROR",
+        }
+
 
 # --- Remove old/unused functions and schemas ---
 # The functions upsert_note_vector, create_meeting_transcripts_table_if_not_exists,

@@ -213,3 +213,14 @@ def search_gdrive(query: str, user_id: str = "test_user"):
         asyncio.set_event_loop(loop)
 
     return loop.run_until_complete(_search_async())
+
+@gdrive_bp.route('/api/gdrive/health', methods=['GET'])
+def gdrive_health():
+    """Health check for Google Drive integration"""
+    return jsonify({
+        "ok": True,
+        "service": "gdrive",
+        "status": "registered",
+        "message": "Google Drive integration is registered and ready for OAuth configuration",
+        "needs_oauth": True
+    })

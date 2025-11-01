@@ -1,50 +1,36 @@
-import config from "@config/config.json";
-import Base from "@layouts/Baseof";
+import { getSession } from "next-auth/react";
+import { GetServerSideProps } from "next";
+import {
+  Box,
+  Container,
+  VStack,
+  Heading,
+  Text,
+  Button,
+  Grid,
+  GridItem,
+  Card,
+  CardBody,
+  CardHeader,
+  Icon,
+  Flex,
+} from "@chakra-ui/react";
+import { useRouter } from "next/router";
+import {
+  FiSearch,
+  FiMessageSquare,
+  FiCheckSquare,
+  FiPlay,
+  FiCalendar,
+} from "react-icons/fi";
 
-import { Tab, TabList, TabPanel, TabPanels, Tabs } from "@chakra-ui/react";
-import UserViewCalendar from "@pages/Calendar/UserViewCalendarWeb";
-import UserTask from "@pages/Progress/Todo/UserTask";
-import UserViewChat from "@pages/Calendar/Chat/UserViewChat";
-import SmartSearch from "@components/SmartSearch";
-import Dashboard from "@components/Dashboard";
-import { NextApiRequest, NextApiResponse } from "next";
-import supertokensNode from "supertokens-node";
-import { backendConfig } from "../config/backendConfig";
-import Session from "supertokens-node/recipe/session";
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await getSession(context);
 
-export async function getServerSideProps({
-  req,
-  res,
-}: {
-  req: NextApiRequest;
-  res: NextApiResponse;
-}) {
-  // Notice how the server uses `API` from `withSSRContext`, instead of the top-level `API`.
-  // const SSR = withSSRContext({ req })
-  // this runs on the backend, so we must call init on supertokens-node SDK
-  supertokensNode.init(backendConfig());
-  let session;
-  try {
-    session = await Session.getSession(req, res, {
-      overrideGlobalClaimValidators: async function () {
-        return [];
-      },
-    });
-  } catch (err: any) {
-    if (err.type === Session.Error.TRY_REFRESH_TOKEN) {
-      return { props: { fromSupertokens: "needs-refresh" } };
-    } else if (err.type === Session.Error.UNAUTHORISED) {
-      // this will force the frontend to try and refresh which will fail
-      // clearing all cookies and redirecting the user to the login screen.
-      return { props: { fromSupertokens: "needs-refresh" } };
-    }
-    throw err;
-  }
-
-  if (!session?.getUserId()) {
+  if (!session) {
     return {
       redirect: {
-        destination: "/User/Login/UserLogin",
+        destination: "/auth/signin",
         permanent: false,
       },
     };
@@ -52,25 +38,114 @@ export async function getServerSideProps({
 
   return {
     props: {
-      sub: session.getUserId(),
+      session,
     },
   };
-}
+};
 
 const Home = () => {
-  const { title } = config.site;
+  const router = useRouter();
+
+  const features = [
+    {
+      title: "Search",
+      description:
+        "AI-powered search across all your documents, meetings, and notes",
+      icon: FiSearch,
+      path: "/search",
+      color: "blue",
+    },
+    {
+      title: "Communication",
+      description: "Unified messaging hub for all your communication platforms",
+      icon: FiMessageSquare,
+      path: "/communication",
+      color: "green",
+    },
+    {
+      title: "Tasks",
+      description: "Smart task management with AI-powered prioritization",
+      icon: FiCheckSquare,
+      path: "/tasks",
+      color: "orange",
+    },
+    {
+      title: "Workflow Automation",
+      description: "Create and manage automated workflows across services",
+      icon: FiPlay,
+      path: "/automations",
+      color: "purple",
+    },
+    {
+      title: "Calendar",
+      description: "Smart scheduling and calendar management",
+      icon: FiCalendar,
+      path: "/calendar",
+      color: "red",
+    },
+  ];
 
   return (
-    <Base
-      title={title}
-      meta_title={undefined}
-      description={undefined}
-      image={undefined}
-      noindex={undefined}
-      canonical={undefined}
-    >
-      <Dashboard />
-    </Base>
+    <Container maxW="6xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        <Box textAlign="center">
+          <Heading size="2xl" mb={4}>
+            Welcome to ATOM
+          </Heading>
+          <Text fontSize="xl" color="gray.600">
+            Your AI-powered personal automation platform
+          </Text>
+        </Box>
+
+        <Grid
+          templateColumns={{
+            base: "1fr",
+            md: "repeat(2, 1fr)",
+            lg: "repeat(3, 1fr)",
+          }}
+          gap={6}
+        >
+          {features.map((feature, index) => (
+            <GridItem key={index}>
+              <Card
+                height="100%"
+                cursor="pointer"
+                _hover={{ transform: "translateY(-4px)", shadow: "lg" }}
+                transition="all 0.2s"
+                onClick={() => router.push(feature.path)}
+              >
+                <CardHeader>
+                  <Flex align="center" gap={3}>
+                    <Icon
+                      as={feature.icon}
+                      boxSize={6}
+                      color={`${feature.color}.500`}
+                    />
+                    <Heading size="md">{feature.title}</Heading>
+                  </Flex>
+                </CardHeader>
+                <CardBody>
+                  <Text color="gray.600">{feature.description}</Text>
+                </CardBody>
+              </Card>
+            </GridItem>
+          ))}
+        </Grid>
+
+        <Box textAlign="center" mt={8}>
+          <Text fontSize="lg" color="gray.600" mb={4}>
+            Ready to automate your workflow?
+          </Text>
+          <Button
+            colorScheme="blue"
+            size="lg"
+            onClick={() => router.push("/automations")}
+          >
+            Get Started with Automation
+          </Button>
+        </Box>
+      </VStack>
+    </Container>
   );
 };
 

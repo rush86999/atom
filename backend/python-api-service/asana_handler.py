@@ -52,3 +52,14 @@ async def list_tasks():
     except Exception as e:
         logger.error(f"Error listing Asana tasks for user {user_id}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "LIST_TASKS_FAILED", "message": str(e)}}), 500
+
+@asana_bp.route('/api/asana/health', methods=['GET'])
+def asana_health():
+    """Health check for Asana integration"""
+    return jsonify({
+        "ok": True,
+        "service": "asana",
+        "status": "registered",
+        "message": "Asana integration is registered and ready for OAuth configuration",
+        "needs_oauth": True
+    })

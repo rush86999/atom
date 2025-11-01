@@ -176,3 +176,14 @@ async def ingest_file():
     except Exception as e:
         logger.error(f"Error ingesting Dropbox file for user {user_id}, path {file_path}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": {"code": "INGESTION_UNHANDLED_ERROR", "message": str(e)}}), 500
+
+@dropbox_bp.route('/api/dropbox/health', methods=['GET'])
+def dropbox_health():
+    """Health check for Dropbox integration"""
+    return jsonify({
+        "ok": True,
+        "service": "dropbox",
+        "status": "registered",
+        "message": "Dropbox integration is registered and ready for OAuth configuration",
+        "needs_oauth": True
+    })

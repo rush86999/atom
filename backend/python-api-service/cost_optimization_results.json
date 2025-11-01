@@ -1,0 +1,85 @@
+[
+  {
+    "baseline_provider": "openai",
+    "optimized_provider": "deepseek",
+    "tokens": 1000000,
+    "baseline_cost": 30.0,
+    "optimized_cost": 0.14,
+    "savings": 29.86,
+    "savings_percentage": 99.53
+  },
+  {
+    "baseline_provider": "anthropic",
+    "optimized_provider": "google_gemini",
+    "tokens": 500000,
+    "baseline_cost": 7.5,
+    "optimized_cost": 0.0375,
+    "savings": 7.4625,
+    "savings_percentage": 99.5
+  },
+  {
+    "baseline_provider": "openai",
+    "optimized_provider": "google_gemini",
+    "tokens": 2000000,
+    "baseline_cost": 60.0,
+    "optimized_cost": 0.15,
+    "savings": 59.85,
+    "savings_percentage": 99.75
+  },
+  {
+    "use_case": "code_generation",
+    "quality_requirement": "cost_effective",
+    "optimal_provider": "deepseek",
+    "provider_scores": {
+      "deepseek": 0.896,
+      "openai": 0.705,
+      "anthropic": 0.798
+    },
+    "selection_reason": "Selected deepseek for code_generation with cost_effective quality requirement"
+  },
+  {
+    "use_case": "reasoning",
+    "quality_requirement": "highest",
+    "optimal_provider": "google_gemini",
+    "provider_scores": {
+      "anthropic": 0.799,
+      "openai": 0.816,
+      "google_gemini": 0.856
+    },
+    "selection_reason": "Selected google_gemini for reasoning with highest quality requirement"
+  },
+  {
+    "use_case": "chat",
+    "quality_requirement": "balanced",
+    "optimal_provider": "google_gemini",
+    "provider_scores": {
+      "openai": 0.76,
+      "google_gemini": 0.893,
+      "deepseek": 0.84
+    },
+    "selection_reason": "Selected google_gemini for chat with balanced quality requirement"
+  },
+  {
+    "use_case": "embeddings",
+    "quality_requirement": "cost_effective",
+    "optimal_provider": "google_gemini",
+    "provider_scores": {
+      "google_gemini": 0.93,
+      "openai": 0.705,
+      "deepseek": 0.896
+    },
+    "selection_reason": "Selected google_gemini for embeddings with cost_effective quality requirement"
+  },
+  {
+    "scenario": "provider_failover",
+    "primary_provider": "openai",
+    "best_fallback": "google_gemini",
+    "fallback_scores": {
+      "deepseek": 11.53846153846154,
+      "anthropic": 1.315068493150685,
+      "google_gemini": 18.11184061580258,
+      "azure_openai": 0.5901639344262295
+    },
+    "message": "Failover from openai to google_gemini completed"
+  }
+]

@@ -725,11 +725,11 @@ class ContextManagementService:
     def get_user_context_summary(self, user_id: str) -> Dict[str, Any]:
         """Get a comprehensive summary of user context"""
         try:
-            preferences = await self.get_user_preferences(user_id)
-            conversation_history = await self.get_conversation_history(
+            preferences = self.get_user_preferences_sync(user_id)
+            conversation_history = self.get_conversation_history_sync(
                 user_id, limit=20
             )
-            chat_context = await self.get_or_create_chat_context(user_id, "current")
+            chat_context = self.get_or_create_chat_context_sync(user_id, "current")
 
             return {
                 "user_id": user_id,

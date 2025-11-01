@@ -47,7 +47,7 @@ class NLUBridgeService:
             await self.session.close()
             self.session = None
 
-    async def analyze_workflow_request(
+    def analyze_workflow_request(
         self, user_input: str, user_id: str = "default"
     ) -> Optional[NLUAnalysisResult]:
         """
@@ -60,31 +60,64 @@ class NLUBridgeService:
         Returns:
             NLUAnalysisResult if successful, None if analysis fails
         """
-        await self.initialize()
-
         try:
             # First, try to call the TypeScript NLU system via API
-            nlu_result = await self._call_typescript_nlu(user_input, user_id)
+            nlu_result = self._call_typescript_nlu_sync(user_input, user_id)
             if nlu_result:
                 return nlu_result
 
             # Fallback: Direct simulation of workflow agent logic
             logger.warning("TypeScript NLU API unavailable, using fallback simulation")
-            return await self._simulate_workflow_agent_analysis(user_input)
+            return self._simulate_workflow_agent_analysis(user_input)
 
         except Exception as e:
             logger.error(f"Error analyzing workflow request: {str(e)}")
+            return None
+
+    def _call_typescript_nlu_sync(
+        self, user_input: str, user_id: str
+    ) -> Optional[NLUAnalysisResult]:
+        """
+        Call the TypeScript NLU system via API endpoint (synchronous version)
+
+        This method attempts to call the existing TypeScript NLU agents
+        through the frontend API endpoints.
+        """
+        try:
+            import requests
+            
+            # Try the NLU API endpoint
+            response = requests.post(
+                f"{self.frontend_base_url}/api/agent/nlu",
+                json={"message": user_input, "userId": user_id},
+                timeout=10,
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return self._parse_nlu_response(data)
+            else:
+                logger.warning(f"NLU API returned status {response.status_code}")
+                return None
+
+        except requests.RequestException as e:
+            logger.warning(f"NLU API unavailable: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error calling NLU API: {str(e)}")
             return None
 
     async def _call_typescript_nlu(
         self, user_input: str, user_id: str
     ) -> Optional[NLUAnalysisResult]:
         """
-        Call the TypeScript NLU system via API endpoint
+        Call the TypeScript NLU system via API endpoint (async version)
 
         This method attempts to call the existing TypeScript NLU agents
         through the frontend API endpoints.
         """
+        await self.initialize()
+        
         try:
             # Try the NLU API endpoint
             async with self.session.post(
@@ -149,7 +182,7 @@ class NLUBridgeService:
             logger.error(f"Error parsing NLU response: {str(e)}")
             return None
 
-    async def _simulate_workflow_agent_analysis(
+    def _simulate_workflow_agent_analysis(
         self, user_input: str
     ) -> NLUAnalysisResult:
         """
