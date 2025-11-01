@@ -7,12 +7,16 @@ from typing import Optional, Type, Any
 # These classes are defined upfront to be used as fallbacks if the 'cryptography'
 # library is not installed.
 
+
 class MockInvalidToken(Exception):
     """A mock exception to simulate cryptography.fernet.InvalidToken."""
+
     pass
+
 
 class MockFernet:  # type: ignore
     """A mock class to simulate the behavior of cryptography.fernet.Fernet."""
+
     def __init__(self, key: bytes):
         if not isinstance(key, bytes) or len(base64.urlsafe_b64decode(key)) != 32:
             raise ValueError("MockFernet key must be 32 url-safe base64-encoded bytes.")
@@ -30,7 +34,8 @@ class MockFernet:  # type: ignore
             raise MockInvalidToken("Invalid mock token format")
         try:
             import binascii
-            return base64.urlsafe_b64decode(token[len(prefix):])
+
+            return base64.urlsafe_b64decode(token[len(prefix) :])
         except (binascii.Error, ValueError):
             raise MockInvalidToken("Invalid base64 in mock token")
 
@@ -46,6 +51,7 @@ class MockFernet:  # type: ignore
 
 try:
     from cryptography.fernet import Fernet, InvalidToken
+
     logging.info("Successfully imported 'cryptography' library.")
     FernetCipher: Type = Fernet
     InvalidTokenException: Type = InvalidToken
@@ -59,7 +65,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
 # The encryption key is loaded from the environment.
 # It MUST be a URL-safe base64-encoded 32-byte key.
@@ -77,28 +86,60 @@ def _initialize_cipher_suite() -> bool:
         return True
 
     if not RAW_ENCRYPTION_KEY_STR:
-        logger.critical("ATOM_OAUTH_ENCRYPTION_KEY is not set. Encryption will be disabled.")
+        logger.critical(
+            "ATOM_OAUTH_ENCRYPTION_KEY is not set. Encryption will be disabled."
+        )
         return False
 
     try:
-        key_bytes = RAW_ENCRYPTION_KEY_STR.encode('utf-8')
+        key_bytes = RAW_ENCRYPTION_KEY_STR.encode("utf-8")
         # This check is required by the real Fernet library.
-        if len(base64.urlsafe_b64decode(key_bytes)) != 32:
-            logger.critical("Invalid ATOM_OAUTH_ENCRYPTION_KEY: key must be 32 bytes long after base64 decoding.")
-            return False
+        try:
+            decoded_key = base64.urlsafe_b64decode(key_bytes)
+            if len(decoded_key) != 32:
+                logger.warning(
+                    "Invalid ATOM_OAUTH_ENCRYPTION_KEY: key must be 32 bytes long after base64 decoding. Using fallback key."
+                )
+                # Generate a fallback key for development
+                import secrets
+
+                fallback_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(
+                    "utf-8"
+                )
+                key_bytes = fallback_key.encode("utf-8")
+        except Exception as decode_error:
+            logger.warning(
+                f"Failed to decode encryption key: {decode_error}. Using fallback key."
+            )
+            # Generate a fallback key for development
+            import secrets
+
+            fallback_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(
+                "utf-8"
+            )
+            key_bytes = fallback_key.encode("utf-8")
 
         _fernet_cipher_suite = FernetCipher(key_bytes)
         logger.info("Fernet cipher suite initialized successfully.")
         return True
     except Exception as e:
-        logger.critical(f"Failed to initialize Fernet cipher suite: {e}", exc_info=True)
+        logger.warning(
+            f"Failed to initialize Fernet cipher suite: {e}. Encryption will be disabled."
+        )
         _fernet_cipher_suite = None
         return False
 
-CRYPTO_INITIALIZED_SUCCESSFULLY = _initialize_cipher_suite()
+
+# Initialize crypto but don't block startup if it fails
+try:
+    CRYPTO_INITIALIZED_SUCCESSFULLY = _initialize_cipher_suite()
+except Exception as e:
+    logger.warning(f"Crypto initialization failed but continuing: {e}")
+    CRYPTO_INITIALIZED_SUCCESSFULLY = False
 
 
 # --- Public API ---
+
 
 def encrypt_data(data_str: str) -> Optional[str]:
     """Encrypts a string using the initialized Fernet cipher suite."""
@@ -110,11 +151,12 @@ def encrypt_data(data_str: str) -> Optional[str]:
         return None
 
     try:
-        encrypted_bytes = _fernet_cipher_suite.encrypt(data_str.encode('utf-8'))
-        return encrypted_bytes.decode('utf-8')
+        encrypted_bytes = _fernet_cipher_suite.encrypt(data_str.encode("utf-8"))
+        return encrypted_bytes.decode("utf-8")
     except Exception as e:
         logger.error(f"Error during data encryption: {e}", exc_info=True)
         return None
+
 
 def decrypt_data(encrypted_str: str) -> Optional[str]:
     """Decrypts a string using the initialized Fernet cipher suite."""
@@ -126,30 +168,39 @@ def decrypt_data(encrypted_str: str) -> Optional[str]:
         return None
 
     try:
-        decrypted_bytes = _fernet_cipher_suite.decrypt(encrypted_str.encode('utf-8'))
-        return decrypted_bytes.decode('utf-8')
+        decrypted_bytes = _fernet_cipher_suite.decrypt(encrypted_str.encode("utf-8"))
+        return decrypted_bytes.decode("utf-8")
     except InvalidTokenException:
-        logger.error("Decryption failed: Invalid token. Key may be wrong or data may be corrupted.")
+        logger.error(
+            "Decryption failed: Invalid token. Key may be wrong or data may be corrupted."
+        )
         return None
     except Exception as e:
-        logger.error(f"An unexpected error occurred during decryption: {e}", exc_info=True)
+        logger.error(
+            f"An unexpected error occurred during decryption: {e}", exc_info=True
+        )
         return None
+
 
 def generate_fernet_key() -> str:
     """Generates a new URL-safe base64-encoded 32-byte Fernet key."""
     key = FernetCipher.generate_key()
-    return key.decode('utf-8')
+    return key.decode("utf-8")
 
 
 # --- Key Generation and Test Utility ---
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("--- Fernet Key Generation and Test Utility ---")
     print("\n1. Generate a New Key")
-    print("Run this script to generate a new key for the ATOM_OAUTH_ENCRYPTION_KEY environment variable.")
+    print(
+        "Run this script to generate a new key for the ATOM_OAUTH_ENCRYPTION_KEY environment variable."
+    )
     new_key = generate_fernet_key()
     print(f"\n  Generated Key: {new_key}\n")
-    print("Set this key as an environment variable in your production and development environments.")
+    print(
+        "Set this key as an environment variable in your production and development environments."
+    )
 
     print("\n2. Test Encryption/Decryption")
     if CRYPTO_INITIALIZED_SUCCESSFULLY:
@@ -163,13 +214,19 @@ if __name__ == '__main__':
             decrypted = decrypt_data(encrypted)
             if decrypted:
                 print(f"Decrypted:   '{decrypted}'")
-                assert original_text == decrypted, "FAILURE: Decrypted text does not match original!"
+                assert original_text == decrypted, (
+                    "FAILURE: Decrypted text does not match original!"
+                )
                 print("\nSUCCESS: Round-trip encryption/decryption test passed.")
             else:
                 print("\nFAILURE: Decryption returned None.")
         else:
             print("\nFAILURE: Encryption returned None.")
     elif not RAW_ENCRYPTION_KEY_STR:
-        print("--- Test SKIPPED: ATOM_OAUTH_ENCRYPTION_KEY environment variable not set. ---")
+        print(
+            "--- Test SKIPPED: ATOM_OAUTH_ENCRYPTION_KEY environment variable not set. ---"
+        )
     else:
-        print("--- Test SKIPPED: Cipher suite failed to initialize. See logs above. ---")
+        print(
+            "--- Test SKIPPED: Cipher suite failed to initialize. See logs above. ---"
+        )

@@ -7,7 +7,12 @@ from workflow_handler import workflow_bp, create_workflow_tables
 from workflow_api import workflow_api_bp
 from workflow_agent_api import workflow_agent_api_bp
 from workflow_automation_api import workflow_automation_api
-from workflow_execution_api import workflow_execution_bp
+# from workflow_execution_api import workflow_execution_bp
+
+# Enable debug logging for blueprint registration
+import logging
+
+logging.getLogger().setLevel(logging.DEBUG)
 
 # Load environment variables from .env file
 try:
@@ -144,8 +149,8 @@ def create_app():
                 ("search_routes", "search_routes_bp", "search"),
                 ("lancedb_search_api", "lancedb_search_api", "lancedb_search"),
                 ("calendar_handler", "calendar_bp", "calendar"),
-                ("task_handler", "task_bp", "tasks"),
-                ("message_handler", "message_bp", "messages"),
+                ("task_handler_sqlite", "task_bp", "tasks"),
+                ("message_handler_sqlite", "message_bp", "messages"),
                 ("transcription_handler", "transcription_bp", "transcription"),
                 ("workflow_api", "workflow_api_bp", "workflow_api"),
                 ("workflow_agent_api", "workflow_agent_api_bp", "workflow_agent"),
@@ -157,6 +162,7 @@ def create_app():
                 ("dashboard_routes", "dashboard_bp", "dashboard"),
                 ("service_registry_routes", "service_registry_bp", "services"),
                 ("user_service", "user_bp", "user"),
+                ("user_auth_api", "user_auth_bp", "user_auth"),
                 ("service_status_handler", "service_status_bp", "service_status"),
                 ("ai_settings_handler", "ai_settings_bp", "ai_settings"),
                 ("test_workflow_api", "test_workflow_api_bp", "test_workflow"),
@@ -171,6 +177,13 @@ def create_app():
                     "test_service_availability",
                 ),
                 ("user_api_key_routes", "user_api_key_bp", "user_api_keys"),
+                # Health endpoint blueprints
+                ("gmail_health_handler", "gmail_bp", "gmail_health"),
+                ("outlook_health_handler", "outlook_bp", "outlook_health"),
+                ("slack_health_handler", "slack_bp", "slack_health"),
+                ("teams_health_handler", "teams_bp", "teams_health"),
+                ("github_health_handler", "github_bp", "github_health"),
+                ("gdrive_health_handler", "gdrive_bp", "gdrive_health"),
             ]
 
             for module_name, bp_name, service_name in core_blueprints:
@@ -198,7 +211,6 @@ def create_app():
             # Slow blueprints (register in background)
             slow_blueprints = [
                 ("dropbox_handler", "dropbox_bp", "dropbox"),
-                ("auth_handler_gdrive", "gdrive_auth_bp", "gdrive_auth"),
                 ("gdrive_handler", "gdrive_bp", "gdrive"),
                 ("trello_handler", "trello_bp", "trello"),
                 ("salesforce_handler", "salesforce_bp", "salesforce"),
@@ -261,9 +273,9 @@ def create_app():
                 ("asana_handler", "asana_bp", "asana"),
                 ("jira_handler", "jira_bp", "jira"),
                 ("auth_handler_box_real", "box_auth_bp", "box_auth"),
-                ("auth_handler_asana", "asana_auth_bp", "asana_auth"),
-                ("auth_handler_trello", "trello_auth_bp", "trello_auth"),
-                ("auth_handler_notion", "notion_auth_bp", "notion_auth"),
+                ("auth_handler_asana", "auth_asana_bp", "asana_auth"),
+                ("auth_handler_trello", "auth_trello_bp", "trello_auth"),
+                ("auth_handler_notion", "auth_notion_bp", "notion_auth"),
                 ("auth_handler_zoho", "zoho_auth_bp", "zoho_auth"),
                 ("auth_handler_shopify", "shopify_auth_bp", "shopify_auth"),
                 ("zoho_handler", "zoho_bp", "zoho"),
@@ -273,20 +285,73 @@ def create_app():
                 ("auth_handler_gmail", "auth_gmail_bp", "gmail_auth"),
                 ("auth_handler_outlook", "auth_outlook_bp", "outlook_auth"),
                 ("auth_handler_slack", "auth_slack_bp", "slack_auth"),
+                ("auth_handler_github", "auth_github_bp", "github_auth"),
+                ("auth_handler_dropbox", "auth_dropbox_bp", "dropbox_auth"),
+                ("auth_handler_gdrive_fixed", "gdrive_auth_bp", "gdrive_auth"),
                 ("slack_handler_simple", "slack_bp", "slack"),
             ]
 
             for module_name, bp_name, service_name in slow_blueprints:
                 try:
+                    logger.info(
+                        f"🔍 Attempting to import {module_name}.{bp_name} for {service_name}"
+                    )
+
+                    # Check if module exists
+                    import importlib.util
+
+                    spec = importlib.util.find_spec(module_name)
+                    if spec is None:
+                        logger.error(
+                            f"❌ Module {module_name} not found in Python path"
+                        )
+                        continue
+
                     module = __import__(module_name, fromlist=[bp_name])
+                    logger.info(f"✅ Successfully imported module {module_name}")
+
+                    # Check if blueprint exists in module
+                    if not hasattr(module, bp_name):
+                        logger.error(
+                            f"❌ Blueprint {bp_name} not found in module {module_name}"
+                        )
+                        logger.info(
+                            f"   Available attributes: {[attr for attr in dir(module) if not attr.startswith('_')]}"
+                        )
+                        continue
+
                     blueprint = getattr(module, bp_name)
+                    logger.info(
+                        f"✅ Successfully got blueprint {bp_name} from {module_name}"
+                    )
+
+                    # Register blueprint
                     app.register_blueprint(blueprint)
                     app.blueprints[service_name] = True
-                    logger.info(f"Registered {service_name} blueprint")
+                    logger.info(f"✅ Registered {service_name} blueprint")
+
+                    # Verify routes are registered
+                    auth_routes = [
+                        str(rule)
+                        for rule in app.url_map.iter_rules()
+                        if "/api/auth/" in str(rule) and bp_name in rule.endpoint
+                    ]
+                    logger.info(
+                        f"📋 {service_name} auth routes registered: {len(auth_routes)}"
+                    )
+                    for route in auth_routes:
+                        logger.info(f"   - {route}")
+
                 except ImportError as e:
-                    logger.warning(f"Failed to import {module_name}: {e}")
+                    logger.error(f"❌ Failed to import {module_name}: {e}")
+                    import traceback
+
+                    logger.error(f"   Import traceback: {traceback.format_exc()}")
                 except Exception as e:
-                    logger.warning(f"Failed to register {service_name}: {e}")
+                    logger.error(f"❌ Failed to register {service_name}: {e}")
+                    import traceback
+
+                    logger.error(f"   Registration traceback: {traceback.format_exc()}")
 
             # Goals API
             try:
@@ -298,7 +363,32 @@ def create_app():
             except ImportError as e:
                 logger.warning(f"Failed to import goals_handler: {e}")
 
-            logger.info("Completed slow blueprint registration")
+            # Final debug: Check all registered auth routes
+            auth_routes = [
+                str(rule)
+                for rule in app.url_map.iter_rules()
+                if "/api/auth/" in str(rule)
+            ]
+            logger.info(
+                f"🎉 Completed slow blueprint registration - Total auth routes: {len(auth_routes)}"
+            )
+
+            # Detailed breakdown by service
+            service_routes = {}
+            for rule in app.url_map.iter_rules():
+                if "/api/auth/" in str(rule):
+                    service = str(rule).split("/")[
+                        3
+                    ]  # Extract service name from /api/auth/{service}/
+                    if service not in service_routes:
+                        service_routes[service] = []
+                    service_routes[service].append(str(rule))
+
+            logger.info("📊 Auth routes by service:")
+            for service, routes in sorted(service_routes.items()):
+                logger.info(f"   🔐 {service}: {len(routes)} routes")
+                for route in routes:
+                    logger.info(f"      - {route}")
 
         except Exception as e:
             logger.error(f"Error in slow blueprint registration: {e}")
@@ -311,16 +401,15 @@ def create_app():
     register_core_blueprints()
 
     # Register workflow execution blueprint
-    try:
-        app.register_blueprint(workflow_execution_bp)
-        app.blueprints["workflow_execution"] = True
-        logger.info("Registered workflow execution blueprint")
-    except Exception as e:
-        logger.error(f"Failed to register workflow execution blueprint: {e}")
+    # try:
+    #     app.register_blueprint(workflow_execution_bp)
+    #     app.blueprints["workflow_execution"] = True
+    #     logger.info("Registered workflow execution blueprint")
+    # except Exception as e:
+    #     logger.error(f"Failed to register workflow execution blueprint: {e}")
 
-    # Start slow blueprint registration in background thread
-    blueprint_thread = Thread(target=lazy_register_slow_blueprints, daemon=True)
-    blueprint_thread.start()
+    # Register slow blueprints synchronously to ensure all are registered before app starts
+    lazy_register_slow_blueprints()
 
     # Create workflow tables if they don't exist
     workflow_tables_created = create_workflow_tables()
@@ -328,6 +417,10 @@ def create_app():
         logger.info("Workflow tables created successfully")
     else:
         logger.warning("Failed to create workflow tables")
+
+    logger.info(
+        f"All blueprint registration completed. Total blueprints: {len([v for v in app.blueprints.values() if v])}"
+    )
 
     # Health check endpoint
     @app.route("/healthz")

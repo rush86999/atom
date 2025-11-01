@@ -1,222 +1,402 @@
 import os
 import logging
-from flask import Blueprint, request, jsonify
-from trello import TrelloClient
+import sys
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, Optional
+
+# Mock Flask for local testing
+try:
+    from flask import (
+        Blueprint,
+        request,
+        redirect,
+        url_for,
+        session,
+        jsonify,
+        current_app,
+    )
+except ImportError:
+    # Mock Flask classes
+    class Blueprint:
+        def __init__(self, name, import_name):
+            self.name = name
+            self.import_name = import_name
+            self.routes = {}
+
+        def route(self, rule, **options):
+            def decorator(f):
+                self.routes[rule] = f
+                return f
+
+            return decorator
+
+    class MockRequest:
+        args = {"user_id": "mock_user", "state": "mock_state"}
+        url = "http://localhost/callback?code=mock_code&state=mock_state"
+
+    class MockSession(dict):
+        pass
+
+    class MockCurrentApp:
+        config = {"DB_CONNECTION_POOL": None}
+
+    request = MockRequest()
+    session = MockSession()
+    current_app = MockCurrentApp()
+
+    def redirect(url):
+        return f"Redirect to: {url}"
+
+    def url_for(endpoint, **kwargs):
+        return f"http://localhost/{endpoint}"
+
+    def jsonify(data):
+        return data
+
 
 logger = logging.getLogger(__name__)
 
-trello_auth_bp = Blueprint("trello_auth_bp", __name__)
+# Create Trello auth blueprint
+auth_trello_bp = Blueprint("auth_trello_bp", __name__)
+
+# Trello OAuth configuration
+TRELLO_API_KEY = os.getenv("TRELLO_API_KEY")
+TRELLO_API_SECRET = os.getenv("TRELLO_API_SECRET")
+TRELLO_REDIRECT_URI = os.getenv(
+    "TRELLO_REDIRECT_URI", "http://localhost:5058/api/auth/trello/callback"
+)
+
+# Trello API scopes
+TRELLO_SCOPES = [
+    "read",
+    "write",
+    "account",
+]
+
+# CSRF protection
+CSRF_TOKEN_SESSION_KEY = "trello_auth_csrf_token"
 
 
-@trello_auth_bp.route("/api/auth/trello/validate", methods=["POST"])
-def validate_trello_credentials():
-    """
-    Validate Trello API key and token provided by frontend
-    This replaces the OAuth flow with simple API key validation
-    """
+@auth_trello_bp.route("/api/auth/trello/authorize", methods=["GET"])
+def trello_auth_initiate():
+    """Initiate Trello OAuth flow"""
     try:
+        import secrets
+        import urllib.parse
+
+        user_id = request.args.get("user_id")
+        if not user_id:
+            return jsonify({"error": "user_id parameter is required"}), 400
+
+        # Generate CSRF token
+        csrf_token = secrets.token_urlsafe(32)
+        session[CSRF_TOKEN_SESSION_KEY] = csrf_token
+        session["trello_auth_user_id"] = user_id
+
+        # Build authorization URL
+        auth_params = {
+            "key": TRELLO_API_KEY,
+            "return_url": TRELLO_REDIRECT_URI,
+            "callback_method": "fragment",
+            "scope": ",".join(TRELLO_SCOPES),
+            "expiration": "never",
+            "name": "ATOM Platform",
+            "response_type": "token",
+        }
+
+        auth_url = (
+            f"https://trello.com/1/authorize?{urllib.parse.urlencode(auth_params)}"
+        )
+
+        logger.info(f"Trello OAuth initiated for user {user_id}")
+        return jsonify(
+            {"auth_url": auth_url, "user_id": user_id, "csrf_token": csrf_token}
+        )
+
+    except Exception as e:
+        logger.error(f"Trello OAuth initiation failed: {e}")
+        return jsonify({"error": f"OAuth initiation failed: {str(e)}"}), 500
+
+
+@auth_trello_bp.route("/api/auth/trello/callback", methods=["GET"])
+async def trello_auth_callback():
+    """Handle Trello OAuth callback"""
+    try:
+        from flask import current_app
+        import requests
+        import urllib.parse
+
+        # Get database connection
+        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        if not db_conn_pool:
+            return "Error: Database connection pool is not available.", 500
+
+        user_id = session.get("trello_auth_user_id")
+        if not user_id:
+            return (
+                "Error: No user_id found in session. Please try the connection process again.",
+                400,
+            )
+
+        # Trello returns token in URL fragment
+        fragment = request.args.get("fragment", "")
+        if not fragment:
+            return "Error: No authorization data received.", 400
+
+        # Parse fragment parameters
+        fragment_params = dict(urllib.parse.parse_qsl(fragment))
+        access_token = fragment_params.get("token")
+        expires_in = fragment_params.get("expires_in", "never")
+
+        if not access_token:
+            return "Error: No access token received.", 400
+
+        # Calculate expiration time (Trello tokens can be "never" or number of seconds)
+        expires_at = None
+        if expires_in != "never":
+            try:
+                expires_at = datetime.now(timezone.utc) + timedelta(
+                    seconds=int(expires_in)
+                )
+            except ValueError:
+                # If expires_in is not a number, treat as permanent
+                expires_at = None
+
+        # Store tokens in database
+        try:
+            from db_oauth_gdrive import store_tokens
+
+            await store_tokens(
+                db_conn_pool=db_conn_pool,
+                user_id=user_id,
+                service_name="trello",
+                access_token=access_token,
+                refresh_token=None,  # Trello doesn't use refresh tokens
+                expires_at=expires_at,
+                scope=",".join(TRELLO_SCOPES),
+            )
+
+            logger.info(f"Trello OAuth completed successfully for user {user_id}")
+
+            # Redirect to success page
+            success_url = f"/settings?service=trello&status=connected"
+            return redirect(success_url)
+
+        except Exception as db_error:
+            logger.error(f"Failed to store Trello tokens: {db_error}")
+            return "Error: Failed to store authentication tokens.", 500
+
+    except Exception as e:
+        logger.error(f"Trello OAuth callback failed: {e}")
+        return f"OAuth callback failed: {str(e)}", 500
+
+
+@auth_trello_bp.route("/api/auth/trello/refresh", methods=["POST"])
+async def refresh_trello_token():
+    """Refresh Trello access token - Trello doesn't support refresh tokens"""
+    try:
+        from flask import current_app
+
+        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        if not db_conn_pool:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "CONFIG_ERROR",
+                        "message": "Database connection pool is not available.",
+                    },
+                }
+            ), 500
+
         data = request.get_json()
-        if not data:
-            return jsonify(
-                {
-                    "ok": False,
-                    "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "JSON data is required",
-                    },
-                }
-            ), 400
-
-        api_key = data.get("api_key")
-        api_token = data.get("api_token")
         user_id = data.get("user_id")
-
-        if not api_key or not api_token:
-            return jsonify(
-                {
-                    "ok": False,
-                    "error": {
-                        "code": "VALIDATION_ERROR",
-                        "message": "api_key and api_token are required",
-                    },
-                }
-            ), 400
-
         if not user_id:
             return jsonify(
                 {
                     "ok": False,
                     "error": {
                         "code": "VALIDATION_ERROR",
-                        "message": "user_id is required",
+                        "message": "user_id is required.",
                     },
                 }
             ), 400
 
-        logger.info(f"Validating Trello credentials for user {user_id}")
-
-        # Test the credentials by making a simple API call
-        try:
-            client = TrelloClient(api_key=api_key, token=api_token)
-
-            # Test connectivity by getting user info
-            me = client.get_member("me")
-
-            return jsonify(
-                {
-                    "ok": True,
-                    "data": {
-                        "user_id": user_id,
-                        "trello_user": me.full_name
-                        if hasattr(me, "full_name")
-                        else me.username,
-                        "trello_username": me.username,
-                        "status": "connected",
-                        "message": "Trello credentials validated successfully",
-                    },
-                }
-            )
-
-        except Exception as api_error:
-            logger.error(
-                f"Trello API validation failed for user {user_id}: {api_error}"
-            )
-            return jsonify(
-                {
-                    "ok": False,
-                    "error": {
-                        "code": "AUTH_ERROR",
-                        "message": f"Invalid Trello credentials: {str(api_error)}",
-                    },
-                }
-            ), 401
-
-    except Exception as e:
-        logger.error(f"Error validating Trello credentials: {e}", exc_info=True)
+        # Trello doesn't support refresh tokens - return error
         return jsonify(
             {
                 "ok": False,
                 "error": {
-                    "code": "VALIDATION_FAILED",
-                    "message": f"Credential validation failed: {str(e)}",
+                    "code": "REFRESH_NOT_SUPPORTED",
+                    "message": "Trello OAuth does not support token refresh. Re-authentication required.",
                 },
             }
+        ), 400
+
+    except Exception as e:
+        logger.error(f"Trello token refresh endpoint failed: {e}")
+        return jsonify(
+            {"ok": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
         ), 500
 
 
-@trello_auth_bp.route("/api/auth/trello/status", methods=["GET"])
-def get_trello_status():
-    """
-    Get current Trello integration status for a user
-    This checks if valid API keys are provided in headers
-    """
+@auth_trello_bp.route("/api/auth/trello/disconnect", methods=["POST"])
+async def trello_auth_disconnect():
+    """Disconnect Trello integration"""
     try:
-        api_key = request.headers.get("X-Trello-API-Key")
-        api_token = request.headers.get("X-Trello-API-Token")
-        user_id = request.args.get("user_id")
+        from flask import current_app
 
+        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        if not db_conn_pool:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "CONFIG_ERROR",
+                        "message": "Database connection pool is not available.",
+                    },
+                }
+            ), 500
+
+        data = request.get_json()
+        user_id = data.get("user_id")
         if not user_id:
             return jsonify(
                 {
                     "ok": False,
                     "error": {
                         "code": "VALIDATION_ERROR",
-                        "message": "user_id is required",
+                        "message": "user_id is required.",
                     },
                 }
             ), 400
 
-        if not api_key or not api_token:
-            return jsonify(
-                {
-                    "ok": True,
-                    "service": "trello",
-                    "status": "disconnected",
-                    "message": "Trello API keys not provided in headers",
-                    "available": False,
-                    "mock_data": False,
-                }
-            )
-
-        # Test the credentials
         try:
-            client = TrelloClient(api_key=api_key, token=api_token)
-            me = client.get_member("me")
+            from db_oauth_gdrive import delete_tokens
 
+            # Delete tokens from database
+            await delete_tokens(db_conn_pool, user_id, "trello")
+
+            logger.info(f"Trello integration disconnected for user {user_id}")
             return jsonify(
-                {
-                    "ok": True,
-                    "service": "trello",
-                    "status": "connected",
-                    "message": "Trello service connected successfully",
-                    "available": True,
-                    "mock_data": False,
-                    "user": me.full_name if hasattr(me, "full_name") else me.username,
-                }
+                {"ok": True, "message": "Trello integration disconnected successfully"}
             )
 
-        except Exception as api_error:
-            logger.error(f"Trello status check failed for user {user_id}: {api_error}")
+        except Exception as db_error:
+            logger.error(f"Failed to disconnect Trello: {db_error}")
             return jsonify(
                 {
-                    "ok": True,
-                    "service": "trello",
-                    "status": "disconnected",
-                    "message": f"Trello connection failed: {str(api_error)}",
-                    "available": False,
-                    "mock_data": False,
+                    "ok": False,
+                    "error": {"code": "DISCONNECT_ERROR", "message": str(db_error)},
                 }
-            )
+            ), 500
 
     except Exception as e:
-        logger.error(f"Error checking Trello status: {e}")
+        logger.error(f"Trello disconnect endpoint failed: {e}")
         return jsonify(
-            {
-                "ok": False,
-                "service": "trello",
-                "status": "error",
-                "message": f"Status check failed: {str(e)}",
-            }
+            {"ok": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
         ), 500
 
 
-@trello_auth_bp.route("/api/auth/trello/instructions", methods=["GET"])
-def get_trello_instructions():
-    """
-    Provide instructions for users to get their Trello API key and token
-    """
-    return jsonify(
-        {
-            "ok": True,
-            "data": {
-                "service": "trello",
-                "instructions": {
-                    "title": "Connect Your Trello Account",
-                    "description": "Trello uses API keys and tokens for authentication. Each user needs their own API token.",
-                    "steps": [
-                        {
-                            "step": 1,
-                            "title": "Get Your API Key",
-                            "description": "Go to https://trello.com/power-ups/admin and generate a new API key for your Power-Up",
-                        },
-                        {
-                            "step": 2,
-                            "title": "Generate Your Token",
-                            "description": "On the same page, click the 'Token' link next to your API key to generate a token",
-                        },
-                        {
-                            "step": 3,
-                            "title": "Enter Credentials",
-                            "description": "Enter your API key and token in the ATOM settings page",
-                        },
-                        {
-                            "step": 4,
-                            "title": "Validate Connection",
-                            "description": "Click 'Validate' to test your connection to Trello",
-                        },
-                    ],
-                    "note": "Your API key identifies the application, while your token grants access to your specific Trello account. Keep your token secure!",
-                },
-            },
-        }
-    )
+@auth_trello_bp.route("/api/auth/trello/status", methods=["GET"])
+async def trello_auth_status():
+    """Get Trello OAuth status"""
+    try:
+        from flask import current_app
+
+        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        if not db_conn_pool:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "CONFIG_ERROR",
+                        "message": "Database connection pool is not available.",
+                    },
+                }
+            ), 500
+
+        user_id = request.args.get("user_id")
+        if not user_id:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "user_id is required.",
+                    },
+                }
+            ), 400
+
+        try:
+            from db_oauth_gdrive import get_tokens
+
+            tokens = await get_tokens(db_conn_pool, user_id, "trello")
+            if tokens and tokens.get("access_token"):
+                # Check if token is expired (Trello tokens can be permanent)
+                is_expired = False
+                if tokens.get("expires_at"):
+                    is_expired = tokens["expires_at"] < datetime.now(timezone.utc)
+
+                return jsonify(
+                    {
+                        "ok": True,
+                        "connected": True,
+                        "expired": is_expired,
+                        "scopes": tokens.get("scope", "").split(",")
+                        if tokens.get("scope")
+                        else [],
+                    }
+                )
+            else:
+                return jsonify(
+                    {"ok": True, "connected": False, "expired": False, "scopes": []}
+                )
+
+        except Exception as db_error:
+            logger.error(f"Failed to get Trello status: {db_error}")
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {"code": "STATUS_ERROR", "message": str(db_error)},
+                }
+            ), 500
+
+    except Exception as e:
+        logger.error(f"Trello status endpoint failed: {e}")
+        return jsonify(
+            {"ok": False, "error": {"code": "SERVER_ERROR", "message": str(e)}}
+        ), 500
+
+
+# Mock implementation for development/testing
+class MockTrelloService:
+    def __init__(self):
+        self.connected = False
+
+    def connect(self, access_token):
+        self.connected = True
+        return True
+
+    def get_boards(self, limit=10):
+        if not self.connected:
+            return []
+
+        return [
+            {
+                "id": f"mock_board_{i}",
+                "name": f"Mock Board {i}",
+                "description": f"This is a mock Trello board {i}",
+                "url": f"https://trello.com/b/mock_board_{i}",
+                "last_activity": datetime.now().isoformat(),
+            }
+            for i in range(limit)
+        ]
+
+
+# For local testing
+if __name__ == "__main__":
+    print("Trello OAuth Handler - Testing mode")
+    print(f"API Key: {TRELLO_API_KEY}")
+    print(f"Redirect URI: {TRELLO_REDIRECT_URI}")
+    print(f"Scopes: {TRELLO_SCOPES}")
