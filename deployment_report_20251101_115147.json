@@ -1,0 +1,151 @@
+{
+  "deployment_id": "atom_deployment_20251101_115147",
+  "overall_status": "success",
+  "success_rate": "88.9%",
+  "start_time": "2025-11-01T11:51:47.029370",
+  "end_time": "2025-11-01T11:51:52.106495",
+  "duration_seconds": 5.077125,
+  "total_steps": 9,
+  "successful_steps": 8,
+  "failed_steps": 1,
+  "steps": {
+    "environment_validation": {
+      "status": "success",
+      "message": "All environment prerequisites met",
+      "timestamp": "2025-11-01 11:51:47"
+    },
+    "backend_startup": {
+      "status": "success",
+      "message": "Backend server started successfully",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "oauth_validation": {
+      "status": "success",
+      "message": "OAuth system operational: 7/10 services connected (70.0%)",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "service_endpoints": {
+      "status": "success",
+      "message": "Service endpoints operational: 3/3 endpoints working",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "endpoint__healthz": {
+      "status": "success",
+      "message": "Endpoint /healthz responding correctly",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "endpoint__api_services_status": {
+      "status": "success",
+      "message": "Endpoint /api/services/status responding correctly",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "endpoint__api_auth_oauth-status": {
+      "status": "success",
+      "message": "Endpoint /api/auth/oauth-status responding correctly",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "production_config": {
+      "status": "success",
+      "message": "Production configuration validated successfully",
+      "timestamp": "2025-11-01 11:51:52"
+    },
+    "production_config_details": {
+      "status": "info",
+      "message": "Configuration: database: Database URL properly configured, security: Encryption key properly configured, ai_providers: 5 AI providers configured, service_integrations: 7 services enabled, performance: Adequate worker count, Reasonable timeout, Rate limiting enabled",
+      "timestamp": "2025-11-01 11:51:52"
+    }
+  },
+  "log": [
+    {
+      "timestamp": "2025-11-01 11:51:47",
+      "step": "environment_validation",
+      "status": "running",
+      "message": "Checking environment prerequisites"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:47",
+      "step": "environment_validation",
+      "status": "success",
+      "message": "All environment prerequisites met"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:47",
+      "step": "backend_startup",
+      "status": "running",
+      "message": "Starting backend server"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "backend_startup",
+      "status": "success",
+      "message": "Backend server started successfully"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "oauth_validation",
+      "status": "running",
+      "message": "Validating OAuth authentication system"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "oauth_validation",
+      "status": "success",
+      "message": "OAuth system operational: 7/10 services connected (70.0%)"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "service_endpoints",
+      "status": "running",
+      "message": "Testing critical service endpoints"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "endpoint__healthz",
+      "status": "success",
+      "message": "Endpoint /healthz responding correctly"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "endpoint__api_services_status",
+      "status": "success",
+      "message": "Endpoint /api/services/status responding correctly"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "endpoint__api_auth_oauth-status",
+      "status": "success",
+      "message": "Endpoint /api/auth/oauth-status responding correctly"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "service_endpoints",
+      "status": "success",
+      "message": "Service endpoints operational: 3/3 endpoints working"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "production_config",
+      "status": "running",
+      "message": "Configuring production environment"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "production_config",
+      "status": "success",
+      "message": "Production configuration validated successfully"
+    },
+    {
+      "timestamp": "2025-11-01 11:51:52",
+      "step": "production_config_details",
+      "status": "info",
+      "message": "Configuration: database: Database URL properly configured, security: Encryption key properly configured, ai_providers: 5 AI providers configured, service_integrations: 7 services enabled, performance: Adequate worker count, Reasonable timeout, Rate limiting enabled"
+    }
+  ],
+  "recommendations": [
+    "Deployment ready for production environment",
+    "Monitor system performance and error rates",
+    "Set up automated backups and monitoring",
+    "Configure SSL/TLS certificates for production",
+    "Implement rate limiting and security headers"
+  ]
+}

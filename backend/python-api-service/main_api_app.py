@@ -7,7 +7,72 @@ from workflow_handler import workflow_bp, create_workflow_tables
 from workflow_api import workflow_api_bp
 from workflow_agent_api import workflow_agent_api_bp
 from workflow_automation_api import workflow_automation_api
+from voice_integration_api import voice_integration_api_bp
 # from workflow_execution_api import workflow_execution_bp
+
+# Import enhanced service endpoints
+try:
+    from enhanced_service_endpoints import enhanced_service_bp
+
+    ENHANCED_SERVICES_AVAILABLE = True
+except ImportError:
+    ENHANCED_SERVICES_AVAILABLE = False
+    logging.warning("Enhanced service endpoints not available")
+
+
+# SMART BLUEPRINT IMPORT WRAPPER - Handle slow imports gracefully
+import threading
+import signal
+import sys
+
+
+class SmartImportTimeout(Exception):
+    pass
+
+
+def smart_import_with_timeout(module_name, bp_name, timeout=10):
+    """Import module with timeout to prevent hanging"""
+    import importlib
+
+    def import_target():
+        try:
+            module = importlib.import_module(module_name, fromlist=[bp_name])
+            blueprint = getattr(module, bp_name, None)
+            if blueprint:
+                print(f"✅ Successfully imported {bp_name} from {module_name}")
+                return blueprint
+            else:
+                print(f"⚠️ Blueprint {bp_name} not found in {module_name}")
+                return None
+        except ImportError as e:
+            print(f"⚠️ Import error for {bp_name} from {module_name}: {e}")
+            return None
+        except Exception as e:
+            print(f"⚠️ Unexpected error importing {bp_name}: {e}")
+            return None
+
+    result = [None]
+    thread = threading.Thread(target=lambda: result.__setitem__(0, import_target()))
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout)
+
+    if thread.is_alive():
+        print(f"⚠️ Import timeout for {bp_name} from {module_name} after {timeout}s")
+        return result[0]  # Return whatever we got
+
+    return result[0]
+
+
+def fast_import_module(module_name, bp_name):
+    """Quick import for modules that should load immediately"""
+    return smart_import_with_timeout(module_name, bp_name, timeout=3)
+
+
+def slow_import_module(module_name, bp_name):
+    """Patient import for modules that may take longer"""
+    return smart_import_with_timeout(module_name, bp_name, timeout=15)
+
 
 # Enable debug logging for blueprint registration
 import logging
@@ -44,6 +109,26 @@ try:
 except ImportError:
     OAUTH_CONFIG_AVAILABLE = False
     logging.warning("OAuth configuration module not available")
+
+
+# SAFE IMPORT WRAPPER - Handle problematic imports gracefully
+def safe_import_module(module_name, bp_name, fallback_msg=None):
+    try:
+        module = __import__(module_name, fromlist=[bp_name])
+        blueprint = getattr(module, bp_name, None)
+        print(f"✅ Successfully imported {bp_name} from {module_name}")
+        return blueprint
+    except ImportError as e:
+        print(f"⚠️ Could not import {bp_name} from {module_name}: {e}")
+        if fallback_msg:
+            print(f"   {fallback_msg}")
+        return None
+    except Exception as e:
+        print(f"⚠️ Error importing {bp_name} from {module_name}: {e}")
+        if fallback_msg:
+            print(f"   {fallback_msg}")
+        return None
+
 
 # Configure logging
 logging.basicConfig(
@@ -159,6 +244,11 @@ def create_app():
                     "workflow_automation_api",
                     "workflow_automation",
                 ),
+                (
+                    "voice_integration_api",
+                    "voice_integration_api_bp",
+                    "voice_integration",
+                ),
                 ("dashboard_routes", "dashboard_bp", "dashboard"),
                 ("service_registry_routes", "service_registry_bp", "services"),
                 ("user_service", "user_bp", "user"),
@@ -186,7 +276,21 @@ def create_app():
                 ("gdrive_health_handler", "gdrive_bp", "gdrive_health"),
             ]
 
+            # Register workflow_agent_api_bp directly (already imported at top level)
+            try:
+                app.register_blueprint(workflow_agent_api_bp)
+                app.blueprints["workflow_agent"] = True
+                logger.info("Registered workflow_agent blueprint (direct)")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to register workflow_agent blueprint directly: {e}"
+                )
+
             for module_name, bp_name, service_name in core_blueprints:
+                # Skip workflow_agent_api since we already registered it directly
+                if module_name == "workflow_agent_api":
+                    continue
+
                 try:
                     module = __import__(module_name, fromlist=[bp_name])
                     blueprint = getattr(module, bp_name)
@@ -203,7 +307,7 @@ def create_app():
         except Exception as e:
             logger.error(f"Error in core blueprint registration: {e}")
 
-    def lazy_register_slow_blueprints():
+    def lazy_register_slow_blueprints():  # COMMENTED OUT - Import issues:
         """Register slow blueprints in background thread"""
         try:
             logger.info("Starting slow blueprint registration...")
@@ -405,11 +509,19 @@ def create_app():
     #     app.register_blueprint(workflow_execution_bp)
     #     app.blueprints["workflow_execution"] = True
     #     logger.info("Registered workflow execution blueprint")
+
+    # Register enhanced service endpoints
+    if ENHANCED_SERVICES_AVAILABLE:
+        try:
+            app.register_blueprint(enhanced_service_bp)
+            app.blueprints["enhanced_services"] = True
+            logger.info("✅ Registered enhanced service endpoints blueprint")
+        except Exception as e:
+            logger.warning(f"Failed to register enhanced service endpoints: {e}")
     # except Exception as e:
     #     logger.error(f"Failed to register workflow execution blueprint: {e}")
 
-    # Register slow blueprints synchronously to ensure all are registered before app starts
-    lazy_register_slow_blueprints()
+    # Register slow blueprints synchronously to ensure all are registered before app starts    # lazy_register_slow_blueprints()  # COMMENTED OUT - Import issues
 
     # Create workflow tables if they don't exist
     workflow_tables_created = create_workflow_tables()

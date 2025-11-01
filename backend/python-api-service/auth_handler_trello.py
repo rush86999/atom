@@ -127,7 +127,7 @@ async def trello_auth_callback():
         import urllib.parse
 
         # Get database connection
-        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
         if not db_conn_pool:
             return "Error: Database connection pool is not available.", 500
 
@@ -197,7 +197,7 @@ async def refresh_trello_token():
     try:
         from flask import current_app
 
-        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
         if not db_conn_pool:
             return jsonify(
                 {
@@ -246,7 +246,7 @@ async def trello_auth_disconnect():
     try:
         from flask import current_app
 
-        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
         if not db_conn_pool:
             return jsonify(
                 {
@@ -304,7 +304,7 @@ async def trello_auth_status():
     try:
         from flask import current_app
 
-        db_conn_pool = current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
         if not db_conn_pool:
             return jsonify(
                 {

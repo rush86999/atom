@@ -1,0 +1,66 @@
+{
+  "outlook": {
+    "setup_instructions": {
+      "provider": "Microsoft Azure",
+      "portal": "https://portal.azure.com",
+      "steps": [
+        "Go to Azure Portal > App registrations",
+        "Create new application registration",
+        "Add redirect URIs for production domain",
+        "Configure API permissions for Mail.Read, Calendars.Read",
+        "Copy Client ID and Client Secret"
+      ],
+      "redirect_uri": "https://YOUR_DOMAIN.com/api/auth/outlook/oauth2callback",
+      "scopes": [
+        "https://graph.microsoft.com/Mail.Read",
+        "https://graph.microsoft.com/Calendars.Read"
+      ]
+    },
+    "env_variables": {
+      "OUTLOOK_CLIENT_ID": "YOUR_MICROSOFT_CLIENT_ID",
+      "OUTLOOK_CLIENT_SECRET": "YOUR_MICROSOFT_CLIENT_SECRET"
+    }
+  },
+  "teams": {
+    "setup_instructions": {
+      "provider": "Microsoft Azure",
+      "portal": "https://portal.azure.com",
+      "steps": [
+        "Use same Azure app registration as Outlook",
+        "Add Teams-specific permissions if needed",
+        "Configure Team.ReadBasic.All scope"
+      ],
+      "redirect_uri": "https://YOUR_DOMAIN.com/api/auth/teams/oauth2callback",
+      "scopes": [
+        "https://graph.microsoft.com/Team.ReadBasic.All"
+      ]
+    },
+    "env_variables": {
+      "TEAMS_CLIENT_ID": "YOUR_MICROSOFT_CLIENT_ID",
+      "TEAMS_CLIENT_SECRET": "YOUR_MICROSOFT_CLIENT_SECRET"
+    }
+  },
+  "github": {
+    "setup_instructions": {
+      "provider": "GitHub",
+      "portal": "https://github.com/settings/developers",
+      "steps": [
+        "Go to GitHub Developer Settings > OAuth Apps",
+        "Create new OAuth App",
+        "Set Authorization callback URL",
+        "Configure scopes: repo, user, read:org",
+        "Copy Client ID and Client Secret"
+      ],
+      "redirect_uri": "https://YOUR_DOMAIN.com/api/auth/github/oauth2callback",
+      "scopes": [
+        "repo",
+        "user",
+        "read:org"
+      ]
+    },
+    "env_variables": {
+      "GITHUB_CLIENT_ID": "YOUR_GITHUB_CLIENT_ID",
+      "GITHUB_CLIENT_SECRET": "YOUR_GITHUB_CLIENT_SECRET"
+    }
+  }
+}

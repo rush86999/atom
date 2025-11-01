@@ -1,186 +1,154 @@
 {
-  "timestamp": "2025-10-31T19:16:16.720922", 
-  "workflow_intelligence": {
-    "timestamp": "2025-10-31T19:16:16.720834", 
-    "total_cases": 6, 
-    "accuracy_rate": 33.33, 
+  "timestamp": "2025-11-01T16:27:37.276670",
+  "complex_workflows": {
+    "timestamp": "2025-11-01T16:27:37.175811",
+    "total_scenarios": 5,
+    "successful_scenarios": 0,
+    "success_rate": 0.0,
     "results": [
       {
-        "accurate": true, 
-        "user_input": "Send an email", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
+        "scenario_name": "Email to Task Workflow",
+        "user_input": "When I receive an important email, create a task in Asana and send a Slack notification",
         "expected_services": [
-          "gmail"
-        ], 
-        "steps_count": 2
-      }, 
+          "gmail",
+          "asana",
+          "slack"
+        ],
+        "actual_services": [],
+        "steps_count": 0,
+        "success": false,
+        "message": "",
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+        "overall_success": false
+      },
       {
-        "accurate": false, 
-        "user_input": "Create a task", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
+        "scenario_name": "Meeting to Documentation",
+        "user_input": "After a meeting, create notes in Notion and schedule follow-up tasks in Trello",
         "expected_services": [
-          "asana", 
+          "notion",
           "trello"
-        ], 
-        "steps_count": 2
-      }, 
+        ],
+        "actual_services": [],
+        "steps_count": 0,
+        "success": false,
+        "message": "",
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+        "overall_success": false
+      },
       {
-        "accurate": false, 
-        "user_input": "Upload a file", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
+        "scenario_name": "File Processing Workflow",
+        "user_input": "When a file is uploaded to Dropbox, process it and save to Google Drive",
         "expected_services": [
-          "google_drive", 
-          "dropbox"
-        ], 
-        "steps_count": 2
-      }, 
+          "dropbox",
+          "google_drive"
+        ],
+        "actual_services": [],
+        "steps_count": 0,
+        "success": false,
+        "message": "",
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+        "overall_success": false
+      },
       {
-        "accurate": false, 
-        "user_input": "Send a message", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
+        "scenario_name": "Multi-Platform Communication",
+        "user_input": "Send a message to both Slack and Microsoft Teams when a task is completed",
         "expected_services": [
-          "slack", 
+          "slack",
           "microsoft_teams"
-        ], 
-        "steps_count": 2
-      }, 
+        ],
+        "actual_services": [],
+        "steps_count": 0,
+        "success": false,
+        "message": "",
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+        "overall_success": false
+      },
       {
-        "accurate": false, 
-        "user_input": "Create documentation", 
-        "actual_services": [
-          "google_calendar", 
+        "scenario_name": "Development Workflow",
+        "user_input": "When a GitHub issue is created, create a corresponding task in Jira",
+        "expected_services": [
+          "github",
+          "jira"
+        ],
+        "actual_services": [],
+        "steps_count": 0,
+        "success": false,
+        "message": "",
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+        "overall_success": false
+      }
+    ]
+  },
+  "workflow_intelligence": {
+    "timestamp": "2025-11-01T16:27:37.276299",
+    "total_cases": 6,
+    "accurate_selections": 0,
+    "accuracy_rate": 0.0,
+    "results": [
+      {
+        "user_input": "Send an email",
+        "expected_services": [
           "gmail"
-        ], 
+        ],
+        "actual_services": [],
+        "accurate": false,
+        "steps_count": 0,
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n"
+      },
+      {
+        "user_input": "Create a task",
+        "expected_services": [
+          "asana",
+          "trello"
+        ],
+        "actual_services": [],
+        "accurate": false,
+        "steps_count": 0,
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n"
+      },
+      {
+        "user_input": "Upload a file",
+        "expected_services": [
+          "google_drive",
+          "dropbox"
+        ],
+        "actual_services": [],
+        "accurate": false,
+        "steps_count": 0,
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n"
+      },
+      {
+        "user_input": "Send a message",
+        "expected_services": [
+          "slack",
+          "microsoft_teams"
+        ],
+        "actual_services": [],
+        "accurate": false,
+        "steps_count": 0,
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n"
+      },
+      {
+        "user_input": "Create documentation",
         "expected_services": [
           "notion"
-        ], 
-        "steps_count": 2
-      }, 
+        ],
+        "actual_services": [],
+        "accurate": false,
+        "steps_count": 0,
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n"
+      },
       {
-        "accurate": true, 
-        "user_input": "Schedule a meeting", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
+        "user_input": "Schedule a meeting",
         "expected_services": [
-          "google_calendar", 
+          "google_calendar",
           "outlook_calendar"
-        ], 
-        "steps_count": 2
+        ],
+        "actual_services": [],
+        "accurate": false,
+        "steps_count": 0,
+        "error": "HTTP 404: <!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n"
       }
-    ], 
-    "accurate_selections": 2
-  }, 
-  "complex_workflows": {
-    "timestamp": "2025-10-31T19:16:16.664743", 
-    "results": [
-      {
-        "service_match": true, 
-        "overall_success": true, 
-        "user_input": "When I receive an important email, create a task in Asana and send a Slack notification", 
-        "success": true, 
-        "error": "", 
-        "steps_count": 2, 
-        "scenario_name": "Email to Task Workflow", 
-        "message": "Workflow generated successfully", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
-        "expected_services": [
-          "gmail", 
-          "asana", 
-          "slack"
-        ]
-      }, 
-      {
-        "service_match": false, 
-        "overall_success": false, 
-        "user_input": "After a meeting, create notes in Notion and schedule follow-up tasks in Trello", 
-        "success": true, 
-        "error": "", 
-        "steps_count": 2, 
-        "scenario_name": "Meeting to Documentation", 
-        "message": "Workflow generated successfully", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
-        "expected_services": [
-          "notion", 
-          "trello"
-        ]
-      }, 
-      {
-        "service_match": false, 
-        "overall_success": false, 
-        "user_input": "When a file is uploaded to Dropbox, process it and save to Google Drive", 
-        "success": true, 
-        "error": "", 
-        "steps_count": 2, 
-        "scenario_name": "File Processing Workflow", 
-        "message": "Workflow generated successfully", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
-        "expected_services": [
-          "dropbox", 
-          "google_drive"
-        ]
-      }, 
-      {
-        "service_match": false, 
-        "overall_success": false, 
-        "user_input": "Send a message to both Slack and Microsoft Teams when a task is completed", 
-        "success": true, 
-        "error": "", 
-        "steps_count": 2, 
-        "scenario_name": "Multi-Platform Communication", 
-        "message": "Workflow generated successfully", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
-        "expected_services": [
-          "slack", 
-          "microsoft_teams"
-        ]
-      }, 
-      {
-        "service_match": false, 
-        "overall_success": false, 
-        "user_input": "When a GitHub issue is created, create a corresponding task in Jira", 
-        "success": true, 
-        "error": "", 
-        "steps_count": 2, 
-        "scenario_name": "Development Workflow", 
-        "message": "Workflow generated successfully", 
-        "actual_services": [
-          "google_calendar", 
-          "gmail"
-        ], 
-        "expected_services": [
-          "github", 
-          "jira"
-        ]
-      }
-    ], 
-    "success_rate": 20.0, 
-    "successful_scenarios": 1, 
-    "total_scenarios": 5
+    ]
   }
 }

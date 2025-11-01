@@ -1,145 +1,86 @@
 {
-  "timestamp": "2025-10-30T21:11:07.563520",
+  "timestamp": "2025-11-01T14:34:41.021517",
   "results": {
     "backend_health": {
-      "status": true,
-      "blueprints_loaded": 122,
-      "database_status": {
-        "lancedb": "healthy",
-        "postgresql": "initializing",
-        "sqlite_fallback": "not_available"
-      },
-      "message": "API server is running with lazy imports"
+      "status": false,
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /healthz (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x100d67fd0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     "service_registry": {
-      "total_services": 33,
-      "active_services": 2,
-      "connected_services": 31,
-      "success": true
+      "status": false,
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/services/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10196b490>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     "byok_system": {
-      "providers_count": 5,
-      "providers": [
-        "anthropic",
-        "azure_openai",
-        "deepseek",
-        "google_gemini",
-        "openai"
-      ],
-      "success": true
+      "status": false,
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/user/api-keys/providers (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10197d690>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     "workflow_generation": {
       "test_cases": [
         {
           "test_case": "Schedule a meeting for tomorrow",
-          "success": true,
-          "workflow_actions": [
-            "create_calendar_event",
-            "send_email"
-          ],
-          "services_used": [
-            "google_calendar",
-            "gmail"
-          ]
+          "success": false,
+          "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10197fb90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
         },
         {
           "test_case": "Send a message to Slack",
-          "success": true,
-          "workflow_actions": [
-            "create_calendar_event",
-            "send_email"
-          ],
-          "services_used": [
-            "google_calendar",
-            "gmail"
-          ]
+          "success": false,
+          "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10197f6d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
         },
         {
           "test_case": "Create a task in Asana",
-          "success": true,
-          "workflow_actions": [
-            "create_calendar_event",
-            "send_email"
-          ],
-          "services_used": [
-            "google_calendar",
-            "gmail"
-          ]
+          "success": false,
+          "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10197d050>: Failed to establish a new connection: [Errno 61] Connection refused'))"
         },
         {
           "test_case": "Search for documents about Q3 planning",
-          "success": true,
-          "workflow_actions": [
-            "create_calendar_event",
-            "send_email"
-          ],
-          "services_used": [
-            "google_calendar",
-            "gmail"
-          ]
+          "success": false,
+          "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10197c310>: Failed to establish a new connection: [Errno 61] Connection refused'))"
         }
       ],
-      "success_rate": 1.0
+      "success_rate": 0.0
     },
     "nlu_bridge": {
       "success": false,
-      "response": {
-        "confidence": 0.3,
-        "error": "LLM analysis indicates this is not a workflow request",
-        "primary_goal": "General assistance",
-        "success": false
-      }
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-agent/analyze (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10196a050>: Failed to establish a new connection: [Errno 61] Connection refused'))"
     },
     "specific_services": {
       "slack": {
-        "status": true,
-        "details": {
-          "available": true,
-          "message": "Connected to Slack workspace: Atom AI",
-          "ok": true,
-          "service": "slack",
-          "status": "connected",
-          "user_id": "demo_user"
-        }
+        "status": false,
+        "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/slack/health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1019868d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
       },
       "notion": {
         "status": false,
-        "error": "HTTP 401"
+        "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/notion/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x101994ad0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
       },
       "calendar": {
-        "status": true,
-        "details": {
-          "database": "unhealthy",
-          "status": "ok",
-          "timestamp": "2025-10-30T21:11:07.559219"
-        }
+        "status": false,
+        "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/calendar/health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x101955490>: Failed to establish a new connection: [Errno 61] Connection refused'))"
       }
     }
   },
   "claims_validation": {
     "production_ready": {
       "claimed": true,
-      "actual": true,
-      "evidence": "Backend: True, Blueprints: 122",
-      "verdict": "PARTIALLY VALID"
+      "actual": false,
+      "evidence": "Backend: False, Blueprints: 0",
+      "verdict": "INVALID"
     },
     "integrated_platforms": {
       "claimed": "15+",
-      "actual": 33,
-      "evidence": "Total services registered: 33",
-      "verdict": "VALID"
+      "actual": 0,
+      "evidence": "Total services registered: 0",
+      "verdict": "INVALID"
     },
     "nl_workflow_generation": {
       "claimed": true,
-      "actual": true,
-      "evidence": "Workflow generation success rate: 100.0%",
-      "verdict": "VALID"
+      "actual": false,
+      "evidence": "Workflow generation success rate: 0.0%",
+      "verdict": "INVALID"
     },
     "byok_system": {
       "claimed": true,
-      "actual": true,
-      "evidence": "AI providers available: 5",
-      "verdict": "VALID"
+      "actual": false,
+      "evidence": "AI providers available: 0",
+      "verdict": "INVALID"
     },
     "advanced_nlu": {
       "claimed": true,
@@ -149,9 +90,9 @@
     },
     "real_integrations": {
       "claimed": true,
-      "actual": true,
-      "evidence": "Active services: 2",
-      "verdict": "VALID"
+      "actual": false,
+      "evidence": "Active services: 0",
+      "verdict": "INVALID"
     },
     "voice_integration": {
       "claimed": true,
@@ -161,9 +102,9 @@
     },
     "cross_platform_coordination": {
       "claimed": true,
-      "actual": true,
-      "evidence": "Unique services in workflows: 2",
-      "verdict": "VALID"
+      "actual": false,
+      "evidence": "Unique services in workflows: 0",
+      "verdict": "INVALID"
     }
   }
 }

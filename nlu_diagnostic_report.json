@@ -1,18 +1,14 @@
 {
-  "timestamp": "2025-10-31 09:14:53",
-  "overall_status": "7/8 passed",
+  "timestamp": "2025-11-01 15:18:07",
+  "overall_status": "4/8 passed",
   "results": [
     {
       "component": "Backend Health",
       "status": "PASS",
       "details": {
         "message": "Backend status: ok",
-        "blueprints_loaded": 68,
-        "database_status": {
-          "lancedb": "healthy",
-          "postgresql": "initializing",
-          "sqlite_fallback": "not_available"
-        }
+        "blueprints_loaded": 0,
+        "database_status": {}
       },
       "error": null
     },
@@ -34,22 +30,22 @@
           {
             "input": "Schedule a meeting for tomorrow",
             "success": false,
-            "error": "HTTP 401"
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
           },
           {
             "input": "Send a message to Slack",
             "success": false,
-            "error": "HTTP 401"
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
           },
           {
             "input": "Create a task in Asana",
             "success": false,
-            "error": "HTTP 401"
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
           },
           {
             "input": "What's the weather like today?",
             "success": false,
-            "error": "HTTP 401"
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
           }
         ]
       },
@@ -65,48 +61,24 @@
     },
     {
       "component": "NLU Analysis Endpoint",
-      "status": "PASS",
+      "status": "FAIL",
       "details": {
-        "message": "NLU analysis endpoint: 3/3 successful",
+        "message": "NLU analysis endpoint: 0/3 successful",
         "test_results": [
           {
             "input": "When I receive an email from boss, create a task in Asana",
-            "success": true,
-            "response": {
-              "description": "Generated from user input",
-              "is_scheduled": false,
-              "message": "Workflow analysis completed successfully",
-              "steps_count": 2,
-              "success": true,
-              "workflow_id": "test_workflow_001",
-              "workflow_name": "Test Workflow"
-            }
+            "success": false,
+            "error": "HTTP 404"
           },
           {
             "input": "What's the weather today?",
-            "success": true,
-            "response": {
-              "description": "Generated from user input",
-              "is_scheduled": false,
-              "message": "Workflow analysis completed successfully",
-              "steps_count": 2,
-              "success": true,
-              "workflow_id": "test_workflow_001",
-              "workflow_name": "Test Workflow"
-            }
+            "success": false,
+            "error": "HTTP 404"
           },
           {
             "input": "Schedule a meeting every Monday at 9 AM",
-            "success": true,
-            "response": {
-              "description": "Generated from user input",
-              "is_scheduled": false,
-              "message": "Workflow analysis completed successfully",
-              "steps_count": 2,
-              "success": true,
-              "workflow_id": "test_workflow_001",
-              "workflow_name": "Test Workflow"
-            }
+            "success": false,
+            "error": "HTTP 404"
           }
         ]
       },
@@ -114,45 +86,24 @@
     },
     {
       "component": "Workflow Generation",
-      "status": "PASS",
+      "status": "FAIL",
       "details": {
-        "message": "Workflow generation: 3/3 successful",
+        "message": "Workflow generation: 0/3 successful",
         "test_results": [
           {
             "input": "Schedule a meeting for tomorrow",
-            "success": true,
-            "workflow_actions": [
-              "create_calendar_event",
-              "send_email"
-            ],
-            "services_used": [
-              "google_calendar",
-              "gmail"
-            ]
+            "success": false,
+            "error": "HTTP 404"
           },
           {
             "input": "Send a message to Slack",
-            "success": true,
-            "workflow_actions": [
-              "create_calendar_event",
-              "send_email"
-            ],
-            "services_used": [
-              "google_calendar",
-              "gmail"
-            ]
+            "success": false,
+            "error": "HTTP 404"
           },
           {
             "input": "Create a task in Asana",
-            "success": true,
-            "workflow_actions": [
-              "create_calendar_event",
-              "send_email"
-            ],
-            "services_used": [
-              "google_calendar",
-              "gmail"
-            ]
+            "success": false,
+            "error": "HTTP 404"
           }
         ]
       },
@@ -160,13 +111,11 @@
     },
     {
       "component": "Service Registry",
-      "status": "PASS",
+      "status": "FAIL",
       "details": {
-        "message": "Service registry: 33 total, 2 active",
-        "total_services": 33,
-        "active_services": 2
+        "message": "Failed to access service registry"
       },
-      "error": null
+      "error": "Expecting value: line 1 column 1 (char 0)"
     },
     {
       "component": "Error Handling",
@@ -179,21 +128,21 @@
               "user_input": ""
             },
             "success": true,
-            "status_code": 400
+            "status_code": 404
           },
           {
             "test_case": {
               "user_input": "   "
             },
             "success": true,
-            "status_code": 400
+            "status_code": 404
           },
           {
             "test_case": {
               "invalid_field": "test"
             },
             "success": true,
-            "status_code": 400
+            "status_code": 404
           }
         ]
       },

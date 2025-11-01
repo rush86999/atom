@@ -1,131 +1,74 @@
 {
-  "timestamp": "2025-10-31 19:23:28",
+  "timestamp": "2025-11-01 15:18:09",
   "activation_summary": {
     "total_targeted": 9,
-    "active": 3,
-    "oauth_required": 5,
+    "active": 0,
+    "oauth_required": 0,
     "configuration_needed": 0,
-    "errors": 1
+    "errors": 9
   },
   "service_results": [
     {
       "service_name": "gmail",
-      "status": "OAUTH_REQUIRED",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service requires OAuth authorization",
-        "health_data": {
-          "api_accessible": false,
-          "message": "Gmail health endpoint available",
-          "oauth_configured": false,
-          "service": "gmail",
-          "status": "healthy",
-          "success": true,
-          "timestamp": "2025-10-31T10:00:00Z"
-        }
+        "message": "Health endpoint not found: /api/gmail/health"
       },
       "error": null
     },
     {
       "service_name": "outlook",
-      "status": "OAUTH_REQUIRED",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service requires OAuth authorization",
-        "health_data": {
-          "api_accessible": false,
-          "message": "Outlook health endpoint available",
-          "oauth_configured": false,
-          "service": "outlook",
-          "status": "healthy",
-          "success": true,
-          "timestamp": "2025-10-31T10:00:00Z"
-        }
+        "message": "Health endpoint not found: /api/outlook/health"
       },
       "error": null
     },
     {
       "service_name": "notion",
-      "status": "OAUTH_REQUIRED",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "OAuth authorization required for notion",
-        "oauth_endpoint": "http://localhost:5058/api/auth/notion/authorize"
+        "message": "Health endpoint not found: /api/notion/health"
       },
       "error": null
     },
     {
       "service_name": "trello",
-      "status": "ACTIVE",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service is already active",
-        "health_data": {
-          "message": "Trello integration running in mock mode for development",
-          "ok": true,
-          "service": "trello",
-          "status": "mock_mode"
-        }
+        "message": "Health endpoint not found: /api/trello/health"
       },
       "error": null
     },
     {
       "service_name": "asana",
-      "status": "ACTIVE",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service is already active",
-        "health_data": {
-          "message": "Asana integration is registered and ready for OAuth configuration",
-          "needs_oauth": true,
-          "ok": true,
-          "service": "asana",
-          "status": "registered"
-        }
+        "message": "Health endpoint not found: /api/asana/health"
       },
       "error": null
     },
     {
       "service_name": "google_drive",
-      "status": "OAUTH_REQUIRED",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service requires OAuth authorization",
-        "health_data": {
-          "api_accessible": false,
-          "message": "Google Drive health endpoint available",
-          "oauth_configured": false,
-          "service": "google_drive",
-          "status": "healthy",
-          "success": true,
-          "timestamp": "2025-10-31T10:00:00Z"
-        }
+        "message": "Health endpoint not found: /api/gdrive/health"
       },
       "error": null
     },
     {
       "service_name": "dropbox",
-      "status": "ACTIVE",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service is already active",
-        "health_data": {
-          "message": "Dropbox integration is registered and ready for OAuth configuration",
-          "needs_oauth": true,
-          "ok": true,
-          "service": "dropbox",
-          "status": "registered"
-        }
+        "message": "Health endpoint not found: /api/dropbox/health"
       },
       "error": null
     },
     {
       "service_name": "microsoft_teams",
-      "status": "OAUTH_REQUIRED",
+      "status": "ENDPOINT_NOT_FOUND",
       "details": {
-        "message": "Service requires OAuth authorization",
-        "health_data": {
-          "api_accessible": false,
-          "message": "Microsoft Teams health endpoint available",
-          "oauth_configured": false,
-          "service": "microsoft_teams",
-          "status": "healthy",
-          "success": true,
-          "timestamp": "2025-10-31T10:00:00Z"
-        }
+        "message": "Health endpoint not found: /api/teams/health"
       },
       "error": null
     },

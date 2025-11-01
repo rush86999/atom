@@ -1,0 +1,157 @@
+{
+  "timestamp": "2025-11-01T11:40:30.164403",
+  "base_url": "http://localhost:5058",
+  "test_user_id": "test_user_oauth",
+  "summary": {
+    "timestamp": "2025-11-01T11:40:30.164403",
+    "base_url": "http://localhost:5058",
+    "test_user_id": "test_user_oauth",
+    "overall_success": false,
+    "success_rate": 50.0,
+    "authorization_endpoints_working": 0,
+    "status_endpoints_working": 10,
+    "total_services_tested": 10
+  },
+  "detailed_results": [
+    {
+      "service": "gmail",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Gmail OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "outlook",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Outlook OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "slack",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Slack OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "teams",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Teams OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "trello",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Trello OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "asana",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Asana OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "notion",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Notion OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "github",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Github OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "dropbox",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Dropbox OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "gdrive",
+      "test": "authorization",
+      "success": false,
+      "status_code": 404,
+      "message": "\u274c Gdrive OAuth Integration: Endpoint not found (404)"
+    },
+    {
+      "service": "gmail",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Gmail OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "outlook",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Outlook OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "slack",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Slack OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "teams",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Teams OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "trello",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Trello OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "asana",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Asana OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "notion",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Notion OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "github",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Github OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "dropbox",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Dropbox OAuth Integration: Status endpoint working"
+    },
+    {
+      "service": "gdrive",
+      "test": "status",
+      "success": true,
+      "status_code": 200,
+      "message": "\u2705 Gdrive OAuth Integration: Status endpoint working"
+    }
+  ]
+}
