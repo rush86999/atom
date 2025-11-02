@@ -72,6 +72,15 @@ except ImportError as e:
     NOTION_OAUTH_AVAILABLE = False
     logging.warning(f"Notion OAuth handler not available: {e}")
 
+# Import GitHub OAuth handler
+try:
+    from github_oauth_api import github_oauth_bp
+
+    GITHUB_OAUTH_AVAILABLE = True
+except ImportError as e:
+    GITHUB_OAUTH_AVAILABLE = False
+    logging.warning(f"GitHub OAuth handler not available: {e}")
+
 # Create Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv(
@@ -107,6 +116,13 @@ def create_app():
     if JIRA_OAUTH_AVAILABLE:
         app.register_blueprint(jira_auth_bp, url_prefix="/api/auth", name="jira_auth")
         logging.info("Jira OAuth handler registered successfully")
+
+    # Register GitHub OAuth handler if available
+    if GITHUB_OAUTH_AVAILABLE:
+        app.register_blueprint(
+            github_oauth_bp, url_prefix="/api/auth", name="github_auth"
+        )
+        logging.info("GitHub OAuth handler registered successfully")
 
     # Register enhanced services if available
     if ENHANCED_SERVICES_AVAILABLE:

@@ -458,6 +458,9 @@ notes/
 .env.production.complete
 real_credentials.env
 update_env_with_real_credentials.py
+.env.real.credentials
+.env.real*
+*.real.credentials
 
 # Enterprise System Build Files
 enterprise_verification.log

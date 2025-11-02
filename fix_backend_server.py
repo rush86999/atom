@@ -178,7 +178,7 @@ def create_minimal_env_file():
     print(f"\n📝 Creating minimal environment file: {env_file}")
 
     env_content = """# Backend Environment Configuration
-DATABASE_URL=postgresql://atom_user:atom_password@localhost:5432/atom_development
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
 FLASK_SECRET_KEY=dev_secret_key_change_in_production_$(date +%s)
 ATOM_OAUTH_ENCRYPTION_KEY=dev_encryption_key_change_in_production_$(date +%s)
 PYTHON_API_PORT=5059

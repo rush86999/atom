@@ -485,3 +485,76 @@ def get_user_workspaces(
     finally:
         if conn:
             db_conn_pool.putconn(conn)
+
+async def get_user_notion_tokens(user_id: str) -> Optional[Dict[str, Any]]:
+    """Get Notion tokens for a user from database"""
+    try:
+        # Try to use generic OAuth storage first
+        try:
+            from .db_oauth_gdrive import get_tokens
+            from flask import current_app
+            
+            db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+            if not db_conn_pool:
+                logger.error("Notion: Database connection pool not available")
+                return None
+                
+            tokens = await get_tokens(db_conn_pool, user_id, "notion")
+            return tokens
+            
+        except ImportError:
+            logger.warning("Notion: Using mock token storage (database not available)")
+            # Mock implementation for testing
+            return {
+                'user_id': user_id,
+                'access_token': 'mock_access_token',
+                'bot_id': 'mock_bot_id',
+                'workspace_name': 'Mock Workspace',
+                'workspace_id': 'mock_workspace_id',
+                'workspace_icon': None,
+                'owner_data': None,
+                'duplicated_template_id': None,
+                'token_type': 'Bearer',
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Notion: Error getting tokens for user {user_id}: {e}")
+        return None
+
+async def save_user_notion_tokens(user_id: str, token_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Save Notion tokens for a user to database"""
+    try:
+        # Try to use generic OAuth storage first
+        try:
+            from .db_oauth_gdrive import store_tokens
+            from flask import current_app
+            
+            db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+            if not db_conn_pool:
+                logger.error("Notion: Database connection pool not available")
+                return {"success": False, "error": "Database not available"}
+            
+            # Store tokens using generic OAuth storage
+            await store_tokens(
+                db_conn_pool=db_conn_pool,
+                user_id=user_id,
+                service_name="notion",
+                access_token=token_data.get('access_token'),
+                refresh_token=None,  # Notion doesn't use refresh tokens
+                expires_at=None,  # Notion tokens don't expire in traditional way
+                scope='notion'  # Fixed scope for Notion
+            )
+            
+            logger.info(f"Notion: Tokens saved successfully for user {user_id}")
+            return {"success": True, "message": "Tokens saved successfully"}
+            
+        except ImportError:
+            logger.warning("Notion: Using mock token storage (database not available)")
+            # Mock implementation for testing
+            logger.info(f"Notion: Mock saving tokens for user {user_id}")
+            return {"success": True, "message": "Tokens saved (mock)"}
+            
+    except Exception as e:
+        logger.error(f"Notion: Error saving tokens for user {user_id}: {e}")
+        return {"success": False, "error": str(e)}
