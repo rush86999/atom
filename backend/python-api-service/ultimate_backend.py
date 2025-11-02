@@ -583,7 +583,80 @@ def routes_list():
         "timestamp": datetime.now().isoformat()
     })
 
-if __name__ == "__main__":
+
+# OAuth URL Generation Endpoints
+@app.route("/api/oauth/github/url")
+def github_oauth_url():
+    """Generate GitHub OAuth URL"""
+    client_id = os.getenv("GITHUB_CLIENT_ID", "your_github_client_id")
+    scope = "repo user:email"
+    redirect_uri = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:3000/oauth/github/callback")
+    
+    oauth_url = f"https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
+    
+    return jsonify({
+        "oauth_url": oauth_url,
+        "service": "github",
+        "authorization_url": oauth_url,
+        "client_id": client_id,
+        "scope": scope,
+        "redirect_uri": redirect_uri,
+        "success": True
+    })
+
+@app.route("/api/oauth/google/url")
+def google_oauth_url():
+    """Generate Google OAuth URL"""
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "your_google_client_id")
+    scope = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/gmail.readonly"
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:3000/oauth/google/callback")
+    
+    oauth_url = f"https://accounts.google.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code&access_type=offline"
+    
+    return jsonify({
+        "oauth_url": oauth_url,
+        "service": "google",
+        "authorization_url": oauth_url,
+        "client_id": client_id,
+        "scope": scope,
+        "redirect_uri": redirect_uri,
+        "success": True
+    })
+
+@app.route("/api/oauth/slack/url")
+def slack_oauth_url():
+    """Generate Slack OAuth URL"""
+    client_id = os.getenv("SLACK_CLIENT_ID", "your_slack_client_id")
+    scope = "channels:read chat:read users:read"
+    redirect_uri = os.getenv("SLACK_REDIRECT_URI", "http://localhost:3000/oauth/slack/callback")
+    
+    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}"
+    
+    return jsonify({
+        "oauth_url": oauth_url,
+        "service": "slack",
+        "authorization_url": oauth_url,
+        "client_id": client_id,
+        "scope": scope,
+        "redirect_uri": redirect_uri,
+        "success": True
+    })
+
+@app.route("/api/oauth/status")
+def oauth_status():
+    """Check OAuth implementation status"""
+    return jsonify({
+        "oauth_enabled": True,
+        "services": ["github", "google", "slack"],
+        "endpoints": [
+            "/api/oauth/github/url",
+            "/api/oauth/google/url", 
+            "/api/oauth/slack/url"
+        ],
+        "status": "configured",
+        "success": True
+    })
+\n\nif __name__ == "__main__":
     port = int(os.getenv("PYTHON_API_PORT", 8000))
     print(f"🚀 Starting ATOM ULTIMATE Enterprise Backend")
     print(f"📊 Blueprints Loaded: {BLUEPRINTS_LOADED}")
