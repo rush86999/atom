@@ -1,24 +1,17 @@
 {
   "compilerOptions": {
-    "baseUrl": "./",
-    "declaration": true,
-    "declarationMap": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020", "DOM"],
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "outDir": "./dist",
-    "paths": {
-      "@/*": ["src/*"]
-    },
-    "resolveJsonModule": true,
-    "rootDir": "./",
-    "skipLibCheck": true,
-    "sourceMap": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "jsx": "react-jsx",
     "strict": true,
-    "target": "ES2020"
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
-  "include": ["src/**/*", "tests/**/*", "components/**/*", "pages/**/*"]
+  "include": ["index.tsx", "src"]
 }

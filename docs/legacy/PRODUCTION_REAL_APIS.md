@@ -162,7 +162,7 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # LINKEDIN
 LINKEDIN_CLIENT_ID=your_linkedin_client_id
-LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+LINKEDIN_CLIENT_SECRET=your_linkedin_secret
 
 # TWITTER
 TWITTER_CONSUMER_KEY=your_twitter_consumer_key
