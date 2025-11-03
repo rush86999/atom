@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+use open;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,6 +12,10 @@ use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::Mutex;
 use tauri::AppHandle;
+
+// Include Outlook commands
+mod outlook_commands;
+use outlook_commands::*;
 
 // --- Constants ---
 const SETTINGS_FILE: &str = "atom-settings.json";
@@ -497,6 +502,334 @@ fn generate_learning_plan(_notion_database_id: String) -> Result<String, String>
     Ok("Learning plan generated successfully and linked to Notion".to_string())
 }
 
+// --- Jira OAuth Commands ---
+#[tauri::command]
+async fn get_jira_oauth_url(user_id: String) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:8000/api/auth/jira/start")
+        .query(&[("user_id", user_id)])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get Jira OAuth URL".to_string())
+    }
+}
+
+#[tauri::command]
+async fn exchange_jira_oauth_code(
+    code: String,
+    state: String,
+    user_id: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:8000/api/auth/jira/callback")
+        .query(&[("code", code), ("state", state), ("user_id", user_id)])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to exchange Jira OAuth code".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_jira_connection(user_id: String) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:8000/api/auth/jira/resources")
+        .query(&[("user_id", user_id)])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get Jira connection status".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_jira_resources(access_token: String) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://api.atlassian.com/oauth/token/accessible-resources")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get Jira resources".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_jira_projects(
+    access_token: String,
+    cloud_id: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://{}/rest/api/3/project/search", cloud_id);
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get Jira projects".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_jira_issues(
+    access_token: String,
+    cloud_id: String,
+    project_key: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://{}/rest/api/3/search", cloud_id);
+    let jql = format!("project = {} ORDER BY created DESC", project_key);
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "application/json")
+        .query(&[("jql", jql), ("maxResults", "20".to_string())])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get Jira issues".to_string())
+    }
+}
+
+#[tauri::command]
+async fn create_jira_issue(
+    access_token: String,
+    cloud_id: String,
+    project_key: String,
+    summary: String,
+    description: String,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://{}/rest/api/3/issue", cloud_id);
+    let issue_data = serde_json::json!({
+        "fields": {
+            "project": {
+                "key": project_key
+            },
+            "summary": summary,
+            "description": {
+                "type": "doc",
+                "version": 1,
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": description
+                            }
+                        ]
+                    }
+                ]
+            },
+            "issuetype": {
+                "name": "Task"
+            }
+        }
+    });
+
+    let response = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "application/json")
+        .header("Content-Type", "application/json")
+        .json(&issue_data)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to create Jira issue".to_string())
+    }
+}
+
+#[tauri::command]
+async fn search_jira_issues(
+    access_token: String,
+    cloud_id: String,
+    query: String,
+    project_key: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://{}/rest/api/3/search", cloud_id);
+    let jql = if let Some(project) = project_key {
+        format!("project = {} AND text ~ \"{}\"", project, query)
+    } else {
+        format!("text ~ \"{}\"", query)
+    };
+
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "application/json")
+        .query(&[("jql", jql), ("maxResults", "50".to_string())])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to search Jira issues".to_string())
+    }
+}
+
+#[tauri::command]
+async fn disconnect_jira(user_id: String) -> Result<bool, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .delete("http://localhost:8000/api/auth/jira/resources")
+        .query(&[("user_id", user_id)])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        Ok(true)
+    } else {
+        Err("Failed to disconnect Jira".to_string())
+    }
+}
+
+#[tauri::command]
+async fn check_backend_connection() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://localhost:8000/health")
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        Ok(serde_json::json!({ "status": "healthy" }))
+    } else {
+        Ok(serde_json::json!({ "status": "unhealthy" }))
+    }
+}
+
+#[tauri::command]
+async fn open_browser(url: String) -> Result<(), String> {
+    open::that(url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn store_oauth_state(
+    app_handle: tauri::AppHandle,
+    state: serde_json::Value,
+) -> Result<(), String> {
+    // Store OAuth state in secure desktop storage
+    // This is a simplified implementation - in production, use proper encryption
+    let state_json = serde_json::to_string(&state).map_err(|e| e.to_string())?;
+    save_setting(app_handle, "oauth_state".to_string(), state_json)
+}
+
+#[tauri::command]
+async fn setup_jira_tray(access_token: String, update_interval: u64) -> Result<bool, String> {
+    // Setup system tray integration for Jira
+    // This would be implemented in production
+    Ok(true)
+}
+
+#[tauri::command]
+async fn setup_jira_notifications(
+    access_token: String,
+    events: Vec<String>,
+) -> Result<bool, String> {
+    // Setup native notifications for Jira events
+    // This would be implemented in production
+    Ok(true)
+}
+
+#[tauri::command]
+async fn setup_jira_background_sync(
+    access_token: String,
+    sync_interval: u64,
+) -> Result<bool, String> {
+    // Setup background sync for Jira data
+    // This would be implemented in production
+    Ok(true)
+}
+
+#[tauri::command]
+async fn get_jira_user_info(access_token: String) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://api.atlassian.com/me")
+        .header("Authorization", format!("Bearer {}", access_token))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err("Failed to get Jira user info".to_string())
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(BackendState {
@@ -518,7 +851,35 @@ fn main() {
             search_meetings,
             search_documents,
             ingest_document,
-            get_search_suggestions
+            get_search_suggestions,
+            get_jira_oauth_url,
+            exchange_jira_oauth_code,
+            get_jira_connection,
+            get_jira_resources,
+            get_jira_projects,
+            get_jira_issues,
+            create_jira_issue,
+            search_jira_issues,
+            disconnect_jira,
+            check_backend_connection,
+            open_browser,
+            store_oauth_state,
+            setup_jira_tray,
+            setup_jira_notifications,
+            setup_jira_background_sync,
+            get_jira_user_info,
+            
+            // Outlook Commands
+            get_outlook_oauth_url,
+            exchange_outlook_oauth_code,
+            get_outlook_connection,
+            get_outlook_emails,
+            send_outlook_email,
+            get_outlook_calendar_events,
+            create_outlook_calendar_event,
+            disconnect_outlook,
+            check_outlook_tokens,
+            refresh_outlook_tokens
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

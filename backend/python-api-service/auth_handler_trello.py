@@ -63,7 +63,7 @@ auth_trello_bp = Blueprint("auth_trello_bp", __name__)
 TRELLO_API_KEY = os.getenv("TRELLO_API_KEY")
 TRELLO_API_SECRET = os.getenv("TRELLO_API_SECRET")
 TRELLO_REDIRECT_URI = os.getenv(
-    "TRELLO_REDIRECT_URI", "http://localhost:5058/api/auth/trello/callback"
+    "TRELLO_REDIRECT_URI", "http://localhost:3000/oauth/trello/callback"
 )
 
 # Trello API scopes
@@ -127,7 +127,9 @@ async def trello_auth_callback():
         import urllib.parse
 
         # Get database connection
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return "Error: Database connection pool is not available.", 500
 
@@ -197,7 +199,9 @@ async def refresh_trello_token():
     try:
         from flask import current_app
 
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return jsonify(
                 {
@@ -246,7 +250,9 @@ async def trello_auth_disconnect():
     try:
         from flask import current_app
 
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return jsonify(
                 {
@@ -304,7 +310,9 @@ async def trello_auth_status():
     try:
         from flask import current_app
 
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return jsonify(
                 {

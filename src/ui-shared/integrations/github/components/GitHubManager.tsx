@@ -409,6 +409,266 @@ export const ATOMGitHubManager: React.FC<AtomGitHubManagerProps> = ({
         });
       },
       
+      listPullRequests: async (owner: string, repo: string, filters?: any) => {
+        const params = new URLSearchParams({
+          state: filters?.state || 'all',
+          sort: filters?.sort || 'updated',
+          direction: filters?.direction || 'desc'
+        });
+        
+        return await makeRequest(`/repos/${owner}/${repo}/pulls?${params}`);
+      },
+      
+      mergePullRequest: async (owner: string, repo: string, prNumber: number, mergeMethod?: string) => {
+        return await makeRequest(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {
+          method: 'PUT',
+          body: JSON.stringify({ merge_method: mergeMethod || 'merge' })
+        });
+      }
+    }
+  };
+
+  // GitHub Manager Component with ATOM Integration
+  return (
+    <Card>
+      <CardHeader>
+        <HStack justify="space-between">
+          <Heading size="md">GitHub Integration</Heading>
+          <HStack>
+            <Badge
+              colorScheme={state.connectionStatus === 'connected' ? 'green' : 'red'}
+              display="flex"
+              alignItems="center"
+            >
+              <Icon as={state.connectionStatus === 'connected' ? CheckCircleIcon : WarningIcon} mr={1} />
+              {state.connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
+            </Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<RepeatIcon />}
+              onClick={checkGitHubConnection}
+              isLoading={state.loading}
+            >
+              Refresh
+            </Button>
+          </HStack>
+        </HStack>
+      </CardHeader>
+
+      <CardBody>
+        <VStack spacing={6} align="stretch">
+          {/* Authentication Status */}
+          {state.connectionStatus !== 'connected' && (
+            <VStack>
+              <Button
+                colorScheme="gray"
+                leftIcon={<GitHubLogoIcon />}
+                onClick={startGitHubOAuth}
+                width="full"
+                size="lg"
+              >
+                Connect to GitHub
+              </Button>
+              <Text fontSize="sm" color="gray.600" textAlign="center">
+                Connect your GitHub account to enable advanced features
+              </Text>
+            </VStack>
+          )}
+
+          {/* Repository Management */}
+          {state.connectionStatus === 'connected' && (
+            <>
+              <FormControl>
+                <FormLabel>Selected Repositories</FormLabel>
+                <VStack align="start" spacing={2} maxH="200px" overflowY="auto">
+                  {repositories.map((repo) => (
+                    <HStack key={repo.id} justify="space-between" w="full">
+                      <Checkbox
+                        isChecked={selectedRepos.includes(repo.id)}
+                        onChange={(e) => toggleRepositorySelection(repo.id, e.target.checked)}
+                      >
+                        <Text fontSize="sm">{repo.full_name}</Text>
+                      </Checkbox>
+                      <HStack spacing={2}>
+                        {repo.private && (
+                          <Badge size="sm" colorScheme="yellow">Private</Badge>
+                        )}
+                        <Badge size="sm" colorScheme="blue">
+                          {repo.stars} ⭐
+                        </Badge>
+                      </HStack>
+                    </HStack>
+                  ))}
+                </VStack>
+                <FormHelperText>
+                  Select repositories to ingest data from
+                </FormHelperText>
+              </FormControl>
+
+              {/* Data Types to Ingest */}
+              <FormControl>
+                <FormLabel>Data Types</FormLabel>
+                <Stack direction="row" spacing={4}>
+                  {['issues', 'pull_requests', 'commits', 'releases', 'workflows'].map((type) => (
+                    <Checkbox
+                      key={type}
+                      isChecked={dataTypes.includes(type)}
+                      onChange={(e) => toggleDataTypeSelection(type, e.target.checked)}
+                    >
+                      {type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.replace(/_/g, ' ').slice(1)}
+                    </Checkbox>
+                  ))}
+                </Stack>
+              </FormControl>
+
+              {/* Date Range */}
+              <FormControl>
+                <FormLabel>Date Range</FormLabel>
+                <HStack>
+                  <Input
+                    type="date"
+                    value={dateRange.start.toISOString().split('T')[0]}
+                    onChange={(e) => updateDateRange('start', new Date(e.target.value))}
+                  />
+                  <Text>to</Text>
+                  <Input
+                    type="date"
+                    value={dateRange.end.toISOString().split('T')[0]}
+                    onChange={(e) => updateDateRange('end', new Date(e.target.value))}
+                  />
+                </HStack>
+              </FormControl>
+
+              {/* ATOM Ingestion Controls */}
+              <VStack spacing={4}>
+                <HStack justify="space-between" w="full">
+                  <Text fontWeight="bold">ATOM Ingestion</Text>
+                  <Switch
+                    isChecked={ingestionConfig.enabled}
+                    onChange={(e) => updateIngestionConfig('enabled', e.target.checked)}
+                  />
+                </HStack>
+
+                <Collapse in={ingestionConfig.enabled}>
+                  <VStack spacing={3} align="stretch">
+                    <FormControl>
+                      <FormLabel>Sync Frequency</FormLabel>
+                      <Select
+                        value={ingestionConfig.syncFrequency}
+                        onChange={(e) => updateIngestionConfig('syncFrequency', e.target.value)}
+                      >
+                        <option value="realtime">Real-time</option>
+                        <option value="hourly">Hourly</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl>
+                      <FormLabel>Max Items per Sync</FormLabel>
+                      <Input
+                        type="number"
+                        value={ingestionConfig.maxItems}
+                        onChange={(e) => updateIngestionConfig('maxItems', parseInt(e.target.value) || 100)}
+                      />
+                    </FormControl>
+
+                    <HStack>
+                      <Checkbox
+                        isChecked={ingestionConfig.includePrivate}
+                        onChange={(e) => updateIngestionConfig('includePrivate', e.target.checked)}
+                      >
+                        Include Private Repos
+                      </Checkbox>
+                      <Checkbox
+                        isChecked={ingestionConfig.includeForks}
+                        onChange={(e) => updateIngestionConfig('includeForks', e.target.checked)}
+                      >
+                        Include Forks
+                      </Checkbox>
+                    </HStack>
+                  </VStack>
+                </Collapse>
+
+                {/* Ingestion Progress */}
+                {ingestionStatus.running && (
+                  <Card>
+                    <CardBody>
+                      <VStack spacing={3}>
+                        <HStack justify="space-between" w="full">
+                          <Text>Ingesting GitHub data...</Text>
+                          <Text>{Math.round(ingestionStatus.progress)}%</Text>
+                        </HStack>
+                        <Progress
+                          value={ingestionStatus.progress}
+                          size="md"
+                          colorScheme="green"
+                          w="full"
+                        />
+                        <Text fontSize="sm" color="gray.600">
+                          {ingestionStatus.repositoriesProcessed} repositories processed
+                        </Text>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                )}
+
+                {/* Action Buttons */}
+                <HStack justify="space-between" w="full">
+                  <Button
+                    variant="outline"
+                    leftIcon={<ExternalLinkIcon />}
+                    onClick={() => window.open('https://github.com', '_blank')}
+                  >
+                    Open GitHub
+                  </Button>
+
+                  <Button
+                    colorScheme="green"
+                    leftIcon={<AddIcon />}
+                    onClick={startIngestion}
+                    isDisabled={
+                      selectedRepos.length === 0 ||
+                      dataTypes.length === 0 ||
+                      !ingestionConfig.enabled ||
+                      ingestionStatus.running
+                    }
+                    isLoading={ingestionStatus.running}
+                  >
+                    {ingestionStatus.running ? 'Ingesting...' : 'Start Ingestion'}
+                  </Button>
+                </HStack>
+              </VStack>
+            </>
+          )}
+
+          {/* Health Status */}
+          {healthStatus && (
+            <Alert status={healthStatus.healthy ? 'success' : 'warning'}>
+              <AlertIcon />
+              <Box>
+                <Text fontWeight="bold">
+                  GitHub service {healthStatus.healthy ? 'healthy' : 'unhealthy'}
+                </Text>
+                <Text fontSize="sm">{healthStatus.message}</Text>
+              </Box>
+            </Alert>
+          )}
+
+          {/* Error Display */}
+          {state.error && (
+            <Alert status="error">
+              <AlertIcon />
+              <Text>{state.error}</Text>
+            </Alert>
+          )}
+        </VStack>
+      </CardBody>
+    </Card>
+  );
+};
+      
       reopenIssue: async (owner: string, repo: string, issueNumber: number) => {
         return await makeRequest(`/repos/${owner}/${repo}/issues/${issueNumber}`, {
           method: 'PATCH',

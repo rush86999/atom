@@ -10,6 +10,12 @@ import requests
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file in project root
+env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+load_dotenv(env_path)
 
 # Original imports from main_api_app.py
 from workflow_handler import workflow_bp, create_workflow_tables
@@ -74,12 +80,40 @@ except ImportError as e:
 
 # Import GitHub OAuth handler
 try:
-    from github_oauth_api import github_oauth_bp
+    from auth_handler_github import auth_github_bp
 
     GITHUB_OAUTH_AVAILABLE = True
 except ImportError as e:
     GITHUB_OAUTH_AVAILABLE = False
     logging.warning(f"GitHub OAuth handler not available: {e}")
+
+# Import Trello OAuth handler
+try:
+    from auth_handler_trello import auth_trello_bp
+
+    TRELLO_OAUTH_AVAILABLE = True
+except ImportError as e:
+    TRELLO_OAUTH_AVAILABLE = False
+    logging.warning(f"Trello OAuth handler not available: {e}")
+
+# Import Figma OAuth handler
+try:
+    from auth_handler_figma import auth_figma_bp
+
+    FIGMA_OAUTH_AVAILABLE = True
+except ImportError as e:
+    FIGMA_OAUTH_AVAILABLE = False
+    logging.warning(f"Figma OAuth handler not available: {e}")
+
+# Import Outlook OAuth handler
+try:
+    from auth_handler_outlook_new import outlook_oauth_handler
+    from db_oauth_outlook import init_outlook_oauth_table
+
+    OUTLOOK_OAUTH_AVAILABLE = True
+except ImportError as e:
+    OUTLOOK_OAUTH_AVAILABLE = False
+    logging.warning(f"Outlook OAuth handler not available: {e}")
 
 # Create Flask app
 app = Flask(__name__)
@@ -120,7 +154,7 @@ def create_app():
     # Register GitHub OAuth handler if available
     if GITHUB_OAUTH_AVAILABLE:
         app.register_blueprint(
-            github_oauth_bp, url_prefix="/api/auth", name="github_auth"
+            auth_github_bp, url_prefix="/api/auth", name="github_auth"
         )
         logging.info("GitHub OAuth handler registered successfully")
 
@@ -147,10 +181,101 @@ def create_app():
         app.register_blueprint(auth_notion_bp, url_prefix="")
         logging.info("Notion OAuth handler registered successfully")
 
+    # Register Enhanced GitHub API if available
+    try:
+        from github_enhanced_api import github_enhanced_bp
+
+        GITHUB_ENHANCED_AVAILABLE = True
+        app.register_blueprint(github_enhanced_bp, url_prefix="")
+        logging.info("Enhanced GitHub API registered successfully")
+    except ImportError as e:
+        GITHUB_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced GitHub API not available: {e}")
+
+    # Register Enhanced Teams API if available
+    try:
+        from teams_enhanced_api import teams_enhanced_bp
+
+        TEAMS_ENHANCED_AVAILABLE = True
+        app.register_blueprint(teams_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Teams API registered successfully")
+    except ImportError as e:
+        TEAMS_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Teams API not available: {e}")
+
+    # Register Enhanced Slack API if available
+    try:
+        from slack_enhanced_api import slack_enhanced_bp
+
+        SLACK_ENHANCED_AVAILABLE = True
+        app.register_blueprint(slack_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Slack API registered successfully")
+    except ImportError as e:
+        SLACK_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Slack API not available: {e}")
+
+    # Register Enhanced Notion API if available
+    try:
+        from notion_enhanced_api import notion_enhanced_bp
+
+        NOTION_ENHANCED_AVAILABLE = True
+        app.register_blueprint(notion_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Notion API registered successfully")
+    except ImportError as e:
+        NOTION_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Notion API not available: {e}")
+
     # Register Slack OAuth handler if available
     if SLACK_OAUTH_AVAILABLE:
         app.register_blueprint(auth_slack_bp, url_prefix="")
         logging.info("Slack OAuth handler registered successfully")
+
+    # Register Outlook OAuth handler if available
+    if OUTLOOK_OAUTH_AVAILABLE:
+        # Register the existing Outlook blueprint
+        from auth_handler_outlook import auth_outlook_bp
+        app.register_blueprint(auth_outlook_bp, url_prefix="")
+        logging.info("Outlook OAuth handler registered successfully")
+        
+        # Also add the enhanced routes from the new handler
+        @app.route('/api/auth/outlook-new/authorize', methods=['GET'])
+        def outlook_new_oauth_authorize():
+            """Initiate Outlook OAuth flow using new handler"""
+            user_id = request.args.get('user_id')
+            state = request.args.get('state')
+            
+            result = outlook_oauth_handler.get_oauth_url(user_id, state)
+            
+            if result.get('success'):
+                return jsonify(result)
+            else:
+                return jsonify(result), 400
+        
+        @app.route('/api/auth/outlook-new/health', methods=['GET'])
+        def outlook_new_health():
+            """Outlook service health check using new handler"""
+            return jsonify(outlook_oauth_handler.health_check())
+
+    # Register Trello OAuth handler if available
+    if TRELLO_OAUTH_AVAILABLE:
+        app.register_blueprint(auth_trello_bp, url_prefix="")
+        logging.info("Trello OAuth handler registered successfully")
+
+    # Register Figma OAuth handler if available
+    if FIGMA_OAUTH_AVAILABLE:
+        app.register_blueprint(auth_figma_bp, url_prefix="")
+        logging.info("Figma OAuth handler registered successfully")
+
+    # Register Enhanced Trello API if available
+    try:
+        from trello_enhanced_api import trello_enhanced_bp
+
+        TRELLO_ENHANCED_AVAILABLE = True
+        app.register_blueprint(trello_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Trello API registered successfully")
+    except ImportError as e:
+        TRELLO_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Trello API not available: {e}")
 
     # Create workflow tables
     try:
@@ -205,6 +330,17 @@ def slack_oauth_url():
     oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope=channels:read chat:read users:read"
 
     return jsonify({"oauth_url": oauth_url, "service": "slack", "success": True})
+
+
+@app.route("/api/oauth/outlook/url")
+def outlook_oauth_url():
+    """Generate Outlook OAuth authorization URL"""
+    result = outlook_oauth_handler.get_oauth_url()
+    
+    if result.get('success'):
+        return jsonify(result)
+    else:
+        return jsonify(result), 400
 
 
 @app.route("/api/oauth/notion/url")
@@ -444,6 +580,11 @@ def list_routes():
                     "method": "GET",
                     "path": "/api/oauth/slack/url",
                     "description": "Slack OAuth",
+                },
+                {
+                    "method": "GET",
+                    "path": "/api/oauth/outlook/url",
+                    "description": "Outlook OAuth",
                 },
                 {
                     "method": "GET",
