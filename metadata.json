@@ -1,0 +1,7 @@
+{
+  "name": "atom",
+  "description": "atom",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

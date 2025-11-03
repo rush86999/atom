@@ -124,4 +124,6 @@ ATOM: Building contact form... Integrating email service... Complete!
 
 ### Conversation Starters
 - `"Build SaaS landing page with dark mode"`
-- `"Create portfolio with
+- `"Create portfolio with contact form"`
+- `"Start an e-commerce store with 3 products"`
+- `"Generate a personal blog with a newsletter signup"`

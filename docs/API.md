@@ -830,3 +830,4 @@ ws.onmessage = (event) => {
 ws.onclose = () => {
   console.log('Disconnected from Atom WebSocket');
 };
+```
