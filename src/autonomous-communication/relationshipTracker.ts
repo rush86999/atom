@@ -124,4 +124,36 @@ export class RelationshipTracker extends EventEmitter {
     const staleCutoff = new Date(Date.now() - (this.staleThresholdDays * 24 * 60 * 60 * 1000));
 
     return Array.from(this.relationships.entries())
-      .filter(([_, contact]) => new Date(contact.last
+      .filter(([_, contact]) => new Date(contact.lastCommunicationAt).getTime() < staleCutoff.getTime())
+      .map(([id]) => id);
+  }
+
+  public async updateInteraction(contactId: string): Promise<void> {
+    const contact = this.relationships.get(contactId);
+    if (contact) {
+      contact.lastCommunicationAt = new Date();
+      await this.saveAll();
+    }
+  }
+
+  private calculateClosenessScore(contact: ContactRelationship): number {
+    let score = contact.closenessScore || 50;
+    
+    // Increase score based on recent interactions
+    const recentEvents = contact.relationshipHistory.slice(-10);
+    const positiveEvents = recentEvents.filter(e => e.type === 'positive').length;
+    score += positiveEvents * 2;
+    
+    // Decrease score if no recent communication
+    const daysSinceLastComm = (Date.now() - new Date(contact.lastCommunicationAt).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastComm > 30) {
+      score -= 10;
+    }
+    
+    return Math.max(0, Math.min(100, score));
+  }
+
+  private ensureDate(date: Date | string): Date {
+    return date instanceof Date ? date : new Date(date);
+  }
+}

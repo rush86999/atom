@@ -182,42 +182,42 @@ export interface ScheduledCommunication extends AutonomousCommunications {
 export interface AutonomousCommunications {
   type: CommunicationType;
   priority: CommunicationPriority;
-+  recipient: string;
-+  channel: CommunicationChannel;
-+  context: any;
-+  scheduledTime: Date;
-+  reasoning: string;
-+  message?: string;
-+  suggestions?: string[];
-+  expectedResponseTime?: number;
-+}
+  recipient: string;
+  channel: CommunicationChannel;
+  context: any;
+  scheduledTime: Date;
+  reasoning: string;
+  message?: string;
+  suggestions?: string[];
+  expectedResponseTime?: number;
+}
 
 // Learning and memory interfaces
-+export interface LearningPoint {
-+  communication: AutonomousCommunications;
-+  result: any;
-+  timestamp: Date;
-+  success: boolean;
-+  feedback: string;
-+}
+export interface LearningPoint {
+  communication: AutonomousCommunications;
+  result: any;
+  timestamp: Date;
+  success: boolean;
+  feedback: string;
+}
 
 // System status and analytics
-+export interface SystemStatus {
-+  isRunning: boolean;
-+  lastCheck: Date;
-+  pendingCommunications: number;
-+  completedCommunications: number;
-+  failedCommunications: number;
-+  averageResponseTime: number;
-+  systemHealth: 'healthy' | 'warning' | 'error';
-+}
+export interface SystemStatus {
+  isRunning: boolean;
+  lastCheck: Date;
+  pendingCommunications: number;
+  completedCommunications: number;
+  failedCommunications: number;
+  averageResponseTime: number;
+  systemHealth: 'healthy' | 'warning' | 'error';
+}
 
-+export interface CommunicationAnalytics {
-+  totalCommunications: number;
-+  successRate: number;
-+  responseRate: number;
-+  engagementScore: number;
-+  relationshipHealth: Record<string, number>;
-+  channelUsage: Record<CommunicationChannel, number>;
-+  timeDistribution: Record<string, number>;
-+}
+export interface CommunicationAnalytics {
+  totalCommunications: number;
+  successRate: number;
+  responseRate: number;
+  engagementScore: number;
+  relationshipHealth: Record<string, number>;
+  channelUsage: Record<CommunicationChannel, number>;
+  timeDistribution: Record<string, number>;
+}

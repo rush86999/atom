@@ -726,9 +726,7 @@ class ContextManagementService:
         """Get a comprehensive summary of user context"""
         try:
             preferences = self.get_user_preferences_sync(user_id)
-            conversation_history = self.get_conversation_history_sync(
-                user_id, limit=20
-            )
+            conversation_history = self.get_conversation_history_sync(user_id, limit=20)
             chat_context = self.get_or_create_chat_context_sync(user_id, "current")
 
             return {
@@ -792,6 +790,100 @@ class ContextManagementService:
         except RuntimeError:
             # No event loop, use asyncio.run
             return asyncio.run(self.save_user_preferences(user_id, preferences))
+
+    def search_similar_conversations_sync(
+        self,
+        user_id: str,
+        query_text: str,
+        session_id: Optional[str] = None,
+        limit: int = 10,
+        similarity_threshold: float = 0.7,
+    ) -> List[Dict[str, Any]]:
+        """Synchronous wrapper for search_similar_conversations"""
+        import asyncio
+
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is running, use run_coroutine_threadsafe
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run,
+                        self.search_similar_conversations(
+                            user_id, query_text, session_id, limit, similarity_threshold
+                        ),
+                    )
+                    return future.result()
+            else:
+                # If no running loop, use asyncio.run
+                return asyncio.run(
+                    self.search_similar_conversations(
+                        user_id, query_text, session_id, limit, similarity_threshold
+                    )
+                )
+        except RuntimeError:
+            # No event loop, use asyncio.run
+            return asyncio.run(
+                self.search_similar_conversations(
+                    user_id, query_text, session_id, limit, similarity_threshold
+                )
+            )
+
+    def get_contextual_conversation_history_sync(
+        self,
+        user_id: str,
+        current_message: str,
+        session_id: Optional[str] = None,
+        semantic_limit: int = 5,
+        chronological_limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Synchronous wrapper for get_contextual_conversation_history"""
+        import asyncio
+
+        try:
+            # Try to get the current event loop
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is running, use run_coroutine_threadsafe
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run,
+                        self.get_contextual_conversation_history(
+                            user_id,
+                            current_message,
+                            session_id,
+                            semantic_limit,
+                            chronological_limit,
+                        ),
+                    )
+                    return future.result()
+            else:
+                # If no running loop, use asyncio.run
+                return asyncio.run(
+                    self.get_contextual_conversation_history(
+                        user_id,
+                        current_message,
+                        session_id,
+                        semantic_limit,
+                        chronological_limit,
+                    )
+                )
+        except RuntimeError:
+            # No event loop, use asyncio.run
+            return asyncio.run(
+                self.get_contextual_conversation_history(
+                    user_id,
+                    current_message,
+                    session_id,
+                    semantic_limit,
+                    chronological_limit,
+                )
+            )
 
     def add_conversation_message_sync(
         self,

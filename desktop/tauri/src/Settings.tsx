@@ -5,6 +5,8 @@ import {
   getSettingStatus,
 } from "./lib/secure-storage";
 import AIProviderSettings from "./AIProviderSettings";
+import { JiraDesktopManager } from "./components/services/jira";
+import OutlookDesktopManager from "./components/services/outlook/OutlookDesktopManagerNew";
 import "./Settings.css";
 
 const Settings = () => {
@@ -20,6 +22,10 @@ const Settings = () => {
   const [githubOwner, setGithubOwner] = useState("");
   const [githubRepo, setGithubRepo] = useState("");
   const [slackChannelId, setSlackChannelId] = useState("");
+
+  // Service connection states
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const [outlookConnected, setOutlookConnected] = useState(false);
 
   // UI feedback state
   const [message, setMessage] = useState("");
@@ -207,6 +213,40 @@ const Settings = () => {
                   value={zapierUrl}
                   onChange={(e) => setZapierUrl(e.target.value)}
                   placeholder="Enter Zapier Webhook URL"
+                />
+              </div>
+            </div>
+
+            {/* Outlook Integration */}
+            <div className="integration-section">
+              <h3>Outlook Integration</h3>
+              <div className="setting">
+                <p className="integration-description">
+                  Connect your Outlook account to send and receive emails, 
+                  manage calendar events, and enable email automation workflows. 
+                  Uses Microsoft Graph OAuth for secure authentication.
+                </p>
+                <OutlookDesktopManager
+                  userId="desktop-user"
+                  onConnectionChange={setOutlookConnected}
+                />
+              </div>
+            </div>
+
+            {/* Jira Integration */}
+            <div className="integration-section">
+              <h3>Jira Integration</h3>
+              <div className="setting">
+                <p className="integration-description">
+                  Connect your Jira workspace to manage issues, track projects,
+                  and automate workflows. Uses OAuth for secure authentication.
+                </p>
+                <JiraDesktopManager
+                  user={{ id: "desktop-user" }}
+                  onServiceConnected={setJiraConnected}
+                  onWorkflowUpdate={(workflow) =>
+                    console.log("Workflow updated:", workflow)
+                  }
                 />
               </div>
             </div>
