@@ -22,3 +22,221 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Gatsby files
+.cache/
+
+# vuepress build output
+.vuepress/dist
+
+# vuepress v2.x temp and cache directory
+.temp
+
+# Docusaurus cache and generated files
+.docusaurus
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Project specific exclusions
+/audio_samples
+/negative_samples
+*.npy
+/atom_wake_word_env
+backup_dead_code_*/
+.env.production.generated
+
+# Docker builds
+/optaplanner_build_docker/kotlin-quarkus/target
+/classification_build_docker/app/models/
+
+# Database
+/project/postgres
+
+# Temporary and generated files
+tmp/
+*.temp
+
+# Secrets
+secrets.json
+*.pem
+*.key
+google_client_secrets.json
+
+# Backup files
+*.bak
+*.generated
+
+# Lock files (should be committed for reproducibility)
+# !Pipfile.lock
+# !package-lock.json
+# !yarn.lock
+
+# Build artifacts that might cause conflicts
+*-profile
+*-settings
+*-config
+
+# Development tools cache
+.pip-cache/
+.pytest_cache/
+.ropeproject/
+
+# Aider and AI tools
+.aider*
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/
+
+# Build and release artifacts
+**/dist/
+**/build/
+**/release/
+**/target/
+
+# System tools
+*.log.*
+*.swo
+*.swp
+*~
+
+# Vercel
+.vercel
+
+# Amplify
+amplify/\#current-cloud-backend
+amplify/.config/local-*
+amplify/logs
+amplify/mock-data
+amplify/backend/amplify-meta.json
+amplify/backend/.temp
+aws-exports.js
+awsconfiguration.json
+amplifyconfiguration.json
+amplifyconfiguration.dart
+amplify-build-config.json
+amplify-gradle-config.json
+amplifytools.xcconfig
+.secret-*
+**.sample
+
+# Fastlane
+*/fastlane/report.xml
+*/fastlane/Preview.html
+*/fastlane/screenshots
+
+# Bundle artifact
+*.jsbundle
+
+# Ruby / CocoaPods
+*/ios/Pods/
+*/vendor/bundle/
+
+# Embedded git repositories
+frontend-nextjs/optaplanner_build_docker/
+
+# Coding orchestrator
+ai-coding-orchestrator/
+
+notes/
+
+# Additional Enterprise System Sensitive Files
+.env.production.complete
+real_credentials.env
+update_env_with_real_credentials.py
+.env.real.credentials
+.env.real*
+*.real.credentials
+
+# Enterprise System Build Files
+enterprise_verification.log
+backend_final.log
+frontend_test.log
+oauth_backend.log
+production_backend.log
+test_backend.log
+clean_backend.log
+final_working_backend.log

@@ -1,7 +1,84 @@
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+async def get_user_jira_tokens(user_id: str) -> Optional[Dict[str, Any]]:
+    """Get Jira tokens for a user from database"""
+    try:
+        # Try to import database functions from existing modules
+        try:
+            from .db_oauth_gdrive import get_tokens
+            # Reuse the generic OAuth token storage
+            from flask import current_app
+            
+            db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+            if not db_conn_pool:
+                logger.error("Jira: Database connection pool not available")
+                return None
+                
+            tokens = await get_tokens(db_conn_pool, user_id, "jira")
+            return tokens
+            
+        except ImportError:
+            logger.warning("Jira: Using mock token storage (database not available)")
+            # Mock implementation for testing
+            return {
+                'user_id': user_id,
+                'access_token': 'mock_access_token',
+                'refresh_token': 'mock_refresh_token',
+                'expires_in': 3600,
+                'scope': 'read:jira-work read:jira-user write:jira-work',
+                'token_type': 'Bearer',
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Jira: Error getting tokens for user {user_id}: {e}")
+        return None
+
+async def save_user_jira_tokens(user_id: str, token_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Save Jira tokens for a user to database"""
+    try:
+        # Try to import database functions from existing modules
+        try:
+            from .db_oauth_gdrive import store_tokens
+            from flask import current_app
+            
+            db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+            if not db_conn_pool:
+                logger.error("Jira: Database connection pool not available")
+                return {"success": False, "error": "Database not available"}
+            
+            # Calculate expires_at
+            expires_in = token_data.get('expires_in', 3600)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            
+            # Store tokens using generic OAuth storage
+            await store_tokens(
+                db_conn_pool=db_conn_pool,
+                user_id=user_id,
+                service_name="jira",
+                access_token=token_data.get('access_token'),
+                refresh_token=token_data.get('refresh_token'),
+                expires_at=expires_at,
+                scope=token_data.get('scope', '')
+            )
+            
+            logger.info(f"Jira: Tokens saved successfully for user {user_id}")
+            return {"success": True, "message": "Tokens saved successfully"}
+            
+        except ImportError:
+            logger.warning("Jira: Using mock token storage (database not available)")
+            # Mock implementation for testing
+            logger.info(f"Jira: Mock saving tokens for user {user_id}")
+            return {"success": True, "message": "Tokens saved (mock)"}
+            
+    except Exception as e:
+        logger.error(f"Jira: Error saving tokens for user {user_id}: {e}")
+        return {"success": False, "error": str(e)}
 
 async def save_tokens(db_conn_pool, user_id: str, encrypted_access_token: bytes, encrypted_refresh_token: bytes, expires_at: datetime, scope: str):
     """

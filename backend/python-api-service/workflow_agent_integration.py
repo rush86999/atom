@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 import json
 
-from context_management_service import context_management_service
+from context_management_service import context_management_service, LANCEDB_AVAILABLE
 
 logger = logging.getLogger(__name__)
 

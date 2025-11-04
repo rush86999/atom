@@ -1,0 +1,18 @@
+#!/bin/bash
+echo "🔍 ATOM Platform - System Monitor"
+echo "=================================="
+echo "Backend API:  http://localhost:5058"
+echo "Frontend UI:  http://localhost:3000"
+echo ""
+echo "Health Status:"
+curl -s http://localhost:5058/healthz | jq '.status' 2>/dev/null || echo "Backend health check failed"
+echo ""
+echo "Service Count:"
+curl -s http://localhost:5058/api/services | jq '.total_services' 2>/dev/null || echo "Service registry unavailable"
+echo ""
+echo "Active Processes:"
+ps aux | grep -E "(python.*main_api_app.py|next)" | grep -v grep | wc -l
+echo ""
+echo "Log Files:"
+echo "Backend:  tail -f backend_deployment.log"
+echo "Frontend: tail -f frontend_deployment.log"
