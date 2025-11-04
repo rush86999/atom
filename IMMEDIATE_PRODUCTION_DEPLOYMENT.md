@@ -99,7 +99,7 @@ curl http://localhost:8000/api/services | jq '.total_services'
 # nginx configuration for SSL
 server {
     listen 443 ssl;
-    server_name your-domain.com;
+    server_name localhost;
     
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/private.key;
@@ -121,16 +121,16 @@ server {
 ### Essential Monitoring Endpoints
 ```bash
 # Application Health
-curl https://your-domain.com/healthz
+curl https://localhost/healthz
 
 # Service Status
-curl https://your-domain.com/api/services/health
+curl https://localhost/api/services/health
 
 # Database Health
-curl https://your-domain.com/api/database/health
+curl https://localhost/api/database/health
 
 # Performance Metrics
-curl https://your-domain.com/api/metrics
+curl https://localhost/api/metrics
 ```
 
 ### Docker Compose Production File
@@ -176,7 +176,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://your-domain.com/api
+      - NEXT_PUBLIC_API_URL=https://localhost/api
     ports:
       - "3000:3000"
     depends_on:

@@ -45,7 +45,7 @@ This guide provides step-by-step instructions for obtaining and configuring real
 3. Create OAuth 2.0 Client ID
 4. Configure authorized redirect URIs:
    - `http://localhost:5058/auth/google/callback` (development)
-   - `https://your-domain.com/auth/google/callback` (production)
+   - `https://localhost/auth/google/callback` (production)
 5. Download credentials JSON
 6. Set environment variables:
    - `GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com`

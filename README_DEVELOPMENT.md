@@ -62,7 +62,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=atom_development
 DB_USER=atom_user
-DB_PASSWORD=your_secure_password
+DB_PASSWORD=CHANGE_THIS_PASSWORD
 
 # API Keys for External Services
 DEEPGRAM_API_KEY=your_deepgram_api_key_here
@@ -92,7 +92,7 @@ docker run -d \
   --name atom-postgres \
   -e POSTGRES_DB=atom_development \
   -e POSTGRES_USER=atom_user \
-  -e POSTGRES_PASSWORD=your_secure_password \
+  -e POSTGRES_PASSWORD=CHANGE_THIS_PASSWORD \
   -p 5432:5432 \
   postgres:15-alpine
 
@@ -105,7 +105,7 @@ docker-compose -f docker-compose.postgraphile.auth.yaml up -d
 ```sql
 -- Connect to PostgreSQL and create database
 CREATE DATABASE atom_development;
-CREATE USER atom_user WITH PASSWORD 'your_secure_password';
+CREATE USER atom_user WITH PASSWORD 'CHANGE_THIS_PASSWORD';
 GRANT ALL PRIVILEGES ON DATABASE atom_development TO atom_user;
 ```
 

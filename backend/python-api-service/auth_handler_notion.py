@@ -188,24 +188,43 @@ async def notion_auth_callback():
 
         # Store tokens in database
         try:
-            from db_oauth_gdrive import store_tokens
+            import crypto_utils
+            from db_utils import get_db_pool
+            
+            # Get database pool
+            db_pool = get_db_pool() or current_app.config.get("DB_CONNECTION_POOL")
+            if not db_pool:
+                raise Exception("Database connection pool not available")
 
-            await store_tokens(
-                db_conn_pool=db_conn_pool,
-                user_id=user_id,
-                service_name="notion",
-                access_token=access_token,
-                refresh_token=None,  # Notion doesn't use refresh tokens
-                expires_at=expires_at,
-                scope=",".join(NOTION_SCOPES),
-                metadata={
-                    "bot_id": bot_id,
-                    "workspace_name": workspace_name,
-                    "workspace_icon": workspace_icon,
-                    "workspace_id": workspace_id,
-                    "duplicated_template_id": duplicated_template_id,
-                },
-            )
+            # Encrypt tokens
+            encrypted_access_token = crypto_utils.encrypt_message(access_token)
+            encrypted_refresh_token = crypto_utils.encrypt_message("")  # Notion doesn't use refresh tokens
+
+            # Store using generic OAuth table
+            sql = """
+                INSERT INTO user_oauth_tokens 
+                (user_id, service_name, access_token, refresh_token, expires_at, scope, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (user_id, service_name) DO UPDATE SET
+                    access_token = EXCLUDED.access_token,
+                    refresh_token = EXCLUDED.refresh_token,
+                    expires_at = EXCLUDED.expires_at,
+                    scope = EXCLUDED.scope,
+                    updated_at = %s;
+            """
+            
+            import datetime
+            now = datetime.datetime.now()
+            
+            with db_pool.getconn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql, (
+                        user_id, "notion", encrypted_access_token, encrypted_refresh_token,
+                        expires_at, ",".join(NOTION_SCOPES), now, now
+                    ))
+                conn.commit()
+
+            logger.info(f"Notion OAuth completed successfully for user {user_id}")
 
             logger.info(f"Notion OAuth completed successfully for user {user_id}")
 
@@ -307,10 +326,22 @@ async def notion_auth_disconnect():
             ), 400
 
         try:
-            from db_oauth_gdrive import delete_tokens
+            from db_utils import get_db_pool
+            
+            # Get database pool
+            db_pool = get_db_pool() or current_app.config.get("DB_CONNECTION_POOL")
+            if not db_pool:
+                raise Exception("Database connection pool not available")
 
-            # Delete tokens from database
-            await delete_tokens(db_conn_pool, user_id, "notion")
+            # Delete tokens from generic OAuth table
+            sql = "DELETE FROM user_oauth_tokens WHERE user_id = %s AND service_name = %s;"
+            
+            with db_pool.getconn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql, (user_id, "notion"))
+                conn.commit()
+
+            logger.info(f"Notion integration disconnected for user {user_id}")
 
             logger.info(f"Notion integration disconnected for user {user_id}")
             return jsonify(
@@ -366,9 +397,9 @@ async def notion_auth_status():
             ), 400
 
         try:
-            from db_oauth_gdrive import get_tokens
+            from db_utils import get_user_tokens
 
-            tokens = await get_tokens(db_conn_pool, user_id, "notion")
+            tokens = await get_user_tokens(user_id, "notion")
             if tokens and tokens.get("access_token"):
                 # Notion tokens don't expire, but we check anyway
                 is_expired = tokens.get("expires_at") and tokens[

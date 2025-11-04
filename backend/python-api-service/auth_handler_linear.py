@@ -36,7 +36,7 @@ LINEAR_API_BASE_URL = "https://api.linear.app/v1"
 auth_linear_bp = Blueprint("auth_linear_bp", __name__)
 
 @auth_linear_bp.route("/api/auth/linear/authorize", methods=["POST"])
-def authorize():
+async def authorize():
     """Start Linear OAuth 2.0 flow"""
     try:
         data = request.get_json()
@@ -81,7 +81,7 @@ def authorize():
         }), 500
 
 @auth_linear_bp.route("/api/auth/linear/callback", methods=["POST"])
-def callback():
+async def callback():
     """Handle Linear OAuth 2.0 callback"""
     try:
         data = request.get_json()
@@ -218,7 +218,7 @@ def status():
         }), 500
 
 @auth_linear_bp.route("/api/auth/linear/disconnect", methods=["POST"])
-def disconnect():
+async def disconnect():
     """Disconnect Linear integration"""
     try:
         data = request.get_json()
@@ -247,7 +247,7 @@ def disconnect():
         }), 500
 
 @auth_linear_bp.route("/api/auth/linear/refresh", methods=["POST"])
-def refresh():
+async def refresh():
     """Refresh Linear OAuth tokens"""
     try:
         data = request.get_json()
@@ -381,7 +381,7 @@ async def get_linear_user_info(access_token: str):
 
 # Webhook endpoint for Linear notifications
 @auth_linear_bp.route("/api/auth/linear/webhook/<webhook_id>", methods=["POST"])
-def webhook_handler(webhook_id):
+async def webhook_handler(webhook_id):
     """Handle Linear webhooks"""
     try:
         data = request.get_json()

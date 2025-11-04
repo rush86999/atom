@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-11-04T16:34:48.381468+00:00",
+  "total_tests": 8,
+  "passed_tests": 3,
+  "success_rate": 0.375,
+  "test_results": {
+    "Module Imports": false,
+    "Text Processing": true,
+    "Notion Document Processor": true,
+    "Notion Integration Service": false,
+    "Sync System": false,
+    "API Endpoints": false,
+    "LanceDB": false,
+    "Database Schema": true
+  },
+  "production_ready": false
+}

@@ -1,0 +1,84 @@
+{
+  "timestamp": "2025-11-03 19:22:11",
+  "activation_summary": {
+    "total_targeted": 9,
+    "active": 0,
+    "oauth_required": 0,
+    "configuration_needed": 0,
+    "errors": 9
+  },
+  "service_results": [
+    {
+      "service_name": "gmail",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/gmail/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f4dad0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "outlook",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/outlook/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f4e510>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "notion",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/notion/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f58890>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "trello",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/trello/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f5ab50>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "asana",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/asana/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f68e90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "google_drive",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/gdrive/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f6b1d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "dropbox",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/dropbox/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f5ae90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "microsoft_teams",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/teams/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f58490>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "service_name": "outlook_calendar",
+      "status": "CONNECTION_ERROR",
+      "details": {
+        "message": "Failed to connect to service endpoint"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/outlook-calendar/health?user_id=test_user (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x103f42ed0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    }
+  ]
+}

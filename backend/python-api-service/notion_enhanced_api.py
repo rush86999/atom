@@ -15,16 +15,16 @@ from loguru import logger
 
 # Import Notion service
 try:
-    from notion_service_real import notion_service
+    from notion_service_real import get_real_notion_client
     NOTION_SERVICE_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Notion service not available: {e}")
     NOTION_SERVICE_AVAILABLE = False
-    notion_service = None
+    get_real_notion_client = None
 
 # Import database handler
 try:
-    from db_oauth_notion import get_user_tokens, save_tokens
+    from db_oauth_notion import get_user_notion_tokens, save_user_notion_tokens
     NOTION_DB_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Notion database handler not available: {e}")
@@ -51,7 +51,7 @@ async def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
         }
     
     try:
-        tokens = await get_user_tokens(user_id)
+        tokens = await get_user_notion_tokens(user_id)
         return tokens
     except Exception as e:
         logger.error(f"Error getting Notion tokens for user {user_id}: {e}")
@@ -488,7 +488,7 @@ async def list_users():
         
         # Filter based on preferences
         if not include_bots:
-            mock_users = [u for u in mock_users if u['type'] !== 'bot']
+            mock_users = [u for u in mock_users if u['type'] != 'bot']
         
         return jsonify(format_notion_response({
             'users': mock_users,

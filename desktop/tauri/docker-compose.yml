@@ -1,0 +1,221 @@
+version: '3.8'
+
+services:
+  # Main ATOM Desktop application
+  atom-desktop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "3000:3000"
+      - "1430:1430"
+    environment:
+      - NODE_ENV=production
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://atom:atom@postgres:5432/atomdb
+      - LOG_LEVEL=info
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - atom-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=atomdb
+      - POSTGRES_USER=atom
+      - POSTGRES_PASSWORD=atom
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - atom-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atom -d atomdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass atomredis
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - atom-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - atom-desktop
+    restart: unless-stopped
+    networks:
+      - atom-network
+
+  # GitHub API mock (for development)
+  github-mock:
+    image: mockserver/mockserver:latest
+    ports:
+      - "1080:1080"
+    environment:
+      - MOCKSERVER_PROPERTY_FILE=/config/mockserver.properties
+    volumes:
+      - ./mock-server/config:/config
+      - ./mock-server/expectations:/config/expectations
+    networks:
+      - atom-network
+    profiles:
+      - development
+      - testing
+
+  # Prometheus monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - atom-network
+    profiles:
+      - monitoring
+
+  # Grafana visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - atom-network
+    profiles:
+      - monitoring
+
+  # Elasticsearch for logs
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - atom-network
+    profiles:
+      - logging
+
+  # Kibana for log visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - atom-network
+    profiles:
+      - logging
+
+  # Jaeger tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - atom-network
+    profiles:
+      - monitoring
+
+  # Test runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - NODE_ENV=test
+      - GITHUB_API_URL=http://github-mock:1080
+    volumes:
+      - ./test-results:/app/test-results
+      - ./coverage:/app/coverage
+    depends_on:
+      - github-mock
+      - postgres
+      - redis
+    networks:
+      - atom-network
+    profiles:
+      - testing
+
+# Volumes
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+
+# Networks
+networks:
+  atom-network:
+    driver: bridge

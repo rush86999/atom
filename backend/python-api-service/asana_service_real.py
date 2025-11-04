@@ -4,7 +4,14 @@
 import os
 import logging
 from typing import Dict, Any, Optional, List
-from asana.api import TasksApi, ProjectsApi, WorkspacesApi
+from asana.api import (
+    TasksApi,
+    ProjectsApi,
+    WorkspacesApi,
+    UsersApi,
+    TeamsApi,
+    SectionsApi,
+)
 from asana.api_client import ApiClient
 from asana.configuration import Configuration
 import db_oauth_asana, crypto_utils
@@ -21,6 +28,9 @@ class AsanaServiceReal(MCPBase):
         self.tasks_api = TasksApi(api_client)
         self.projects_api = ProjectsApi(api_client)
         self.workspaces_api = WorkspacesApi(api_client)
+        self.users_api = UsersApi(api_client)
+        self.teams_api = TeamsApi(api_client)
+        self.sections_api = SectionsApi(api_client)
         self.is_mock = False
 
     def list_files(
@@ -124,6 +134,243 @@ class AsanaServiceReal(MCPBase):
             "status": "error",
             "message": "Download not directly supported for Asana tasks. Use get_file_metadata to retrieve task details.",
         }
+
+    def get_projects(
+        self,
+        workspace_id: Optional[str] = None,
+        limit: int = 100,
+        offset: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Get Asana projects for a workspace or user"""
+        try:
+            params = {
+                "limit": limit,
+                "offset": offset if offset else "0",
+            }
+
+            if workspace_id:
+                projects_response = self.projects_api.get_projects_for_workspace(
+                    workspace_id, **params
+                )
+            else:
+                projects_response = self.projects_api.get_projects(**params)
+
+            projects = (
+                projects_response.data if hasattr(projects_response, "data") else []
+            )
+
+            # Convert projects to dictionary format
+            project_list = []
+            for project in projects:
+                project_list.append(
+                    {
+                        "id": project.gid,
+                        "name": project.name,
+                        "description": getattr(project, "notes", ""),
+                        "color": getattr(project, "color", "blue"),
+                        "archived": getattr(project, "archived", False),
+                        "public": getattr(project, "public", False),
+                        "created_at": getattr(project, "created_at", None),
+                        "modified_at": getattr(project, "modified_at", None),
+                        "workspace": {
+                            "gid": getattr(project.workspace, "gid", None),
+                            "name": getattr(project.workspace, "name", ""),
+                        }
+                        if hasattr(project, "workspace") and project.workspace
+                        else {},
+                        "team": {
+                            "gid": getattr(project.team, "gid", None),
+                            "name": getattr(project.team, "name", ""),
+                        }
+                        if hasattr(project, "team") and project.team
+                        else {},
+                    }
+                )
+
+            # Calculate next page token
+            next_page_token = (
+                str(int(offset or 0) + len(projects))
+                if len(projects) == limit
+                else None
+            )
+
+            return {
+                "status": "success",
+                "data": {"projects": project_list, "nextPageToken": next_page_token},
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing Asana projects: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_sections(
+        self,
+        project_id: str,
+        limit: int = 100,
+        offset: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Get sections for an Asana project"""
+        try:
+            params = {
+                "limit": limit,
+                "offset": offset if offset else "0",
+            }
+
+            sections_response = self.sections_api.get_sections_for_project(
+                project_id, **params
+            )
+            sections = (
+                sections_response.data if hasattr(sections_response, "data") else []
+            )
+
+            # Convert sections to dictionary format
+            section_list = []
+            for section in sections:
+                section_list.append(
+                    {
+                        "id": section.gid,
+                        "name": section.name,
+                        "project": {"gid": project_id},
+                        "created_at": getattr(section, "created_at", None),
+                    }
+                )
+
+            # Calculate next page token
+            next_page_token = (
+                str(int(offset or 0) + len(sections))
+                if len(sections) == limit
+                else None
+            )
+
+            return {
+                "status": "success",
+                "data": {"sections": section_list, "nextPageToken": next_page_token},
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing Asana sections: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_teams(
+        self,
+        workspace_id: str,
+        limit: int = 100,
+        offset: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Get teams for an Asana workspace"""
+        try:
+            params = {
+                "limit": limit,
+                "offset": offset if offset else "0",
+            }
+
+            teams_response = self.teams_api.get_teams_for_workspace(
+                workspace_id, **params
+            )
+            teams = teams_response.data if hasattr(teams_response, "data") else []
+
+            # Convert teams to dictionary format
+            team_list = []
+            for team in teams:
+                team_list.append(
+                    {
+                        "id": team.gid,
+                        "name": team.name,
+                        "description": getattr(team, "description", ""),
+                        "workspace": {"gid": workspace_id},
+                        "created_at": getattr(team, "created_at", None),
+                    }
+                )
+
+            # Calculate next page token
+            next_page_token = (
+                str(int(offset or 0) + len(teams)) if len(teams) == limit else None
+            )
+
+            return {
+                "status": "success",
+                "data": {"teams": team_list, "nextPageToken": next_page_token},
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing Asana teams: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_users(
+        self,
+        workspace_id: str,
+        limit: int = 100,
+        offset: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Get users for an Asana workspace"""
+        try:
+            params = {
+                "limit": limit,
+                "offset": offset if offset else "0",
+            }
+
+            users_response = self.users_api.get_users_for_workspace(
+                workspace_id, **params
+            )
+            users = users_response.data if hasattr(users_response, "data") else []
+
+            # Convert users to dictionary format
+            user_list = []
+            for user in users:
+                user_list.append(
+                    {
+                        "id": user.gid,
+                        "name": user.name,
+                        "email": getattr(user, "email", ""),
+                        "photo": getattr(user, "photo", None),
+                        "workspace": {"gid": workspace_id},
+                    }
+                )
+
+            # Calculate next page token
+            next_page_token = (
+                str(int(offset or 0) + len(users)) if len(users) == limit else None
+            )
+
+            return {
+                "status": "success",
+                "data": {"users": user_list, "nextPageToken": next_page_token},
+            }
+
+        except Exception as e:
+            logger.error(f"Error listing Asana users: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def get_user_profile(
+        self,
+        user_id: str = "me",
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Get Asana user profile information"""
+        try:
+            user_response = self.users_api.get_user(user_id)
+            user_data = user_response.data if hasattr(user_response, "data") else {}
+
+            profile = {
+                "id": user_data.gid,
+                "name": user_data.name,
+                "email": getattr(user_data, "email", ""),
+                "photo": getattr(user_data, "photo", None),
+                "workspaces": [
+                    {"gid": ws.gid, "name": ws.name}
+                    for ws in getattr(user_data, "workspaces", [])
+                ],
+            }
+
+            return {"status": "success", "data": profile}
+
+        except Exception as e:
+            logger.error(f"Error getting Asana user profile: {e}")
+            return {"status": "error", "message": str(e)}
 
     def create_task(
         self,

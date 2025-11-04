@@ -1,0 +1,314 @@
+name: Outlook Integration CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ['src-tauri/**', 'src/**/outlook*', 'docs/**']
+  pull_request:
+    branches: [main, develop]
+    paths: ['src-tauri/**', 'src/**/outlook*', 'docs/**']
+  release:
+    types: [published]
+
+env:
+  NODE_VERSION: '18'
+  RUST_VERSION: '1.73'
+
+jobs:
+  test:
+    name: Test Outlook Integration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: package*.json
+        
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        override: true
+        components: rustfmt, clippy
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting
+      run: npm run lint
+      
+    - name: Run type checking
+      run: npm run type-check
+      
+    - name: Run unit tests
+      run: npm run test:coverage
+      
+    - name: Run integration tests
+      run: npm run test:integration
+      
+    - name: Run Rust tests
+      run: cargo test --manifest-path src-tauri/Cargo.toml
+      
+    - name: Run Rust clippy
+      run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+      
+    - name: Check Rust formatting
+      run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+      
+    - name: Run security audit
+      run: npm run security-audit
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: outlook
+        name: outlook-integration
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-outlook
+        path: |
+          coverage/
+          junit.xml
+        retention-days: 7
+
+  build:
+    name: Build Outlook Integration
+    runs-on: ${{ matrix.os }}
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: package*.json
+        
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        override: true
+        
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build frontend
+      run: npm run build
+      
+    - name: Build Tauri app
+      run: cargo tauri build --manifest-path src-tauri/Cargo.toml
+      env:
+        OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
+        OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: atom-outlook-${{ matrix.os }}
+        path: |
+          src-tauri/target/release/bundle/
+          dist/
+        retention-days: 7
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        languages: javascript, typescript
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment..."
+        # Add your staging deployment commands here
+        # For example: Deploy to Vercel, Netlify, or your own server
+        
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests on staging..."
+        # Add smoke test commands here
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, build, security]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        pattern: atom-outlook-*
+        merge-multiple: true
+        
+    - name: Create release package
+      run: |
+        ./deploy-outlook.sh
+        
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./release/atom-outlook-*.tar.gz
+        asset_name: atom-outlook-${{ github.event.release.tag_name }}.tar.gz
+        asset_content_type: application/gzip
+        
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment..."
+        # Add your production deployment commands here
+        
+    - name: Notify team
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        channel: '#deployments'
+        text: |
+          Outlook Integration v${{ github.event.release.tag_name }} deployment ${{ job.status == 'success' && 'succeeded' || 'failed' }}!
+          Release: ${{ github.event.release.html_url }}
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  documentation:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        
+    - name: Generate API documentation
+      run: |
+        npm run docs:build
+        echo "Generating documentation for version ${{ github.event.release.tag_name }}"
+        
+    - name: Deploy documentation
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/
+        destination_dir: ${{ github.event.release.tag_name }}
+        
+    - name: Update latest documentation
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/
+        destination_dir: latest
+
+  performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Lighthouse CI
+      uses: treosh/lighthouse-ci-action@v10
+      with:
+        configPath: '.lighthouserc.json'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+        
+    - name: Run performance tests
+      run: |
+        echo "Running performance tests..."
+        # Add performance test commands here
+
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: always()
+    
+    steps:
+    - name: Notify on success
+      if: needs.test.result == 'success' && needs.build.result == 'success'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        channel: '#outlook-integration'
+        text: '✅ Outlook Integration CI/CD pipeline completed successfully!'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: Notify on failure
+      if: needs.test.result == 'failure' || needs.build.result == 'failure'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#outlook-integration'
+        text: '❌ Outlook Integration CI/CD pipeline failed!'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

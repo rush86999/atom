@@ -298,10 +298,10 @@ python test_real_integrations.py --env .env.production --test-all
 ### Health Monitoring
 ```bash
 # Health endpoint
-curl http://your-domain.com/healthz
+curl http://localhost/healthz
 
 # Integration status
-curl http://your-domain.com/api/integrations/status
+curl http://localhost/api/integrations/status
 
 # Performance metrics
 # Response time < 200ms

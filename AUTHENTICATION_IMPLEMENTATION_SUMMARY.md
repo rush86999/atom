@@ -92,7 +92,7 @@ CREATE TABLE users (
 ### Demo Users
 - **Email**: demo@atom.com
 - **Password**: demo123
-- **Email**: admin@atom.com  
+- **Email**: noreply@atom.com  
 - **Password**: admin123
 
 ## Testing Results

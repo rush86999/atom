@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "/Users/rushiparikh/projects/atom/atom/playwright.config.ts",
-    "rootDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+    "configFile": "/home/developer/projects/atom/atom/playwright.config.ts",
+    "rootDir": "/home/developer/projects/atom/atom/tests/e2e",
     "forbidOnly": false,
     "fullyParallel": true,
     "globalSetup": null,
@@ -18,7 +18,7 @@
         null
       ],
       [
-        "/Users/rushiparikh/projects/atom/atom/node_modules/allure-playwright/dist/index.js",
+        "/home/developer/projects/atom/atom/node_modules/allure-playwright/dist/index.js",
         null
       ],
       [
@@ -35,13 +35,13 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "outputDir": "/home/developer/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testDir": "/home/developer/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -49,13 +49,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "outputDir": "/home/developer/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "firefox",
         "name": "firefox",
-        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testDir": "/home/developer/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -63,13 +63,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "outputDir": "/home/developer/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "webkit",
         "name": "webkit",
-        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testDir": "/home/developer/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -77,13 +77,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "outputDir": "/home/developer/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "mobile-chrome",
         "name": "mobile-chrome",
-        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testDir": "/home/developer/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -91,13 +91,13 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/Users/rushiparikh/projects/atom/atom/test-results",
+        "outputDir": "/home/developer/projects/atom/atom/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "mobile-safari",
         "name": "mobile-safari",
-        "testDir": "/Users/rushiparikh/projects/atom/atom/tests/e2e",
+        "testDir": "/home/developer/projects/atom/atom/tests/e2e",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"

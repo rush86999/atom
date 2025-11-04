@@ -69,6 +69,12 @@ ASANA_REDIRECT_URI = os.getenv(
 # Asana API scopes
 ASANA_SCOPES = [
     "default",
+    "tasks:read",
+    "tasks:write",
+    "projects:read",
+    "projects:write",
+    "workspaces:read",
+    "users:read",
 ]
 
 # CSRF protection
@@ -97,6 +103,7 @@ def asana_auth_initiate():
             "redirect_uri": ASANA_REDIRECT_URI,
             "response_type": "code",
             "state": csrf_token,
+            "scope": " ".join(ASANA_SCOPES),
         }
 
         auth_url = f"https://app.asana.com/-/oauth_authorize?{urllib.parse.urlencode(auth_params)}"
@@ -120,7 +127,9 @@ async def asana_auth_callback():
         import urllib.parse
 
         # Get database connection
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return "Error: Database connection pool is not available.", 500
 
@@ -177,7 +186,7 @@ async def asana_auth_callback():
 
         # Store tokens in database
         try:
-            from db_oauth_gdrive import store_tokens
+            from db_oauth_asana import store_tokens
 
             await store_tokens(
                 db_conn_pool=db_conn_pool,
@@ -211,7 +220,9 @@ async def refresh_asana_token():
         from flask import current_app
         import requests
 
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return jsonify(
                 {
@@ -237,7 +248,7 @@ async def refresh_asana_token():
             ), 400
 
         try:
-            from db_oauth_gdrive import get_tokens, update_tokens
+            from db_oauth_asana import get_tokens, update_tokens
 
             # Get current tokens
             tokens = await get_tokens(db_conn_pool, user_id, "asana")
@@ -322,7 +333,9 @@ async def asana_auth_disconnect():
     try:
         from flask import current_app
 
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return jsonify(
                 {
@@ -348,7 +361,7 @@ async def asana_auth_disconnect():
             ), 400
 
         try:
-            from db_oauth_gdrive import delete_tokens
+            from db_oauth_asana import delete_tokens
 
             # Delete tokens from database
             await delete_tokens(db_conn_pool, user_id, "asana")
@@ -380,7 +393,9 @@ async def asana_auth_status():
     try:
         from flask import current_app
 
-        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get("DB_CONNECTION_POOL", None)
+        db_conn_pool = getattr(current_app, "db_pool", None) or current_app.config.get(
+            "DB_CONNECTION_POOL", None
+        )
         if not db_conn_pool:
             return jsonify(
                 {
@@ -405,7 +420,7 @@ async def asana_auth_status():
             ), 400
 
         try:
-            from db_oauth_gdrive import get_tokens
+            from db_oauth_asana import get_tokens
 
             tokens = await get_tokens(db_conn_pool, user_id, "asana")
             if tokens and tokens.get("access_token"):
@@ -421,11 +436,18 @@ async def asana_auth_status():
                         "scopes": tokens.get("scope", "").split(",")
                         if tokens.get("scope")
                         else [],
+                        "user_id": user_id,
                     }
                 )
             else:
                 return jsonify(
-                    {"ok": True, "connected": False, "expired": False, "scopes": []}
+                    {
+                        "ok": True,
+                        "connected": False,
+                        "expired": False,
+                        "scopes": [],
+                        "user_id": user_id,
+                    }
                 )
 
         except Exception as db_error:

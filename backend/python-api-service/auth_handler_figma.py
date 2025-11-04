@@ -137,7 +137,7 @@ def callback():
         
         # Get user information from Figma
         access_token = token_response.get("access_token")
-        user_info = await get_figma_user_info(access_token)
+        user_info = get_figma_user_info(access_token)
         
         if not user_info:
             return jsonify({

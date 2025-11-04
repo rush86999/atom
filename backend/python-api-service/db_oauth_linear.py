@@ -148,11 +148,11 @@ async def get_user_linear_issues(db_conn_pool, user_id: str, issue_ids: list = N
                     'label': row['priority_label'],
                     'priority': row['priority_level']
                 },
-                'assignee': row['assignee_id'] ? {
+                'assignee': {
                     'id': row['assignee_id'],
                     'name': row['assignee_name'],
                     'avatarUrl': row['assignee_avatar_url']
-                } : None,
+                } if row['assignee_id'] else None,
                 'project': {
                     'id': row['project_id'],
                     'name': row['project_name']

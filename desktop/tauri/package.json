@@ -6,7 +6,38 @@
     "dev": "tsc && esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm --external:@chakra-ui/react --external:@chakra-ui/icons --external:@emotion/react --external:@emotion/styled --external:framer-motion --external:react --external:react-dom --watch",
     "build": "esbuild src/main.tsx --bundle --outfile=dist/main.js --platform=browser --format=esm --external:@chakra-ui/react --external:@chakra-ui/icons --external:@emotion/react --external:@emotion/styled --external:framer-motion --external:react --external:react-dom",
     "preview": "echo 'Preview not available with esbuild - use dev instead'",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:github": "vitest __tests__/github*.test.ts",
+    "test:integration": "vitest __tests__/github.integration.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:performance": "vitest __tests__/performance.test.ts",
+    "test:security": "vitest __tests__/security.test.ts",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write src/**/*.{ts,tsx}",
+    "format:check": "prettier --check src/**/*.{ts,tsx}",
+    "clean": "rimraf dist coverage test-results",
+    "docker:build": "docker build -t atom-desktop .",
+    "docker:run": "docker run -p 3000:3000 atom-desktop",
+    "docker:dev": "docker-compose up -d atom-desktop postgres redis",
+    "docker:prod": "docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d",
+    "docker:monitoring": "docker-compose --profile monitoring up -d",
+    "docker:logs": "docker-compose logs -f",
+    "docker:down": "docker-compose down",
+    "ci:test": "npm run type-check && npm run lint && npm run test:coverage",
+    "ci:build": "npm run clean && npm run build && npm run tauri build",
+    "ci:docker": "npm run docker:build && docker run atom-desktop npm test",
+    "pre-commit": "npm run type-check && npm run lint && npm run test",
+    "pre-push": "npm run ci:test && npm run ci:build",
+    "analyze": "npm run build -- --analyze",
+    "bundle-analyzer": "webpack-bundle-analyzer dist/main.js",
+    "start:prod": "serve dist",
+    "health-check": "curl -f http://localhost:3000/health || exit 1"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.17",
@@ -28,9 +59,23 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^13.4.0",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
+    "@vitest/ui": "^0.34.7",
     "esbuild": "^0.25.9",
-    "typescript": "^5.9.2"
-  }
+    "jsdom": "^22.1.0",
+    "typescript": "^5.9.2",
+    "vitest": "^0.34.6"
+  },
+  "description": "A cross-platform desktop application built with Tauri, React, and TypeScript that provides a local-first interface for the ATOM AI Web Studio.",
+  "main": "esbuild.config.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }

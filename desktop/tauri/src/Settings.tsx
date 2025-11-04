@@ -7,6 +7,7 @@ import {
 import AIProviderSettings from "./AIProviderSettings";
 import { JiraDesktopManager } from "./components/services/jira";
 import OutlookDesktopManager from "./components/services/outlook/OutlookDesktopManagerNew";
+import GitHubDesktopManager from "./components/services/github/GitHubDesktopManager";
 import "./Settings.css";
 
 const Settings = () => {
@@ -157,36 +158,13 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* GitHub Settings */}
+            {/* GitHub Integration - Enhanced */}
             <div className="integration-section">
               <h3>GitHub Integration</h3>
-              <div className="setting">
-                <label>GitHub Personal Access Token</label>
-                <input
-                  type="password"
-                  value={githubApiKey}
-                  onChange={(e) => setGithubApiKey(e.target.value)}
-                  placeholder="Enter GitHub Personal Access Token"
-                />
-              </div>
-              <div className="setting">
-                <label>GitHub Owner</label>
-                <input
-                  type="text"
-                  value={githubOwner}
-                  onChange={(e) => setGithubOwner(e.target.value)}
-                  placeholder="Enter GitHub Owner"
-                />
-              </div>
-              <div className="setting">
-                <label>GitHub Repository</label>
-                <input
-                  type="text"
-                  value={githubRepo}
-                  onChange={(e) => setGithubRepo(e.target.value)}
-                  placeholder="Enter GitHub Repository"
-                />
-              </div>
+              <GitHubDesktopManager 
+                userId="desktop-user" 
+                onConnectionChange={(connected) => setGithubConnected(connected)}
+              />
             </div>
 
             {/* Slack Settings */}

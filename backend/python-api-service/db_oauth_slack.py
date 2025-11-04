@@ -540,10 +540,6 @@ async def _delete_slack_tokens_fallback(user_id: str) -> bool:
         logger.error(f"Error in fallback Slack token deletion: {e}")
         return False
 
-# Initialize database table on module import
-if __name__ != "__main__":
-    asyncio.create_task(_initialize_slack_database())
-
 async def _initialize_slack_database():
     """Initialize Slack database components"""
     try:
@@ -559,3 +555,11 @@ async def _initialize_slack_database():
             
     except Exception as e:
         logger.error(f"Slack database initialization error: {e}")
+
+# Initialize database table when module is loaded (synchronously)
+if __name__ != "__main__":
+    try:
+        ensure_database_table()
+        logger.info("Slack database table initialized successfully")
+    except Exception as e:
+        logger.warning(f"Slack database initialization failed: {e}")

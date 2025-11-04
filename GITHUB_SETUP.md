@@ -28,7 +28,7 @@
 2. Fill in the form:
    - **Application name**: ATOM Agent Integration
    - **Homepage URL**: Your application URL
-   - **Authorization callback URL**: `https://your-domain.com/oauth/github/callback`
+   - **Authorization callback URL**: `https://localhost/oauth/github/callback`
 3. Click "**Register application**"
 4. Note down the **Client ID** and generate a **Client Secret**
 
@@ -53,7 +53,7 @@ GITHUB_PERSONAL_ACCESS_TOKEN=your_github_personal_access_token
 # GitHub OAuth App (Advanced)
 GITHUB_CLIENT_ID=your_github_client_id
 GITHUB_CLIENT_SECRET=your_github_client_secret
-GITHUB_REDIRECT_URI=https://your-domain.com/oauth/github/callback
+GITHUB_REDIRECT_URI=https://localhost/oauth/github/callback
 
 # For OAuth (if using OAuth)
 GITHUB_OAUTH_TOKEN=your_github_oauth_token
@@ -145,7 +145,7 @@ curl -X GET "https://api.github.com/repos/OWNER/REPO" \
 1. Go to repository settings → Webhooks
 2. Click "**Add webhook**"
 3. Configure:
-   - **Payload URL**: `https://your-domain.com/api/webhooks/github`
+   - **Payload URL**: `https://localhost/api/webhooks/github`
    - **Content type**: `application/json`
    - **Secret**: Your webhook secret
    - **Events**: 

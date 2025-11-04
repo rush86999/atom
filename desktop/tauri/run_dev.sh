@@ -1,2 +1,2 @@
-export PATH="/Users/rushiparikh/.cargo/bin:$PATH"
+export PATH="/home/developer/.cargo/bin:$PATH"
 npm run tauri dev

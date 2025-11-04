@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { saveSetting, getSetting, getSettingStatus } from '../lib/secure-storage';
+import GitHubDesktopManager from './services/github/GitHubDesktopManager';
+import NextjsDesktopManager from './services/nextjs/NextjsDesktopManager';
 import '../Settings.css';
 
 const Integrations = () => {
@@ -195,6 +197,16 @@ const Integrations = () => {
           onChange={(e) => setJiraApiKey(e.target.value)}
           placeholder="Enter Jira API Key"
         />
+      </div>
+
+      {/* Next.js Integration - Enhanced Desktop */}
+      <div className="setting">
+        <NextjsDesktopManager userId="desktop-user" />
+      </div>
+
+      {/* GitHub Integration - Enhanced */}
+      <div className="setting">
+        <GitHubDesktopManager userId="desktop-user" />
       </div>
 
       <button onClick={handleSave}>Save Settings</button>

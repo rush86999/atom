@@ -22,7 +22,7 @@ export PYTHON_API_PORT="5059"
 cd backend/python-api-service
 
 # Use the correct Python from the virtual environment
-PYTHON_PATH="/Users/rushiparikh/projects/atom/atom/ai-coding-orchestrator/venv/bin/python"
+PYTHON_PATH="/home/developer/projects/atom/atom/ai-coding-orchestrator/venv/bin/python"
 
 echo "Starting ATOM Backend Service..."
 echo "Using Python: $PYTHON_PATH"

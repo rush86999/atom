@@ -62,7 +62,7 @@ NOTION_INTEGRATION_SECRET=your_internal_id  # Not the same as client secret
 
 # For OAuth (if using OAuth instead of public integration)
 NOTION_CLIENT_SECRET=your_oauth_client_secret
-NOTION_REDIRECT_URI=https://your-domain.com/oauth/notion/callback
+NOTION_REDIRECT_URI=https://localhost/oauth/notion/callback
 ```
 
 ## 6. API Token (Alternative Method)

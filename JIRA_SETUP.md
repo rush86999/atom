@@ -10,7 +10,7 @@
    - **Name**: ATOM Agent Integration
    - **Description**: ATOM agent integration for issue management and data ingestion
    - **URL**: Your application URL
-   - **Callback URL**: `https://your-domain.com/oauth/jira/callback`
+   - **Callback URL**: `https://localhost/oauth/jira/callback`
 
 ### Configure OAuth Scopes:
 - **Jira API**: 
@@ -41,7 +41,7 @@
    - **Name**: ATOM Agent Integration
    - **Consumer Key**: Generate (save this)
    - **Shared Secret**: Generate (save this)
-   - **Callback URL**: `https://your-domain.com/oauth/jira/callback`
+   - **Callback URL**: `https://localhost/oauth/jira/callback`
    - **Permissions**: Read access
 
 ## 4. Environment Variables
@@ -52,7 +52,7 @@ Add to your `.env` file:
 # Jira Cloud OAuth (Preferred)
 JIRA_CLIENT_ID=your_jira_client_id
 JIRA_CLIENT_SECRET=your_jira_client_secret
-JIRA_REDIRECT_URI=https://your-domain.com/oauth/jira/callback
+JIRA_REDIRECT_URI=https://localhost/oauth/jira/callback
 JIRA_SERVER_URL=https://your-domain.atlassian.net
 
 # Jira Server/Basic Auth
@@ -139,7 +139,7 @@ created >= -7d AND status != "Done"
 2. Click "**Create new webhook**"
 3. Configure:
    - **Name**: ATOM Agent Webhook
-   - **URL**: `https://your-domain.com/api/webhooks/jira`
+   - **URL**: `https://localhost/api/webhooks/jira`
    - **Events**: 
      - `jira:issue_created`
      - `jira:issue_updated`

@@ -48,7 +48,7 @@ class AuthNextStepsExecutor:
         self.frontend_url = "http://localhost:3000"
         self.test_users = {
             "demo": {"email": "demo@atom.com", "password": "demo123"},
-            "admin": {"email": "admin@atom.com", "password": "admin123"},
+            "admin": {"email": "noreply@atom.com", "password": "admin123"},
             "test": {"email": "test@example.com", "password": "test123"},
         }
 

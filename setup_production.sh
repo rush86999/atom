@@ -46,7 +46,7 @@ REDIS_URL=redis://localhost:6379
 # API Configuration
 PYTHON_API_PORT=5058
 NEXT_PUBLIC_API_URL=http://localhost:5058
-NEXT_PUBLIC_APP_URL=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://localhost
 
 # Security Configuration
 FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
@@ -284,7 +284,7 @@ http {
     # HTTPS server (uncomment and configure when SSL certificates are available)
     # server {
     #     listen 443 ssl http2;
-    #     server_name your-domain.com;
+    #     server_name localhost;
     #
     #     ssl_certificate /etc/nginx/ssl/cert.pem;
     #     ssl_certificate_key /etc/nginx/ssl/key.pem;

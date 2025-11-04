@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import Chat from "./Chat";
+import EnhancedChat from "./EnhancedChat";
+import OutlookEnhancedChat from "./OutlookEnhancedChat";
+import GitHubEnhancedChat from "./GitHubEnhancedChat";
 import Sales from "./Sales";
 import Projects from "./Projects";
 import Support from "./Support";
@@ -46,6 +49,8 @@ function App() {
     | "sales"
     | "support"
     | "chat"
+    | "github-chat"
+    | "outlook-chat"
     | "projects"
     | "settings"
     | "integrations"
@@ -81,7 +86,11 @@ function App() {
   const renderContent = () => {
     switch (activeView) {
       case "chat":
-        return <Chat />;
+        return useEnhancedChat ? <EnhancedChat /> : <Chat />;
+      case "github-chat":
+        return <GitHubEnhancedChat />;
+      case "outlook-chat":
+        return <OutlookEnhancedChat />;
       case "sales":
         return (
           <FeatureViewGuard

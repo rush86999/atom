@@ -1,0 +1,468 @@
+name: GitHub Integration CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'Cargo.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'Cargo.toml'
+  release:
+    types: [ published ]
+
+env:
+  NODE_VERSION: '18'
+  RUST_VERSION: '1.70'
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test GitHub Integration
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+        rust-version: [1.70, 1.75]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust-version }}
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm install -g @tauri-apps/cli
+        
+    - name: Run linting
+      run: |
+        npm run lint || echo "Linting not configured"
+        cargo clippy -- -D warnings
+        
+    - name: Run TypeScript check
+      run: npx tsc --noEmit
+      
+    - name: Run unit tests
+      run: npm test
+      
+    - name: Run GitHub integration tests
+      run: npm run test:github
+      
+    - name: Run all tests with coverage
+      run: npm run test:coverage
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run npm audit
+      run: npm audit --audit-level=high
+      
+    - name: Run cargo audit
+      uses: actions-rs/audit-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Run security tests
+      run: npm run test:security || echo "Security tests not configured"
+
+  build-test:
+    name: Build Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    runs-on: ${{ matrix.os }}
+    needs: [test, security-scan]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run tauri build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-${{ matrix.os }}
+        path: src-tauri/target/release/bundle/
+        retention-days: 7
+
+  e2e-test:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: build-test
+    
+    services:
+      github-mock:
+        image: mockserver/mockserver:latest
+        ports:
+          - 1080:1080
+        env:
+          MOCKSERVER_PROPERTY_FILE: /config/mockserver.properties
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run tauri build
+      
+    - name: Setup mock GitHub API
+      run: |
+        curl -X PUT http://localhost:1080/mockserver/expectation \
+          -H "Content-Type: application/json" \
+          -d '{
+            "httpRequest": {
+              "method": "GET",
+              "path": "/user"
+            },
+            "httpResponse": {
+              "statusCode": 200,
+              "body": JSON.stringify({
+                "id": 12345,
+                "login": "mockuser",
+                "name": "Mock User"
+              })
+            }
+          }'
+          
+    - name: Run E2E tests
+      run: |
+        export GITHUB_API_URL=http://localhost:1080
+        npm run test:e2e || echo "E2E tests not configured"
+      env:
+        DISPLAY: :99
+        
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: test-results/
+        retention-days: 7
+
+  performance-test:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run performance tests
+      run: npm run test:performance || echo "Performance tests not configured"
+      
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-test-results
+        path: performance-results/
+        retention-days: 7
+
+  package-release:
+    name: Package and Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: atom-desktop
+            asset_name: atom-desktop-linux-x64.AppImage
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: atom-desktop.exe
+            asset_name: atom-desktop-windows-x64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: atom-desktop.app
+            asset_name: atom-desktop-macos-x64.app
+            
+    needs: [test, security-scan, build-test, e2e-test]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        targets: ${{ matrix.target }}
+        
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build for release
+      run: npm run tauri build
+      env:
+        TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: src-tauri/target/${{ matrix.target }}/release/bundle/**/${{ asset_name }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: atomcompany/atom-desktop
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, build-test, e2e-test]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to staging
+      run: |
+        echo "Deploying to staging environment"
+        # Add actual deployment commands here
+        
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests"
+        # Add smoke test commands here
+        
+    - name: Notify deployment
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        text: "Staging deployment ${{ job.status }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, build-test, e2e-test, docker-build]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production environment"
+        # Add actual deployment commands here
+        
+    - name: Run smoke tests
+      run: |
+        echo "Running production smoke tests"
+        # Add smoke test commands here
+        
+    - name: Health check
+      run: |
+        echo "Performing health checks"
+        # Add health check commands here
+        
+    - name: Notify deployment
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        text: "Production deployment ${{ job.status }}"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, e2e-test, performance-test]
+    if: always()
+    
+    steps:
+    - name: Collect test results
+      run: |
+        echo "Test Results Summary:"
+        echo "- Tests: ${{ needs.test.result }}"
+        echo "- Security: ${{ needs.security-scan.result }}"
+        echo "- E2E: ${{ needs.e2e-test.result }}"
+        echo "- Performance: ${{ needs.performance-test.result }}"
+        
+    - name: Send notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: |
+          GitHub Integration CI/CD Results:
+          Tests: ${{ needs.test.result }}
+          Security: ${{ needs.security-scan.result }}
+          E2E: ${{ needs.e2e-test.result }}
+          Performance: ${{ needs.performance-test.result }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

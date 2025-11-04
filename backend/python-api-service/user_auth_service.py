@@ -104,7 +104,7 @@ class UserAuthService:
                 ("11111111-1111-1111-1111-111111111111", "demo@atom.com", "Demo User"),
                 (
                     "22222222-2222-2222-2222-222222222222",
-                    "admin@atom.com",
+                    "noreply@atom.com",
                     "Admin User",
                 ),
             ]
@@ -126,7 +126,7 @@ class UserAuthService:
                 (
                     str(uuid.uuid4()),
                     "22222222-2222-2222-2222-222222222222",
-                    "admin@atom.com",
+                    "noreply@atom.com",
                     "$2b$12$8S5DlN8pZfV6W6eF5YqZXOe3nJ9mR7Lk2V1rB4wX3yH7vM8N9pQ1K",
                 ),
             ]

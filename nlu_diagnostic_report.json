@@ -1,0 +1,150 @@
+{
+  "timestamp": "2025-11-03 19:21:49",
+  "overall_status": "2/8 passed",
+  "results": [
+    {
+      "component": "Backend Health",
+      "status": "FAIL",
+      "details": {
+        "message": "Backend server unavailable"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /healthz (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10483ae10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "component": "NLU Bridge Service",
+      "status": "PASS",
+      "details": {
+        "message": "NLU bridge service imported successfully",
+        "frontend_url": "http://localhost:3000"
+      },
+      "error": null
+    },
+    {
+      "component": "TypeScript NLU API",
+      "status": "FAIL",
+      "details": {
+        "message": "TypeScript NLU API responses: 0/4 successful",
+        "test_results": [
+          {
+            "input": "Schedule a meeting for tomorrow",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/agent/nlu (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10528c790>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "Send a message to Slack",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/agent/nlu (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10528ec10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "Create a task in Asana",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/agent/nlu (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10529d450>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "What's the weather like today?",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /api/agent/nlu (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x10528f690>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "component": "Workflow Agent Integration",
+      "status": "PASS",
+      "details": {
+        "message": "Workflow agent integration service imported successfully"
+      },
+      "error": null
+    },
+    {
+      "component": "NLU Analysis Endpoint",
+      "status": "FAIL",
+      "details": {
+        "message": "NLU analysis endpoint: 0/3 successful",
+        "test_results": [
+          {
+            "input": "When I receive an email from boss, create a task in Asana",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/analyze (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119374150>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "What's the weather today?",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/analyze (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d74890>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "Schedule a meeting every Monday at 9 AM",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/analyze (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d766d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "component": "Workflow Generation",
+      "status": "FAIL",
+      "details": {
+        "message": "Workflow generation: 0/3 successful",
+        "test_results": [
+          {
+            "input": "Schedule a meeting for tomorrow",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d7c9d0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "Send a message to Slack",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d7ec10>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "input": "Create a task in Asana",
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d8ce90>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "component": "Service Registry",
+      "status": "FAIL",
+      "details": {
+        "message": "Failed to access service registry"
+      },
+      "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/services/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d7dad0>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+    },
+    {
+      "component": "Error Handling",
+      "status": "FAIL",
+      "details": {
+        "message": "Error handling: 0/3 tests passed",
+        "test_results": [
+          {
+            "test_case": {
+              "user_input": ""
+            },
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1193f4110>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "test_case": {
+              "user_input": "   "
+            },
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x119d75a50>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          },
+          {
+            "test_case": {
+              "invalid_field": "test"
+            },
+            "success": false,
+            "error": "HTTPConnectionPool(host='localhost', port=5058): Max retries exceeded with url: /api/workflow-automation/generate (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x11931b190>: Failed to establish a new connection: [Errno 61] Connection refused'))"
+          }
+        ]
+      },
+      "error": null
+    }
+  ]
+}

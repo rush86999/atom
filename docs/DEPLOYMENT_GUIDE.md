@@ -67,10 +67,10 @@ docker-compose up -d postgres redis
 
 **Frontend (.env.local)**
 ```bash
-NEXT_PUBLIC_API_URL=https://your-domain.com/api
-NEXT_PUBLIC_WS_URL=wss://your-domain.com/ws
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-NEXTAUTH_URL=https://your-domain.com
+NEXT_PUBLIC_API_URL=https://localhost/api
+NEXT_PUBLIC_WS_URL=wss://localhost/ws
+NEXT_PUBLIC_APP_URL=https://localhost
+NEXTAUTH_URL=https://localhost
 NEXTAUTH_SECRET=your-secret-key-here
 ```
 
@@ -81,7 +81,7 @@ DATABASE_URL=postgresql://user:password@host:5432/atom
 REDIS_URL=redis://host:6379
 
 # Authentication
-SUPERTOKENS_CONNECTION_URI=https://your-domain.com/auth
+SUPERTOKENS_CONNECTION_URI=https://localhost/auth
 SUPERTOKENS_API_KEY=your-api-key
 
 # External Services
@@ -92,7 +92,7 @@ PLAID_SECRET=your-plaid-secret
 
 # Security
 SECRET_KEY=your-backend-secret-key
-CORS_ORIGINS=https://your-domain.com
+CORS_ORIGINS=https://localhost
 
 # Email (optional)
 SMTP_HOST=smtp.gmail.com
@@ -119,7 +119,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://your-domain.com/api
+      - NEXT_PUBLIC_API_URL=https://localhost/api
     depends_on:
       - backend
     restart: unless-stopped
@@ -333,10 +333,10 @@ metadata:
 spec:
   tls:
   - hosts:
-    - your-domain.com
+    - localhost
     secretName: atom-tls
   rules:
-  - host: your-domain.com
+  - host: localhost
     http:
       paths:
       - path: /
@@ -475,16 +475,16 @@ find $BACKUP_DIR -name "*.gz" -mtime +7 -delete
 # nginx.conf
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name localhost;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name your-domain.com;
+    server_name localhost;
 
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/localhost/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/localhost/privkey.pem;
 
     # SSL configuration
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -698,10 +698,10 @@ psql -c "SELECT * FROM pg_stat_activity;"
 
 ```bash
 # Application health
-curl https://your-domain.com/health
+curl https://localhost/health
 
 # API health
-curl https://your-domain.com/api/health
+curl https://localhost/api/health
 
 # Database health
 psql -h localhost -U atom_user -d atom -c "SELECT 1;"

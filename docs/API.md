@@ -7,7 +7,7 @@ The Atom API provides a comprehensive RESTful interface for managing all aspects
 ## Base URL
 
 ```
-https://your-domain.com/api
+https://localhost/api
 ```
 
 ## Authentication
@@ -799,7 +799,7 @@ Content-Type: application/json
 Connect to WebSocket endpoint for real-time updates:
 
 ```javascript
-const ws = new WebSocket('wss://your-domain.com/ws');
+const ws = new WebSocket('wss://localhost/ws');
 
 ws.onopen = () => {
   console.log('Connected to Atom WebSocket');

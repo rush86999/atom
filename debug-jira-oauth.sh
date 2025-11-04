@@ -267,7 +267,7 @@ if [ "$CLIENT_ID_OK" = false ] || [ "$CLIENT_SECRET_OK" = false ] || [ "$SERVER_
     fi
     
     if [ "$REDIRECT_URI_OK" = false ]; then
-        echo "1. Set redirect URI: JIRA_REDIRECT_URI=https://your-domain.com/oauth/jira/callback"
+        echo "1. Set redirect URI: JIRA_REDIRECT_URI=https://localhost/oauth/jira/callback"
         echo "2. For local dev: http://localhost:3000/oauth/jira/callback"
         echo "3. Ensure it matches Atlassian app configuration exactly"
         echo

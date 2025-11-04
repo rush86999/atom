@@ -2,11 +2,11 @@
 
 **Date:** Monday, July 21, 2025
 **Operating System:** darwin
-**Current Working Directory:** /Users/rushiparikh/projects/atom/atom
+**Current Working Directory:** /home/developer/projects/atom/atom
 
 ## Directory Listing:
 
-/Users/rushiparikh/projects/atom/atom/
+/home/developer/projects/atom/atom/
 ├───.gitignore
 ├───.gitmodules
 ├───CODE_OF_CONDUCT.md

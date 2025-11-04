@@ -14,9 +14,17 @@ export * as BoxTypes from './box/types';
 export { default as ATOMDropboxDataSource } from './dropbox/components/DropboxDataSource';
 export * as DropboxTypes from './dropbox/types';
 
-// Google Drive Integration (File Storage)
+// Google Drive Integration (File Storage) - Complete
 export { default as ATOMGDriveDataSource } from './gdrive/components/GDriveDataSource';
 export * as GDriveTypes from './gdrive/types';
+
+// OneDrive Integration (File Storage) - Complete
+export { default as ATOMOneDriveDataSource } from './onedrive/components/OneDriveDataSource';
+export * as OneDriveTypes from './onedrive/types';
+
+// MS Teams Integration (Communication) - Complete
+export { default as ATOMTeamsDataSource } from './teams/components/TeamsDataSource';
+export * as TeamsTypes from './teams/types';
 
 // Slack Integration (Messaging)
 export { default as ATOMSlackDataSource } from './slack/components/SlackDataSource';
@@ -39,6 +47,28 @@ export * as JiraTypes from './jira/types';
 export { default as ATOMGitHubManager } from './github/components/GitHubManager';
 export { default as ATOMGitHubDataSource } from './github/components/GitHubDataSource';
 export * as GitHubTypes from './github/types';
+
+// Next.js Integration (Development & Deployment)
+export { 
+  NextjsManager, 
+  NextjsCallback, 
+  NextjsDesktopManager, 
+  NextjsDesktopCallback 
+} from './nextjs';
+export * as NextjsTypes from './nextjs/types';
+
+// GitLab Integration (Development & CI/CD)
+export { 
+  GitLabManager, 
+  GitLabCallback, 
+  GitLabDesktopManager 
+} from './gitlab';
+export * as GitLabTypes from './gitlab/types';
+export { NextjsSkills } from './nextjs/skills/nextjsSkills';
+
+// GitLab Integration
+export { default as GitLabManager } from './gitlab/components/GitLabManager';
+export { GitLabSkills } from './gitlab/skills/gitlabSkills';
 
 // Base Integration Template
 export * as BaseIntegration from './_template/baseIntegration';
@@ -88,13 +118,17 @@ export class AtomIntegrationFactory {
         return ATOMJiraDataSource(props);
       case 'github':
         return ATOMGitHubDataSource(props);
+      case 'nextjs':
+        return NextjsManager(props);
+      case 'gitlab':
+        return GitLabManager(props);
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -115,6 +149,10 @@ export class AtomIntegrationFactory {
         return { name: 'Jira', type: 'project-management', category: 'productivity', status: 'complete' };
       case 'github':
         return { name: 'GitHub', type: 'development', category: 'development', status: 'complete' };
+      case 'nextjs':
+        return { name: 'Next.js', type: 'development', category: 'development', status: 'complete' };
+      case 'gitlab':
+        return { name: 'GitLab', type: 'development', category: 'development', status: 'complete' };
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -125,12 +163,12 @@ export class AtomIntegrationFactory {
       storage: ['box', 'dropbox', 'gdrive'],
       communication: ['slack', 'gmail'],
       productivity: ['notion', 'jira'],
-      development: ['github']
+      development: ['github', 'nextjs', 'gitlab']
     };
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs'];
   }
 }
 
@@ -153,6 +191,8 @@ export class AtomIntegrationUtils {
         return `https://auth.atlassian.com/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes.join(' ')}`;
       case 'github':
         return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes.join(' ')}`;
+      case 'nextjs':
+        return `https://vercel.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}`;
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -234,6 +274,14 @@ export class AtomIntegrationUtils {
         }
         if (!config.personalAccessToken && !config.oauthToken) {
           errors.push('personal access token or OAuth token is required for GitHub integration');
+        }
+        break;
+      case 'nextjs':
+        if (!config.projects && !config.dateRange) {
+          errors.push('projects or dateRange is required for Next.js integration');
+        }
+        if (!config.accessToken && !config.oauthToken) {
+          errors.push('access token or OAuth token is required for Next.js integration');
         }
         break;
     }
@@ -341,31 +389,38 @@ export const ATOM_INTEGRATION_TYPES = {
     features: ['issue_discovery', 'project_sync', 'comment_processing', 'attachment_processing', 'workflow_extraction']
   },
   'development': {
-    integrations: ['github'],
+    integrations: ['github', 'nextjs'],
     category: ATOM_INTEGRATION_CATEGORIES.DEVELOPMENT,
     status: ATOM_INTEGRATION_STATUS.COMPLETE,
-    features: ['repository_discovery', 'code_analysis', 'issue_tracking', 'pull_request_processing', 'commit_history', 'release_management']
+    features: ['repository_discovery', 'code_analysis', 'issue_tracking', 'pull_request_processing', 'commit_history', 'release_management', 'project_deployment', 'analytics_monitoring', 'build_tracking']
+  },
+  'deployment': {
+    integrations: ['nextjs'],
+    category: ATOM_INTEGRATION_CATEGORIES.DEVELOPMENT,
+    status: ATOM_INTEGRATION_STATUS.COMPLETE,
+    features: ['project_discovery', 'deployment_tracking', 'build_monitoring', 'analytics_integration', 'environment_management', 'health_monitoring']
   }
 } as const;
 
 // Integration Statistics
+// Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 8,
-  completedIntegrations: 8,
+  totalIntegrations: 9,
+  completedIntegrations: 9,
   templateIntegrations: 0,
   categories: {
     storage: 3,
     communication: 2,
     productivity: 2,
-    development: 1,
+    development: 2,
     collaboration: 0
   },
   features: {
     file_discovery: 3,
-    real_time_sync: 8,
-    metadata_extraction: 8,
+    real_time_sync: 9,
+    metadata_extraction: 9,
     preview_generation: 3,
-    batch_processing: 8,
+    batch_processing: 9,
     message_discovery: 1,
     real_time_events: 1,
     thread_processing: 2,
@@ -387,7 +442,15 @@ export const ATOM_INTEGRATION_STATS = {
     issue_tracking: 1,
     pull_request_processing: 1,
     commit_history: 1,
-    release_management: 1
+    release_management: 1,
+    project_deployment: 1,
+    analytics_monitoring: 1,
+    build_tracking: 1,
+    environment_variable_management: 1,
+    performance_optimization: 1,
+    real_time_build_updates: 1,
+    deployment_automation: 1,
+    webhook_integration: 9
   }
 } as const;
 
@@ -405,6 +468,10 @@ export default {
   ATOMJiraDataSource,
   ATOMGitHubManager,
   ATOMGitHubDataSource,
+  NextjsManager,
+  NextjsCallback,
+  NextjsDesktopManager,
+  NextjsDesktopCallback,
   
   // Factory & Registry
   AtomIntegrationFactory,

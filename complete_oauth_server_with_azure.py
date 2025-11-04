@@ -16,6 +16,7 @@ TRELLO_API_KEY = os.getenv('TRELLO_API_KEY')
 ASANA_CLIENT_ID = os.getenv('ASANA_CLIENT_ID')
 NOTION_CLIENT_ID = os.getenv('NOTION_CLIENT_ID')
 DROPBOX_APP_KEY = os.getenv('DROPBOX_APP_KEY')
+LINEAR_CLIENT_ID = os.getenv('LINEAR_CLIENT_ID')
 
 OUTLOOK_CLIENT_ID = os.getenv('OUTLOOK_CLIENT_ID')
 OUTLOOK_CLIENT_SECRET = os.getenv('OUTLOOK_CLIENT_SECRET')
@@ -29,6 +30,9 @@ print("🔧 LOADING COMPLETE CREDENTIALS FROM .ENV")
 print(f"   GITHUB_CLIENT_ID: {GITHUB_CLIENT_ID[:10] if GITHUB_CLIENT_ID else 'MISSING'}...")
 print(f"   GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID[:10] if GOOGLE_CLIENT_ID else 'MISSING'}...")
 print(f"   SLACK_CLIENT_ID: {SLACK_CLIENT_ID[:10] if SLACK_CLIENT_ID else 'MISSING'}...")
+print(f"   ASANA_CLIENT_ID: {ASANA_CLIENT_ID[:10] if ASANA_CLIENT_ID else 'MISSING'}...")
+print(f"   NOTION_CLIENT_ID: {NOTION_CLIENT_ID[:10] if NOTION_CLIENT_ID else 'MISSING'}...")
+print(f"   LINEAR_CLIENT_ID: {LINEAR_CLIENT_ID[:10] if LINEAR_CLIENT_ID else 'MISSING'}...")
 print(f"   OUTLOOK_CLIENT_ID: {OUTLOOK_CLIENT_ID[:10] if OUTLOOK_CLIENT_ID else 'MISSING'}...")
 print(f"   TEAMS_CLIENT_ID: {TEAMS_CLIENT_ID[:10] if TEAMS_CLIENT_ID else 'MISSING'}...")
 
@@ -96,6 +100,18 @@ services_config = {
         'credentials': 'real' if GOOGLE_CLIENT_ID else 'placeholder',
         'client_id': GOOGLE_CLIENT_ID or 'placeholder_google_client_id',
         'auth_url': 'https://accounts.google.com/o/oauth2/v2/auth'
+    },
+    'linear': {
+        'status': 'connected' if LINEAR_CLIENT_ID else 'needs_credentials', 
+        'credentials': 'real' if LINEAR_CLIENT_ID else 'placeholder',
+        'client_id': LINEAR_CLIENT_ID or 'placeholder_linear_client_id',
+        'auth_url': 'https://linear.app/oauth/authorize'
+    },
+    'github': {
+        'status': 'connected' if GITHUB_CLIENT_ID else 'needs_credentials', 
+        'credentials': 'real' if GITHUB_CLIENT_ID else 'placeholder',
+        'client_id': GITHUB_CLIENT_ID or 'placeholder_github_client_id',
+        'auth_url': 'https://github.com/login/oauth/authorize'
     }
 }
 

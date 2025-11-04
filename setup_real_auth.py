@@ -24,7 +24,7 @@ DEMO_USERS = [
     },
     {
         "id": "22222222-2222-2222-2222-222222222222",
-        "email": "admin@atom.com",
+        "email": "noreply@atom.com",
         "password": "admin123",
         "name": "Admin User",
     },
@@ -154,7 +154,7 @@ API_BASE_URL=http://localhost:5058
 # Demo Users (for reference)
 DEMO_USER_EMAIL=demo@atom.com
 DEMO_USER_PASSWORD=demo123
-ADMIN_USER_EMAIL=admin@atom.com
+ADMIN_USER_EMAIL=noreply@atom.com
 ADMIN_USER_PASSWORD=admin123
 """
 
@@ -190,7 +190,7 @@ def main():
         print("3. Access the frontend: http://localhost:3000/auth/signin")
         print("\n🔑 Demo Credentials:")
         print("   Email: demo@atom.com / Password: demo123")
-        print("   Email: admin@atom.com / Password: admin123")
+        print("   Email: noreply@atom.com / Password: admin123")
 
         conn.close()
 

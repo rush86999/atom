@@ -50,7 +50,7 @@ OPENAI_API_KEY=sk-your-actual-key-here
 5. Configure application type: "Web application"
 6. Set authorized redirect URIs:
    - `http://localhost:5058/auth/google/callback` (development)
-   - `https://your-domain.com/auth/google/callback` (production)
+   - `https://localhost/auth/google/callback` (production)
 7. Download the OAuth client configuration JSON
 8. Copy Client ID and Client Secret
 
@@ -185,7 +185,7 @@ GITHUB_ACCESS_TOKEN=ghp_your-token-here
 
 ```bash
 # Navigate to project root
-cd /Users/rushiparikh/projects/atom/atom
+cd /home/developer/projects/atom/atom
 
 # Copy production template
 cp .env.production.template .env.production

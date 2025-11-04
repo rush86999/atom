@@ -1,0 +1,77 @@
+[package]
+name = "atom"
+version = "1.0.0"
+description = "ATOM Desktop Agent - Health & Development Integration Platform"
+authors = ["ATOM Platform Team"]
+license = "MIT"
+repository = "https://github.com/atom-platform/desktop-agent"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.4", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = ["api-all", "system-tray", "icon-png"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4"] }
+
+# Integration dependencies
+# OAuth clients
+oauth2 = "4.4"
+base64 = "0.21"
+url = "2.4"
+
+# HTTP and networking
+http = "0.2"
+hyper = { version = "0.14", features = ["full"] }
+
+# Serialization
+serde_derive = "1.0"
+
+# Utilities
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.10"
+
+[features]
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
+default = ["custom-protocol"]
+# this feature is used for production builds where `devPath` points to the filesystem
+# DO NOT remove this
+custom-protocol = ["tauri/custom-protocol"]
+
+# Integration-specific features
+# These allow selective compilation of integration support
+slack-oauth = []
+teams-oauth = []
+notion-oauth = []
+trello-oauth = []
+figma-oauth = []
+linear-oauth = []
+asana-oauth = []  # NEW: Asana OAuth support
+
+# Enable all integrations by default in development
+all-integrations = [
+    "slack-oauth",
+    "teams-oauth", 
+    "notion-oauth",
+    "trello-oauth",
+    "figma-oauth",
+    "linear-oauth",
+    "asana-oauth"  # NEW: Include Asana
+]
+
+[[bin]]
+name = "atom"
+path = "src/main_asana_complete.rs"  # Updated to include Asana
+
+# Development configuration
+[dev-dependencies]
+tauri-build = { version = "1.4", features = [] }
