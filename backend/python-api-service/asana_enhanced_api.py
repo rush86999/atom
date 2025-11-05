@@ -1,30 +1,30 @@
 """
-ATOM Enhanced Asana API Handler
-Complete Asana integration with comprehensive API operations
+Asana Enhanced API Integration
+Complete Asana task management and project coordination system
 """
 
 import os
-import logging
-import asyncio
-import httpx
 import json
+import logging
+import httpx
+import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from loguru import logger
 
 # Import Asana service
 try:
-    from asana_service_real import asana_service
+    from asana_service import asana_service
     ASANA_SERVICE_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Asana service not available: {e}")
     ASANA_SERVICE_AVAILABLE = False
     asana_service = None
 
-# Import database handler
+# Import database handlers
 try:
-    from db_oauth_asana import get_tokens, save_tokens, delete_tokens, get_user_asana_tasks, save_asana_task, get_user_asana_projects, save_asana_project, get_user_asana_sections, save_asana_section, get_user_asana_teams, save_asana_team, get_user_asana_users, save_asana_user
+    from db_oauth_asana import get_tokens, save_tokens, delete_tokens, get_user_asana_data, save_asana_data
     ASANA_DB_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Asana database handler not available: {e}")
@@ -36,26 +36,34 @@ asana_enhanced_bp = Blueprint("asana_enhanced_bp", __name__)
 ASANA_API_BASE_URL = "https://app.asana.com/api/1.0"
 REQUEST_TIMEOUT = 30
 
+# Asana API permissions
+ASANA_SCOPES = [
+    'default',
+    'tasks:read',
+    'tasks:write',
+    'projects:read',
+    'projects:write',
+    'teams:read',
+    'stories:read',
+    'stories:write',
+    'comments:read',
+    'comments:write'
+]
+
 async def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
     """Get Asana tokens for user"""
     if not ASANA_DB_AVAILABLE:
         # Mock implementation for testing
         return {
-            'access_token': os.getenv('ASANA_ACCESS_TOKEN', 'mock_asana_access_token_' + os.urandom(8).hex()),
-            'refresh_token': os.getenv('ASANA_REFRESH_TOKEN', 'mock_asana_refresh_token_' + os.urandom(8).hex()),
+            'access_token': os.getenv('ASANA_ACCESS_TOKEN'),
+            'token_type': 'Bearer',
             'expires_at': (datetime.utcnow() + timedelta(hours=1)).isoformat(),
-            'scope': 'default tasks:read tasks:write projects:read projects:write stories:read stories:write teams:read users:read webhooks:read webhooks:write',
+            'workspace_id': os.getenv('ASANA_WORKSPACE_ID'),
             'user_info': {
-                'gid': os.getenv('ASANA_USER_ID', '1204910829086229'),
-                'name': os.getenv('ASANA_USER_NAME', 'Alice Developer'),
-                'email': os.getenv('ASANA_USER_EMAIL', 'alice@company.com'),
-                'avatar_url_128x128': os.getenv('ASANA_USER_AVATAR', 'https://example.com/avatars/alice.png'),
-                'workspaces': [{
-                    'gid': os.getenv('ASANA_WORKSPACE_ID', '1204910829086249'),
-                    'name': os.getenv('ASANA_WORKSPACE_NAME', 'Tech Company')
-                }],
-                'active': True,
-                'last_login': datetime.utcnow().isoformat()
+                'gid': os.getenv('ASANA_USER_ID'),
+                'name': os.getenv('ASANA_USER_NAME', 'Test User'),
+                'email': os.getenv('ASANA_USER_EMAIL', 'test@asana.com'),
+                'photo': os.getenv('ASANA_USER_AVATAR')
             }
         }
     
@@ -66,38 +74,45 @@ async def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
         logger.error(f"Error getting Asana tokens for user {user_id}: {e}")
         return None
 
-def format_asana_response(data: Any, endpoint: str) -> Dict[str, Any]:
+def format_asana_response(data: Any, service: str, endpoint: str) -> Dict[str, Any]:
     """Format Asana API response"""
     return {
         'ok': True,
         'data': data,
+        'service': service,
         'endpoint': endpoint,
         'timestamp': datetime.utcnow().isoformat(),
         'source': 'asana_api'
     }
 
-def format_error_response(error: Exception, endpoint: str) -> Dict[str, Any]:
+def format_error_response(error: Exception, service: str, endpoint: str) -> Dict[str, Any]:
     """Format error response"""
     return {
         'ok': False,
         'error': {
             'code': type(error).__name__,
             'message': str(error),
+            'service': service,
             'endpoint': endpoint
         },
         'timestamp': datetime.utcnow().isoformat(),
         'source': 'asana_api'
     }
 
+# Tasks Enhanced API
 @asana_enhanced_bp.route('/api/integrations/asana/tasks', methods=['POST'])
 async def list_tasks():
-    """List user Asana tasks"""
+    """List Asana tasks with advanced filtering"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
         workspace_id = data.get('workspace_id')
         project_id = data.get('project_id')
-        include_completed = data.get('include_completed', True)
+        assignee = data.get('assignee', 'me')
+        completed = data.get('completed', 'not_completed')
+        priority = data.get('priority')
+        due_on = data.get('due_on')
+        created_since = data.get('created_since')
         limit = data.get('limit', 50)
         operation = data.get('operation', 'list')
         
@@ -109,6 +124,14 @@ async def list_tasks():
         
         if operation == 'create':
             return await _create_task(user_id, data)
+        elif operation == 'update':
+            return await _update_task(user_id, data)
+        elif operation == 'complete':
+            return await _complete_task(user_id, data)
+        elif operation == 'delete':
+            return await _delete_task(user_id, data)
+        elif operation == 'add_comment':
+            return await _add_task_comment(user_id, data)
         
         # Get user tokens
         tokens = await get_user_tokens(user_id)
@@ -120,161 +143,115 @@ async def list_tasks():
         
         # Use Asana service
         if ASANA_SERVICE_AVAILABLE:
-            tasks = await asana_service.get_user_tasks(
-                tokens['access_token'], user_id, workspace_id, project_id, include_completed, False, limit
+            tasks = await asana_service.get_tasks(
+                user_id, workspace_id, project_id, assignee, completed, 
+                priority, due_on, created_since, limit
             )
             
             tasks_data = [{
-                'task_id': task.id,
+                'gid': task.gid,
                 'name': task.name,
-                'notes': task.notes,
+                'assignee': task.assignee,
+                'projects': task.projects or [],
                 'completed': task.completed,
-                'assignee': task.assignee and {
-                    'id': task.assignee.get('id') if isinstance(task.assignee, dict) else task.assignee.gid,
-                    'name': task.assignee.get('name') if isinstance(task.assignee, dict) else task.assignee.name,
-                    'email': task.assignee.get('email') if isinstance(task.assignee, dict) else task.assignee.email,
-                    'avatar_url': task.assignee.get('avatar_url_128x128') if isinstance(task.assignee, dict) else task.assignee.avatar_url_128x128
-                },
-                'projects': [{
-                    'id': project.get('id') if isinstance(project, dict) else project.gid,
-                    'name': project.get('name') if isinstance(project, dict) else project.name,
-                    'color': project.get('color') if isinstance(project, dict) else project.color
-                } for project in (task.projects or [])],
-                'due_on': task.due_on,
+                'completed_at': task.completed_at,
                 'due_at': task.due_at,
-                'tags': task.tags or [],
-                'custom_fields': task.custom_fields or [],
-                'status': task.status,
-                'priority': task.priority,
+                'due_on': task.due_on,
                 'created_at': task.created_at,
                 'modified_at': task.modified_at,
-                'url': f"https://app.asana.com/0/{(task.projects[0].get('id') if task.projects and task.projects[0] else 'DEFAULT')}/{task.id}"
+                'tags': task.tags or [],
+                'notes': task.notes,
+                'html_notes': task.html_notes,
+                'url': task.url,
+                'permalink_url': task.permalink_url,
+                'parent': task.parent,
+                'subtasks': task.subtasks or [],
+                'dependencies': task.dependencies or [],
+                'dependents': task.dependents or []
             } for task in tasks]
             
             return jsonify(format_asana_response({
                 'tasks': tasks_data,
-                'total_count': len(tasks_data)
-            }, 'list_tasks'))
+                'total_count': len(tasks_data),
+                'workspace_id': workspace_id,
+                'project_id': project_id,
+                'assignee': assignee,
+                'completed': completed
+            }, 'tasks', 'list_tasks'))
         
         # Fallback to mock data
         mock_tasks = [
             {
-                'task_id': '1204910829086228',
-                'name': 'Update homepage hero section',
-                'notes': 'Implement new hero section with product features and improved CTA',
-                'completed': False,
+                'gid': 'task_123',
+                'name': 'Complete project proposal',
                 'assignee': {
-                    'id': '1204910829086229',
-                    'name': 'Alice Developer',
-                    'email': 'alice@company.com',
-                    'avatar_url': 'https://example.com/avatars/alice.png'
+                    'gid': 'user_456',
+                    'name': 'John Doe',
+                    'email': 'john@example.com'
                 },
-                'projects': [{
-                    'id': '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                }],
-                'due_on': '2024-01-20',
-                'tags': [
-                    {'id': 'tag-1', 'name': 'frontend', 'color': 'blue'},
-                    {'id': 'tag-2', 'name': 'urgent', 'color': 'red'}
+                'projects': [
+                    {'gid': 'project_789', 'name': 'Q4 Initiatives'}
                 ],
-                'custom_fields': [
-                    {
-                        'id': 'field-1',
-                        'name': 'Priority',
-                        'type': 'enum',
-                        'value': 'high'
-                    }
-                ],
-                'status': 'in_progress',
-                'priority': 'high',
-                'created_at': '2024-01-10T10:00:00.000Z',
-                'modified_at': '2024-01-15T14:30:00.000Z',
-                'url': 'https://app.asana.com/0/1204910829086230/1204910829086228'
+                'completed': False,
+                'completed_at': None,
+                'due_at': (datetime.utcnow() + timedelta(days=2)).isoformat(),
+                'due_on': (datetime.utcnow() + timedelta(days=2)).date().isoformat(),
+                'created_at': (datetime.utcnow() - timedelta(days=5)).isoformat(),
+                'modified_at': (datetime.utcnow() - timedelta(hours=2)).isoformat(),
+                'tags': [],
+                'notes': 'Complete Q4 project proposal with budget estimates and timeline.',
+                'html_notes': '<p>Complete Q4 project proposal with budget estimates and timeline.</p>',
+                'url': 'https://app.asana.com/0/task_123',
+                'permalink_url': 'https://app.asana.com/0/project_789/task_123',
+                'parent': None,
+                'subtasks': [],
+                'dependencies': [],
+                'dependents': []
             },
             {
-                'task_id': '1204910829086231',
-                'name': 'Fix mobile navigation menu',
-                'notes': 'Navigation menu is not responsive on mobile devices',
+                'gid': 'task_456',
+                'name': 'Review code changes',
+                'assignee': {
+                    'gid': 'user_789',
+                    'name': 'Jane Smith',
+                    'email': 'jane@example.com'
+                },
+                'projects': [
+                    {'gid': 'project_123', 'name': 'Development Sprint'}
+                ],
                 'completed': True,
-                'assignee': {
-                    'id': '1204910829086232',
-                    'name': 'Bob Engineer',
-                    'email': 'bob@company.com',
-                    'avatar_url': 'https://example.com/avatars/bob.png'
-                },
-                'projects': [{
-                    'id': '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                }],
-                'due_on': '2024-01-18',
-                'tags': [
-                    {'id': 'tag-3', 'name': 'mobile', 'color': 'green'},
-                    {'id': 'tag-4', 'name': 'bug', 'color': 'red'}
+                'completed_at': (datetime.utcnow() - timedelta(hours=1)).isoformat(),
+                'due_at': (datetime.utcnow() - timedelta(days=1)).isoformat(),
+                'due_on': (datetime.utcnow() - timedelta(days=1)).date().isoformat(),
+                'created_at': (datetime.utcnow() - timedelta(days=2)).isoformat(),
+                'modified_at': (datetime.utcnow() - timedelta(hours=1)).isoformat(),
+                'tags': [{'gid': 'tag_123', 'name': 'urgent'}],
+                'notes': 'Review and merge latest code changes from feature branch.',
+                'html_notes': '<p>Review and merge latest code changes from feature branch.</p>',
+                'url': 'https://app.asana.com/0/task_456',
+                'permalink_url': 'https://app.asana.com/0/project_123/task_456',
+                'parent': None,
+                'subtasks': [
+                    {'gid': 'subtask_789', 'name': 'Test functionality', 'completed': True},
+                    {'gid': 'subtask_123', 'name': 'Write documentation', 'completed': False}
                 ],
-                'custom_fields': [
-                    {
-                        'id': 'field-1',
-                        'name': 'Priority',
-                        'type': 'enum',
-                        'value': 'medium'
-                    }
-                ],
-                'status': 'completed',
-                'priority': 'medium',
-                'created_at': '2024-01-08T09:00:00.000Z',
-                'modified_at': '2024-01-17T16:45:00.000Z',
-                'url': 'https://app.asana.com/0/1204910829086230/1204910829086231'
-            },
-            {
-                'task_id': '1204910829086233',
-                'name': 'Implement user authentication',
-                'notes': 'Add OAuth2 integration for Google and GitHub',
-                'completed': False,
-                'assignee': None,
-                'projects': [{
-                    'id': '1204910829086234',
-                    'name': 'Backend Development',
-                    'color': 'green'
-                }],
-                'due_on': '2024-01-25',
-                'tags': [
-                    {'id': 'tag-5', 'name': 'backend', 'color': 'orange'},
-                    {'id': 'tag-6', 'name': 'feature', 'color': 'purple'}
-                ],
-                'custom_fields': [
-                    {
-                        'id': 'field-1',
-                        'name': 'Priority',
-                        'type': 'enum',
-                        'value': 'high'
-                    }
-                ],
-                'status': 'todo',
-                'priority': 'high',
-                'created_at': '2024-01-12T11:00:00.000Z',
-                'modified_at': '2024-01-16T10:20:00.000Z',
-                'url': 'https://app.asana.com/0/1204910829086234/1204910829086233'
+                'dependencies': [],
+                'dependents': []
             }
         ]
         
-        # Filter based on completion preference
-        filtered_tasks = []
-        for task in mock_tasks:
-            if not include_completed and task['completed']:
-                continue
-            filtered_tasks.append(task)
-        
         return jsonify(format_asana_response({
-            'tasks': filtered_tasks[:limit],
-            'total_count': len(filtered_tasks)
-        }, 'list_tasks'))
+            'tasks': mock_tasks[:limit],
+            'total_count': len(mock_tasks),
+            'workspace_id': workspace_id,
+            'project_id': project_id,
+            'assignee': assignee,
+            'completed': completed
+        }, 'tasks', 'list_tasks'))
     
     except Exception as e:
         logger.error(f"Error listing tasks: {e}")
-        return jsonify(format_error_response(e, 'list_tasks')), 500
+        return jsonify(format_error_response(e, 'tasks', 'list_tasks')), 500
 
 async def _create_task(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """Helper function to create task"""
@@ -289,60 +266,216 @@ async def _create_task(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         
         # Use Asana service
         if ASANA_SERVICE_AVAILABLE:
-            result = await asana_service.create_task(user_id, task_data, tokens['access_token'])
+            result = await asana_service.create_task(user_id, task_data)
             
             if result.get('ok'):
                 return jsonify(format_asana_response({
                     'task': result.get('task'),
-                    'url': result.get('task', {}).get('url'),
-                    'message': 'Task created successfully'
-                }, 'create_task'))
+                    'url': result.get('url')
+                }, 'tasks', 'create_task'))
             else:
                 return jsonify(result)
         
         # Fallback to mock creation
         mock_task = {
-            'task_id': 'asana_' + str(int(datetime.utcnow().timestamp())),
+            'gid': 'task_' + str(int(datetime.utcnow().timestamp())),
             'name': task_data['name'],
-            'notes': task_data.get('description', ''),
-            'completed': False,
-            'assignee': task_data.get('assignee'),
+            'assignee': task_data.get('assignee', 'me'),
             'projects': task_data.get('projects', []),
-            'due_on': task_data.get('due_date'),
-            'tags': task_data.get('tags', []),
-            'custom_fields': task_data.get('custom_fields', []),
-            'status': 'todo',
-            'priority': task_data.get('priority', 'medium'),
+            'completed': False,
+            'completed_at': None,
+            'due_at': task_data.get('due_at'),
+            'due_on': task_data.get('due_on'),
             'created_at': datetime.utcnow().isoformat(),
             'modified_at': datetime.utcnow().isoformat(),
-            'url': f"https://app.asana.com/0/{task_data.get('project', {}).get('id', 'DEFAULT')}/asana_{int(datetime.utcnow().timestamp())}"
+            'tags': task_data.get('tags', []),
+            'notes': task_data.get('notes', ''),
+            'html_notes': f'<p>{task_data.get("notes", "")}</p>',
+            'url': 'https://app.asana.com/0/mock_task_id',
+            'permalink_url': 'https://app.asana.com/0/mock_project_id/mock_task_id',
+            'parent': task_data.get('parent'),
+            'subtasks': [],
+            'dependencies': task_data.get('dependencies', []),
+            'dependents': []
         }
         
         return jsonify(format_asana_response({
             'task': mock_task,
-            'url': mock_task['url'],
-            'message': 'Task created successfully'
-        }, 'create_task'))
+            'url': mock_task['url']
+        }, 'tasks', 'create_task'))
     
     except Exception as e:
         logger.error(f"Error creating task: {e}")
-        return jsonify(format_error_response(e, 'create_task')), 500
+        return jsonify(format_error_response(e, 'tasks', 'create_task')), 500
 
+async def _update_task(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper function to update task"""
+    try:
+        task_id = data.get('task_id')
+        task_data = data.get('data', {})
+        
+        if not task_id:
+            return jsonify({
+                'ok': False,
+                'error': {'message': 'task_id is required'}
+            }), 400
+        
+        # Use Asana service
+        if ASANA_SERVICE_AVAILABLE:
+            result = await asana_service.update_task(user_id, task_id, task_data)
+            
+            if result.get('ok'):
+                return jsonify(format_asana_response({
+                    'task': result.get('task'),
+                    'url': result.get('url')
+                }, 'tasks', 'update_task'))
+            else:
+                return jsonify(result)
+        
+        # Fallback to mock update
+        mock_task = {
+            'gid': task_id,
+            'name': task_data.get('name', 'Updated Task'),
+            'assignee': task_data.get('assignee', 'me'),
+            'projects': task_data.get('projects', []),
+            'completed': task_data.get('completed', False),
+            'completed_at': task_data.get('completed_at'),
+            'due_at': task_data.get('due_at'),
+            'due_on': task_data.get('due_on'),
+            'created_at': (datetime.utcnow() - timedelta(days=1)).isoformat(),
+            'modified_at': datetime.utcnow().isoformat(),
+            'tags': task_data.get('tags', []),
+            'notes': task_data.get('notes', ''),
+            'html_notes': f'<p>{task_data.get("notes", "")}</p>',
+            'url': f'https://app.asana.com/0/{task_id}',
+            'permalink_url': f'https://app.asana.com/0/project_{task_id}/{task_id}',
+            'parent': task_data.get('parent'),
+            'subtasks': [],
+            'dependencies': task_data.get('dependencies', []),
+            'dependents': []
+        }
+        
+        return jsonify(format_asana_response({
+            'task': mock_task,
+            'url': mock_task['url']
+        }, 'tasks', 'update_task'))
+    
+    except Exception as e:
+        logger.error(f"Error updating task: {e}")
+        return jsonify(format_error_response(e, 'tasks', 'update_task')), 500
+
+async def _complete_task(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper function to complete task"""
+    try:
+        task_id = data.get('task_id')
+        
+        if not task_id:
+            return jsonify({
+                'ok': False,
+                'error': {'message': 'task_id is required'}
+            }), 400
+        
+        # Use Asana service
+        if ASANA_SERVICE_AVAILABLE:
+            result = await asana_service.complete_task(user_id, task_id)
+            
+            if result.get('ok'):
+                return jsonify(format_asana_response({
+                    'task': result.get('task'),
+                    'message': 'Task completed successfully'
+                }, 'tasks', 'complete_task'))
+            else:
+                return jsonify(result)
+        
+        # Fallback to mock completion
+        mock_task = {
+            'gid': task_id,
+            'name': 'Completed Task',
+            'assignee': 'me',
+            'projects': [],
+            'completed': True,
+            'completed_at': datetime.utcnow().isoformat(),
+            'url': f'https://app.asana.com/0/{task_id}'
+        }
+        
+        return jsonify(format_asana_response({
+            'task': mock_task,
+            'message': 'Task completed successfully'
+        }, 'tasks', 'complete_task'))
+    
+    except Exception as e:
+        logger.error(f"Error completing task: {e}")
+        return jsonify(format_error_response(e, 'tasks', 'complete_task')), 500
+
+async def _add_task_comment(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper function to add comment to task"""
+    try:
+        task_id = data.get('task_id')
+        comment_text = data.get('comment')
+        
+        if not task_id or not comment_text:
+            return jsonify({
+                'ok': False,
+                'error': {'message': 'task_id and comment are required'}
+            }), 400
+        
+        # Use Asana service
+        if ASANA_SERVICE_AVAILABLE:
+            result = await asana_service.add_task_comment(user_id, task_id, comment_text)
+            
+            if result.get('ok'):
+                return jsonify(format_asana_response({
+                    'story': result.get('story'),
+                    'message': 'Comment added successfully'
+                }, 'tasks', 'add_comment'))
+            else:
+                return jsonify(result)
+        
+        # Fallback to mock comment
+        mock_story = {
+            'gid': 'story_' + str(int(datetime.utcnow().timestamp())),
+            'text': comment_text,
+            'type': 'comment',
+            'created_at': datetime.utcnow().isoformat(),
+            'created_by': {
+                'gid': 'user_current',
+                'name': 'Current User'
+            }
+        }
+        
+        return jsonify(format_asana_response({
+            'story': mock_story,
+            'message': 'Comment added successfully'
+        }, 'tasks', 'add_comment'))
+    
+    except Exception as e:
+        logger.error(f"Error adding task comment: {e}")
+        return jsonify(format_error_response(e, 'tasks', 'add_comment')), 500
+
+# Projects Enhanced API
 @asana_enhanced_bp.route('/api/integrations/asana/projects', methods=['POST'])
 async def list_projects():
-    """List projects from user workspace"""
+    """List Asana projects with advanced filtering"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
         workspace_id = data.get('workspace_id')
-        team_id = data.get('team_id')
+        archived = data.get('archived', 'false')
         limit = data.get('limit', 50)
+        operation = data.get('operation', 'list')
         
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
+        
+        if operation == 'create':
+            return await _create_project(user_id, data)
+        elif operation == 'update':
+            return await _update_project(user_id, data)
+        elif operation == 'archive':
+            return await _archive_project(user_id, data)
         
         # Get user tokens
         tokens = await get_user_tokens(user_id)
@@ -354,128 +487,179 @@ async def list_projects():
         
         # Use Asana service
         if ASANA_SERVICE_AVAILABLE:
-            projects = await asana_service.get_user_projects(
-                tokens['access_token'], user_id, workspace_id, team_id, limit
+            projects = await asana_service.get_projects(
+                user_id, workspace_id, archived, limit
             )
             
             projects_data = [{
-                'project_id': project.id,
+                'gid': project.gid,
                 'name': project.name,
-                'description': project.description,
-                'color': project.color,
-                'public': project.public,
-                'owner': project.owner and {
-                    'id': project.owner.get('id') if isinstance(project.owner, dict) else project.owner.gid,
-                    'name': project.owner.get('name') if isinstance(project.owner, dict) else project.owner.name
-                },
-                'team': project.team and {
-                    'id': project.team.get('id') if isinstance(project.team, dict) else project.team.gid,
-                    'name': project.team.get('name') if isinstance(project.team, dict) else project.team.name
-                },
+                'notes': project.notes,
+                'html_notes': project.html_notes,
                 'archived': project.archived,
+                'public': project.public,
+                'color': project.color,
                 'created_at': project.created_at,
                 'modified_at': project.modified_at,
-                'workspace': {
-                    'id': project.workspace.get('id') if isinstance(project.workspace, dict) else project.workspace.gid,
-                    'name': project.workspace.get('name') if isinstance(project.workspace, dict) else project.workspace.name
-                },
-                'url': f"https://app.asana.com/0/{project.id}"
+                'team': project.team,
+                'members': project.members or [],
+                'followers': project.followers or [],
+                'workspace': project.workspace,
+                'due_date': project.due_date,
+                'start_on': project.start_on,
+                'url': project.url,
+                'permalink_url': project.permalink_url,
+                'custom_fields': project.custom_fields or [],
+                'task_count': project.task_count
             } for project in projects]
             
             return jsonify(format_asana_response({
                 'projects': projects_data,
-                'total_count': len(projects_data)
-            }, 'list_projects'))
+                'total_count': len(projects_data),
+                'workspace_id': workspace_id,
+                'archived': archived
+            }, 'projects', 'list_projects'))
         
         # Fallback to mock data
         mock_projects = [
             {
-                'project_id': '1204910829086230',
-                'name': 'Website Redesign',
-                'description': 'Complete overhaul of company website with modern design and improved UX',
-                'color': 'blue',
-                'public': False,
-                'owner': {
-                    'id': '1204910829086229',
-                    'name': 'Alice Developer'
-                },
-                'team': {
-                    'id': '1204910829086240',
-                    'name': 'Web Development'
-                },
+                'gid': 'project_123',
+                'name': 'Q4 Product Development',
+                'notes': 'Main product development initiatives for Q4 2024',
+                'html_notes': '<p>Main product development initiatives for Q4 2024</p>',
                 'archived': False,
-                'created_at': '2024-01-05T00:00:00.000Z',
-                'modified_at': '2024-01-15T14:30:00.000Z',
-                'workspace': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
-                },
-                'url': 'https://app.asana.com/0/1204910829086230'
-            },
-            {
-                'project_id': '1204910829086234',
-                'name': 'Backend Development',
-                'description': 'API development and backend infrastructure improvements',
-                'color': 'green',
-                'public': False,
-                'owner': {
-                    'id': '1204910829086232',
-                    'name': 'Bob Engineer'
-                },
-                'team': {
-                    'id': '1204910829086241',
-                    'name': 'Engineering'
-                },
-                'archived': False,
-                'created_at': '2024-01-03T00:00:00.000Z',
-                'modified_at': '2024-01-16T12:00:00.000Z',
-                'workspace': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
-                },
-                'url': 'https://app.asana.com/0/1204910829086234'
-            },
-            {
-                'project_id': '1204910829086237',
-                'name': 'Marketing Campaign',
-                'description': 'Q1 2024 marketing campaign for new product launch',
-                'color': 'purple',
                 'public': True,
-                'owner': {
-                    'id': '1204910829086236',
-                    'name': 'Carol Designer'
-                },
+                'color': 'light-blue',
+                'created_at': (datetime.utcnow() - timedelta(days=30)).isoformat(),
+                'modified_at': (datetime.utcnow() - timedelta(days=1)).isoformat(),
                 'team': {
-                    'id': '1204910829086242',
-                    'name': 'Marketing'
+                    'gid': 'team_123',
+                    'name': 'Product Team'
                 },
-                'archived': False,
-                'created_at': '2024-01-08T00:00:00.000Z',
-                'modified_at': '2024-01-14T15:15:00.000Z',
+                'members': [
+                    {'gid': 'user_123', 'name': 'John Doe'},
+                    {'gid': 'user_456', 'name': 'Jane Smith'}
+                ],
+                'followers': [
+                    {'gid': 'user_789', 'name': 'Bob Johnson'}
+                ],
                 'workspace': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
+                    'gid': 'workspace_123',
+                    'name': 'Company Workspace'
                 },
-                'url': 'https://app.asana.com/0/1204910829086237'
+                'due_date': (datetime.utcnow() + timedelta(days=30)).date().isoformat(),
+                'start_on': (datetime.utcnow() - timedelta(days=5)).date().isoformat(),
+                'url': 'https://app.asana.com/0/project_123',
+                'permalink_url': 'https://app.asana.com/0/project_123',
+                'custom_fields': [],
+                'task_count': 25
+            },
+            {
+                'gid': 'project_456',
+                'name': 'Marketing Campaign 2024',
+                'notes': 'Annual marketing campaign planning and execution',
+                'html_notes': '<p>Annual marketing campaign planning and execution</p>',
+                'archived': False,
+                'public': False,
+                'color': 'light-green',
+                'created_at': (datetime.utcnow() - timedelta(days=45)).isoformat(),
+                'modified_at': (datetime.utcnow() - timedelta(hours=3)).isoformat(),
+                'team': {
+                    'gid': 'team_456',
+                    'name': 'Marketing Team'
+                },
+                'members': [
+                    {'gid': 'user_111', 'name': 'Alice Brown'},
+                    {'gid': 'user_222', 'name': 'Charlie Davis'}
+                ],
+                'followers': [],
+                'workspace': {
+                    'gid': 'workspace_123',
+                    'name': 'Company Workspace'
+                },
+                'due_date': (datetime.utcnow() + timedelta(days=60)).date().isoformat(),
+                'start_on': (datetime.utcnow() - timedelta(days=10)).date().isoformat(),
+                'url': 'https://app.asana.com/0/project_456',
+                'permalink_url': 'https://app.asana.com/0/project_456',
+                'custom_fields': [],
+                'task_count': 18
             }
         ]
         
         return jsonify(format_asana_response({
             'projects': mock_projects[:limit],
-            'total_count': len(mock_projects)
-        }, 'list_projects'))
+            'total_count': len(mock_projects),
+            'workspace_id': workspace_id,
+            'archived': archived
+        }, 'projects', 'list_projects'))
     
     except Exception as e:
         logger.error(f"Error listing projects: {e}")
-        return jsonify(format_error_response(e, 'list_projects')), 500
+        return jsonify(format_error_response(e, 'projects', 'list_projects')), 500
 
-@asana_enhanced_bp.route('/api/integrations/asana/sections', methods=['POST'])
-async def list_sections():
-    """List sections from projects"""
+async def _create_project(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper function to create project"""
+    try:
+        project_data = data.get('data', {})
+        
+        if not project_data.get('name'):
+            return jsonify({
+                'ok': False,
+                'error': {'message': 'Project name is required'}
+            }), 400
+        
+        # Use Asana service
+        if ASANA_SERVICE_AVAILABLE:
+            result = await asana_service.create_project(user_id, project_data)
+            
+            if result.get('ok'):
+                return jsonify(format_asana_response({
+                    'project': result.get('project'),
+                    'url': result.get('url')
+                }, 'projects', 'create_project'))
+            else:
+                return jsonify(result)
+        
+        # Fallback to mock creation
+        mock_project = {
+            'gid': 'project_' + str(int(datetime.utcnow().timestamp())),
+            'name': project_data['name'],
+            'notes': project_data.get('notes', ''),
+            'html_notes': f'<p>{project_data.get("notes", "")}</p>',
+            'archived': False,
+            'public': project_data.get('public', True),
+            'color': project_data.get('color', 'light-blue'),
+            'created_at': datetime.utcnow().isoformat(),
+            'modified_at': datetime.utcnow().isoformat(),
+            'team': project_data.get('team'),
+            'members': project_data.get('members', []),
+            'followers': [],
+            'workspace': project_data.get('workspace', {'gid': 'workspace_123', 'name': 'Company Workspace'}),
+            'due_date': project_data.get('due_date'),
+            'start_on': project_data.get('start_on'),
+            'url': 'https://app.asana.com/0/mock_project_id',
+            'permalink_url': 'https://app.asana.com/0/mock_project_id',
+            'custom_fields': project_data.get('custom_fields', []),
+            'task_count': 0
+        }
+        
+        return jsonify(format_asana_response({
+            'project': mock_project,
+            'url': mock_project['url']
+        }, 'projects', 'create_project'))
+    
+    except Exception as e:
+        logger.error(f"Error creating project: {e}")
+        return jsonify(format_error_response(e, 'projects', 'create_project')), 500
+
+# Teams Enhanced API
+@asana_enhanced_bp.route('/api/integrations/asana/teams', methods=['POST'])
+async def list_teams():
+    """List Asana teams"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
-        project_id = data.get('project_id')
+        workspace_id = data.get('workspace_id')
         limit = data.get('limit', 50)
         
         if not user_id:
@@ -494,346 +678,95 @@ async def list_sections():
         
         # Use Asana service
         if ASANA_SERVICE_AVAILABLE:
-            sections = await asana_service.get_user_sections(
-                tokens['access_token'], user_id, project_id, limit
-            )
-            
-            sections_data = [{
-                'section_id': section.id,
-                'name': section.name,
-                'project': {
-                    'id': section.project.get('id') if isinstance(section.project, dict) else section.project.gid,
-                    'name': section.project.get('name') if isinstance(section.project, dict) else section.project.name,
-                    'color': section.project.get('color') if isinstance(section.project, dict) else section.project.color
-                },
-                'created_at': section.created_at,
-                'tasks_count': len(section.tasks) if section.tasks else 0
-            } for section in sections]
-            
-            return jsonify(format_asana_response({
-                'sections': sections_data,
-                'total_count': len(sections_data)
-            }, 'list_sections'))
-        
-        # Fallback to mock data
-        mock_sections = [
-            {
-                'section_id': '1204910829086245',
-                'name': 'Backlog',
-                'project': {
-                    'id': project_id or '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                },
-                'created_at': '2024-01-05T00:00:00.000Z',
-                'tasks_count': 5
-            },
-            {
-                'section_id': '1204910829086246',
-                'name': 'To Do',
-                'project': {
-                    'id': project_id or '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                },
-                'created_at': '2024-01-05T00:00:00.000Z',
-                'tasks_count': 3
-            },
-            {
-                'section_id': '1204910829086247',
-                'name': 'In Progress',
-                'project': {
-                    'id': project_id or '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                },
-                'created_at': '2024-01-05T00:00:00.000Z',
-                'tasks_count': 4
-            },
-            {
-                'section_id': '1204910829086248',
-                'name': 'Done',
-                'project': {
-                    'id': project_id or '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                },
-                'created_at': '2024-01-05T00:00:00.000Z',
-                'tasks_count': 8
-            }
-        ]
-        
-        return jsonify(format_asana_response({
-            'sections': mock_sections[:limit],
-            'total_count': len(mock_sections)
-        }, 'list_sections'))
-    
-    except Exception as e:
-        logger.error(f"Error listing sections: {e}")
-        return jsonify(format_error_response(e, 'list_sections')), 500
-
-@asana_enhanced_bp.route('/api/integrations/asana/teams', methods=['POST'])
-async def list_teams():
-    """List teams from user workspace"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        workspace_id = data.get('workspace_id')
-        limit = data.get('limit', 20)
-        
-        if not user_id:
-            return jsonify({
-                'ok': False,
-                'error': {'message': 'user_id is required'}
-            }), 400
-        
-        # Get user tokens
-        tokens = await get_user_tokens(user_id)
-        if not tokens:
-            return jsonify({
-                'ok': False,
-                'error': {'message': 'Asana tokens not found'}
-            }), 401
-        
-        # Use Asana service
-        if ASANA_SERVICE_AVAILABLE:
-            teams = await asana_service.get_user_teams(
-                tokens['access_token'], user_id, workspace_id, limit
+            teams = await asana_service.get_teams(
+                user_id, workspace_id, limit
             )
             
             teams_data = [{
-                'team_id': team.id,
+                'gid': team.gid,
                 'name': team.name,
                 'description': team.description,
-                'organization': team.organization and {
-                    'id': team.organization.get('id') if isinstance(team.organization, dict) else team.organization.gid,
-                    'name': team.organization.get('name') if isinstance(team.organization, dict) else team.organization.name,
-                    'url': team.organization.get('permalink_url') if isinstance(team.organization, dict) else team.organization.url
-                },
-                'members_count': len(team.members) if team.members else 0,
-                'projects_count': len(team.projects) if team.projects else 0,
-                'tasks_count': 0,  # Would need additional API call
-                'url': f"https://app.asana.com/0/{team.id}"
+                'html_description': team.html_description,
+                'organization': team.organization,
+                'workspace': team.workspace,
+                'members': team.members or [],
+                'url': team.url,
+                'permalink_url': team.permalink_url
             } for team in teams]
             
             return jsonify(format_asana_response({
                 'teams': teams_data,
-                'total_count': len(teams_data)
-            }, 'list_teams'))
+                'total_count': len(teams_data),
+                'workspace_id': workspace_id
+            }, 'teams', 'list_teams'))
         
         # Fallback to mock data
         mock_teams = [
             {
-                'team_id': '1204910829086240',
-                'name': 'Web Development',
-                'description': 'Frontend development team responsible for web applications',
-                'organization': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company',
-                    'url': 'https://app.asana.com/0/1204910829086249'
-                },
-                'members_count': 8,
-                'projects_count': 3,
-                'tasks_count': 0,
-                'url': 'https://app.asana.com/0/1204910829086240'
-            },
-            {
-                'team_id': '1204910829086241',
+                'gid': 'team_123',
                 'name': 'Engineering',
-                'description': 'Backend and infrastructure engineering team',
+                'description': 'Core engineering team responsible for product development',
+                'html_description': '<p>Core engineering team responsible for product development</p>',
                 'organization': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company',
-                    'url': 'https://app.asana.com/0/1204910829086249'
+                    'gid': 'org_123',
+                    'name': 'Company Name'
                 },
-                'members_count': 12,
-                'projects_count': 5,
-                'tasks_count': 0,
-                'url': 'https://app.asana.com/0/1204910829086241'
+                'workspace': {
+                    'gid': 'workspace_123',
+                    'name': 'Company Workspace'
+                },
+                'members': [
+                    {'gid': 'user_123', 'name': 'John Doe'},
+                    {'gid': 'user_456', 'name': 'Jane Smith'},
+                    {'gid': 'user_789', 'name': 'Bob Johnson'}
+                ],
+                'url': 'https://app.asana.com/0/team_123',
+                'permalink_url': 'https://app.asana.com/0/team_123'
             },
             {
-                'team_id': '1204910829086242',
-                'name': 'Marketing',
-                'description': 'Marketing and creative team for campaigns and content',
+                'gid': 'team_456',
+                'name': 'Design',
+                'description': 'Creative design team responsible for UI/UX and visual assets',
+                'html_description': '<p>Creative design team responsible for UI/UX and visual assets</p>',
                 'organization': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company',
-                    'url': 'https://app.asana.com/0/1204910829086249'
+                    'gid': 'org_123',
+                    'name': 'Company Name'
                 },
-                'members_count': 6,
-                'projects_count': 4,
-                'tasks_count': 0,
-                'url': 'https://app.asana.com/0/1204910829086242'
-            },
-            {
-                'team_id': '1204910829086244',
-                'name': 'Mobile Team',
-                'description': 'Mobile application development team',
-                'organization': {
-                    'id': '1204910829086249',
-                    'name': 'Tech Company',
-                    'url': 'https://app.asana.com/0/1204910829086249'
+                'workspace': {
+                    'gid': 'workspace_123',
+                    'name': 'Company Workspace'
                 },
-                'members_count': 7,
-                'projects_count': 2,
-                'tasks_count': 0,
-                'url': 'https://app.asana.com/0/1204910829086244'
+                'members': [
+                    {'gid': 'user_111', 'name': 'Alice Brown'},
+                    {'gid': 'user_222', 'name': 'Charlie Davis'}
+                ],
+                'url': 'https://app.asana.com/0/team_456',
+                'permalink_url': 'https://app.asana.com/0/team_456'
             }
         ]
         
         return jsonify(format_asana_response({
             'teams': mock_teams[:limit],
-            'total_count': len(mock_teams)
-        }, 'list_teams'))
+            'total_count': len(mock_teams),
+            'workspace_id': workspace_id
+        }, 'teams', 'list_teams'))
     
     except Exception as e:
         logger.error(f"Error listing teams: {e}")
-        return jsonify(format_error_response(e, 'list_teams')), 500
+        return jsonify(format_error_response(e, 'teams', 'list_teams')), 500
 
-@asana_enhanced_bp.route('/api/integrations/asana/users', methods=['POST'])
-async def list_users():
-    """List users from organization or teams"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        workspace_id = data.get('workspace_id')
-        limit = data.get('limit', 100)
-        
-        if not user_id:
-            return jsonify({
-                'ok': False,
-                'error': {'message': 'user_id is required'}
-            }), 400
-        
-        # Get user tokens
-        tokens = await get_user_tokens(user_id)
-        if not tokens:
-            return jsonify({
-                'ok': False,
-                'error': {'message': 'Asana tokens not found'}
-            }), 401
-        
-        # Use Asana service
-        if ASANA_SERVICE_AVAILABLE:
-            user = await asana_service.get_user_profile(tokens['access_token'])
-            
-            if user:
-                user_data = {
-                    'user_id': user.id,
-                    'name': user.name,
-                    'email': user.email,
-                    'avatar_url': user.avatar_url_128x128,
-                    'workspaces': user.workspaces,
-                    'active': user.active,
-                    'last_login': user.last_login
-                }
-                
-                return jsonify(format_asana_response({
-                    'users': [user_data],
-                    'total_count': 1
-                }, 'list_users'))
-        
-        # Fallback to mock data
-        mock_users = [
-            {
-                'user_id': '1204910829086229',
-                'name': 'Alice Developer',
-                'email': 'alice@company.com',
-                'avatar_url': 'https://example.com/avatars/alice.png',
-                'workspaces': [{
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
-                }],
-                'active': True,
-                'last_login': (datetime.utcnow() - timedelta(hours=2)).isoformat()
-            },
-            {
-                'user_id': '1204910829086232',
-                'name': 'Bob Engineer',
-                'email': 'bob@company.com',
-                'avatar_url': 'https://example.com/avatars/bob.png',
-                'workspaces': [{
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
-                }],
-                'active': True,
-                'last_login': (datetime.utcnow() - timedelta(hours=1)).isoformat()
-            },
-            {
-                'user_id': '1204910829086236',
-                'name': 'Carol Designer',
-                'email': 'carol@company.com',
-                'avatar_url': 'https://example.com/avatars/carol.png',
-                'workspaces': [{
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
-                }],
-                'active': True,
-                'last_login': (datetime.utcnow() - timedelta(hours=3)).isoformat()
-            },
-            {
-                'user_id': '1204910829086239',
-                'name': 'Dave Developer',
-                'email': 'dave@company.com',
-                'avatar_url': 'https://example.com/avatars/dave.png',
-                'workspaces': [{
-                    'id': '1204910829086249',
-                    'name': 'Tech Company'
-                }],
-                'active': True,
-                'last_login': (datetime.utcnow() - timedelta(hours=6)).isoformat()
-            }
-        ]
-        
-        return jsonify(format_asana_response({
-            'users': mock_users[:limit],
-            'total_count': len(mock_users)
-        }, 'list_users'))
-    
-    except Exception as e:
-        logger.error(f"Error listing users: {e}")
-        return jsonify(format_error_response(e, 'list_users')), 500
-
-@asana_enhanced_bp.route('/api/integrations/asana/user/profile', methods=['POST'])
-async def get_user_profile():
-    """Get authenticated user profile"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        
-        if not user_id:
-            return jsonify({
-                'ok': False,
-                'error': {'message': 'user_id is required'}
-            }), 400
-        
-        # Get user tokens
-        tokens = await get_user_tokens(user_id)
-        if not tokens:
-            return jsonify({
-                'ok': False,
-                'error': {'message': 'Asana tokens not found'}
-            }), 401
-        
-        # Return user info from tokens
-        return jsonify(format_asana_response({
-            'user': tokens['user_info'],
-            'organization': tokens['user_info'].get('workspaces', [{}])[0]
-        }, 'get_user_profile'))
-    
-    except Exception as e:
-        logger.error(f"Error getting user profile: {e}")
-        return jsonify(format_error_response(e, 'get_user_profile')), 500
-
+# Asana Search API
 @asana_enhanced_bp.route('/api/integrations/asana/search', methods=['POST'])
 async def search_asana():
-    """Search across Asana"""
+    """Search across Asana services"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
         query = data.get('query')
-        search_type = data.get('type', 'tasks')
-        limit = data.get('limit', 50)
+        search_type = data.get('type', 'all')
+        workspace_id = data.get('workspace_id')
+        project_id = data.get('project_id')
+        limit = data.get('limit', 20)
         
         if not user_id:
             return jsonify({
@@ -857,51 +790,106 @@ async def search_asana():
         
         # Use Asana service
         if ASANA_SERVICE_AVAILABLE:
-            result = await asana_service.search_asana(tokens['access_token'], query, search_type, limit)
-            return jsonify(result)
+            results = await asana_service.search_asana(
+                user_id, query, search_type, workspace_id, project_id, limit
+            )
+            
+            return jsonify(format_asana_response({
+                'results': results,
+                'total_count': len(results),
+                'query': query,
+                'search_type': search_type,
+                'workspace_id': workspace_id,
+                'project_id': project_id
+            }, 'search', 'search_asana'))
         
         # Fallback to mock search
-        mock_results = [
-            {
-                'object': 'task',
-                'id': '1204910829086228',
-                'title': f'{query.title()} Development Setup',
-                'url': 'https://app.asana.com/0/1204910829086230/1204910829086228',
-                'status': {
-                    'completed': False,
-                    'name': 'not_completed'
-                },
-                'assignee': {
-                    'id': '1204910829086229',
-                    'name': 'Alice Developer',
-                    'email': 'alice@company.com'
-                },
-                'project': {
-                    'id': '1204910829086230',
-                    'name': 'Website Redesign',
-                    'color': 'blue'
-                },
-                'type': 'Task'
-            },
-            {
-                'object': 'project',
-                'id': '1204910829086230',
-                'title': f'{query.title()} Team',
-                'url': 'https://app.asana.com/0/1204910829086230',
-                'type': 'Project'
-            }
-        ]
+        mock_results = []
+        
+        if search_type in ['all', 'tasks']:
+            mock_results.append({
+                'type': 'task',
+                'gid': 'task_search_1',
+                'name': f'Search Result: {query}',
+                'notes': f'Task matching search: {query}',
+                'url': 'https://app.asana.com/0/task_search_1',
+                'created_at': (datetime.utcnow() - timedelta(days=2)).isoformat(),
+                'completed': False
+            })
+        
+        if search_type in ['all', 'projects']:
+            mock_results.append({
+                'type': 'project',
+                'gid': 'project_search_1',
+                'name': f'Project: {query}',
+                'notes': f'Project matching search: {query}',
+                'url': 'https://app.asana.com/0/project_search_1',
+                'created_at': (datetime.utcnow() - timedelta(days=10)).isoformat(),
+                'archived': False
+            })
+        
+        if search_type in ['all', 'teams']:
+            mock_results.append({
+                'type': 'team',
+                'gid': 'team_search_1',
+                'name': f'Team: {query}',
+                'description': f'Team matching search: {query}',
+                'url': 'https://app.asana.com/0/team_search_1',
+                'members_count': 5
+            })
         
         return jsonify(format_asana_response({
-            'results': mock_results,
+            'results': mock_results[:limit],
             'total_count': len(mock_results),
-            'query': query
-        }, 'search_asana'))
+            'query': query,
+            'search_type': search_type,
+            'workspace_id': workspace_id,
+            'project_id': project_id
+        }, 'search', 'search_asana'))
     
     except Exception as e:
         logger.error(f"Error searching Asana: {e}")
-        return jsonify(format_error_response(e, 'search_asana')), 500
+        return jsonify(format_error_response(e, 'search', 'search_asana')), 500
 
+# Asana User Profile API
+@asana_enhanced_bp.route('/api/integrations/asana/user/profile', methods=['POST'])
+async def get_user_profile():
+    """Get Asana user profile"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        
+        if not user_id:
+            return jsonify({
+                'ok': False,
+                'error': {'message': 'user_id is required'}
+            }), 400
+        
+        # Get user tokens
+        tokens = await get_user_tokens(user_id)
+        if not tokens:
+            return jsonify({
+                'ok': False,
+                'error': {'message': 'Asana tokens not found'}
+            }), 401
+        
+        # Return user info from tokens
+        return jsonify(format_asana_response({
+            'user': tokens['user_info'],
+            'workspace_id': tokens['workspace_id'],
+            'services': {
+                'tasks': {'enabled': True, 'status': 'connected'},
+                'projects': {'enabled': True, 'status': 'connected'},
+                'teams': {'enabled': True, 'status': 'connected'},
+                'search': {'enabled': True, 'status': 'connected'}
+            }
+        }, 'user', 'get_profile'))
+    
+    except Exception as e:
+        logger.error(f"Error getting user profile: {e}")
+        return jsonify(format_error_response(e, 'user', 'get_profile')), 500
+
+# Asana Health Check API
 @asana_enhanced_bp.route('/api/integrations/asana/health', methods=['GET'])
 async def health_check():
     """Asana service health check"""
@@ -919,10 +907,16 @@ async def health_check():
                 service_info = asana_service.get_service_info()
                 return jsonify({
                     'status': 'healthy',
-                    'message': 'Asana API is accessible',
+                    'message': 'Asana APIs are accessible',
                     'service_available': ASANA_SERVICE_AVAILABLE,
                     'database_available': ASANA_DB_AVAILABLE,
                     'service_info': service_info,
+                    'services': {
+                        'tasks': {'status': 'healthy'},
+                        'projects': {'status': 'healthy'},
+                        'teams': {'status': 'healthy'},
+                        'search': {'status': 'healthy'}
+                    },
                     'timestamp': datetime.utcnow().isoformat()
                 })
         except Exception as e:
