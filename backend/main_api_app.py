@@ -30,11 +30,22 @@ except ImportError as e:
 # Import Linear integration
 try:
     from integrations.linear_routes import router as linear_router
+
     LINEAR_AVAILABLE = True
 except ImportError as e:
     print(f"Linear integration not available: {e}")
     LINEAR_AVAILABLE = False
     linear_router = None
+
+# Import Outlook integration
+try:
+    from integrations.outlook_routes import router as outlook_router
+
+    OUTLOOK_AVAILABLE = True
+except ImportError as e:
+    print(f"Outlook integration not available: {e}")
+    OUTLOOK_AVAILABLE = False
+    outlook_router = None
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -78,9 +89,17 @@ if LINEAR_AVAILABLE and linear_router:
 else:
     print("⚠️  Linear integration routes not available")
 
+# Include Outlook integration routes if available
+if OUTLOOK_AVAILABLE and outlook_router:
+    app.include_router(outlook_router)
+    print("✅ Outlook integration routes loaded")
+else:
+    print("⚠️  Outlook integration routes not available")
+
 # Include GitHub integration routes if available
 try:
     from integrations.github_routes import router as github_router
+
     GITHUB_AVAILABLE = True
 except ImportError as e:
     print(f"GitHub integration not available: {e}")
