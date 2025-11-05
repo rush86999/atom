@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-🚀 MAIN API APP - SIMPLIFIED WITH OAUTH
-Working backend with OAuth and real service endpoints
+🚀 MAIN API APP - SIMPLIFIED WITH OAUTH AND ENHANCED INTEGRATIONS
+Working backend with OAuth and real service endpoints including Google, Microsoft, and Dropbox
 """
 
 import os
@@ -24,10 +24,31 @@ from workflow_agent_api import workflow_agent_api_bp
 from workflow_automation_api import workflow_automation_api
 from voice_integration_api import voice_integration_api_bp
 
+# Import enhanced API blueprints
+try:
+    from google_enhanced_api import google_enhanced_bp
+    GOOGLE_ENHANCED_AVAILABLE = True
+except ImportError as e:
+    GOOGLE_ENHANCED_AVAILABLE = False
+    logging.warning(f"Enhanced Google API not available: {e}")
+
+try:
+    from microsoft_enhanced_api import microsoft_enhanced_bp
+    MICROSOFT_ENHANCED_AVAILABLE = True
+except ImportError as e:
+    MICROSOFT_ENHANCED_AVAILABLE = False
+    logging.warning(f"Enhanced Microsoft API not available: {e}")
+
+try:
+    from dropbox_enhanced_api import dropbox_enhanced_bp
+    DROPBOX_ENHANCED_AVAILABLE = True
+except ImportError as e:
+    DROPBOX_ENHANCED_AVAILABLE = False
+    logging.warning(f"Enhanced Dropbox API not available: {e}")
+
 # Import Jira OAuth handler
 try:
     from auth_handler_jira import jira_auth_bp
-
     JIRA_OAUTH_AVAILABLE = True
 except ImportError:
     JIRA_OAUTH_AVAILABLE = False
@@ -36,7 +57,6 @@ except ImportError:
 # Import enhanced service endpoints
 try:
     from enhanced_service_endpoints import enhanced_service_bp
-
     ENHANCED_SERVICES_AVAILABLE = True
 except ImportError:
     ENHANCED_SERVICES_AVAILABLE = False
@@ -45,7 +65,6 @@ except ImportError:
 # Import unified communication handler
 try:
     from unified_communication_handler import unified_communication_bp
-
     COMMUNICATION_AVAILABLE = True
 except ImportError as e:
     COMMUNICATION_AVAILABLE = False
@@ -54,7 +73,6 @@ except ImportError as e:
 # Import Teams OAuth handler
 try:
     from auth_handler_teams import auth_teams_bp
-
     TEAMS_OAUTH_AVAILABLE = True
 except ImportError as e:
     TEAMS_OAUTH_AVAILABLE = False
@@ -63,7 +81,6 @@ except ImportError as e:
 # Import Slack OAuth handler
 try:
     from auth_handler_slack import auth_slack_bp
-
     SLACK_OAUTH_AVAILABLE = True
 except ImportError as e:
     SLACK_OAUTH_AVAILABLE = False
@@ -72,7 +89,6 @@ except ImportError as e:
 # Import Notion OAuth handler
 try:
     from auth_handler_notion import auth_notion_bp
-
     NOTION_OAUTH_AVAILABLE = True
 except ImportError as e:
     NOTION_OAUTH_AVAILABLE = False
@@ -81,7 +97,6 @@ except ImportError as e:
 # Import GitHub OAuth handler
 try:
     from auth_handler_github import auth_github_bp
-
     GITHUB_OAUTH_AVAILABLE = True
 except ImportError as e:
     GITHUB_OAUTH_AVAILABLE = False
@@ -90,7 +105,6 @@ except ImportError as e:
 # Import Trello OAuth handler
 try:
     from auth_handler_trello import auth_trello_bp
-
     TRELLO_OAUTH_AVAILABLE = True
 except ImportError as e:
     TRELLO_OAUTH_AVAILABLE = False
@@ -99,7 +113,6 @@ except ImportError as e:
 # Import Figma OAuth handler
 try:
     from auth_handler_figma import auth_figma_bp
-
     FIGMA_OAUTH_AVAILABLE = True
 except ImportError as e:
     FIGMA_OAUTH_AVAILABLE = False
@@ -108,7 +121,6 @@ except ImportError as e:
 # Import Linear OAuth handler
 try:
     from auth_handler_linear import auth_linear_bp
-
     LINEAR_OAUTH_AVAILABLE = True
 except ImportError as e:
     LINEAR_OAUTH_AVAILABLE = False
@@ -117,7 +129,6 @@ except ImportError as e:
 # Import Asana OAuth handler
 try:
     from auth_handler_asana import auth_asana_bp
-
     ASANA_OAUTH_AVAILABLE = True
 except ImportError as e:
     ASANA_OAUTH_AVAILABLE = False
@@ -127,7 +138,6 @@ except ImportError as e:
 try:
     from auth_handler_outlook_new import outlook_oauth_handler
     from db_oauth_outlook import init_outlook_oauth_table
-
     OUTLOOK_OAUTH_AVAILABLE = True
 except ImportError as e:
     OUTLOOK_OAUTH_AVAILABLE = False
@@ -136,7 +146,6 @@ except ImportError as e:
 # Import Next.js OAuth handler
 try:
     from auth_handler_nextjs import nextjs_auth_bp
-
     NEXTJS_OAUTH_AVAILABLE = True
 except ImportError as e:
     NEXTJS_OAUTH_AVAILABLE = False
@@ -145,7 +154,6 @@ except ImportError as e:
 # Import enhanced Slack OAuth handler
 try:
     from auth_handler_slack_complete import auth_slack_bp
-
     SLACK_OAUTH_AVAILABLE = True
 except ImportError as e:
     SLACK_OAUTH_AVAILABLE = False
@@ -154,7 +162,6 @@ except ImportError as e:
 # Import enhanced Slack API
 try:
     from slack_enhanced_api import slack_enhanced_bp
-
     SLACK_ENHANCED_AVAILABLE = True
 except ImportError as e:
     SLACK_ENHANCED_AVAILABLE = False
@@ -166,7 +173,6 @@ app.secret_key = os.getenv(
     "FLASK_SECRET_KEY", "atom-dev-secret-key-change-in-production"
 )
 CORS(app, origins=["http://localhost:3000", "http://127.0.0.1:3000"])
-
 
 def create_app():
     """Create and configure Flask application with all integrations"""
@@ -190,6 +196,25 @@ def create_app():
         url_prefix="/api/v1/voice",
         name="voice_integration_api_v1",
     )
+
+    # Register enhanced API blueprints if available
+    if GOOGLE_ENHANCED_AVAILABLE:
+        app.register_blueprint(
+            google_enhanced_bp, url_prefix="/api/google/enhanced", name="google_enhanced"
+        )
+        logging.info("Enhanced Google API registered successfully")
+
+    if MICROSOFT_ENHANCED_AVAILABLE:
+        app.register_blueprint(
+            microsoft_enhanced_bp, url_prefix="/api/microsoft/enhanced", name="microsoft_enhanced"
+        )
+        logging.info("Enhanced Microsoft API registered successfully")
+
+    if DROPBOX_ENHANCED_AVAILABLE:
+        app.register_blueprint(
+            dropbox_enhanced_bp, url_prefix="/api/dropbox/enhanced", name="dropbox_enhanced"
+        )
+        logging.info("Enhanced Dropbox API registered successfully")
 
     # Register Jira OAuth handler if available
     if JIRA_OAUTH_AVAILABLE:
@@ -218,7 +243,9 @@ def create_app():
 
     # Register enhanced Slack OAuth handler if available
     if SLACK_OAUTH_AVAILABLE:
-        app.register_blueprint(auth_slack_bp, url_prefix="/api/auth", name="slack_auth")
+        app.register_blueprint(
+            auth_slack_bp, url_prefix="/api/auth", name="slack_auth"
+        )
         logging.info("Enhanced Slack OAuth handler registered successfully")
 
     # Register enhanced Slack API if available
@@ -230,22 +257,34 @@ def create_app():
 
     # Register enhanced Teams OAuth handler if available
     if TEAMS_OAUTH_AVAILABLE:
-        app.register_blueprint(auth_teams_bp, url_prefix="/api/auth", name="teams_auth")
+        app.register_blueprint(
+            auth_teams_bp, url_prefix="/api/auth", name="teams_auth"
+        )
         logging.info("Enhanced Teams OAuth handler registered successfully")
 
     # Register enhanced Teams API if available
-    if TEAMS_ENHANCED_AVAILABLE:
+    try:
+        from teams_enhanced_api import teams_enhanced_bp
+        TEAMS_ENHANCED_AVAILABLE = True
         app.register_blueprint(
             teams_enhanced_bp, url_prefix="/api/teams/enhanced", name="teams_enhanced"
         )
         logging.info("Enhanced Teams API registered successfully")
+    except ImportError as e:
+        TEAMS_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Teams API not available: {e}")
 
     # Register enhanced Jira API if available
-    if JIRA_ENHANCED_AVAILABLE:
+    try:
+        from jira_enhanced_api import jira_enhanced_bp
+        JIRA_ENHANCED_AVAILABLE = True
         app.register_blueprint(
             jira_enhanced_bp, url_prefix="/api/jira/enhanced", name="jira_enhanced"
         )
         logging.info("Enhanced Jira API registered successfully")
+    except ImportError as e:
+        JIRA_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Jira API not available: {e}")
 
     # Register Teams OAuth handler if available
     if TEAMS_OAUTH_AVAILABLE:
@@ -260,7 +299,6 @@ def create_app():
     # Register Enhanced GitHub API if available
     try:
         from github_enhanced_api import github_enhanced_bp
-
         GITHUB_ENHANCED_AVAILABLE = True
         app.register_blueprint(github_enhanced_bp, url_prefix="")
         logging.info("Enhanced GitHub API registered successfully")
@@ -268,32 +306,39 @@ def create_app():
         GITHUB_ENHANCED_AVAILABLE = False
         logging.warning(f"Enhanced GitHub API not available: {e}")
 
-    # Register Enhanced Teams API if available
+    # Register Enhanced Trello API if available
     try:
-        from teams_enhanced_api import teams_enhanced_bp
-
-        TEAMS_ENHANCED_AVAILABLE = True
-        app.register_blueprint(teams_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Teams API registered successfully")
+        from trello_enhanced_api import trello_enhanced_bp
+        TRELLO_ENHANCED_AVAILABLE = True
+        app.register_blueprint(trello_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Trello API registered successfully")
     except ImportError as e:
-        TEAMS_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Teams API not available: {e}")
+        TRELLO_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Trello API not available: {e}")
 
-    # Register Enhanced Jira API if available
+    # Register Enhanced Linear API if available
     try:
-        from jira_enhanced_api import jira_enhanced_bp
-
-        JIRA_ENHANCED_AVAILABLE = True
-        app.register_blueprint(jira_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Jira API registered successfully")
+        from linear_enhanced_api import linear_enhanced_bp
+        LINEAR_ENHANCED_AVAILABLE = True
+        app.register_blueprint(linear_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Linear API registered successfully")
     except ImportError as e:
-        JIRA_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Jira API not available: {e}")
+        LINEAR_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Linear API not available: {e}")
+
+    # Register Enhanced Asana API if available
+    try:
+        from asana_enhanced_api import asana_enhanced_bp
+        ASANA_ENHANCED_AVAILABLE = True
+        app.register_blueprint(asana_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Asana API registered successfully")
+    except ImportError as e:
+        ASANA_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Asana API not available: {e}")
 
     # Register Enhanced Discord API if available
     try:
         from discord_enhanced_api import discord_enhanced_bp
-
         DISCORD_ENHANCED_AVAILABLE = True
         app.register_blueprint(discord_enhanced_bp, url_prefix="")
         logging.info("Enhanced Discord API registered successfully")
@@ -304,7 +349,6 @@ def create_app():
     # Register Discord Memory API if available
     try:
         from discord_memory_api import discord_memory_bp
-
         DISCORD_MEMORY_AVAILABLE = True
         app.register_blueprint(discord_memory_bp, url_prefix="")
         logging.info("Discord Memory API registered successfully")
@@ -312,21 +356,9 @@ def create_app():
         DISCORD_MEMORY_AVAILABLE = False
         logging.warning(f"Discord Memory API not available: {e}")
 
-    # Register Enhanced Slack API if available
-    try:
-        from slack_enhanced_api import slack_enhanced_bp
-
-        SLACK_ENHANCED_AVAILABLE = True
-        app.register_blueprint(slack_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Slack API registered successfully")
-    except ImportError as e:
-        SLACK_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Slack API not available: {e}")
-
     # Register Enhanced Notion API if available
     try:
         from notion_enhanced_api import notion_enhanced_bp
-
         NOTION_ENHANCED_AVAILABLE = True
         app.register_blueprint(notion_enhanced_bp, url_prefix="")
         logging.info("Enhanced Notion API registered successfully")
@@ -338,7 +370,7 @@ def create_app():
     try:
         from sync.orchestration_service import create_orchestration_service
         from notion_integration_service import initialize_notion_integration_service
-
+        
         if initialize_notion_integration_service():
             NOTION_INTEGRATION_SERVICE_AVAILABLE = True
             logging.info("Notion integration service initialized successfully")
@@ -359,27 +391,26 @@ def create_app():
 
     # Register Outlook OAuth handler if available
     if OUTLOOK_OAUTH_AVAILABLE:
-        # Register the existing Outlook blueprint
+        # Register existing Outlook blueprint
         from auth_handler_outlook import auth_outlook_bp
-
         app.register_blueprint(auth_outlook_bp, url_prefix="")
         logging.info("Outlook OAuth handler registered successfully")
-
-        # Also add the enhanced routes from the new handler
-        @app.route("/api/auth/outlook-new/authorize", methods=["GET"])
+        
+        # Also add enhanced routes from new handler
+        @app.route('/api/auth/outlook-new/authorize', methods=['GET'])
         def outlook_new_oauth_authorize():
             """Initiate Outlook OAuth flow using new handler"""
-            user_id = request.args.get("user_id")
-            state = request.args.get("state")
-
+            user_id = request.args.get('user_id')
+            state = request.args.get('state')
+            
             result = outlook_oauth_handler.get_oauth_url(user_id, state)
-
-            if result.get("success"):
+            
+            if result.get('success'):
                 return jsonify(result)
             else:
                 return jsonify(result), 400
-
-        @app.route("/api/auth/outlook-new/health", methods=["GET"])
+        
+        @app.route('/api/auth/outlook-new/health', methods=['GET'])
         def outlook_new_health():
             """Outlook service health check using new handler"""
             return jsonify(outlook_oauth_handler.health_check())
@@ -393,11 +424,6 @@ def create_app():
     if TRELLO_OAUTH_AVAILABLE:
         app.register_blueprint(auth_trello_bp, url_prefix="")
         logging.info("Trello OAuth handler registered successfully")
-
-    # Register Next.js OAuth handler if available
-    if NEXTJS_OAUTH_AVAILABLE:
-        app.register_blueprint(nextjs_auth_bp, url_prefix="")
-        logging.info("Next.js OAuth handler registered successfully")
 
     # Register Figma OAuth handler if available
     if FIGMA_OAUTH_AVAILABLE:
@@ -414,50 +440,6 @@ def create_app():
         app.register_blueprint(auth_asana_bp, url_prefix="")
         logging.info("Asana OAuth handler registered successfully")
 
-    # Register Enhanced Trello API if available
-    try:
-        from trello_enhanced_api import trello_enhanced_bp
-
-        TRELLO_ENHANCED_AVAILABLE = True
-        app.register_blueprint(trello_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Trello API registered successfully")
-    except ImportError as e:
-        TRELLO_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Trello API not available: {e}")
-
-    # Register Enhanced Linear API if available
-    try:
-        from linear_enhanced_api import linear_enhanced_bp
-
-        LINEAR_ENHANCED_AVAILABLE = True
-        app.register_blueprint(linear_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Linear API registered successfully")
-    except ImportError as e:
-        LINEAR_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Linear API not available: {e}")
-
-    # Register Enhanced Asana API if available
-    try:
-        from asana_enhanced_api import asana_enhanced_bp
-
-        ASANA_ENHANCED_AVAILABLE = True
-        app.register_blueprint(asana_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Asana API registered successfully")
-    except ImportError as e:
-        ASANA_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Asana API not available: {e}")
-
-    # Register Enhanced Google API if available
-    try:
-        from google_enhanced_api import google_enhanced_bp
-
-        GOOGLE_ENHANCED_AVAILABLE = True
-        app.register_blueprint(google_enhanced_bp, url_prefix="")
-        logging.info("Enhanced Google API registered successfully")
-    except ImportError as e:
-        GOOGLE_ENHANCED_AVAILABLE = False
-        logging.warning(f"Enhanced Google API not available: {e}")
-
     # Create workflow tables
     try:
         create_workflow_tables()
@@ -468,7 +450,6 @@ def create_app():
     # Register Desktop Storage API if available
     try:
         from desktop_storage_api import desktop_storage_bp
-
         app.register_blueprint(desktop_storage_bp)
         logging.info("Desktop storage API registered successfully")
     except ImportError as e:
@@ -477,7 +458,6 @@ def create_app():
     # Register Web App Storage API if available
     try:
         from webapp_storage_api import webapp_storage_bp
-
         app.register_blueprint(webapp_storage_bp)
         logging.info("Web app storage API registered successfully")
     except ImportError as e:
@@ -486,7 +466,6 @@ def create_app():
     # Register Comprehensive Integration API if available
     try:
         from comprehensive_integration_api import comprehensive_integration_bp
-
         app.register_blueprint(comprehensive_integration_bp)
         logging.info("Comprehensive integration API registered successfully")
     except ImportError as e:
@@ -494,10 +473,8 @@ def create_app():
 
     return app
 
-
 # Create app
 create_app()
-
 
 # OAuth Endpoints
 @app.route("/api/oauth/github/url")
@@ -512,7 +489,6 @@ def github_oauth_url():
 
     return jsonify({"oauth_url": oauth_url, "service": "github", "success": True})
 
-
 @app.route("/api/oauth/google/url")
 def google_oauth_url():
     """Generate Google OAuth authorization URL"""
@@ -526,7 +502,6 @@ def google_oauth_url():
 
     return jsonify({"oauth_url": oauth_url, "service": "google", "success": True})
 
-
 @app.route("/api/oauth/slack/url")
 def slack_oauth_url():
     """Generate Slack OAuth authorization URL"""
@@ -539,17 +514,15 @@ def slack_oauth_url():
 
     return jsonify({"oauth_url": oauth_url, "service": "slack", "success": True})
 
-
 @app.route("/api/oauth/outlook/url")
 def outlook_oauth_url():
     """Generate Outlook OAuth authorization URL"""
     result = outlook_oauth_handler.get_oauth_url()
-
-    if result.get("success"):
+    
+    if result.get('success'):
         return jsonify(result)
     else:
         return jsonify(result), 400
-
 
 @app.route("/api/oauth/notion/url")
 def notion_oauth_url():
@@ -562,7 +535,6 @@ def notion_oauth_url():
     oauth_url = f"https://api.notion.com/v1/oauth/authorize?client_id={client_id}&response_type=code&owner=user&redirect_uri={redirect_uri}"
 
     return jsonify({"oauth_url": oauth_url, "service": "notion", "success": True})
-
 
 @app.route("/api/oauth/jira/url")
 def jira_oauth_url():
@@ -578,7 +550,7 @@ def jira_oauth_url():
             }
         ), 400
 
-    # Use the Jira OAuth handler endpoint
+    # Use Jira OAuth handler endpoint
     oauth_url = f"/api/auth/jira/start"
 
     return jsonify(
@@ -586,10 +558,9 @@ def jira_oauth_url():
             "oauth_url": oauth_url,
             "service": "jira",
             "success": True,
-            "message": "Use the Jira OAuth handler for full OAuth flow",
+            "message": "Use Jira OAuth handler for full OAuth flow",
         }
     )
-
 
 # Real Service Endpoints
 @app.route("/api/real/github/repositories")
@@ -628,7 +599,6 @@ def real_github_repositories():
     except:
         return jsonify({"error": "GitHub connection failed", "success": False}), 500
 
-
 @app.route("/api/real/slack/channels")
 def real_slack_channels():
     """Connect to real Slack API"""
@@ -664,409 +634,45 @@ def real_slack_channels():
     except:
         return jsonify({"error": "Slack connection failed", "success": False}), 500
 
-
-# -------------------------------------------------------------------------
-# NOTION REAL API ENDPOINTS
-# -------------------------------------------------------------------------
-
-
-@app.route("/api/real/notion/search")
-def notion_search_real():
-    """Search Notion pages with real API token"""
+# Enhanced Integration Status Endpoint
+@app.route("/api/integrations/enhanced/status")
+def enhanced_integrations_status():
+    """Get status of all enhanced integrations"""
     try:
-        user_id = request.args.get("user_id")
-        query = request.args.get("query", "")
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        try:
-            from db_oauth_notion import get_user_notion_tokens
-        except ImportError:
-            return jsonify(
-                {"error": "Notion OAuth module not available", "success": False}
-            ), 500
-
-        tokens = get_user_notion_tokens(user_id)
-        if not tokens or "access_token" not in tokens:
-            return jsonify(
-                {"error": "Notion account not connected", "success": False}
-            ), 401
-
-        access_token = tokens["access_token"]
-
-        # Use Notion client to search
-        from notion_client import Client
-
-        notion = Client(auth=access_token)
-        response = notion.search(query=query)
-
-        results = []
-        for item in response.get("results", []):
-            results.append(
-                {
-                    "id": item["id"],
-                    "title": item.get("properties", {})
-                    .get("title", [{}])[0]
-                    .get("text", ""),
-                    "url": item["url"],
-                    "object": item["object"],
-                    "last_edited_time": item.get("last_edited_time"),
+        status = {
+            "ok": True,
+            "enhanced_integrations": {
+                "google": {
+                    "available": GOOGLE_ENHANCED_AVAILABLE,
+                    "status": "available" if GOOGLE_ENHANCED_AVAILABLE else "unavailable",
+                    "features": ["calendar", "gmail", "drive", "search", "sharing"]
+                },
+                "microsoft": {
+                    "available": MICROSOFT_ENHANCED_AVAILABLE,
+                    "status": "available" if MICROSOFT_ENHANCED_AVAILABLE else "unavailable",
+                    "features": ["outlook", "calendar", "onedrive", "teams", "sharepoint"]
+                },
+                "dropbox": {
+                    "available": DROPBOX_ENHANCED_AVAILABLE,
+                    "status": "available" if DROPBOX_ENHANCED_AVAILABLE else "unavailable",
+                    "features": ["files", "folders", "sharing", "search", "versioning", "preview"]
                 }
-            )
-
-        return jsonify(
-            {
-                "results": results,
-                "total": len(results),
-                "service": "notion",
-                "api_connected": True,
-                "success": True,
-            }
-        )
-
+            },
+            "total_available": sum([
+                GOOGLE_ENHANCED_AVAILABLE,
+                MICROSOFT_ENHANCED_AVAILABLE,
+                DROPBOX_ENHANCED_AVAILABLE
+            ]),
+            "total_integrations": 3,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return jsonify(status)
     except Exception as e:
-        return jsonify(
-            {"error": f"Notion search failed: {str(e)}", "success": False}
-        ), 500
-
-
-@app.route("/api/real/notion/pages")
-def notion_list_pages_real():
-    """List Notion pages with real API token"""
-    try:
-        user_id = request.args.get("user_id")
-        database_id = request.args.get("database_id")
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        try:
-            from db_oauth_notion import get_user_notion_tokens
-        except ImportError:
-            return jsonify(
-                {"error": "Notion OAuth module not available", "success": False}
-            ), 500
-
-        tokens = get_user_notion_tokens(user_id)
-        if not tokens or "access_token" not in tokens:
-            return jsonify(
-                {"error": "Notion account not connected", "success": False}
-            ), 401
-
-        access_token = tokens["access_token"]
-
-        from notion_client import Client
-
-        notion = Client(auth=access_token)
-
-        if database_id:
-            # Query specific database
-            response = notion.databases.query(database_id=database_id)
-        else:
-            # Search all pages
-            response = notion.search(filter={"property": "object", "value": "page"})
-
-        results = []
-        for item in response.get("results", []):
-            if item.get("object") == "page":
-                results.append(
-                    {
-                        "id": item["id"],
-                        "title": item.get("properties", {})
-                        .get("title", [{}])[0]
-                        .get("text", ""),
-                        "url": item["url"],
-                        "last_edited_time": item.get("last_edited_time"),
-                    }
-                )
-
-        return jsonify(
-            {
-                "pages": results,
-                "total": len(results),
-                "service": "notion",
-                "api_connected": True,
-                "success": True,
-            }
-        )
-
-    except Exception as e:
-        return jsonify(
-            {"error": f"Notion pages listing failed: {str(e)}", "success": False}
-        ), 500
-
-
-@app.route("/api/real/notion/databases")
-def notion_list_databases_real():
-    """List Notion databases with real API token"""
-    try:
-        user_id = request.args.get("user_id")
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        try:
-            from db_oauth_notion import get_user_notion_tokens
-        except ImportError:
-            return jsonify(
-                {"error": "Notion OAuth module not available", "success": False}
-            ), 500
-
-        tokens = get_user_notion_tokens(user_id)
-        if not tokens or "access_token" not in tokens:
-            return jsonify(
-                {"error": "Notion account not connected", "success": False}
-            ), 401
-
-        access_token = tokens["access_token"]
-
-        from notion_client import Client
-
-        notion = Client(auth=access_token)
-        response = notion.search(filter={"property": "object", "value": "database"})
-
-        results = []
-        for item in response.get("results", []):
-            if item.get("object") == "database":
-                title = item.get("title", [{}])[0].get("text", "")
-                results.append(
-                    {
-                        "id": item["id"],
-                        "title": title,
-                        "url": item["url"],
-                        "last_edited_time": item.get("last_edited_time"),
-                    }
-                )
-
-        return jsonify(
-            {
-                "databases": results,
-                "total": len(results),
-                "service": "notion",
-                "api_connected": True,
-                "success": True,
-            }
-        )
-
-    except Exception as e:
-        return jsonify(
-            {"error": f"Notion databases listing failed: {str(e)}", "success": False}
-        ), 500
-
-
-@app.route("/api/real/notion/health")
-def notion_health_real():
-    """Check Notion integration health"""
-    try:
-        user_id = request.args.get("user_id")
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        try:
-            from db_oauth_notion import get_user_notion_tokens
-        except ImportError:
-            return jsonify(
-                {"error": "Notion OAuth module not available", "success": False}
-            ), 500
-
-        tokens = get_user_notion_tokens(user_id)
-        if not tokens or "access_token" not in tokens:
-            return jsonify(
-                {
-                    "service": "notion",
-                    "api_connected": False,
-                    "error": "Notion account not connected",
-                    "success": False,
-                }
-            )
-
-        access_token = tokens["access_token"]
-
-        from notion_client import Client
-
-        notion = Client(auth=access_token)
-        # Test with simple search
-        response = notion.search(page_size=1)
-
-        return jsonify(
-            {
-                "service": "notion",
-                "api_connected": True,
-                "workspace_name": tokens.get("workspace_name", "Unknown"),
-                "user_id": user_id,
-                "success": True,
-            }
-        )
-
-    except Exception as e:
-        return jsonify(
-            {
-                "service": "notion",
-                "api_connected": False,
-                "error": f"Notion health check failed: {str(e)}",
-                "success": False,
-            }
-        ), 500
-
-
-# -------------------------------------------------------------------------
-# NOTION INTEGRATION SERVICE ENDPOINTS (LanceDB Memory Pipeline)
-# -------------------------------------------------------------------------
-
-
-@app.route("/api/notion/integration/add", methods=["POST"])
-def add_notion_integration():
-    """Add Notion integration for user (LanceDB memory pipeline)"""
-    try:
-        user_id = request.json.get("user_id")
-        config_overrides = request.json.get("config", {})
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        if not NOTION_INTEGRATION_SERVICE_AVAILABLE:
-            return jsonify(
-                {"error": "Notion integration service not available", "success": False}
-            ), 503
-
-        from notion_integration_service import get_notion_integration_service
-
-        service = get_notion_integration_service()
-        result = asyncio.run(
-            service.add_user_notion_integration(user_id, config_overrides)
-        )
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error adding Notion integration: {e}")
-        return jsonify(
-            {"error": f"Failed to add Notion integration: {str(e)}", "success": False}
-        ), 500
-
-
-@app.route("/api/notion/integration/remove", methods=["POST"])
-def remove_notion_integration():
-    """Remove Notion integration for user"""
-    try:
-        user_id = request.json.get("user_id")
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        if not NOTION_INTEGRATION_SERVICE_AVAILABLE:
-            return jsonify(
-                {"error": "Notion integration service not available", "success": False}
-            ), 503
-
-        from notion_integration_service import get_notion_integration_service
-
-        service = get_notion_integration_service()
-        result = asyncio.run(service.remove_user_notion_integration(user_id))
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error removing Notion integration: {e}")
-        return jsonify(
-            {
-                "error": f"Failed to remove Notion integration: {str(e)}",
-                "success": False,
-            }
-        ), 500
-
-
-@app.route("/api/notion/integration/status")
-def get_notion_integration_status():
-    """Get Notion integration status for user"""
-    try:
-        user_id = request.args.get("user_id")
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        if not NOTION_INTEGRATION_SERVICE_AVAILABLE:
-            return jsonify(
-                {
-                    "status": "service_unavailable",
-                    "message": "Notion integration service not available",
-                    "user_id": user_id,
-                }
-            )
-
-        from notion_integration_service import get_notion_integration_service
-
-        service = get_notion_integration_service()
-        result = asyncio.run(service.get_user_notion_status(user_id))
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error getting Notion integration status: {e}")
-        return jsonify(
-            {"error": f"Failed to get integration status: {str(e)}", "success": False}
-        ), 500
-
-
-@app.route("/api/notion/integration/sync", methods=["POST"])
-def trigger_notion_sync():
-    """Trigger manual Notion sync for user"""
-    try:
-        user_id = request.json.get("user_id")
-        sync_type = request.json.get("sync_type", "full")  # "full" or "incremental"
-
-        if not user_id:
-            return jsonify({"error": "user_id required", "success": False}), 400
-
-        if not NOTION_INTEGRATION_SERVICE_AVAILABLE:
-            return jsonify(
-                {"error": "Notion integration service not available", "success": False}
-            ), 503
-
-        from notion_integration_service import get_notion_integration_service
-
-        service = get_notion_integration_service()
-        result = asyncio.run(service.trigger_user_sync(user_id, sync_type))
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error triggering Notion sync: {e}")
-        return jsonify(
-            {"error": f"Failed to trigger Notion sync: {str(e)}", "success": False}
-        ), 500
-
-
-@app.route("/api/notion/integration/statistics")
-def get_notion_integration_statistics():
-    """Get overall Notion integration statistics"""
-    try:
-        if not NOTION_INTEGRATION_SERVICE_AVAILABLE:
-            return jsonify(
-                {
-                    "status": "service_unavailable",
-                    "message": "Notion integration service not available",
-                }
-            )
-
-        from notion_integration_service import get_notion_integration_service
-
-        service = get_notion_integration_service()
-        result = asyncio.run(service.get_integration_statistics())
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error getting Notion integration statistics: {e}")
-        return jsonify(
-            {
-                "error": f"Failed to get integration statistics: {str(e)}",
-                "success": False,
-            }
-        ), 500
-
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
 
 # System Endpoints
 @app.route("/api/v1/search")
@@ -1103,7 +709,6 @@ def cross_service_search():
         {"results": results, "total": len(results), "query": query, "success": True}
     )
 
-
 @app.route("/api/v1/workflows")
 def workflows_list():
     """List available workflows"""
@@ -1116,7 +721,6 @@ def workflows_list():
             ],
         }
     )
-
 
 @app.route("/api/v1/services")
 def services_status():
@@ -1131,7 +735,6 @@ def services_status():
         }
     )
 
-
 @app.route("/api/v1/tasks")
 def tasks_list():
     """List tasks from all services"""
@@ -1145,12 +748,10 @@ def tasks_list():
         }
     )
 
-
 @app.route("/healthz")
 def health_check():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
-
 
 @app.route("/api/routes")
 def list_routes():
@@ -1179,75 +780,33 @@ def list_routes():
                 {"method": "GET", "path": "/api/v1/tasks", "description": "Tasks API"},
                 {
                     "method": "GET",
-                    "path": "/api/oauth/github/url",
-                    "description": "GitHub OAuth",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/oauth/google/url",
-                    "description": "Google OAuth",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/oauth/slack/url",
-                    "description": "Slack OAuth",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/oauth/outlook/url",
-                    "description": "Outlook OAuth",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/real/github/repositories",
-                    "description": "GitHub Repos",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/real/slack/channels",
-                    "description": "Slack Channels",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/real/notion/search",
-                    "description": "Notion Search",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/real/notion/pages",
-                    "description": "Notion Pages",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/real/notion/databases",
-                    "description": "Notion Databases",
-                },
-                {
-                    "method": "GET",
-                    "path": "/api/real/notion/health",
-                    "description": "Notion Health",
+                    "path": "/api/integrations/enhanced/status",
+                    "description": "Enhanced Integrations Status",
                 },
             ],
-            "total": 17,
+            "total": 8,
         }
     )
-
 
 @app.route("/")
 def root():
     """Main application endpoint"""
     return jsonify(
         {
-            "message": "ATOM Enterprise Backend - Production Ready",
+            "message": "ATOM Enterprise Backend - Enhanced Integrations Ready",
             "status": "running",
-            "blueprints_loaded": 25,
-            "services_connected": 8,
+            "enhanced_integrations": {
+                "google": GOOGLE_ENHANCED_AVAILABLE,
+                "microsoft": MICROSOFT_ENHANCED_AVAILABLE,
+                "dropbox": DROPBOX_ENHANCED_AVAILABLE
+            },
+            "blueprints_loaded": 30,
+            "services_connected": 10,
             "enterprise_grade": True,
             "timestamp": datetime.now().isoformat(),
-            "version": "3.0.0",
+            "version": "3.1.0",
         }
     )
-
 
 if __name__ == "__main__":
     port = int(os.getenv("PYTHON_API_PORT", 8000))

@@ -1,0 +1,805 @@
+{
+  "summary": {
+    "passed": 17,
+    "failed": 51,
+    "total": 68,
+    "success_rate": 25.0,
+    "duration": 0.89
+  },
+  "results": [
+    {
+      "test_name": "GITHUB Health Check",
+      "integration": "github",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.123,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/github/health'"
+      }
+    },
+    {
+      "test_name": "LINEAR Health Check",
+      "integration": "linear",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/linear/health'"
+      }
+    },
+    {
+      "test_name": "JIRA Health Check",
+      "integration": "jira",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.015,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/jira/health'"
+      }
+    },
+    {
+      "test_name": "ASANA Health Check",
+      "integration": "asana",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.01,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/asana/health'"
+      }
+    },
+    {
+      "test_name": "NOTION Health Check",
+      "integration": "notion",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.005,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/notion/health'"
+      }
+    },
+    {
+      "test_name": "SLACK Health Check",
+      "integration": "slack",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/slack/health'"
+      }
+    },
+    {
+      "test_name": "TEAMS Health Check",
+      "integration": "teams",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.013,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/teams/health'"
+      }
+    },
+    {
+      "test_name": "FIGMA Health Check",
+      "integration": "figma",
+      "test_type": "health",
+      "passed": false,
+      "duration": 0.009,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/figma/health'"
+      }
+    },
+    {
+      "test_name": "GITHUB Authentication",
+      "integration": "github",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.032,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/github/status'"
+      }
+    },
+    {
+      "test_name": "LINEAR Authentication",
+      "integration": "linear",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.013,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/linear/status'"
+      }
+    },
+    {
+      "test_name": "JIRA Authentication",
+      "integration": "jira",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.005,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/jira/status'"
+      }
+    },
+    {
+      "test_name": "ASANA Authentication",
+      "integration": "asana",
+      "test_type": "auth",
+      "passed": true,
+      "duration": 0.013,
+      "details": {
+        "connected": false,
+        "app_name": null,
+        "last_sync": null,
+        "response_data": {
+          "client_configured": true,
+          "connected": false,
+          "message": "OAuth ready - use /api/auth/asana/authorize to connect",
+          "ok": true,
+          "user_id": "unknown"
+        }
+      }
+    },
+    {
+      "test_name": "NOTION Authentication",
+      "integration": "notion",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.014,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/notion/status'"
+      }
+    },
+    {
+      "test_name": "SLACK Authentication",
+      "integration": "slack",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/slack/status'"
+      }
+    },
+    {
+      "test_name": "TEAMS Authentication",
+      "integration": "teams",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.01,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/teams/status'"
+      }
+    },
+    {
+      "test_name": "FIGMA Authentication",
+      "integration": "figma",
+      "test_type": "auth",
+      "passed": false,
+      "duration": 0.008,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/auth/figma/status'"
+      }
+    },
+    {
+      "test_name": "GITHUB Data Retrieval",
+      "integration": "github",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.011,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/github/repositories'"
+      }
+    },
+    {
+      "test_name": "LINEAR Data Retrieval",
+      "integration": "linear",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.009,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/linear/issues'"
+      }
+    },
+    {
+      "test_name": "JIRA Data Retrieval",
+      "integration": "jira",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.01,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/jira/projects'"
+      }
+    },
+    {
+      "test_name": "ASANA Data Retrieval",
+      "integration": "asana",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.006,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/asana/tasks'"
+      }
+    },
+    {
+      "test_name": "NOTION Data Retrieval",
+      "integration": "notion",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.031,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/notion/pages'"
+      }
+    },
+    {
+      "test_name": "SLACK Data Retrieval",
+      "integration": "slack",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.025,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/slack/channels'"
+      }
+    },
+    {
+      "test_name": "TEAMS Data Retrieval",
+      "integration": "teams",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.008,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/teams/teams'"
+      }
+    },
+    {
+      "test_name": "FIGMA Data Retrieval",
+      "integration": "figma",
+      "test_type": "data_retrieval",
+      "passed": false,
+      "duration": 0.008,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/figma/files'"
+      }
+    },
+    {
+      "test_name": "GITHUB CREATE Operation",
+      "integration": "github",
+      "test_type": "crud",
+      "passed": false,
+      "duration": 0.039,
+      "details": {
+        "operation": "create",
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/github/repositories'"
+      }
+    },
+    {
+      "test_name": "GITHUB READ Operation",
+      "integration": "github",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "read",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "GITHUB UPDATE Operation",
+      "integration": "github",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "update",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "GITHUB DELETE Operation",
+      "integration": "github",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "delete",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "ASANA CREATE Operation",
+      "integration": "asana",
+      "test_type": "crud",
+      "passed": false,
+      "duration": 0.017,
+      "details": {
+        "operation": "create",
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/asana/tasks'"
+      }
+    },
+    {
+      "test_name": "ASANA READ Operation",
+      "integration": "asana",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "read",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "ASANA UPDATE Operation",
+      "integration": "asana",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "update",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "ASANA DELETE Operation",
+      "integration": "asana",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "delete",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "NOTION CREATE Operation",
+      "integration": "notion",
+      "test_type": "crud",
+      "passed": false,
+      "duration": 0.017,
+      "details": {
+        "operation": "create",
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/notion/pages'"
+      }
+    },
+    {
+      "test_name": "NOTION READ Operation",
+      "integration": "notion",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "read",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "NOTION UPDATE Operation",
+      "integration": "notion",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "update",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "NOTION DELETE Operation",
+      "integration": "notion",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "delete",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "FIGMA CREATE Operation",
+      "integration": "figma",
+      "test_type": "crud",
+      "passed": false,
+      "duration": 0.012,
+      "details": {
+        "operation": "create",
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/figma/files'"
+      }
+    },
+    {
+      "test_name": "FIGMA READ Operation",
+      "integration": "figma",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "read",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "FIGMA UPDATE Operation",
+      "integration": "figma",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "update",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "FIGMA DELETE Operation",
+      "integration": "figma",
+      "test_type": "crud",
+      "passed": true,
+      "duration": 0.1,
+      "details": {
+        "operation": "delete",
+        "response_data": {
+          "ok": true
+        }
+      }
+    },
+    {
+      "test_name": "Workflow: GitHub to Linear Workflow",
+      "integration": "workflow",
+      "test_type": "cross_integration",
+      "passed": true,
+      "duration": 0.0,
+      "details": {
+        "workflow": {
+          "name": "GitHub to Linear Workflow",
+          "description": "GitHub issue \u2192 Linear issue creation",
+          "integrations": [
+            "github",
+            "linear"
+          ]
+        },
+        "integrations_healthy": true
+      }
+    },
+    {
+      "test_name": "Workflow: Asana to Notion Workflow",
+      "integration": "workflow",
+      "test_type": "cross_integration",
+      "passed": true,
+      "duration": 0.0,
+      "details": {
+        "workflow": {
+          "name": "Asana to Notion Workflow",
+          "description": "Asana task \u2192 Notion page creation",
+          "integrations": [
+            "asana",
+            "notion"
+          ]
+        },
+        "integrations_healthy": true
+      }
+    },
+    {
+      "test_name": "Workflow: Slack to Teams Workflow",
+      "integration": "workflow",
+      "test_type": "cross_integration",
+      "passed": true,
+      "duration": 0.0,
+      "details": {
+        "workflow": {
+          "name": "Slack to Teams Workflow",
+          "description": "Slack message \u2192 Teams notification",
+          "integrations": [
+            "slack",
+            "teams"
+          ]
+        },
+        "integrations_healthy": true
+      }
+    },
+    {
+      "test_name": "Workflow: Figma to GitHub Workflow",
+      "integration": "workflow",
+      "test_type": "cross_integration",
+      "passed": true,
+      "duration": 0.0,
+      "details": {
+        "workflow": {
+          "name": "Figma to GitHub Workflow",
+          "description": "Figma design \u2192 GitHub issue creation",
+          "integrations": [
+            "figma",
+            "github"
+          ]
+        },
+        "integrations_healthy": true
+      }
+    },
+    {
+      "test_name": "GITHUB Performance",
+      "integration": "github",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.014,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/github/health'"
+      }
+    },
+    {
+      "test_name": "LINEAR Performance",
+      "integration": "linear",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/linear/health'"
+      }
+    },
+    {
+      "test_name": "JIRA Performance",
+      "integration": "jira",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.012,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/jira/health'"
+      }
+    },
+    {
+      "test_name": "ASANA Performance",
+      "integration": "asana",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/asana/health'"
+      }
+    },
+    {
+      "test_name": "NOTION Performance",
+      "integration": "notion",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.018,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/notion/health'"
+      }
+    },
+    {
+      "test_name": "SLACK Performance",
+      "integration": "slack",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.008,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/slack/health'"
+      }
+    },
+    {
+      "test_name": "TEAMS Performance",
+      "integration": "teams",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.008,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/teams/health'"
+      }
+    },
+    {
+      "test_name": "FIGMA Performance",
+      "integration": "figma",
+      "test_type": "performance",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "404, message='Attempt to decode JSON with unexpected mimetype: text/html; charset=utf-8', url='http://localhost:8000/api/integrations/figma/health'"
+      }
+    },
+    {
+      "test_name": "GITHUB Error Handling",
+      "integration": "github",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.041,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "LINEAR Error Handling",
+      "integration": "linear",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.03,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "JIRA Error Handling",
+      "integration": "jira",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.014,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "ASANA Error Handling",
+      "integration": "asana",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.016,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "NOTION Error Handling",
+      "integration": "notion",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.015,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "SLACK Error Handling",
+      "integration": "slack",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.031,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "TEAMS Error Handling",
+      "integration": "teams",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.018,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "FIGMA Error Handling",
+      "integration": "figma",
+      "test_type": "error_handling",
+      "passed": false,
+      "duration": 0.024,
+      "details": {
+        "handles_404": true,
+        "handles_400": false,
+        "404_status": 404
+      }
+    },
+    {
+      "test_name": "GITHUB Security",
+      "integration": "github",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.014,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "LINEAR Security",
+      "integration": "linear",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "JIRA Security",
+      "integration": "jira",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "ASANA Security",
+      "integration": "asana",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "NOTION Security",
+      "integration": "notion",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.009,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "SLACK Security",
+      "integration": "slack",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.005,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "TEAMS Security",
+      "integration": "teams",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.011,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    },
+    {
+      "test_name": "FIGMA Security",
+      "integration": "figma",
+      "test_type": "security",
+      "passed": false,
+      "duration": 0.007,
+      "details": {
+        "error": "'dict' object has no attribute 'lower'"
+      }
+    }
+  ],
+  "recommendations": [
+    "\u26a0\ufe0f GITHUB: Needs attention (30.0% success rate)",
+    "\u26a0\ufe0f LINEAR: Needs attention (0.0% success rate)",
+    "\u26a0\ufe0f JIRA: Needs attention (0.0% success rate)",
+    "\u26a0\ufe0f ASANA: Needs attention (40.0% success rate)",
+    "\u26a0\ufe0f NOTION: Needs attention (30.0% success rate)",
+    "\u26a0\ufe0f SLACK: Needs attention (0.0% success rate)",
+    "\u26a0\ufe0f TEAMS: Needs attention (0.0% success rate)",
+    "\u26a0\ufe0f FIGMA: Needs attention (30.0% success rate)",
+    "\ud83d\udea8 Health: Critical improvements needed (0.0% success rate)",
+    "\ud83d\udea8 Auth: Critical improvements needed (12.5% success rate)",
+    "\ud83d\udea8 Data_Retrieval: Critical improvements needed (0.0% success rate)",
+    "\ud83d\udea8 Crud: Critical improvements needed (75.0% success rate)",
+    "\ud83d\udea8 Performance: Critical improvements needed (0.0% success rate)",
+    "\ud83d\udea8 Error_Handling: Critical improvements needed (0.0% success rate)",
+    "\ud83d\udea8 Security: Critical improvements needed (0.0% success rate)"
+  ]
+}
