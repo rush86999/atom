@@ -1,0 +1,69 @@
+{
+  "timestamp": "2025-11-05T13:18:18.809519",
+  "tests": {
+    "Health Check": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.893182",
+      "details": {
+        "status": "healthy",
+        "service_available": true,
+        "database_available": true
+      }
+    },
+    "OAuth URL": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.898799",
+      "details": {
+        "oauth_url": "https://slack.com/oauth/v2/authorize?client_id=9797376469125.9797413093317&redirect_uri=http://localhost:3000/oauth/slack/callback&scope=channels:read chat:read users:read&response_type=code",
+        "service": "slack"
+      }
+    },
+    "Channels Listing": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.907086",
+      "details": {
+        "channels_count": 3,
+        "operation": "list"
+      }
+    },
+    "Messages Listing": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.921952",
+      "details": {
+        "messages_count": 2,
+        "channel": "general"
+      }
+    },
+    "Message Sending": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.934014",
+      "details": {
+        "message_id": "1762366701.931642.000300",
+        "channel": "general"
+      }
+    },
+    "User Profile": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.940292",
+      "details": {
+        "user_name": "Test Slack User",
+        "user_email": "test_user_slack@slack.com",
+        "teams_count": 1
+      }
+    },
+    "Workspace Info": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:18:21.947091",
+      "details": {
+        "workspace_name": "ATOM Workspace",
+        "workspace_domain": "atom-workspace"
+      }
+    }
+  },
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "success_rate": 100.0
+  }
+}

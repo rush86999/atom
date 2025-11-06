@@ -1,10 +1,7 @@
 import axios, { AxiosError } from 'axios';
-// Assuming types.ts path relative to src/services/
-import { SkillResponse } from '../../atomic-docker/project/functions/atom-agent/types';
-// Assuming constants.ts path relative to src/services/
-import { PYTHON_API_SERVICE_BASE_URL } from '../../atomic-docker/project/functions/atom-agent/_libs/constants';
-// Assuming logger.ts path relative to src/services/
-import { logger } from '../../atomic-docker/project/functions/_utils/logger';
+import { SkillResponse } from '../types/skill-response';
+import { PYTHON_API_SERVICE_BASE_URL } from '../utils/constants';
+import { logger } from '../utils/logger';
 
 const AUTH_SERVICE_API_TIMEOUT = 10000; // 10 seconds timeout for auth related calls
 

@@ -27,7 +27,11 @@
       "@shared/*": ["../../src/ui-shared/*"],
       "@shared-components/*": ["../../src/ui-shared/components/*"],
       "@shared-hooks/*": ["../../src/ui-shared/hooks/*"],
-      "@/services/*": ["../../src/services/*"],
+      "@shared-services/*": ["../../src/services/*"],
+      "@shared-ai/*": ["../../src/services/ai/*"],
+      "@shared-integrations/*": ["../../src/services/integrations/*"],
+      "@shared-workflows/*": ["../../src/services/workflows/*"],
+      "@shared-utils/*": ["../../src/services/utils/*"],
       "@/orchestration/*": ["../../src/orchestration/*"],
       "@/llm/*": ["../../src/llm/*"],
       "@/utils/*": ["../../src/utils/*"]

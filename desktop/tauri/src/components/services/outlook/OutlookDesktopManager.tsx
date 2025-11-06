@@ -1,9 +1,9 @@
-"""
-Outlook Desktop Manager for Tauri application
-Following the same pattern as GitLab Desktop Manager
-"""
+/**
+ * Outlook Desktop Manager for Tauri application
+ * Following the same pattern as GitLab Desktop Manager
+ */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -18,9 +18,13 @@ import {
   Heading,
   Badge,
   IconButton,
-  Tooltip
-} from '@chakra-ui/react';
-import { ExternalLinkIcon, CheckCircleIcon, WarningIcon } from '@chakra-ui/icons';
+  Tooltip,
+} from "@chakra-ui/react";
+import {
+  ExternalLinkIcon,
+  CheckCircleIcon,
+  WarningIcon,
+} from "@chakra-ui/icons";
 
 interface OutlookConnectionStatus {
   connected: boolean;
@@ -39,13 +43,13 @@ interface OutlookDesktopManagerProps {
 
 export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
   userId,
-  onConnectionChange
+  onConnectionChange,
 }) => {
   const [status, setStatus] = useState<OutlookConnectionStatus>({
-    connected: false
+    connected: false,
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [oauthUrl, setOAuthUrl] = useState<string>('');
+  const [oauthUrl, setOAuthUrl] = useState<string>("");
   const toast = useToast();
 
   // Check connection status on mount
@@ -56,40 +60,42 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
   const checkConnectionStatus = async () => {
     try {
       setIsLoading(true);
-      
+
       // Check if we have Tauri available
       if (window.__TAURI__) {
         const { invoke } = window.__TAURI__;
-        
+
         // Check Outlook OAuth status
-        const outlookStatus = await invoke('check_outlook_oauth_status', {
-          userId
+        const outlookStatus = await invoke("check_outlook_oauth_status", {
+          userId,
         });
-        
+
         setStatus(outlookStatus);
-        
+
         if (onConnectionChange) {
           onConnectionChange(outlookStatus.connected);
         }
       } else {
         // Fallback to API check
-        const response = await fetch(`/api/auth/outlook/status?user_id=${userId}`);
+        const response = await fetch(
+          `/api/auth/outlook/status?user_id=${userId}`,
+        );
         const data = await response.json();
-        
+
         setStatus({
           connected: data.connected,
-          error: data.error
+          error: data.error,
         });
-        
+
         if (onConnectionChange) {
           onConnectionChange(data.connected);
         }
       }
     } catch (error) {
-      console.error('Failed to check Outlook connection status:', error);
+      console.error("Failed to check Outlook connection status:", error);
       setStatus({
         connected: false,
-        error: 'Failed to check connection status'
+        error: "Failed to check connection status",
       });
     } finally {
       setIsLoading(false);
@@ -99,56 +105,58 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
   const initiateOutlookOAuth = async () => {
     try {
       setIsLoading(true);
-      
+
       if (window.__TAURI__) {
         const { invoke } = window.__TAURI__;
-        
+
         // Initiate OAuth via Tauri
-        const result = await invoke('initiate_outlook_oauth', {
-          userId
+        const result = await invoke("initiate_outlook_oauth", {
+          userId,
         });
-        
+
         if (result.success) {
           setOAuthUrl(result.oauth_url);
-          
+
           // Open in system browser
           const { open } = window.__TAURI__.shell;
           await open(result.oauth_url);
-          
+
           toast({
-            title: 'Outlook OAuth Started',
-            description: 'Please complete the OAuth process in your browser',
-            status: 'info',
-            duration: 5000
+            title: "Outlook OAuth Started",
+            description: "Please complete the OAuth process in your browser",
+            status: "info",
+            duration: 5000,
           });
         } else {
-          throw new Error(result.error || 'Failed to initiate OAuth');
+          throw new Error(result.error || "Failed to initiate OAuth");
         }
       } else {
         // Fallback to API
-        const response = await fetch(`/api/auth/outlook/authorize?user_id=${userId}`);
+        const response = await fetch(
+          `/api/auth/outlook/authorize?user_id=${userId}`,
+        );
         const data = await response.json();
-        
+
         if (data.success) {
-          window.open(data.oauth_url, '_blank');
-          
+          window.open(data.oauth_url, "_blank");
+
           toast({
-            title: 'Outlook OAuth Started',
-            description: 'Please complete the OAuth process in the new window',
-            status: 'info',
-            duration: 5000
+            title: "Outlook OAuth Started",
+            description: "Please complete the OAuth process in the new window",
+            status: "info",
+            duration: 5000,
           });
         } else {
-          throw new Error(data.error || 'Failed to initiate OAuth');
+          throw new Error(data.error || "Failed to initiate OAuth");
         }
       }
     } catch (error) {
-      console.error('Failed to initiate Outlook OAuth:', error);
+      console.error("Failed to initiate Outlook OAuth:", error);
       toast({
-        title: 'OAuth Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 5000
+        title: "OAuth Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        status: "error",
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -158,66 +166,66 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
   const disconnectOutlook = async () => {
     try {
       setIsLoading(true);
-      
+
       if (window.__TAURI__) {
         const { invoke } = window.__TAURI__;
-        
-        const result = await invoke('disconnect_outlook', {
-          userId
+
+        const result = await invoke("disconnect_outlook", {
+          userId,
         });
-        
+
         if (result.success) {
           setStatus({ connected: false });
-          
+
           if (onConnectionChange) {
             onConnectionChange(false);
           }
-          
+
           toast({
-            title: 'Outlook Disconnected',
-            description: 'Your Outlook integration has been disconnected',
-            status: 'success',
-            duration: 3000
+            title: "Outlook Disconnected",
+            description: "Your Outlook integration has been disconnected",
+            status: "success",
+            duration: 3000,
           });
         } else {
-          throw new Error(result.error || 'Failed to disconnect');
+          throw new Error(result.error || "Failed to disconnect");
         }
       } else {
         // Fallback to API
-        const response = await fetch('/api/auth/outlook/disconnect', {
-          method: 'POST',
+        const response = await fetch("/api/auth/outlook/disconnect", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({ user_id: userId })
+          body: JSON.stringify({ user_id: userId }),
         });
-        
+
         const data = await response.json();
-        
+
         if (data.ok) {
           setStatus({ connected: false });
-          
+
           if (onConnectionChange) {
             onConnectionChange(false);
           }
-          
+
           toast({
-            title: 'Outlook Disconnected',
-            description: 'Your Outlook integration has been disconnected',
-            status: 'success',
-            duration: 3000
+            title: "Outlook Disconnected",
+            description: "Your Outlook integration has been disconnected",
+            status: "success",
+            duration: 3000,
           });
         } else {
-          throw new Error(data.error?.message || 'Failed to disconnect');
+          throw new Error(data.error?.message || "Failed to disconnect");
         }
       }
     } catch (error) {
-      console.error('Failed to disconnect Outlook:', error);
+      console.error("Failed to disconnect Outlook:", error);
       toast({
-        title: 'Disconnection Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 5000
+        title: "Disconnection Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        status: "error",
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -227,52 +235,52 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
   const testOutlookConnection = async () => {
     try {
       setIsLoading(true);
-      
+
       if (window.__TAURI__) {
         const { invoke } = window.__TAURI__;
-        
-        const result = await invoke('test_outlook_connection', {
-          userId
+
+        const result = await invoke("test_outlook_connection", {
+          userId,
         });
-        
+
         if (result.success) {
           toast({
-            title: 'Connection Test Successful',
+            title: "Connection Test Successful",
             description: `Retrieved ${result.data?.emails?.length || 0} emails`,
-            status: 'success',
-            duration: 3000
+            status: "success",
+            duration: 3000,
           });
         } else {
-          throw new Error(result.error || 'Connection test failed');
+          throw new Error(result.error || "Connection test failed");
         }
       } else {
         // Fallback to API
-        const response = await fetch('/api/auth/outlook/emails', {
+        const response = await fetch("/api/auth/outlook/emails", {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('outlook_access_token') || ''}`
-          }
+            Authorization: `Bearer ${localStorage.getItem("outlook_access_token") || ""}`,
+          },
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
           toast({
-            title: 'Connection Test Successful',
+            title: "Connection Test Successful",
             description: `Retrieved ${data.total || 0} emails`,
-            status: 'success',
-            duration: 3000
+            status: "success",
+            duration: 3000,
           });
         } else {
-          throw new Error(data.error || 'Connection test failed');
+          throw new Error(data.error || "Connection test failed");
         }
       }
     } catch (error) {
-      console.error('Failed to test Outlook connection:', error);
+      console.error("Failed to test Outlook connection:", error);
       toast({
-        title: 'Connection Test Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 5000
+        title: "Connection Test Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        status: "error",
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -288,12 +296,12 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
             📧 Outlook Integration
           </Heading>
           <Badge
-            colorScheme={status.connected ? 'green' : 'gray'}
+            colorScheme={status.connected ? "green" : "gray"}
             variant="solid"
             px={3}
             py={1}
           >
-            {status.connected ? 'Connected' : 'Disconnected'}
+            {status.connected ? "Connected" : "Disconnected"}
           </Badge>
         </HStack>
 
@@ -325,7 +333,8 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
           <Alert status="info" borderRadius="md">
             <AlertIcon />
             <Text>
-              Connect your Outlook account to enable email and calendar automation
+              Connect your Outlook account to enable email and calendar
+              automation
             </Text>
           </Alert>
         )}
@@ -363,7 +372,7 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
               >
                 Test Connection
               </Button>
-              
+
               <Button
                 colorScheme="red"
                 variant="outline"
@@ -402,7 +411,7 @@ export const OutlookDesktopManager: React.FC<OutlookDesktopManagerProps> = ({
                   aria-label="Open OAuth URL"
                   icon={<ExternalLinkIcon />}
                   size="sm"
-                  onClick={() => window.open(oauthUrl, '_blank')}
+                  onClick={() => window.open(oauthUrl, "_blank")}
                 />
               </Tooltip>
             </HStack>

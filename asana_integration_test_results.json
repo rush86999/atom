@@ -1,0 +1,61 @@
+{
+  "timestamp": "2025-11-05T13:10:53.917419",
+  "tests": {
+    "Health Check": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:10:58.981606",
+      "details": {
+        "status": "healthy",
+        "service_available": true,
+        "database_available": true
+      }
+    },
+    "OAuth URL": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:10:58.992314",
+      "details": {
+        "oauth_url": "https://app.asana.com/-/oauth_authorize?client_id=1211551350187489&redirect_uri=http://localhost:8000/api/auth/asana/callback&response_type=code&scope=default",
+        "service": "asana"
+      }
+    },
+    "Tasks Listing": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:10:59.005223",
+      "details": {
+        "tasks_count": 2,
+        "operation": "list"
+      }
+    },
+    "Projects Listing": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:10:59.013573",
+      "details": {
+        "projects_count": 2,
+        "operation": "list"
+      }
+    },
+    "Task Creation": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:10:59.027264",
+      "details": {
+        "task_id": "task_new_001",
+        "task_name": "Test Task from Integration"
+      }
+    },
+    "User Profile": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:10:59.036452",
+      "details": {
+        "user_name": "Test Asana User",
+        "user_email": "test_user_asana@asana.com",
+        "workspaces_count": 1
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "success_rate": 100.0
+  }
+}

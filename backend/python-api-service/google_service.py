@@ -52,10 +52,10 @@ class CalendarEvent:
 
     id: str
     summary: str
-    description: Optional[str] = None
-    location: Optional[str] = None
     start: Dict[str, Any]
     end: Dict[str, Any]
+    description: Optional[str] = None
+    location: Optional[str] = None
     all_day: bool = False
     status: str = "confirmed"
     visibility: str = "public"
@@ -77,11 +77,11 @@ class DriveFile:
     id: str
     name: str
     mime_type: str
-    size: Optional[str] = None
     created_time: str
     modified_time: str
     parents: List[str]
     web_view_link: str
+    size: Optional[str] = None
     web_content_link: Optional[str] = None
     icon_link: Optional[str] = None
     thumbnail_link: Optional[str] = None

@@ -1,0 +1,40 @@
+{
+  "timestamp": "2025-11-05T17:30:00.466820",
+  "databases_created": [
+    "atom.db",
+    "integrations.db"
+  ],
+  "tables_created": {
+    "atom.db": [
+      "users",
+      "integrations",
+      "workflows"
+    ],
+    "integrations.db": [
+      "oauth_tokens",
+      "service_configs"
+    ]
+  },
+  "errors": [],
+  "verification": {
+    "atom.db": {
+      "accessible": true,
+      "tables": [
+        "users",
+        "integrations",
+        "sqlite_sequence",
+        "workflows"
+      ],
+      "size": 32768
+    },
+    "integrations.db": {
+      "accessible": true,
+      "tables": [
+        "oauth_tokens",
+        "sqlite_sequence",
+        "service_configs"
+      ],
+      "size": 24576
+    }
+  }
+}

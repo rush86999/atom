@@ -7,11 +7,36 @@ Working backend with OAuth and real service endpoints
 import os
 import logging
 import requests
+import asyncio
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+
+# Database pool initialization
+import asyncpg
+db_pool = None
+
+async def init_database():
+    """Initialize database connection pool"""
+    global db_pool
+    try:
+        db_pool = await asyncpg.create_pool(
+            host=os.getenv('DB_HOST', 'localhost'),
+            port=int(os.getenv('DB_PORT', 5432)),
+            database=os.getenv('DB_NAME', 'atom'),
+            user=os.getenv('DB_USER', 'postgres'),
+            password=os.getenv('DB_PASSWORD', ''),
+            min_size=2,
+            max_size=10
+        )
+        
+        logging.info("Database connection pool initialized successfully")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to initialize database pool: {e}")
+        return False
 
 # Load environment variables from .env file in project root
 env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
@@ -72,6 +97,7 @@ except ImportError as e:
 # Import Notion OAuth handler
 try:
     from auth_handler_notion import auth_notion_bp
+    from db_oauth_notion import init_notion_oauth_table
 
     NOTION_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -126,7 +152,7 @@ except ImportError as e:
 # Import Outlook OAuth handler
 try:
     from auth_handler_outlook_new import outlook_oauth_handler
-    from db_oauth_outlook import init_outlook_oauth_table
+    from db_oauth_outlook import init_outlook_oauth_table, store_outlook_tokens
 
     OUTLOOK_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -145,6 +171,7 @@ except ImportError as e:
 # Import enhanced Slack OAuth handler
 try:
     from auth_handler_slack_complete import auth_slack_bp
+    from db_oauth_slack import init_slack_oauth_table
 
     SLACK_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -159,6 +186,15 @@ try:
 except ImportError as e:
     SLACK_ENHANCED_AVAILABLE = False
     logging.warning(f"Enhanced Slack API not available: {e}")
+
+# Import new Slack integration routes
+try:
+    from integrations.slack_routes import slack_bp as slack_integration_bp
+
+    SLACK_INTEGRATION_AVAILABLE = True
+except ImportError as e:
+    SLACK_INTEGRATION_AVAILABLE = False
+    logging.warning(f"Slack integration routes not available: {e}")
 
 # Create Flask app
 app = Flask(__name__)
@@ -227,6 +263,13 @@ def create_app():
             slack_enhanced_bp, url_prefix="/api/slack/enhanced", name="slack_enhanced"
         )
         logging.info("Enhanced Slack API registered successfully")
+
+    # Register new Slack integration routes if available
+    if SLACK_INTEGRATION_AVAILABLE:
+        app.register_blueprint(
+            slack_integration_bp, url_prefix="/api/integrations", name="slack_integration"
+        )
+        logging.info("Slack integration routes registered successfully")
 
     # Register enhanced Teams OAuth handler if available
     if TEAMS_OAUTH_AVAILABLE:
@@ -379,10 +422,117 @@ def create_app():
             else:
                 return jsonify(result), 400
 
-        @app.route("/api/auth/outlook-new/health", methods=["GET"])
-        def outlook_new_health():
-            """Outlook service health check using new handler"""
-            return jsonify(outlook_oauth_handler.health_check())
+        # Add Outlook OAuth callback endpoint
+        @app.route("/api/auth/outlook-new/callback", methods=["POST"])
+        def outlook_new_oauth_callback():
+            """Handle Outlook OAuth callback"""
+            data = request.get_json()
+            code = data.get('code')
+            state = data.get('state')
+            
+            if not code:
+                return jsonify({
+                    'success': False,
+                    'error': 'Authorization code required',
+                    'service': 'outlook'
+                }), 400
+            
+            result = outlook_oauth_handler.exchange_code_for_token(code, state)
+            
+            if result.get('success'):
+                # Store tokens in database
+                user_info = result.get('user_info', {})
+                user_id = user_info.get('id') or user_info.get('userPrincipalName')
+                tokens = result.get('tokens', {})
+                
+                if user_id:
+                    from datetime import datetime, timedelta, timezone
+                    expires_in = tokens.get('expires_in', 3600)
+                    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+                    
+                    store_result = asyncio.run(store_outlook_tokens(
+                        db_pool,
+                        user_id,
+                        tokens.get('access_token'),
+                        tokens.get('refresh_token'),
+                        expires_at,
+                        tokens.get('scope'),
+                        result.get('workspace_info', {}).get('tenant_id')
+                    ))
+                    
+                    if store_result.get('success'):
+                        result['stored'] = True
+                    else:
+                        logging.error(f"Failed to store Outlook tokens: {store_result.get('error')}")
+                        result['stored'] = False
+                
+            return jsonify(result)
+            
+        # Add Outlook OAuth callback endpoint
+        @app.route("/api/auth/outlook-new/callback", methods=["POST"])
+        def outlook_new_oauth_callback():
+            """Handle Outlook OAuth callback"""
+            data = request.get_json()
+            code = data.get('code')
+            state = data.get('state')
+            
+            if not code:
+                return jsonify({
+                    'success': False,
+                    'error': 'Authorization code required',
+                    'service': 'outlook'
+                }), 400
+            
+            result = outlook_oauth_handler.exchange_code_for_token(code, state)
+            
+            if result.get('success'):
+                # Store tokens in database
+                user_info = result.get('user_info', {})
+                user_id = user_info.get('id') or user_info.get('userPrincipalName')
+                tokens = result.get('tokens', {})
+                
+                if user_id:
+                    from datetime import datetime, timedelta, timezone
+                    expires_in = tokens.get('expires_in', 3600)
+                    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+                    
+                    store_result = asyncio.run(store_outlook_tokens(
+                        db_pool,
+                        user_id,
+                        tokens.get('access_token'),
+                        tokens.get('refresh_token'),
+                        expires_at,
+                        tokens.get('scope'),
+                        result.get('workspace_info', {}).get('tenant_id')
+                    ))
+                    
+                    if store_result.get('success'):
+                        result['stored'] = True
+                    else:
+                        logging.error(f"Failed to store Outlook tokens: {store_result.get('error')}")
+                        result['stored'] = False
+                
+            return jsonify(result)
+
+    # Register Enhanced Outlook API if available
+    try:
+        from outlook_enhanced_api import outlook_enhanced_bp
+
+        OUTLOOK_ENHANCED_AVAILABLE = True
+        app.register_blueprint(outlook_enhanced_bp, url_prefix="/api/outlook/enhanced")
+        
+        # Set database pool for OAuth token management
+        if OUTLOOK_ENHANCED_AVAILABLE:
+            try:
+                from outlook_enhanced_api import set_db_pool
+                set_db_pool(db_pool)
+                logging.info("Enhanced Outlook API registered successfully with database pool")
+            except ImportError as e:
+                logging.warning(f"Could not set database pool for Outlook enhanced API: {e}")
+                
+    except ImportError as e:
+        OUTLOOK_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Outlook API not available: {e}")
 
     # Register Next.js OAuth handler if available
     if NEXTJS_OAUTH_AVAILABLE:
@@ -493,6 +643,28 @@ def create_app():
         logging.warning(f"Comprehensive integration API not available: {e}")
 
     return app
+
+
+# Initialize database
+try:
+    asyncio.run(init_database())
+    
+    # Initialize Outlook OAuth table after database is ready
+    if OUTLOOK_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_outlook_oauth_table(db_pool))
+        logging.info("Outlook OAuth table initialized successfully")
+    
+    # Initialize Slack OAuth table after database is ready
+    if SLACK_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_slack_oauth_table(db_pool))
+        logging.info("Slack OAuth table initialized successfully")
+    
+    # Initialize Notion OAuth table after database is ready
+    if NOTION_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_notion_oauth_table(db_pool))
+        logging.info("Notion OAuth table initialized successfully")
+except Exception as e:
+    logging.error(f"Database initialization failed: {e}")
 
 
 # Create app

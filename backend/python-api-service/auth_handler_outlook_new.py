@@ -191,6 +191,61 @@ class OutlookOAuthHandler:
                 'error': f'Outlook user info error: {str(e)}'
             }
     
+    def refresh_token(self, refresh_token):
+        """Refresh Outlook access token using refresh token"""
+        if not refresh_token:
+            return {
+                'success': False,
+                'error': 'Refresh token required',
+                'service': 'outlook'
+            }
+        
+        if not self.client_id or not self.client_secret:
+            return {
+                'success': False,
+                'error': 'Outlook client ID or secret not configured',
+                'service': 'outlook'
+            }
+        
+        try:
+            token_url = f'{self.auth_base_url}/{self.tenant_id}/oauth2/v2.0/token'
+            data = {
+                'client_id': self.client_id,
+                'client_secret': self.client_secret,
+                'refresh_token': refresh_token,
+                'grant_type': 'refresh_token',
+                'scope': ' '.join(self.scopes)
+            }
+            
+            response = requests.post(token_url, data=data, timeout=10)
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                return {
+                    'success': True,
+                    'service': 'outlook',
+                    'access_token': token_data.get('access_token'),
+                    'refresh_token': token_data.get('refresh_token', refresh_token),
+                    'token_type': token_data.get('token_type', 'Bearer'),
+                    'scope': token_data.get('scope'),
+                    'expires_in': token_data.get('expires_in', 3600)
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Failed to refresh Outlook token',
+                    'service': 'outlook',
+                    'status_code': response.status_code,
+                    'response': response.text
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Outlook token refresh error: {str(e)}',
+                'service': 'outlook'
+            }
+    
     def health_check(self):
         """Check Outlook service health and configuration"""
         status = {

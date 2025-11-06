@@ -177,40 +177,40 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
   } = useDisclosure();
   const toast = useToast();
 
-  // Real data hooks for communication platforms
-  const useRealCommunicationData = (platforms: string[], userId?: string) => {
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    
-    useEffect(() => {
-      const fetchRealMessages = async () => {
-        if (!userId || platforms.length === 0) {
-          setMessages([]);
-          return;
-        }
-        
-        setLoading(true);
-        setError(null);
-        
-        try {
-          const response = await fetch('/api/communication/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              platforms: platforms,
-              limit: 100
-            })
-          });
-          
-          const data = await response.json();
-          
-          if (data.ok) {
-            // Transform messages to Message interface
-            const transformedMessages: Message[] = data.messages.map((msg: any) => ({
+  const [currentUserId] = useState<string>("demo-user"); // Replace with actual user ID from auth
+  const [realMessages, setRealMessages] = useState<Message[]>([]);
+  const [realLoading, setRealLoading] = useState(false);
+  const [realError, setRealError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRealMessages = async () => {
+      if (!currentUserId) {
+        setRealMessages([]);
+        return;
+      }
+
+      setRealLoading(true);
+      setRealError(null);
+
+      try {
+        const response = await fetch("/api/communication/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: currentUserId,
+            platforms: ["slack", "teams"],
+            limit: 100,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.ok) {
+          // Transform messages to Message interface
+          const transformedMessages: Message[] = data.messages.map(
+            (msg: any) => ({
               id: msg.id,
               platform: msg.platform as any,
               from: msg.from,
@@ -225,38 +225,37 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
               threadId: msg.thread_id,
               isReply: false,
               status: msg.status as any,
-              color: getPlatformColor(msg.platform)
-            }));
-            
-            setMessages(transformedMessages);
-          } else {
-            setError(data.error || 'Failed to fetch messages');
-          }
-        } catch (err) {
-          setError('Network error fetching messages');
-          console.error('Error fetching real messages:', err);
-        } finally {
-          setLoading(false);
+              color: getPlatformColor(msg.platform),
+            }),
+          );
+
+          setRealMessages(transformedMessages);
+        } else {
+          setRealError(data.error || "Failed to fetch messages");
         }
-      };
-      
-      fetchRealMessages();
-    }, [platforms, userId]);
-    
-    return { messages, loading, error, refetch: () => fetchRealMessages() };
-  };
+      } catch (err) {
+        setRealError("Network error fetching messages");
+        console.error("Error fetching real messages:", err);
+      } finally {
+        setRealLoading(false);
+      }
+    };
 
-  const [currentUserId] = useState<string>("demo-user"); // Replace with actual user ID from auth
-  const realData = useRealCommunicationData(['slack', 'teams'], currentUserId);
+    fetchRealMessages();
+  }, [currentUserId]);
 
+  useEffect(() => {
     const mockConversations: Conversation[] = [
       {
         id: "conv-1",
         title: "Weekly Team Updates",
         participants: ["team@company.com", "user@example.com"],
-        messages: realData.messages.filter((msg) => msg.platform === "email"),
-        unreadCount: realData.messages.filter((msg) => msg.platform === "email" && msg.unread).length,
-        lastMessage: realData.messages.length > 0 ? realData.messages[0].timestamp : new Date(),
+        messages: realMessages.filter((msg) => msg.platform === "email"),
+        unreadCount: realMessages.filter(
+          (msg) => msg.platform === "email" && msg.unread,
+        ).length,
+        lastMessage:
+          realMessages.length > 0 ? realMessages[0].timestamp : new Date(),
         platform: "email",
         tags: ["work", "updates"],
         priority: "normal",
@@ -265,9 +264,12 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
         id: "conv-2",
         title: "Design Review Discussion",
         participants: ["john.doe", "user@example.com", "sarah.wilson"],
-        messages: realData.messages.filter((msg) => msg.platform === "slack"),
-        unreadCount: realData.messages.filter((msg) => msg.platform === "slack" && msg.unread).length,
-        lastMessage: realData.messages.length > 0 ? realData.messages[0].timestamp : new Date(),
+        messages: realMessages.filter((msg) => msg.platform === "slack"),
+        unreadCount: realMessages.filter(
+          (msg) => msg.platform === "slack" && msg.unread,
+        ).length,
+        lastMessage:
+          realMessages.length > 0 ? realMessages[0].timestamp : new Date(),
         platform: "slack",
         tags: ["design", "review"],
         priority: "high",
@@ -300,34 +302,34 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
       },
     ];
 
-    setMessages(realData.messages);
+    setMessages(realMessages);
     setConversations(mockConversations);
     setTemplates(mockTemplates);
     setLoading(false);
-  }, [realData.messages]);
+  }, [realMessages]);
 
   const handleSendMessage = async (
     messageData: Omit<Message, "id" | "timestamp" | "status">,
   ) => {
     try {
       // Send real message if platform is supported
-      if (['slack', 'teams'].includes(messageData.platform)) {
-        const response = await fetch('/api/communication/send', {
-          method: 'POST',
+      if (["slack", "teams"].includes(messageData.platform)) {
+        const response = await fetch("/api/communication/send", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             platform: messageData.platform,
             user_id: currentUserId,
-            channel_id: messageData.threadId || 'default', // Need channel for sending
+            channel_id: messageData.threadId || "default", // Need channel for sending
             content: messageData.content,
-            team_id: messageData.to // Can be used as team_id for Teams
-          })
+            team_id: messageData.to, // Can be used as team_id for Teams
+          }),
         });
-        
+
         const result = await response.json();
-        
+
         if (result.ok) {
           // Create local message to show in UI
           const newMessage: Message = {
@@ -337,7 +339,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
             status: "sent",
           };
           setMessages((prev) => [newMessage, ...prev]);
-          
+
           onMessageSend?.(messageData);
           toast({
             title: "Message sent",
@@ -347,7 +349,7 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
             isClosable: true,
           });
         } else {
-          throw new Error(result.error || 'Failed to send message');
+          throw new Error(result.error || "Failed to send message");
         }
       } else {
         // Fallback for email or other platforms
@@ -368,10 +370,10 @@ const CommunicationHub: React.FC<CommunicationHubProps> = ({
         });
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
       toast({
         title: "Failed to send message",
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: error instanceof Error ? error.message : "Unknown error",
         status: "error",
         duration: 3000,
         isClosable: true,

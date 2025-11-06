@@ -3,11 +3,23 @@
  * Fully integrated with ATOM desktop app and workflow automation
  */
 
-import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import { listen } from '@tauri-apps/api/event';
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/tauri";
 
-const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) => {
+interface GitLabConnectionStatus {
+  connected: boolean;
+  accessToken?: string;
+  status?: string;
+  state?: string;
+  success?: boolean;
+}
+import { listen } from "@tauri-apps/api/event";
+
+const GitLabDesktopManager = ({
+  user,
+  onServiceConnected,
+  onWorkflowUpdate,
+}) => {
   const [gitlabStatus, setGitlabStatus] = useState({
     connected: false,
     loading: false,
@@ -15,57 +27,60 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
     user: null,
     repositories: [],
     issues: [],
-    mergeRequests: []
+    mergeRequests: [],
   });
 
   const [oauthFlow, setOauthFlow] = useState({
     state: null,
     codeExchangeLoading: false,
-    accessToken: null
+    accessToken: null,
   });
 
   const [desktopFeatures, setDesktopFeatures] = useState({
     nativeNotifications: true,
     systemTray: true,
     autoStart: true,
-    backgroundSync: false
+    backgroundSync: false,
   });
 
   const [activityLog, setActivityLog] = useState([]);
 
   // Initialize GitLab for desktop
   const initializeDesktopGitLab = async () => {
-    setGitlabStatus(prev => ({ ...prev, loading: true, error: null }));
-    
+    setGitlabStatus((prev) => ({ ...prev, loading: true, error: null }));
+
     try {
       // Check backend connection
       const backendConnected = await checkBackendConnection();
       if (!backendConnected) {
-        throw new Error('Backend connection failed');
+        throw new Error("Backend connection failed");
       }
 
       // Check if GitLab is already connected
       const connectionStatus = await checkGitLabConnection();
-      
+
       if (connectionStatus.connected) {
         // Load existing data
         await loadDesktopGitLabData(connectionStatus.accessToken);
-        
+
         // Setup desktop features
         await setupDesktopFeatures(connectionStatus.accessToken);
-        
-        setActivityLog(prev => [...prev, {
-          type: 'success',
-          message: 'GitLab desktop integration initialized',
-          timestamp: new Date().toISOString()
-        }]);
+
+        setActivityLog((prev) => [
+          ...prev,
+          {
+            type: "success",
+            message: "GitLab desktop integration initialized",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
       }
     } catch (error) {
-      console.error('Desktop GitLab initialization error:', error);
-      setGitlabStatus(prev => ({
+      console.error("Desktop GitLab initialization error:", error);
+      setGitlabStatus((prev) => ({
         ...prev,
         loading: false,
-        error: `Desktop initialization failed: ${error.message}`
+        error: `Desktop initialization failed: ${error.message}`,
       }));
     }
   };
@@ -73,60 +88,60 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
   // Check backend connection
   const checkBackendConnection = async () => {
     try {
-      const response = await invoke('check_backend_connection');
-      return response.status === 'healthy';
+      const response = await invoke("check_backend_connection");
+      return (response as any).status === "healthy";
     } catch (error) {
-      console.error('Backend connection check failed:', error);
+      console.error("Backend connection check failed:", error);
       return false;
     }
   };
 
   // Check existing GitLab connection
-  const checkGitLabConnection = async () => {
+  const checkGitLabConnection = async (): Promise<GitLabConnectionStatus> => {
     try {
-      const response = await invoke('get_gitlab_connection', { 
-        userId: user.id 
+      const response = await invoke("get_gitlab_connection", {
+        userId: user.id,
       });
-      return response;
+      return response as GitLabConnectionStatus;
     } catch (error) {
-      console.error('Error checking GitLab connection:', error);
+      console.error("Error checking GitLab connection:", error);
       return { connected: false };
     }
   };
 
   // Connect GitLab (Desktop)
   const connectDesktopGitLab = async () => {
-    setGitlabStatus(prev => ({ ...prev, loading: true }));
-    
+    setGitlabStatus((prev) => ({ ...prev, loading: true }));
+
     try {
       // Get OAuth URL from backend
-      const response = await invoke('get_gitlab_oauth_url', {
-        userId: user.id
+      const response = await invoke("get_gitlab_oauth_url", {
+        userId: user.id,
       });
-      
+
       if (response.success) {
         // Store OAuth state securely in desktop storage
         const oauthState = {
           state: response.state,
           timestamp: Date.now(),
-          provider: 'gitlab',
-          userId: user.id
+          provider: "gitlab",
+          userId: user.id,
         };
-        
-        await invoke('store_oauth_state', { state: oauthState });
-        setOauthFlow(prev => ({ ...prev, state: response.state }));
-        
+
+        await invoke("store_oauth_state", { state: oauthState });
+        setOauthFlow((prev) => ({ ...prev, state: (response as any).state }));
+
         // Open system browser for OAuth
-        await invoke('open_browser', { url: response.oauth_url });
+        await invoke("open_browser", { url: response.oauth_url });
       } else {
-        throw new Error(response.error || 'Failed to get GitLab OAuth URL');
+        throw new Error(response.error || "Failed to get GitLab OAuth URL");
       }
     } catch (error) {
-      console.error('Desktop GitLab OAuth error:', error);
-      setGitlabStatus(prev => ({
+      console.error("Desktop GitLab OAuth error:", error);
+      setGitlabStatus((prev) => ({
         ...prev,
         loading: false,
-        error: `Desktop OAuth failed: ${error.message}`
+        error: `Desktop OAuth failed: ${error.message}`,
       }));
     }
   };
@@ -138,84 +153,98 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
       if (desktopFeatures.systemTray) {
         await setupSystemTray(accessToken);
       }
-      
+
       // Setup native notifications
       if (desktopFeatures.nativeNotifications) {
         await setupNativeNotifications(accessToken);
       }
-      
+
       // Setup background sync
       if (desktopFeatures.backgroundSync) {
         await setupBackgroundSync(accessToken);
       }
-      
-      setActivityLog(prev => [...prev, {
-        type: 'success',
-        message: 'Desktop features configured',
-        timestamp: new Date().toISOString()
-      }]);
-      
+
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "success",
+          message: "Desktop features configured",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
-      console.error('Error setting up desktop features:', error);
-      setActivityLog(prev => [...prev, {
-        type: 'warning',
-        message: `Desktop features setup incomplete: ${error.message}`,
-        timestamp: new Date().toISOString()
-      }]);
+      console.error("Error setting up desktop features:", error);
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "warning",
+          message: `Desktop features setup incomplete: ${error.message}`,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     }
   };
 
   // Setup system tray
   const setupSystemTray = async (accessToken) => {
     try {
-      await invoke('setup_gitlab_tray', { 
+      await invoke("setup_gitlab_tray", {
         accessToken,
-        updateInterval: 300000 // 5 minutes
+        updateInterval: 300000, // 5 minutes
       });
-      
-      setActivityLog(prev => [...prev, {
-        type: 'info',
-        message: 'GitLab system tray integration enabled',
-        timestamp: new Date().toISOString()
-      }]);
+
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "info",
+          message: "GitLab system tray integration enabled",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
-      console.error('System tray setup error:', error);
+      console.error("System tray setup error:", error);
     }
   };
 
   // Setup native notifications
   const setupNativeNotifications = async (accessToken) => {
     try {
-      await invoke('setup_gitlab_notifications', { 
+      await invoke("setup_gitlab_notifications", {
         accessToken,
-        events: ['issue_created', 'merge_request_opened', 'pipeline_failed']
+        events: ["issue_created", "merge_request_opened", "pipeline_failed"],
       });
-      
-      setActivityLog(prev => [...prev, {
-        type: 'info',
-        message: 'GitLab native notifications enabled',
-        timestamp: new Date().toISOString()
-      }]);
+
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "info",
+          message: "GitLab native notifications enabled",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
-      console.error('Native notifications setup error:', error);
+      console.error("Native notifications setup error:", error);
     }
   };
 
   // Setup background sync
   const setupBackgroundSync = async (accessToken) => {
     try {
-      await invoke('setup_gitlab_background_sync', { 
+      await invoke("setup_gitlab_background_sync", {
         accessToken,
-        syncInterval: 600000 // 10 minutes
+        syncInterval: 600000, // 10 minutes
       });
-      
-      setActivityLog(prev => [...prev, {
-        type: 'info',
-        message: 'GitLab background sync enabled',
-        timestamp: new Date().toISOString()
-      }]);
+
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "info",
+          message: "GitLab background sync enabled",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
-      console.error('Background sync setup error:', error);
+      console.error("Background sync setup error:", error);
     }
   };
 
@@ -223,17 +252,17 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
   const loadDesktopGitLabData = async (accessToken) => {
     try {
       // Load repositories
-      const repos = await invoke('get_gitlab_repositories', { accessToken });
-      
+      const repos = await invoke("get_gitlab_repositories", { accessToken });
+
       // Load issues
-      const issues = await invoke('get_gitlab_issues', { accessToken });
-      
+      const issues = await invoke("get_gitlab_issues", { accessToken });
+
       // Load merge requests
-      const mrs = await invoke('get_gitlab_merge_requests', { accessToken });
-      
+      const mrs = await invoke("get_gitlab_merge_requests", { accessToken });
+
       // Get user info
-      const userInfo = await invoke('get_gitlab_user_info', { accessToken });
-      
+      const userInfo = await invoke("get_gitlab_user_info", { accessToken });
+
       setGitlabStatus({
         connected: true,
         loading: false,
@@ -241,74 +270,76 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
         user: userInfo,
         repositories: repos.repositories || [],
         issues: issues.issues || [],
-        mergeRequests: mrs.merge_requests || []
+        mergeRequests: mrs.merge_requests || [],
       });
-      
     } catch (error) {
-      console.error('Error loading desktop GitLab data:', error);
-      setGitlabStatus(prev => ({
+      console.error("Error loading desktop GitLab data:", error);
+      setGitlabStatus((prev) => ({
         ...prev,
         loading: false,
-        error: `Data loading failed: ${error.message}`
+        error: `Data loading failed: ${error.message}`,
       }));
     }
   };
 
   // Handle OAuth callback (Desktop)
   const handleDesktopOAuthCallback = async (code, state) => {
-    setOauthFlow(prev => ({ ...prev, codeExchangeLoading: true }));
-    
+    setOauthFlow((prev) => ({ ...prev, codeExchangeLoading: true }));
+
     try {
-      const result = await invoke('exchange_gitlab_oauth_code', {
+      const result = await invoke("exchange_gitlab_oauth_code", {
         code: code,
         state: state,
-        userId: user.id
+        userId: user.id,
       });
-      
+
       if (result.success) {
         // Store access token securely
-        await invoke('store_gitlab_token', { 
+        await invoke("store_gitlab_token", {
           token: result.tokens.access_token,
-          userId: user.id 
+          userId: user.id,
         });
-        
-        setOauthFlow(prev => ({ 
-          ...prev, 
-          accessToken: result.tokens.access_token 
+
+        setOauthFlow((prev) => ({
+          ...prev,
+          accessToken: result.tokens.access_token,
         }));
-        
+
         // Load GitLab data
         await loadDesktopGitLabData(result.tokens.access_token);
-        
+
         // Setup desktop features
         await setupDesktopFeatures(result.tokens.access_token);
-        
+
         // Notify parent component
         if (onServiceConnected) {
-          onServiceConnected('gitlab', {
+          onServiceConnected("gitlab", {
             user: result.user_info,
             workspaceInfo: result.workspace_info,
-            tokens: result.tokens
+            tokens: result.tokens,
           });
         }
-        
-        setActivityLog(prev => [...prev, {
-          type: 'success',
-          message: 'GitLab desktop connected successfully',
-          timestamp: new Date().toISOString()
-        }]);
+
+        setActivityLog((prev) => [
+          ...prev,
+          {
+            type: "success",
+            message: "GitLab desktop connected successfully",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
       } else {
-        throw new Error(result.error || 'Failed to exchange OAuth code');
+        throw new Error(result.error || "Failed to exchange OAuth code");
       }
     } catch (error) {
-      console.error('Desktop OAuth token exchange error:', error);
-      setGitlabStatus(prev => ({
+      console.error("Desktop OAuth token exchange error:", error);
+      setGitlabStatus((prev) => ({
         ...prev,
         loading: false,
-        error: `OAuth exchange failed: ${error.message}`
+        error: `OAuth exchange failed: ${error.message}`,
       }));
     } finally {
-      setOauthFlow(prev => ({ ...prev, codeExchangeLoading: false }));
+      setOauthFlow((prev) => ({ ...prev, codeExchangeLoading: false }));
     }
   };
 
@@ -317,86 +348,90 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
     if (!gitlabStatus.connected) {
       return;
     }
-    
+
     try {
       const workflowData = {
         action: action,
-        service: 'gitlab',
+        service: "gitlab",
         repository: repository,
         user_id: user.id,
-        trigger_type: 'manual',
+        trigger_type: "manual",
         description: `GitLab desktop workflow: ${action}`,
         parameters: {
           repository_id: repository?.id,
           action_type: action,
           user_info: gitlabStatus.user,
-          desktop_features: desktopFeatures
-        }
+          desktop_features: desktopFeatures,
+        },
       };
-      
+
       // Generate workflow using desktop agent
-      const workflow = await invoke('generate_desktop_workflow', { 
-        workflowData 
+      const workflow = await invoke("generate_desktop_workflow", {
+        workflowData,
       });
-      
+
       // Execute workflow
-      const execution = await invoke('execute_desktop_workflow', { 
+      const execution = await invoke("execute_desktop_workflow", {
         workflow,
-        service: 'gitlab'
+        service: "gitlab",
       });
-      
+
       // Notify parent
       if (onWorkflowUpdate) {
         onWorkflowUpdate(workflow);
       }
-      
-      setActivityLog(prev => [...prev, {
-        type: 'success',
-        message: `GitLab desktop workflow executed: ${action}`,
-        timestamp: new Date().toISOString(),
-        workflowId: workflow.id,
-        executionId: execution.id
-      }]);
-      
+
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "success",
+          message: `GitLab desktop workflow executed: ${action}`,
+          timestamp: new Date().toISOString(),
+          workflowId: workflow.id,
+          executionId: execution.id,
+        },
+      ]);
     } catch (error) {
-      console.error('Desktop workflow creation error:', error);
-      setActivityLog(prev => [...prev, {
-        type: 'error',
-        message: `Desktop workflow failed: ${error.message}`,
-        timestamp: new Date().toISOString()
-      }]);
+      console.error("Desktop workflow creation error:", error);
+      setActivityLog((prev) => [
+        ...prev,
+        {
+          type: "error",
+          message: `Desktop workflow failed: ${error.message}`,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     }
   };
 
   // Toggle desktop features
   const toggleDesktopFeature = async (feature, value) => {
-    setDesktopFeatures(prev => ({ ...prev, [feature]: value }));
-    
+    setDesktopFeatures((prev) => ({ ...prev, [feature]: value }));
+
     try {
-      if (feature === 'backgroundSync') {
+      if (feature === "backgroundSync") {
         if (value) {
           await setupBackgroundSync(oauthFlow.accessToken);
         } else {
-          await invoke('stop_gitlab_background_sync');
+          await invoke("stop_gitlab_background_sync");
         }
       }
-      
-      if (feature === 'systemTray') {
+
+      if (feature === "systemTray") {
         if (value) {
           await setupSystemTray(oauthFlow.accessToken);
         } else {
-          await invoke('remove_gitlab_tray');
+          await invoke("remove_gitlab_tray");
         }
       }
-      
-      if (feature === 'nativeNotifications') {
+
+      if (feature === "nativeNotifications") {
         if (value) {
           await setupNativeNotifications(oauthFlow.accessToken);
         } else {
-          await invoke('stop_gitlab_notifications');
+          await invoke("stop_gitlab_notifications");
         }
       }
-      
     } catch (error) {
       console.error(`Error toggling ${feature}:`, error);
     }
@@ -404,13 +439,13 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
 
   // Listen for OAuth callback events
   useEffect(() => {
-    const unlisten = listen('gitlab-oauth-callback', (event) => {
+    const unlisten = listen("gitlab-oauth-callback", (event) => {
       const { code, state } = event.payload;
       handleDesktopOAuthCallback(code, state);
     });
-    
+
     return () => {
-      unlisten.then(unlistener => unlistener());
+      unlisten.then((unlistener) => unlistener());
     };
   }, [user]);
 
@@ -426,12 +461,14 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
           🦊 GitLab Desktop Integration
         </h2>
         <div className="flex items-center space-x-2">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${
-            gitlabStatus.connected 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-gray-200 text-gray-600'
-          }`}>
-            {gitlabStatus.connected ? 'Desktop Connected' : 'Disconnected'}
+          <span
+            className={`px-2 py-1 rounded text-xs font-medium ${
+              gitlabStatus.connected
+                ? "bg-green-100 text-green-800"
+                : "bg-gray-200 text-gray-600"
+            }`}
+          >
+            {gitlabStatus.connected ? "Desktop Connected" : "Disconnected"}
           </span>
         </div>
       </div>
@@ -445,7 +482,9 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
             <input
               type="checkbox"
               checked={desktopFeatures.nativeNotifications}
-              onChange={(e) => toggleDesktopFeature('nativeNotifications', e.target.checked)}
+              onChange={(e) =>
+                toggleDesktopFeature("nativeNotifications", e.target.checked)
+              }
               className="rounded"
             />
           </label>
@@ -454,7 +493,9 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
             <input
               type="checkbox"
               checked={desktopFeatures.systemTray}
-              onChange={(e) => toggleDesktopFeature('systemTray', e.target.checked)}
+              onChange={(e) =>
+                toggleDesktopFeature("systemTray", e.target.checked)
+              }
               className="rounded"
             />
           </label>
@@ -463,7 +504,9 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
             <input
               type="checkbox"
               checked={desktopFeatures.backgroundSync}
-              onChange={(e) => toggleDesktopFeature('backgroundSync', e.target.checked)}
+              onChange={(e) =>
+                toggleDesktopFeature("backgroundSync", e.target.checked)
+              }
               className="rounded"
             />
           </label>
@@ -472,7 +515,12 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
             <input
               type="checkbox"
               checked={desktopFeatures.autoStart}
-              onChange={(e) => setDesktopFeatures(prev => ({ ...prev, autoStart: e.target.checked }))}
+              onChange={(e) =>
+                setDesktopFeatures((prev) => ({
+                  ...prev,
+                  autoStart: e.target.checked,
+                }))
+              }
               className="rounded"
             />
           </label>
@@ -489,14 +537,15 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
           </div>
           <h3 className="text-lg font-semibold mb-2">Connect GitLab Desktop</h3>
           <p className="text-gray-600 mb-4">
-            Connect your GitLab account with desktop features including notifications, system tray, and background sync
+            Connect your GitLab account with desktop features including
+            notifications, system tray, and background sync
           </p>
           <button
             onClick={connectDesktopGitLab}
             disabled={gitlabStatus.loading}
             className="bg-orange-500 text-white px-6 py-2 rounded hover:bg-orange-600 disabled:bg-orange-300"
           >
-            {gitlabStatus.loading ? 'Connecting...' : 'Connect GitLab Desktop'}
+            {gitlabStatus.loading ? "Connecting..." : "Connect GitLab Desktop"}
           </button>
         </div>
       ) : (
@@ -505,14 +554,16 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
           <div className="bg-white p-4 rounded border">
             <h3 className="font-semibold mb-2">Connected User</h3>
             <div className="flex items-center space-x-3">
-              <img 
-                src={gitlabStatus.user?.avatar_url} 
+              <img
+                src={gitlabStatus.user?.avatar_url}
                 alt="GitLab Avatar"
                 className="w-10 h-10 rounded-full"
               />
               <div>
                 <p className="font-medium">{gitlabStatus.user?.name}</p>
-                <p className="text-sm text-gray-600">@{gitlabStatus.user?.username}</p>
+                <p className="text-sm text-gray-600">
+                  @{gitlabStatus.user?.username}
+                </p>
               </div>
             </div>
           </div>
@@ -521,25 +572,44 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
           <div className="bg-white p-4 rounded border">
             <h3 className="font-semibold mb-2">Desktop Features Status</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className={`p-2 rounded ${
-                desktopFeatures.nativeNotifications ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'
-              }`}>
-                Notifications: {desktopFeatures.nativeNotifications ? 'Active' : 'Inactive'}
+              <div
+                className={`p-2 rounded ${
+                  desktopFeatures.nativeNotifications
+                    ? "bg-green-50 text-green-700"
+                    : "bg-gray-50 text-gray-500"
+                }`}
+              >
+                Notifications:{" "}
+                {desktopFeatures.nativeNotifications ? "Active" : "Inactive"}
               </div>
-              <div className={`p-2 rounded ${
-                desktopFeatures.systemTray ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'
-              }`}>
-                System Tray: {desktopFeatures.systemTray ? 'Active' : 'Inactive'}
+              <div
+                className={`p-2 rounded ${
+                  desktopFeatures.systemTray
+                    ? "bg-green-50 text-green-700"
+                    : "bg-gray-50 text-gray-500"
+                }`}
+              >
+                System Tray:{" "}
+                {desktopFeatures.systemTray ? "Active" : "Inactive"}
               </div>
-              <div className={`p-2 rounded ${
-                desktopFeatures.backgroundSync ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'
-              }`}>
-                Background Sync: {desktopFeatures.backgroundSync ? 'Active' : 'Inactive'}
+              <div
+                className={`p-2 rounded ${
+                  desktopFeatures.backgroundSync
+                    ? "bg-green-50 text-green-700"
+                    : "bg-gray-50 text-gray-500"
+                }`}
+              >
+                Background Sync:{" "}
+                {desktopFeatures.backgroundSync ? "Active" : "Inactive"}
               </div>
-              <div className={`p-2 rounded ${
-                desktopFeatures.autoStart ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'
-              }`}>
-                Auto Start: {desktopFeatures.autoStart ? 'Enabled' : 'Disabled'}
+              <div
+                className={`p-2 rounded ${
+                  desktopFeatures.autoStart
+                    ? "bg-green-50 text-green-700"
+                    : "bg-gray-50 text-gray-500"
+                }`}
+              >
+                Auto Start: {desktopFeatures.autoStart ? "Enabled" : "Disabled"}
               </div>
             </div>
           </div>
@@ -571,25 +641,27 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
             <h3 className="font-semibold mb-3">Desktop Actions</h3>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => createDesktopWorkflow('enable_desktop_notifications')}
+                onClick={() =>
+                  createDesktopWorkflow("enable_desktop_notifications")
+                }
                 className="bg-green-500 text-white px-3 py-2 rounded hover:bg-green-600 text-sm"
               >
                 Enable Notifications
               </button>
               <button
-                onClick={() => createDesktopWorkflow('start_background_sync')}
+                onClick={() => createDesktopWorkflow("start_background_sync")}
                 className="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 text-sm"
               >
                 Start Background Sync
               </button>
               <button
-                onClick={() => createDesktopWorkflow('open_in_system_tray')}
+                onClick={() => createDesktopWorkflow("open_in_system_tray")}
                 className="bg-purple-500 text-white px-3 py-2 rounded hover:bg-purple-600 text-sm"
               >
                 Add to System Tray
               </button>
               <button
-                onClick={() => createDesktopWorkflow('sync_all_data')}
+                onClick={() => createDesktopWorkflow("sync_all_data")}
                 className="bg-orange-500 text-white px-3 py-2 rounded hover:bg-orange-600 text-sm"
               >
                 Sync All Data
@@ -603,12 +675,18 @@ const GitLabDesktopManager = ({ user, onServiceConnected, onWorkflowUpdate }) =>
               <h3 className="font-semibold mb-3">Desktop Activity</h3>
               <div className="space-y-2 max-h-32 overflow-y-auto">
                 {activityLog.slice(-5).map((activity, index) => (
-                  <div key={index} className={`text-xs p-2 rounded ${
-                    activity.type === 'success' ? 'bg-green-50 text-green-700' :
-                    activity.type === 'error' ? 'bg-red-50 text-red-700' :
-                    activity.type === 'warning' ? 'bg-yellow-50 text-yellow-700' :
-                    'bg-blue-50 text-blue-700'
-                  }`}>
+                  <div
+                    key={index}
+                    className={`text-xs p-2 rounded ${
+                      activity.type === "success"
+                        ? "bg-green-50 text-green-700"
+                        : activity.type === "error"
+                          ? "bg-red-50 text-red-700"
+                          : activity.type === "warning"
+                            ? "bg-yellow-50 text-yellow-700"
+                            : "bg-blue-50 text-blue-700"
+                    }`}
+                  >
                     <div className="font-medium">{activity.message}</div>
                     <div className="text-xs opacity-75">
                       {new Date(activity.timestamp).toLocaleString()}

@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-11-05T17:33:16.569734",
+  "setup_steps": {
+    "Required Packages Check": {
+      "status": "completed",
+      "timestamp": "2025-11-05T17:33:20.176449",
+      "details": "All required packages installed (5)"
+    },
+    "Service Endpoints Check": {
+      "status": "failed",
+      "timestamp": "2025-11-05T17:33:20.219419",
+      "details": "Server not accessible"
+    },
+    "Service Status Dashboard": {
+      "status": "completed",
+      "timestamp": "2025-11-05T17:33:20.230785",
+      "details": "Dashboard created: /Users/rushiparikh/projects/atom/atom/frontend-nextjs/public/integration-status.html"
+    }
+  },
+  "summary": {
+    "total": 3,
+    "completed": 2,
+    "failed": 1
+  }
+}

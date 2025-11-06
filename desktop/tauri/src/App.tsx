@@ -86,7 +86,7 @@ function App() {
   const renderContent = () => {
     switch (activeView) {
       case "chat":
-        return useEnhancedChat ? <EnhancedChat /> : <Chat />;
+        return <EnhancedChat />;
       case "github-chat":
         return <GitHubEnhancedChat />;
       case "outlook-chat":

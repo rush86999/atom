@@ -47,6 +47,16 @@ except ImportError as e:
     OUTLOOK_AVAILABLE = False
     outlook_router = None
 
+# Import Dropbox integration
+try:
+    from integrations.dropbox_routes import router as dropbox_router
+
+    DROPBOX_AVAILABLE = True
+except ImportError as e:
+    print(f"Dropbox integration not available: {e}")
+    DROPBOX_AVAILABLE = False
+    dropbox_router = None
+
 # Initialize FastAPI app
 app = FastAPI(
     title="ATOM API",
@@ -95,6 +105,13 @@ if OUTLOOK_AVAILABLE and outlook_router:
     print("✅ Outlook integration routes loaded")
 else:
     print("⚠️  Outlook integration routes not available")
+
+# Include Dropbox integration routes if available
+if DROPBOX_AVAILABLE and dropbox_router:
+    app.include_router(dropbox_router)
+    print("✅ Dropbox integration routes loaded")
+else:
+    print("⚠️  Dropbox integration routes not available")
 
 # Include GitHub integration routes if available
 try:

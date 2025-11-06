@@ -22,6 +22,15 @@ except ImportError as e:
     SLACK_SERVICE_AVAILABLE = False
     slack_service = None
 
+# Import unified service for enhanced capabilities
+try:
+    from integrations.slack_service_unified import slack_unified_service
+
+    SLACK_UNIFIED_SERVICE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Slack unified service not available: {e}")
+    SLACK_UNIFIED_SERVICE_AVAILABLE = False
+
 # Import database handler
 try:
     from db_oauth_slack import get_user_slack_tokens, save_user_slack_tokens

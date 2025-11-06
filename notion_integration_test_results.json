@@ -1,0 +1,69 @@
+{
+  "timestamp": "2025-11-05T13:23:48.213487",
+  "tests": {
+    "Health Check": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.364627",
+      "details": {
+        "status": "healthy",
+        "service_available": true,
+        "database_available": true
+      }
+    },
+    "OAuth URL": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.373961",
+      "details": {
+        "oauth_url": "https://api.notion.com/v1/oauth/authorize?client_id=29bd872b-594c-8042-a103-0037be240bfd&response_type=code&owner=user&redirect_uri=http://localhost:3000/oauth/notion/callback",
+        "service": "notion"
+      }
+    },
+    "Pages Listing": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.381255",
+      "details": {
+        "pages_count": 2,
+        "operation": "list"
+      }
+    },
+    "Databases Listing": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.392853",
+      "details": {
+        "databases_count": 2,
+        "operation": "list"
+      }
+    },
+    "Page Creation": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.404094",
+      "details": {
+        "page_id": "page_new_001",
+        "page_title": "Test Page from ATOM Integration"
+      }
+    },
+    "Search Functionality": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.411622",
+      "details": {
+        "results_count": 2,
+        "query": "test"
+      }
+    },
+    "User Profile": {
+      "status": "passed",
+      "timestamp": "2025-11-05T13:23:51.421387",
+      "details": {
+        "user_name": "Test Notion User",
+        "user_email": "test_user_notion@notion.com",
+        "workspaces_count": 1
+      }
+    }
+  },
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "success_rate": 100.0
+  }
+}

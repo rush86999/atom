@@ -3,7 +3,7 @@
  * Following Outlook pattern for consistency
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -34,6 +34,8 @@ import {
   StatHelpText,
   Tooltip,
   Input,
+  InputGroup,
+  InputLeftElement,
   Select,
   Textarea,
   FormControl,
@@ -62,8 +64,8 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Switch
-} from '@chakra-ui/react';
+  Switch,
+} from "@chakra-ui/react";
 import {
   FiGithub,
   FiCheck,
@@ -71,27 +73,26 @@ import {
   FiPlus,
   FiSearch,
   FiFilter,
-  FiRefresh,
   FiSettings,
   FiUser,
-  FiRepo,
+  FiFolder,
   FiGitPullRequest,
-  FiGitBranch,
-  FiIssue,
+  FiAlertCircle,
   FiActivity,
   FiLink,
   FiEdit3,
   FiTrash2,
   FiStar,
-  FiFork,
   FiMoreVertical,
   FiExternalLink,
   FiGitMerge,
-  FiGitCommit
-} from 'react-icons/fi';
-import { invoke } from '@tauri-apps/api/tauri';
-import { EventBus } from '../../utils/EventBus';
-import { Logger } from '../../utils/Logger';
+  FiGitCommit,
+  FiLock,
+  FiAlertTriangle,
+} from "react-icons/fi";
+import { invoke } from "@tauri-apps/api/tauri";
+import { EventBus } from "../../../utils/EventBus";
+import { Logger } from "../../../utils/Logger";
 
 interface GitHubUserInfo {
   id: number;
@@ -138,7 +139,7 @@ interface GitHubIssue {
   number: number;
   title: string;
   body?: string;
-  state: 'open' | 'closed';
+  state: "open" | "closed";
   locked: boolean;
   user: GitHubUserInfo;
   assignees: GitHubUserInfo[];
@@ -157,7 +158,7 @@ interface GitHubPullRequest {
   number: number;
   title: string;
   body?: string;
-  state: 'open' | 'closed' | 'merged';
+  state: "open" | "closed" | "merged";
   locked: boolean;
   user: GitHubUserInfo;
   assignees: GitHubUserInfo[];
@@ -203,7 +204,7 @@ interface GitHubMilestone {
   number: number;
   title: string;
   description?: string;
-  state: 'open' | 'closed';
+  state: "open" | "closed";
   open_issues: number;
   closed_issues: number;
   created_at: string;
@@ -220,68 +221,78 @@ interface GitHubDesktopManagerProps {
 
 const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
   userId,
-  onConnectionChange
+  onConnectionChange,
 }) => {
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting' | 'error'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connected" | "disconnected" | "connecting" | "error"
+  >("disconnected");
   const [userInfo, setUserInfo] = useState<GitHubUserInfo | null>(null);
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
   const [issues, setIssues] = useState<GitHubIssue[]>([]);
   const [pullRequests, setPullRequests] = useState<GitHubPullRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRepo, setSelectedRepo] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRepo, setSelectedRepo] = useState("");
   const [activeTab, setActiveTab] = useState(0);
 
   // Modal states
-  const { isOpen: isCreateIssueOpen, onOpen: onCreateIssueOpen, onClose: onCreateIssueClose } = useDisclosure();
-  const { isOpen: isCreatePROpen, onOpen: onCreatePROpen, onClose: onCreatePRClose } = useDisclosure();
+  const {
+    isOpen: isCreateIssueOpen,
+    onOpen: onCreateIssueOpen,
+    onClose: onCreateIssueClose,
+  } = useDisclosure();
+  const {
+    isOpen: isCreatePROpen,
+    onOpen: onCreatePROpen,
+    onClose: onCreatePRClose,
+  } = useDisclosure();
 
   // Form states
-  const [issueTitle, setIssueTitle] = useState('');
-  const [issueBody, setIssueBody] = useState('');
-  const [prTitle, setPrTitle] = useState('');
-  const [prBody, setPrBody] = useState('');
-  const [prHead, setPrHead] = useState('');
-  const [prBase, setPrBase] = useState('');
+  const [issueTitle, setIssueTitle] = useState("");
+  const [issueBody, setIssueBody] = useState("");
+  const [prTitle, setPrTitle] = useState("");
+  const [prBody, setPrBody] = useState("");
+  const [prHead, setPrHead] = useState("");
+  const [prBase, setPrBase] = useState("");
 
-  const logger = new Logger('GitHubDesktopManager');
+  const logger = new Logger("GitHubDesktopManager");
   const toast = useToast();
 
   // Check connection status on mount
   useEffect(() => {
     checkConnectionStatus();
-    
+
     // Listen for GitHub events
-    EventBus.on('github:connected', handleGitHubConnected);
-    EventBus.on('github:disconnected', handleGitHubDisconnected);
+    EventBus.on("github:connected", handleGitHubConnected);
+    EventBus.on("github:disconnected", handleGitHubDisconnected);
 
     return () => {
-      EventBus.off('github:connected');
-      EventBus.off('github:disconnected');
+      EventBus.off("github:connected");
+      EventBus.off("github:disconnected");
     };
   }, []);
 
   // Notify parent of connection changes
   useEffect(() => {
     if (onConnectionChange) {
-      onConnectionChange(connectionStatus === 'connected');
+      onConnectionChange(connectionStatus === "connected");
     }
   }, [connectionStatus, onConnectionChange]);
 
   const checkConnectionStatus = async () => {
     try {
-      const result = await invoke<any>('get_github_connection', { userId });
-      
+      const result = await invoke<any>("get_github_connection", { userId });
+
       if (result.connected) {
-        setConnectionStatus('connected');
+        setConnectionStatus("connected");
         setUserInfo(result.user_info);
         await loadUserData();
       } else {
-        setConnectionStatus('disconnected');
+        setConnectionStatus("disconnected");
       }
     } catch (error) {
-      logger.error('Failed to check GitHub connection', error);
-      setConnectionStatus('error');
+      logger.error("Failed to check GitHub connection", error);
+      setConnectionStatus("error");
     }
   };
 
@@ -289,10 +300,13 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
     setIsLoading(true);
     try {
       // Load repositories
-      const repos = await invoke<GitHubRepository[]>('get_github_user_repositories', {
-        userId,
-        limit: 20
-      });
+      const repos = await invoke<GitHubRepository[]>(
+        "get_github_user_repositories",
+        {
+          userId,
+          limit: 20,
+        },
+      );
       setRepositories(repos);
 
       if (repos.length > 0) {
@@ -300,11 +314,11 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
         await loadRepositoryData(repos[0].full_name);
       }
     } catch (error) {
-      logger.error('Failed to load GitHub data', error);
+      logger.error("Failed to load GitHub data", error);
       toast({
-        title: 'Failed to load GitHub data',
-        description: 'Please check your connection and try again.',
-        status: 'error',
+        title: "Failed to load GitHub data",
+        description: "Please check your connection and try again.",
+        status: "error",
         duration: 5000,
       });
     } finally {
@@ -314,60 +328,66 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
 
   const loadRepositoryData = async (repoFullName: string) => {
     try {
-      const [owner, repo] = repoFullName.split('/');
-      
+      const [owner, repo] = repoFullName.split("/");
+
       // Load issues
-      const issuesData = await invoke<GitHubIssue[]>('get_github_repository_issues', {
-        userId,
-        owner,
-        repo,
-        state: 'open',
-        limit: 10
-      });
+      const issuesData = await invoke<GitHubIssue[]>(
+        "get_github_repository_issues",
+        {
+          userId,
+          owner,
+          repo,
+          state: "open",
+          limit: 10,
+        },
+      );
       setIssues(issuesData);
 
       // Load pull requests
-      const prData = await invoke<GitHubPullRequest[]>('get_github_pull_requests', {
-        userId,
-        owner,
-        repo,
-        state: 'open',
-        limit: 10
-      });
+      const prData = await invoke<GitHubPullRequest[]>(
+        "get_github_pull_requests",
+        {
+          userId,
+          owner,
+          repo,
+          state: "open",
+          limit: 10,
+        },
+      );
       setPullRequests(prData);
     } catch (error) {
-      logger.error('Failed to load repository data', error);
+      logger.error("Failed to load repository data", error);
     }
   };
 
   const handleConnect = async () => {
     try {
-      setConnectionStatus('connecting');
-      
-      const result = await invoke<any>('get_github_oauth_url', { userId });
-      
+      setConnectionStatus("connecting");
+
+      const result = await invoke<any>("get_github_oauth_url", { userId });
+
       // Open OAuth URL in browser
-      if (window.open(result.oauth_url, '_blank')) {
+      if (window.open(result.oauth_url, "_blank")) {
         // Listen for OAuth callback
         const handleOAuthCallback = (event: MessageEvent) => {
-          if (event.data.type === 'github_oauth_success') {
-            window.removeEventListener('message', handleOAuthCallback);
+          if (event.data.type === "github_oauth_success") {
+            window.removeEventListener("message", handleOAuthCallback);
             handleGitHubConnected();
-          } else if (event.data.type === 'github_oauth_error') {
-            window.removeEventListener('message', handleOAuthCallback);
-            setConnectionStatus('error');
+          } else if (event.data.type === "github_oauth_error") {
+            window.removeEventListener("message", handleOAuthCallback);
+            setConnectionStatus("error");
           }
         };
-        
-        window.addEventListener('message', handleOAuthCallback);
+
+        window.addEventListener("message", handleOAuthCallback);
       }
     } catch (error) {
-      logger.error('Failed to initiate GitHub OAuth', error);
-      setConnectionStatus('error');
+      logger.error("Failed to initiate GitHub OAuth", error);
+      setConnectionStatus("error");
       toast({
-        title: 'Failed to connect to GitHub',
-        description: 'Please try again later.',
-        status: 'error',
+        title: "Failed to connect to GitHub",
+        description: "Please try again later.",
+        status: "error",
         duration: 5000,
       });
     }
@@ -375,62 +395,62 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
 
   const handleDisconnect = async () => {
     try {
-      await invoke<any>('disconnect_github', { userId });
+      await invoke<any>("disconnect_github", { userId });
       handleGitHubDisconnected();
     } catch (error) {
-      logger.error('Failed to disconnect from GitHub', error);
+      logger.error("Failed to disconnect from GitHub", error);
     }
   };
 
   const handleGitHubConnected = () => {
-    setConnectionStatus('connected');
+    setConnectionStatus("connected");
     loadUserData();
-    EventBus.emit('github:connected', { userId });
+    EventBus.emit("github:connected", { userId });
   };
 
   const handleGitHubDisconnected = () => {
-    setConnectionStatus('disconnected');
+    setConnectionStatus("disconnected");
     setUserInfo(null);
     setRepositories([]);
     setIssues([]);
     setPullRequests([]);
-    EventBus.emit('github:disconnected', { userId });
+    EventBus.emit("github:disconnected", { userId });
   };
 
   const handleCreateIssue = async () => {
     if (!issueTitle || !selectedRepo) return;
 
     try {
-      const [owner, repo] = selectedRepo.split('/');
-      
-      const result = await invoke<any>('create_github_issue', {
+      const [owner, repo] = selectedRepo.split("/");
+
+      const result = await invoke<any>("create_github_issue", {
         userId,
         owner,
         repo,
         title: issueTitle,
-        body: issueBody
+        body: issueBody,
       });
 
       if (result.success) {
         toast({
-          title: 'Issue created successfully',
+          title: "Issue created successfully",
           description: `Issue #${result.issue_number} created`,
-          status: 'success',
+          status: "success",
           duration: 5000,
         });
-        
+
         // Refresh issues
         await loadRepositoryData(selectedRepo);
         onCreateIssueClose();
-        setIssueTitle('');
-        setIssueBody('');
+        setIssueTitle("");
+        setIssueBody("");
       }
     } catch (error) {
-      logger.error('Failed to create issue', error);
+      logger.error("Failed to create issue", error);
       toast({
-        title: 'Failed to create issue',
-        description: 'Please try again.',
-        status: 'error',
+        title: "Failed to create issue",
+        description: "Please try again.",
+        status: "error",
         duration: 5000,
       });
     }
@@ -440,40 +460,40 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
     if (!prTitle || !selectedRepo || !prHead || !prBase) return;
 
     try {
-      const [owner, repo] = selectedRepo.split('/');
-      
-      const result = await invoke<any>('create_github_pull_request', {
+      const [owner, repo] = selectedRepo.split("/");
+
+      const result = await invoke<any>("create_github_pull_request", {
         userId,
         owner,
         repo,
         title: prTitle,
         body: prBody,
         head: prHead,
-        base: prBase
+        base: prBase,
       });
 
       if (result.success) {
         toast({
-          title: 'Pull request created successfully',
+          title: "Pull request created successfully",
           description: `PR #${result.pr_number} created`,
-          status: 'success',
+          status: "success",
           duration: 5000,
         });
-        
+
         // Refresh PRs
         await loadRepositoryData(selectedRepo);
         onCreatePRClose();
-        setPrTitle('');
-        setPrBody('');
-        setPrHead('');
-        setPrBase('');
+        setPrTitle("");
+        setPrBody("");
+        setPrHead("");
+        setPrBase("");
       }
     } catch (error) {
-      logger.error('Failed to create pull request', error);
+      logger.error("Failed to create pull request", error);
       toast({
-        title: 'Failed to create pull request',
-        description: 'Please try again.',
-        status: 'error',
+        title: "Failed to create pull request",
+        description: "Please try again.",
+        status: "error",
         duration: 5000,
       });
     }
@@ -485,11 +505,11 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
 
   const getConnectionBadge = () => {
     switch (connectionStatus) {
-      case 'connected':
+      case "connected":
         return <Badge colorScheme="green">Connected</Badge>;
-      case 'connecting':
+      case "connecting":
         return <Badge colorScheme="yellow">Connecting...</Badge>;
-      case 'error':
+      case "error":
         return <Badge colorScheme="red">Error</Badge>;
       default:
         return <Badge colorScheme="gray">Disconnected</Badge>;
@@ -501,17 +521,19 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
       {/* Header */}
       <HStack justify="space-between" align="center">
         <HStack spacing={3}>
-          <Icon as={FiGithub} box={6} color="gray.700" />
-          <Heading size="md" color="gray.800">GitHub Integration</Heading>
+          <Icon as={FiGithub} fontSize="24px" color="gray.700" />
+          <Heading size="md" color="gray.800">
+            GitHub Integration
+          </Heading>
           {getConnectionBadge()}
         </HStack>
-        
+
         <HStack spacing={2}>
-          {connectionStatus === 'connected' ? (
+          {connectionStatus === "connected" ? (
             <>
               <Tooltip label="Refresh data">
                 <IconButton
-                  icon={<FiRefresh />}
+                  icon={<FiRefreshCw />}
                   aria-label="Refresh"
                   variant="ghost"
                   onClick={loadUserData}
@@ -532,7 +554,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
             <Button
               leftIcon={<FiGithub />}
               onClick={handleConnect}
-              isLoading={connectionStatus === 'connecting'}
+              isLoading={connectionStatus === "connecting"}
             >
               Connect GitHub
             </Button>
@@ -541,7 +563,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
       </HStack>
 
       {/* Connection Status */}
-      {connectionStatus === 'connected' && userInfo ? (
+      {connectionStatus === "connected" && userInfo ? (
         <Card>
           <CardBody>
             <HStack spacing={4}>
@@ -556,17 +578,26 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                 <Text fontSize="lg" fontWeight="bold">
                   {userInfo.name || userInfo.login}
                 </Text>
-                <Text fontSize="sm" color="gray.600">@{userInfo.login}</Text>
+                <Text fontSize="sm" color="gray.600">
+                  @{userInfo.login}
+                </Text>
                 {userInfo.company && (
-                  <Text fontSize="xs" color="gray.500">{userInfo.company}</Text>
+                  <Text fontSize="xs" color="gray.500">
+                    {userInfo.company}
+                  </Text>
                 )}
                 {userInfo.bio && (
-                  <Text fontSize="xs" color="gray.500" maxWidth="400px" noOfLines={2}>
+                  <Text
+                    fontSize="xs"
+                    color="gray.500"
+                    maxWidth="400px"
+                    noOfLines={2}
+                  >
                     {userInfo.bio}
                   </Text>
                 )}
               </VStack>
-              
+
               <HStack spacing={6} ml="auto">
                 <Stat>
                   <StatNumber>{userInfo.public_repos}</StatNumber>
@@ -584,27 +615,37 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
             </HStack>
           </CardBody>
         </Card>
-      ) : connectionStatus === 'disconnected' ? (
+      ) : connectionStatus === "disconnected" ? (
         <Alert status="info">
           <FiGithub />
           <Box>
             <Text fontWeight="bold">GitHub is not connected</Text>
-            <Text>Connect your GitHub account to access repositories, issues, and pull requests.</Text>
+            <Text>
+              Connect your GitHub account to access repositories, issues, and
+              pull requests.
+            </Text>
           </Box>
         </Alert>
-      ) : connectionStatus === 'error' ? (
+      ) : connectionStatus === "error" ? (
         <Alert status="error">
           <FiX />
           <Box>
             <Text fontWeight="bold">GitHub connection error</Text>
-            <Text>There was an error connecting to GitHub. Please try again.</Text>
+            <Text>
+              There was an error connecting to GitHub. Please try again.
+            </Text>
           </Box>
         </Alert>
       ) : null}
 
       {/* Main Content */}
-      {connectionStatus === 'connected' ? (
-        <Tabs variant="soft-rounded" colorScheme="blue" index={activeTab} onChange={setActiveTab}>
+      {connectionStatus === "connected" ? (
+        <Tabs
+          variant="soft-rounded"
+          colorScheme="blue"
+          index={activeTab}
+          onChange={setActiveTab}
+        >
           <TabList>
             <Tab>
               <HStack spacing={2}>
@@ -614,7 +655,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
             </Tab>
             <Tab>
               <HStack spacing={2}>
-                <Icon as={FiIssue} />
+                <Icon as={FiAlertTriangle} />
                 <Text>Issues</Text>
               </HStack>
             </Tab>
@@ -631,13 +672,21 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
             <TabPanel>
               <VStack spacing={4} align="stretch">
                 <HStack justify="space-between">
-                  <Input
-                    placeholder="Search repositories..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    leftElement={<FiSearch />}
-                  />
-                  <Button leftIcon={<FiRefresh />} onClick={loadUserData} isLoading={isLoading}>
+                  <InputGroup>
+                    <InputLeftElement pointerEvents="none">
+                      <FiSearch color="gray.300" />
+                    </InputLeftElement>
+                    <Input
+                      placeholder="Search repositories..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </InputGroup>
+                  <Button
+                    leftIcon={<FiRefreshCw />}
+                    onClick={loadUserData}
+                    isLoading={isLoading}
+                  >
                     Refresh
                   </Button>
                 </HStack>
@@ -649,13 +698,22 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                         <HStack justify="space-between">
                           <VStack align="start" spacing={2}>
                             <HStack>
-                              <Icon as={FiRepo} color="gray.600" />
+                              <Icon as={FiFolder} color="gray.600" />
                               <Text fontWeight="bold">{repo.full_name}</Text>
-                              {repo.private && <Icon as={FiLock} color="gray.500" />}
-                              {repo.fork && <Icon as={FiFork} color="gray.500" />}
+                              {repo.private && (
+                                <Icon as={FiLock} color="gray.500" />
+                              )}
+                              {repo.fork && (
+                                <Icon as={FiGitPullRequest} color="gray.500" />
+                              )}
                             </HStack>
                             {repo.description && (
-                              <Text fontSize="sm" color="gray.600" maxWidth="500px" noOfLines={2}>
+                              <Text
+                                fontSize="sm"
+                                color="gray.600"
+                                maxWidth="500px"
+                                noOfLines={2}
+                              >
                                 {repo.description}
                               </Text>
                             )}
@@ -665,11 +723,11 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                                 <Text>{repo.stargazers_count}</Text>
                               </HStack>
                               <HStack spacing={1}>
-                                <FiFork />
+                                <Icon as={FiFork} />
                                 <Text>{repo.forks_count}</Text>
                               </HStack>
                               <HStack spacing={1}>
-                                <FiIssue />
+                                <Icon as={FiAlertTriangle} />
                                 <Text>{repo.open_issues_count}</Text>
                               </HStack>
                               {repo.language && (
@@ -679,7 +737,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                               )}
                             </HStack>
                           </VStack>
-                          
+
                           <VStack align="end" spacing={2}>
                             <Button
                               size="sm"
@@ -730,7 +788,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                       ))}
                     </Select>
                   </FormControl>
-                  
+
                   <Button leftIcon={<FiPlus />} onClick={onCreateIssueOpen}>
                     Create Issue
                   </Button>
@@ -743,30 +801,49 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                         <HStack justify="space-between">
                           <VStack align="start" spacing={2}>
                             <HStack>
-                              <Icon as={FiIssue} color={issue.state === 'open' ? 'orange.500' : 'green.500'} />
-                              <Text fontWeight="bold">
-                                {issue.title}
-                              </Text>
-                              <Badge colorScheme={issue.state === 'open' ? 'orange' : 'green'}>
+                              <Icon
+                                as={FiAlertCircle}
+                                color={
+                                  issue.state === "open"
+                                    ? "orange.500"
+                                    : "green.500"
+                                }
+                              />
+                              <Text fontWeight="bold">{issue.title}</Text>
+                              <Badge
+                                colorScheme={
+                                  issue.state === "open" ? "orange" : "green"
+                                }
+                              >
                                 {issue.state}
                               </Badge>
                             </HStack>
-                            
+
                             {issue.body && (
-                              <Text fontSize="sm" color="gray.600" maxWidth="600px" noOfLines={2}>
+                              <Text
+                                fontSize="sm"
+                                color="gray.600"
+                                maxWidth="600px"
+                                noOfLines={2}
+                              >
                                 {issue.body}
                               </Text>
                             )}
-                            
+
                             <HStack spacing={4}>
                               <Text fontSize="xs" color="gray.500">
-                                #{issue.number} • opened {formatDateTime(issue.created_at)}
+                                #{issue.number} • opened{" "}
+                                {formatDateTime(issue.created_at)}
                               </Text>
-                              
+
                               {issue.labels.length > 0 && (
                                 <HStack spacing={1}>
                                   {issue.labels.map((label) => (
-                                    <Tag key={label.id} size="sm" backgroundColor={`#${label.color}`}>
+                                    <Tag
+                                      key={label.id}
+                                      size="sm"
+                                      backgroundColor={`#${label.color}`}
+                                    >
                                       <TagLabel>{label.name}</TagLabel>
                                     </Tag>
                                   ))}
@@ -774,13 +851,19 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                               )}
                             </HStack>
                           </VStack>
-                          
+
                           <VStack align="end">
                             <HStack>
-                              <Avatar size="sm" src={issue.user.avatar_url} name={issue.user.login} />
-                              <Text fontSize="xs" color="gray.500">{issue.user.login}</Text>
+                              <Avatar
+                                size="sm"
+                                src={issue.user.avatar_url}
+                                name={issue.user.login}
+                              />
+                              <Text fontSize="xs" color="gray.500">
+                                {issue.user.login}
+                              </Text>
                             </HStack>
-                            
+
                             <Button
                               size="sm"
                               variant="outline"
@@ -820,7 +903,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                       ))}
                     </Select>
                   </FormControl>
-                  
+
                   <Button leftIcon={<FiPlus />} onClick={onCreatePROpen}>
                     Create PR
                   </Button>
@@ -833,39 +916,61 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                         <HStack justify="space-between">
                           <VStack align="start" spacing={2}>
                             <HStack>
-                              <Icon as={FiGitPullRequest} color={pr.state === 'open' ? 'blue.500' : pr.state === 'merged' ? 'purple.500' : 'green.500'} />
-                              <Text fontWeight="bold">
-                                {pr.title}
-                              </Text>
-                              <Badge colorScheme={
-                                pr.state === 'open' ? 'blue' :
-                                pr.state === 'merged' ? 'purple' : 'green'
-                              }>
+                              <Icon
+                                as={FiGitPullRequest}
+                                color={
+                                  pr.state === "open"
+                                    ? "blue.500"
+                                    : pr.state === "merged"
+                                      ? "purple.500"
+                                      : "green.500"
+                                }
+                              />
+                              <Text fontWeight="bold">{pr.title}</Text>
+                              <Badge
+                                colorScheme={
+                                  pr.state === "open"
+                                    ? "blue"
+                                    : pr.state === "merged"
+                                      ? "purple"
+                                      : "green"
+                                }
+                              >
                                 {pr.state}
                               </Badge>
                             </HStack>
-                            
+
                             {pr.body && (
-                              <Text fontSize="sm" color="gray.600" maxWidth="600px" noOfLines={2}>
+                              <Text
+                                fontSize="sm"
+                                color="gray.600"
+                                maxWidth="600px"
+                                noOfLines={2}
+                              >
                                 {pr.body}
                               </Text>
                             )}
-                            
+
                             <HStack spacing={4}>
                               <Text fontSize="xs" color="gray.500">
                                 #{pr.number} • {pr.head.label} → {pr.base.label}
                               </Text>
                               <Text fontSize="xs" color="gray.500">
-                                {pr.additions} additions, {pr.deletions} deletions
+                                {pr.additions} additions, {pr.deletions}{" "}
+                                deletions
                               </Text>
                               <Text fontSize="xs" color="gray.500">
                                 opened {formatDateTime(pr.created_at)}
                               </Text>
-                              
+
                               {pr.labels.length > 0 && (
                                 <HStack spacing={1}>
                                   {pr.labels.map((label) => (
-                                    <Tag key={label.id} size="sm" backgroundColor={`#${label.color}`}>
+                                    <Tag
+                                      key={label.id}
+                                      size="sm"
+                                      backgroundColor={`#${label.color}`}
+                                    >
                                       <TagLabel>{label.name}</TagLabel>
                                     </Tag>
                                   ))}
@@ -873,13 +978,19 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                               )}
                             </HStack>
                           </VStack>
-                          
+
                           <VStack align="end">
                             <HStack>
-                              <Avatar size="sm" src={pr.user.avatar_url} name={pr.user.login} />
-                              <Text fontSize="xs" color="gray.500">{pr.user.login}</Text>
+                              <Avatar
+                                size="sm"
+                                src={pr.user.avatar_url}
+                                name={pr.user.login}
+                              />
+                              <Text fontSize="xs" color="gray.500">
+                                {pr.user.login}
+                              </Text>
                             </HStack>
-                            
+
                             <Button
                               size="sm"
                               variant="outline"
@@ -918,7 +1029,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                   placeholder="Issue title"
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel>Description</FormLabel>
                 <Textarea
@@ -934,7 +1045,11 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
             <Button variant="outline" onClick={onCreateIssueClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleCreateIssue} isLoading={isLoading}>
+            <Button
+              colorScheme="blue"
+              onClick={handleCreateIssue}
+              isLoading={isLoading}
+            >
               Create Issue
             </Button>
           </ModalFooter>
@@ -942,7 +1057,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
       </Modal>
 
       {/* Create Pull Request Modal */}
-      <Modal isOpen={isCreatePROpen} onClose={onCreatePrClose} size="lg">
+      <Modal isOpen={isCreatePROpen} onClose={onCreatePRClose} size="lg">
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Create Pull Request</ModalHeader>
@@ -957,7 +1072,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                   placeholder="Pull request title"
                 />
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel>Description</FormLabel>
                 <Textarea
@@ -967,7 +1082,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                   rows={6}
                 />
               </FormControl>
-              
+
               <HStack spacing={4} width="full">
                 <FormControl>
                   <FormLabel>Head Branch</FormLabel>
@@ -977,7 +1092,7 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
                     placeholder="feature-branch"
                   />
                 </FormControl>
-                
+
                 <FormControl>
                   <FormLabel>Base Branch</FormLabel>
                   <Input
@@ -990,10 +1105,14 @@ const GitHubDesktopManager: React.FC<GitHubDesktopManagerProps> = ({
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" onClick={onCreatePrClose}>
+            <Button variant="outline" onClick={onCreatePRClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleCreatePR} isLoading={isLoading}>
+            <Button
+              colorScheme="blue"
+              onClick={handleCreatePR}
+              isLoading={isLoading}
+            >
               Create PR
             </Button>
           </ModalFooter>

@@ -20,7 +20,7 @@ class GoogleIntegrationTester:
     """Comprehensive Google integration testing"""
 
     def __init__(self):
-        self.base_url = "http://localhost:8000"
+        self.base_url = "http://localhost:5058"
         self.test_user_id = "test_user_google"
         self.results = {
             "timestamp": datetime.now().isoformat(),
@@ -324,13 +324,16 @@ class GoogleIntegrationTester:
             health_response = requests.get(f"{self.base_url}/health", timeout=5)
             if health_response.status_code != 200:
                 print("❌ Backend server is not running")
+                print(f"Response status: {health_response.status_code}")
+                print(f"Response text: {health_response.text}")
                 print("Please start the backend server first:")
-                print("  cd backend/python-api-service && python main_api_app.py")
+                print("  cd backend/python-api-service && python minimal_api_app.py")
                 return self.results
-        except:
-            print("❌ Backend server is not accessible")
+        except Exception as e:
+            print(f"❌ Backend server is not accessible: {e}")
+            print(f"Tried to connect to: {self.base_url}/health")
             print("Please start the backend server first:")
-            print("  cd backend/python-api-service && python main_api_app.py")
+            print("  cd backend/python-api-service && python minimal_api_app.py")
             return self.results
 
         print("✅ Backend server is running")

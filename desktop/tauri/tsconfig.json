@@ -20,10 +20,19 @@
       "@shared/*": ["../../../src/ui-shared/*"],
       "@shared-components/*": ["../../../src/ui-shared/components/*"],
       "@shared-hooks/*": ["../../../src/ui-shared/hooks/*"],
+      "@shared-services/*": ["../../../src/services/*"],
+      "@shared-ai/*": ["../../../src/services/ai/*"],
+      "@shared-integrations/*": ["../../../src/services/integrations/*"],
+      "@shared-workflows/*": ["../../../src/services/workflows/*"],
+      "@shared-utils/*": ["../../../src/services/utils/*"],
       "@chakra-ui/react": ["node_modules/@chakra-ui/react"],
       "@chakra-ui/icons": ["node_modules/@chakra-ui/icons"]
     }
   },
-  "include": ["src", "../../../src/ui-shared/**/*"],
+  "include": [
+    "src",
+    "../../../src/ui-shared/**/*",
+    "../../../src/services/**/*"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,0 +1,83 @@
+{
+  "timestamp": "2025-11-05T11:24:19.882956",
+  "tests": {
+    "Health Check": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.940192",
+      "details": {
+        "status": "healthy",
+        "service_available": true,
+        "database_available": true
+      }
+    },
+    "OAuth URL": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.944842",
+      "details": {
+        "oauth_url": "https://accounts.google.com/oauth/authorize?client_id=829155852753-o8e7t525t6caviqrg9rfqgdsj8sf2i6q.apps.googleusercontent.com&redirect_uri=http://localhost:3000/oauth/google/callback&scope=https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly&response_type=code",
+        "service": "google"
+      }
+    },
+    "Gmail Messages": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.949721",
+      "details": {
+        "messages_count": 2,
+        "query": "test",
+        "max_results": 5
+      }
+    },
+    "Calendar Events": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.957629",
+      "details": {
+        "events_count": 2,
+        "time_range": "2025-11-05T16:24:22.949804Z to 2025-11-12T16:24:22.950481Z"
+      }
+    },
+    "Drive Files": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.964786",
+      "details": {
+        "files_count": 2,
+        "query": "test",
+        "page_size": 5
+      }
+    },
+    "Google Search": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.972156",
+      "details": {
+        "results_count": 2,
+        "query": "project",
+        "services": [
+          "gmail",
+          "drive",
+          "calendar"
+        ]
+      }
+    },
+    "User Profile": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.977082",
+      "details": {
+        "user_email": "test_user_google@gmail.com",
+        "services_connected": 3
+      }
+    },
+    "Mock Event Creation": {
+      "status": "passed",
+      "timestamp": "2025-11-05T11:24:22.982415",
+      "details": {
+        "event_id": "evt_new_001",
+        "summary": "Test Meeting"
+      }
+    }
+  },
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "success_rate": 100.0
+  }
+}

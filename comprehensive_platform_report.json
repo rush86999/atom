@@ -1,0 +1,65 @@
+{
+  "platform_status": "EXCELLENT",
+  "active_services": 5,
+  "total_services": 5,
+  "service_coverage": "100.0%",
+  "total_features": 19,
+  "total_endpoints": 28,
+  "services": {
+    "google": {
+      "endpoints_tested": 5,
+      "responses_valid": 5,
+      "features": [
+        "Gmail",
+        "Calendar",
+        "Drive"
+      ],
+      "status": "active"
+    },
+    "slack": {
+      "endpoints_tested": 6,
+      "responses_valid": 6,
+      "features": [
+        "Channels",
+        "Messages",
+        "Users",
+        "Workspaces"
+      ],
+      "status": "active"
+    },
+    "teams": {
+      "endpoints_tested": 7,
+      "responses_valid": 7,
+      "features": [
+        "Teams",
+        "Channels",
+        "Messages",
+        "Meetings",
+        "Users"
+      ],
+      "status": "active"
+    },
+    "github": {
+      "endpoints_tested": 4,
+      "responses_valid": 4,
+      "features": [
+        "Repositories",
+        "User Profile",
+        "OAuth"
+      ],
+      "status": "active"
+    },
+    "outlook": {
+      "endpoints_tested": 6,
+      "responses_valid": 6,
+      "features": [
+        "Emails",
+        "Calendar",
+        "Contacts",
+        "Users"
+      ],
+      "status": "active"
+    }
+  },
+  "generated_at": "2025-11-05T18:23:23.606692"
+}

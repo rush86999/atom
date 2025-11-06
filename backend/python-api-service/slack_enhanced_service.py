@@ -1,1050 +1,1795 @@
 """
-Enhanced Slack Service Implementation
-Complete Slack integration with comprehensive API operations
+Slack Enhanced Service Implementation
+Complete Slack team communication with API integration
 """
 
 import os
 import logging
-import asyncio
-import httpx
 import json
-from datetime import datetime, timedelta, timezone
+import asyncio
+import hashlib
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, List, Union
-
-# Import encryption utilities
-try:
-    from atom_encryption import decrypt_data, encrypt_data
-    ENCRYPTION_AVAILABLE = True
-except ImportError:
-    ENCRYPTION_AVAILABLE = False
-
-# Import database operations
-try:
-    from db_oauth_slack_complete import get_user_slack_tokens, get_slack_user
-    SLACK_DB_AVAILABLE = True
-except ImportError as e:
-    logging.getLogger(__name__).warning(f"Slack database operations not available: {e}")
-    SLACK_DB_AVAILABLE = False
-
-# Slack API configuration
-SLACK_API_BASE_URL = "https://slack.com/api"
-DEFAULT_TIMEOUT = 30
+from dataclasses import dataclass, asdict
+import httpx
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Data model classes
-class SlackMessage:
-    """Slack message data model"""
-    
-    def __init__(self, data: Dict[str, Any]):
-        self.ts = data.get("ts")
-        self.text = data.get("text")
-        self.user = data.get("user")
-        self.channel = data.get("channel")
-        self.thread_ts = data.get("thread_ts")
-        self.username = data.get("username")
-        self.bot_id = data.get("bot_id")
-        self.files = data.get("files", [])
-        self.reactions = data.get("reactions", [])
-        self.pinned_to = data.get("pinned_to", [])
-        self.message_type = data.get("type", "message")
-        self.subtype = data.get("subtype")
-        self.blocks = data.get("blocks", [])
-        self.attachments = data.get("attachments", [])
-        self.team = data.get("team")
-        self.app_id = data.get("app_id")
-        self.edited = data.get("edited", {})
-        self.last_read = data.get("last_read")
+# Slack API configuration
+SLACK_API_BASE_URL = "https://slack.com/api/v1"
+
+@dataclass
+class SlackWorkspace:
+    """Slack workspace representation"""
+    id: str
+    name: str
+    domain: str
+    email_domain: str
+    icon: Dict[str, Any]
+    created: int
+    plan: str
+    enterprise_id: str
+    enterprise_name: str
+    is_verified: bool
+    date_created: str
+    url: str
+    privacy: str
+    limit: int
+    account_tier: str
+    total_users: int
+    total_channels: int
+    total_messages: int
+    total_files: int
+    features: Dict[str, Any]
+    metadata: Dict[str, Any]
     
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            'ts': self.ts,
-            'text': self.text,
-            'user': self.user,
-            'channel': self.channel,
-            'thread_ts': self.thread_ts,
-            'username': self.username,
-            'bot_id': self.bot_id,
-            'files': self.files,
-            'reactions': self.reactions,
-            'pinned_to': self.pinned_to,
-            'type': self.message_type,
-            'subtype': self.subtype,
-            'blocks': self.blocks,
-            'attachments': self.attachments,
-            'team': self.team,
-            'app_id': self.app_id,
-            'edited': self.edited,
-            'last_read': self.last_read
-        }
+        """Convert to dictionary"""
+        return asdict(self)
 
+@dataclass
 class SlackChannel:
-    """Slack channel data model"""
-    
-    def __init__(self, data: Dict[str, Any]):
-        self.id = data.get("id")
-        self.name = data.get("name")
-        self.is_channel = data.get("is_channel", False)
-        self.is_group = data.get("is_group", False)
-        self.is_im = data.get("is_im", False)
-        self.is_mpim = data.get("is_mpim", False)
-        self.is_private = data.get("is_private", False)
-        self.is_archived = data.get("is_archived", False)
-        self.is_general = data.get("is_general", False)
-        self.name_normalized = data.get("name_normalized")
-        self.is_shared = data.get("is_shared", False)
-        self.is_org_shared = data.get("is_org_shared", False)
-        self.is_pending_ext_shared = data.get("is_pending_ext_shared", False)
-        self.parent_conversation = data.get("parent_conversation")
-        self.creator = data.get("creator")
-        self.is_ext_shared = data.get("is_ext_shared", False)
-        self.shared_team_ids = data.get("shared_team_ids", [])
-        self.num_members = data.get("num_members")
-        self.topic = data.get("topic", {}).get("value", "")
-        self.purpose = data.get("purpose", {}).get("value", "")
-        self.previous_names = data.get("previous_names", [])
-        self.priority = data.get("priority")
-        self.created = data.get("created")
-        self.connected_team_ids = data.get("connected_team_ids", [])
-        self.conversation_host_id = data.get("conversation_host_id")
-        self.internal_team_ids = data.get("internal_team_ids", [])
-        self.unlinked = data.get("unlinked", False)
-        self.notifications = data.get("notifications")
-        self.joined = data.get("is_member", True)
-        self.pending_shared = data.get("is_pending_shared", [])
-        self.date_last_read = data.get("date_last_read")
-        self.unread_count = data.get("unread_count", 0)
-        self.unread_count_display = data.get("unread_count_display", 0)
-        self.user_limit = data.get("user_limit")
-        self.who_can_post = data.get("who_can_post")
-        self.slack_commands_enabled = data.get("slack_commands_enabled", True)
-        self.blocks = data.get("blocks")
-        self.attachments = data.get("attachments")
-        self.team = data.get("team")
+    """Slack channel representation"""
+    id: str
+    name: str
+    name_normalized: str
+    is_channel: bool
+    is_group: bool
+    is_im: bool
+    is_mpim: bool
+    is_private: bool
+    is_archived: bool
+    is_general: bool
+    is_shared: bool
+    is_org_shared: bool
+    is_ext_shared: bool
+    is_pending_ext_shared: bool
+    topic: Dict[str, Any]
+    purpose: Dict[str, Any]
+    created: int
+    creator: str
+    members_count: int
+    messages_count: int
+    files_count: int
+    last_read: str
+    latest: str
+    unread_count: int
+    unread_count_display: int
+    pinned_to: List[str]
+    linked_channel_ids: List[str]
+    shared_team_ids: List[str]
+    previous_names: List[str]
+    num_members: int
+    locale: str
+    user_count: int
+    has_pins: bool
+    pin_count: int
+    is_threaded: bool
+    thread_count: int
+    workspace_id: str
+    workspace_name: str
+    metadata: Dict[str, Any]
     
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            'id': self.id,
-            'name': self.name,
-            'is_channel': self.is_channel,
-            'is_group': self.is_group,
-            'is_im': self.is_im,
-            'is_mpim': self.is_mpim,
-            'is_private': self.is_private,
-            'is_archived': self.is_archived,
-            'is_general': self.is_general,
-            'name_normalized': self.name_normalized,
-            'is_shared': self.is_shared,
-            'is_org_shared': self.is_org_shared,
-            'is_pending_ext_shared': self.is_pending_ext_shared,
-            'parent_conversation': self.parent_conversation,
-            'creator': self.creator,
-            'is_ext_shared': self.is_ext_shared,
-            'shared_team_ids': self.shared_team_ids,
-            'num_members': self.num_members,
-            'topic': self.topic,
-            'purpose': self.purpose,
-            'previous_names': self.previous_names,
-            'priority': self.priority,
-            'created': self.created,
-            'connected_team_ids': self.connected_team_ids,
-            'conversation_host_id': self.conversation_host_id,
-            'internal_team_ids': self.internal_team_ids,
-            'unlinked': self.unlinked,
-            'notifications': self.notifications,
-            'joined': self.joined,
-            'pending_shared': self.pending_shared,
-            'date_last_read': self.date_last_read,
-            'unread_count': self.unread_count,
-            'unread_count_display': self.unread_count_display,
-            'user_limit': self.user_limit,
-            'who_can_post': self.who_can_post,
-            'slack_commands_enabled': self.slack_commands_enabled,
-            'blocks': self.blocks,
-            'attachments': self.attachments,
-            'team': self.team
-        }
+        """Convert to dictionary"""
+        return asdict(self)
 
+@dataclass
 class SlackUser:
-    """Slack user data model"""
-    
-    def __init__(self, data: Dict[str, Any]):
-        self.id = data.get("id")
-        self.name = data.get("name")
-        self.real_name = data.get("real_name")
-        self.display_name = data.get("profile", {}).get("display_name") or data.get("profile", {}).get("real_name")
-        self.email = data.get("profile", {}).get("email")
-        self.image_24 = data.get("profile", {}).get("image_24")
-        self.image_32 = data.get("profile", {}).get("image_32")
-        self.image_48 = data.get("profile", {}).get("image_48")
-        self.image_72 = data.get("profile", {}).get("image_72")
-        self.image_192 = data.get("profile", {}).get("image_192")
-        self.image_512 = data.get("profile", {}).get("image_512")
-        self.title = data.get("profile", {}).get("title")
-        self.phone = data.get("profile", {}).get("phone")
-        self.skype = data.get("profile", {}).get("skype")
-        self.team_id = data.get("team_id")
-        self.deleted = data.get("deleted", False)
-        self.status = data.get("status")
-        self.is_bot = data.get("is_bot", False)
-        self.is_admin = data.get("is_admin", False)
-        self.is_owner = data.get("is_owner", False)
-        self.is_primary_owner = data.get("is_primary_owner", False)
-        self.is_restricted = data.get("is_restricted", False)
-        self.is_ultra_restricted = data.get("is_ultra_restricted", False)
-        self.is_app_user = data.get("is_app_user", False)
-        self.has_files = data.get("has_files", False)
-        self.presence = data.get("presence")
-        self.tz = data.get("tz")
-        self.tz_label = data.get("tz_label")
-        self.tz_offset = data.get("tz_offset")
-        self.pronouns = data.get("profile", {}).get("pronouns")
-        self.is_workflow_bot = data.get("is_workflow_bot", False)
+    """Slack user representation"""
+    id: str
+    team_id: str
+    name: str
+    deleted: bool
+    color: str
+    real_name: str
+    tz: str
+    tz_label: str
+    tz_offset: int
+    profile: Dict[str, Any]
+    is_admin: bool
+    is_owner: bool
+    is_primary_owner: bool
+    is_restricted: bool
+    is_ultra_restricted: bool
+    is_bot: bool
+    is_app_user: bool
+    is_stranger: bool
+    is_invited_user: bool
+    has_files: bool
+    has_2fa: bool
+    locale: str
+    updated: int
+    enterprise_id: str
+    presence: str
+    online: bool
+    last_seen: str
+    message_count: int
+    file_count: int
+    reaction_count: int
+    mention_count: int
+    workspace_id: str
+    workspace_name: str
+    metadata: Dict[str, Any]
     
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            'id': self.id,
-            'name': self.name,
-            'real_name': self.real_name,
-            'display_name': self.display_name,
-            'email': self.email,
-            'image_24': self.image_24,
-            'image_32': self.image_32,
-            'image_48': self.image_48,
-            'image_72': self.image_72,
-            'image_192': self.image_192,
-            'image_512': self.image_512,
-            'title': self.title,
-            'phone': self.phone,
-            'skype': self.skype,
-            'team_id': self.team_id,
-            'deleted': self.deleted,
-            'status': self.status,
-            'is_bot': self.is_bot,
-            'is_admin': self.is_admin,
-            'is_owner': self.is_owner,
-            'is_primary_owner': self.is_primary_owner,
-            'is_restricted': self.is_restricted,
-            'is_ultra_restricted': self.is_ultra_restricted,
-            'is_app_user': self.is_app_user,
-            'has_files': self.has_files,
-            'presence': self.presence,
-            'tz': self.tz,
-            'tz_label': self.tz_label,
-            'tz_offset': self.tz_offset,
-            'pronouns': self.pronouns,
-            'is_workflow_bot': self.is_workflow_bot
-        }
+        """Convert to dictionary"""
+        return asdict(self)
 
+@dataclass
+class SlackMessage:
+    """Slack message representation"""
+    id: str
+    team: str
+    channel: str
+    user: str
+    type: str
+    subtype: str
+    text: str
+    ts: str
+    thread_ts: str
+    parent_user_id: str
+    reply_count: int
+    reply_users_count: int
+    latest_reply: str
+    reply_users: List[str]
+    reactions: List[Dict[str, Any]]
+    attachments: List[Dict[str, Any]]
+    files: List[Dict[str, Any]]
+    pinned_to: List[str]
+    mentions: List[str]
+    user_mentions: List[str]
+    bot_id: str
+    bot_profile: Dict[str, Any]
+    app_id: str
+    blocks: List[Dict[str, Any]]
+    edited: Dict[str, Any]
+    last_read: str
+    unread_count: int
+    subscribed: bool
+    is_starred: bool
+    has_reactions: bool
+    reaction_count: int
+    has_attachments: bool
+    attachment_count: int
+    has_files: bool
+    file_count: int
+    is_threaded: bool
+    is_thread_parent: bool
+    is_thread_reply: bool
+    workspace_id: str
+    workspace_name: str
+    channel_name: str
+    user_name: str
+    metadata: Dict[str, Any]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        return asdict(self)
+
+@dataclass
 class SlackFile:
-    """Slack file data model"""
-    
-    def __init__(self, data: Dict[str, Any]):
-        self.id = data.get("id")
-        self.created = data.get("created")
-        self.timestamp = data.get("timestamp")
-        self.name = data.get("name")
-        self.title = data.get("title")
-        self.mimetype = data.get("mimetype")
-        self.filetype = data.get("filetype")
-        self.pretty_type = data.get("pretty_type")
-        self.user = data.get("user")
-        self.mode = data.get("mode")
-        self.editable = data.get("editable", False)
-        self.size = data.get("size")
-        self.is_public = data.get("is_public", False)
-        self.public_url_shared = data.get("public_url_shared", False)
-        self.url_private = data.get("url_private")
-        self.url_private_download = data.get("url_private_download")
-        self.display_as_bot = data.get("display_as_bot", False)
-        self.comments_count = data.get("comments_count", 0)
-        self.shares = data.get("shares", {})
-        self.channels = data.get("channels", [])
-        self.groups = data.get("groups", [])
-        self.ims = data.get("ims", [])
-        self.has_rich_preview = data.get("has_rich_preview", False)
-        self.external_id = data.get("external_id")
-        self.external_url = data.get("external_url")
-        self.uploaded = data.get("uploaded")
-        self.initial_comment = data.get("initial_comment", {})
-        self.permalink = data.get("permalink")
-        self.permalink_public = data.get("permalink_public")
-        self.has_more = data.get("has_more", False)
-        self.preview_highlight = data.get("preview_highlight")
+    """Slack file representation"""
+    id: str
+    created: int
+    timestamp: int
+    name: str
+    title: str
+    mimetype: str
+    filetype: str
+    pretty_type: str
+    user: str
+    mode: str
+    editable: bool
+    size: int
+    is_external: bool
+    external_type: str
+    is_public: bool
+    public_url_shared: bool
+    display_as_bot: bool
+    username: str
+    url_private: str
+    url_private_download: str
+    thumb_64: str
+    thumb_80: str
+    thumb_360: str
+    thumb_480: str
+    thumb_720: str
+    thumb_960: str
+    thumb_1024: str
+    original_w: int
+    original_h: int
+    thumb_w: int
+    thumb_h: int
+    image_exif_rotation: int
+    permalink: str
+    permalink_public: str
+    comments_count: int
+    shares: Dict[str, Any]
+    channels: List[str]
+    groups: List[str]
+    ims: List[str]
+    num_channels: int
+    num_groups: int
+    num_ims: int
+    has_rich_preview: bool
+    rich_preview: Dict[str, Any]
+    workspace_id: str
+    workspace_name: str
+    uploader_name: str
+    metadata: Dict[str, Any]
     
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            'id': self.id,
-            'created': self.created,
-            'timestamp': self.timestamp,
-            'name': self.name,
-            'title': self.title,
-            'mimetype': self.mimetype,
-            'filetype': self.filetype,
-            'pretty_type': self.pretty_type,
-            'user': self.user,
-            'mode': self.mode,
-            'editable': self.editable,
-            'size': self.size,
-            'is_public': self.is_public,
-            'public_url_shared': self.public_url_shared,
-            'url_private': self.url_private,
-            'url_private_download': self.url_private_download,
-            'display_as_bot': self.display_as_bot,
-            'comments_count': self.comments_count,
-            'shares': self.shares,
-            'channels': self.channels,
-            'groups': self.groups,
-            'ims': self.ims,
-            'has_rich_preview': self.has_rich_preview,
-            'external_id': self.external_id,
-            'external_url': self.external_url,
-            'uploaded': self.uploaded,
-            'initial_comment': self.initial_comment,
-            'permalink': self.permalink,
-            'permalink_public': self.permalink_public,
-            'has_more': self.has_more,
-            'preview_highlight': self.preview_highlight
-        }
+        """Convert to dictionary"""
+        return asdict(self)
 
-class SlackService:
-    """Enhanced Slack service class"""
+@dataclass
+class SlackReaction:
+    """Slack reaction representation"""
+    name: str
+    count: int
+    users: List[str]
+    message_id: str
+    channel_id: str
+    workspace_id: str
+    workspace_name: str
+    metadata: Dict[str, Any]
     
-    def __init__(self):
-        self._mock_mode = True
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        return asdict(self)
+
+@dataclass
+class SlackWebhook:
+    """Slack webhook representation"""
+    id: str
+    team_id: str
+    enterprise_id: str
+    channel_id: str
+    configuration_url: str
+    url: str
+    active: bool
+    created_at: int
+    updated_at: int
+    trigger_id: str
+    app_id: str
+    app_name: str
+    workspace_id: str
+    workspace_name: str
+    metadata: Dict[str, Any]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary"""
+        return asdict(self)
+
+class SlackEnhancedService:
+    """Enhanced Slack service with complete team communication automation"""
+    
+    def __init__(self, bot_token: str = None, user_token: str = None):
+        self.bot_token = bot_token or os.getenv('SLACK_BOT_TOKEN')
+        self.user_token = user_token or os.getenv('SLACK_USER_TOKEN')
         self.api_base_url = SLACK_API_BASE_URL
-        self.timeout = DEFAULT_TIMEOUT
-        self._mock_db = {
-            'channels': [],
-            'messages': [],
-            'users': [],
-            'files': [],
-            'webhooks': []
+        
+        # Cache for storing data
+        self.workspaces_cache = {}
+        self.channels_cache = {}
+        self.users_cache = {}
+        self.messages_cache = {}
+        self.files_cache = {}
+        self.reactions_cache = {}
+        self.webhooks_cache = {}
+        
+        # Common Slack channel types
+        self.channel_types = {
+            'public_channel': 'Public Channel',
+            'private_channel': 'Private Channel',
+            'im': 'Direct Message',
+            'mpim': 'Group Direct Message',
+            'shared_channel': 'Shared Channel',
+            'org_shared_channel': 'Org Shared Channel'
         }
-        self._init_mock_data()
+        
+        # Common Slack message types
+        self.message_types = {
+            'message': 'Message',
+            'bot_message': 'Bot Message',
+            'me_message': 'Me Message',
+            'file_share': 'File Share',
+            'file_comment': 'File Comment',
+            'message_changed': 'Message Changed',
+            'message_deleted': 'Message Deleted',
+            'channel_join': 'Channel Join',
+            'channel_leave': 'Channel Leave',
+            'channel_topic': 'Channel Topic',
+            'channel_purpose': 'Channel Purpose',
+            'channel_name': 'Channel Name',
+            'channel_archive': 'Channel Archive',
+            'channel_unarchive': 'Channel Unarchive',
+            'group_join': 'Group Join',
+            'group_leave': 'Group Leave',
+            'group_topic': 'Group Topic',
+            'group_purpose': 'Group Purpose',
+            'group_name': 'Group Name',
+            'group_archive': 'Group Archive',
+            'group_unarchive': 'Group Unarchive'
+        }
+        
+        # Common Slack file types
+        self.file_types = {
+            'auto': 'Auto',
+            'jpg': 'JPEG Image',
+            'jpeg': 'JPEG Image',
+            'png': 'PNG Image',
+            'gif': 'GIF Image',
+            'bmp': 'Bitmap Image',
+            'tiff': 'TIFF Image',
+            'mp4': 'MP4 Video',
+            'mov': 'MOV Video',
+            'avi': 'AVI Video',
+            'wmv': 'WMV Video',
+            'mp3': 'MP3 Audio',
+            'wav': 'WAV Audio',
+            'pdf': 'PDF Document',
+            'doc': 'Word Document',
+            'docx': 'Word Document',
+            'xls': 'Excel Spreadsheet',
+            'xlsx': 'Excel Spreadsheet',
+            'ppt': 'PowerPoint Presentation',
+            'pptx': 'PowerPoint Presentation',
+            'txt': 'Text File',
+            'zip': 'ZIP Archive',
+            'tar': 'TAR Archive',
+            'gz': 'GZ Archive',
+            'other': 'Other'
+        }
     
-    def _init_mock_data(self):
-        """Initialize mock data for testing"""
-        # Mock channels
-        self._mock_db['channels'] = [
-            SlackChannel({
-                'id': 'C1234567890',
-                'name': 'general',
-                'is_channel': True,
-                'is_private': False,
-                'is_archived': False,
-                'is_general': True,
-                'topic': {'value': 'Team discussions and announcements'},
-                'purpose': {'value': 'This channel is for team-wide communication and announcements.'},
-                'num_members': 25,
-                'created': 1234567890,
-                'unread_count': 0,
-                'unread_count_display': 0
-            }),
-            SlackChannel({
-                'id': 'C0987654321',
-                'name': 'random',
-                'is_channel': True,
-                'is_private': False,
-                'is_archived': False,
-                'is_general': False,
-                'topic': {'value': 'Random discussions and fun'},
-                'purpose': {'value': 'A place for non-work-related discussions.'},
-                'num_members': 18,
-                'created': 1234567895,
-                'unread_count': 0,
-                'unread_count_display': 0
-            }),
-            SlackChannel({
-                'id': 'C1122334455',
-                'name': 'dev-team',
-                'is_channel': True,
-                'is_private': False,
-                'is_archived': False,
-                'is_general': False,
-                'topic': {'value': 'Development team discussions'},
-                'purpose': {'value': 'Development discussions, code reviews, and technical updates.'},
-                'num_members': 12,
-                'created': 1234567900,
-                'unread_count': 0,
-                'unread_count_display': 0
-            })
-        ]
+    def _get_auth_headers(self, token_type: str = 'bot') -> Dict[str, str]:
+        """Get authentication headers"""
+        if token_type == 'bot':
+            token = self.bot_token
+        else:
+            token = self.user_token
         
-        # Mock users
-        self._mock_db['users'] = [
-            SlackUser({
-                'id': 'U1234567890',
-                'name': 'alex.dev',
-                'real_name': 'Alex Developer',
-                'profile': {
-                    'display_name': 'Alex',
-                    'email': 'alex@company.com',
-                    'image_24': 'https://example.com/avatar_24.jpg',
-                    'image_48': 'https://example.com/avatar_48.jpg',
-                    'image_192': 'https://example.com/avatar_192.jpg',
-                    'title': 'Senior Developer'
-                },
-                'is_admin': True,
-                'is_owner': False,
-                'deleted': False,
-                'has_files': True,
-                'presence': 'active'
-            }),
-            SlackUser({
-                'id': 'U0987654321',
-                'name': 'sarah.manager',
-                'real_name': 'Sarah Manager',
-                'profile': {
-                    'display_name': 'Sarah',
-                    'email': 'sarah@company.com',
-                    'image_24': 'https://example.com/sarah_24.jpg',
-                    'image_48': 'https://example.com/sarah_48.jpg',
-                    'image_192': 'https://example.com/sarah_192.jpg',
-                    'title': 'Project Manager'
-                },
-                'is_admin': False,
-                'is_owner': True,
-                'deleted': False,
-                'has_files': False,
-                'presence': 'away'
-            }),
-            SlackUser({
-                'id': 'U1122334455',
-                'name': 'mike.designer',
-                'real_name': 'Mike Designer',
-                'profile': {
-                    'display_name': 'Mike',
-                    'email': 'mike@company.com',
-                    'image_24': 'https://example.com/mike_24.jpg',
-                    'image_48': 'https://example.com/mike_48.jpg',
-                    'image_192': 'https://example.com/mike_192.jpg',
-                    'title': 'UI/UX Designer'
-                },
-                'is_admin': False,
-                'is_owner': False,
-                'deleted': False,
-                'has_files': True,
-                'presence': 'active'
-            })
-        ]
+        if not token:
+            raise ValueError('No Slack token available')
         
-        # Mock messages
-        now = datetime.utcnow().timestamp()
-        self._mock_db['messages'] = [
-            SlackMessage({
-                'ts': str(now - 3600),  # 1 hour ago
-                'text': 'Hey team! Just deployed the latest changes to staging. 🚀',
-                'user': 'U1234567890',
-                'channel': 'C1122334455',
-                'reactions': [
-                    {'name': 'rocket', 'count': 3},
-                    {'name': 'thumbsup', 'count': 5}
-                ]
-            }),
-            SlackMessage({
-                'ts': str(now - 7200),  # 2 hours ago
-                'text': 'The new designs look amazing! Great work Mike! 🎨',
-                'user': 'U0987654321',
-                'channel': 'C1122334455',
-                'reactions': [
-                    {'name': 'thumbsup', 'count': 2},
-                    {'name': 'art', 'count': 1}
-                ]
-            }),
-            SlackMessage({
-                'ts': str(now - 10800),  # 3 hours ago
-                'text': 'Daily standup in 15 minutes. Please have your updates ready!',
-                'user': 'U0987654321',
-                'channel': 'C1234567890',
-                'pinned_to': ['C1234567890']
-            })
-        ]
-        
-        # Mock files
-        self._mock_db['files'] = [
-            SlackFile({
-                'id': 'F1234567890',
-                'name': 'project-specs.pdf',
-                'title': 'Project Specifications',
-                'mimetype': 'application/pdf',
-                'filetype': 'pdf',
-                'pretty_type': 'PDF',
-                'user': 'U1234567890',
-                'size': 2048576,
-                'is_public': False,
-                'url_private': 'https://files.slack.com/files-pri/T1234567890-F1234567890/project-specs.pdf',
-                'url_private_download': 'https://files.slack.com/files-pri/T1234567890-F1234567890/download/project-specs.pdf',
-                'created': now - 86400,
-                'timestamp': now - 86400,
-                'permalink': 'https://company.slack.com/files/U1234567890/F1234567890/project-specs.pdf',
-                'comments_count': 2,
-                'channels': ['C1122334455']
-            }),
-            SlackFile({
-                'id': 'F0987654321',
-                'name': 'mockup.sketch',
-                'title': 'Design Mockup',
-                'mimetype': 'image/png',
-                'filetype': 'png',
-                'pretty_type': 'PNG',
-                'user': 'U1122334455',
-                'size': 1536000,
-                'is_public': False,
-                'url_private': 'https://files.slack.com/files-pri/T1234567890-F0987654321/mockup.sketch',
-                'url_private_download': 'https://files.slack.com/files-pri/T1234567890-F0987654321/download/mockup.sketch',
-                'created': now - 43200,
-                'timestamp': now - 43200,
-                'permalink': 'https://company.slack.com/files/U1122334455/F0987654321/mockup.sketch',
-                'comments_count': 5,
-                'channels': ['C1122334455']
-            })
-        ]
+        return {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        }
     
-    def set_mock_mode(self, enabled: bool):
-        """Set mock mode for testing"""
-        self._mock_mode = enabled
-        if enabled:
-            self._init_mock_data()
+    def _build_url(self, endpoint: str) -> str:
+        """Build complete API URL"""
+        return f"{self.api_base_url}/{endpoint}"
     
-    async def _get_user_access_token(self, user_id: str) -> Optional[str]:
-        """Get access token for user"""
-        if self._mock_mode:
-            return os.getenv('SLACK_ACCESS_TOKEN', 'mock_slack_token')
-        
-        # In real implementation, this would fetch from database
-        if SLACK_DB_AVAILABLE:
-            tokens = await get_user_slack_tokens(None, user_id)
-            if tokens:
-                access_token = tokens.get('access_token', '')
-                if ENCRYPTION_AVAILABLE and isinstance(access_token, bytes):
-                    access_token = decrypt_data(access_token, os.getenv('ATOM_OAUTH_ENCRYPTION_KEY'))
-                return access_token
-        return None
-    
-    async def _make_api_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None,
-                             data: Optional[Dict[str, Any]] = None, files: Optional[Dict[str, Any]] = None,
-                             access_token: Optional[str] = None) -> Dict[str, Any]:
-        """Make API request to Slack"""
-        if self._mock_mode:
-            return await self._make_mock_request(method, endpoint, params, data, files)
-        
+    async def _make_request(self, method: str, endpoint: str, 
+                          params: Dict[str, Any] = None,
+                          data: Dict[str, Any] = None,
+                          token_type: str = 'bot') -> Dict[str, Any]:
+        """Make HTTP request to Slack API"""
         try:
-            headers = {
-                'Authorization': f'Bearer {access_token}',
-                'Content-Type': 'application/json' if files is None else None
-            }
+            # Build URL
+            url = self._build_url(endpoint)
             
-            url = f"{self.api_base_url}/{endpoint.lstrip('/')}"
+            # Get auth headers
+            headers = self._get_auth_headers(token_type)
             
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # Make request
+            async with httpx.AsyncClient(timeout=30) as client:
                 if method.upper() == 'GET':
-                    response = await client.get(url, headers=headers, params=params)
+                    response = await client.get(url, params=params, headers=headers)
                 elif method.upper() == 'POST':
-                    if files:
-                        response = await client.post(url, headers=headers, data=data, files=files)
-                    else:
-                        response = await client.post(url, headers=headers, json=data)
+                    response = await client.post(url, params=params, json=data, headers=headers)
+                elif method.upper() == 'PUT':
+                    response = await client.put(url, params=params, json=data, headers=headers)
+                elif method.upper() == 'PATCH':
+                    response = await client.patch(url, params=params, json=data, headers=headers)
                 elif method.upper() == 'DELETE':
-                    response = await client.delete(url, headers=headers, params=params)
+                    response = await client.delete(url, params=params, headers=headers)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
                 
-                response.raise_for_status()
-                return response.json()
+                # Parse JSON response
+                response_data = response.json()
                 
-        except httpx.HTTPError as e:
+                # Check if Slack API returned success
+                if not response_data.get('ok', False):
+                    error = response_data.get('error', 'Unknown error')
+                    logger.error(f"Slack API error: {error}")
+                    return {
+                        'error': error,
+                        'type': 'api_error'
+                    }
+                
+                return response_data
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Slack API HTTP error: {e.response.status_code} - {e.response.text}")
+            return {
+                'error': f'HTTP {e.response.status_code}',
+                'message': e.response.text,
+                'type': 'http_error'
+            }
+        except Exception as e:
             logger.error(f"Slack API request error: {e}")
-            return {'ok': False, 'error': str(e)}
-        except Exception as e:
-            logger.error(f"Unexpected Slack API request error: {e}")
-            return {'ok': False, 'error': str(e)}
+            return {
+                'error': str(e),
+                'type': 'request_error'
+            }
     
-    async def _make_mock_request(self, method: str, endpoint: str, params: Optional[Dict[str, Any]] = None,
-                               data: Optional[Dict[str, Any]] = None, files: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Make mock API request"""
-        # Simulate network delay
-        await asyncio.sleep(0.1)
-        
-        endpoint = endpoint.lower()
-        
-        # Mock channel operations
-        if 'conversations.list' in endpoint or 'channels.list' in endpoint:
-            channels = [channel.to_dict() for channel in self._mock_db['channels']]
-            if params and params.get('types'):
-                types = params['types'].split(',')
-                filtered_channels = []
-                for channel in channels:
-                    if 'public_channel' in types and channel['is_channel'] and not channel['is_private']:
-                        filtered_channels.append(channel)
-                    elif 'private_channel' in types and channel['is_channel'] and channel['is_private']:
-                        filtered_channels.append(channel)
-                    elif 'im' in types and channel['is_im']:
-                        filtered_channels.append(channel)
-                    elif 'mpim' in types and channel['is_mpim']:
-                        filtered_channels.append(channel)
-                channels = filtered_channels
-            return {'ok': True, 'channels': channels}
-        
-        # Mock message operations
-        elif 'conversations.history' in endpoint or 'channels.history' in endpoint:
-            channel_id = params.get('channel') if params else data.get('channel')
-            if not channel_id:
-                return {'ok': False, 'error': 'Channel ID is required'}
-            
-            # Filter messages by channel
-            messages = [msg.to_dict() for msg in self._mock_db['messages'] 
-                        if msg.channel == channel_id]
-            
-            # Sort by timestamp (newest first)
-            messages.sort(key=lambda x: float(x['ts']), reverse=True)
-            
-            # Apply limit
-            limit = params.get('limit', 100) if params else data.get('limit', 100)
-            messages = messages[:limit]
-            
-            return {'ok': True, 'messages': messages, 'has_more': False}
-        
-        # Mock message posting
-        elif 'chat.postmessage' in endpoint or 'chat.postmessage' in endpoint:
-            if not data:
-                return {'ok': False, 'error': 'Message data is required'}
-            
-            channel_id = data.get('channel')
-            text = data.get('text')
-            
-            if not channel_id or not text:
-                return {'ok': False, 'error': 'Channel and text are required'}
-            
-            # Create mock message
-            ts = str(datetime.utcnow().timestamp())
-            new_message = SlackMessage({
-                'ts': ts,
-                'text': text,
-                'user': 'U1234567890',  # Current user
-                'channel': channel_id,
-                'team': 'T1234567890'
-            })
-            
-            self._mock_db['messages'].append(new_message)
-            
-            return {
-                'ok': True,
-                'ts': ts,
-                'message': new_message.to_dict()
-            }
-        
-        # Mock file upload
-        elif 'files.upload' in endpoint:
-            if not files:
-                return {'ok': False, 'error': 'No files provided'}
-            
-            # Create mock file
-            file_id = f"F{int(datetime.utcnow().timestamp())}"
-            ts = datetime.utcnow().timestamp()
-            
-            mock_file = SlackFile({
-                'id': file_id,
-                'name': files.get('file', {}).get('filename', 'uploaded_file'),
-                'mimetype': files.get('file', {}).get('content_type', 'application/octet-stream'),
-                'size': len(files.get('file', {}).get('content', b'')),
-                'user': 'U1234567890',
-                'channels': data.get('channels', []),
-                'timestamp': int(ts),
-                'created': int(ts),
-                'permalink': f"https://company.slack.com/files/U1234567890/{file_id}/uploaded_file",
-                'url_private': f"https://files.slack.com/files-pri/T1234567890-{file_id}/uploaded_file"
-            })
-            
-            self._mock_db['files'].append(mock_file)
-            
-            return {
-                'ok': True,
-                'file': mock_file.to_dict()
-            }
-        
-        # Mock user operations
-        elif 'users.list' in endpoint:
-            users = [user.to_dict() for user in self._mock_db['users']]
-            return {'ok': True, 'members': users}
-        
-        elif 'users.info' in endpoint:
-            user_id = params.get('user') if params else data.get('user')
-            if not user_id:
-                return {'ok': False, 'error': 'User ID is required'}
-            
-            user = next((u for u in self._mock_db['users'] if u.id == user_id), None)
-            if user:
-                return {'ok': True, 'user': user.to_dict()}
-            else:
-                return {'ok': False, 'error': 'User not found'}
-        
-        # Mock file operations
-        elif 'files.list' in endpoint:
-            files = [file.to_dict() for file in self._mock_db['files']]
-            if params and params.get('user'):
-                user_id = params['user']
-                files = [f for f in files if f['user'] == user_id]
-            if params and params.get('channel'):
-                channel_id = params['channel']
-                files = [f for f in files if channel_id in f['channels']]
-            return {'ok': True, 'files': files}
-        
-        elif 'files.info' in endpoint:
-            file_id = params.get('file') if params else data.get('file')
-            if not file_id:
-                return {'ok': False, 'error': 'File ID is required'}
-            
-            file = next((f for f in self._mock_db['files'] if f.id == file_id), None)
-            if file:
-                return {'ok': True, 'file': file.to_dict()}
-            else:
-                return {'ok': False, 'error': 'File not found'}
-        
-        # Mock channel creation
-        elif 'conversations.create' in endpoint:
-            if not data:
-                return {'ok': False, 'error': 'Channel data is required'}
-            
-            name = data.get('name')
-            if not name:
-                return {'ok': False, 'error': 'Channel name is required'}
-            
-            # Create mock channel
-            channel_id = f"C{int(datetime.utcnow().timestamp())}"
-            created = int(datetime.utcnow().timestamp())
-            
-            new_channel = SlackChannel({
-                'id': channel_id,
-                'name': name,
-                'is_channel': True,
-                'is_private': data.get('is_private', False),
-                'is_archived': False,
-                'is_general': False,
-                'topic': {'value': data.get('topic', '')},
-                'purpose': {'value': data.get('purpose', '')},
-                'num_members': 1,
-                'created': created
-            })
-            
-            self._mock_db['channels'].append(new_channel)
-            
-            return {
-                'ok': True,
-                'channel': new_channel.to_dict()
-            }
-        
-        # Default mock response
-        return {
-            'ok': True,
-            'mock_response': True,
-            'endpoint': endpoint,
-            'method': method,
-            'params': params,
-            'data': data
-        }
+    def _generate_cache_key(self, team_id: str, entity_id: str) -> str:
+        """Generate cache key"""
+        return f"{team_id}:{entity_id}"
     
-    # Channel operations
-    async def list_channels(self, user_id: str, types: Optional[List[str]] = None, 
-                          exclude_archived: bool = True, limit: int = 100) -> List[SlackChannel]:
-        """List channels accessible to user"""
+    async def get_workspaces(self, user_id: str = None) -> List[SlackWorkspace]:
+        """Get Slack workspaces (requires user token)"""
         try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return []
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id or 'all', 'workspaces')
+            if cache_key in self.workspaces_cache:
+                return self.workspaces_cache[cache_key]
             
-            params = {}
-            if types:
-                params['types'] = ','.join(types)
-            if exclude_archived:
-                params['exclude_archived'] = 'true'
-            params['limit'] = str(limit)
+            # Try to get team info first
+            team_result = await self._make_request('GET', 'team.info', token_type='user')
             
-            response = await self._make_api_request('GET', 'conversations.list', params=params, 
-                                                access_token=access_token)
+            workspaces = []
             
-            if response.get('ok'):
-                return [SlackChannel(channel) for channel in response.get('channels', [])]
-            else:
-                logger.error(f"Error listing channels: {response.get('error')}")
-                return []
+            if team_result.get('ok') and team_result.get('team'):
+                team_data = team_result.get('team')
                 
+                # Get basic team info
+                team = SlackWorkspace(
+                    id=team_data.get('id', ''),
+                    name=team_data.get('name', ''),
+                    domain=team_data.get('domain', ''),
+                    email_domain=team_data.get('email_domain', ''),
+                    icon=team_data.get('icon', {}),
+                    created=team_data.get('created', 0),
+                    plan=team_data.get('plan', ''),
+                    enterprise_id=team_data.get('enterprise_id', ''),
+                    enterprise_name=team_data.get('enterprise_name', ''),
+                    is_verified=team_data.get('is_verified', False),
+                    date_created=datetime.fromtimestamp(team_data.get('created', 0)).isoformat() if team_data.get('created') else '',
+                    url=f"https://{team_data.get('domain', '')}.slack.com",
+                    privacy=team_data.get('privacy', ''),
+                    limit=team_data.get('limit', 0),
+                    account_tier=team_data.get('account_tier', ''),
+                    total_users=0,  # Will be calculated
+                    total_channels=0,  # Will be calculated
+                    total_messages=0,  # Will be calculated
+                    total_files=0,  # Will be calculated
+                    features=team_data.get('features', {}),
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                
+                # Get user count
+                users_result = await self._make_request('GET', 'users.list', token_type='user')
+                if users_result.get('ok'):
+                    team.total_users = len(users_result.get('members', []))
+                
+                # Get channel count
+                channels_result = await self._make_request('GET', 'conversations.list', 
+                                                          {'types': 'public_channel,private_channel'}, 
+                                                          token_type='user')
+                if channels_result.get('ok'):
+                    team.total_channels = len(channels_result.get('channels', []))
+                
+                workspaces.append(team)
+            
+            # Cache workspaces
+            self.workspaces_cache[cache_key] = workspaces
+            
+            logger.info(f"Slack workspaces retrieved: {len(workspaces)}")
+            return workspaces
+            
         except Exception as e:
-            logger.error(f"Unexpected error listing channels: {e}")
+            logger.error(f"Error getting Slack workspaces: {e}")
             return []
     
-    async def create_channel(self, user_id: str, name: str, is_private: bool = False,
-                            topic: str = "", purpose: str = "") -> Optional[SlackChannel]:
-        """Create a new channel"""
+    async def get_workspace(self, team_id: str, user_id: str = None) -> Optional[SlackWorkspace]:
+        """Get Slack workspace by ID"""
         try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return None
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id or 'all', f'workspace_{team_id}')
+            if cache_key in self.workspaces_cache:
+                return self.workspaces_cache[cache_key]
             
-            data = {
-                'name': name,
-                'is_private': is_private
-            }
+            # Make request
+            result = await self._make_request('GET', 'team.info', {}, token_type='user')
             
-            if topic:
-                data['topic'] = topic
-            if purpose:
-                data['purpose'] = purpose
-            
-            response = await self._make_api_request('POST', 'conversations.create', data=data,
-                                                access_token=access_token)
-            
-            if response.get('ok'):
-                return SlackChannel(response.get('channel', {}))
-            else:
-                logger.error(f"Error creating channel: {response.get('error')}")
-                return None
+            if result.get('ok') and result.get('team'):
+                team_data = result.get('team')
                 
+                if team_data.get('id') == team_id:
+                    # Create workspace object
+                    workspace = SlackWorkspace(
+                        id=team_data.get('id', ''),
+                        name=team_data.get('name', ''),
+                        domain=team_data.get('domain', ''),
+                        email_domain=team_data.get('email_domain', ''),
+                        icon=team_data.get('icon', {}),
+                        created=team_data.get('created', 0),
+                        plan=team_data.get('plan', ''),
+                        enterprise_id=team_data.get('enterprise_id', ''),
+                        enterprise_name=team_data.get('enterprise_name', ''),
+                        is_verified=team_data.get('is_verified', False),
+                        date_created=datetime.fromtimestamp(team_data.get('created', 0)).isoformat() if team_data.get('created') else '',
+                        url=f"https://{team_data.get('domain', '')}.slack.com",
+                        privacy=team_data.get('privacy', ''),
+                        limit=team_data.get('limit', 0),
+                        account_tier=team_data.get('account_tier', ''),
+                        total_users=0,
+                        total_channels=0,
+                        total_messages=0,
+                        total_files=0,
+                        features=team_data.get('features', {}),
+                        metadata={
+                            'accessed_at': datetime.utcnow().isoformat(),
+                            'source': 'slack_api'
+                        }
+                    )
+                    
+                    # Get user count
+                    users_result = await self._make_request('GET', 'users.list', token_type='user')
+                    if users_result.get('ok'):
+                        workspace.total_users = len(users_result.get('members', []))
+                    
+                    # Get channel count
+                    channels_result = await self._make_request('GET', 'conversations.list', 
+                                                              {'types': 'public_channel,private_channel'}, 
+                                                              token_type='user')
+                    if channels_result.get('ok'):
+                        workspace.total_channels = len(channels_result.get('channels', []))
+                    
+                    # Cache workspace
+                    self.workspaces_cache[cache_key] = workspace
+                    
+                    logger.info(f"Slack workspace retrieved: {team_id}")
+                    return workspace
+            
+            return None
+            
         except Exception as e:
-            logger.error(f"Unexpected error creating channel: {e}")
+            logger.error(f"Error getting Slack workspace: {e}")
             return None
     
-    # Message operations
-    async def send_message(self, user_id: str, channel: str, text: str, 
-                          thread_ts: Optional[str] = None, parse: Optional[str] = None,
-                          blocks: Optional[List[Dict[str, Any]]] = None,
-                          attachments: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
-        """Send a message to a channel"""
+    async def get_channels(self, team_id: str, user_id: str = None, types: str = None) -> List[SlackChannel]:
+        """Get Slack channels from workspace"""
         try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return None
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id or 'all', f'channels_{team_id}')
+            if cache_key in self.channels_cache:
+                return self.channels_cache[cache_key]
             
+            # Get workspace info first
+            workspace = await self.get_workspace(team_id, user_id)
+            if not workspace:
+                return []
+            
+            # Build request parameters
+            params = {}
+            if types:
+                params['types'] = types
+            else:
+                params['types'] = 'public_channel,private_channel,mpim,im'
+            
+            # Make request
+            result = await self._make_request('GET', 'conversations.list', params, token_type='user')
+            
+            if not result.get('ok'):
+                return []
+            
+            # Create channel objects
+            channels = []
+            for channel_data in result.get('channels', []):
+                # Count messages in channel
+                messages_count = 0
+                try:
+                    # Get recent messages to estimate count
+                    history_result = await self._make_request('GET', 'conversations.history', 
+                                                               {'channel': channel_data.get('id'), 'limit': 1}, 
+                                                               token_type='user')
+                    if history_result.get('ok') and history_result.get('messages'):
+                        # Slack doesn't provide total count directly, so we'll estimate
+                        messages_count = 0  # Will be updated when messages are actually fetched
+                except:
+                    pass
+                
+                channel = SlackChannel(
+                    id=channel_data.get('id', ''),
+                    name=channel_data.get('name', ''),
+                    name_normalized=channel_data.get('name_normalized', ''),
+                    is_channel=channel_data.get('is_channel', False),
+                    is_group=channel_data.get('is_group', False),
+                    is_im=channel_data.get('is_im', False),
+                    is_mpim=channel_data.get('is_mpim', False),
+                    is_private=channel_data.get('is_private', False),
+                    is_archived=channel_data.get('is_archived', False),
+                    is_general=channel_data.get('is_general', False),
+                    is_shared=channel_data.get('is_shared', False),
+                    is_org_shared=channel_data.get('is_org_shared', False),
+                    is_ext_shared=channel_data.get('is_ext_shared', False),
+                    is_pending_ext_shared=channel_data.get('is_pending_ext_shared', False),
+                    topic=channel_data.get('topic', {}),
+                    purpose=channel_data.get('purpose', {}),
+                    created=channel_data.get('created', 0),
+                    creator=channel_data.get('creator', ''),
+                    members_count=channel_data.get('num_members', 0),
+                    messages_count=messages_count,
+                    files_count=0,  # Will be calculated
+                    last_read=channel_data.get('last_read', ''),
+                    latest=json.dumps(channel_data.get('latest', {})),
+                    unread_count=channel_data.get('unread_count', 0),
+                    unread_count_display=channel_data.get('unread_count_display', 0),
+                    pinned_to=channel_data.get('pinned_to', []),
+                    linked_channel_ids=channel_data.get('linked_channel_ids', []),
+                    shared_team_ids=channel_data.get('shared_team_ids', []),
+                    previous_names=channel_data.get('previous_names', []),
+                    num_members=channel_data.get('num_members', 0),
+                    locale=channel_data.get('locale', ''),
+                    user_count=channel_data.get('user_count', 0),
+                    has_pins=channel_data.get('has_pins', False),
+                    pin_count=channel_data.get('pin_count', 0),
+                    is_threaded=False,  # Will be determined from messages
+                    thread_count=0,  # Will be calculated
+                    workspace_id=team_id,
+                    workspace_name=workspace.name,
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                channels.append(channel)
+            
+            # Cache channels
+            self.channels_cache[cache_key] = channels
+            
+            logger.info(f"Slack channels retrieved: {len(channels)}")
+            return channels
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack channels: {e}")
+            return []
+    
+    async def get_channel(self, team_id: str, channel_id: str, user_id: str = None) -> Optional[SlackChannel]:
+        """Get Slack channel by ID"""
+        try:
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id or 'all', f'channel_{team_id}_{channel_id}')
+            if cache_key in self.channels_cache:
+                return self.channels_cache[cache_key]
+            
+            # Make request
+            result = await self._make_request('GET', 'conversations.info', 
+                                             {'channel': channel_id}, 
+                                             token_type='user')
+            
+            if result.get('ok') and result.get('channel'):
+                # Get workspace info for metadata
+                workspace = await self.get_workspace(team_id, user_id)
+                
+                channel_data = result.get('channel')
+                
+                channel = SlackChannel(
+                    id=channel_data.get('id', ''),
+                    name=channel_data.get('name', ''),
+                    name_normalized=channel_data.get('name_normalized', ''),
+                    is_channel=channel_data.get('is_channel', False),
+                    is_group=channel_data.get('is_group', False),
+                    is_im=channel_data.get('is_im', False),
+                    is_mpim=channel_data.get('is_mpim', False),
+                    is_private=channel_data.get('is_private', False),
+                    is_archived=channel_data.get('is_archived', False),
+                    is_general=channel_data.get('is_general', False),
+                    is_shared=channel_data.get('is_shared', False),
+                    is_org_shared=channel_data.get('is_org_shared', False),
+                    is_ext_shared=channel_data.get('is_ext_shared', False),
+                    is_pending_ext_shared=channel_data.get('is_pending_ext_shared', False),
+                    topic=channel_data.get('topic', {}),
+                    purpose=channel_data.get('purpose', {}),
+                    created=channel_data.get('created', 0),
+                    creator=channel_data.get('creator', ''),
+                    members_count=channel_data.get('num_members', 0),
+                    messages_count=0,
+                    files_count=0,
+                    last_read=channel_data.get('last_read', ''),
+                    latest=json.dumps(channel_data.get('latest', {})),
+                    unread_count=channel_data.get('unread_count', 0),
+                    unread_count_display=channel_data.get('unread_count_display', 0),
+                    pinned_to=channel_data.get('pinned_to', []),
+                    linked_channel_ids=channel_data.get('linked_channel_ids', []),
+                    shared_team_ids=channel_data.get('shared_team_ids', []),
+                    previous_names=channel_data.get('previous_names', []),
+                    num_members=channel_data.get('num_members', 0),
+                    locale=channel_data.get('locale', ''),
+                    user_count=channel_data.get('user_count', 0),
+                    has_pins=channel_data.get('has_pins', False),
+                    pin_count=channel_data.get('pin_count', 0),
+                    is_threaded=False,
+                    thread_count=0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                
+                # Cache channel
+                self.channels_cache[cache_key] = channel
+                
+                logger.info(f"Slack channel retrieved: {channel_id}")
+                return channel
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack channel: {e}")
+            return None
+    
+    async def get_messages(self, team_id: str, channel_id: str, 
+                          limit: int = 100, latest: str = None, 
+                          oldest: str = None, inclusive: bool = True,
+                          user_id: str = None) -> Dict[str, Any]:
+        """Get Slack messages from channel"""
+        try:
+            # Build parameters
+            params = {
+                'channel': channel_id,
+                'limit': min(limit, 1000),  # Slack API limit
+                'inclusive': 'true' if inclusive else 'false'
+            }
+            
+            if latest:
+                params['latest'] = latest
+            if oldest:
+                params['oldest'] = oldest
+            
+            # Make request
+            result = await self._make_request('GET', 'conversations.history', params, token_type='user')
+            
+            if not result.get('ok'):
+                return {
+                    'messages': [],
+                    'has_more': False,
+                    'error': result.get('error'),
+                    'response_metadata': {}
+                }
+            
+            # Get workspace and channel info for metadata
+            workspace = await self.get_workspace(team_id, user_id)
+            channel = await self.get_channel(team_id, channel_id, user_id)
+            
+            # Create message objects
+            messages = []
+            for message_data in result.get('messages', []):
+                # Count reactions
+                reactions = message_data.get('reactions', [])
+                reaction_count = sum(reaction.get('count', 0) for reaction in reactions)
+                
+                # Count attachments
+                attachments = message_data.get('attachments', [])
+                attachment_count = len(attachments)
+                
+                # Count files
+                files = message_data.get('files', [])
+                file_count = len(files)
+                
+                # Count mentions
+                text = message_data.get('text', '')
+                mentions = []
+                user_mentions = []
+                
+                # Simple mention extraction (could be improved)
+                import re
+                mention_pattern = r'<@([UW][A-Z0-9]+)>'
+                for match in re.findall(mention_pattern, text):
+                    mentions.append(match)
+                    user_mentions.append(match)
+                
+                # Get user info
+                user_name = ''
+                if message_data.get('user'):
+                    user_result = await self._make_request('GET', 'users.info', 
+                                                         {'user': message_data.get('user')}, 
+                                                         token_type='user')
+                    if user_result.get('ok') and user_result.get('user'):
+                        user_name = user_result.get('user', {}).get('name', '')
+                elif message_data.get('bot_profile'):
+                    user_name = message_data.get('bot_profile', {}).get('name', '')
+                
+                message = SlackMessage(
+                    id=message_data.get('ts', ''),
+                    team=team_id,
+                    channel=channel_id,
+                    user=message_data.get('user', ''),
+                    type=message_data.get('type', ''),
+                    subtype=message_data.get('subtype', ''),
+                    text=message_data.get('text', ''),
+                    ts=message_data.get('ts', ''),
+                    thread_ts=message_data.get('thread_ts', ''),
+                    parent_user_id=message_data.get('parent_user_id', ''),
+                    reply_count=message_data.get('reply_count', 0),
+                    reply_users_count=message_data.get('reply_users_count', 0),
+                    latest_reply=message_data.get('latest_reply', ''),
+                    reply_users=message_data.get('reply_users', []),
+                    reactions=reactions,
+                    attachments=attachments,
+                    files=files,
+                    pinned_to=message_data.get('pinned_to', []),
+                    mentions=mentions,
+                    user_mentions=user_mentions,
+                    bot_id=message_data.get('bot_id', ''),
+                    bot_profile=message_data.get('bot_profile', {}),
+                    app_id=message_data.get('app_id', ''),
+                    blocks=message_data.get('blocks', []),
+                    edited=message_data.get('edited', {}),
+                    last_read='',
+                    unread_count=0,
+                    subscribed=False,
+                    is_starred=False,
+                    has_reactions=reaction_count > 0,
+                    reaction_count=reaction_count,
+                    has_attachments=attachment_count > 0,
+                    attachment_count=attachment_count,
+                    has_files=file_count > 0,
+                    file_count=file_count,
+                    is_threaded=message_data.get('thread_ts') is not None,
+                    is_thread_parent=message_data.get('reply_count', 0) > 0,
+                    is_thread_reply=message_data.get('thread_ts') is not None and message_data.get('reply_count', 0) == 0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    channel_name=channel.name if channel else '',
+                    user_name=user_name,
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                messages.append(message)
+            
+            return {
+                'messages': messages,
+                'has_more': result.get('has_more', False),
+                'response_metadata': result.get('response_metadata', {}),
+                'total': len(messages)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack messages: {e}")
+            return {
+                'messages': [],
+                'has_more': False,
+                'error': str(e),
+                'response_metadata': {}
+            }
+    
+    async def get_message(self, team_id: str, channel_id: str, message_ts: str, 
+                        user_id: str = None) -> Optional[SlackMessage]:
+        """Get Slack message by timestamp"""
+        try:
+            # Make request
+            result = await self._make_request('GET', 'conversations.history', 
+                                             {'channel': channel_id, 'latest': message_ts, 
+                                              'limit': 1, 'inclusive': 'true'}, 
+                                             token_type='user')
+            
+            if result.get('ok') and result.get('messages'):
+                # Get the first message
+                message_data = result.get('messages', [{}])[0]
+                
+                # Get workspace and channel info for metadata
+                workspace = await self.get_workspace(team_id, user_id)
+                channel = await self.get_channel(team_id, channel_id, user_id)
+                
+                # Count reactions
+                reactions = message_data.get('reactions', [])
+                reaction_count = sum(reaction.get('count', 0) for reaction in reactions)
+                
+                # Count attachments
+                attachments = message_data.get('attachments', [])
+                attachment_count = len(attachments)
+                
+                # Count files
+                files = message_data.get('files', [])
+                file_count = len(files)
+                
+                # Count mentions
+                text = message_data.get('text', '')
+                mentions = []
+                user_mentions = []
+                
+                # Simple mention extraction
+                import re
+                mention_pattern = r'<@([UW][A-Z0-9]+)>'
+                for match in re.findall(mention_pattern, text):
+                    mentions.append(match)
+                    user_mentions.append(match)
+                
+                # Get user info
+                user_name = ''
+                if message_data.get('user'):
+                    user_result = await self._make_request('GET', 'users.info', 
+                                                         {'user': message_data.get('user')}, 
+                                                         token_type='user')
+                    if user_result.get('ok') and user_result.get('user'):
+                        user_name = user_result.get('user', {}).get('name', '')
+                elif message_data.get('bot_profile'):
+                    user_name = message_data.get('bot_profile', {}).get('name', '')
+                
+                message = SlackMessage(
+                    id=message_data.get('ts', ''),
+                    team=team_id,
+                    channel=channel_id,
+                    user=message_data.get('user', ''),
+                    type=message_data.get('type', ''),
+                    subtype=message_data.get('subtype', ''),
+                    text=message_data.get('text', ''),
+                    ts=message_data.get('ts', ''),
+                    thread_ts=message_data.get('thread_ts', ''),
+                    parent_user_id=message_data.get('parent_user_id', ''),
+                    reply_count=message_data.get('reply_count', 0),
+                    reply_users_count=message_data.get('reply_users_count', 0),
+                    latest_reply=message_data.get('latest_reply', ''),
+                    reply_users=message_data.get('reply_users', []),
+                    reactions=reactions,
+                    attachments=attachments,
+                    files=files,
+                    pinned_to=message_data.get('pinned_to', []),
+                    mentions=mentions,
+                    user_mentions=user_mentions,
+                    bot_id=message_data.get('bot_id', ''),
+                    bot_profile=message_data.get('bot_profile', {}),
+                    app_id=message_data.get('app_id', ''),
+                    blocks=message_data.get('blocks', []),
+                    edited=message_data.get('edited', {}),
+                    last_read='',
+                    unread_count=0,
+                    subscribed=False,
+                    is_starred=False,
+                    has_reactions=reaction_count > 0,
+                    reaction_count=reaction_count,
+                    has_attachments=attachment_count > 0,
+                    attachment_count=attachment_count,
+                    has_files=file_count > 0,
+                    file_count=file_count,
+                    is_threaded=message_data.get('thread_ts') is not None,
+                    is_thread_parent=message_data.get('reply_count', 0) > 0,
+                    is_thread_reply=message_data.get('thread_ts') is not None and message_data.get('reply_count', 0) == 0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    channel_name=channel.name if channel else '',
+                    user_name=user_name,
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                
+                logger.info(f"Slack message retrieved: {message_ts}")
+                return message
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack message: {e}")
+            return None
+    
+    async def send_message(self, team_id: str, channel_id: str, text: str, 
+                          thread_ts: str = None, user_id: str = None) -> Optional[SlackMessage]:
+        """Send Slack message"""
+        try:
+            # Build request data
             data = {
-                'channel': channel,
+                'channel': channel_id,
                 'text': text
             }
             
             if thread_ts:
                 data['thread_ts'] = thread_ts
-            if parse:
-                data['parse'] = parse
-            if blocks:
-                data['blocks'] = blocks
-            if attachments:
-                data['attachments'] = attachments
             
-            response = await self._make_api_request('POST', 'chat.postMessage', data=data,
-                                                access_token=access_token)
+            # Make request
+            result = await self._make_request('POST', 'chat.postMessage', data)
             
-            if response.get('ok'):
+            if result.get('ok') and result.get('message'):
+                # Get workspace and channel info for metadata
+                workspace = await self.get_workspace(team_id, user_id)
+                channel = await self.get_channel(team_id, channel_id, user_id)
+                
+                message_data = result.get('message')
+                
+                # Count reactions
+                reactions = message_data.get('reactions', [])
+                reaction_count = sum(reaction.get('count', 0) for reaction in reactions)
+                
+                # Count attachments
+                attachments = message_data.get('attachments', [])
+                attachment_count = len(attachments)
+                
+                # Count files
+                files = message_data.get('files', [])
+                file_count = len(files)
+                
+                # Count mentions
+                text_content = message_data.get('text', '')
+                mentions = []
+                user_mentions = []
+                
+                # Simple mention extraction
+                import re
+                mention_pattern = r'<@([UW][A-Z0-9]+)>'
+                for match in re.findall(mention_pattern, text_content):
+                    mentions.append(match)
+                    user_mentions.append(match)
+                
+                # Get user info
+                user_name = ''
+                if message_data.get('user'):
+                    user_result = await self._make_request('GET', 'users.info', 
+                                                         {'user': message_data.get('user')}, 
+                                                         token_type='user')
+                    if user_result.get('ok') and user_result.get('user'):
+                        user_name = user_result.get('user', {}).get('name', '')
+                elif message_data.get('bot_profile'):
+                    user_name = message_data.get('bot_profile', {}).get('name', '')
+                
+                message = SlackMessage(
+                    id=message_data.get('ts', ''),
+                    team=team_id,
+                    channel=channel_id,
+                    user=message_data.get('user', ''),
+                    type=message_data.get('type', ''),
+                    subtype=message_data.get('subtype', ''),
+                    text=message_data.get('text', ''),
+                    ts=message_data.get('ts', ''),
+                    thread_ts=message_data.get('thread_ts', ''),
+                    parent_user_id=message_data.get('parent_user_id', ''),
+                    reply_count=message_data.get('reply_count', 0),
+                    reply_users_count=message_data.get('reply_users_count', 0),
+                    latest_reply=message_data.get('latest_reply', ''),
+                    reply_users=message_data.get('reply_users', []),
+                    reactions=reactions,
+                    attachments=attachments,
+                    files=files,
+                    pinned_to=message_data.get('pinned_to', []),
+                    mentions=mentions,
+                    user_mentions=user_mentions,
+                    bot_id=message_data.get('bot_id', ''),
+                    bot_profile=message_data.get('bot_profile', {}),
+                    app_id=message_data.get('app_id', ''),
+                    blocks=message_data.get('blocks', []),
+                    edited=message_data.get('edited', {}),
+                    last_read='',
+                    unread_count=0,
+                    subscribed=False,
+                    is_starred=False,
+                    has_reactions=reaction_count > 0,
+                    reaction_count=reaction_count,
+                    has_attachments=attachment_count > 0,
+                    attachment_count=attachment_count,
+                    has_files=file_count > 0,
+                    file_count=file_count,
+                    is_threaded=message_data.get('thread_ts') is not None,
+                    is_thread_parent=message_data.get('reply_count', 0) > 0,
+                    is_thread_reply=message_data.get('thread_ts') is not None and message_data.get('reply_count', 0) == 0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    channel_name=channel.name if channel else '',
+                    user_name=user_name,
+                    metadata={
+                        'created_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                
+                # Clear cache
+                self._clear_message_cache()
+                
+                logger.info(f"Slack message sent: {message.id}")
+                return message
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error sending Slack message: {e}")
+            return None
+    
+    async def update_message(self, team_id: str, channel_id: str, message_ts: str, text: str,
+                            user_id: str = None) -> Optional[SlackMessage]:
+        """Update Slack message"""
+        try:
+            # Build request data
+            data = {
+                'channel': channel_id,
+                'ts': message_ts,
+                'text': text
+            }
+            
+            # Make request
+            result = await self._make_request('POST', 'chat.update', data)
+            
+            if result.get('ok') and result.get('message'):
+                # Get workspace and channel info for metadata
+                workspace = await self.get_workspace(team_id, user_id)
+                channel = await self.get_channel(team_id, channel_id, user_id)
+                
+                message_data = result.get('message')
+                
+                # Count reactions
+                reactions = message_data.get('reactions', [])
+                reaction_count = sum(reaction.get('count', 0) for reaction in reactions)
+                
+                # Count attachments
+                attachments = message_data.get('attachments', [])
+                attachment_count = len(attachments)
+                
+                # Count files
+                files = message_data.get('files', [])
+                file_count = len(files)
+                
+                # Count mentions
+                text_content = message_data.get('text', '')
+                mentions = []
+                user_mentions = []
+                
+                # Simple mention extraction
+                import re
+                mention_pattern = r'<@([UW][A-Z0-9]+)>'
+                for match in re.findall(mention_pattern, text_content):
+                    mentions.append(match)
+                    user_mentions.append(match)
+                
+                # Get user info
+                user_name = ''
+                if message_data.get('user'):
+                    user_result = await self._make_request('GET', 'users.info', 
+                                                         {'user': message_data.get('user')}, 
+                                                         token_type='user')
+                    if user_result.get('ok') and user_result.get('user'):
+                        user_name = user_result.get('user', {}).get('name', '')
+                elif message_data.get('bot_profile'):
+                    user_name = message_data.get('bot_profile', {}).get('name', '')
+                
+                message = SlackMessage(
+                    id=message_data.get('ts', ''),
+                    team=team_id,
+                    channel=channel_id,
+                    user=message_data.get('user', ''),
+                    type=message_data.get('type', ''),
+                    subtype=message_data.get('subtype', ''),
+                    text=message_data.get('text', ''),
+                    ts=message_data.get('ts', ''),
+                    thread_ts=message_data.get('thread_ts', ''),
+                    parent_user_id=message_data.get('parent_user_id', ''),
+                    reply_count=message_data.get('reply_count', 0),
+                    reply_users_count=message_data.get('reply_users_count', 0),
+                    latest_reply=message_data.get('latest_reply', ''),
+                    reply_users=message_data.get('reply_users', []),
+                    reactions=reactions,
+                    attachments=attachments,
+                    files=files,
+                    pinned_to=message_data.get('pinned_to', []),
+                    mentions=mentions,
+                    user_mentions=user_mentions,
+                    bot_id=message_data.get('bot_id', ''),
+                    bot_profile=message_data.get('bot_profile', {}),
+                    app_id=message_data.get('app_id', ''),
+                    blocks=message_data.get('blocks', []),
+                    edited=message_data.get('edited', {}),
+                    last_read='',
+                    unread_count=0,
+                    subscribed=False,
+                    is_starred=False,
+                    has_reactions=reaction_count > 0,
+                    reaction_count=reaction_count,
+                    has_attachments=attachment_count > 0,
+                    attachment_count=attachment_count,
+                    has_files=file_count > 0,
+                    file_count=file_count,
+                    is_threaded=message_data.get('thread_ts') is not None,
+                    is_thread_parent=message_data.get('reply_count', 0) > 0,
+                    is_thread_reply=message_data.get('thread_ts') is not None and message_data.get('reply_count', 0) == 0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    channel_name=channel.name if channel else '',
+                    user_name=user_name,
+                    metadata={
+                        'updated_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                
+                # Clear cache
+                self._clear_message_cache()
+                
+                logger.info(f"Slack message updated: {message_ts}")
+                return message
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error updating Slack message: {e}")
+            return None
+    
+    async def delete_message(self, team_id: str, channel_id: str, message_ts: str) -> bool:
+        """Delete Slack message"""
+        try:
+            # Build request data
+            data = {
+                'channel': channel_id,
+                'ts': message_ts
+            }
+            
+            # Make request
+            result = await self._make_request('POST', 'chat.delete', data)
+            
+            if result.get('ok'):
+                # Clear cache
+                self._clear_message_cache()
+                
+                logger.info(f"Slack message deleted: {message_ts}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error deleting Slack message: {e}")
+            return False
+    
+    async def get_users(self, team_id: str, user_id: str = None) -> List[SlackUser]:
+        """Get Slack users from workspace"""
+        try:
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id or 'all', f'users_{team_id}')
+            if cache_key in self.users_cache:
+                return self.users_cache[cache_key]
+            
+            # Get workspace info for metadata
+            workspace = await self.get_workspace(team_id, user_id)
+            
+            # Make request
+            result = await self._make_request('GET', 'users.list', token_type='user')
+            
+            if not result.get('ok'):
+                return []
+            
+            # Create user objects
+            users = []
+            for user_data in result.get('members', []):
+                user = SlackUser(
+                    id=user_data.get('id', ''),
+                    team_id=team_id,
+                    name=user_data.get('name', ''),
+                    deleted=user_data.get('deleted', False),
+                    color=user_data.get('color', ''),
+                    real_name=user_data.get('real_name', ''),
+                    tz=user_data.get('tz', ''),
+                    tz_label=user_data.get('tz_label', ''),
+                    tz_offset=user_data.get('tz_offset', 0),
+                    profile=user_data.get('profile', {}),
+                    is_admin=user_data.get('is_admin', False),
+                    is_owner=user_data.get('is_owner', False),
+                    is_primary_owner=user_data.get('is_primary_owner', False),
+                    is_restricted=user_data.get('is_restricted', False),
+                    is_ultra_restricted=user_data.get('is_ultra_restricted', False),
+                    is_bot=user_data.get('is_bot', False),
+                    is_app_user=user_data.get('is_app_user', False),
+                    is_stranger=user_data.get('is_stranger', False),
+                    is_invited_user=user_data.get('is_invited_user', False),
+                    has_files=user_data.get('has_files', False),
+                    has_2fa=user_data.get('has_2fa', False),
+                    locale=user_data.get('locale', ''),
+                    updated=user_data.get('updated', 0),
+                    enterprise_id=user_data.get('enterprise_id', ''),
+                    presence=user_data.get('presence', 'offline'),
+                    online=user_data.get('presence') == 'active',
+                    last_seen='',
+                    message_count=0,  # Will be calculated
+                    file_count=user_data.get('has_files', False) ? 0 : 0,  # Will be calculated
+                    reaction_count=0,  # Will be calculated
+                    mention_count=0,  # Will be calculated
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                users.append(user)
+            
+            # Cache users
+            self.users_cache[cache_key] = users
+            
+            logger.info(f"Slack users retrieved: {len(users)}")
+            return users
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack users: {e}")
+            return []
+    
+    async def get_user(self, team_id: str, user_id: str, user_id_token: str = None) -> Optional[SlackUser]:
+        """Get Slack user by ID"""
+        try:
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id_token or 'all', f'user_{team_id}_{user_id}')
+            if cache_key in self.users_cache:
+                return self.users_cache[cache_key]
+            
+            # Make request
+            result = await self._make_request('GET', 'users.info', {'user': user_id}, token_type='user')
+            
+            if result.get('ok') and result.get('user'):
+                # Get workspace info for metadata
+                workspace = await self.get_workspace(team_id, user_id_token)
+                
+                user_data = result.get('user')
+                
+                user = SlackUser(
+                    id=user_data.get('id', ''),
+                    team_id=team_id,
+                    name=user_data.get('name', ''),
+                    deleted=user_data.get('deleted', False),
+                    color=user_data.get('color', ''),
+                    real_name=user_data.get('real_name', ''),
+                    tz=user_data.get('tz', ''),
+                    tz_label=user_data.get('tz_label', ''),
+                    tz_offset=user_data.get('tz_offset', 0),
+                    profile=user_data.get('profile', {}),
+                    is_admin=user_data.get('is_admin', False),
+                    is_owner=user_data.get('is_owner', False),
+                    is_primary_owner=user_data.get('is_primary_owner', False),
+                    is_restricted=user_data.get('is_restricted', False),
+                    is_ultra_restricted=user_data.get('is_ultra_restricted', False),
+                    is_bot=user_data.get('is_bot', False),
+                    is_app_user=user_data.get('is_app_user', False),
+                    is_stranger=user_data.get('is_stranger', False),
+                    is_invited_user=user_data.get('is_invited_user', False),
+                    has_files=user_data.get('has_files', False),
+                    has_2fa=user_data.get('has_2fa', False),
+                    locale=user_data.get('locale', ''),
+                    updated=user_data.get('updated', 0),
+                    enterprise_id=user_data.get('enterprise_id', ''),
+                    presence=user_data.get('presence', 'offline'),
+                    online=user_data.get('presence') == 'active',
+                    last_seen='',
+                    message_count=0,
+                    file_count=user_data.get('has_files', False) ? 0 : 0,
+                    reaction_count=0,
+                    mention_count=0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                
+                # Cache user
+                self.users_cache[cache_key] = user
+                
+                logger.info(f"Slack user retrieved: {user_id}")
+                return user
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack user: {e}")
+            return None
+    
+    async def get_files(self, team_id: str, channel_id: str = None, user_id: str = None,
+                       user_id_token: str = None, limit: int = 100) -> Dict[str, Any]:
+        """Get Slack files from workspace or channel"""
+        try:
+            # Build parameters
+            params = {
+                'count': min(limit, 1000),  # Slack API limit
+                'team_id': team_id
+            }
+            
+            if channel_id:
+                params['channel'] = channel_id
+            if user_id:
+                params['user'] = user_id
+            
+            # Make request
+            result = await self._make_request('GET', 'files.list', params, token_type='user')
+            
+            if not result.get('ok'):
                 return {
-                    'ok': True,
-                    'ts': response.get('ts'),
-                    'message': response.get('message')
+                    'files': [],
+                    'paging': {},
+                    'error': result.get('error')
                 }
-            else:
-                logger.error(f"Error sending message: {response.get('error')}")
-                return None
-                
-        except Exception as e:
-            logger.error(f"Unexpected error sending message: {e}")
-            return None
-    
-    async def list_messages(self, user_id: str, channel: str, limit: int = 100,
-                         oldest: Optional[str] = None, latest: Optional[str] = None,
-                         inclusive: bool = False) -> List[SlackMessage]:
-        """List messages from a channel"""
-        try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return []
             
-            params = {
-                'channel': channel,
-                'limit': str(limit)
+            # Get workspace info for metadata
+            workspace = await self.get_workspace(team_id, user_id_token)
+            
+            # Create file objects
+            files = []
+            for file_data in result.get('files', []):
+                # Get uploader name
+                uploader_name = ''
+                if file_data.get('user'):
+                    user_result = await self._make_request('GET', 'users.info', 
+                                                         {'user': file_data.get('user')}, 
+                                                         token_type='user')
+                    if user_result.get('ok') and user_result.get('user'):
+                        uploader_name = user_result.get('user', {}).get('name', '')
+                elif file_data.get('username'):
+                    uploader_name = file_data.get('username', '')
+                
+                file = SlackFile(
+                    id=file_data.get('id', ''),
+                    created=file_data.get('created', 0),
+                    timestamp=file_data.get('timestamp', 0),
+                    name=file_data.get('name', ''),
+                    title=file_data.get('title', ''),
+                    mimetype=file_data.get('mimetype', ''),
+                    filetype=file_data.get('filetype', ''),
+                    pretty_type=file_data.get('pretty_type', ''),
+                    user=file_data.get('user', ''),
+                    mode=file_data.get('mode', ''),
+                    editable=file_data.get('editable', False),
+                    size=file_data.get('size', 0),
+                    is_external=file_data.get('is_external', False),
+                    external_type=file_data.get('external_type', ''),
+                    is_public=file_data.get('is_public', False),
+                    public_url_shared=file_data.get('public_url_shared', False),
+                    display_as_bot=file_data.get('display_as_bot', False),
+                    username=file_data.get('username', ''),
+                    url_private=file_data.get('url_private', ''),
+                    url_private_download=file_data.get('url_private_download', ''),
+                    thumb_64=file_data.get('thumb_64', ''),
+                    thumb_80=file_data.get('thumb_80', ''),
+                    thumb_360=file_data.get('thumb_360', ''),
+                    thumb_480=file_data.get('thumb_480', ''),
+                    thumb_720=file_data.get('thumb_720', ''),
+                    thumb_960=file_data.get('thumb_960', ''),
+                    thumb_1024=file_data.get('thumb_1024', ''),
+                    original_w=file_data.get('original_w', 0),
+                    original_h=file_data.get('original_h', 0),
+                    thumb_w=file_data.get('thumb_w', 0),
+                    thumb_h=file_data.get('thumb_h', 0),
+                    image_exif_rotation=file_data.get('image_exif_rotation', 0),
+                    permalink=file_data.get('permalink', ''),
+                    permalink_public=file_data.get('permalink_public', ''),
+                    comments_count=file_data.get('comments_count', 0),
+                    shares=file_data.get('shares', {}),
+                    channels=file_data.get('channels', []),
+                    groups=file_data.get('groups', []),
+                    ims=file_data.get('ims', []),
+                    num_channels=len(file_data.get('channels', [])),
+                    num_groups=len(file_data.get('groups', [])),
+                    num_ims=len(file_data.get('ims', [])),
+                    has_rich_preview=file_data.get('has_rich_preview', False),
+                    rich_preview=file_data.get('rich_preview', {}),
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    uploader_name=uploader_name,
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                files.append(file)
+            
+            return {
+                'files': files,
+                'paging': result.get('paging', {}),
+                'total': len(files)
             }
             
-            if oldest:
-                params['oldest'] = oldest
-            if latest:
-                params['latest'] = latest
-            if inclusive:
-                params['inclusive'] = 'true'
-            
-            response = await self._make_api_request('GET', 'conversations.history', params=params,
-                                                access_token=access_token)
-            
-            if response.get('ok'):
-                return [SlackMessage(msg) for msg in response.get('messages', [])]
-            else:
-                logger.error(f"Error listing messages: {response.get('error')}")
-                return []
-                
         except Exception as e:
-            logger.error(f"Unexpected error listing messages: {e}")
+            logger.error(f"Error getting Slack files: {e}")
+            return {
+                'files': [],
+                'paging': {},
+                'error': str(e)
+            }
+    
+    async def search_messages(self, team_id: str, query: str, channel_id: str = None,
+                             user_id: str = None, sort: str = 'timestamp',
+                             sort_dir: str = 'desc', count: int = 100,
+                             user_id_token: str = None) -> Dict[str, Any]:
+        """Search Slack messages"""
+        try:
+            # Build parameters
+            params = {
+                'query': query,
+                'sort': sort,
+                'sort_dir': sort_dir,
+                'count': min(count, 1000),  # Slack API limit
+                'team_id': team_id
+            }
+            
+            if channel_id:
+                params['channel'] = channel_id
+            if user_id:
+                params['user'] = user_id
+            
+            # Make request
+            result = await self._make_request('GET', 'search.messages', params, token_type='user')
+            
+            if not result.get('ok'):
+                return {
+                    'messages': [],
+                    'paging': {},
+                    'error': result.get('error')
+                }
+            
+            # Get workspace info for metadata
+            workspace = await self.get_workspace(team_id, user_id_token)
+            
+            # Create message objects
+            messages = []
+            for message_data in result.get('messages', {}).get('matches', []):
+                # Get channel info
+                channel_id = message_data.get('channel', {}).get('id', '')
+                channel_name = message_data.get('channel', {}).get('name', '')
+                
+                # Count reactions
+                reactions = message_data.get('reactions', [])
+                reaction_count = sum(reaction.get('count', 0) for reaction in reactions)
+                
+                # Count attachments
+                attachments = message_data.get('attachments', [])
+                attachment_count = len(attachments)
+                
+                # Count files
+                files = message_data.get('files', [])
+                file_count = len(files)
+                
+                # Count mentions
+                text = message_data.get('text', '')
+                mentions = []
+                user_mentions = []
+                
+                # Simple mention extraction
+                import re
+                mention_pattern = r'<@([UW][A-Z0-9]+)>'
+                for match in re.findall(mention_pattern, text):
+                    mentions.append(match)
+                    user_mentions.append(match)
+                
+                # Get user info
+                user_name = ''
+                if message_data.get('user'):
+                    user_result = await self._make_request('GET', 'users.info', 
+                                                         {'user': message_data.get('user')}, 
+                                                         token_type='user')
+                    if user_result.get('ok') and user_result.get('user'):
+                        user_name = user_result.get('user', {}).get('name', '')
+                elif message_data.get('bot_profile'):
+                    user_name = message_data.get('bot_profile', {}).get('name', '')
+                
+                message = SlackMessage(
+                    id=message_data.get('ts', ''),
+                    team=team_id,
+                    channel=channel_id,
+                    user=message_data.get('user', ''),
+                    type=message_data.get('type', ''),
+                    subtype=message_data.get('subtype', ''),
+                    text=message_data.get('text', ''),
+                    ts=message_data.get('ts', ''),
+                    thread_ts=message_data.get('thread_ts', ''),
+                    parent_user_id=message_data.get('parent_user_id', ''),
+                    reply_count=message_data.get('reply_count', 0),
+                    reply_users_count=message_data.get('reply_users_count', 0),
+                    latest_reply=message_data.get('latest_reply', ''),
+                    reply_users=message_data.get('reply_users', []),
+                    reactions=reactions,
+                    attachments=attachments,
+                    files=files,
+                    pinned_to=message_data.get('pinned_to', []),
+                    mentions=mentions,
+                    user_mentions=user_mentions,
+                    bot_id=message_data.get('bot_id', ''),
+                    bot_profile=message_data.get('bot_profile', {}),
+                    app_id=message_data.get('app_id', ''),
+                    blocks=message_data.get('blocks', []),
+                    edited=message_data.get('edited', {}),
+                    last_read='',
+                    unread_count=0,
+                    subscribed=False,
+                    is_starred=False,
+                    has_reactions=reaction_count > 0,
+                    reaction_count=reaction_count,
+                    has_attachments=attachment_count > 0,
+                    attachment_count=attachment_count,
+                    has_files=file_count > 0,
+                    file_count=file_count,
+                    is_threaded=message_data.get('thread_ts') is not None,
+                    is_thread_parent=message_data.get('reply_count', 0) > 0,
+                    is_thread_reply=message_data.get('thread_ts') is not None and message_data.get('reply_count', 0) == 0,
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    channel_name=channel_name,
+                    user_name=user_name,
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                messages.append(message)
+            
+            return {
+                'messages': messages,
+                'paging': result.get('messages', {}).get('paging', {}),
+                'total': len(messages),
+                'query': query,
+                'search_filters': {
+                    'channel_id': channel_id,
+                    'user_id': user_id,
+                    'sort': sort,
+                    'sort_dir': sort_dir,
+                    'count': count
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error searching Slack messages: {e}")
+            return {
+                'messages': [],
+                'paging': {},
+                'error': str(e)
+            }
+    
+    async def get_webhooks(self, team_id: str, user_id: str = None) -> List[SlackWebhook]:
+        """Get Slack webhooks from workspace"""
+        try:
+            # Check cache first
+            cache_key = self._generate_cache_key(user_id or 'all', f'webhooks_{team_id}')
+            if cache_key in self.webhooks_cache:
+                return self.webhooks_cache[cache_key]
+            
+            # Get workspace info for metadata
+            workspace = await self.get_workspace(team_id, user_id)
+            
+            # Make request
+            result = await self._make_request('GET', 'webhooks.list', token_type='user')
+            
+            if not result.get('ok'):
+                return []
+            
+            # Create webhook objects
+            webhooks = []
+            for webhook_data in result.get('webhooks', []):
+                webhook = SlackWebhook(
+                    id=webhook_data.get('id', ''),
+                    team_id=webhook_data.get('team_id', team_id),
+                    enterprise_id=webhook_data.get('enterprise_id', ''),
+                    channel_id=webhook_data.get('channel_id', ''),
+                    configuration_url=webhook_data.get('configuration_url', ''),
+                    url=webhook_data.get('url', ''),
+                    active=webhook_data.get('active', False),
+                    created_at=webhook_data.get('created_at', 0),
+                    updated_at=webhook_data.get('updated_at', 0),
+                    trigger_id=webhook_data.get('trigger_id', ''),
+                    app_id=webhook_data.get('app_id', ''),
+                    app_name=webhook_data.get('app_name', ''),
+                    workspace_id=team_id,
+                    workspace_name=workspace.name if workspace else '',
+                    metadata={
+                        'accessed_at': datetime.utcnow().isoformat(),
+                        'source': 'slack_api'
+                    }
+                )
+                webhooks.append(webhook)
+            
+            # Cache webhooks
+            self.webhooks_cache[cache_key] = webhooks
+            
+            logger.info(f"Slack webhooks retrieved: {len(webhooks)}")
+            return webhooks
+            
+        except Exception as e:
+            logger.error(f"Error getting Slack webhooks: {e}")
             return []
     
-    # File operations
-    async def upload_file(self, user_id: str, file_path: str, filename: Optional[str] = None,
-                        title: Optional[str] = None, initial_comment: Optional[str] = None,
-                        channels: Optional[List[str]] = None) -> Optional[SlackFile]:
-        """Upload a file to Slack"""
-        try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return None
-            
-            # Read file
-            try:
-                with open(file_path, 'rb') as f:
-                    file_content = f.read()
-            except FileNotFoundError:
-                logger.error(f"File not found: {file_path}")
-                return None
-            except Exception as e:
-                logger.error(f"Error reading file: {e}")
-                return None
-            
-            if not filename:
-                filename = os.path.basename(file_path)
-            
-            data = {}
-            files = {
-                'file': (filename, file_content)
-            }
-            
-            if title:
-                data['title'] = title
-            if initial_comment:
-                data['initial_comment'] = initial_comment
-            if channels:
-                data['channels'] = ','.join(channels)
-            
-            response = await self._make_api_request('POST', 'files.upload', data=data, files=files,
-                                                access_token=access_token)
-            
-            if response.get('ok'):
-                return SlackFile(response.get('file', {}))
-            else:
-                logger.error(f"Error uploading file: {response.get('error')}")
-                return None
-                
-        except Exception as e:
-            logger.error(f"Unexpected error uploading file: {e}")
-            return None
+    def _clear_cache(self):
+        """Clear all caches"""
+        self.workspaces_cache.clear()
+        self.channels_cache.clear()
+        self.users_cache.clear()
+        self.messages_cache.clear()
+        self.files_cache.clear()
+        self.reactions_cache.clear()
+        self.webhooks_cache.clear()
     
-    async def list_files(self, user_id: str, limit: int = 100, 
-                       user_filter: Optional[str] = None, channel: Optional[str] = None,
-                       types_filter: Optional[List[str]] = None) -> List[SlackFile]:
-        """List files from Slack"""
-        try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return []
-            
-            params = {
-                'limit': str(limit)
-            }
-            
-            if user_filter:
-                params['user'] = user_filter
-            if channel:
-                params['channel'] = channel
-            if types_filter:
-                params['filetypes'] = ','.join(types_filter)
-            
-            response = await self._make_api_request('GET', 'files.list', params=params,
-                                                access_token=access_token)
-            
-            if response.get('ok'):
-                return [SlackFile(file) for file in response.get('files', [])]
-            else:
-                logger.error(f"Error listing files: {response.get('error')}")
-                return []
-                
-        except Exception as e:
-            logger.error(f"Unexpected error listing files: {e}")
-            return []
+    def _clear_workspace_cache(self):
+        """Clear workspace cache"""
+        self.workspaces_cache.clear()
     
-    # User operations
-    async def list_users(self, user_id: str, limit: int = 1000, 
-                       presence: bool = False, team_id: Optional[str] = None) -> List[SlackUser]:
-        """List users from workspace"""
-        try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return []
-            
-            params = {
-                'limit': str(limit)
-            }
-            
-            if presence:
-                params['presence'] = 'true'
-            if team_id:
-                params['team_id'] = team_id
-            
-            response = await self._make_api_request('GET', 'users.list', params=params,
-                                                access_token=access_token)
-            
-            if response.get('ok'):
-                return [SlackUser(user) for user in response.get('members', [])]
-            else:
-                logger.error(f"Error listing users: {response.get('error')}")
-                return []
-                
-        except Exception as e:
-            logger.error(f"Unexpected error listing users: {e}")
-            return []
+    def _clear_channel_cache(self):
+        """Clear channel cache"""
+        self.channels_cache.clear()
     
-    async def get_user_info(self, user_id: str, target_user_id: str) -> Optional[SlackUser]:
-        """Get information about a specific user"""
-        try:
-            access_token = await self._get_user_access_token(user_id)
-            if not access_token:
-                logger.error(f"No access token found for user {user_id}")
-                return None
-            
-            params = {
-                'user': target_user_id
-            }
-            
-            response = await self._make_api_request('GET', 'users.info', params=params,
-                                                access_token=access_token)
-            
-            if response.get('ok'):
-                return SlackUser(response.get('user', {}))
-            else:
-                logger.error(f"Error getting user info: {response.get('error')}")
-                return None
-                
-        except Exception as e:
-            logger.error(f"Unexpected error getting user info: {e}")
-            return None
+    def _clear_user_cache(self):
+        """Clear user cache"""
+        self.users_cache.clear()
     
-    def get_service_info(self) -> Dict[str, Any]:
+    def _clear_message_cache(self):
+        """Clear message cache"""
+        self.messages_cache.clear()
+    
+    def _clear_file_cache(self):
+        """Clear file cache"""
+        self.files_cache.clear()
+    
+    def _clear_reaction_cache(self):
+        """Clear reaction cache"""
+        self.reactions_cache.clear()
+    
+    def _clear_webhook_cache(self):
+        """Clear webhook cache"""
+        self.webhooks_cache.clear()
+    
+    async def get_service_info(self) -> Dict[str, Any]:
         """Get service information"""
         return {
-            'name': 'Enhanced Slack Service',
-            'version': '2.0.0',
-            'mock_mode': self._mock_mode,
-            'api_base_url': self.api_base_url,
-            'timeout': self.timeout,
-            'capabilities': [
-                'List channels',
-                'Create channel',
-                'Send messages',
-                'List messages',
-                'Upload files',
-                'List files',
-                'List users',
-                'Get user info'
-            ]
+            "name": "Enhanced Slack Service",
+            "version": "1.0.0",
+            "description": "Complete Slack team communication automation",
+            "capabilities": [
+                "workspace_management",
+                "channel_operations",
+                "message_crud",
+                "user_and_presence_management",
+                "file_and_attachment_handling",
+                "search_and_filtering",
+                "realtime_events",
+                "webhook_support",
+                "reaction_tracking",
+                "thread_analysis",
+                "presence_tracking",
+                "communication_analytics"
+            ],
+            "api_endpoints": [
+                "/api/slack/enhanced/workspaces/list",
+                "/api/slack/enhanced/workspaces/get",
+                "/api/slack/enhanced/channels/list",
+                "/api/slack/enhanced/channels/get",
+                "/api/slack/enhanced/messages/list",
+                "/api/slack/enhanced/messages/get",
+                "/api/slack/enhanced/messages/send",
+                "/api/slack/enhanced/messages/update",
+                "/api/slack/enhanced/messages/delete",
+                "/api/slack/enhanced/users/list",
+                "/api/slack/enhanced/users/get",
+                "/api/slack/enhanced/files/list",
+                "/api/slack/enhanced/search/messages",
+                "/api/slack/enhanced/webhooks/list",
+                "/api/slack/enhanced/health"
+            ],
+            "channel_types": self.channel_types,
+            "message_types": self.message_types,
+            "file_types": self.file_types,
+            "initialized_at": datetime.utcnow().isoformat()
         }
 
 # Create singleton instance
-slack_enhanced_service = SlackService()
+slack_enhanced_service = SlackEnhancedService()

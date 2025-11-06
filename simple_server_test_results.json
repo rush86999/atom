@@ -1,0 +1,103 @@
+{
+  "timestamp": "2025-11-05T18:16:28.666508",
+  "tests": {
+    "Database Connectivity": {
+      "status": "passed",
+      "timestamp": "2025-11-05T18:16:28.670462",
+      "details": {
+        "tables": [
+          "users",
+          "integrations",
+          "sqlite_sequence",
+          "workflows"
+        ],
+        "user_count": 5,
+        "integration_count": 5,
+        "file_size": 32768
+      }
+    },
+    "OAuth Database Connectivity": {
+      "status": "passed",
+      "timestamp": "2025-11-05T18:16:28.672383",
+      "details": {
+        "tables": [
+          "oauth_tokens",
+          "sqlite_sequence",
+          "service_configs"
+        ],
+        "service_count": 5,
+        "file_size": 24576
+      }
+    },
+    "Environment File": {
+      "status": "passed",
+      "timestamp": "2025-11-05T18:16:28.674084",
+      "details": {
+        "total_lines": 302,
+        "service_configs": {
+          "asana": "1211551350187489",
+          "notion": "\"29bd872b-594c-8042-...",
+          "slack": "\"9797376469125.97974...",
+          "google": "829155852753-o8e7t52...",
+          "github": "Ov23li2ZCb3JvRNjVGni",
+          "linkedin": "your-linkedin-client...",
+          "plaid": "your-plaid-client-id",
+          "azure": "\"ae22a5d7-55b6-4804-...",
+          "outlook": "ae22a5d7-55b6-4804-9...",
+          "teams": "ae22a5d7-55b6-4804-9...",
+          "box": "037ao9lh3v4uv2wcjy44...",
+          "jira": "zjP26GOYbXzLpTz5DoDr..."
+        },
+        "file_size": 9276
+      }
+    },
+    "API File Structure": {
+      "status": "passed",
+      "timestamp": "2025-11-05T18:16:28.676750",
+      "details": {
+        "endpoints_count": 36,
+        "endpoints": [
+          "\"/health\"",
+          "\"/api/integrations/google/health\"",
+          "\"/api/oauth/google/url\"",
+          "\"/api/integrations/google/gmail/messages\", methods=[\"POST\"]",
+          "\"/api/integrations/google/calendar/events\", methods=[\"POST\"]"
+        ],
+        "imports_count": 2,
+        "file_size": 37864
+      }
+    },
+    "Service Dashboard": {
+      "status": "passed",
+      "timestamp": "2025-11-05T18:16:28.677881",
+      "details": {
+        "dashboard_exists": true,
+        "service_cards": 6,
+        "status_indicators": 6,
+        "file_size": 5193
+      }
+    },
+    "Integration Files": {
+      "status": "passed",
+      "timestamp": "2025-11-05T18:16:28.678190",
+      "details": {
+        "available_count": 6,
+        "total_count": 6,
+        "files": [
+          "google: 43539 bytes",
+          "asana: 36692 bytes",
+          "slack: 34147 bytes",
+          "notion: 24935 bytes",
+          "teams: 26459 bytes",
+          "github: 73176 bytes"
+        ]
+      }
+    }
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "success_rate": 100.0
+  }
+}
