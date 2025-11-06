@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test Script for Microsoft Teams Integration
-Verifies that Teams enhanced API is working correctly
+Test Script for GitHub Integration
+Verifies that GitHub enhanced API is working correctly
 """
 
 import asyncio
@@ -13,15 +13,15 @@ from datetime import datetime, timezone
 
 # Configuration
 API_BASE_URL = "http://localhost:5058"
-TEAMS_ENHANCED_ENDPOINT = f"{API_BASE_URL}/api/integrations/teams"
-TEAMS_OAUTH_ENDPOINT = f"{API_BASE_URL}/api/auth/teams"
+GITHUB_ENHANCED_ENDPOINT = f"{API_BASE_URL}/api/integrations/github"
+GITHUB_OAUTH_ENDPOINT = f"{API_BASE_URL}/api/auth/github"
 
 def test_health():
-    """Test the enhanced Teams health endpoint"""
-    print("🔍 Testing Teams Enhanced API Health...")
+    """Test the enhanced GitHub health endpoint"""
+    print("🔍 Testing GitHub Enhanced API Health...")
     
     try:
-        response = requests.get(f"{TEAMS_ENHANCED_ENDPOINT}/health", timeout=10)
+        response = requests.get(f"{GITHUB_ENHANCED_ENDPOINT}/health", timeout=10)
         
         if response.status_code == 200:
             health_data = response.json()
@@ -52,11 +52,11 @@ def test_health():
         return False
 
 def test_service_info():
-    """Test the enhanced Teams service info endpoint"""
-    print("\n📋 Testing Teams Enhanced API Service Info...")
+    """Test the enhanced GitHub service info endpoint"""
+    print("\n📋 Testing GitHub Enhanced API Service Info...")
     
     try:
-        response = requests.get(f"{TEAMS_ENHANCED_ENDPOINT}/info", timeout=10)
+        response = requests.get(f"{GITHUB_ENHANCED_ENDPOINT}/info", timeout=10)
         
         if response.status_code == 200:
             info_data = response.json()
@@ -89,19 +89,20 @@ def test_service_info():
         return False
 
 def test_oauth_flow():
-    """Test the Teams OAuth authorization endpoint"""
-    print("\n🔐 Testing Teams OAuth Authorization...")
+    """Test the GitHub OAuth authorization endpoint"""
+    print("\n🔐 Testing GitHub OAuth Authorization...")
     
     try:
-        response = requests.post(f"{TEAMS_OAUTH_ENDPOINT}/authorize", 
+        response = requests.post(f"{GITHUB_OAUTH_ENDPOINT}/authorize", 
                            json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
             auth_data = response.json()
             
-            if auth_data.get('success'):
+            if auth_data.get('ok'):
                 print("✅ OAuth authorization URL generated")
-                print(f"   State: {auth_data.get('state')}")
+                auth_url = auth_data.get('oauth_url', 'URL generated')
+                print(f"   Auth URL: {auth_url[:50]}...")
                 return True
             else:
                 print(f"❌ OAuth authorization failed: {auth_data.get('error')}")
@@ -116,10 +117,10 @@ def test_oauth_flow():
 
 def test_oauth_health():
     """Test the OAuth health endpoint"""
-    print("\n🏥 Testing Teams OAuth Service Health...")
+    print("\n🏥 Testing GitHub OAuth Service Health...")
     
     try:
-        response = requests.get(f"{TEAMS_OAUTH_ENDPOINT}/health", timeout=10)
+        response = requests.get(f"{GITHUB_OAUTH_ENDPOINT}/health", timeout=10)
         
         if response.status_code == 200:
             health_data = response.json()
@@ -143,19 +144,19 @@ def test_oauth_health():
         print(f"❌ OAuth health check error: {e}")
         return False
 
-def test_teams_endpoint():
-    """Test the Teams listing endpoint"""
-    print("\n📢 Testing Teams Endpoint...")
+def test_repositories_endpoint():
+    """Test the repositories listing endpoint"""
+    print("\n📁 Testing GitHub Repositories Endpoint...")
     
     try:
-        response = requests.post(f"{TEAMS_ENHANCED_ENDPOINT}/teams/list", 
+        response = requests.post(f"{GITHUB_ENHANCED_ENDPOINT}/repositories/list", 
                             json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             
             if data.get('ok'):
-                print("✅ Teams endpoint working")
+                print("✅ Repositories endpoint working")
                 print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                 return True
             else:
@@ -164,29 +165,29 @@ def test_teams_endpoint():
                     print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                     return True
                 else:
-                    print(f"❌ Teams endpoint failed: {error}")
+                    print(f"❌ Repositories endpoint failed: {error}")
                     return False
         else:
-            print(f"❌ Teams endpoint failed with status {response.status_code}")
+            print(f"❌ Repositories endpoint failed with status {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"❌ Teams endpoint error: {e}")
+        print(f"❌ Repositories endpoint error: {e}")
         return False
 
-def test_channels_endpoint():
-    """Test the channels listing endpoint"""
-    print("\n📢 Testing Teams Channels Endpoint...")
+def test_issues_endpoint():
+    """Test the issues listing endpoint"""
+    print("\n🐛 Testing GitHub Issues Endpoint...")
     
     try:
-        response = requests.post(f"{TEAMS_ENHANCED_ENDPOINT}/channels/list", 
+        response = requests.post(f"{GITHUB_ENHANCED_ENDPOINT}/issues/search", 
                             json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             
             if data.get('ok'):
-                print("✅ Channels endpoint working")
+                print("✅ Issues endpoint working")
                 print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                 return True
             else:
@@ -195,29 +196,29 @@ def test_channels_endpoint():
                     print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                     return True
                 else:
-                    print(f"❌ Channels endpoint failed: {error}")
+                    print(f"❌ Issues endpoint failed: {error}")
                     return False
         else:
-            print(f"❌ Channels endpoint failed with status {response.status_code}")
+            print(f"❌ Issues endpoint failed with status {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"❌ Channels endpoint error: {e}")
+        print(f"❌ Issues endpoint error: {e}")
         return False
 
-def test_messages_endpoint():
-    """Test the messages listing endpoint"""
-    print("\n💬 Testing Teams Messages Endpoint...")
+def test_pull_requests_endpoint():
+    """Test the pull requests listing endpoint"""
+    print("\n🔀 Testing GitHub Pull Requests Endpoint...")
     
     try:
-        response = requests.post(f"{TEAMS_ENHANCED_ENDPOINT}/messages/list", 
-                            json={'user_id': 'test-user', 'channel_id': 'test'}, timeout=10)
+        response = requests.post(f"{GITHUB_ENHANCED_ENDPOINT}/pulls/search", 
+                            json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             
             if data.get('ok'):
-                print("✅ Messages endpoint working")
+                print("✅ Pull requests endpoint working")
                 print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                 return True
             else:
@@ -226,22 +227,22 @@ def test_messages_endpoint():
                     print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                     return True
                 else:
-                    print(f"❌ Messages endpoint failed: {error}")
+                    print(f"❌ Pull requests endpoint failed: {error}")
                     return False
         else:
-            print(f"❌ Messages endpoint failed with status {response.status_code}")
+            print(f"❌ Pull requests endpoint failed with status {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"❌ Messages endpoint error: {e}")
+        print(f"❌ Pull requests endpoint error: {e}")
         return False
 
 def test_users_endpoint():
     """Test the users listing endpoint"""
-    print("\n👥 Testing Teams Users Endpoint...")
+    print("\n👥 Testing GitHub Users Endpoint...")
     
     try:
-        response = requests.post(f"{TEAMS_ENHANCED_ENDPOINT}/users/list", 
+        response = requests.post(f"{GITHUB_ENHANCED_ENDPOINT}/users/list", 
                             json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
@@ -267,19 +268,19 @@ def test_users_endpoint():
         print(f"❌ Users endpoint error: {e}")
         return False
 
-def test_meetings_endpoint():
-    """Test meetings listing endpoint"""
-    print("\n📅 Testing Teams Meetings Endpoint...")
+def test_workflows_endpoint():
+    """Test the workflows listing endpoint"""
+    print("\n⚙️ Testing GitHub Workflows Endpoint...")
     
     try:
-        response = requests.post(f"{TEAMS_ENHANCED_ENDPOINT}/meetings/list", 
+        response = requests.post(f"{GITHUB_ENHANCED_ENDPOINT}/workflows/list", 
                             json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             
             if data.get('ok'):
-                print("✅ Meetings endpoint working")
+                print("✅ Workflows endpoint working")
                 print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                 return True
             else:
@@ -288,29 +289,29 @@ def test_meetings_endpoint():
                     print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                     return True
                 else:
-                    print(f"❌ Meetings endpoint failed: {error}")
+                    print(f"❌ Workflows endpoint failed: {error}")
                     return False
         else:
-            print(f"❌ Meetings endpoint failed with status {response.status_code}")
+            print(f"❌ Workflows endpoint failed with status {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"❌ Meetings endpoint error: {e}")
+        print(f"❌ Workflows endpoint error: {e}")
         return False
 
-def test_files_endpoint():
-    """Test the files listing endpoint"""
-    print("\n📁 Testing Teams Files Endpoint...")
+def test_actions_endpoint():
+    """Test the actions listing endpoint"""
+    print("\n🤖 Testing GitHub Actions Endpoint...")
     
     try:
-        response = requests.post(f"{TEAMS_ENHANCED_ENDPOINT}/files/list", 
+        response = requests.post(f"{GITHUB_ENHANCED_ENDPOINT}/actions/list", 
                             json={'user_id': 'test-user'}, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             
             if data.get('ok'):
-                print("✅ Files endpoint working")
+                print("✅ Actions endpoint working")
                 print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                 return True
             else:
@@ -319,14 +320,14 @@ def test_files_endpoint():
                     print("   ⚠️  Authentication required - this is expected without OAuth tokens")
                     return True
                 else:
-                    print(f"❌ Files endpoint failed: {error}")
+                    print(f"❌ Actions endpoint failed: {error}")
                     return False
         else:
-            print(f"❌ Files endpoint failed with status {response.status_code}")
+            print(f"❌ Actions endpoint failed with status {response.status_code}")
             return False
             
     except Exception as e:
-        print(f"❌ Files endpoint error: {e}")
+        print(f"❌ Actions endpoint error: {e}")
         return False
 
 def check_environment_variables():
@@ -334,9 +335,9 @@ def check_environment_variables():
     print("\n🔧 Checking Environment Variables...")
     
     required_vars = [
-        'TEAMS_CLIENT_ID',
-        'TEAMS_CLIENT_SECRET',
-        'TEAMS_REDIRECT_URI'
+        'GITHUB_CLIENT_ID',
+        'GITHUB_CLIENT_SECRET',
+        'GITHUB_REDIRECT_URI'
     ]
     
     all_set = True
@@ -357,7 +358,7 @@ def check_environment_variables():
 
 def main():
     """Run all tests"""
-    print("🚀 Microsoft Teams Integration Test Suite")
+    print("🚀 GitHub Integration Test Suite")
     print("=" * 50)
     
     # Check environment first
@@ -373,12 +374,12 @@ def main():
     info_ok = test_service_info()
     oauth_health_ok = test_oauth_health()
     oauth_auth_ok = test_oauth_flow()
-    teams_ok = test_teams_endpoint()
-    channels_ok = test_channels_endpoint()
-    messages_ok = test_messages_endpoint()
+    repos_ok = test_repositories_endpoint()
+    issues_ok = test_issues_endpoint()
+    pulls_ok = test_pull_requests_endpoint()
     users_ok = test_users_endpoint()
-    meetings_ok = test_meetings_endpoint()
-    files_ok = test_files_endpoint()
+    workflows_ok = test_workflows_endpoint()
+    actions_ok = test_actions_endpoint()
     
     # Summary
     print("\n" + "=" * 50)
@@ -391,12 +392,12 @@ def main():
         ("Service Info", info_ok),
         ("OAuth Health", oauth_health_ok),
         ("OAuth Authorization", oauth_auth_ok),
-        ("Teams Endpoint", teams_ok),
-        ("Channels Endpoint", channels_ok),
-        ("Messages Endpoint", messages_ok),
+        ("Repositories Endpoint", repos_ok),
+        ("Issues Endpoint", issues_ok),
+        ("Pull Requests Endpoint", pulls_ok),
         ("Users Endpoint", users_ok),
-        ("Meetings Endpoint", meetings_ok),
-        ("Files Endpoint", files_ok)
+        ("Workflows Endpoint", workflows_ok),
+        ("Actions Endpoint", actions_ok)
     ]
     
     for test_name, result in results:
@@ -404,10 +405,10 @@ def main():
         print(f"{test_name:<25} {status}")
     
     all_passed = all([health_ok, info_ok, oauth_health_ok, oauth_auth_ok, 
-                     teams_ok, channels_ok, messages_ok, users_ok, meetings_ok, files_ok])
+                     repos_ok, issues_ok, pulls_ok, users_ok, workflows_ok, actions_ok])
     
     if all_passed:
-        print(f"\n🎉 All critical tests passed! Teams integration is ready.")
+        print(f"\n🎉 All critical tests passed! GitHub integration is ready.")
         if not env_ok:
             print("💡 Configure environment variables for full OAuth functionality.")
     else:

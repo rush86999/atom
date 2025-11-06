@@ -16,27 +16,30 @@ import os
 
 # Database pool initialization
 import asyncpg
+
 db_pool = None
+
 
 async def init_database():
     """Initialize database connection pool"""
     global db_pool
     try:
         db_pool = await asyncpg.create_pool(
-            host=os.getenv('DB_HOST', 'localhost'),
-            port=int(os.getenv('DB_PORT', 5432)),
-            database=os.getenv('DB_NAME', 'atom'),
-            user=os.getenv('DB_USER', 'postgres'),
-            password=os.getenv('DB_PASSWORD', ''),
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", 5432)),
+            database=os.getenv("DB_NAME", "atom"),
+            user=os.getenv("DB_USER", "postgres"),
+            password=os.getenv("DB_PASSWORD", ""),
             min_size=2,
-            max_size=10
+            max_size=10,
         )
-        
+
         logging.info("Database connection pool initialized successfully")
         return True
     except Exception as e:
         logging.error(f"Failed to initialize database pool: {e}")
         return False
+
 
 # Load environment variables from .env file in project root
 env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
@@ -52,11 +55,12 @@ from voice_integration_api import voice_integration_api_bp
 # Import Jira OAuth handler
 try:
     from auth_handler_jira import jira_auth_bp
+    from db_oauth_jira import init_jira_oauth_table
 
     JIRA_OAUTH_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     JIRA_OAUTH_AVAILABLE = False
-    logging.warning("Jira OAuth handler not available")
+    logging.warning(f"Jira OAuth handler not available: {e}")
 
 # Import enhanced service endpoints
 try:
@@ -79,6 +83,7 @@ except ImportError as e:
 # Import Teams OAuth handler
 try:
     from auth_handler_teams import auth_teams_bp
+    from db_oauth_teams_new import init_teams_oauth_table
 
     TEAMS_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -107,6 +112,7 @@ except ImportError as e:
 # Import GitHub OAuth handler
 try:
     from auth_handler_github import auth_github_bp
+    from db_oauth_github import init_github_oauth_table
 
     GITHUB_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -116,6 +122,7 @@ except ImportError as e:
 # Import Trello OAuth handler
 try:
     from auth_handler_trello import auth_trello_bp
+    from db_oauth_trello import init_trello_oauth_table
 
     TRELLO_OAUTH_AVAILABLE = True
 except ImportError as e:
@@ -177,6 +184,54 @@ try:
 except ImportError as e:
     SLACK_OAUTH_AVAILABLE = False
     logging.warning(f"Enhanced Slack OAuth handler not available: {e}")
+
+# Import Google OAuth handler
+try:
+    from db_oauth_google import init_google_oauth_table
+
+    GOOGLE_OAUTH_AVAILABLE = True
+except ImportError as e:
+    GOOGLE_OAUTH_AVAILABLE = False
+    logging.warning(f"Google OAuth database handler not available: {e}")
+
+# Import Salesforce OAuth handler
+try:
+    from auth_handler_salesforce import (
+        init_salesforce_oauth_handler,
+        salesforce_auth_bp,
+    )
+
+    SALESFORCE_OAUTH_AVAILABLE = True
+except ImportError as e:
+    SALESFORCE_OAUTH_AVAILABLE = False
+    logging.warning(f"Salesforce OAuth handler not available: {e}")
+
+# Import Zoom OAuth handler
+try:
+    from auth_handler_zoom import init_zoom_oauth_handler, zoom_auth_bp
+
+    ZOOM_OAUTH_AVAILABLE = True
+except ImportError as e:
+    ZOOM_OAUTH_AVAILABLE = False
+    logging.warning(f"Zoom OAuth handler not available: {e}")
+
+# Import Salesforce handler
+try:
+    from salesforce_handler import salesforce_bp
+
+    SALESFORCE_HANDLER_AVAILABLE = True
+except ImportError as e:
+    SALESFORCE_HANDLER_AVAILABLE = False
+    logging.warning(f"Salesforce handler not available: {e}")
+
+# Import Salesforce health handler
+try:
+    from salesforce_health_handler import salesforce_health_bp
+
+    SALESFORCE_HEALTH_AVAILABLE = True
+except ImportError as e:
+    SALESFORCE_HEALTH_AVAILABLE = False
+    logging.warning(f"Salesforce health handler not available: {e}")
 
 # Import enhanced Slack API
 try:
@@ -267,7 +322,9 @@ def create_app():
     # Register new Slack integration routes if available
     if SLACK_INTEGRATION_AVAILABLE:
         app.register_blueprint(
-            slack_integration_bp, url_prefix="/api/integrations", name="slack_integration"
+            slack_integration_bp,
+            url_prefix="/api/integrations",
+            name="slack_integration",
         )
         logging.info("Slack integration routes registered successfully")
 
@@ -427,91 +484,109 @@ def create_app():
         def outlook_new_oauth_callback():
             """Handle Outlook OAuth callback"""
             data = request.get_json()
-            code = data.get('code')
-            state = data.get('state')
-            
+            code = data.get("code")
+            state = data.get("state")
+
             if not code:
-                return jsonify({
-                    'success': False,
-                    'error': 'Authorization code required',
-                    'service': 'outlook'
-                }), 400
-            
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": "Authorization code required",
+                        "service": "outlook",
+                    }
+                ), 400
+
             result = outlook_oauth_handler.exchange_code_for_token(code, state)
-            
-            if result.get('success'):
+
+            if result.get("success"):
                 # Store tokens in database
-                user_info = result.get('user_info', {})
-                user_id = user_info.get('id') or user_info.get('userPrincipalName')
-                tokens = result.get('tokens', {})
-                
+                user_info = result.get("user_info", {})
+                user_id = user_info.get("id") or user_info.get("userPrincipalName")
+                tokens = result.get("tokens", {})
+
                 if user_id:
                     from datetime import datetime, timedelta, timezone
-                    expires_in = tokens.get('expires_in', 3600)
-                    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-                    
-                    store_result = asyncio.run(store_outlook_tokens(
-                        db_pool,
-                        user_id,
-                        tokens.get('access_token'),
-                        tokens.get('refresh_token'),
-                        expires_at,
-                        tokens.get('scope'),
-                        result.get('workspace_info', {}).get('tenant_id')
-                    ))
-                    
-                    if store_result.get('success'):
-                        result['stored'] = True
+
+                    expires_in = tokens.get("expires_in", 3600)
+                    expires_at = datetime.now(timezone.utc) + timedelta(
+                        seconds=expires_in
+                    )
+
+                    store_result = asyncio.run(
+                        store_outlook_tokens(
+                            db_pool,
+                            user_id,
+                            tokens.get("access_token"),
+                            tokens.get("refresh_token"),
+                            expires_at,
+                            tokens.get("scope"),
+                            result.get("workspace_info", {}).get("tenant_id"),
+                        )
+                    )
+
+                    if store_result.get("success"):
+                        result["stored"] = True
                     else:
-                        logging.error(f"Failed to store Outlook tokens: {store_result.get('error')}")
-                        result['stored'] = False
-                
+                        logging.error(
+                            f"Failed to store Outlook tokens: {store_result.get('error')}"
+                        )
+                        result["stored"] = False
+
             return jsonify(result)
-            
+
         # Add Outlook OAuth callback endpoint
         @app.route("/api/auth/outlook-new/callback", methods=["POST"])
         def outlook_new_oauth_callback():
             """Handle Outlook OAuth callback"""
             data = request.get_json()
-            code = data.get('code')
-            state = data.get('state')
-            
+            code = data.get("code")
+            state = data.get("state")
+
             if not code:
-                return jsonify({
-                    'success': False,
-                    'error': 'Authorization code required',
-                    'service': 'outlook'
-                }), 400
-            
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": "Authorization code required",
+                        "service": "outlook",
+                    }
+                ), 400
+
             result = outlook_oauth_handler.exchange_code_for_token(code, state)
-            
-            if result.get('success'):
+
+            if result.get("success"):
                 # Store tokens in database
-                user_info = result.get('user_info', {})
-                user_id = user_info.get('id') or user_info.get('userPrincipalName')
-                tokens = result.get('tokens', {})
-                
+                user_info = result.get("user_info", {})
+                user_id = user_info.get("id") or user_info.get("userPrincipalName")
+                tokens = result.get("tokens", {})
+
                 if user_id:
                     from datetime import datetime, timedelta, timezone
-                    expires_in = tokens.get('expires_in', 3600)
-                    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-                    
-                    store_result = asyncio.run(store_outlook_tokens(
-                        db_pool,
-                        user_id,
-                        tokens.get('access_token'),
-                        tokens.get('refresh_token'),
-                        expires_at,
-                        tokens.get('scope'),
-                        result.get('workspace_info', {}).get('tenant_id')
-                    ))
-                    
-                    if store_result.get('success'):
-                        result['stored'] = True
+
+                    expires_in = tokens.get("expires_in", 3600)
+                    expires_at = datetime.now(timezone.utc) + timedelta(
+                        seconds=expires_in
+                    )
+
+                    store_result = asyncio.run(
+                        store_outlook_tokens(
+                            db_pool,
+                            user_id,
+                            tokens.get("access_token"),
+                            tokens.get("refresh_token"),
+                            expires_at,
+                            tokens.get("scope"),
+                            result.get("workspace_info", {}).get("tenant_id"),
+                        )
+                    )
+
+                    if store_result.get("success"):
+                        result["stored"] = True
                     else:
-                        logging.error(f"Failed to store Outlook tokens: {store_result.get('error')}")
-                        result['stored'] = False
-                
+                        logging.error(
+                            f"Failed to store Outlook tokens: {store_result.get('error')}"
+                        )
+                        result["stored"] = False
+
             return jsonify(result)
 
     # Register Enhanced Outlook API if available
@@ -520,16 +595,21 @@ def create_app():
 
         OUTLOOK_ENHANCED_AVAILABLE = True
         app.register_blueprint(outlook_enhanced_bp, url_prefix="/api/outlook/enhanced")
-        
+
         # Set database pool for OAuth token management
         if OUTLOOK_ENHANCED_AVAILABLE:
             try:
                 from outlook_enhanced_api import set_db_pool
+
                 set_db_pool(db_pool)
-                logging.info("Enhanced Outlook API registered successfully with database pool")
+                logging.info(
+                    "Enhanced Outlook API registered successfully with database pool"
+                )
             except ImportError as e:
-                logging.warning(f"Could not set database pool for Outlook enhanced API: {e}")
-                
+                logging.warning(
+                    f"Could not set database pool for Outlook enhanced API: {e}"
+                )
+
     except ImportError as e:
         OUTLOOK_ENHANCED_AVAILABLE = False
         logging.warning(f"Enhanced Outlook API not available: {e}")
@@ -608,6 +688,86 @@ def create_app():
         GOOGLE_ENHANCED_AVAILABLE = False
         logging.warning(f"Enhanced Google API not available: {e}")
 
+    # Register Enhanced Gmail API if available
+    try:
+        from gmail_enhanced_api import gmail_enhanced_bp
+
+        GMAIL_ENHANCED_AVAILABLE = True
+        app.register_blueprint(gmail_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Gmail API registered successfully")
+    except ImportError as e:
+        GMAIL_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Gmail API not available: {e}")
+
+    # Register Enhanced Calendar API if available
+    try:
+        from calendar_enhanced_api import calendar_enhanced_bp
+
+        CALENDAR_ENHANCED_AVAILABLE = True
+        app.register_blueprint(calendar_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Calendar API registered successfully")
+    except ImportError as e:
+        CALENDAR_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Calendar API not available: {e}")
+
+    # Register Salesforce OAuth handler if available
+    if SALESFORCE_OAUTH_AVAILABLE:
+        app.register_blueprint(
+            salesforce_auth_bp, url_prefix="/api/auth", name="salesforce_auth"
+        )
+        logging.info("Salesforce OAuth handler registered successfully")
+
+    # Register Salesforce handler if available
+    if SALESFORCE_HANDLER_AVAILABLE:
+        app.register_blueprint(
+            salesforce_bp, url_prefix="/api", name="salesforce_handler"
+        )
+        logging.info("Salesforce handler registered successfully")
+
+    # Register Salesforce health handler if available
+    if SALESFORCE_HEALTH_AVAILABLE:
+        app.register_blueprint(
+            salesforce_health_bp, url_prefix="/api", name="salesforce_health"
+        )
+        logging.info("Salesforce health handler registered successfully")
+
+    # Register Enhanced Salesforce API if available
+    try:
+        from salesforce_enhanced_api import salesforce_enhanced_bp
+
+        SALESFORCE_ENHANCED_AVAILABLE = True
+        app.register_blueprint(
+            salesforce_enhanced_bp,
+            url_prefix="/api/salesforce/enhanced",
+            name="salesforce_enhanced",
+        )
+        logging.info("Enhanced Salesforce API registered successfully")
+    except ImportError as e:
+        SALESFORCE_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Salesforce API not available: {e}")
+
+    # Register Zoom OAuth handler if available
+    if ZOOM_OAUTH_AVAILABLE:
+        app.register_blueprint(
+            zoom_auth_bp, url_prefix="/api/auth", name="zoom_auth"
+        )
+        logging.info("Zoom OAuth handler registered successfully")
+
+    # Register Enhanced Zoom API if available
+    try:
+        from zoom_enhanced_api import zoom_enhanced_bp
+
+        ZOOM_ENHANCED_AVAILABLE = True
+        app.register_blueprint(
+            zoom_enhanced_bp,
+            url_prefix="/api/zoom/enhanced",
+            name="zoom_enhanced",
+        )
+        logging.info("Enhanced Zoom API registered successfully")
+    except ImportError as e:
+        ZOOM_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Zoom API not available: {e}")
+
     # Create workflow tables
     try:
         create_workflow_tables()
@@ -648,21 +808,60 @@ def create_app():
 # Initialize database
 try:
     asyncio.run(init_database())
-    
+
     # Initialize Outlook OAuth table after database is ready
     if OUTLOOK_OAUTH_AVAILABLE and db_pool:
         asyncio.run(init_outlook_oauth_table(db_pool))
         logging.info("Outlook OAuth table initialized successfully")
-    
+
     # Initialize Slack OAuth table after database is ready
     if SLACK_OAUTH_AVAILABLE and db_pool:
         asyncio.run(init_slack_oauth_table(db_pool))
         logging.info("Slack OAuth table initialized successfully")
-    
+
     # Initialize Notion OAuth table after database is ready
     if NOTION_OAUTH_AVAILABLE and db_pool:
         asyncio.run(init_notion_oauth_table(db_pool))
         logging.info("Notion OAuth table initialized successfully")
+
+    # Initialize Teams OAuth table after database is ready
+    if TEAMS_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_teams_oauth_table(db_pool))
+        logging.info("Teams OAuth table initialized successfully")
+
+    # Initialize Jira OAuth table after database is ready
+    if JIRA_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_jira_oauth_table(db_pool))
+        logging.info("Jira OAuth table initialized successfully")
+    
+    # Initialize GitHub OAuth table after database is ready
+    if GITHUB_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_github_oauth_table(db_pool))
+        logging.info("GitHub OAuth table initialized successfully")
+    
+    # Initialize Trello OAuth table after database is ready
+    if TRELLO_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_trello_oauth_table(db_pool))
+        logging.info("Trello OAuth table initialized successfully")
+
+    # Initialize Google OAuth table after database is ready
+    if GOOGLE_OAUTH_AVAILABLE and db_pool:
+        asyncio.run(init_google_oauth_table(db_pool))
+        logging.info("Google OAuth table initialized successfully")
+
+    # Initialize Salesforce OAuth table after database is ready
+    if SALESFORCE_OAUTH_AVAILABLE and db_pool:
+        from db_oauth_salesforce import init_salesforce_oauth_table
+
+        asyncio.run(init_salesforce_oauth_table(db_pool))
+        logging.info("Salesforce OAuth table initialized successfully")
+
+    # Initialize Zoom OAuth table after database is ready
+    if ZOOM_OAUTH_AVAILABLE and db_pool:
+        from db_oauth_zoom import init_zoom_oauth_table
+
+        asyncio.run(init_zoom_oauth_table(db_pool))
+        logging.info("Zoom OAuth table initialized successfully")
 except Exception as e:
     logging.error(f"Database initialization failed: {e}")
 
@@ -761,6 +960,76 @@ def jira_oauth_url():
             "message": "Use the Jira OAuth handler for full OAuth flow",
         }
     )
+
+
+@app.route("/api/oauth/salesforce/url")
+def salesforce_oauth_url():
+    """Generate Salesforce OAuth authorization URL"""
+    user_id = request.args.get("user_id")
+
+    try:
+        if not salesforce_service:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "service_not_initialized",
+                    "message": "Salesforce OAuth service not initialized",
+                }
+            ), 503
+
+        from auth_handler_salesforce import get_salesforce_oauth_url
+
+        result = get_salesforce_oauth_url(user_id)
+
+        return jsonify(result)
+
+    except ImportError:
+        # Fallback if service not available
+        return jsonify(
+            {
+                "ok": False,
+                "error": "service_not_available",
+                "message": "Salesforce OAuth service not available",
+            }
+        ), 503
+    except Exception as e:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "oauth_url_failed",
+                "message": f"Failed to generate OAuth URL: {str(e)}",
+                "service": "salesforce",
+            }
+        ), 400
+
+
+@app.route("/api/oauth/zoom/url")
+def zoom_oauth_url():
+    """Generate Zoom OAuth authorization URL"""
+    user_id = request.args.get("user_id")
+
+    try:
+        from auth_handler_zoom import get_zoom_oauth_handler
+
+        zoom_handler = get_zoom_oauth_handler(db_pool)
+        result = zoom_handler.get_oauth_url(user_id)
+
+        return jsonify(result)
+
+    except ImportError:
+        # Fallback if service not available
+        return jsonify({
+            "ok": False,
+            "error": "service_not_available",
+            "message": "Zoom OAuth service not available"
+        }), 503
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": "oauth_url_failed",
+            "message": f"Failed to generate OAuth URL: {str(e)}",
+            "service": "zoom"
+        }), 400
 
 
 # Real Service Endpoints
