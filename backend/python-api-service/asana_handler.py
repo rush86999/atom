@@ -454,3 +454,159 @@ async def update_task():
         return jsonify(
             {"ok": False, "error": {"code": "UPDATE_TASK_FAILED", "message": str(e)}}
         ), 500
+
+
+# GET endpoints for compatibility with testing expectations
+@asana_bp.route("/api/asana/projects", methods=["GET"])
+async def list_projects_get():
+    """List Asana projects (GET endpoint with full functionality)"""
+    try:
+        user_id = request.args.get("user_id")
+        workspace_gid = request.args.get("workspace_gid")
+        team_gid = request.args.get("team_gid")
+        archived = request.args.get("archived", "false").lower() == "true"
+        limit = int(request.args.get("limit", 100))
+        offset = request.args.get("offset")
+
+        if not user_id:
+            return jsonify({"ok": False, "error": "user_id is required"}), 400
+
+        # Get authenticated Asana client
+        client = await get_asana_client(
+            user_id, current_app.config["DB_CONNECTION_POOL"]
+        )
+        if not client:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "AUTH_ERROR",
+                        "message": "User not authenticated with Asana.",
+                    },
+                }
+            ), 401
+
+        # Call the actual Asana service to get projects
+        projects_result = client.get_projects(
+            workspace_id=workspace_gid, limit=limit, offset=offset
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "data": {
+                    "projects": projects_result.get("data", []),
+                    "pagination": projects_result.get("pagination", {}),
+                },
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in list_projects_get: {e}", exc_info=True)
+        return jsonify(
+            {"ok": False, "error": {"code": "GET_PROJECTS_FAILED", "message": str(e)}}
+        ), 500
+
+
+@asana_bp.route("/api/asana/teams", methods=["GET"])
+async def list_teams_get():
+    """List Asana teams (GET endpoint with full functionality)"""
+    try:
+        user_id = request.args.get("user_id")
+        workspace_gid = request.args.get("workspace_gid")
+        organization = request.args.get("organization", "true").lower() == "true"
+        limit = int(request.args.get("limit", 100))
+        offset = request.args.get("offset")
+
+        if not user_id or not workspace_gid:
+            return jsonify(
+                {"ok": False, "error": "user_id and workspace_gid are required"}
+            ), 400
+
+        # Get authenticated Asana client
+        client = await get_asana_client(
+            user_id, current_app.config["DB_CONNECTION_POOL"]
+        )
+        if not client:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "AUTH_ERROR",
+                        "message": "User not authenticated with Asana.",
+                    },
+                }
+            ), 401
+
+        # Call the actual Asana service to get teams
+        teams_result = client.get_teams(
+            workspace_id=workspace_gid, limit=limit, offset=offset
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "data": {
+                    "teams": teams_result.get("data", []),
+                    "pagination": teams_result.get("pagination", {}),
+                },
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in list_teams_get: {e}", exc_info=True)
+        return jsonify(
+            {"ok": False, "error": {"code": "GET_TEAMS_FAILED", "message": str(e)}}
+        ), 500
+
+
+@asana_bp.route("/api/asana/users", methods=["GET"])
+async def list_users_get():
+    """List Asana users (GET endpoint with full functionality)"""
+    try:
+        user_id = request.args.get("user_id")
+        workspace_gid = request.args.get("workspace_gid")
+        team_gid = request.args.get("team_gid")
+        limit = int(request.args.get("limit", 100))
+        offset = request.args.get("offset")
+
+        if not user_id or not workspace_gid:
+            return jsonify(
+                {"ok": False, "error": "user_id and workspace_gid are required"}
+            ), 400
+
+        # Get authenticated Asana client
+        client = await get_asana_client(
+            user_id, current_app.config["DB_CONNECTION_POOL"]
+        )
+        if not client:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "AUTH_ERROR",
+                        "message": "User not authenticated with Asana.",
+                    },
+                }
+            ), 401
+
+        # Call the actual Asana service to get users
+        users_result = client.get_users(
+            workspace_id=workspace_gid, limit=limit, offset=offset
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "data": {
+                    "users": users_result.get("data", []),
+                    "pagination": users_result.get("pagination", {}),
+                },
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error in list_users_get: {e}", exc_info=True)
+        return jsonify(
+            {"ok": False, "error": {"code": "GET_USERS_FAILED", "message": str(e)}}
+        ), 500

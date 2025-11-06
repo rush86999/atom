@@ -57,6 +57,16 @@ except ImportError as e:
     DROPBOX_AVAILABLE = False
     dropbox_router = None
 
+# Import Stripe integration
+try:
+    from integrations.stripe_routes import router as stripe_router
+
+    STRIPE_AVAILABLE = True
+except ImportError as e:
+    print(f"Stripe integration not available: {e}")
+    STRIPE_AVAILABLE = False
+    stripe_router = None
+
 # Initialize FastAPI app
 app = FastAPI(
     title="ATOM API",
@@ -112,6 +122,13 @@ if DROPBOX_AVAILABLE and dropbox_router:
     print("✅ Dropbox integration routes loaded")
 else:
     print("⚠️  Dropbox integration routes not available")
+
+# Include Stripe integration routes if available
+if STRIPE_AVAILABLE and stripe_router:
+    app.include_router(stripe_router)
+    print("✅ Stripe integration routes loaded")
+else:
+    print("⚠️  Stripe integration routes not available")
 
 # Include GitHub integration routes if available
 try:

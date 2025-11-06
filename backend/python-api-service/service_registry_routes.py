@@ -17,13 +17,20 @@ try:
         update_opportunity,
         get_opportunity,
         create_lead,
-        get_campaign,
-        get_case,
     )
 
     SALESFORCE_SERVICE_AVAILABLE = True
 except ImportError:
     SALESFORCE_SERVICE_AVAILABLE = False
+
+# Import Asana services if available
+try:
+    from asana_service_real import get_asana_service_real
+    from asana_handler import get_asana_client
+
+    ASANA_SERVICE_AVAILABLE = True
+except ImportError:
+    ASANA_SERVICE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +382,36 @@ SERVICE_REGISTRY = {
         "chat_commands": ["use auth salesforce", "access auth salesforce"],
         "last_checked": "2025-11-01T19:17:02.082099",
     },
+    "asana_service": {
+        "name": "Asana",
+        "status": "available",
+        "type": "project_management",
+        "description": "Asana project and task management integration",
+        "capabilities": [
+            "get_asana_service_real",
+            "get_asana_client",
+            "search_tasks",
+            "list_tasks",
+            "create_task",
+            "update_task",
+            "list_projects",
+            "get_sections",
+            "list_teams",
+            "list_users",
+            "get_user_profile",
+        ],
+        "health": "healthy",
+        "workflow_triggers": ["manual_trigger", "scheduled_trigger"],
+        "workflow_actions": ["execute_service", "process_data"],
+        "chat_commands": [
+            "use asana",
+            "access asana",
+            "show my asana tasks",
+            "create asana project",
+            "update asana task status",
+        ],
+        "last_checked": "2025-11-01T19:17:02.082099",
+    },
     "salesforce_service": {
         "name": "Salesforce",
         "status": "available",
@@ -391,8 +428,6 @@ SERVICE_REGISTRY = {
             "update_opportunity",
             "get_opportunity",
             "create_lead",
-            "get_campaign",
-            "get_case",
         ],
         "health": "healthy",
         "workflow_triggers": ["manual_trigger", "scheduled_trigger"],
@@ -1975,9 +2010,21 @@ SERVICE_REGISTRY = {
         "workflow_triggers": ["manual_trigger", "scheduled_trigger"],
         "workflow_actions": ["execute_service", "process_data"],
         "chat_commands": ["use sales manager", "access sales manager"],
-        "last_checked": "2025-11-01T19:17:02.221995",
+        "last_checked": "2025-11-01T19:17:02.223169",
     },
-    "salesforce_handler": {
+    "asana_service": {
+        "name": "Asana",
+        "status": "available",
+        "type": "project_management",
+        "description": "Asana integration service",
+        "capabilities": ["basic_operations"],
+        "health": "healthy",
+        "workflow_triggers": ["manual_trigger", "scheduled_trigger"],
+        "workflow_actions": ["execute_service", "process_data"],
+        "chat_commands": ["use asana", "access asana"],
+        "last_checked": "2025-11-01T19:17:02.223169",
+    },
+    "salesforce_service": {
         "name": "Salesforce",
         "status": "available",
         "type": "crm",

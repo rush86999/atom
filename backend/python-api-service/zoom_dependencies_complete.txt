@@ -1,0 +1,67 @@
+"""
+Zoom Integration Dependencies - Complete with Real-Time Features
+Required packages for enhanced Zoom integration with OAuth, multi-account, and real-time WebSocket support
+"""
+
+# Core dependencies
+pip install httpx
+pip install asyncpg
+pip install cryptography
+pip install python-dotenv
+pip install flask
+pip install loguru
+pip install python-dateutil
+
+# Enhanced Zoom dependencies
+pip install requests[security]
+pip install certifi
+pip install pydantic
+pip install typing-extensions
+
+# OAuth and Security dependencies
+pip install fernet
+pip install cffi
+pip install pycryptodome
+pip install pyjwt
+pip install cryptography
+
+# WebSocket and Real-Time dependencies
+pip install websockets
+pip install redis[hiredis]
+pip install aioredis
+pip install uvicorn
+pip install gunicorn
+
+# Database dependencies
+pip install asyncpg
+pip install psycopg2-binary
+pip install sqlalchemy
+
+# Validation and parsing
+pip install email-validator
+pip install marshmallow
+pip install pydantic[email]
+
+# Additional utilities
+pip install uuid
+pip install base64
+pip install urllib3
+pip install certifi
+pip install asyncio
+pip install secrets
+
+# Production WebSocket server
+pip install websockets
+pip install uvicorn[standard]
+pip install gunicorn
+pip install supervisor
+
+# Redis for distributed WebSocket management
+pip install redis
+pip install aioredis
+pip install hiredis
+
+# Real-time analytics and monitoring
+pip install prometheus-client
+pip install psutil
+pip install memory-profiler

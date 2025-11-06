@@ -36,7 +36,7 @@ trello_enhanced_bp = Blueprint("trello_enhanced_bp", __name__)
 TRELLO_API_BASE_URL = "https://api.trello.com/1"
 REQUEST_TIMEOUT = 30
 
-async def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
+def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
     """Get Trello tokens for user"""
     if not TRELLO_DB_AVAILABLE:
         # Mock implementation for testing
@@ -52,9 +52,9 @@ async def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
             'enterpriseName': os.getenv('TRELLO_ENTERPRISE_NAME'),
             'expires_at': (datetime.utcnow() + timedelta(hours=1)).isoformat()
         }
-    
+
     try:
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         return tokens
     except Exception as e:
         logger.error(f"Error getting Trello tokens for user {user_id}: {e}")
@@ -84,32 +84,32 @@ def format_error_response(error: Exception, endpoint: str) -> Dict[str, Any]:
     }
 
 @trello_enhanced_bp.route('/api/integrations/trello/boards', methods=['POST'])
-async def list_boards():
+def list_boards():
     """List user Trello boards"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
         include_closed = data.get('include_closed', False)
         limit = data.get('limit', 50)
-        
+
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
-        
+
         # Get user tokens
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         if not tokens:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Trello tokens not found'}
             }), 401
-        
+
         # Use Trello service
         if TRELLO_SERVICE_AVAILABLE:
-            boards = await trello_service.get_user_boards(user_id)
-            
+            boards = trello_service.get_user_boards(user_id)
+
             boards_data = [{
                 'id': board.id,
                 'name': board.name,
@@ -134,16 +134,16 @@ async def list_boards():
                 'creationMethod': board.creationMethod,
                 'ixUpdate': board.ixUpdate
             } for board in boards]
-            
+
             # Filter based on preferences
             if not include_closed:
                 boards_data = [b for b in boards_data if not b.get('closed')]
-            
+
             return jsonify(format_trello_response({
                 'boards': boards_data[:limit],
                 'total_count': len(boards_data)
             }, 'list_boards'))
-        
+
         # Fallback to mock data
         mock_boards = [
             {
@@ -261,18 +261,18 @@ async def list_boards():
                 'ixUpdate': 987654321
             }
         ]
-        
+
         return jsonify(format_trello_response({
             'boards': mock_boards[:limit],
             'total_count': len(mock_boards)
         }, 'list_boards'))
-    
+
     except Exception as e:
         logger.error(f"Error listing boards: {e}")
         return jsonify(format_error_response(e, 'list_boards')), 500
 
 @trello_enhanced_bp.route('/api/integrations/trello/lists', methods=['POST'])
-async def list_lists():
+def list_lists():
     """List lists from boards"""
     try:
         data = request.get_json()
@@ -280,25 +280,25 @@ async def list_lists():
         board_id = data.get('board_id')
         include_closed = data.get('include_closed', False)
         limit = data.get('limit', 100)
-        
+
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
-        
+
         # Get user tokens
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         if not tokens:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Trello tokens not found'}
             }), 401
-        
+
         # Use Trello service
         if TRELLO_SERVICE_AVAILABLE:
-            lists = await trello_service.get_board_lists(user_id, board_id)
-            
+            lists = trello_service.get_board_lists(user_id, board_id)
+
             lists_data = [{
                 'id': lst.id,
                 'name': lst.name,
@@ -307,16 +307,16 @@ async def list_lists():
                 'pos': lst.pos,
                 'subscribed': lst.subscribed
             } for lst in lists]
-            
+
             # Filter based on preferences
             if not include_closed:
                 lists_data = [l for l in lists_data if not l.get('closed')]
-            
+
             return jsonify(format_trello_response({
                 'lists': lists_data[:limit],
                 'total_count': len(lists_data)
             }, 'list_lists'))
-        
+
         # Fallback to mock data
         mock_lists = [
             {
@@ -352,22 +352,22 @@ async def list_lists():
                 'subscribed': False
             }
         ]
-        
+
         # Filter based on preferences
         if not include_closed:
             mock_lists = [l for l in mock_lists if not l.get('closed')]
-        
+
         return jsonify(format_trello_response({
             'lists': mock_lists[:limit],
             'total_count': len(mock_lists)
         }, 'list_lists'))
-    
+
     except Exception as e:
         logger.error(f"Error listing lists: {e}")
         return jsonify(format_error_response(e, 'list_lists')), 500
 
 @trello_enhanced_bp.route('/api/integrations/trello/cards', methods=['POST'])
-async def list_cards():
+def list_cards():
     """List cards from lists or boards"""
     try:
         data = request.get_json()
@@ -378,31 +378,31 @@ async def list_cards():
         filters = data.get('filters', {})
         operation = data.get('operation', 'list')
         limit = data.get('limit', 200)
-        
+
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
-        
+
         # Get user tokens
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         if not tokens:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Trello tokens not found'}
             }), 401
-        
+
         if operation == 'create':
             # Create card
-            return await _create_card(user_id, tokens, data)
-        
+            return _create_card(user_id, tokens, data)
+
         # List cards
         if TRELLO_SERVICE_AVAILABLE:
-            cards = await trello_service.get_board_cards(
+            cards = trello_service.get_board_cards(
                 user_id, board_id, list_id, filters, limit
             )
-            
+
             cards_data = [{
                 'id': card.id,
                 'name': card.name,
@@ -436,16 +436,16 @@ async def list_cards():
                 'shortUrl': card.shortUrl,
                 'url': card.url
             } for card in cards]
-            
+
             # Filter based on preferences
             if not include_archived:
                 cards_data = [c for c in cards_data if not c.get('closed')]
-            
+
             return jsonify(format_trello_response({
                 'cards': cards_data[:limit],
                 'total_count': len(cards_data)
             }, 'list_cards'))
-        
+
         # Fallback to mock data
         mock_cards = [
             {
@@ -527,35 +527,35 @@ async def list_cards():
                 'url': 'https://trello.com/c/def456/implement-user-authentication'
             }
         ]
-        
+
         # Filter based on preferences
         if not include_archived:
             mock_cards = [c for c in mock_cards if not c.get('closed')]
-        
+
         return jsonify(format_trello_response({
             'cards': mock_cards[:limit],
             'total_count': len(mock_cards)
         }, 'list_cards'))
-    
+
     except Exception as e:
         logger.error(f"Error listing cards: {e}")
         return jsonify(format_error_response(e, 'list_cards')), 500
 
-async def _create_card(user_id: str, tokens: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
+def _create_card(user_id: str, tokens: Dict[str, Any], data: Dict[str, Any]) -> Dict[str, Any]:
     """Helper function to create card"""
     try:
         card_data = data.get('data', {})
-        
+
         if not card_data.get('name'):
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Card name is required'}
             }), 400
-        
+
         # Use Trello service
         if TRELLO_SERVICE_AVAILABLE:
-            result = await trello_service.create_card(user_id, card_data)
-            
+            result = trello_service.create_card(user_id, card_data)
+
             if result.get('ok'):
                 return jsonify(format_trello_response({
                     'card': result.get('card'),
@@ -564,7 +564,7 @@ async def _create_card(user_id: str, tokens: Dict[str, Any], data: Dict[str, Any
                 }, 'create_card'))
             else:
                 return jsonify(result)
-        
+
         # Fallback to mock creation
         mock_card = {
             'id': 'card-' + str(int(datetime.utcnow().timestamp())),
@@ -598,19 +598,19 @@ async def _create_card(user_id: str, tokens: Dict[str, Any], data: Dict[str, Any
             'shortUrl': f"https://trello.com/c/{int(datetime.utcnow().timestamp())}",
             'url': f"https://trello.com/c/{int(datetime.utcnow().timestamp())}/{card_data['name'].replace(' ', '-').lower()}"
         }
-        
+
         return jsonify(format_trello_response({
             'card': mock_card,
             'url': mock_card['url'],
             'message': 'Card created successfully'
         }, 'create_card'))
-    
+
     except Exception as e:
         logger.error(f"Error creating card: {e}")
         return jsonify(format_error_response(e, 'create_card')), 500
 
 @trello_enhanced_bp.route('/api/integrations/trello/members', methods=['POST'])
-async def list_members():
+def list_members():
     """List members from workspace or boards"""
     try:
         data = request.get_json()
@@ -618,27 +618,27 @@ async def list_members():
         board_id = data.get('board_id')
         include_guests = data.get('include_guests', True)
         limit = data.get('limit', 100)
-        
+
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
-        
+
         # Get user tokens
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         if not tokens:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Trello tokens not found'}
             }), 401
-        
+
         # Use Trello service
         if TRELLO_SERVICE_AVAILABLE:
-            members = await trello_service.get_board_members(
+            members = trello_service.get_board_members(
                 user_id, board_id, include_guests, limit
             )
-            
+
             members_data = [{
                 'id': member.id,
                 'fullName': member.fullName,
@@ -670,12 +670,12 @@ async def list_members():
                 'idEnterprises': member.idEnterprises,
                 'idTeams': member.idTeams
             } for member in members]
-            
+
             return jsonify(format_trello_response({
                 'members': members_data[:limit],
                 'total_count': len(members_data)
             }, 'list_members'))
-        
+
         # Fallback to mock data
         mock_members = [
             {
@@ -747,45 +747,45 @@ async def list_members():
                 'idTeams': []
             }
         ]
-        
+
         # Filter based on preferences
         if not include_guests:
             mock_members = [m for m in mock_members if m['memberType'] !== 'guest']
-        
+
         return jsonify(format_trello_response({
             'members': mock_members[:limit],
             'total_count': len(mock_members)
         }, 'list_members'))
-    
+
     except Exception as e:
         logger.error(f"Error listing members: {e}")
         return jsonify(format_error_response(e, 'list_members')), 500
 
 @trello_enhanced_bp.route('/api/integrations/trello/user/profile', methods=['POST'])
-async def get_user_profile():
+def get_user_profile():
     """Get authenticated user profile"""
     try:
         data = request.get_json()
         user_id = data.get('user_id')
-        
+
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
-        
+
         # Get user tokens
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         if not tokens:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Trello tokens not found'}
             }), 401
-        
+
         # Use Trello service
         if TRELLO_SERVICE_AVAILABLE:
-            user = await trello_service.get_user_profile(user_id)
-            
+            user = trello_service.get_user_profile(user_id)
+
             if user:
                 return jsonify(format_trello_response({
                     'user': {
@@ -804,7 +804,7 @@ async def get_user_profile():
                     'ok': False,
                     'error': {'message': 'User profile not found'}
                 })
-        
+
         # Fallback to token data
         return jsonify(format_trello_response({
             'user': {
@@ -818,13 +818,13 @@ async def get_user_profile():
                 'enterpriseName': tokens['enterpriseName']
             }
         }, 'get_user_profile'))
-    
+
     except Exception as e:
         logger.error(f"Error getting user profile: {e}")
         return jsonify(format_error_response(e, 'get_user_profile')), 500
 
 @trello_enhanced_bp.route('/api/integrations/trello/search', methods=['POST'])
-async def search_trello():
+def search_trello():
     """Search across Trello"""
     try:
         data = request.get_json()
@@ -832,34 +832,34 @@ async def search_trello():
         query = data.get('query')
         search_type = data.get('type', 'global')
         limit = data.get('limit', 50)
-        
+
         if not user_id:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'user_id is required'}
             }), 400
-        
+
         if not query:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'query is required'}
             }), 400
-        
+
         # Get user tokens
-        tokens = await get_user_tokens(user_id)
+        tokens = get_user_tokens(user_id)
         if not tokens:
             return jsonify({
                 'ok': False,
                 'error': {'message': 'Trello tokens not found'}
             }), 401
-        
+
         # Use Trello service
         if TRELLO_SERVICE_AVAILABLE:
             result = await trello_service.search_trello(
                 user_id, query, search_type, limit
             )
             return jsonify(result)
-        
+
         # Fallback to mock search
         mock_results = [
             {
@@ -879,13 +879,13 @@ async def search_trello():
                 'snippet': f'Board for tracking {query}-related tasks...'
             }
         ]
-        
+
         return jsonify(format_trello_response({
             'results': mock_results,
             'total_count': len(mock_results),
             'query': query
         }, 'search_trello'))
-    
+
     except Exception as e:
         logger.error(f"Error searching Trello: {e}")
         return jsonify(format_error_response(e, 'search_trello')), 500
@@ -900,7 +900,7 @@ async def health_check():
                 'error': 'Trello service not available',
                 'timestamp': datetime.utcnow().isoformat()
             })
-        
+
         # Test Trello API connectivity
         try:
             if TRELLO_SERVICE_AVAILABLE:
@@ -919,7 +919,7 @@ async def health_check():
                 'error': f'Trello service error: {str(e)}',
                 'timestamp': datetime.utcnow().isoformat()
             })
-        
+
         return jsonify({
             'status': 'healthy',
             'message': 'Trello API mock is accessible',
@@ -927,7 +927,7 @@ async def health_check():
             'database_available': TRELLO_DB_AVAILABLE,
             'timestamp': datetime.utcnow().isoformat()
         })
-    
+
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',

@@ -1,0 +1,64 @@
+{
+  "test_run": {
+    "timestamp": "2025-11-06T18:19:41.102381",
+    "total_tests": 9,
+    "passed_tests": 3,
+    "failed_tests": 6
+  },
+  "results": [
+    {
+      "test": "Health Check",
+      "status": "\u2705 PASS",
+      "details": "Status: healthy",
+      "timestamp": "2025-11-06T18:19:25.942356"
+    },
+    {
+      "test": "List Payments",
+      "status": "\u274c FAIL",
+      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/charges?limit=5",
+      "timestamp": "2025-11-06T18:19:28.532836"
+    },
+    {
+      "test": "List Customers",
+      "status": "\u274c FAIL",
+      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/customers?limit=5",
+      "timestamp": "2025-11-06T18:19:31.057618"
+    },
+    {
+      "test": "List Subscriptions",
+      "status": "\u274c FAIL",
+      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/subscriptions?limit=5",
+      "timestamp": "2025-11-06T18:19:33.593490"
+    },
+    {
+      "test": "List Products",
+      "status": "\u274c FAIL",
+      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/products?limit=5&active=true",
+      "timestamp": "2025-11-06T18:19:36.075506"
+    },
+    {
+      "test": "Service Connectivity",
+      "status": "\u274c FAIL",
+      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/balance",
+      "timestamp": "2025-11-06T18:19:38.550766"
+    },
+    {
+      "test": "Get Account Info",
+      "status": "\u274c FAIL",
+      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/account",
+      "timestamp": "2025-11-06T18:19:41.098526"
+    },
+    {
+      "test": "Stripe Service Methods",
+      "status": "\u2705 PASS",
+      "details": "Service available: True, API URL: https://api.stripe.com/v1",
+      "timestamp": "2025-11-06T18:19:41.102161"
+    },
+    {
+      "test": "Response Formatting",
+      "status": "\u2705 PASS",
+      "details": "Success format: True, Error format: True",
+      "timestamp": "2025-11-06T18:19:41.102258"
+    }
+  ]
+}

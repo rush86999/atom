@@ -1,0 +1,19 @@
+"""
+Zoom Integration Dependencies
+Required packages for Zoom enhanced integration
+"""
+
+# Core dependencies
+pip install httpx
+pip install asyncpg
+pip install cryptography
+pip install python-dotenv
+pip install flask
+pip install loguru
+pip install python-dateutil
+
+# Enhanced Zoom dependencies
+pip install requests[security]
+pip install certifi
+pip install pydantic
+pip install typing-extensions
