@@ -213,6 +213,8 @@ def get_dashboard_data():
             "discord": "connected",
             "workflow": "active",
             "notifications": "active",
+            "figma": "connected",
+            "shopify": "connected",
         },
         "lastUpdated": datetime.now().isoformat(),
     }

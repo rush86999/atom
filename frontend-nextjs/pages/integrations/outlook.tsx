@@ -1,52 +1,95 @@
 /**
  * Outlook Integration Page
- * Complete Microsoft Outlook integration with enhanced features
+ * Enhanced Microsoft Outlook integration with Chakra UI
+ * Complete email, calendar, contact, and task management interface
  */
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Calendar, Users, Search, Settings, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-interface OutlookUser {
-  id: string;
-  displayName: string;
-  mail: string;
-  userPrincipalName: string;
-  jobTitle?: string;
-  officeLocation?: string;
-  businessPhones: string[];
-  mobilePhone?: string;
-}
+import React, { useState, useEffect } from "react";
+import {
+  Box,
+  VStack,
+  HStack,
+  Text,
+  Button,
+  Heading,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  Icon,
+  useToast,
+  SimpleGrid,
+  Divider,
+  useColorModeValue,
+  Stack,
+  Flex,
+  Spacer,
+  Input,
+  Select,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Textarea,
+  useDisclosure,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
+  Tag,
+  TagLabel,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Avatar,
+  AvatarGroup,
+} from "@chakra-ui/react";
+import {
+  CalendarIcon,
+  CheckCircleIcon,
+  WarningIcon,
+  TimeIcon,
+  ExternalLinkIcon,
+  AddIcon,
+  SearchIcon,
+  SettingsIcon,
+  RepeatIcon,
+  EmailIcon,
+  PhoneIcon,
+  StarIcon,
+} from "@chakra-ui/icons";
 
 interface OutlookEmail {
   id: string;
   subject: string;
-  from_address: {
-    emailAddress: {
-      address: string;
-      name?: string;
-    };
+  from: {
+    name: string;
+    email: string;
   };
-  to_addresses: Array<{
-    emailAddress: {
-      address: string;
-      name?: string;
-    };
+  to: Array<{
+    name: string;
+    email: string;
   }>;
   body: string;
-  bodyContentType: 'text' | 'html';
   receivedDateTime: string;
   isRead: boolean;
   hasAttachments: boolean;
-  importance: 'low' | 'normal' | 'high';
-  conversationId?: string;
+  importance: "low" | "normal" | "high";
   webLink?: string;
 }
 
@@ -61,622 +104,959 @@ interface OutlookEvent {
     dateTime: string;
     timeZone: string;
   };
-  location?: {
-    displayName: string;
-  };
+  location?: string;
   attendees?: Array<{
-    emailAddress: {
-      address: string;
-      name?: string;
-    };
-    type: 'required' | 'optional' | 'resource';
+    name: string;
+    email: string;
+    type: string;
   }>;
   isAllDay: boolean;
-  sensitivity: 'normal' | 'personal' | 'private' | 'confidential';
-  showAs: 'free' | 'tentative' | 'busy' | 'oof';
+  showAs: "free" | "tentative" | "busy" | "oof";
 }
 
-interface OutlookFolder {
+interface OutlookContact {
   id: string;
   displayName: string;
-  parentFolderId: string;
-  unreadItemCount: number;
-  totalItemCount: number;
-  folderType: string;
+  emailAddresses: Array<{
+    address: string;
+    name?: string;
+  }>;
+  businessPhones: string[];
+  mobilePhone?: string;
+  jobTitle?: string;
+  companyName?: string;
 }
 
-interface OutlookStatus {
-  service: string;
-  status: 'healthy' | 'degraded' | 'error' | 'unavailable';
-  timestamp: string;
-  components: {
-    service?: { status: string; message: string };
-    configuration?: { status: string; client_id_configured: boolean; client_secret_configured: boolean; tenant_id_configured: boolean };
-    database?: { status: string; message: string };
-  };
+interface OutlookTask {
+  id: string;
+  title: string;
+  status:
+    | "notStarted"
+    | "inProgress"
+    | "completed"
+    | "waitingOnOthers"
+    | "deferred";
+  importance: "low" | "normal" | "high";
+  dueDateTime?: string;
+  reminderDateTime?: string;
+  categories: string[];
 }
 
-export default function OutlookIntegration() {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState('demo-user');
-  const [status, setStatus] = useState<OutlookStatus | null>(null);
-  const [userInfo, setUserInfo] = useState<OutlookUser | null>(null);
+interface OutlookUser {
+  id: string;
+  displayName: string;
+  mail: string;
+  userPrincipalName: string;
+  jobTitle?: string;
+  officeLocation?: string;
+}
+
+const OutlookIntegration: React.FC = () => {
   const [emails, setEmails] = useState<OutlookEmail[]>([]);
   const [events, setEvents] = useState<OutlookEvent[]>([]);
-  const [folders, setFolders] = useState<OutlookFolder[]>([]);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [contacts, setContacts] = useState<OutlookContact[]>([]);
+  const [tasks, setTasks] = useState<OutlookTask[]>([]);
+  const [userProfile, setUserProfile] = useState<OutlookUser | null>(null);
+  const [loading, setLoading] = useState({
+    emails: false,
+    events: false,
+    contacts: false,
+    tasks: false,
+    profile: false,
+  });
+  const [connected, setConnected] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<
+    "healthy" | "error" | "unknown"
+  >("unknown");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState("inbox");
+  const [selectedImportance, setSelectedImportance] = useState("");
 
-  // API base URL
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5058';
-  const OUTLOOK_ENHANCED_URL = `${API_BASE_URL}/api/outlook/enhanced`;
-  const OUTLOOK_OAUTH_URL = `${API_BASE_URL}/api/auth/outlook-new`;
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [newEmail, setNewEmail] = useState({
+    to: "",
+    subject: "",
+    body: "",
+    importance: "normal" as "low" | "normal" | "high",
+  });
 
-  // Load initial data
-  useEffect(() => {
-    loadStatus();
-    if (activeTab === 'emails') {
-      loadEmails();
-    } else if (activeTab === 'calendar') {
-      loadEvents();
-    } else if (activeTab === 'folders') {
-      loadFolders();
-    }
-  }, [activeTab]);
+  const toast = useToast();
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
 
-  const loadStatus = async () => {
+  // Check connection status
+  const checkConnection = async () => {
     try {
-      const response = await fetch(`${OUTLOOK_ENHANCED_URL}/health`);
-      const data = await response.json();
-      setStatus(data);
+      const response = await fetch("/api/integrations/outlook/health");
+      if (response.ok) {
+        setConnected(true);
+        setHealthStatus("healthy");
+        loadUserProfile();
+      } else {
+        setConnected(false);
+        setHealthStatus("error");
+      }
     } catch (error) {
-      console.error('Failed to load status:', error);
-      setStatus({
-        service: 'outlook_enhanced',
-        status: 'error',
-        timestamp: new Date().toISOString(),
-        components: {}
-      });
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
     }
   };
 
-  const loadUserInfo = async () => {
-    setLoading(true);
+  // Load Outlook data
+  const loadUserProfile = async () => {
+    setLoading((prev) => ({ ...prev, profile: true }));
     try {
-      const response = await fetch(`${OUTLOOK_ENHANCED_URL}/user/profile/enhanced?user_id=${userId}`);
-      const data = await response.json();
-      
-      if (data.ok) {
-        setUserInfo(data.data.profile);
-        toast({
-          title: "User info loaded",
-          description: `Successfully loaded profile for ${data.data.profile.displayName}`,
-        });
-      } else {
-        toast({
-          title: "Failed to load user info",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+      const response = await fetch("/api/integrations/outlook/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile(data.data?.profile || null);
       }
     } catch (error) {
-      console.error('Failed to load user info:', error);
-      toast({
-        title: "Error loading user info",
-        description: "Could not connect to Outlook service",
-        variant: "destructive",
-      });
+      console.error("Failed to load user profile:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, profile: false }));
     }
   };
 
   const loadEmails = async () => {
-    setLoading(true);
+    setLoading((prev) => ({ ...prev, emails: true }));
     try {
-      const response = await fetch(`${OUTLOOK_ENHANCED_URL}/emails/enhanced`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/outlook/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          folder: 'inbox',
-          max_results: 20,
-          order_by: 'receivedDateTime DESC'
-        })
+          user_id: "current",
+          folder: selectedFolder,
+          limit: 50,
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setEmails(data.data.emails);
-        toast({
-          title: "Emails loaded",
-          description: `Loaded ${data.data.emails.length} emails from inbox`,
-        });
-      } else {
-        toast({
-          title: "Failed to load emails",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEmails(data.data?.emails || []);
       }
     } catch (error) {
-      console.error('Failed to load emails:', error);
+      console.error("Failed to load emails:", error);
       toast({
-        title: "Error loading emails",
-        description: "Could not connect to Outlook service",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to load emails from Outlook",
+        status: "error",
+        duration: 3000,
       });
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, emails: false }));
     }
   };
 
   const loadEvents = async () => {
-    setLoading(true);
+    setLoading((prev) => ({ ...prev, events: true }));
     try {
-      const response = await fetch(`${OUTLOOK_ENHANCED_URL}/calendar/events/upcoming?user_id=${userId}&days=7`);
-      const data = await response.json();
-      
-      if (data.ok) {
-        setEvents(data.data.events);
-        toast({
-          title: "Calendar events loaded",
-          description: `Loaded ${data.data.events.length} upcoming events`,
-        });
-      } else {
-        toast({
-          title: "Failed to load events",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load events:', error);
-      toast({
-        title: "Error loading events",
-        description: "Could not connect to Outlook service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadFolders = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${OUTLOOK_ENHANCED_URL}/folders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/outlook/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId
-        })
+          user_id: "current",
+          start_date: new Date().toISOString(),
+          end_date: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          limit: 20,
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setFolders(data.data.folders);
-        toast({
-          title: "Folders loaded",
-          description: `Loaded ${data.data.folders.length} email folders`,
-        });
-      } else {
-        toast({
-          title: "Failed to load folders",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEvents(data.data?.events || []);
       }
     } catch (error) {
-      console.error('Failed to load folders:', error);
-      toast({
-        title: "Error loading folders",
-        description: "Could not connect to Outlook service",
-        variant: "destructive",
-      });
+      console.error("Failed to load events:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, events: false }));
     }
   };
 
-  const initiateOAuth = async () => {
+  const loadContacts = async () => {
+    setLoading((prev) => ({ ...prev, contacts: true }));
     try {
-      const response = await fetch(`${OUTLOOK_OAUTH_URL}/authorize?user_id=${userId}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        // Redirect to OAuth URL
-        window.location.href = data.oauth_url;
-      } else {
-        toast({
-          title: "OAuth failed",
-          description: data.error || "Could not initiate OAuth flow",
-          variant: "destructive",
-        });
+      const response = await fetch("/api/integrations/outlook/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 30,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setContacts(data.data?.contacts || []);
       }
     } catch (error) {
-      console.error('OAuth initiation failed:', error);
+      console.error("Failed to load contacts:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, contacts: false }));
+    }
+  };
+
+  const loadTasks = async () => {
+    setLoading((prev) => ({ ...prev, tasks: true }));
+    try {
+      const response = await fetch("/api/integrations/outlook/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          limit: 20,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTasks(data.data?.tasks || []);
+      }
+    } catch (error) {
+      console.error("Failed to load tasks:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, tasks: false }));
+    }
+  };
+
+  // Send email
+  const sendEmail = async () => {
+    try {
+      const response = await fetch("/api/integrations/outlook/emails/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+          to: newEmail.to,
+          subject: newEmail.subject,
+          body: newEmail.body,
+          importance: newEmail.importance,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Email sent successfully",
+          status: "success",
+          duration: 3000,
+        });
+        onClose();
+        setNewEmail({ to: "", subject: "", body: "", importance: "normal" });
+        loadEmails();
+      }
+    } catch (error) {
+      console.error("Failed to send email:", error);
       toast({
-        title: "OAuth error",
-        description: "Could not initiate OAuth flow",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to send email",
+        status: "error",
+        duration: 3000,
       });
     }
   };
 
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString();
+  // Filter emails based on search and filters
+  const filteredEmails = emails.filter((email) => {
+    const matchesSearch =
+      email.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.from.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.from.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesImportance =
+      !selectedImportance || email.importance === selectedImportance;
+
+    return matchesSearch && matchesImportance;
+  });
+
+  // Stats calculations
+  const totalEmails = emails.length;
+  const unreadEmails = emails.filter((email) => !email.isRead).length;
+  const importantEmails = emails.filter(
+    (email) => email.importance === "high",
+  ).length;
+  const upcomingEvents = events.filter(
+    (event) => new Date(event.start.dateTime) > new Date(),
+  ).length;
+  const completedTasks = tasks.filter(
+    (task) => task.status === "completed",
+  ).length;
+  const completionRate =
+    tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  useEffect(() => {
+    if (connected) {
+      loadEmails();
+      loadEvents();
+      loadContacts();
+      loadTasks();
+    }
+  }, [connected, selectedFolder]);
+
+  const getImportanceColor = (importance: string) => {
+    switch (importance) {
+      case "high":
+        return "red";
+      case "normal":
+        return "blue";
+      case "low":
+        return "gray";
+      default:
+        return "gray";
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return 'bg-green-500';
-      case 'degraded': return 'bg-yellow-500';
-      case 'error': return 'bg-red-500';
-      case 'unavailable': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case "completed":
+        return "green";
+      case "inProgress":
+        return "orange";
+      case "notStarted":
+        return "gray";
+      case "waitingOnOthers":
+        return "yellow";
+      case "deferred":
+        return "red";
+      default:
+        return "gray";
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'healthy': return <CheckCircle className="h-4 w-4" />;
-      case 'degraded': return <AlertCircle className="h-4 w-4" />;
-      case 'error': return <AlertCircle className="h-4 w-4" />;
-      case 'unavailable': return <AlertCircle className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+      case "completed":
+        return "Completed";
+      case "inProgress":
+        return "In Progress";
+      case "notStarted":
+        return "Not Started";
+      case "waitingOnOthers":
+        return "Waiting";
+      case "deferred":
+        return "Deferred";
+      default:
+        return "Unknown";
     }
+  };
+
+  const formatDateTime = (dateTime: string) => {
+    return (
+      new Date(dateTime).toLocaleDateString() +
+      " " +
+      new Date(dateTime).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    );
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Outlook Integration</h1>
-        <div className="flex items-center space-x-2">
-          {status && (
-            <Badge variant="outline" className={`${getStatusColor(status.status)} text-white`}>
-              {getStatusIcon(status.status)}
-              <span className="ml-1">{status.status}</span>
+    <Box minH="100vh" bg={bgColor} p={6}>
+      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+        {/* Header */}
+        <VStack align="start" spacing={4}>
+          <HStack spacing={4}>
+            <Icon as={EmailIcon} w={8} h={8} color="blue.500" />
+            <VStack align="start" spacing={1}>
+              <Heading size="2xl">Outlook Integration</Heading>
+              <Text color="gray.600" fontSize="lg">
+                Email, calendar, contacts, and task management
+              </Text>
+            </VStack>
+          </HStack>
+
+          <HStack spacing={4}>
+            <Badge
+              colorScheme={healthStatus === "healthy" ? "green" : "red"}
+              display="flex"
+              alignItems="center"
+            >
+              {healthStatus === "healthy" ? (
+                <CheckCircleIcon mr={1} />
+              ) : (
+                <WarningIcon mr={1} />
+              )}
+              {connected ? "Connected" : "Disconnected"}
             </Badge>
-          )}
-          <Button onClick={loadStatus} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-        </div>
-      </div>
+            {userProfile && (
+              <Badge colorScheme="blue" variant="outline">
+                {userProfile.displayName}
+              </Badge>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<RepeatIcon />}
+              onClick={checkConnection}
+            >
+              Refresh Status
+            </Button>
+          </HStack>
+        </VStack>
 
-      {/* Status Alert */}
-      {status && status.status !== 'healthy' && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Outlook integration is {status.status}. 
-            {status.components.configuration?.status === 'incomplete' && 
-              " OAuth configuration is incomplete. Please check environment variables."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center">
-            <Settings className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="emails" className="flex items-center">
-            <Mail className="h-4 w-4 mr-2" />
-            Emails
-          </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center">
-            <Calendar className="h-4 w-4 mr-2" />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger value="folders" className="flex items-center">
-            <Users className="h-4 w-4 mr-2" />
-            Folders
-          </TabsTrigger>
-          <TabsTrigger value="oauth" className="flex items-center">
-            <Search className="h-4 w-4 mr-2" />
-            OAuth
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Service Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Service Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Service</span>
-                      <Badge variant={status.components.service?.status === 'available' ? 'default' : 'destructive'}>
-                        {status.components.service?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Configuration</span>
-                      <Badge variant={status.components.configuration?.status === 'configured' ? 'default' : 'destructive'}>
-                        {status.components.configuration?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Database</span>
-                      <Badge variant={status.components.database?.status === 'connected' ? 'default' : 'destructive'}>
-                        {status.components.database?.status}
-                      </Badge>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    <p className="text-sm text-muted-foreground mt-2">Loading status...</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* User Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>User Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="userId">User ID</Label>
-                  <Input
-                    id="userId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID"
-                  />
-                </div>
-                <Button 
-                  onClick={loadUserInfo} 
-                  disabled={loading || !userId}
-                  className="w-full"
+        {!connected ? (
+          // Connection Required State
+          <Card>
+            <CardBody>
+              <VStack spacing={6} py={8}>
+                <Icon as={EmailIcon} w={16} h={16} color="gray.400" />
+                <VStack spacing={2}>
+                  <Heading size="lg">Connect Outlook</Heading>
+                  <Text color="gray.600" textAlign="center">
+                    Connect your Outlook account to manage emails, calendar,
+                    contacts, and tasks
+                  </Text>
+                </VStack>
+                <Button
+                  colorScheme="blue"
+                  size="lg"
+                  leftIcon={<ExternalLinkIcon />}
+                  onClick={() =>
+                    (window.location.href = "/api/auth/outlook/authorize")
+                  }
                 >
-                  {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                  Load Profile
+                  Connect Outlook Account
                 </Button>
-                
-                {userInfo && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div>
-                      <span className="font-medium">Name:</span> {userInfo.displayName}
-                    </div>
-                    <div>
-                      <span className="font-medium">Email:</span> {userInfo.mail}
-                    </div>
-                    {userInfo.jobTitle && (
-                      <div>
-                        <span className="font-medium">Title:</span> {userInfo.jobTitle}
-                      </div>
-                    )}
-                    {userInfo.officeLocation && (
-                      <div>
-                        <span className="font-medium">Office:</span> {userInfo.officeLocation}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="emails" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Mail className="h-5 w-5 mr-2" />
-                Recent Emails
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {emails.length > 0 ? (
-                  emails.map((email) => (
-                    <div key={email.id} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium truncate">{email.subject}</h4>
-                        <Badge variant={email.isRead ? 'outline' : 'default'}>
-                          {email.isRead ? 'Read' : 'Unread'}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        From: {email.from_address.emailAddress.name || email.from_address.emailAddress.address}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatDateTime(email.receivedDateTime)}
-                      </div>
-                      {email.hasAttachments && (
-                        <Badge variant="outline" className="text-xs">
-                          Has attachments
-                        </Badge>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No emails found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button 
-                onClick={loadEmails} 
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Refresh Emails
-              </Button>
-            </CardContent>
+              </VStack>
+            </CardBody>
           </Card>
-        </TabsContent>
+        ) : (
+          // Connected State
+          <>
+            {/* Stats Overview */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 5 }} spacing={6}>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Total Emails</StatLabel>
+                    <StatNumber>{totalEmails}</StatNumber>
+                    <StatHelpText>In selected folder</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Unread</StatLabel>
+                    <StatNumber>{unreadEmails}</StatNumber>
+                    <StatHelpText>Require attention</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Important</StatLabel>
+                    <StatNumber>{importantEmails}</StatNumber>
+                    <StatHelpText>High priority</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Upcoming Events</StatLabel>
+                    <StatNumber>{upcomingEvents}</StatNumber>
+                    <StatHelpText>Next 7 days</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Task Completion</StatLabel>
+                    <StatNumber>{Math.round(completionRate)}%</StatNumber>
+                    <Progress
+                      value={completionRate}
+                      colorScheme="green"
+                      size="sm"
+                      mt={2}
+                    />
+                  </Stat>
+                </CardBody>
+              </Card>
+            </SimpleGrid>
 
-        <TabsContent value="calendar" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2" />
-                Upcoming Events (Next 7 Days)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {events.length > 0 ? (
-                  events.map((event) => (
-                    <div key={event.id} className="p-3 border rounded-lg space-y-2">
-                      <h4 className="font-medium">{event.subject}</h4>
-                      {event.location && (
-                        <div className="text-sm text-muted-foreground">
-                          📍 {event.location.displayName}
-                        </div>
-                      )}
-                      <div className="text-sm text-muted-foreground">
-                        🕐 {formatDateTime(event.start.dateTime)} - {formatDateTime(event.end.dateTime)}
-                      </div>
-                      {event.attendees && event.attendees.length > 0 && (
-                        <div className="text-sm text-muted-foreground">
-                          👥 {event.attendees.length} attendees
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No upcoming events"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button 
-                onClick={loadEvents} 
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Refresh Events
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            {/* Main Content Tabs */}
+            <Tabs variant="enclosed">
+              <TabList>
+                <Tab>Emails</Tab>
+                <Tab>Calendar</Tab>
+                <Tab>Contacts</Tab>
+                <Tab>Tasks</Tab>
+              </TabList>
 
-        <TabsContent value="folders" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                Email Folders
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {folders.length > 0 ? (
-                  folders.map((folder) => (
-                    <div key={folder.id} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{folder.displayName}</h4>
-                        <Badge variant="outline">{folder.folderType}</Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {folder.totalItemCount} total items, {folder.unreadItemCount} unread
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No folders found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button 
-                onClick={loadFolders} 
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Refresh Folders
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              <TabPanels>
+                {/* Emails Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    {/* Filters and Actions */}
+                    <Card>
+                      <CardBody>
+                        <Stack
+                          direction={{ base: "column", md: "row" }}
+                          spacing={4}
+                        >
+                          <Input
+                            placeholder="Search emails..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            leftAddon={<SearchIcon />}
+                          />
+                          <Select
+                            value={selectedFolder}
+                            onChange={(e) => setSelectedFolder(e.target.value)}
+                          >
+                            <option value="inbox">Inbox</option>
+                            <option value="sent">Sent Items</option>
+                            <option value="drafts">Drafts</option>
+                            <option value="archive">Archive</option>
+                          </Select>
+                          <Select
+                            placeholder="All Importance"
+                            value={selectedImportance}
+                            onChange={(e) =>
+                              setSelectedImportance(e.target.value)
+                            }
+                          >
+                            <option value="high">High</option>
+                            <option value="normal">Normal</option>
+                            <option value="low">Low</option>
+                          </Select>
+                          <Spacer />
+                          <Button
+                            colorScheme="blue"
+                            leftIcon={<AddIcon />}
+                            onClick={onOpen}
+                          >
+                            New Email
+                          </Button>
+                        </Stack>
+                      </CardBody>
+                    </Card>
 
-        <TabsContent value="oauth" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="oauthUserId">User ID</Label>
-                  <Input
-                    id="oauthUserId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID for OAuth"
-                  />
-                </div>
-                <Button 
-                  onClick={initiateOAuth} 
-                  disabled={!userId}
-                  className="w-full"
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Connect to Outlook
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                  This will redirect you to Microsoft OAuth to authorize ATOM access to your Outlook account.
-                </p>
-              </CardContent>
-            </Card>
+                    {/* Emails Table */}
+                    <Card>
+                      <CardBody>
+                        {loading.emails ? (
+                          <VStack spacing={4} py={8}>
+                            <Text>Loading emails...</Text>
+                            <Progress size="sm" isIndeterminate width="100%" />
+                          </VStack>
+                        ) : filteredEmails.length === 0 ? (
+                          <VStack spacing={4} py={8}>
+                            <Icon
+                              as={EmailIcon}
+                              w={12}
+                              h={12}
+                              color="gray.400"
+                            />
+                            <Text color="gray.600">No emails found</Text>
+                            <Button
+                              variant="outline"
+                              leftIcon={<AddIcon />}
+                              onClick={onOpen}
+                            >
+                              Compose New Email
+                            </Button>
+                          </VStack>
+                        ) : (
+                          <Box overflowX="auto">
+                            <Table variant="simple">
+                              <Thead>
+                                <Tr>
+                                  <Th>From</Th>
+                                  <Th>Subject</Th>
+                                  <Th>Importance</Th>
+                                  <Th>Received</Th>
+                                  <Th>Status</Th>
+                                  <Th>Actions</Th>
+                                </Tr>
+                              </Thead>
+                              <Tbody>
+                                {filteredEmails.map((email) => (
+                                  <Tr key={email.id}>
+                                    <Td>
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontWeight="medium">
+                                          {email.from.name}
+                                        </Text>
+                                        <Text fontSize="sm" color="gray.600">
+                                          {email.from.email}
+                                        </Text>
+                                      </VStack>
+                                    </Td>
+                                    <Td>
+                                      <Text fontWeight="medium" noOfLines={2}>
+                                        {email.subject}
+                                      </Text>
+                                      {email.body && (
+                                        <Text
+                                          fontSize="sm"
+                                          color="gray.600"
+                                          noOfLines={1}
+                                        >
+                                          {email.body}
+                                        </Text>
+                                      )}
+                                    </Td>
+                                    <Td>
+                                      <Tag
+                                        colorScheme={getImportanceColor(
+                                          email.importance,
+                                        )}
+                                        size="sm"
+                                      >
+                                        <TagLabel>{email.importance}</TagLabel>
+                                      </Tag>
+                                    </Td>
+                                    <Td>
+                                      <Text fontSize="sm">
+                                        {formatDateTime(email.receivedDateTime)}
+                                      </Text>
+                                    </Td>
+                                    <Td>
+                                      <HStack spacing={2}>
+                                        {email.isRead ? (
+                                          <CheckCircleIcon color="green.500" />
+                                        ) : (
+                                          <Badge colorScheme="red">
+                                            Unread
+                                          </Badge>
+                                        )}
+                                        {email.hasAttachments && (
+                                          <Badge colorScheme="blue">
+                                            Attachment
+                                          </Badge>
+                                        )}
+                                      </HStack>
+                                    </Td>
+                                    <Td>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<ExternalLinkIcon />}
+                                        onClick={() =>
+                                          window.open(email.webLink, "_blank")
+                                        }
+                                      >
+                                        View
+                                      </Button>
+                                    </Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Box>
+                        )}
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status?.components.oauth ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Status</span>
-                      <Badge variant="outline">
-                        {status.components.oauth.status}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {status.components.oauth.message}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    OAuth status not available
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+                {/* Calendar Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <Card>
+                      <CardBody>
+                        <SimpleGrid
+                          columns={{ base: 1, md: 2, lg: 3 }}
+                          spacing={6}
+                        >
+                          {events.map((event) => (
+                            <Card key={event.id} variant="outline">
+                              <CardBody>
+                                <VStack spacing={3} align="start">
+                                  <Text fontWeight="bold" fontSize="lg">
+                                    {event.subject}
+                                  </Text>
+                                  <Text color="gray.600" fontSize="sm">
+                                    {formatDateTime(event.start.dateTime)} -{" "}
+                                    {formatDateTime(event.end.dateTime)}
+                                  </Text>
+                                  {event.location && (
+                                    <HStack spacing={1}>
+                                      <Icon
+                                        as={CalendarIcon}
+                                        w={3}
+                                        h={3}
+                                        color="gray.500"
+                                      />
+                                      <Text fontSize="sm" color="gray.600">
+                                        {event.location}
+                                      </Text>
+                                    </HStack>
+                                  )}
+                                  {event.attendees &&
+                                    event.attendees.length > 0 && (
+                                      <VStack align="start" spacing={1}>
+                                        <Text fontSize="sm" fontWeight="medium">
+                                          Attendees ({event.attendees.length})
+                                        </Text>
+                                        <AvatarGroup size="sm" max={3}>
+                                          {event.attendees
+                                            .slice(0, 3)
+                                            .map((attendee, index) => (
+                                              <Avatar
+                                                key={index}
+                                                name={attendee.name}
+                                                src=""
+                                                bg="blue.500"
+                                              />
+                                            ))}
+                                        </AvatarGroup>
+                                      </VStack>
+                                    )}
+                                  <Badge
+                                    colorScheme={
+                                      event.showAs === "busy" ? "red" : "green"
+                                    }
+                                  >
+                                    {event.showAs}
+                                  </Badge>
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </SimpleGrid>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Contacts Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <Card>
+                      <CardBody>
+                        <SimpleGrid
+                          columns={{ base: 1, md: 2, lg: 3 }}
+                          spacing={6}
+                        >
+                          {contacts.map((contact) => (
+                            <Card key={contact.id} variant="outline">
+                              <CardBody>
+                                <VStack spacing={3} align="start">
+                                  <Text fontWeight="bold" fontSize="lg">
+                                    {contact.displayName}
+                                  </Text>
+                                  {contact.emailAddresses.map(
+                                    (email, index) => (
+                                      <HStack key={index} spacing={1}>
+                                        <Icon
+                                          as={EmailIcon}
+                                          w={3}
+                                          h={3}
+                                          color="gray.500"
+                                        />
+                                        <Text fontSize="sm" color="gray.600">
+                                          {email.address}
+                                        </Text>
+                                      </HStack>
+                                    ),
+                                  )}
+                                  {contact.businessPhones.length > 0 && (
+                                    <HStack spacing={1}>
+                                      <Icon
+                                        as={PhoneIcon}
+                                        w={3}
+                                        h={3}
+                                        color="gray.500"
+                                      />
+                                      <Text fontSize="sm" color="gray.600">
+                                        {contact.businessPhones[0]}
+                                      </Text>
+                                    </HStack>
+                                  )}
+                                  {contact.jobTitle && (
+                                    <Text fontSize="sm" color="gray.600">
+                                      {contact.jobTitle}
+                                    </Text>
+                                  )}
+                                  {contact.companyName && (
+                                    <Text fontSize="sm" color="gray.600">
+                                      {contact.companyName}
+                                    </Text>
+                                  )}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </SimpleGrid>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Tasks Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <Card>
+                      <CardBody>
+                        <SimpleGrid
+                          columns={{ base: 1, md: 2, lg: 3 }}
+                          spacing={6}
+                        >
+                          {tasks.map((task) => (
+                            <Card key={task.id} variant="outline">
+                              <CardBody>
+                                <VStack spacing={3} align="start">
+                                  <Text fontWeight="bold" fontSize="lg">
+                                    {task.title}
+                                  </Text>
+                                  <HStack spacing={2}>
+                                    <Tag
+                                      colorScheme={getStatusColor(task.status)}
+                                      size="sm"
+                                    >
+                                      <TagLabel>
+                                        {getStatusLabel(task.status)}
+                                      </TagLabel>
+                                    </Tag>
+                                    <Tag
+                                      colorScheme={getImportanceColor(
+                                        task.importance,
+                                      )}
+                                      size="sm"
+                                    >
+                                      <TagLabel>{task.importance}</TagLabel>
+                                    </Tag>
+                                  </HStack>
+                                  {task.dueDateTime && (
+                                    <HStack spacing={1}>
+                                      <Icon
+                                        as={CalendarIcon}
+                                        w={3}
+                                        h={3}
+                                        color="gray.500"
+                                      />
+                                      <Text fontSize="sm" color="gray.600">
+                                        Due: {formatDateTime(task.dueDateTime)}
+                                      </Text>
+                                    </HStack>
+                                  )}
+                                  {task.categories.length > 0 && (
+                                    <HStack spacing={1}>
+                                      {task.categories.map(
+                                        (category, index) => (
+                                          <Badge
+                                            key={index}
+                                            colorScheme="blue"
+                                            variant="outline"
+                                          >
+                                            {category}
+                                          </Badge>
+                                        ),
+                                      )}
+                                    </HStack>
+                                  )}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </SimpleGrid>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+
+            {/* Create Email Modal */}
+            <Modal isOpen={isOpen} onClose={onClose} size="lg">
+              <ModalOverlay />
+              <ModalContent>
+                <ModalHeader>Compose New Email</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <VStack spacing={4}>
+                    <FormControl isRequired>
+                      <FormLabel>To</FormLabel>
+                      <Input
+                        placeholder="recipient@example.com"
+                        value={newEmail.to}
+                        onChange={(e) =>
+                          setNewEmail({ ...newEmail, to: e.target.value })
+                        }
+                      />
+                    </FormControl>
+                    <FormControl isRequired>
+                      <FormLabel>Subject</FormLabel>
+                      <Input
+                        placeholder="Email subject"
+                        value={newEmail.subject}
+                        onChange={(e) =>
+                          setNewEmail({ ...newEmail, subject: e.target.value })
+                        }
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Importance</FormLabel>
+                      <Select
+                        value={newEmail.importance}
+                        onChange={(e) =>
+                          setNewEmail({
+                            ...newEmail,
+                            importance: e.target.value as
+                              | "low"
+                              | "normal"
+                              | "high",
+                          })
+                        }
+                      >
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                      </Select>
+                    </FormControl>
+                    <FormControl isRequired>
+                      <FormLabel>Body</FormLabel>
+                      <Textarea
+                        placeholder="Email content"
+                        value={newEmail.body}
+                        onChange={(e) =>
+                          setNewEmail({ ...newEmail, body: e.target.value })
+                        }
+                        rows={6}
+                      />
+                    </FormControl>
+                  </VStack>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="outline" mr={3} onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    colorScheme="blue"
+                    onClick={sendEmail}
+                    isDisabled={
+                      !newEmail.to || !newEmail.subject || !newEmail.body
+                    }
+                  >
+                    Send Email
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          </>
+        )}
+      </VStack>
+    </Box>
   );
-}
+};
+
+export default OutlookIntegration;

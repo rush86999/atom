@@ -8,7 +8,9 @@ import {
   INTEGRATION_CATEGORY_COMMUNICATION,
   INTEGRATION_CATEGORY_PRODUCTIVITY,
   INTEGRATION_CATEGORY_DEVELOPMENT,
-  INTEGRATION_CATEGORY_COLLABORATION
+  INTEGRATION_CATEGORY_COLLABORATION,
+  INTEGRATION_CATEGORY_MARKETING,
+  INTEGRATION_CATEGORY_CUSTOMER_SERVICE
 } from './constants';
 
 // Integration Registry
@@ -302,6 +304,246 @@ export const ATOM_INTEGRATIONS = [
       max_builds: 50000,
       api_calls_per_hour: 1000
     }
+  },
+  {
+    id: 'discord',
+    name: 'Discord',
+    description: 'Communication platform for communities and teams',
+    category: INTEGRATION_CATEGORY_COMMUNICATION,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'server_management',
+      'channel_management',
+      'message_sending',
+      'user_authentication',
+      'bot_integration',
+      'voice_channels',
+      'role_management',
+      'webhook_support',
+      'api_access'
+    ],
+    oauth: {
+      provider: 'discord',
+      scopes: ['bot', 'identify', 'guilds', 'messages.read'],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'message.create',
+      'message.update',
+      'message.delete',
+      'guild.member.add',
+      'guild.member.remove',
+      'channel.create',
+      'channel.update',
+      'channel.delete'
+    ],
+    limits: {
+      max_guilds: 100,
+      max_channels_per_guild: 500,
+      max_members_per_guild: 250000,
+      api_calls_per_second: 50,
+      api_calls_per_minute: 1200
+    }
+  },
+  // Customer Service Integrations
+  {
+    id: 'zendesk',
+    name: 'Zendesk',
+    description: 'Complete customer support and ticketing management platform',
+    category: INTEGRATION_CATEGORY_CUSTOMER_SERVICE,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'ticket_management',
+      'customer_support',
+      'user_management',
+      'group_management',
+      'organization_management',
+      'knowledge_base',
+      'automation',
+      'ai_insights',
+      'sentiment_analysis',
+      'ticket_routing',
+      'satisfaction_tracking',
+      'multi_channel_support',
+      'real_time_chat',
+      'phone_integration',
+      'email_integration',
+      'social_integration',
+      'self_service_portal',
+      'community_forum',
+      'help_center',
+      'sla_management',
+      'reporting_analytics',
+      'custom_fields',
+      'macros',
+      'triggers',
+      'automations',
+      'multi_brand_support',
+      'sdk_integration',
+      'webhook_support'
+    ],
+    oauth: {
+      provider: 'zendesk',
+      scopes: [
+        'tickets:read',
+        'tickets:write',
+        'users:read',
+        'users:write',
+        'organizations:read',
+        'organizations:write',
+        'groups:read',
+        'groups:write',
+        'macros:read',
+        'automations:read',
+        'triggers:read',
+        'satisfaction:read',
+        'forums:read',
+        'topics:read',
+        'posts:read',
+        'articles:read',
+        'webhooks:read',
+        'webhooks:write'
+      ],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'ticket.created',
+      'ticket.updated',
+      'ticket.deleted',
+      'ticket.merged',
+      'ticket.changed',
+      'comment.created',
+      'comment.updated',
+      'comment.deleted',
+      'user.created',
+      'user.updated',
+      'user.deleted',
+      'organization.created',
+      'organization.updated',
+      'organization.deleted',
+      'group.created',
+      'group.updated',
+      'group.deleted',
+      'satisfaction.created',
+      'satisfaction.updated',
+      'voice-call.started',
+      'voice-call.completed',
+      'voice-call.missed',
+      'chat.conversation.started',
+      'chat.conversation.updated',
+      'chat.conversation.ended',
+      'macro.applied',
+      'automation.applied',
+      'trigger.applied'
+    ],
+    limits: {
+      max_tickets: 5000000,
+      max_users: 1000000,
+      max_groups: 10000,
+      max_organizations: 1000000,
+      max_articles: 100000,
+      max_webhooks: 100,
+      api_calls_per_minute: 700,
+      api_calls_per_hour: 42000,
+      upload_size_mb: 50
+    }
+  },
+  // Marketing & CRM Integrations
+  {
+    id: 'hubspot',
+    name: 'HubSpot',
+    description: 'Complete CRM, marketing, and sales automation platform',
+    category: INTEGRATION_CATEGORY_MARKETING,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'contact_management',
+      'company_management',
+      'deal_pipeline',
+      'marketing_automation',
+      'email_campaigns',
+      'lead_scoring',
+      'analytics_reporting',
+      'sales_forecasting',
+      'ai_insights',
+      'workflow_automation',
+      'ticket_management',
+      'live_chat',
+      'social_media_integration',
+      'landing_pages',
+      'forms',
+      'call_tracking',
+      'meeting_scheduling'
+    ],
+    oauth: {
+      provider: 'hubspot',
+      scopes: [
+        'contacts',
+        'companies',
+        'deals',
+        'marketing',
+        'sales',
+        'tickets',
+        'automation',
+        'integration-bridge',
+        'e-commerce',
+        'settings',
+        'analytics',
+        'business-intelligence'
+      ],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'contact.creation',
+      'contact.deletion',
+      'contact.propertyChange',
+      'company.creation',
+      'company.deletion',
+      'company.propertyChange',
+      'deal.creation',
+      'deal.deletion',
+      'deal.propertyChange',
+      'ticket.creation',
+      'ticket.deletion',
+      'ticket.propertyChange',
+      'marketing.email',
+      'subscription.change'
+    ],
+    limits: {
+      max_contacts: 1000000,
+      max_companies: 100000,
+      max_deals: 500000,
+      max_tickets: 1000000,
+      api_calls_per_10_seconds: 100,
+      api_calls_per_day: 250000
+    }
+  },
+  zendesk: {
+    name: 'Zendesk',
+    auth_url: 'https://{subdomain}.zendesk.com/oauth/authorizations/new',
+    token_url: 'https://{subdomain}.zendesk.com/oauth/tokens',
+    scopes: [
+      'tickets:read',
+      'tickets:write',
+      'users:read',
+      'users:write',
+      'organizations:read',
+      'organizations:write',
+      'groups:read',
+      'groups:write',
+      'macros:read',
+      'automations:read',
+      'triggers:read',
+      'satisfaction:read',
+      'forums:read',
+      'topics:read',
+      'posts:read',
+      'articles:read',
+      'webhooks:read',
+      'webhooks:write'
+    ]
   }
 ];
 
@@ -385,6 +627,25 @@ export const OAUTH_PROVIDERS = {
     auth_url: 'https://vercel.com/oauth/authorize',
     token_url: 'https://api.vercel.com/v2/oauth/access_token',
     scopes: ['read', 'write', 'projects', 'deployments', 'builds']
+  },
+  hubspot: {
+    name: 'HubSpot',
+    auth_url: 'https://app.hubspot.com/oauth/authorize',
+    token_url: 'https://api.hubapi.com/oauth/v1/token',
+    scopes: [
+      'contacts',
+      'companies', 
+      'deals',
+      'marketing',
+      'sales',
+      'tickets',
+      'automation',
+      'integration-bridge',
+      'e-commerce',
+      'settings',
+      'analytics',
+      'business-intelligence'
+    ]
   }
 } as const;
 
@@ -434,6 +695,71 @@ export const WEBHOOK_EVENTS = {
     'pull_request.opened',
     'pull_request.closed',
     'pull_request.updated'
+  ],
+  ticket: [
+    'ticket.created',
+    'ticket.updated',
+    'ticket.deleted',
+    'ticket.merged',
+    'ticket.changed',
+    'ticket.assigned',
+    'ticket.unassigned'
+  ],
+  contact: [
+    'contact.creation',
+    'contact.deletion',
+    'contact.propertyChange'
+  ],
+  company: [
+    'company.creation',
+    'company.deletion',
+    'company.propertyChange'
+  ],
+  deal: [
+    'deal.creation',
+    'deal.deletion',
+    'deal.propertyChange'
+  ],
+  organization: [
+    'organization.created',
+    'organization.updated',
+    'organization.deleted'
+  ],
+  user: [
+    'user.created',
+    'user.updated',
+    'user.deleted'
+  ],
+  group: [
+    'group.created',
+    'group.updated',
+    'group.deleted'
+  ],
+  comment: [
+    'comment.created',
+    'comment.updated',
+    'comment.deleted'
+  ],
+  satisfaction: [
+    'satisfaction.created',
+    'satisfaction.updated'
+  ],
+  voice_call: [
+    'voice-call.started',
+    'voice-call.completed',
+    'voice-call.missed'
+  ],
+  chat_conversation: [
+    'chat.conversation.started',
+    'chat.conversation.updated',
+    'chat.conversation.ended'
+  ],
+  marketing: [
+    'marketing.email',
+    'marketing.email.sent',
+    'subscription.change',
+    'campaign.created',
+    'campaign.updated'
   ]
 } as const;
 

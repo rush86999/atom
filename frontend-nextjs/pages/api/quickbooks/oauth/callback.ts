@@ -1,9 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getSession } from "supertokens-node/nextjs";
 import { SessionContainer } from "supertokens-node/recipe/session";
-// TODO: QuickBooks OAuth implementation pending dependencies
-// import { executeGraphQLQuery } from '../../../../../project/functions/_libs/graphqlClient';
-// import { OAuthClient } from 'intuit-oauth';
+import { OAuthClient } from 'intuit-oauth';
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,12 +17,12 @@ export default async function handler(
   }
 
   const userId = session.getUserId();
-  // const oauthClient = new OAuthClient({
-  //     clientId: process.env.QUICKBOOKS_CLIENT_ID!,
-  //     clientSecret: process.env.QUICKBOOKS_CLIENT_SECRET!,
-  //     environment: process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox',
-  //     redirectUri: process.env.QUICKBOOKS_REDIRECT_URI!,
-  // });
+  const oauthClient = new OAuthClient({
+      clientId: process.env.QUICKBOOKS_CLIENT_ID!,
+      clientSecret: process.env.QUICKBOOKS_CLIENT_SECRET!,
+      environment: process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox',
+      redirectUri: process.env.QUICKBOOKS_REDIRECT_URI!,
+  });
 
   try {
     const authResponse = await oauthClient.createToken(req.url);
@@ -37,26 +35,27 @@ export default async function handler(
     ).toISOString();
     const realmId = token.realmId;
 
-    // Save the tokens to the user_tokens table
-    // const mutation = `
-    //     mutation InsertUserToken($userId: String!, $service: String!, $accessToken: String!, $refreshToken: String, $expiresAt: timestamptz!) {
-    //         insert_user_tokens_one(object: {user_id: $userId, service: $service, access_token: $accessToken, refresh_token: $refreshToken, expires_at: $expiresAt}) {
-    //             id
-    //         }
-    //     }
-    // `;
-    // const variables = {
-    //     userId,
-    //     service: 'quickbooks',
-    //     accessToken,
-    //     refreshToken,
-    //     expiresAt,
-    // };
-    // await executeGraphQLQuery(mutation, variables, 'InsertUserToken', userId);
+    // Save tokens to backend
+    const backendResponse = await fetch(`${process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058'}/api/quickbooks/auth/store-tokens`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: expiresAt,
+        realm_id: realmId,
+      }),
+    });
 
-    return res
-      .status(501)
-      .json({ message: "QuickBooks OAuth temporarily disabled" });
+    if (!backendResponse.ok) {
+      throw new Error('Failed to store tokens in backend');
+    }
+
+    // Redirect to QuickBooks integration page
+    res.redirect('/integrations/quickbooks?success=true');
   } catch (error) {
     console.error("Error during QuickBooks OAuth callback:", error);
     return res

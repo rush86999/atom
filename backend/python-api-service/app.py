@@ -120,6 +120,36 @@ def register_blueprints(app: Flask):
         # Register automation routes
         register_automation_routes(app)
         
+        # Register Document Intelligence routes
+        try:
+            from document_intelligence_routes import register_document_intelligence_routes
+            register_document_intelligence_routes(app)
+            logger.info("Document Intelligence routes registered successfully")
+        except ImportError as e:
+            logger.warning(f"Document Intelligence integration not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register Document Intelligence integration: {e}")
+        
+        # Register Cross-Service AI routes
+        try:
+            from cross_service_ai_routes import register_cross_service_ai_routes
+            register_cross_service_ai_routes(app)
+            logger.info("Cross-Service AI routes registered successfully")
+        except ImportError as e:
+            logger.warning(f"Cross-Service AI integration not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register Cross-Service AI integration: {e}")
+        
+        # Register Advanced AI Models routes
+        try:
+            from advanced_ai_models_routes import register_advanced_ai_models_routes
+            register_advanced_ai_models_routes(app)
+            logger.info("Advanced AI Models routes registered successfully")
+        except ImportError as e:
+            logger.warning(f"Advanced AI Models integration not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register Advanced AI Models integration: {e}")
+        
         # Register Zendesk integration
         try:
             from zendesk_integration_register import register_zendesk_integration
@@ -141,6 +171,17 @@ def register_blueprints(app: Flask):
             logger.warning(f"QuickBooks integration not available: {e}")
         except Exception as e:
             logger.error(f"Failed to register QuickBooks integration: {e}")
+        
+        # Register HubSpot integration
+        try:
+            from hubspot_integration_register import register_hubspot_integration
+            hubspot_success = register_hubspot_integration(app)
+            if hubspot_success:
+                logger.info("HubSpot integration registered successfully")
+        except ImportError as e:
+            logger.warning(f"HubSpot integration not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register HubSpot integration: {e}")
         
         # Register health check routes
         @app.route('/health', methods=['GET'])
@@ -175,12 +216,13 @@ def register_blueprints(app: Flask):
             return jsonify({
                 "name": "ATOM Platform",
                 "version": "2.0.0",
-                "description": "Advanced platform with Google Drive integration, comprehensive customer support via Zendesk, and complete accounting with QuickBooks",
+                "description": "Advanced platform with Google Drive integration, comprehensive customer support via Zendesk, complete accounting with QuickBooks, and marketing automation with HubSpot",
                 "environment": app.config.get('FLASK_ENV', 'unknown'),
                 "features": {
                     "google_drive_integration": True,
                     "zendesk_integration": True,
                     "quickbooks_integration": True,
+                    "hubspot_integration": True,
                     "semantic_search": app.config.get('SEARCH_ENABLED', False),
                     "workflow_automation": app.config.get('AUTOMATION_ENABLED', False),
                     "real_time_sync": app.config.get('SYNC_ENABLED', False),
@@ -189,7 +231,8 @@ def register_blueprints(app: Flask):
                 "integrations": {
                     "google_drive": {"status": "production", "features": ["file_sync", "search", "automation"]},
                     "zendesk": {"status": "production", "features": ["tickets", "users", "analytics", "oauth"]},
-                    "quickbooks": {"status": "production", "features": ["accounting", "invoicing", "reporting", "financial_management"]}
+                    "quickbooks": {"status": "production", "features": ["accounting", "invoicing", "reporting", "financial_management"]},
+                    "hubspot": {"status": "production", "features": ["marketing_automation", "lead_generation", "crm", "campaigns"]}
                 },
                 "endpoints": {
                     "health": "/health",

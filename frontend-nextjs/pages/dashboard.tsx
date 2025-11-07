@@ -2,7 +2,7 @@
  * Main ATOM Dashboard with Integrations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -23,26 +23,17 @@ import {
   StatLabel,
   StatNumber,
   StatHelpText,
-  Progress
-} from '@chakra-ui/react';
+  Progress,
+} from "@chakra-ui/react";
 import {
-  CodeIcon,
-  BoxIcon,
-  DropboxIcon,
-  GoogleDriveIcon,
-  SlackIcon,
-  GmailIcon,
-  NotionIcon,
-  JiraIcon,
-  GitHubIcon,
   ExternalLinkIcon,
+  CalendarIcon,
   SettingsIcon,
   CheckCircleIcon,
   WarningIcon,
   TimeIcon,
-  ArrowRightIcon
-} from '@chakra-ui/icons';
-import { useRouter } from 'next/router';
+} from "@chakra-ui/icons";
+import { useRouter } from "next/router";
 
 const DashboardPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<any[]>([]);
@@ -51,78 +42,96 @@ const DashboardPage: React.FC = () => {
     connected: 0,
     total: 9,
     healthy: 0,
-    errors: 0
+    errors: 0,
   });
   const toast = useToast();
   const router = useRouter();
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
 
   const integrationIcons = {
-    box: BoxIcon,
-    dropbox: DropboxIcon,
-    gdrive: GoogleDriveIcon,
-    slack: SlackIcon,
-    gmail: GmailIcon,
-    notion: NotionIcon,
-    jira: JiraIcon,
-    github: GitHubIcon,
-    nextjs: CodeIcon
+    box: CalendarIcon,
+    dropbox: CalendarIcon,
+    gdrive: CalendarIcon,
+    slack: CalendarIcon,
+    gmail: CalendarIcon,
+    notion: CalendarIcon,
+    jira: CalendarIcon,
+    github: CalendarIcon,
+    nextjs: CalendarIcon,
+    stripe: CalendarIcon,
+    linear: CalendarIcon,
+    outlook: CalendarIcon,
+    asana: CalendarIcon,
   };
 
   const checkIntegrationsHealth = async () => {
     try {
       const healthChecks = await Promise.all([
-        fetch('/api/integrations/box/health'),
-        fetch('/api/integrations/dropbox/health'),
-        fetch('/api/integrations/gdrive/health'),
-        fetch('/api/integrations/slack/health'),
-        fetch('/api/integrations/gmail/health'),
-        fetch('/api/integrations/notion/health'),
-        fetch('/api/integrations/jira/health'),
-        fetch('/api/integrations/github/health'),
-        fetch('/api/nextjs/health')
+        fetch("/api/integrations/box/health"),
+        fetch("/api/integrations/dropbox/health"),
+        fetch("/api/integrations/gdrive/health"),
+        fetch("/api/integrations/slack/health"),
+        fetch("/api/integrations/gmail/health"),
+        fetch("/api/integrations/notion/health"),
+        fetch("/api/integrations/jira/health"),
+        fetch("/api/integrations/github/health"),
+        fetch("/api/nextjs/health"),
+        fetch("/api/integrations/stripe/health"),
+        fetch("/api/integrations/linear/health"),
+        fetch("/api/integrations/outlook/health"),
+        fetch("/api/integrations/asana/health"),
       ]);
 
       const integrationList = [
-        { id: 'box', name: 'Box', category: 'storage' },
-        { id: 'dropbox', name: 'Dropbox', category: 'storage' },
-        { id: 'gdrive', name: 'Google Drive', category: 'storage' },
-        { id: 'slack', name: 'Slack', category: 'communication' },
-        { id: 'gmail', name: 'Gmail', category: 'communication' },
-        { id: 'notion', name: 'Notion', category: 'productivity' },
-        { id: 'jira', name: 'Jira', category: 'productivity' },
-        { id: 'github', name: 'GitHub', category: 'development' },
-        { id: 'nextjs', name: 'Next.js', category: 'development' }
+        { id: "box", name: "Box", category: "storage" },
+        { id: "dropbox", name: "Dropbox", category: "storage" },
+        { id: "gdrive", name: "Google Drive", category: "storage" },
+        { id: "slack", name: "Slack", category: "communication" },
+        { id: "gmail", name: "Gmail", category: "communication" },
+        { id: "notion", name: "Notion", category: "productivity" },
+        { id: "jira", name: "Jira", category: "productivity" },
+        { id: "github", name: "GitHub", category: "development" },
+        { id: "nextjs", name: "Next.js", category: "development" },
+        { id: "stripe", name: "Stripe", category: "finance" },
+        { id: "linear", name: "Linear", category: "productivity" },
+        { id: "outlook", name: "Outlook", category: "communication" },
+        { id: "asana", name: "Asana", category: "productivity" },
       ];
 
       const updatedIntegrations = integrationList.map((integration, index) => {
         const healthResponse = healthChecks[index];
         const connected = healthResponse.ok;
-        const health = healthResponse.ok ? 'healthy' : 'error';
-        
+        const health = healthResponse.ok ? "healthy" : "error";
+
         return {
           ...integration,
           connected,
           health,
-          icon: integrationIcons[integration.id as keyof typeof integrationIcons],
-          lastSync: new Date().toISOString()
+          icon: integrationIcons[
+            integration.id as keyof typeof integrationIcons
+          ],
+          lastSync: new Date().toISOString(),
         };
       });
 
-      const connected = updatedIntegrations.filter(i => i.connected).length;
-      const healthy = updatedIntegrations.filter(i => i.health === 'healthy').length;
-      const errors = updatedIntegrations.filter(i => i.health === 'error').length;
+      const connected = updatedIntegrations.filter((i) => i.connected).length;
+      const healthy = updatedIntegrations.filter(
+        (i) => i.health === "healthy",
+      ).length;
+      const errors = updatedIntegrations.filter(
+        (i) => i.health === "error",
+      ).length;
 
       setIntegrations(updatedIntegrations);
       setStats({
         connected,
         total: updatedIntegrations.length,
         healthy,
-        errors
+        errors,
       });
     } catch (error) {
-      console.error('Health check failed:', error);
+      console.error("Health check failed:", error);
     } finally {
       setLoading(false);
     }
@@ -134,11 +143,11 @@ const DashboardPage: React.FC = () => {
 
   const getStatusIcon = (health: string) => {
     switch (health) {
-      case 'healthy':
+      case "healthy":
         return <CheckCircleIcon color="green.500" />;
-      case 'warning':
+      case "warning":
         return <WarningIcon color="yellow.500" />;
-      case 'error':
+      case "error":
         return <WarningIcon color="red.500" />;
       default:
         return <TimeIcon color="gray.500" />;
@@ -146,7 +155,8 @@ const DashboardPage: React.FC = () => {
   };
 
   const getStatusBadge = (health: string) => {
-    const colorScheme = health === 'healthy' ? 'green' : health === 'warning' ? 'yellow' : 'red';
+    const colorScheme =
+      health === "healthy" ? "green" : health === "warning" ? "yellow" : "red";
     return (
       <Badge colorScheme={colorScheme} size="sm">
         {health}
@@ -164,7 +174,7 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     checkIntegrationsHealth();
-    
+
     // Auto-refresh every 2 minutes
     const interval = setInterval(checkIntegrationsHealth, 120000);
     return () => clearInterval(interval);
@@ -188,9 +198,7 @@ const DashboardPage: React.FC = () => {
               <Stat>
                 <StatLabel>Connected Integrations</StatLabel>
                 <StatNumber color="blue.500">{stats.connected}</StatNumber>
-                <StatHelpText>
-                  of {stats.total} available
-                </StatHelpText>
+                <StatHelpText>of {stats.total} available</StatHelpText>
               </Stat>
               <Progress
                 value={getConnectionProgress()}
@@ -206,9 +214,7 @@ const DashboardPage: React.FC = () => {
               <Stat>
                 <StatLabel>Healthy Services</StatLabel>
                 <StatNumber color="green.500">{stats.healthy}</StatNumber>
-                <StatHelpText>
-                  {stats.errors} issues detected
-                </StatHelpText>
+                <StatHelpText>{stats.errors} issues detected</StatHelpText>
               </Stat>
               <Progress
                 value={getHealthProgress()}
@@ -224,16 +230,9 @@ const DashboardPage: React.FC = () => {
               <Stat>
                 <StatLabel>Data Ingestion</StatLabel>
                 <StatNumber color="purple.500">Active</StatNumber>
-                <StatHelpText>
-                  Last sync: Just now
-                </StatHelpText>
+                <StatHelpText>Last sync: Just now</StatHelpText>
               </Stat>
-              <Progress
-                value={100}
-                colorScheme="purple"
-                size="sm"
-                mt={3}
-              />
+              <Progress value={100} colorScheme="purple" size="sm" mt={3} />
             </CardBody>
           </Card>
 
@@ -242,16 +241,9 @@ const DashboardPage: React.FC = () => {
               <Stat>
                 <StatLabel>AI Skills</StatLabel>
                 <StatNumber color="orange.500">72</StatNumber>
-                <StatHelpText>
-                  Available commands
-                </StatHelpText>
+                <StatHelpText>Available commands</StatHelpText>
               </Stat>
-              <Progress
-                value={100}
-                colorScheme="orange"
-                size="sm"
-                mt={3}
-              />
+              <Progress value={100} colorScheme="orange" size="sm" mt={3} />
             </CardBody>
           </Card>
         </SimpleGrid>
@@ -262,12 +254,12 @@ const DashboardPage: React.FC = () => {
             <Heading size="lg">Quick Actions</Heading>
             <Text color="gray.600">Common tasks and management</Text>
           </VStack>
-          
+
           <HStack>
             <Button
               variant="outline"
               leftIcon={<SettingsIcon />}
-              onClick={() => router.push('/integrations')}
+              onClick={() => router.push("/integrations")}
             >
               Manage Integrations
             </Button>
@@ -296,13 +288,13 @@ const DashboardPage: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 rightIcon={<ArrowRightIcon />}
-                onClick={() => router.push('/integrations')}
+                onClick={() => router.push("/integrations")}
               >
                 View All
               </Button>
             </HStack>
           </CardHeader>
-          
+
           <CardBody>
             <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
               {integrations.map((integration) => (
@@ -314,30 +306,20 @@ const DashboardPage: React.FC = () => {
                   border="1px"
                   borderColor={borderColor}
                   _hover={{
-                    shadow: 'md',
-                    transform: 'translateY(-2px)',
-                    transition: 'all 0.2s'
+                    shadow: "md",
+                    transform: "translateY(-2px)",
+                    transition: "all 0.2s",
                   }}
                 >
                   <CardBody>
                     <VStack spacing={4} align="start">
                       <HStack justify="space-between" w="full">
                         <HStack>
-                          <Icon 
-                            as={integration.icon} 
-                            w={6} h={6} 
-                            color={
-                              integration.id === 'nextjs' ? 'gray.800' :
-                              integration.id === 'github' ? 'black' :
-                              integration.id === 'slack' ? 'purple.500' :
-                              integration.id === 'gmail' ? 'red.500' :
-                              integration.id === 'notion' ? 'gray.600' :
-                              integration.id === 'jira' ? 'blue.500' :
-                              integration.id === 'box' ? 'blue.500' :
-                              integration.id === 'dropbox' ? 'blue.600' :
-                              integration.id === 'gdrive' ? 'green.500' :
-                              'gray.500'
-                            } 
+                          <Icon
+                            as={integration.icon}
+                            w={6}
+                            h={6}
+                            color="blue.500"
                           />
                           <VStack align="start" spacing={0}>
                             <Text fontWeight="bold" fontSize="lg">
@@ -350,17 +332,17 @@ const DashboardPage: React.FC = () => {
                         </HStack>
                         {getStatusIcon(integration.health)}
                       </HStack>
-                      
+
                       <HStack justify="space-between" w="full">
                         <Text fontSize="sm" color="gray.600">
                           Status:
                         </Text>
                         {getStatusBadge(integration.health)}
                       </HStack>
-                      
+
                       <HStack justify="space-between" w="full">
                         <Text fontSize="sm" color="gray.600">
-                          {integration.connected ? 'Connected' : 'Disconnected'}
+                          {integration.connected ? "Connected" : "Disconnected"}
                         </Text>
                         {integration.connected ? (
                           <CheckCircleIcon color="green.500" w={4} h={4} />
@@ -373,7 +355,7 @@ const DashboardPage: React.FC = () => {
                 </Card>
               ))}
             </SimpleGrid>
-            
+
             {integrations.length === 0 && (
               <VStack spacing={4} py={8}>
                 <Icon as={TimeIcon} w={12} h={12} color="gray.400" />
@@ -382,7 +364,7 @@ const DashboardPage: React.FC = () => {
                 </Text>
                 <Button
                   colorScheme="blue"
-                  onClick={() => router.push('/integrations')}
+                  onClick={() => router.push("/integrations")}
                 >
                   Connect Integrations
                 </Button>
@@ -399,32 +381,32 @@ const DashboardPage: React.FC = () => {
               <Text color="gray.600">Latest integration events and syncs</Text>
             </VStack>
           </CardHeader>
-          
+
           <CardBody>
             <VStack spacing={4} align="stretch">
               <HStack justify="space-between">
                 <HStack>
-                  <Icon as={CodeIcon} w={4} h={4} color="blue.500" />
+                  <Icon as={CalendarIcon} w={4} h={4} color="gray.800" />
                   <Text>Next.js integration connected</Text>
                 </HStack>
                 <Text fontSize="sm" color="gray.500">
                   2 minutes ago
                 </Text>
               </HStack>
-              
+
               <HStack justify="space-between">
                 <HStack>
-                  <Icon as={GitHubIcon} w={4} h={4} color="black" />
+                  <Icon as={CalendarIcon} w={4} h={4} color="black" />
                   <Text>GitHub repositories synced</Text>
                 </HStack>
                 <Text fontSize="sm" color="gray.500">
                   15 minutes ago
                 </Text>
               </HStack>
-              
+
               <HStack justify="space-between">
                 <HStack>
-                  <Icon as={SlackIcon} w={4} h={4} color="purple.500" />
+                  <Icon as={CalendarIcon} w={4} h={4} color="purple.500" />
                   <Text>Slack channels updated</Text>
                 </HStack>
                 <Text fontSize="sm" color="gray.500">

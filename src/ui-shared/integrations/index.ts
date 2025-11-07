@@ -70,6 +70,14 @@ export { NextjsSkills } from './nextjs/skills/nextjsSkills';
 export { default as GitLabManager } from './gitlab/components/GitLabManager';
 export { GitLabSkills } from './gitlab/skills/gitlabSkills';
 
+// HubSpot Integration (Marketing & CRM)
+export { HubSpotIntegration } from './hubspot';
+export { hubspotSkills, hubspotSkillsEnhanced } from './hubspot/skills/hubspotSkills';
+
+// Zendesk Integration (Customer Service)
+export { ZendeskIntegration } from './zendesk';
+export { zendeskSkills, zendeskSkillsEnhanced } from './zendesk/skills/zendeskSkills';
+
 // Base Integration Template
 export * as BaseIntegration from './_template/baseIntegration';
 
@@ -122,13 +130,17 @@ export class AtomIntegrationFactory {
         return NextjsManager(props);
       case 'gitlab':
         return GitLabManager(props);
+      case 'hubspot':
+        return HubSpotIntegration(props);
+      case 'zendesk':
+        return ZendeskIntegration(props);
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'hubspot', 'zendesk'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -153,6 +165,10 @@ export class AtomIntegrationFactory {
         return { name: 'Next.js', type: 'development', category: 'development', status: 'complete' };
       case 'gitlab':
         return { name: 'GitLab', type: 'development', category: 'development', status: 'complete' };
+      case 'hubspot':
+        return { name: 'HubSpot', type: 'marketing', category: 'marketing', status: 'complete' };
+      case 'zendesk':
+        return { name: 'Zendesk', type: 'customer_service', category: 'customer_service', status: 'complete' };
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -163,12 +179,14 @@ export class AtomIntegrationFactory {
       storage: ['box', 'dropbox', 'gdrive'],
       communication: ['slack', 'gmail'],
       productivity: ['notion', 'jira'],
-      development: ['github', 'nextjs', 'gitlab']
+      development: ['github', 'nextjs', 'gitlab'],
+      marketing: ['hubspot'],
+      customer_service: ['zendesk']
     };
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'hubspot', 'zendesk'];
   }
 }
 
@@ -193,6 +211,10 @@ export class AtomIntegrationUtils {
         return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes.join(' ')}`;
       case 'nextjs':
         return `https://vercel.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}`;
+      case 'gitlab':
+        return `https://gitlab.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scopes.join(' ')}`;
+      case 'hubspot':
+        return `https://app.hubspot.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scopes.join(' ')}`;
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -284,6 +306,28 @@ export class AtomIntegrationUtils {
           errors.push('access token or OAuth token is required for Next.js integration');
         }
         break;
+      case 'hubspot':
+        if (!config.scopes || !config.scopes.length) {
+          errors.push('scopes are required for HubSpot integration');
+        }
+        if (!config.accessToken && !config.oauthToken) {
+          errors.push('access token or OAuth token is required for HubSpot integration');
+        }
+        if (!config.hubId && !config.environment) {
+          errors.push('hub ID or environment is required for HubSpot integration');
+        }
+        break;
+      case 'zendesk':
+        if (!config.scopes || !config.scopes.length) {
+          errors.push('scopes are required for Zendesk integration');
+        }
+        if (!config.subdomain) {
+          errors.push('subdomain is required for Zendesk integration');
+        }
+        if (!config.accessToken && !config.oauthToken) {
+          errors.push('access token or OAuth token is required for Zendesk integration');
+        }
+        break;
     }
     
     return {
@@ -347,7 +391,9 @@ export const ATOM_INTEGRATION_CATEGORIES = {
   COMMUNICATION: 'communication',
   COLLABORATION: 'collaboration',
   PRODUCTIVITY: 'productivity',
-  DEVELOPMENT: 'development'
+  DEVELOPMENT: 'development',
+  MARKETING: 'marketing',
+  CUSTOMER_SERVICE: 'customer_service'
 } as const;
 
 export const ATOM_INTEGRATION_STATUS = {
@@ -389,7 +435,7 @@ export const ATOM_INTEGRATION_TYPES = {
     features: ['issue_discovery', 'project_sync', 'comment_processing', 'attachment_processing', 'workflow_extraction']
   },
   'development': {
-    integrations: ['github', 'nextjs'],
+    integrations: ['github', 'nextjs', 'gitlab'],
     category: ATOM_INTEGRATION_CATEGORIES.DEVELOPMENT,
     status: ATOM_INTEGRATION_STATUS.COMPLETE,
     features: ['repository_discovery', 'code_analysis', 'issue_tracking', 'pull_request_processing', 'commit_history', 'release_management', 'project_deployment', 'analytics_monitoring', 'build_tracking']
@@ -399,20 +445,28 @@ export const ATOM_INTEGRATION_TYPES = {
     category: ATOM_INTEGRATION_CATEGORIES.DEVELOPMENT,
     status: ATOM_INTEGRATION_STATUS.COMPLETE,
     features: ['project_discovery', 'deployment_tracking', 'build_monitoring', 'analytics_integration', 'environment_management', 'health_monitoring']
+  },
+  'marketing': {
+    integrations: ['hubspot'],
+    category: ATOM_INTEGRATION_CATEGORIES.MARKETING,
+    status: ATOM_INTEGRATION_STATUS.COMPLETE,
+    features: ['contact_management', 'company_management', 'deal_pipeline', 'marketing_automation', 'email_campaigns', 'lead_scoring', 'analytics_reporting', 'sales_forecasting', 'ai_insights', 'workflow_automation']
   }
 } as const;
 
 // Integration Statistics
 // Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 9,
-  completedIntegrations: 9,
+  totalIntegrations: 11,
+  completedIntegrations: 11,
   templateIntegrations: 0,
   categories: {
     storage: 3,
     communication: 2,
     productivity: 2,
-    development: 2,
+    development: 3,
+    marketing: 1,
+    customer_service: 1,
     collaboration: 0
   },
   features: {
@@ -450,7 +504,42 @@ export const ATOM_INTEGRATION_STATS = {
     performance_optimization: 1,
     real_time_build_updates: 1,
     deployment_automation: 1,
-    webhook_integration: 9
+    webhook_integration: 11,
+    // HubSpot specific features
+    contact_management: 1,
+    company_management: 1,
+    deal_pipeline: 1,
+    marketing_automation: 1,
+    email_campaigns: 1,
+    lead_scoring: 1,
+    analytics_reporting: 1,
+    sales_forecasting: 1,
+    ai_insights: 1,
+    workflow_automation: 1,
+    ticket_management: 1,
+    live_chat: 1,
+    social_media_integration: 1,
+    landing_pages: 1,
+    forms: 1,
+    call_tracking: 1,
+    meeting_scheduling: 1,
+    // Zendesk specific features
+    customer_support: 1,
+    ticket_routing: 1,
+    satisfaction_tracking: 1,
+    multi_channel_support: 1,
+    real_time_chat: 1,
+    phone_integration: 1,
+    self_service_portal: 1,
+    community_forum: 1,
+    help_center: 1,
+    sla_management: 1,
+    knowledge_base: 1,
+    macros_automation: 1,
+    triggers_automation: 1,
+    sentiment_analysis: 1,
+    ai_ticket_prediction: 1,
+    multi_brand_support: 1
   }
 } as const;
 
@@ -472,6 +561,12 @@ export default {
   NextjsCallback,
   NextjsDesktopManager,
   NextjsDesktopCallback,
+  
+  // HubSpot Integration
+  HubSpotIntegration,
+  
+  // Zendesk Integration
+  ZendeskIntegration,
   
   // Factory & Registry
   AtomIntegrationFactory,

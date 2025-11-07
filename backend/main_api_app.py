@@ -77,6 +77,16 @@ except ImportError as e:
     SALESFORCE_AVAILABLE = False
     salesforce_router = None
 
+# Import Zoom integration
+try:
+    from integrations.zoom_routes import router as zoom_router
+
+    ZOOM_AVAILABLE = True
+except ImportError as e:
+    print(f"Zoom integration not available: {e}")
+    ZOOM_AVAILABLE = False
+    zoom_router = None
+
 # Initialize FastAPI app
 app = FastAPI(
     title="ATOM API",
@@ -162,6 +172,13 @@ if GITHUB_AVAILABLE and github_router:
     print("✅ GitHub integration routes loaded")
 else:
     print("⚠️  GitHub integration routes not available")
+
+# Include Zoom integration routes if available
+if ZOOM_AVAILABLE and zoom_router:
+    app.include_router(zoom_router)
+    print("✅ Zoom integration routes loaded")
+else:
+    print("⚠️  Zoom integration routes not available")
 
 
 @app.get("/")

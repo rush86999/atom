@@ -3,7 +3,7 @@
  * Display all available ATOM integrations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -23,8 +23,8 @@ import {
   useColorModeValue,
   Stack,
   Flex,
-  Spacer
-} from '@chakra-ui/react';
+  Spacer,
+} from "@chakra-ui/react";
 import {
   BoxIcon,
   DropboxIcon,
@@ -38,143 +38,224 @@ import {
   ExternalLinkIcon,
   CheckCircleIcon,
   WarningIcon,
-  TimeIcon
-} from '@chakra-ui/icons';
+  TimeIcon,
+  DollarIcon,
+  CalendarIcon,
+  CreditCardIcon,
+} from "@chakra-ui/icons";
 
 interface Integration {
   id: string;
   name: string;
   description: string;
   category: string;
-  status: 'complete' | 'in-progress' | 'planned';
+  status: "complete" | "in-progress" | "planned";
   connected: boolean;
   icon: any;
   color: string;
   lastSync?: string;
-  health?: 'healthy' | 'warning' | 'error';
+  health?: "healthy" | "warning" | "error";
 }
 
 const IntegrationsPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const toast = useToast();
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
 
   const integrationList: Integration[] = [
     {
-      id: 'box',
-      name: 'Box',
-      description: 'Secure file storage and collaboration',
-      category: 'storage',
-      status: 'complete',
+      id: "box",
+      name: "Box",
+      description: "Secure file storage and collaboration",
+      category: "storage",
+      status: "complete",
       connected: false,
       icon: BoxIcon,
-      color: 'blue'
+      color: "blue",
     },
     {
-      id: 'dropbox',
-      name: 'Dropbox',
-      description: 'Cloud storage and file sharing',
-      category: 'storage',
-      status: 'complete',
+      id: "dropbox",
+      name: "Dropbox",
+      description: "Cloud storage and file sharing",
+      category: "storage",
+      status: "complete",
       connected: false,
       icon: DropboxIcon,
-      color: 'blue'
+      color: "blue",
     },
     {
-      id: 'gdrive',
-      name: 'Google Drive',
-      description: 'Cloud storage and document management',
-      category: 'storage',
-      status: 'complete',
+      id: "gdrive",
+      name: "Google Drive",
+      description: "Cloud storage and document management",
+      category: "storage",
+      status: "complete",
       connected: false,
       icon: GoogleDriveIcon,
-      color: 'green'
+      color: "green",
     },
     {
-      id: 'slack',
-      name: 'Slack',
-      description: 'Team communication and collaboration',
-      category: 'communication',
-      status: 'complete',
+      id: "slack",
+      name: "Slack",
+      description: "Team communication and collaboration",
+      category: "communication",
+      status: "complete",
       connected: false,
       icon: SlackIcon,
-      color: 'purple'
+      color: "purple",
     },
     {
-      id: 'gmail',
-      name: 'Gmail',
-      description: 'Email communication and organization',
-      category: 'communication',
-      status: 'complete',
+      id: "gmail",
+      name: "Gmail",
+      description: "Email communication and organization",
+      category: "communication",
+      status: "complete",
       connected: false,
       icon: GmailIcon,
-      color: 'red'
+      color: "red",
     },
     {
-      id: 'notion',
-      name: 'Notion',
-      description: 'Document management and knowledge base',
-      category: 'productivity',
-      status: 'complete',
+      id: "notion",
+      name: "Notion",
+      description: "Document management and knowledge base",
+      category: "productivity",
+      status: "complete",
       connected: false,
       icon: NotionIcon,
-      color: 'gray'
+      color: "gray",
     },
     {
-      id: 'jira',
-      name: 'Jira',
-      description: 'Project management and issue tracking',
-      category: 'productivity',
-      status: 'complete',
+      id: "jira",
+      name: "Jira",
+      description: "Project management and issue tracking",
+      category: "productivity",
+      status: "complete",
       connected: false,
       icon: JiraIcon,
-      color: 'blue'
+      color: "blue",
     },
     {
-      id: 'github',
-      name: 'GitHub',
-      description: 'Code repository and development tools',
-      category: 'development',
-      status: 'complete',
+      id: "github",
+      name: "GitHub",
+      description: "Code repository and development tools",
+      category: "development",
+      status: "complete",
       connected: false,
       icon: GitHubIcon,
-      color: 'black'
+      color: "black",
     },
     {
-      id: 'nextjs',
-      name: 'Next.js',
-      description: 'Vercel project management and deployment',
-      category: 'development',
-      status: 'complete',
+      id: "nextjs",
+      name: "Next.js",
+      description: "Vercel project management and deployment",
+      category: "development",
+      status: "complete",
       connected: false,
       icon: CodeIcon,
-      color: 'black'
-    }
+      color: "black",
+    },
+    {
+      id: "stripe",
+      name: "Stripe",
+      description: "Payment processing and financial management",
+      category: "finance",
+      status: "complete",
+      connected: false,
+      icon: DollarIcon,
+      color: "green",
+    },
+    {
+      id: "linear",
+      name: "Linear",
+      description: "Issue tracking and project management",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: CalendarIcon,
+      color: "blue",
+    },
+    {
+      id: "outlook",
+      name: "Outlook",
+      description: "Email, calendar, and contact management",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: CalendarIcon,
+      color: "blue",
+    },
+    {
+      id: "asana",
+      name: "Asana",
+      description: "Project management and task tracking",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: CalendarIcon,
+      color: "green",
+    },
+    {
+      id: "quickbooks",
+      name: "QuickBooks",
+      description: "Financial management and accounting",
+      category: "finance",
+      status: "complete",
+      connected: false,
+      icon: CreditCardIcon,
+      color: "green",
+    },
   ];
 
   const categories = [
-    { id: 'all', name: 'All Integrations', count: integrationList.length },
-    { id: 'storage', name: 'File Storage', count: integrationList.filter(i => i.category === 'storage').length },
-    { id: 'communication', name: 'Communication', count: integrationList.filter(i => i.category === 'communication').length },
-    { id: 'productivity', name: 'Productivity', count: integrationList.filter(i => i.category === 'productivity').length },
-    { id: 'development', name: 'Development', count: integrationList.filter(i => i.category === 'development').length }
+    { id: "all", name: "All Integrations", count: integrationList.length },
+    {
+      id: "storage",
+      name: "File Storage",
+      count: integrationList.filter((i) => i.category === "storage").length,
+    },
+    {
+      id: "communication",
+      name: "Communication",
+      count: integrationList.filter((i) => i.category === "communication")
+        .length,
+    },
+    {
+      id: "productivity",
+      name: "Productivity",
+      count: integrationList.filter((i) => i.category === "productivity")
+        .length,
+    },
+    {
+      id: "development",
+      name: "Development",
+      count: integrationList.filter((i) => i.category === "development").length,
+    },
+    {
+      id: "finance",
+      name: "Finance",
+      count: integrationList.filter((i) => i.category === "finance").length,
+    },
   ];
 
   const checkIntegrationsHealth = async () => {
     try {
       const healthChecks = await Promise.all([
-        fetch('/api/integrations/box/health'),
-        fetch('/api/integrations/dropbox/health'),
-        fetch('/api/integrations/gdrive/health'),
-        fetch('/api/integrations/slack/health'),
-        fetch('/api/integrations/gmail/health'),
-        fetch('/api/integrations/notion/health'),
-        fetch('/api/integrations/jira/health'),
-        fetch('/api/integrations/github/health'),
-        fetch('/api/nextjs/health')
+        fetch("/api/integrations/box/health"),
+        fetch("/api/integrations/dropbox/health"),
+        fetch("/api/integrations/gdrive/health"),
+        fetch("/api/integrations/slack/health"),
+        fetch("/api/integrations/gmail/health"),
+        fetch("/api/integrations/notion/health"),
+        fetch("/api/integrations/jira/health"),
+        fetch("/api/integrations/github/health"),
+        fetch("/api/nextjs/health"),
+        fetch("/api/integrations/stripe/health"),
+        fetch("/api/integrations/linear/health"),
+        fetch("/api/integrations/outlook/health"),
+        fetch("/api/integrations/asana/health"),
+        fetch("/api/integrations/quickbooks/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {
@@ -182,13 +263,13 @@ const IntegrationsPage: React.FC = () => {
         return {
           ...integration,
           connected: healthResponse.ok,
-          health: healthResponse.ok ? 'healthy' : 'error'
+          health: healthResponse.ok ? "healthy" : "error",
         };
       });
 
       setIntegrations(updatedIntegrations);
     } catch (error) {
-      console.error('Health check failed:', error);
+      console.error("Health check failed:", error);
       setIntegrations(integrationList);
     } finally {
       setLoading(false);
@@ -197,11 +278,11 @@ const IntegrationsPage: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'healthy':
+      case "healthy":
         return <CheckCircleIcon color="green.500" />;
-      case 'warning':
+      case "warning":
         return <WarningIcon color="yellow.500" />;
-      case 'error':
+      case "error":
         return <WarningIcon color="red.500" />;
       default:
         return <TimeIcon color="gray.500" />;
@@ -209,7 +290,8 @@ const IntegrationsPage: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const colorScheme = status === 'healthy' ? 'green' : status === 'warning' ? 'yellow' : 'red';
+    const colorScheme =
+      status === "healthy" ? "green" : status === "warning" ? "yellow" : "red";
     return (
       <Badge colorScheme={colorScheme} display="flex" alignItems="center">
         {status}
@@ -218,29 +300,30 @@ const IntegrationsPage: React.FC = () => {
   };
 
   const handleIntegrationClick = (integration: Integration) => {
-    if (integration.status === 'complete') {
+    if (integration.status === "complete") {
       // Navigate to integration-specific page
       window.location.href = `/integrations/${integration.id}`;
     } else {
       toast({
-        title: 'Coming Soon',
+        title: "Coming Soon",
         description: `${integration.name} integration is ${integration.status}`,
-        status: 'info',
+        status: "info",
         duration: 3000,
       });
     }
   };
 
-  const filteredIntegrations = selectedCategory === 'all' 
-    ? integrations 
-    : integrations.filter(i => i.category === selectedCategory);
+  const filteredIntegrations =
+    selectedCategory === "all"
+      ? integrations
+      : integrations.filter((i) => i.category === selectedCategory);
 
-  const connectedCount = integrations.filter(i => i.connected).length;
+  const connectedCount = integrations.filter((i) => i.connected).length;
   const connectionProgress = (connectedCount / integrations.length) * 100;
 
   useEffect(() => {
     checkIntegrationsHealth();
-    
+
     // Auto-refresh every 2 minutes
     const interval = setInterval(checkIntegrationsHealth, 120000);
     return () => clearInterval(interval);
@@ -279,14 +362,14 @@ const IntegrationsPage: React.FC = () => {
                   Refresh Status
                 </Button>
               </HStack>
-              
+
               <Progress
                 value={connectionProgress}
-                colorScheme={connectionProgress === 100 ? 'green' : 'blue'}
+                colorScheme={connectionProgress === 100 ? "green" : "blue"}
                 size="md"
                 borderRadius="md"
               />
-              
+
               <HStack justify="space-between">
                 <Text fontSize="sm" color="gray.600">
                   Connection Progress
@@ -304,8 +387,8 @@ const IntegrationsPage: React.FC = () => {
           {categories.map((category) => (
             <Button
               key={category.id}
-              variant={selectedCategory === category.id ? 'solid' : 'outline'}
-              colorScheme={selectedCategory === category.id ? 'blue' : 'gray'}
+              variant={selectedCategory === category.id ? "solid" : "outline"}
+              colorScheme={selectedCategory === category.id ? "blue" : "gray"}
               onClick={() => setSelectedCategory(category.id)}
               size="sm"
             >
@@ -330,39 +413,50 @@ const IntegrationsPage: React.FC = () => {
               border="1px"
               borderColor={borderColor}
               _hover={{
-                shadow: 'md',
-                transform: 'translateY(-2px)',
-                transition: 'all 0.2s'
+                shadow: "md",
+                transform: "translateY(-2px)",
+                transition: "all 0.2s",
               }}
             >
               <CardHeader>
                 <HStack justify="space-between">
                   <HStack>
-                    <Icon as={integration.icon} w={8} h={8} color={integration.color} />
+                    <Icon
+                      as={integration.icon}
+                      w={8}
+                      h={8}
+                      color={integration.color}
+                    />
                     <VStack align="start" spacing={0}>
                       <Text fontWeight="bold" fontSize="lg">
                         {integration.name}
                       </Text>
-                      <Badge colorScheme={
-                        integration.status === 'complete' ? 'green' :
-                        integration.status === 'in-progress' ? 'yellow' : 'gray'
-                      } size="sm">
+                      <Badge
+                        colorScheme={
+                          integration.status === "complete"
+                            ? "green"
+                            : integration.status === "in-progress"
+                              ? "yellow"
+                              : "gray"
+                        }
+                        size="sm"
+                      >
                         {integration.status}
                       </Badge>
                     </VStack>
                   </HStack>
-                  {getStatusIcon(integration.health || 'unknown')}
+                  {getStatusIcon(integration.health || "unknown")}
                 </HStack>
               </CardHeader>
-              
+
               <CardBody>
                 <VStack spacing={4} align="stretch">
                   <Text color="gray.600" fontSize="sm">
                     {integration.description}
                   </Text>
-                  
+
                   <Divider />
-                  
+
                   <HStack justify="space-between">
                     <Text fontSize="xs" color="gray.500">
                       Category: {integration.category}
@@ -376,14 +470,14 @@ const IntegrationsPage: React.FC = () => {
                       </HStack>
                     )}
                   </HStack>
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
                     leftIcon={<ExternalLinkIcon />}
                     width="full"
                   >
-                    {integration.connected ? 'Manage' : 'Connect'}
+                    {integration.connected ? "Manage" : "Connect"}
                   </Button>
                 </VStack>
               </CardBody>
@@ -402,7 +496,7 @@ const IntegrationsPage: React.FC = () => {
                 </Text>
                 <Button
                   variant="outline"
-                  onClick={() => setSelectedCategory('all')}
+                  onClick={() => setSelectedCategory("all")}
                 >
                   View All Integrations
                 </Button>

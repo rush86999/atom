@@ -4,18 +4,17 @@
 Working backend with OAuth and real service endpoints
 """
 
-import os
-import logging
-import requests
 import asyncio
-from datetime import datetime
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-from dotenv import load_dotenv
+import logging
 import os
+from datetime import datetime
 
 # Database pool initialization
 import asyncpg
+import requests
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 db_pool = None
 
@@ -46,11 +45,11 @@ env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
 load_dotenv(env_path)
 
 # Original imports from main_api_app.py
-from workflow_handler import workflow_bp, create_workflow_tables
-from workflow_api import workflow_api_bp
-from workflow_agent_api import workflow_agent_api_bp
-from workflow_automation_api import workflow_automation_api
 from voice_integration_api import voice_integration_api_bp
+from workflow_agent_api import workflow_agent_api_bp
+from workflow_api import workflow_api_bp
+from workflow_automation_api import workflow_automation_api
+from workflow_handler import create_workflow_tables, workflow_bp
 
 # Import Google Drive handlers
 try:
@@ -66,8 +65,8 @@ except ImportError as e:
 # Import OneDrive handlers
 try:
     from auth_handler_onedrive import onedrive_auth_bp
-    from onedrive_routes import onedrive_bp
     from onedrive_health_handler import onedrive_health_bp
+    from onedrive_routes import onedrive_bp
 
     ONEDRIVE_AVAILABLE = True
 except ImportError as e:
@@ -364,6 +363,17 @@ def create_app():
         )
         logging.info("GitHub OAuth handler registered successfully")
 
+    # Register GitHub handler if available
+    try:
+        from github_handler import github_bp
+
+        GITHUB_HANDLER_AVAILABLE = True
+        app.register_blueprint(github_bp, url_prefix="/api", name="github_handler")
+        logging.info("GitHub handler registered successfully")
+    except ImportError as e:
+        GITHUB_HANDLER_AVAILABLE = False
+        logging.warning(f"GitHub handler not available: {e}")
+
     # Register enhanced services if available
     if ENHANCED_SERVICES_AVAILABLE:
         app.register_blueprint(
@@ -519,8 +529,8 @@ def create_app():
 
     # Initialize Notion integration service if available
     try:
-        from sync.orchestration_service import create_orchestration_service
         from notion_integration_service import initialize_notion_integration_service
+        from sync.orchestration_service import create_orchestration_service
 
         if initialize_notion_integration_service():
             NOTION_INTEGRATION_SERVICE_AVAILABLE = True
@@ -714,6 +724,24 @@ def create_app():
         app.register_blueprint(auth_figma_bp, url_prefix="")
         logging.info("Figma OAuth handler registered successfully")
 
+    # Register Figma API handler if available
+    try:
+        from figma_handler import figma_bp
+
+        app.register_blueprint(figma_bp, url_prefix="")
+        logging.info("Figma API handler registered successfully")
+    except ImportError as e:
+        logging.warning(f"Figma API handler not available: {e}")
+
+    # Register Figma health handler if available
+    try:
+        from figma_health_handler import figma_health_bp
+
+        app.register_blueprint(figma_health_bp, url_prefix="")
+        logging.info("Figma health handler registered successfully")
+    except ImportError as e:
+        logging.warning(f"Figma health handler not available: {e}")
+
     # Register Salesforce OAuth handler if available
     if SALESFORCE_OAUTH_AVAILABLE:
         # Initialize Salesforce OAuth handler with database pool
@@ -752,9 +780,16 @@ def create_app():
         app.register_blueprint(auth_asana_bp, url_prefix="")
         logging.info("Asana OAuth handler registered successfully")
 
-    # Register enhanced Trello API if available - temporarily disabled due to syntax errors
-    TRELLO_ENHANCED_AVAILABLE = False
-    logging.warning("Enhanced Trello API temporarily disabled due to syntax errors")
+    # Register enhanced Trello API if available
+    try:
+        from trello_enhanced_api import trello_enhanced_bp
+
+        TRELLO_ENHANCED_AVAILABLE = True
+        app.register_blueprint(trello_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Trello API registered successfully")
+    except ImportError as e:
+        TRELLO_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Trello API not available: {e}")
 
     # Register Enhanced Linear API if available
     try:
@@ -766,6 +801,39 @@ def create_app():
     except ImportError as e:
         LINEAR_ENHANCED_AVAILABLE = False
         logging.warning(f"Enhanced Linear API not available: {e}")
+
+    # Register Discord OAuth handler if available
+    try:
+        from auth_handler_discord_complete import auth_discord_bp
+
+        DISCORD_OAUTH_AVAILABLE = True
+        app.register_blueprint(auth_discord_bp, url_prefix="")
+        logging.info("Discord OAuth handler registered successfully")
+    except ImportError as e:
+        DISCORD_OAUTH_AVAILABLE = False
+        logging.warning(f"Discord OAuth handler not available: {e}")
+
+    # Register Discord handler if available
+    try:
+        from discord_handler import discord_bp
+
+        DISCORD_HANDLER_AVAILABLE = True
+        app.register_blueprint(discord_bp, url_prefix="/api", name="discord_handler")
+        logging.info("Discord handler registered successfully")
+    except ImportError as e:
+        DISCORD_HANDLER_AVAILABLE = False
+        logging.warning(f"Discord handler not available: {e}")
+
+    # Register Enhanced Discord API if available
+    try:
+        from discord_enhanced_api import discord_enhanced_bp
+
+        DISCORD_ENHANCED_AVAILABLE = True
+        app.register_blueprint(discord_enhanced_bp, url_prefix="")
+        logging.info("Enhanced Discord API registered successfully")
+    except ImportError as e:
+        DISCORD_ENHANCED_AVAILABLE = False
+        logging.warning(f"Enhanced Discord API not available: {e}")
 
     # Register Enhanced Asana API if available
     try:
@@ -901,7 +969,7 @@ def create_app():
 
     # Register Enhanced Zoom API if available
     try:
-        from zoom_enhanced_routes import zoom_enhanced_bp, init_zoom_enhanced_service
+        from zoom_enhanced_routes import init_zoom_enhanced_service, zoom_enhanced_bp
 
         ZOOM_ENHANCED_AVAILABLE = True
         # Initialize enhanced Zoom service
@@ -946,8 +1014,8 @@ def create_app():
     # Register Zoom Multi-Account API if available
     try:
         from zoom_multi_account_routes import (
-            zoom_multi_account_bp,
             init_zoom_multi_account_manager,
+            zoom_multi_account_bp,
         )
 
         # Initialize multi-account manager
@@ -1013,8 +1081,8 @@ def create_app():
     # Register Zoom AI Analytics API if available
     try:
         from zoom_ai_analytics_routes import (
-            zoom_ai_analytics_bp,
             init_zoom_ai_analytics_services,
+            zoom_ai_analytics_bp,
         )
 
         # Initialize AI analytics services
@@ -1044,8 +1112,8 @@ def create_app():
     # Register Zoom Speech BYOK System if available
     try:
         from zoom_speech_byok_routes import (
-            zoom_speech_byok_bp,
             init_zoom_speech_byok_manager,
+            zoom_speech_byok_bp,
         )
 
         # Initialize BYOK manager
@@ -1204,8 +1272,8 @@ try:
     if ENHANCED_ZOOM_OAUTH_AVAILABLE and db_pool:
         try:
             from enhanced_zoom_oauth_handler import EnhancedZoomOAuthHandler
-            from zoom_websocket_manager import ZoomWebSocketManager
             from zoom_realtime_event_handler import ZoomRealTimeEventHandler
+            from zoom_websocket_manager import ZoomWebSocketManager
 
             # Initialize enhanced OAuth tables
             oauth_handler = EnhancedZoomOAuthHandler(db_pool)
@@ -1226,10 +1294,10 @@ try:
 
     # Initialize Zoom AI Analytics tables if available
     try:
-        from zoom_ai_analytics_engine import ZoomAIAnalyticsEngine
         from zoom_advanced_analytics import ZoomAdvancedAnalytics
-        from zoom_speech_to_text import ZoomSpeechToText
+        from zoom_ai_analytics_engine import ZoomAIAnalyticsEngine
         from zoom_predictive_analytics import ZoomPredictiveAnalytics
+        from zoom_speech_to_text import ZoomSpeechToText
 
         # Initialize AI analytics engine tables
         ai_engine = ZoomAIAnalyticsEngine(db_pool)

@@ -246,6 +246,7 @@ docker-compose up -d
 - **Microsoft Teams**: ✅ Complete integration
 - **Outlook**: ✅ Email and calendar management
 - **Gmail**: ✅ Enhanced service with workflows
+- **Zoom**: ✅ Video conferencing with meeting management
 
 ### 🎯 Productivity Integrations
 - **Asana**: ✅ Project and task management
@@ -258,6 +259,10 @@ docker-compose up -d
 - **GitLab**: ✅ Complete DevOps integration
 - **Jira**: ✅ Agile project management
 - **Figma**: ✅ Design collaboration
+
+### 🏢 CRM & Business Integrations
+- **Salesforce**: ✅ Complete CRM with accounts, contacts, opportunities
+- **HubSpot**: ✅ All-in-one growth platform
 
 **Just tell Atom which services to connect:**
 

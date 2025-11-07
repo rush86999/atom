@@ -256,6 +256,37 @@ const ServiceIntegrationDashboard: React.FC = () => {
       icon: "code",
       description: "Code repository and project management",
     },
+    {
+      id: "zoom",
+      name: "Zoom",
+      type: "video_conferencing",
+      status: "pending",
+      capabilities: [
+        "create_meetings",
+        "manage_meetings",
+        "view_recordings",
+        "manage_users",
+        "webhook_notifications",
+      ],
+      icon: "video",
+      description: "Video conferencing and meeting management",
+    },
+    {
+      id: "salesforce",
+      name: "Salesforce",
+      type: "crm",
+      status: "pending",
+      capabilities: [
+        "manage_accounts",
+        "manage_contacts",
+        "manage_opportunities",
+        "manage_leads",
+        "sales_analytics",
+        "search_data",
+      ],
+      icon: "crm",
+      description: "Customer relationship management and sales automation",
+    },
   ];
 
   useEffect(() => {
