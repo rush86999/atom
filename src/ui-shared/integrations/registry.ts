@@ -346,6 +346,104 @@ export const ATOM_INTEGRATIONS = [
       api_calls_per_minute: 1200
     }
   },
+  // Development Tools Integrations
+  {
+    id: 'linear',
+    name: 'Linear',
+    description: 'Modern issue tracking and project management for software development teams',
+    category: INTEGRATION_CATEGORY_DEVELOPMENT,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'issue_tracking',
+      'project_management',
+      'team_collaboration',
+      'issue_assignment',
+      'status_tracking',
+      'priority_management',
+      'milestone_tracking',
+      'time_tracking',
+      'issue_comments',
+      'attachments',
+      'labels',
+      'milestones',
+      'release_tracking',
+      'automations',
+      'webhooks',
+      'api_access',
+      'real_time_updates',
+      'issue_templates',
+      'custom_fields',
+      'issue_history',
+      'search_filtering',
+      'bulk_operations',
+      'reporting',
+      'team_dashboards',
+      'productivity_metrics',
+      'integration_apis'
+    ],
+    oauth: {
+      provider: 'linear',
+      scopes: [
+        'read',
+        'write',
+        'issues:read',
+        'issues:write',
+        'projects:read',
+        'projects:write',
+        'teams:read',
+        'teams:write',
+        'users:read',
+        'labels:read',
+        'labels:write',
+        'webhooks:read',
+        'webhooks:write'
+      ],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'Issue.created',
+      'Issue.updated',
+      'Issue.removed',
+      'Issue.completed',
+      'Issue.archived',
+      'Issue.reopened',
+      'Issue.status_changed',
+      'Issue.assignee_changed',
+      'Issue.priority_changed',
+      'Issue.title_changed',
+      'Issue.description_changed',
+      'Issue.comment_created',
+      'Issue.comment_updated',
+      'Issue.attachment_created',
+      'Project.created',
+      'Project.updated',
+      'Project.removed',
+      'Team.created',
+      'Team.updated',
+      'Team.member_added',
+      'Team.member_removed',
+      'User.created',
+      'User.updated',
+      'Label.created',
+      'Label.updated',
+      'Label.removed',
+      'Milestone.created',
+      'Milestone.updated',
+      'Milestone.completed'
+    ],
+    limits: {
+      max_issues_per_project: 100000,
+      max_projects_per_team: 1000,
+      max_teams_per_workspace: 100,
+      max_users_per_workspace: 5000,
+      max_webhooks_per_workspace: 100,
+      api_calls_per_minute: 1000,
+      api_calls_per_hour: 60000,
+      attachment_size_mb: 10,
+      max_attachments_per_issue: 100
+    }
+  },
   // Customer Service Integrations
   {
     id: 'zendesk',
@@ -646,6 +744,26 @@ export const OAUTH_PROVIDERS = {
       'analytics',
       'business-intelligence'
     ]
+  },
+  linear: {
+    name: 'Linear',
+    auth_url: 'https://linear.app/oauth/authorize',
+    token_url: 'https://api.linear.app/graphql',
+    scopes: [
+      'read',
+      'write',
+      'issues:read',
+      'issues:write',
+      'projects:read',
+      'projects:write',
+      'teams:read',
+      'teams:write',
+      'users:read',
+      'labels:read',
+      'labels:write',
+      'webhooks:read',
+      'webhooks:write'
+    ]
   }
 } as const;
 
@@ -684,7 +802,12 @@ export const WEBHOOK_EVENTS = {
     'issue.created',
     'issue.updated',
     'issue.opened',
-    'issue.closed'
+    'issue.closed',
+    'issue.assigned',
+    'issue.unassigned',
+    'issue.priority_changed',
+    'issue.label_added',
+    'issue.label_removed'
   ],
   page: [
     'page.created',

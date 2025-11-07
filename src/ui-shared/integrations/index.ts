@@ -130,6 +130,8 @@ export class AtomIntegrationFactory {
         return NextjsManager(props);
       case 'gitlab':
         return GitLabManager(props);
+      case 'linear':
+        return LinearManager(props);
       case 'hubspot':
         return HubSpotIntegration(props);
       case 'zendesk':
@@ -140,7 +142,7 @@ export class AtomIntegrationFactory {
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'hubspot', 'zendesk'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'linear', 'hubspot', 'zendesk'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -165,6 +167,8 @@ export class AtomIntegrationFactory {
         return { name: 'Next.js', type: 'development', category: 'development', status: 'complete' };
       case 'gitlab':
         return { name: 'GitLab', type: 'development', category: 'development', status: 'complete' };
+      case 'linear':
+        return { name: 'Linear', type: 'development', category: 'development', status: 'complete' };
       case 'hubspot':
         return { name: 'HubSpot', type: 'marketing', category: 'marketing', status: 'complete' };
       case 'zendesk':
@@ -179,14 +183,14 @@ export class AtomIntegrationFactory {
       storage: ['box', 'dropbox', 'gdrive'],
       communication: ['slack', 'gmail'],
       productivity: ['notion', 'jira'],
-      development: ['github', 'nextjs', 'gitlab'],
+      development: ['github', 'nextjs', 'gitlab', 'linear'],
       marketing: ['hubspot'],
       customer_service: ['zendesk']
     };
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'hubspot', 'zendesk'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'hubspot', 'zendesk', 'linear'];
   }
 }
 
@@ -457,14 +461,14 @@ export const ATOM_INTEGRATION_TYPES = {
 // Integration Statistics
 // Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 11,
-  completedIntegrations: 11,
+  totalIntegrations: 12,
+  completedIntegrations: 12,
   templateIntegrations: 0,
   categories: {
     storage: 3,
     communication: 2,
     productivity: 2,
-    development: 3,
+    development: 4,
     marketing: 1,
     customer_service: 1,
     collaboration: 0
@@ -539,7 +543,31 @@ export const ATOM_INTEGRATION_STATS = {
     triggers_automation: 1,
     sentiment_analysis: 1,
     ai_ticket_prediction: 1,
-    multi_brand_support: 1
+    multi_brand_support: 1,
+    // Linear specific features
+    issue_tracking: 1,
+    project_management: 1,
+    team_collaboration: 1,
+    issue_assignment: 1,
+    status_tracking: 1,
+    priority_management: 1,
+    milestone_tracking: 1,
+    time_tracking: 1,
+    issue_comments: 1,
+    attachment_support: 1,
+    label_management: 1,
+    release_tracking: 1,
+    workflow_automation: 1,
+    real_time_updates: 1,
+    issue_templates: 1,
+    custom_fields: 1,
+    issue_history: 1,
+    search_filtering: 1,
+    bulk_operations: 1,
+    reporting_analytics: 1,
+    team_dashboards: 1,
+    productivity_metrics: 1,
+    integration_apis: 1
   }
 } as const;
 

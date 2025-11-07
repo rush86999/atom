@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from flask import Blueprint, jsonify, request
-
 from gitlab_enhanced_service import GitLabEnhancedService
 
 # Configure logging
@@ -41,14 +40,13 @@ def get_user_tokens(user_id: str) -> Optional[Dict[str, Any]]:
         access_token = os.getenv("GITLAB_ACCESS_TOKEN")
 
     if access_token:
-        return {
-            "access_token": access_token,
-            "service": "gitlab"
-        }
+        return {"access_token": access_token, "service": "gitlab"}
     return None
 
 
-def format_gitlab_response(data: Any, success: bool = True, message: str = None) -> Dict[str, Any]:
+def format_gitlab_response(
+    data: Any, success: bool = True, message: str = None
+) -> Dict[str, Any]:
     """
     Format standardized GitLab API response
 
@@ -64,7 +62,7 @@ def format_gitlab_response(data: Any, success: bool = True, message: str = None)
         "success": success,
         "service": "gitlab",
         "timestamp": datetime.now().isoformat(),
-        "data": data
+        "data": data,
     }
 
     if message:
@@ -89,7 +87,7 @@ def format_error_response(error: str, status_code: int = 400) -> Dict[str, Any]:
         "service": "gitlab",
         "error": error,
         "timestamp": datetime.now().isoformat(),
-        "status_code": status_code
+        "status_code": status_code,
     }
 
 
@@ -134,20 +132,26 @@ async def gitlab_health():
             "components": {
                 "api": {
                     "status": "connected" if result.get("success") else "disconnected",
-                    "message": result.get("error", "API connection successful") if not result.get("success") else "Connected to GitLab API"
+                    "message": result.get("error", "API connection successful")
+                    if not result.get("success")
+                    else "Connected to GitLab API",
                 },
                 "authentication": {
                     "status": "configured" if service.access_token else "missing",
-                    "message": "Access token configured" if service.access_token else "Access token not found"
-                }
-            }
+                    "message": "Access token configured"
+                    if service.access_token
+                    else "Access token not found",
+                },
+            },
         }
 
         return jsonify(health_data)
 
     except Exception as e:
         logger.error(f"GitLab health check error: {str(e)}")
-        return jsonify(format_error_response(f"Health check failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Health check failed: {str(e)}", 500)
+        ), 500
 
 
 @gitlab_enhanced_bp.route("/api/integrations/gitlab/info", methods=["GET"])
@@ -175,22 +179,24 @@ async def gitlab_info():
                 "ci_cd_pipelines",
                 "repository_browsing",
                 "branch_management",
-                "commit_history"
+                "commit_history",
             ],
             "capabilities": {
                 "read": True,
                 "write": True,
                 "search": True,
-                "webhooks": False  # Future enhancement
+                "webhooks": False,  # Future enhancement
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         return jsonify(format_gitlab_response(info_data))
 
     except Exception as e:
         logger.error(f"GitLab info error: {str(e)}")
-        return jsonify(format_error_response(f"Info retrieval failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Info retrieval failed: {str(e)}", 500)
+        ), 500
 
 
 @gitlab_enhanced_bp.route("/api/integrations/gitlab/projects/list", methods=["POST"])
@@ -223,14 +229,20 @@ async def list_projects():
         if result.get("success"):
             return jsonify(format_gitlab_response(result))
         else:
-            return jsonify(format_error_response(result.get("error", "Failed to get projects"))), 400
+            return jsonify(
+                format_error_response(result.get("error", "Failed to get projects"))
+            ), 400
 
     except Exception as e:
         logger.error(f"GitLab projects list error: {str(e)}")
-        return jsonify(format_error_response(f"Projects list failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Projects list failed: {str(e)}", 500)
+        ), 500
 
 
-@gitlab_enhanced_bp.route("/api/integrations/gitlab/projects/<int:project_id>", methods=["GET"])
+@gitlab_enhanced_bp.route(
+    "/api/integrations/gitlab/projects/<int:project_id>", methods=["GET"]
+)
 async def get_project(project_id: int):
     """
     Get specific project details
@@ -248,11 +260,15 @@ async def get_project(project_id: int):
         if result.get("success"):
             return jsonify(format_gitlab_response(result))
         else:
-            return jsonify(format_error_response(result.get("error", "Failed to get project"))), 400
+            return jsonify(
+                format_error_response(result.get("error", "Failed to get project"))
+            ), 400
 
     except Exception as e:
         logger.error(f"GitLab project get error: {str(e)}")
-        return jsonify(format_error_response(f"Project retrieval failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Project retrieval failed: {str(e)}", 500)
+        ), 500
 
 
 @gitlab_enhanced_bp.route("/api/integrations/gitlab/issues/list", methods=["POST"])
@@ -287,14 +303,18 @@ async def list_issues():
         if result.get("success"):
             return jsonify(format_gitlab_response(result))
         else:
-            return jsonify(format_error_response(result.get("error", "Failed to get issues"))), 400
+            return jsonify(
+                format_error_response(result.get("error", "Failed to get issues"))
+            ), 400
 
     except Exception as e:
         logger.error(f"GitLab issues list error: {str(e)}")
         return jsonify(format_error_response(f"Issues list failed: {str(e)}", 500)), 500
 
 
-@gitlab_enhanced_bp.route("/api/integrations/gitlab/merge-requests/list", methods=["POST"])
+@gitlab_enhanced_bp.route(
+    "/api/integrations/gitlab/merge-requests/list", methods=["POST"]
+)
 async def list_merge_requests():
     """
     List GitLab merge requests for a project
@@ -325,11 +345,17 @@ async def list_merge_requests():
         if result.get("success"):
             return jsonify(format_gitlab_response(result))
         else:
-            return jsonify(format_error_response(result.get("error", "Failed to get merge requests"))), 400
+            return jsonify(
+                format_error_response(
+                    result.get("error", "Failed to get merge requests")
+                )
+            ), 400
 
     except Exception as e:
         logger.error(f"GitLab merge requests list error: {str(e)}")
-        return jsonify(format_error_response(f"Merge requests list failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Merge requests list failed: {str(e)}", 500)
+        ), 500
 
 
 @gitlab_enhanced_bp.route("/api/integrations/gitlab/pipelines/list", methods=["POST"])
@@ -363,11 +389,15 @@ async def list_pipelines():
         if result.get("success"):
             return jsonify(format_gitlab_response(result))
         else:
-            return jsonify(format_error_response(result.get("error", "Failed to get pipelines"))), 400
+            return jsonify(
+                format_error_response(result.get("error", "Failed to get pipelines"))
+            ), 400
 
     except Exception as e:
         logger.error(f"GitLab pipelines list error: {str(e)}")
-        return jsonify(format_error_response(f"Pipelines list failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Pipelines list failed: {str(e)}", 500)
+        ), 500
 
 
 @gitlab_enhanced_bp.route("/api/integrations/gitlab/issues/create", methods=["POST"])
@@ -406,7 +436,7 @@ async def create_issue():
             "description": data.get("description", ""),
             "labels": data.get("labels", []),
             "assignee_ids": data.get("assignee_ids", []),
-            "due_date": data.get("due_date")
+            "due_date": data.get("due_date"),
         }
 
         # Remove None values
@@ -428,19 +458,25 @@ async def create_issue():
                 "assignee": None,
                 "web_url": f"https://gitlab.com/project/{project_id}/-/issues/1",
                 "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat()
+                "updated_at": datetime.now().isoformat(),
             },
-            "service": "gitlab"
+            "service": "gitlab",
         }
 
-        return jsonify(format_gitlab_response(mock_response, message="Issue created successfully"))
+        return jsonify(
+            format_gitlab_response(mock_response, message="Issue created successfully")
+        )
 
     except Exception as e:
         logger.error(f"GitLab issue creation error: {str(e)}")
-        return jsonify(format_error_response(f"Issue creation failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Issue creation failed: {str(e)}", 500)
+        ), 500
 
 
-@gitlab_enhanced_bp.route("/api/integrations/gitlab/merge-requests/create", methods=["POST"])
+@gitlab_enhanced_bp.route(
+    "/api/integrations/gitlab/merge-requests/create", methods=["POST"]
+)
 async def create_merge_request():
     """
     Create a new GitLab merge request
@@ -468,7 +504,9 @@ async def create_merge_request():
         if not project_id:
             return jsonify(format_error_response("Project ID is required")), 400
         if not title:
-            return jsonify(format_error_response("Merge request title is required")), 400
+            return jsonify(
+                format_error_response("Merge request title is required")
+            ), 400
         if not source_branch:
             return jsonify(format_error_response("Source branch is required")), 400
 
@@ -480,7 +518,7 @@ async def create_merge_request():
             "description": data.get("description", ""),
             "source_branch": source_branch,
             "target_branch": target_branch,
-            "assignee_ids": data.get("assignee_ids", [])
+            "assignee_ids": data.get("assignee_ids", []),
         }
 
         # Remove None values
@@ -505,19 +543,27 @@ async def create_merge_request():
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
                 "sha": "abc123def456",
-                "merge_status": "can_be_merged"
+                "merge_status": "can_be_merged",
             },
-            "service": "gitlab"
+            "service": "gitlab",
         }
 
-        return jsonify(format_gitlab_response(mock_response, message="Merge request created successfully"))
+        return jsonify(
+            format_gitlab_response(
+                mock_response, message="Merge request created successfully"
+            )
+        )
 
     except Exception as e:
         logger.error(f"GitLab merge request creation error: {str(e)}")
-        return jsonify(format_error_response(f"Merge request creation failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Merge request creation failed: {str(e)}", 500)
+        ), 500
 
 
-@gitlab_enhanced_bp.route("/api/integrations/gitlab/pipelines/trigger", methods=["POST"])
+@gitlab_enhanced_bp.route(
+    "/api/integrations/gitlab/pipelines/trigger", methods=["POST"]
+)
 async def trigger_pipeline():
     """
     Trigger a GitLab CI/CD pipeline
@@ -546,10 +592,7 @@ async def trigger_pipeline():
         service = get_gitlab_service()
 
         # Prepare pipeline data
-        pipeline_data = {
-            "ref": ref,
-            "variables": data.get("variables", {})
-        }
+        pipeline_data = {"ref": ref, "variables": data.get("variables", {})}
 
         # This would call a trigger_pipeline method in the service
         # For now, return a mock response
@@ -564,17 +607,55 @@ async def trigger_pipeline():
                 "web_url": f"https://gitlab.com/project/{project_id}/-/pipelines/777",
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
-                "variables": data.get("variables", {})
+                "variables": data.get("variables", {}),
             },
-            "service": "gitlab"
+            "service": "gitlab",
         }
 
-        return jsonify(format_gitlab_response(mock_response, message="Pipeline triggered successfully"))
+        return jsonify(
+            format_gitlab_response(
+                mock_response, message="Pipeline triggered successfully"
+            )
+        )
 
     except Exception as e:
         logger.error(f"GitLab pipeline trigger error: {str(e)}")
-        return jsonify(format_error_response(f"Pipeline trigger failed: {str(e)}", 500)), 500
+        return jsonify(
+            format_error_response(f"Pipeline trigger failed: {str(e)}", 500)
+        ), 500
 
 
 @gitlab_enhanced_bp.route("/api/integrations/gitlab/branches/list", methods=["POST"])
-async def list_branches
+async def list_branches(request_data):
+    """List branches for a GitLab project"""
+    try:
+        logger.info("GitLab list_branches endpoint called")
+
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify(format_error_response("No data provided", 400)), 400
+
+        project_id = data.get("project_id")
+        if not project_id:
+            return jsonify(format_error_response("Project ID required", 400)), 400
+
+        # Get GitLab service instance
+        gitlab_service = get_gitlab_service()
+        if not gitlab_service:
+            return jsonify(
+                format_error_response("GitLab service not available", 503)
+            ), 503
+
+        # Get branches
+        branches = await gitlab_service.get_branches(project_id)
+
+        return jsonify(
+            format_gitlab_response(branches, message="Branches retrieved successfully")
+        )
+
+    except Exception as e:
+        logger.error(f"GitLab list_branches error: {str(e)}")
+        return jsonify(
+            format_error_response(f"Failed to list branches: {str(e)}", 500)
+        ), 500

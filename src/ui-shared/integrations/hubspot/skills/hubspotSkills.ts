@@ -125,14 +125,23 @@ export interface HubSpotSearchOptions {
 
 class HubSpotSkills {
   private readonly baseUrl = '/api/hubspot';
-  private readonly authUrl = '/auth/hubspot';
+  private readonly authUrl = '/api/hubspot/oauth';
 
   // Authentication methods
   async getStoredTokens(): Promise<HubSpotTokens | null> {
     try {
-      const response = await api.get(`${this.authUrl}/status`);
-      if (response.data.authenticated) {
-        return response.data.tokens;
+      const response = await api.get('/api/integrations/hubspot/health');
+      if (response.data.status === 'healthy') {
+        // For now, we'll assume tokens are stored in the backend
+        // This would need to be enhanced to retrieve actual token data
+        return {
+          accessToken: 'stored',
+          refreshToken: 'stored',
+          hubId: 'stored',
+          environment: 'production',
+          expiresAt: undefined,
+          scopes: []
+        };
       }
       return null;
     } catch (error) {
@@ -143,7 +152,7 @@ class HubSpotSkills {
 
   async initiateOAuth(): Promise<void> {
     try {
-      window.location.href = `${this.authUrl}`;
+      window.location.href = `${this.authUrl}/start`;
     } catch (error) {
       throw new Error(`Failed to initiate OAuth: ${error.message}`);
     }
@@ -151,7 +160,7 @@ class HubSpotSkills {
 
   async handleOAuthCallback(code: string, state: string): Promise<HubSpotTokens> {
     try {
-      const response = await api.post(`${this.authUrl}/save`, { code, state });
+      const response = await api.post(`${this.authUrl}/callback`, { code });
       return response.data.tokens;
     } catch (error) {
       throw new Error(`OAuth callback failed: ${error.message}`);
@@ -160,7 +169,7 @@ class HubSpotSkills {
 
   async revokeAuthentication(): Promise<void> {
     try {
-      await api.delete(`${this.authUrl}`);
+      await api.delete('/api/hubspot/auth');
     } catch (error) {
       throw new Error(`Failed to revoke authentication: ${error.message}`);
     }

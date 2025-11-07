@@ -42,6 +42,7 @@ import {
   DollarIcon,
   CalendarIcon,
   CreditCardIcon,
+  StarIcon,
 } from "@chakra-ui/icons";
 
 interface Integration {
@@ -206,6 +207,16 @@ const IntegrationsPage: React.FC = () => {
       icon: CreditCardIcon,
       color: "green",
     },
+    {
+      id: "hubspot",
+      name: "HubSpot",
+      description: "Marketing automation and CRM platform",
+      category: "marketing",
+      status: "complete",
+      connected: false,
+      icon: CreditCardIcon,
+      color: "orange",
+    },
   ];
 
   const categories = [
@@ -233,6 +244,11 @@ const IntegrationsPage: React.FC = () => {
       count: integrationList.filter((i) => i.category === "development").length,
     },
     {
+      id: "marketing",
+      name: "Marketing",
+      count: integrationList.filter((i) => i.category === "marketing").length,
+    },
+    {
       id: "finance",
       name: "Finance",
       count: integrationList.filter((i) => i.category === "finance").length,
@@ -256,6 +272,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/outlook/health"),
         fetch("/api/integrations/asana/health"),
         fetch("/api/integrations/quickbooks/health"),
+        fetch("/api/integrations/hubspot/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {

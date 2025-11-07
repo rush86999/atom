@@ -278,7 +278,7 @@ const HubSpotIntegration: React.FC = () => {
   };
 
   const handleAuthentication = () => {
-    window.location.href = `/auth/hubspot`;
+    window.location.href = `/api/hubspot/oauth/start`;
   };
 
   const handleCreateContact = async () => {
