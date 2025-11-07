@@ -336,14 +336,23 @@ export interface ZendeskUpdateOptions {
 
 class ZendeskSkills {
   private readonly baseUrl = '/api/zendesk';
-  private readonly authUrl = '/auth/zendesk';
+  private readonly authUrl = '/api/zendesk/oauth';
 
   // Authentication methods
   async getStoredTokens(): Promise<ZendeskTokens | null> {
     try {
-      const response = await api.get(`${this.authUrl}/status`);
-      if (response.data.authenticated) {
-        return response.data.tokens;
+      const response = await api.get('/api/integrations/zendesk/health');
+      if (response.data.status === 'healthy') {
+        // For now, we'll assume tokens are stored in backend
+        // This would need to be enhanced to retrieve actual token data
+        return {
+          accessToken: 'stored',
+          refreshToken: 'stored',
+          subdomain: 'stored',
+          environment: 'production',
+          expiresAt: undefined,
+          scopes: []
+        };
       }
       return null;
     } catch (error) {
@@ -354,7 +363,7 @@ class ZendeskSkills {
 
   async initiateOAuth(): Promise<void> {
     try {
-      window.location.href = `${this.authUrl}`;
+      window.location.href = `${this.authUrl}/start`;
     } catch (error) {
       throw new Error(`Failed to initiate OAuth: ${error.message}`);
     }
@@ -362,7 +371,7 @@ class ZendeskSkills {
 
   async handleOAuthCallback(code: string, state: string): Promise<ZendeskTokens> {
     try {
-      const response = await api.post(`${this.authUrl}/save`, { code, state });
+      const response = await api.post(`${this.authUrl}/callback`, { code });
       return response.data.tokens;
     } catch (error) {
       throw new Error(`OAuth callback failed: ${error.message}`);
@@ -371,7 +380,7 @@ class ZendeskSkills {
 
   async revokeAuthentication(): Promise<void> {
     try {
-      await api.delete(`${this.authUrl}`);
+      await api.delete('/api/zendesk/auth');
     } catch (error) {
       throw new Error(`Failed to revoke authentication: ${error.message}`);
     }

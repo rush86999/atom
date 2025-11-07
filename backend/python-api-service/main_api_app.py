@@ -246,6 +246,24 @@ except ImportError as e:
     SHOPIFY_OAUTH_AVAILABLE = False
     logging.warning(f"Shopify OAuth handler not available: {e}")
 
+# Import GitLab OAuth handler
+try:
+    from auth_handler_gitlab import auth_gitlab_bp
+
+    GITLAB_OAUTH_AVAILABLE = True
+except ImportError as e:
+    GITLAB_OAUTH_AVAILABLE = False
+    logging.warning(f"GitLab OAuth handler not available: {e}")
+
+# Import GitLab enhanced API
+try:
+    from gitlab_enhanced_api import gitlab_enhanced_bp
+
+    GITLAB_ENHANCED_AVAILABLE = True
+except ImportError as e:
+    GITLAB_ENHANCED_AVAILABLE = False
+    logging.warning(f"GitLab enhanced API not available: {e}")
+
 # Import Zoom OAuth handler
 try:
     from auth_handler_zoom import init_zoom_oauth_handler, zoom_auth_bp
@@ -391,6 +409,20 @@ def create_app():
     if SLACK_OAUTH_AVAILABLE:
         app.register_blueprint(auth_slack_bp, url_prefix="/api/auth", name="slack_auth")
         logging.info("Enhanced Slack OAuth handler registered successfully")
+
+    # Register GitLab OAuth handler if available
+    if GITLAB_OAUTH_AVAILABLE:
+        app.register_blueprint(
+            auth_gitlab_bp, url_prefix="/api/auth", name="gitlab_auth"
+        )
+        logging.info("GitLab OAuth handler registered successfully")
+
+    # Register GitLab enhanced API if available
+    if GITLAB_ENHANCED_AVAILABLE:
+        app.register_blueprint(
+            gitlab_enhanced_bp, url_prefix="/api/integrations", name="gitlab_enhanced"
+        )
+        logging.info("GitLab enhanced API registered successfully")
 
     # Register Google Drive blueprints
     if GOOGLE_DRIVE_AVAILABLE:

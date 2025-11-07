@@ -148,6 +148,16 @@ const IntegrationsPage: React.FC = () => {
       color: "black",
     },
     {
+      id: "gitlab",
+      name: "GitLab",
+      description: "DevOps platform and code repository",
+      category: "development",
+      status: "complete",
+      connected: false,
+      icon: CodeIcon,
+      color: "orange",
+    },
+    {
       id: "nextjs",
       name: "Next.js",
       description: "Vercel project management and deployment",
@@ -217,6 +227,16 @@ const IntegrationsPage: React.FC = () => {
       icon: CreditCardIcon,
       color: "orange",
     },
+    {
+      id: "zendesk",
+      name: "Zendesk",
+      description: "Customer support and help desk platform",
+      category: "support",
+      status: "complete",
+      connected: false,
+      icon: CalendarIcon,
+      color: "red",
+    },
   ];
 
   const categories = [
@@ -249,6 +269,11 @@ const IntegrationsPage: React.FC = () => {
       count: integrationList.filter((i) => i.category === "marketing").length,
     },
     {
+      id: "support",
+      name: "Support",
+      count: integrationList.filter((i) => i.category === "support").length,
+    },
+    {
       id: "finance",
       name: "Finance",
       count: integrationList.filter((i) => i.category === "finance").length,
@@ -273,6 +298,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/asana/health"),
         fetch("/api/integrations/quickbooks/health"),
         fetch("/api/integrations/hubspot/health"),
+        fetch("/api/integrations/zendesk/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {
