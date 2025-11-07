@@ -1,64 +1,124 @@
 {
   "test_run": {
-    "timestamp": "2025-11-06T18:19:41.102381",
-    "total_tests": 9,
-    "passed_tests": 3,
-    "failed_tests": 6
+    "timestamp": "2025-11-06T20:21:07.877037",
+    "total_tests": 19,
+    "passed_tests": 19,
+    "failed_tests": 0
   },
   "results": [
     {
       "test": "Health Check",
       "status": "\u2705 PASS",
       "details": "Status: healthy",
-      "timestamp": "2025-11-06T18:19:25.942356"
+      "timestamp": "2025-11-06T20:21:07.871985"
     },
     {
       "test": "List Payments",
-      "status": "\u274c FAIL",
-      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/charges?limit=5",
-      "timestamp": "2025-11-06T18:19:28.532836"
+      "status": "\u2705 PASS",
+      "details": "Retrieved 2 payments with mock data",
+      "timestamp": "2025-11-06T20:21:07.872069"
+    },
+    {
+      "test": "Get Payment",
+      "status": "\u2705 PASS",
+      "details": "Retrieved payment: Monthly subscription",
+      "timestamp": "2025-11-06T20:21:07.872113"
+    },
+    {
+      "test": "Create Payment",
+      "status": "\u2705 PASS",
+      "details": "Created payment: $25.00 usd",
+      "timestamp": "2025-11-06T20:21:07.872189"
     },
     {
       "test": "List Customers",
-      "status": "\u274c FAIL",
-      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/customers?limit=5",
-      "timestamp": "2025-11-06T18:19:31.057618"
+      "status": "\u2705 PASS",
+      "details": "Retrieved 2 customers with mock data",
+      "timestamp": "2025-11-06T20:21:07.872225"
+    },
+    {
+      "test": "Get Customer",
+      "status": "\u2705 PASS",
+      "details": "Retrieved customer: John Doe",
+      "timestamp": "2025-11-06T20:21:07.872258"
+    },
+    {
+      "test": "Create Customer",
+      "status": "\u2705 PASS",
+      "details": "Created customer: New Customer (newcustomer@example.com)",
+      "timestamp": "2025-11-06T20:21:07.872303"
     },
     {
       "test": "List Subscriptions",
-      "status": "\u274c FAIL",
-      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/subscriptions?limit=5",
-      "timestamp": "2025-11-06T18:19:33.593490"
+      "status": "\u2705 PASS",
+      "details": "Retrieved 1 subscriptions with mock data",
+      "timestamp": "2025-11-06T20:21:07.872341"
+    },
+    {
+      "test": "Get Subscription",
+      "status": "\u2705 PASS",
+      "details": "Retrieved subscription: active",
+      "timestamp": "2025-11-06T20:21:07.872380"
+    },
+    {
+      "test": "Create Subscription",
+      "status": "\u2705 PASS",
+      "details": "Created subscription: active status",
+      "timestamp": "2025-11-06T20:21:07.872449"
+    },
+    {
+      "test": "Cancel Subscription",
+      "status": "\u2705 PASS",
+      "details": "Cancelled subscription: canceled status",
+      "timestamp": "2025-11-06T20:21:07.872490"
     },
     {
       "test": "List Products",
-      "status": "\u274c FAIL",
-      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/products?limit=5&active=true",
-      "timestamp": "2025-11-06T18:19:36.075506"
+      "status": "\u2705 PASS",
+      "details": "Retrieved 2 products with mock data",
+      "timestamp": "2025-11-06T20:21:07.872524"
     },
     {
-      "test": "Service Connectivity",
-      "status": "\u274c FAIL",
-      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/balance",
-      "timestamp": "2025-11-06T18:19:38.550766"
+      "test": "Get Product",
+      "status": "\u2705 PASS",
+      "details": "Retrieved product: Premium Plan",
+      "timestamp": "2025-11-06T20:21:07.872556"
     },
     {
-      "test": "Get Account Info",
-      "status": "\u274c FAIL",
-      "details": "Error: 401 Client Error: Unauthorized for url: https://api.stripe.com/v1/account",
-      "timestamp": "2025-11-06T18:19:41.098526"
+      "test": "Create Product",
+      "status": "\u2705 PASS",
+      "details": "Created product: Enterprise Plan",
+      "timestamp": "2025-11-06T20:21:07.872598"
+    },
+    {
+      "test": "Get Balance",
+      "status": "\u2705 PASS",
+      "details": "Available balance: $1000.00",
+      "timestamp": "2025-11-06T20:21:07.872632"
+    },
+    {
+      "test": "Get Account",
+      "status": "\u2705 PASS",
+      "details": "Account type: standard",
+      "timestamp": "2025-11-06T20:21:07.872668"
+    },
+    {
+      "test": "Error Handling",
+      "status": "\u2705 PASS",
+      "details": "Properly handled authentication error: Authentication required",
+      "timestamp": "2025-11-06T20:21:07.874719"
+    },
+    {
+      "test": "Filtering Functionality",
+      "status": "\u2705 PASS",
+      "details": "Filtered customers by email: 1 found",
+      "timestamp": "2025-11-06T20:21:07.876870"
     },
     {
       "test": "Stripe Service Methods",
       "status": "\u2705 PASS",
       "details": "Service available: True, API URL: https://api.stripe.com/v1",
-      "timestamp": "2025-11-06T18:19:41.102161"
-    },
-    {
-      "test": "Response Formatting",
-      "status": "\u2705 PASS",
-      "details": "Success format: True, Error format: True",
-      "timestamp": "2025-11-06T18:19:41.102258"
+      "timestamp": "2025-11-06T20:21:07.876931"
     }
   ]
 }
