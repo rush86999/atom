@@ -78,6 +78,10 @@ export { hubspotSkills, hubspotSkillsEnhanced } from './hubspot/skills/hubspotSk
 export { ZendeskIntegration } from './zendesk';
 export { zendeskSkills, zendeskSkillsEnhanced } from './zendesk/skills/zendeskSkills';
 
+// Xero Integration (Financial)
+export { XeroIntegration } from './xero';
+export { xeroSkills } from './xero/skills/xeroSkills';
+
 // Base Integration Template
 export * as BaseIntegration from './_template/baseIntegration';
 
@@ -136,13 +140,15 @@ export class AtomIntegrationFactory {
         return HubSpotIntegration(props);
       case 'zendesk':
         return ZendeskIntegration(props);
+      case 'xero':
+        return XeroIntegration(props);
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'linear', 'hubspot', 'zendesk'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'linear', 'hubspot', 'zendesk', 'xero'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -173,6 +179,8 @@ export class AtomIntegrationFactory {
         return { name: 'HubSpot', type: 'marketing', category: 'marketing', status: 'complete' };
       case 'zendesk':
         return { name: 'Zendesk', type: 'customer_service', category: 'customer_service', status: 'complete' };
+      case 'xero':
+        return { name: 'Xero', type: 'financial', category: 'financial', status: 'complete' };
       default:
         throw new Error(`Unknown integration type: ${type}`);
     }
@@ -185,12 +193,13 @@ export class AtomIntegrationFactory {
       productivity: ['notion', 'jira'],
       development: ['github', 'nextjs', 'gitlab', 'linear'],
       marketing: ['hubspot'],
-      customer_service: ['zendesk']
+      customer_service: ['zendesk'],
+      financial: ['xero']
     };
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'hubspot', 'zendesk', 'linear'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'hubspot', 'zendesk', 'linear', 'xero'];
   }
 }
 
@@ -461,8 +470,8 @@ export const ATOM_INTEGRATION_TYPES = {
 // Integration Statistics
 // Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 12,
-  completedIntegrations: 12,
+  totalIntegrations: 13,
+  completedIntegrations: 13,
   templateIntegrations: 0,
   categories: {
     storage: 3,
@@ -471,6 +480,7 @@ export const ATOM_INTEGRATION_STATS = {
     development: 4,
     marketing: 1,
     customer_service: 1,
+    financial: 1,
     collaboration: 0
   },
   features: {
@@ -567,7 +577,30 @@ export const ATOM_INTEGRATION_STATS = {
     reporting_analytics: 1,
     team_dashboards: 1,
     productivity_metrics: 1,
-    integration_apis: 1
+    integration_apis: 1,
+    // Xero specific features
+    invoice_management: 1,
+    contact_management: 1,
+    bank_reconciliation: 1,
+    financial_reporting: 1,
+    expense_tracking: 1,
+    tax_management: 1,
+    payment_processing: 1,
+    budget_tracking: 1,
+    cash_flow_management: 1,
+    multi_currency_support: 1,
+    bank_feeds: 1,
+    reconciliation_automation: 1,
+    inventory_tracking: 1,
+    payroll_management: 1,
+    project_accounting: 1,
+    time_billing: 1,
+    fixed_assets: 1,
+    bill_management: 1,
+    quoting_management: 1,
+    mobile_access: 1,
+    audit_trails: 1,
+    compliance_reporting: 1
   }
 } as const;
 

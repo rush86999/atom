@@ -450,7 +450,7 @@ const LinearIntegration: React.FC = () => {
                   size="lg"
                   leftIcon={<ExternalLinkIcon />}
                   onClick={() =>
-                    (window.location.href = "/api/auth/linear/authorize")
+                    (window.location.href = "/api/integrations/linear/auth/start")
                   }
                 >
                   Connect Linear Account

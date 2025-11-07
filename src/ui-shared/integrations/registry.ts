@@ -444,6 +444,104 @@ export const ATOM_INTEGRATIONS = [
       max_attachments_per_issue: 100
     }
   },
+  // Financial & Accounting Integrations
+  {
+    id: 'xero',
+    name: 'Xero',
+    description: 'Complete small business accounting and financial management platform',
+    category: INTEGRATION_CATEGORY_FINANCIAL,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'invoice_management',
+      'contact_management',
+      'bank_reconciliation',
+      'financial_reporting',
+      'expense_tracking',
+      'tax_management',
+      'payment_processing',
+      'budget_tracking',
+      'cash_flow_management',
+      'multi_currency_support',
+      'bank_feeds',
+      'reconciliation_automation',
+      'inventory_tracking',
+      'payroll_management',
+      'project_accounting',
+      'time_tracking',
+      'fixed_assets',
+      'bill_management',
+      'quoting',
+      'mobile_access',
+      'api_integration',
+      'webhook_support',
+      'multi_organization',
+      'audit_trails',
+      'compliance_reporting'
+    ],
+    oauth: {
+      provider: 'xero',
+      scopes: [
+        'openid',
+        'profile',
+        'email',
+        'accounting.settings',
+        'accounting.transactions',
+        'accounting.reports.read',
+        'accounting.journals.read',
+        'accounting.contacts',
+        'accounting.attachments',
+        'accounting.budgets.read',
+        'offline_access'
+      ],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'Invoice.Created',
+      'Invoice.Updated',
+      'Invoice.Paid',
+      'Invoice.Voided',
+      'Invoice.Deleted',
+      'Contact.Created',
+      'Contact.Updated',
+      'Contact.Deleted',
+      'BankTransaction.Created',
+      'BankTransaction.Updated',
+      'BankTransaction.Deleted',
+      'Payment.Created',
+      'Payment.Updated',
+      'Payment.Deleted',
+      'Expense.Claim.Created',
+      'Expense.Claim.Updated',
+      'Expense.Claim.Approved',
+      'Expense.Claim.Paid',
+      'Journal.Created',
+      'Journal.Updated',
+      'Journal.Posted',
+      'ManualJournal.Created',
+      'ManualJournal.Updated',
+      'ManualJournal.Posted',
+      'Item.Created',
+      'Item.Updated',
+      'Item.Deleted',
+      'PurchaseOrder.Created',
+      'PurchaseOrder.Updated',
+      'PurchaseOrder.Approved',
+      'PurchaseOrder.EmailSent'
+    ],
+    limits: {
+      max_invoices_per_month: 10000,
+      max_contacts: 10000,
+      max_bank_accounts: 100,
+      max_transactions_per_day: 5000,
+      max_reports_per_month: 1000,
+      max_users: 100,
+      api_calls_per_day: 5000,
+      api_calls_per_minute: 60,
+      attachment_size_mb: 25,
+      max_attachments_per_entity: 100
+    }
+  },
   // Customer Service Integrations
   {
     id: 'zendesk',
@@ -764,6 +862,24 @@ export const OAUTH_PROVIDERS = {
       'webhooks:read',
       'webhooks:write'
     ]
+  },
+  xero: {
+    name: 'Xero',
+    auth_url: 'https://login.xero.com/identity/connect/authorize',
+    token_url: 'https://identity.xero.com/connect/token',
+    scopes: [
+      'openid',
+      'profile',
+      'email',
+      'accounting.settings',
+      'accounting.transactions',
+      'accounting.reports.read',
+      'accounting.journals.read',
+      'accounting.contacts',
+      'accounting.attachments',
+      'accounting.budgets.read',
+      'offline_access'
+    ]
   }
 } as const;
 
@@ -876,6 +992,29 @@ export const WEBHOOK_EVENTS = {
     'chat.conversation.started',
     'chat.conversation.updated',
     'chat.conversation.ended'
+  ],
+  financial: [
+    'invoice.created',
+    'invoice.updated',
+    'invoice.paid',
+    'invoice.voided',
+    'invoice.deleted',
+    'contact.created',
+    'contact.updated',
+    'contact.deleted',
+    'bank_transaction.created',
+    'bank_transaction.updated',
+    'bank_transaction.deleted',
+    'payment.created',
+    'payment.updated',
+    'payment.deleted',
+    'expense_claim.created',
+    'expense_claim.updated',
+    'expense_claim.approved',
+    'expense_claim.paid',
+    'journal.created',
+    'journal.updated',
+    'journal.posted'
   ],
   marketing: [
     'marketing.email',

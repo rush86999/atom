@@ -11,6 +11,7 @@ export const INTEGRATION_CATEGORY_DEVELOPMENT = 'development';
 export const INTEGRATION_CATEGORY_COLLABORATION = 'collaboration';
 export const INTEGRATION_CATEGORY_MARKETING = 'marketing';
 export const INTEGRATION_CATEGORY_CUSTOMER_SERVICE = 'customer_service';
+export const INTEGRATION_CATEGORY_FINANCIAL = 'financial';
 
 // Integration Status
 export const INTEGRATION_STATUS_COMPLETE = 'complete';
