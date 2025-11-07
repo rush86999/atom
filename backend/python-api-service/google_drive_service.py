@@ -1,1192 +1,898 @@
 """
-Google Drive Integration Service
-Complete Google Drive file management and collaboration service
+Google Drive Service - Core API Integration
+Handles authentication, file operations, and API interactions
 """
 
-import json
-import logging
-import asyncio
-import aiohttp
-import aiofiles
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union, BinaryIO
-from dataclasses import dataclass, field
-from enum import Enum
-from urllib.parse import urlencode
-from loguru import logger
-import mimetypes
 import os
+import json
+import asyncio
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
+import aiofiles
+import aiohttp
+from dataclasses import dataclass, asdict
+from contextlib import asynccontextmanager
 
-# Google Drive API configuration
-GOOGLE_DRIVE_API_VERSION = "v3"
-GOOGLE_DRIVE_API_BASE_URL = "https://www.googleapis.com/drive/v3"
-GOOGLE_DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3"
-GOOGLE_DRIVE_SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.metadata"
-]
-GOOGLE_DRIVE_REQUEST_TIMEOUT = 60
+# Google Drive API imports
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import Flow
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+    from googleapiclient.errors import HttpError
+    GOOGLE_DRIVE_AVAILABLE = True
+except ImportError:
+    GOOGLE_DRIVE_AVAILABLE = False
+    logging.warning("Google Drive API libraries not available")
 
-class FileType(Enum):
-    """File types for Google Drive"""
-    FOLDER = "application/vnd.google-apps.folder"
-    DOCUMENT = "application/vnd.google-apps.document"
-    SPREADSHEET = "application/vnd.google-apps.spreadsheet"
-    PRESENTATION = "application/vnd.google-apps.presentation"
-    PDF = "application/pdf"
-    IMAGE = "image/jpeg"
-    VIDEO = "video/mp4"
-    AUDIO = "audio/mpeg"
-    ARCHIVE = "application/zip"
-    TEXT = "text/plain"
-    JSON = "application/json"
-    CSV = "text/csv"
-
-class PermissionRole(Enum):
-    """Permission roles for Google Drive"""
-    OWNER = "owner"
-    ORGANIZER = "organizer"
-    FILE_ORGANIZER = "fileOrganizer"
-    EDITOR = "editor"
-    COMMENTER = "commenter"
-    VIEWER = "reader"
-
-class PermissionType(Enum):
-    """Permission types for Google Drive"""
-    USER = "user"
-    GROUP = "group"
-    DOMAIN = "domain"
-    ANYONE = "anyone"
-
-@dataclass
-class GoogleDriveConfig:
-    """Google Drive configuration"""
-    client_id: str
-    client_secret: str
-    redirect_uri: str
-    scopes: List[str] = field(default_factory=lambda: GOOGLE_DRIVE_SCOPES)
-    api_version: str = GOOGLE_DRIVE_API_VERSION
-    timeout: int = GOOGLE_DRIVE_REQUEST_TIMEOUT
-    max_retries: int = 3
-    retry_delay: float = 1.0
+# Local imports
+from loguru import logger
+from config import get_config_instance
 
 @dataclass
 class GoogleDriveFile:
-    """Google Drive file model"""
+    """Google Drive file data model"""
     id: str
     name: str
     mime_type: str
-    size: int = 0
-    created_time: Optional[datetime] = None
-    modified_time: Optional[datetime] = None
-    viewed_by_me_time: Optional[datetime] = None
-    parents: List[str] = field(default_factory=list)
+    size: int
+    created_time: datetime
+    modified_time: datetime
+    viewed_time: Optional[datetime] = None
+    description: Optional[str] = None
+    checksum: Optional[str] = None
+    version: Optional[str] = None
     web_view_link: Optional[str] = None
     web_content_link: Optional[str] = None
     thumbnail_link: Optional[str] = None
-    permissions: List[Dict[str, Any]] = field(default_factory=list)
-    shared: bool = False
-    owners: List[Dict[str, Any]] = field(default_factory=list)
-    version: Optional[str] = None
-    md5_checksum: Optional[str] = None
     file_extension: Optional[str] = None
-    full_file_extension: Optional[str] = None
-    kind: str = "drive#file"
-    trashed: bool = False
-    starred: bool = False
-
-@dataclass
-class GoogleDriveFolder:
-    """Google Drive folder model"""
-    id: str
-    name: str
-    created_time: Optional[datetime] = None
-    modified_time: Optional[datetime] = None
-    parents: List[str] = field(default_factory=list)
-    web_view_link: Optional[str] = None
-    permissions: List[Dict[str, Any]] = field(default_factory=list)
-    shared: bool = False
-    owners: List[Dict[str, Any]] = field(default_factory=list)
-    trashed: bool = False
-    starred: bool = False
-
-@dataclass
-class GoogleDrivePermission:
-    """Google Drive permission model"""
-    id: str
-    type: str
-    role: str
-    email_address: Optional[str] = None
-    domain: Optional[str] = None
-    display_name: Optional[str] = None
-    photo_link: Optional[str] = None
-    kind: str = "drive#permission"
-
-@dataclass
-class GoogleDriveChange:
-    """Google Drive change model"""
-    id: str
-    file_id: Optional[str] = None
-    removed: bool = False
-    file: Optional[GoogleDriveFile] = None
-    kind: str = "drive#change"
-
-class GoogleDriveService:
-    """Enhanced Google Drive service for file management"""
+    is_folder: bool = False
+    is_shared: bool = False
+    is_starred: bool = False
+    is_trashed: bool = False
+    parents: List[str] = None
+    permissions: List[Dict] = None
+    owners: List[Dict] = None
+    last_modified_by: Optional[str] = None
+    quota_used: int = 0
+    checksum_md5: Optional[str] = None
+    checksum_sha1: Optional[str] = None
+    checksum_sha256: Optional[str] = None
     
-    def __init__(self, config: Optional[GoogleDriveConfig] = None):
-        self.config = config or GoogleDriveConfig(
-            client_id="",
-            client_secret="",
-            redirect_uri="http://localhost:8000/auth/google/callback"
-        )
-        self._client: Optional[aiohttp.ClientSession] = None
-        self.access_token_cache: Dict[str, Dict[str, Any]] = {}
-        self.token_cache_ttl = timedelta(minutes=55)  # Token expires after 60 minutes
+    def __post_init__(self):
+        """Post-initialization"""
+        if self.parents is None:
+            self.parents = []
+        if self.permissions is None:
+            self.permissions = []
+        if self.owners is None:
+            self.owners = []
+
+@dataclass
+class GoogleDriveUser:
+    """Google Drive user data model"""
+    user_id: str
+    email: str
+    name: str
+    avatar_url: Optional[str] = None
+    locale: Optional[str] = None
+    timezone: Optional[str] = None
+    total_quota: int = 0
+    used_quota: int = 0
+    remaining_quota: int = 0
     
     @property
-    def client(self) -> aiohttp.ClientSession:
-        """Get or create HTTP session"""
-        if self._client is None or self._client.closed:
-            timeout = aiohttp.ClientTimeout(total=self.config.timeout)
-            headers = {
-                "User-Agent": "ATOM-Backend/1.0",
-                "Accept": "application/json"
-            }
-            self._client = aiohttp.ClientSession(
-                timeout=timeout,
-                headers=headers
-            )
-        return self._client
+    def quota_percentage(self) -> float:
+        """Calculate quota usage percentage"""
+        if self.total_quota == 0:
+            return 0.0
+        return (self.used_quota / self.total_quota) * 100.0
+
+class GoogleDriveService:
+    """Google Drive Service - Main API integration"""
     
-    async def _get_access_token(self, user_id: str, db_conn_pool=None) -> Optional[Dict[str, Any]]:
-        """Get Google OAuth access token"""
+    def __init__(self, config=None):
+        self.config = config or get_config_instance()
+        self.google_drive_config = self.config.google_drive
+        
+        if not GOOGLE_DRIVE_AVAILABLE:
+            raise ImportError("Google Drive API libraries not available. Install: pip install google-api-python-client google-auth-oauthlib")
+        
+        # OAuth flow
+        self.flow: Optional[Flow] = None
+        self.credentials: Optional[Credentials] = None
+        self.service: Optional[Any] = None
+        
+        # Session for HTTP requests
+        self._session: Optional[aiohttp.ClientSession] = None
+        
+        # Cache for performance
+        self._files_cache: Dict[str, GoogleDriveFile] = {}
+        self._user_cache: Optional[GoogleDriveUser] = None
+        
+        logger.info("Google Drive Service initialized")
+    
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self._ensure_session()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        await self.close()
+    
+    async def _ensure_session(self):
+        """Ensure aiohttp session exists"""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=self.google_drive_config.api_timeout)
+            self._session = aiohttp.ClientSession(timeout=timeout)
+    
+    async def close(self):
+        """Close service and cleanup resources"""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+        
+        self.service = None
+        self.credentials = None
+        logger.debug("Google Drive Service closed")
+    
+    # ==================== AUTHENTICATION ====================
+    
+    def create_oauth_flow(self, redirect_uri: Optional[str] = None, state: Optional[str] = None) -> str:
+        """Create OAuth flow and return authorization URL"""
+        
+        try:
+            self.flow = Flow.from_client_config(
+                client_config={
+                    "web": {
+                        "client_id": self.google_drive_config.client_id,
+                        "client_secret": self.google_drive_config.client_secret,
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token"
+                    }
+                },
+                scopes=self.google_drive_config.scopes,
+                redirect_uri=redirect_uri or self.google_drive_config.redirect_uri
+            )
+            
+            if state:
+                self.flow.state = state
+            
+            # Generate authorization URL
+            authorization_url, state = self.flow.authorization_url(
+                access_type='offline',
+                include_granted_scopes='true',
+                prompt='consent'
+            )
+            
+            logger.info(f"OAuth flow created for redirect: {redirect_uri}")
+            return authorization_url
+        
+        except Exception as e:
+            logger.error(f"Failed to create OAuth flow: {e}")
+            raise
+    
+    async def exchange_code_for_tokens(self, code: str, redirect_uri: Optional[str] = None) -> Dict[str, Any]:
+        """Exchange authorization code for access tokens"""
+        
+        try:
+            await self._ensure_session()
+            
+            if not self.flow:
+                self.flow = Flow.from_client_config(
+                    client_config={
+                        "web": {
+                            "client_id": self.google_drive_config.client_id,
+                            "client_secret": self.google_drive_config.client_secret,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token"
+                        }
+                    },
+                    scopes=self.google_drive_config.scopes,
+                    redirect_uri=redirect_uri or self.google_drive_config.redirect_uri
+                )
+            
+            # Exchange code for tokens
+            self.flow.fetch_token(code=code)
+            
+            # Get credentials
+            credentials = self.flow.credentials
+            
+            # Store credentials
+            await self._store_credentials(credentials)
+            
+            # Initialize service
+            await self._initialize_service(credentials)
+            
+            # Get user info
+            user = await self.get_user_info()
+            
+            return {
+                "success": True,
+                "user": asdict(user) if user else None,
+                "tokens": {
+                    "access_token": credentials.token,
+                    "refresh_token": credentials.refresh_token,
+                    "expires_at": credentials.expiry.isoformat() if credentials.expiry else None,
+                    "scope": credentials.scopes
+                }
+            }
+        
+        except Exception as e:
+            logger.error(f"Failed to exchange code for tokens: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
+        """Refresh access token using refresh token"""
+        
+        try:
+            await self._ensure_session()
+            
+            # Create credentials from refresh token
+            credentials = Credentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=self.google_drive_config.client_id,
+                client_secret=self.google_drive_config.client_secret,
+                scopes=self.google_drive_config.scopes
+            )
+            
+            # Refresh the token
+            request = Request()
+            credentials.refresh(request)
+            
+            # Store new credentials
+            await self._initialize_service(credentials)
+            await self._store_credentials(credentials)
+            
+            return {
+                "success": True,
+                "access_token": credentials.token,
+                "expires_at": credentials.expiry.isoformat() if credentials.expiry else None
+            }
+        
+        except Exception as e:
+            logger.error(f"Failed to refresh token: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def _store_credentials(self, credentials: Credentials, user_id: Optional[str] = None):
+        """Store credentials in cache or database"""
+        # This would integrate with your token storage system
+        # For now, store in memory
+        self.credentials = credentials
+        logger.debug(f"Credentials stored for user: {user_id}")
+    
+    async def _initialize_service(self, credentials: Credentials):
+        """Initialize Google Drive API service"""
+        try:
+            self.service = build('drive', 'v3', credentials=credentials)
+            self.credentials = credentials
+            logger.info("Google Drive API service initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize Google Drive service: {e}")
+            raise
+    
+    # ==================== USER OPERATIONS ====================
+    
+    async def get_user_info(self) -> Optional[GoogleDriveUser]:
+        """Get current user information"""
+        
+        try:
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            # Get user info
+            about_result = self.service.about().get(fields="user, storageQuota").execute()
+            
+            about_data = about_result.get('about', {})
+            user_data = about_data.get('user', {})
+            storage_data = about_data.get('storageQuota', {})
+            
+            # Create user object
+            user = GoogleDriveUser(
+                user_id=user_data.get('emailAddress', ''),
+                email=user_data.get('emailAddress', ''),
+                name=user_data.get('displayName', ''),
+                avatar_url=user_data.get('photo', {}).get('link'),
+                locale=user_data.get('locale'),
+                timezone=user_data.get('timezone'),
+                total_quota=int(storage_data.get('limit', 0)),
+                used_quota=int(storage_data.get('usage', 0)),
+                remaining_quota=int(storage_data.get('usageInDrive', 0))
+            )
+            
+            self._user_cache = user
+            return user
+        
+        except Exception as e:
+            logger.error(f"Failed to get user info: {e}")
+            return None
+    
+    async def get_connection_status(self) -> Dict[str, Any]:
+        """Get connection status"""
+        
+        try:
+            if not self.credentials or not self.service:
+                return {
+                    "connected": False,
+                    "authenticated": False,
+                    "error": "Not authenticated"
+                }
+            
+            # Check if token is expired
+            if self.credentials.expired and self.credentials.refresh_token:
+                # Try to refresh
+                refresh_result = await self.refresh_token(self.credentials.refresh_token)
+                if not refresh_result["success"]:
+                    return {
+                        "connected": False,
+                        "authenticated": False,
+                        "error": "Token refresh failed"
+                    }
+            
+            # Test API connection
+            user = await self.get_user_info()
+            
+            if not user:
+                return {
+                    "connected": False,
+                    "authenticated": True,
+                    "error": "API test failed"
+                }
+            
+            return {
+                "connected": True,
+                "authenticated": True,
+                "user": asdict(user),
+                "quota_usage": user.quota_percentage,
+                "expires_at": self.credentials.expiry.isoformat() if self.credentials.expiry else None
+            }
+        
+        except Exception as e:
+            logger.error(f"Failed to get connection status: {e}")
+            return {
+                "connected": False,
+                "authenticated": False,
+                "error": str(e)
+            }
+    
+    # ==================== FILE OPERATIONS ====================
+    
+    async def list_files(self, 
+                        query: Optional[str] = None,
+                        page_size: int = 100,
+                        page_token: Optional[str] = None,
+                        order_by: str = "modifiedTime desc",
+                        fields: str = None) -> Dict[str, Any]:
+        """List files from Google Drive"""
+        
+        try:
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            # Default fields
+            if not fields:
+                fields = "nextPageToken, files(id, name, mimeType, size, createdTime, modifiedTime, viewedTime, description, version, webViewLink, webContentLink, thumbnailLink, fileExtension, shared, starred, trashed, parents, permissions, owners, lastModifyingUser, quotaBytesUsed, md5Checksum, sha1Checksum, sha256Checksum)"
+            
+            # Build request
+            request = self.service.files().list(
+                q=query,
+                pageSize=page_size,
+                pageToken=page_token,
+                orderBy=order_by,
+                fields=fields,
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True
+            )
+            
+            # Execute request
+            result = request.execute()
+            
+            # Convert to file objects
+            files = []
+            for file_data in result.get('files', []):
+                file_obj = await self._parse_file_data(file_data)
+                if file_obj:
+                    files.append(asdict(file_obj))
+                    # Cache file
+                    self._files_cache[file_obj.id] = file_obj
+            
+            return {
+                "success": True,
+                "files": files,
+                "total_count": len(files),
+                "next_page_token": result.get('nextPageToken'),
+                "has_more": 'nextPageToken' in result
+            }
+        
+        except HttpError as e:
+            logger.error(f"Google Drive API error: {e}")
+            return {
+                "success": False,
+                "error": f"API Error: {e.error_code}",
+                "details": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Failed to list files: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def get_file(self, file_id: str, fields: str = None) -> Dict[str, Any]:
+        """Get file metadata"""
+        
         try:
             # Check cache first
-            cache_key = f"google_drive_token_{user_id}"
-            if cache_key in self.access_token_cache:
-                cached_data = self.access_token_cache[cache_key]
-                if datetime.now(timezone.utc) - cached_data["cached_at"] < self.token_cache_ttl:
-                    logger.info(f"Using cached Google Drive token for user {user_id}")
-                    return cached_data
-            
-            # Get tokens from database
-            if db_conn_pool:
-                from db_oauth_google_drive import get_user_google_drive_tokens
-                
-                tokens = await get_user_google_drive_tokens(db_conn_pool, user_id)
-                if tokens:
-                    # Cache the tokens
-                    cached_data = {
-                        **tokens,
-                        "cached_at": datetime.now(timezone.utc)
-                    }
-                    self.access_token_cache[cache_key] = cached_data
-                    return tokens
-            
-            # Fallback to mock tokens for development
-            logger.warning(f"No Google Drive tokens found for user {user_id}, using mock data")
-            mock_tokens = {
-                "access_token": "ya29_mock_access_token_for_development",
-                "refresh_token": "mock_refresh_token_for_development",
-                "token_type": "Bearer",
-                "scope": "https://www.googleapis.com/auth/drive",
-                "expires_in": 3600,
-                "cached_at": datetime.now(timezone.utc)
-            }
-            
-            self.access_token_cache[cache_key] = mock_tokens
-            return mock_tokens
-        
-        except ImportError:
-            logger.warning("Google Drive database handler not available, using mock data")
-            mock_tokens = {
-                "access_token": "ya29_mock_access_token_for_development",
-                "refresh_token": "mock_refresh_token_for_development",
-                "token_type": "Bearer",
-                "scope": "https://www.googleapis.com/auth/drive",
-                "expires_in": 3600,
-                "cached_at": datetime.now(timezone.utc)
-            }
-            
-            cache_key = f"google_drive_token_{user_id}"
-            self.access_token_cache[cache_key] = mock_tokens
-            return mock_tokens
-        
-        except Exception as e:
-            logger.error(f"Error getting Google Drive tokens: {e}")
-            return None
-    
-    def _build_url(self, endpoint: str, params: Dict[str, Any] = None) -> str:
-        """Build Google Drive API URL"""
-        base_url = f"{GOOGLE_DRIVE_API_BASE_URL}/{endpoint}"
-        if params:
-            query_string = urlencode(params)
-            base_url += f"?{query_string}"
-        return base_url
-    
-    async def _make_request(
-        self,
-        user_id: str,
-        method: str,
-        endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        file_data: Optional[BinaryIO] = None,
-        file_metadata: Optional[Dict[str, Any]] = None,
-        db_conn_pool=None,
-        retry_count: int = 0
-    ) -> Dict[str, Any]:
-        """Make authenticated Google Drive API request"""
-        
-        # Get access token
-        tokens = await self._get_access_token(user_id, db_conn_pool)
-        if not tokens:
-            raise Exception(f"No Google Drive tokens found for user {user_id}")
-        
-        access_token = tokens["access_token"]
-        
-        # Build URL and headers
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-        
-        # Check if we should use real API or mock data
-        use_real_api = not access_token.startswith("ya29_mock")
-        
-        if use_real_api:
-            # Make real Google Drive API call
-            try:
-                logger.info(f"Making real Google Drive API request: {method} {endpoint}")
-                
-                if file_data and file_metadata:
-                    # Upload file with metadata
-                    metadata_json = json.dumps(file_metadata)
-                    
-                    multipart_data = aiohttp.FormData()
-                    multipart_data.add_field('metadata', metadata_json, 
-                                         content_type='application/json')
-                    multipart_data.add_field('file', file_data)
-                    
-                    async with self.client.post(
-                        endpoint, 
-                        data=multipart_data,
-                        headers=headers,
-                        params=params
-                    ) as response:
-                        return await self._handle_response(response)
-                
-                elif method.upper() == "GET":
-                    async with self.client.get(
-                        self._build_url(endpoint, params), 
-                        headers=headers
-                    ) as response:
-                        return await self._handle_response(response)
-                
-                elif method.upper() == "POST":
-                    async with self.client.post(
-                        self._build_url(endpoint, params),
-                        headers=headers,
-                        json=data
-                    ) as response:
-                        return await self._handle_response(response)
-                
-                elif method.upper() == "PUT":
-                    async with self.client.put(
-                        self._build_url(endpoint, params),
-                        headers=headers,
-                        json=data
-                    ) as response:
-                        return await self._handle_response(response)
-                
-                elif method.upper() == "PATCH":
-                    async with self.client.patch(
-                        self._build_url(endpoint, params),
-                        headers=headers,
-                        json=data
-                    ) as response:
-                        return await self._handle_response(response)
-                
-                elif method.upper() == "DELETE":
-                    async with self.client.delete(
-                        self._build_url(endpoint, params),
-                        headers=headers
-                    ) as response:
-                        return await self._handle_response(response)
-                
-                else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-            
-            except aiohttp.ClientError as e:
-                if retry_count < self.config.max_retries:
-                    wait_time = 2 ** retry_count  # Exponential backoff
-                    logger.warning(f"Request failed, retrying in {wait_time}s: {e}")
-                    await asyncio.sleep(wait_time)
-                    return await self._make_request(
-                        user_id, method, endpoint, data, params, 
-                        file_data, file_metadata, db_conn_pool, retry_count + 1
-                    )
-                else:
-                    logger.error(f"Google Drive API request failed after {self.config.max_retries} retries: {e}")
-                    raise
-            
-            except Exception as e:
-                logger.error(f"Unexpected error in Google Drive API request: {e}")
-                raise
-        else:
-            # Mock implementation for development
-            logger.info(f"Mock Google Drive API request: {method} {endpoint}")
-            
-            try:
-                # Simulate API delay
-                await asyncio.sleep(0.1)
-                
-                # Return mock data based on endpoint
-                if "files" in endpoint and method == "GET":
-                    return self._mock_files_response(params)
-                elif "files" in endpoint and method == "POST":
-                    if file_data:
-                        return self._mock_file_upload_response(file_metadata)
-                    else:
-                        return self._mock_create_file_response(data)
-                elif "files/" in endpoint and method == "GET":
-                    return self._mock_file_response(endpoint.split('/')[-1])
-                elif "files/" in endpoint and method == "PATCH":
-                    return self._mock_update_file_response(data)
-                elif "files/" in endpoint and method == "DELETE":
-                    return self._mock_delete_file_response()
-                elif "folders" in endpoint and method == "POST":
-                    return self._mock_create_folder_response(data)
-                elif "permissions" in endpoint and method == "GET":
-                    return self._mock_permissions_response()
-                elif "permissions" in endpoint and method == "POST":
-                    return self._mock_create_permission_response(data)
-                elif "changes" in endpoint:
-                    return self._mock_changes_response(params)
-                elif "about" in endpoint:
-                    return self._mock_about_response()
-                else:
-                    return {"ok": False, "error": {"message": "Unknown endpoint"}}
-            
-            except Exception as e:
-                logger.error(f"Error in mock Google Drive API request: {e}")
-                return {"ok": False, "error": {"message": str(e)}}
-    
-    async def _handle_response(self, response: aiohttp.ClientResponse) -> Dict[str, Any]:
-        """Handle HTTP response"""
-        response_text = await response.text()
-        
-        if response.status == 200 or response.status == 201:
-            try:
-                return json.loads(response_text)
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON response: {e}")
-                return {"ok": False, "error": {"message": "Invalid JSON response"}}
-        
-        elif response.status == 401:
-            # Token expired, refresh needed
-            logger.error("Google Drive access token expired")
-            return {"ok": False, "error": {"message": "Token expired", "code": 401}}
-        
-        elif response.status == 403:
-            # Insufficient permissions
-            logger.error(f"Insufficient permissions: {response_text}")
-            return {"ok": False, "error": {"message": "Insufficient permissions", "code": 403}}
-        
-        elif response.status == 404:
-            # Not found
-            logger.error(f"Resource not found: {response_text}")
-            return {"ok": False, "error": {"message": "Resource not found", "code": 404}}
-        
-        elif response.status == 429:
-            # Rate limited
-            retry_after = response.headers.get("Retry-After", "30")
-            logger.warning(f"Rate limited, retrying after {retry_after}s")
-            return {"ok": False, "error": {"message": "Rate limited", "code": 429}}
-        
-        else:
-            logger.error(f"Google Drive API error: {response.status} - {response_text}")
-            try:
-                error_data = json.loads(response_text)
-                return {"ok": False, "error": error_data.get("error", {"message": response_text})}
-            except json.JSONDecodeError:
-                return {"ok": False, "error": {"message": response_text}}
-    
-    # Mock responses for development
-    def _mock_files_response(self, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock files list response"""
-        files = [
-            {
-                "id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
-                "name": "Project Proposal.pdf",
-                "mimeType": "application/pdf",
-                "size": "1048576",
-                "createdTime": "2024-01-15T10:30:00.000Z",
-                "modifiedTime": "2024-01-20T14:45:00.000Z",
-                "viewedByMeTime": "2024-01-21T09:15:00.000Z",
-                "parents": ["root"],
-                "webViewLink": "https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view",
-                "webContentLink": "https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export",
-                "thumbnailLink": "https://drive.google.com/thumbnail?id=1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
-                "shared": True,
-                "owners": [
-                    {
-                        "displayName": "John Doe",
-                        "emailAddress": "john.doe@example.com"
-                    }
-                ],
-                "version": "3",
-                "md5Checksum": "d41d8cd98f00b204e9800998ecf8427e",
-                "kind": "drive#file"
-            },
-            {
-                "id": "1CvO_s6pqGx6dVpZ4XN_3YmB2xJ9l3aM",
-                "name": "Meeting Notes.doc",
-                "mimeType": "application/vnd.google-apps.document",
-                "size": "0",
-                "createdTime": "2024-01-10T15:20:00.000Z",
-                "modifiedTime": "2024-01-18T11:30:00.000Z",
-                "viewedByMeTime": "2024-01-19T16:45:00.000Z",
-                "parents": ["root"],
-                "webViewLink": "https://docs.google.com/document/d/1CvO_s6pqGx6dVpZ4XN_3YmB2xJ9l3aM/edit",
-                "thumbnailLink": "https://drive.google.com/thumbnail?id=1CvO_s6pqGx6dVpZ4XN_3YmB2xJ9l3aM",
-                "shared": False,
-                "owners": [
-                    {
-                        "displayName": "John Doe",
-                        "emailAddress": "john.doe@example.com"
-                    }
-                ],
-                "version": "5",
-                "kind": "drive#file"
-            },
-            {
-                "id": "1Dx9n7J4_0K5FqPzL8M3rG2s6V2hT7wY",
-                "name": "Budget.xlsx",
-                "mimeType": "application/vnd.google-apps.spreadsheet",
-                "size": "0",
-                "createdTime": "2024-01-05T09:15:00.000Z",
-                "modifiedTime": "2024-01-22T13:20:00.000Z",
-                "viewedByMeTime": "2024-01-22T13:25:00.000Z",
-                "parents": ["root"],
-                "webViewLink": "https://docs.google.com/spreadsheets/d/1Dx9n7J4_0K5FqPzL8M3rG2s6V2hT7wY/edit",
-                "thumbnailLink": "https://drive.google.com/thumbnail?id=1Dx9n7J4_0K5FqPzL8M3rG2s6V2hT7wY",
-                "shared": True,
-                "owners": [
-                    {
-                        "displayName": "John Doe",
-                        "emailAddress": "john.doe@example.com"
-                    }
-                ],
-                "version": "8",
-                "kind": "drive#file"
-            },
-            {
-                "id": "1Ey9p8K5_1L6GqRzN9O4sH3t7W2iU8vZ",
-                "name": "Work Documents",
-                "mimeType": "application/vnd.google-apps.folder",
-                "size": "0",
-                "createdTime": "2024-01-01T12:00:00.000Z",
-                "modifiedTime": "2024-01-25T16:30:00.000Z",
-                "parents": ["root"],
-                "webViewLink": "https://drive.google.com/drive/folders/1Ey9p8K5_1L6GqRzN9O4sH3t7W2iU8vZ",
-                "shared": False,
-                "owners": [
-                    {
-                        "displayName": "John Doe",
-                        "emailAddress": "john.doe@example.com"
-                    }
-                ],
-                "version": "1",
-                "kind": "drive#file"
-            }
-        ]
-        
-        # Apply filters
-        if params:
-            # Filter by name
-            if "q" in params:
-                query = params["q"].lower()
-                files = [f for f in files if query in f["name"].lower()]
-            
-            # Filter by parent
-            if "parent_id" in params:
-                parent_id = params["parent_id"]
-                files = [f for f in files if parent_id in f.get("parents", [])]
-            
-            # Filter by mimeType
-            if "mimeType" in params:
-                mime_type = params["mimeType"]
-                files = [f for f in files if f["mimeType"] == mime_type]
-            
-            # Pagination
-            page_size = int(params.get("pageSize", 10))
-            page_token = params.get("pageToken")
-            
-            if page_token:
-                start_index = files.index(next(f for f in files if f["id"] == page_token)) + 1
-            else:
-                start_index = 0
-            
-            files = files[start_index:start_index + page_size]
-        
-        return {
-            "files": files,
-            "incompleteSearch": False,
-            "kind": "drive#fileList"
-        }
-    
-    def _mock_file_upload_response(self, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock file upload response"""
-        file_id = f"mock_file_id_{datetime.now().timestamp()}"
-        file_name = metadata.get("name", "uploaded_file.bin") if metadata else "uploaded_file.bin"
-        mime_type = metadata.get("mimeType", "application/octet-stream") if metadata else "application/octet-stream"
-        size = metadata.get("size", "1024") if metadata else "1024"
-        
-        return {
-            "id": file_id,
-            "name": file_name,
-            "mimeType": mime_type,
-            "size": size,
-            "createdTime": datetime.now(timezone.utc).isoformat(),
-            "modifiedTime": datetime.now(timezone.utc).isoformat(),
-            "parents": metadata.get("parents", ["root"]) if metadata else ["root"],
-            "webViewLink": f"https://drive.google.com/file/d/{file_id}/view",
-            "webContentLink": f"https://drive.google.com/file/d/{file_id}/export",
-            "shared": False,
-            "owners": [
-                {
-                    "displayName": "John Doe",
-                    "emailAddress": "john.doe@example.com"
+            if file_id in self._files_cache:
+                return {
+                    "success": True,
+                    "file": asdict(self._files_cache[file_id])
                 }
-            ],
-            "version": "1",
-            "md5Checksum": "d41d8cd98f00b204e9800998ecf8427e",
-            "kind": "drive#file"
-        }
-    
-    def _mock_create_file_response(self, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock create file response"""
-        file_id = f"mock_file_id_{datetime.now().timestamp()}"
-        file_name = data.get("name", "new_file") if data else "new_file"
-        mime_type = data.get("mimeType", "text/plain") if data else "text/plain"
-        
-        if mime_type == "application/vnd.google-apps.folder":
+            
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            # Default fields
+            if not fields:
+                fields = "id, name, mimeType, size, createdTime, modifiedTime, viewedTime, description, version, webViewLink, webContentLink, thumbnailLink, fileExtension, shared, starred, trashed, parents, permissions, owners, lastModifyingUser, quotaBytesUsed, md5Checksum, sha1Checksum, sha256Checksum"
+            
+            # Get file
+            file_result = self.service.files().get(
+                fileId=file_id,
+                fields=fields,
+                supportsAllDrives=True
+            ).execute()
+            
+            # Convert to file object
+            file_obj = await self._parse_file_data(file_result)
+            if not file_obj:
+                return {
+                    "success": False,
+                    "error": "File not found"
+                }
+            
+            # Cache file
+            self._files_cache[file_id] = file_obj
+            
             return {
-                "id": file_id,
-                "name": file_name,
-                "mimeType": "application/vnd.google-apps.folder",
-                "createdTime": datetime.now(timezone.utc).isoformat(),
-                "modifiedTime": datetime.now(timezone.utc).isoformat(),
-                "parents": data.get("parents", ["root"]) if data else ["root"],
-                "webViewLink": f"https://drive.google.com/drive/folders/{file_id}",
-                "shared": False,
-                "owners": [
-                    {
-                        "displayName": "John Doe",
-                        "emailAddress": "john.doe@example.com"
-                    }
-                ],
-                "version": "1",
-                "kind": "drive#file"
+                "success": True,
+                "file": asdict(file_obj)
             }
-        else:
+        
+        except HttpError as e:
+            logger.error(f"Google Drive API error: {e}")
+            if e.resp.status == 404:
+                return {
+                    "success": False,
+                    "error": "File not found",
+                    "not_found": True
+                }
             return {
-                "id": file_id,
-                "name": file_name,
-                "mimeType": mime_type,
-                "size": "0",
-                "createdTime": datetime.now(timezone.utc).isoformat(),
-                "modifiedTime": datetime.now(timezone.utc).isoformat(),
-                "parents": data.get("parents", ["root"]) if data else ["root"],
-                "webViewLink": f"https://docs.google.com/document/d/{file_id}/edit" if "document" in mime_type else f"https://drive.google.com/file/d/{file_id}/view",
-                "shared": False,
-                "owners": [
-                    {
-                        "displayName": "John Doe",
-                        "emailAddress": "john.doe@example.com"
-                    }
-                ],
-                "version": "1",
-                "kind": "drive#file"
+                "success": False,
+                "error": f"API Error: {e.error_code}",
+                "details": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Failed to get file: {e}")
+            return {
+                "success": False,
+                "error": str(e)
             }
     
-    def _mock_file_response(self, file_id: str) -> Dict[str, Any]:
-        """Mock single file response"""
-        mock_file = self._mock_files_response()["files"][0]
-        mock_file["id"] = file_id
-        return mock_file
-    
-    def _mock_update_file_response(self, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock update file response"""
-        file_id = data.get("fileId", "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms") if data else "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
-        updated_file = self._mock_files_response()["files"][0]
-        updated_file["id"] = file_id
-        updated_file["modifiedTime"] = datetime.now(timezone.utc).isoformat()
-        
-        if data and "name" in data:
-            updated_file["name"] = data["name"]
-        
-        return updated_file
-    
-    def _mock_delete_file_response(self) -> Dict[str, Any]:
-        """Mock delete file response"""
-        return {}
-    
-    def _mock_create_folder_response(self, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock create folder response"""
-        return self._mock_create_file_response(data)
-    
-    def _mock_permissions_response(self) -> Dict[str, Any]:
-        """Mock permissions response"""
-        return {
-            "permissions": [
-                {
-                    "id": "anyoneWithLink",
-                    "type": "anyone",
-                    "role": "reader",
-                    "displayName": "Anyone",
-                    "kind": "drive#permission"
-                },
-                {
-                    "id": "user_john_doe",
-                    "type": "user",
-                    "role": "owner",
-                    "emailAddress": "john.doe@example.com",
-                    "displayName": "John Doe",
-                    "photoLink": "https://lh3.googleusercontent.com/photo.jpg",
-                    "kind": "drive#permission"
-                }
-            ]
-        }
-    
-    def _mock_create_permission_response(self, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock create permission response"""
-        permission_id = f"mock_permission_id_{datetime.now().timestamp()}"
-        
-        return {
-            "id": permission_id,
-            "type": data.get("type", "user") if data else "user",
-            "role": data.get("role", "reader") if data else "reader",
-            "emailAddress": data.get("emailAddress", "test@example.com") if data else "test@example.com",
-            "displayName": data.get("displayName", "Test User") if data else "Test User",
-            "kind": "drive#permission"
-        }
-    
-    def _mock_changes_response(self, params: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock changes response"""
-        return {
-            "changes": [
-                {
-                    "id": "1",
-                    "fileId": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
-                    "removed": False,
-                    "file": self._mock_files_response()["files"][0],
-                    "kind": "drive#change"
-                }
-            ],
-            "newStartPageToken": "12345",
-            "kind": "drive#changeList"
-        }
-    
-    def _mock_about_response(self) -> Dict[str, Any]:
-        """Mock about response"""
-        return {
-            "kind": "drive#about",
-            "user": {
-                "kind": "drive#user",
-                "displayName": "John Doe",
-                "emailAddress": "john.doe@example.com",
-                "photoLink": "https://lh3.googleusercontent.com/photo.jpg"
-            },
-            "storageQuota": {
-                "limit": "15000000000",
-                "usage": "5000000000",
-                "usageInDrive": "3000000000",
-                "usageInDriveTrash": "1000000000"
-            },
-            "driveType": "user"
-        }
-    
-    def _dict_to_file(self, file_data: Dict[str, Any]) -> GoogleDriveFile:
-        """Convert dictionary to GoogleDriveFile"""
-        return GoogleDriveFile(
-            id=file_data.get("id", ""),
-            name=file_data.get("name", ""),
-            mime_type=file_data.get("mimeType", ""),
-            size=int(file_data.get("size", 0)),
-            created_time=datetime.fromisoformat(file_data["createdTime"].replace("Z", "+00:00")) if file_data.get("createdTime") else None,
-            modified_time=datetime.fromisoformat(file_data["modifiedTime"].replace("Z", "+00:00")) if file_data.get("modifiedTime") else None,
-            viewed_by_me_time=datetime.fromisoformat(file_data["viewedByMeTime"].replace("Z", "+00:00")) if file_data.get("viewedByMeTime") else None,
-            parents=file_data.get("parents", []),
-            web_view_link=file_data.get("webViewLink"),
-            web_content_link=file_data.get("webContentLink"),
-            thumbnail_link=file_data.get("thumbnailLink"),
-            permissions=file_data.get("permissions", []),
-            shared=file_data.get("shared", False),
-            owners=file_data.get("owners", []),
-            version=file_data.get("version"),
-            md5_checksum=file_data.get("md5Checksum"),
-            file_extension=file_data.get("fileExtension"),
-            full_file_extension=file_data.get("fullFileExtension"),
-            kind=file_data.get("kind", "drive#file"),
-            trashed=file_data.get("trashed", False),
-            starred=file_data.get("starred", False)
-        )
-    
-    def _dict_to_folder(self, folder_data: Dict[str, Any]) -> GoogleDriveFolder:
-        """Convert dictionary to GoogleDriveFolder"""
-        return GoogleDriveFolder(
-            id=folder_data.get("id", ""),
-            name=folder_data.get("name", ""),
-            created_time=datetime.fromisoformat(folder_data["createdTime"].replace("Z", "+00:00")) if folder_data.get("createdTime") else None,
-            modified_time=datetime.fromisoformat(folder_data["modifiedTime"].replace("Z", "+00:00")) if folder_data.get("modifiedTime") else None,
-            parents=folder_data.get("parents", []),
-            web_view_link=folder_data.get("webViewLink"),
-            permissions=folder_data.get("permissions", []),
-            shared=folder_data.get("shared", False),
-            owners=folder_data.get("owners", []),
-            trashed=folder_data.get("trashed", False),
-            starred=folder_data.get("starred", False)
-        )
-    
-    def _dict_to_permission(self, permission_data: Dict[str, Any]) -> GoogleDrivePermission:
-        """Convert dictionary to GoogleDrivePermission"""
-        return GoogleDrivePermission(
-            id=permission_data.get("id", ""),
-            type=permission_data.get("type", ""),
-            role=permission_data.get("role", ""),
-            email_address=permission_data.get("emailAddress"),
-            domain=permission_data.get("domain"),
-            display_name=permission_data.get("displayName"),
-            photo_link=permission_data.get("photoLink"),
-            kind=permission_data.get("kind", "drive#permission")
-        )
-    
-    # Core File Operations
-    async def get_files(
-        self,
-        user_id: str,
-        query: Optional[str] = None,
-        parent_id: Optional[str] = None,
-        mime_type: Optional[str] = None,
-        page_size: int = 10,
-        page_token: Optional[str] = None,
-        order_by: Optional[str] = None,
-        db_conn_pool=None
-    ) -> List[GoogleDriveFile]:
-        """Get files from Google Drive"""
-        
-        try:
-            # Build query parameters
-            params = {
-                "pageSize": min(page_size, 1000),  # Max page size is 1000
-                "fields": "files(id,name,mimeType,size,createdTime,modifiedTime,viewedByMeTime,parents,webViewLink,webContentLink,thumbnailLink,shared,owners,version,md5Checksum,fileExtension,fullFileExtension,kind,trashed,starred),nextPageToken,incompleteSearch,kind"
-            }
-            
-            if page_token:
-                params["pageToken"] = page_token
-            
-            # Build search query
-            search_conditions = []
-            
-            if query:
-                search_conditions.append(f"name contains '{query}'")
-            
-            if parent_id:
-                search_conditions.append(f"'{parent_id}' in parents")
-            
-            if mime_type:
-                search_conditions.append(f"mimeType = '{mime_type}'")
-            
-            # Exclude trashed files by default
-            search_conditions.append("trashed = false")
-            
-            if search_conditions:
-                params["q"] = " and ".join(search_conditions)
-            
-            if order_by:
-                params["orderBy"] = order_by
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="GET",
-                endpoint="files",
-                params=params,
-                db_conn_pool=db_conn_pool
-            )
-            
-            if response.get("files"):
-                files = []
-                for file_data in response["files"]:
-                    file_obj = self._dict_to_file(file_data)
-                    files.append(file_obj)
-                return files
-            
-            return []
-        
-        except Exception as e:
-            logger.error(f"Error getting files: {e}")
-            raise
-    
-    async def get_file(
-        self,
-        user_id: str,
-        file_id: str,
-        db_conn_pool=None
-    ) -> Optional[GoogleDriveFile]:
-        """Get specific file by ID"""
-        
-        try:
-            params = {
-                "fields": "id,name,mimeType,size,createdTime,modifiedTime,viewedByMeTime,parents,webViewLink,webContentLink,thumbnailLink,shared,owners,version,md5Checksum,fileExtension,fullFileExtension,kind,trashed,starred"
-            }
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="GET",
-                endpoint=f"files/{file_id}",
-                params=params,
-                db_conn_pool=db_conn_pool
-            )
-            
-            if response and "id" in response:
-                return self._dict_to_file(response)
-            
-            return None
-        
-        except Exception as e:
-            logger.error(f"Error getting file {file_id}: {e}")
-            raise
-    
-    async def create_file(
-        self,
-        user_id: str,
-        name: str,
-        mime_type: str,
-        content: Optional[str] = None,
-        parents: Optional[List[str]] = None,
-        db_conn_pool=None
-    ) -> Optional[GoogleDriveFile]:
-        """Create new file in Google Drive"""
-        
-        try:
-            file_metadata = {
-                "name": name,
-                "mimeType": mime_type
-            }
-            
-            if parents:
-                file_metadata["parents"] = parents
-            
-            if content and mime_type.startswith("text/"):
-                # Text content
-                response = await self._make_request(
-                    user_id=user_id,
-                    method="POST",
-                    endpoint="files",
-                    data=file_metadata,
-                    db_conn_pool=db_conn_pool
-                )
-                
-                if response and "id" in response:
-                    return self._dict_to_file(response)
-            
-            elif content:
-                # Binary content (mock for development)
-                file_metadata["size"] = len(content.encode())
-                
-                response = await self._make_request(
-                    user_id=user_id,
-                    method="POST",
-                    endpoint="files",
-                    data=file_metadata,
-                    db_conn_pool=db_conn_pool
-                )
-                
-                if response and "id" in response:
-                    return self._dict_to_file(response)
-            
-            else:
-                # Create empty file
-                response = await self._make_request(
-                    user_id=user_id,
-                    method="POST",
-                    endpoint="files",
-                    data=file_metadata,
-                    db_conn_pool=db_conn_pool
-                )
-                
-                if response and "id" in response:
-                    return self._dict_to_file(response)
-            
-            return None
-        
-        except Exception as e:
-            logger.error(f"Error creating file {name}: {e}")
-            raise
-    
-    async def update_file(
-        self,
-        user_id: str,
-        file_id: str,
-        name: Optional[str] = None,
-        content: Optional[str] = None,
-        db_conn_pool=None
-    ) -> Optional[GoogleDriveFile]:
-        """Update existing file"""
-        
-        try:
-            update_data = {}
-            
-            if name:
-                update_data["name"] = name
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="PATCH",
-                endpoint=f"files/{file_id}",
-                data=update_data,
-                db_conn_pool=db_conn_pool
-            )
-            
-            if response and "id" in response:
-                return self._dict_to_file(response)
-            
-            return None
-        
-        except Exception as e:
-            logger.error(f"Error updating file {file_id}: {e}")
-            raise
-    
-    async def delete_file(
-        self,
-        user_id: str,
-        file_id: str,
-        db_conn_pool=None
-    ) -> bool:
-        """Delete file from Google Drive"""
-        
-        try:
-            response = await self._make_request(
-                user_id=user_id,
-                method="DELETE",
-                endpoint=f"files/{file_id}",
-                db_conn_pool=db_conn_pool
-            )
-            
-            return True
-        
-        except Exception as e:
-            logger.error(f"Error deleting file {file_id}: {e}")
-            return False
-    
-    async def upload_file(
-        self,
-        user_id: str,
-        file_path: str,
-        name: Optional[str] = None,
-        parents: Optional[List[str]] = None,
-        db_conn_pool=None
-    ) -> Optional[GoogleDriveFile]:
-        """Upload file to Google Drive"""
-        
-        try:
-            # Get file info
-            path = Path(file_path)
-            if not path.exists():
-                raise FileNotFoundError(f"File not found: {file_path}")
-            
-            file_name = name or path.name
-            mime_type, _ = mimetypes.guess_type(file_path)
-            if not mime_type:
-                mime_type = "application/octet-stream"
-            
-            # Read file content
-            async with aiofiles.open(file_path, 'rb') as file:
-                file_data = file.read()
-            
-            # Prepare metadata
-            file_metadata = {
-                "name": file_name,
-                "mimeType": mime_type
-            }
-            
-            if parents:
-                file_metadata["parents"] = parents
-            
-            # Upload file
-            upload_params = {
-                "uploadType": "multipart",
-                "fields": "id,name,mimeType,size,createdTime,modifiedTime,viewedByMeTime,parents,webViewLink,webContentLink,thumbnailLink,shared,owners,version,md5Checksum,fileExtension,fullFileExtension,kind,trashed,starred"
-            }
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="POST",
-                endpoint=f"{GOOGLE_DRIVE_UPLOAD_URL}/files",
-                params=upload_params,
-                file_data=file_data,
-                file_metadata=file_metadata,
-                db_conn_pool=db_conn_pool
-            )
-            
-            if response and "id" in response:
-                return self._dict_to_file(response)
-            
-            return None
-        
-        except Exception as e:
-            logger.error(f"Error uploading file {file_path}: {e}")
-            raise
-    
-    async def download_file(
-        self,
-        user_id: str,
-        file_id: str,
-        output_path: Optional[str] = None,
-        db_conn_pool=None
-    ) -> Optional[bytes]:
+    async def download_file(self, file_id: str, file_path: str, chunk_size: int = 1024*1024) -> Dict[str, Any]:
         """Download file from Google Drive"""
         
         try:
-            # Get file info first
-            file_obj = await self.get_file(user_id, file_id, db_conn_pool)
-            if not file_obj:
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            # Get file metadata first
+            file_result = await self.get_file(file_id)
+            if not file_result["success"]:
+                return file_result
+            
+            file_data = file_result["file"]
+            
+            # Create directory if needed
+            file_path_obj = Path(file_path)
+            file_path_obj.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Download file
+            request = self.service.files().get_media(fileId=file_id)
+            
+            with open(file_path, 'wb') as file:
+                downloader = MediaIoBaseDownload(file, chunksize=chunk_size)
+                done = False
+                while done is False:
+                    status, done = downloader.next_chunk()
+                    if status:
+                        logger.debug(f"Download {int(status.progress() * 100)}%")
+            
+            logger.info(f"File downloaded: {file_data['name']} -> {file_path}")
+            
+            return {
+                "success": True,
+                "file_id": file_id,
+                "file_name": file_data["name"],
+                "file_path": file_path,
+                "file_size": file_data.get("size", 0),
+                "mime_type": file_data.get("mime_type", "")
+            }
+        
+        except HttpError as e:
+            logger.error(f"Google Drive API error: {e}")
+            return {
+                "success": False,
+                "error": f"API Error: {e.error_code}",
+                "details": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Failed to download file: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def upload_file(self, 
+                        file_path: str, 
+                        file_name: Optional[str] = None,
+                        parent_id: Optional[str] = None,
+                        mime_type: Optional[str] = None,
+                        chunk_size: int = 1024*1024) -> Dict[str, Any]:
+        """Upload file to Google Drive"""
+        
+        try:
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                return {
+                    "success": False,
+                    "error": "File not found"
+                }
+            
+            # File metadata
+            file_name = file_name or file_path_obj.name
+            file_metadata = {
+                "name": file_name,
+            }
+            
+            if parent_id:
+                file_metadata["parents"] = [parent_id]
+            
+            # Determine mime type
+            if not mime_type:
+                import mimetypes
+                mime_type, _ = mimetypes.guess_type(file_path)
+                if not mime_type:
+                    mime_type = "application/octet-stream"
+            
+            # Create media upload
+            media = MediaIoBaseUpload(
+                open(file_path, 'rb'),
+                mimetype=mime_type,
+                chunksize=chunk_size,
+                resumable=True
+            )
+            
+            # Upload file
+            file_result = self.service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields="id, name, mimeType, size, createdTime, modifiedTime, webViewLink, webContentLink, parents"
+            ).execute()
+            
+            # Parse result
+            uploaded_file = await self._parse_file_data(file_result)
+            
+            logger.info(f"File uploaded: {file_name} -> {uploaded_file.id}")
+            
+            # Clear cache
+            self._files_cache.clear()
+            
+            return {
+                "success": True,
+                "file": asdict(uploaded_file) if uploaded_file else None
+            }
+        
+        except HttpError as e:
+            logger.error(f"Google Drive API error: {e}")
+            return {
+                "success": False,
+                "error": f"API Error: {e.error_code}",
+                "details": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Failed to upload file: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def delete_file(self, file_id: str) -> Dict[str, Any]:
+        """Delete file from Google Drive"""
+        
+        try:
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            # Delete file
+            self.service.files().delete(
+                fileId=file_id,
+                supportsAllDrives=True
+            ).execute()
+            
+            # Remove from cache
+            if file_id in self._files_cache:
+                del self._files_cache[file_id]
+            
+            logger.info(f"File deleted: {file_id}")
+            
+            return {
+                "success": True,
+                "file_id": file_id
+            }
+        
+        except HttpError as e:
+            logger.error(f"Google Drive API error: {e}")
+            if e.resp.status == 404:
+                return {
+                    "success": False,
+                    "error": "File not found",
+                    "not_found": True
+                }
+            return {
+                "success": False,
+                "error": f"API Error: {e.error_code}",
+                "details": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Failed to delete file: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def update_file(self, 
+                        file_id: str,
+                        file_path: Optional[str] = None,
+                        file_name: Optional[str] = None,
+                        parent_id: Optional[str] = None,
+                        add_parents: Optional[str] = None,
+                        remove_parents: Optional[str] = None,
+                        mime_type: Optional[str] = None,
+                        chunk_size: int = 1024*1024) -> Dict[str, Any]:
+        """Update file in Google Drive"""
+        
+        try:
+            if not self.service:
+                raise ValueError("Google Drive service not initialized")
+            
+            # Prepare file metadata
+            file_metadata = {}
+            
+            if file_name:
+                file_metadata["name"] = file_name
+            
+            if parent_id:
+                file_metadata["parents"] = [parent_id]
+            
+            # Determine mime type for file upload
+            media = None
+            if file_path:
+                file_path_obj = Path(file_path)
+                if not file_path_obj.exists():
+                    return {
+                        "success": False,
+                        "error": "File not found"
+                    }
+                
+                if not mime_type:
+                    import mimetypes
+                    mime_type, _ = mimetypes.guess_type(file_path)
+                    if not mime_type:
+                        mime_type = "application/octet-stream"
+                
+                media = MediaIoBaseUpload(
+                    open(file_path, 'rb'),
+                    mimetype=mime_type,
+                    chunksize=chunk_size,
+                    resumable=True
+                )
+            
+            # Update file
+            if add_parents or remove_parents:
+                # Handle parent changes
+                if add_parents:
+                    self.service.files().update(
+                        fileId=file_id,
+                        addParents=add_parents
+                    ).execute()
+                
+                if remove_parents:
+                    self.service.files().update(
+                        fileId=file_id,
+                        removeParents=remove_parents
+                    ).execute()
+            
+            # Update file content/metadata
+            fields = "id, name, mimeType, size, createdTime, modifiedTime, webViewLink, webContentLink, parents"
+            file_result = self.service.files().update(
+                fileId=file_id,
+                body=file_metadata if file_metadata else None,
+                media_body=media,
+                fields=fields,
+                supportsAllDrives=True
+            ).execute()
+            
+            # Parse result
+            updated_file = await self._parse_file_data(file_result)
+            
+            # Update cache
+            if updated_file:
+                self._files_cache[file_id] = updated_file
+            
+            logger.info(f"File updated: {file_id}")
+            
+            return {
+                "success": True,
+                "file": asdict(updated_file) if updated_file else None
+            }
+        
+        except HttpError as e:
+            logger.error(f"Google Drive API error: {e}")
+            if e.resp.status == 404:
+                return {
+                    "success": False,
+                    "error": "File not found",
+                    "not_found": True
+                }
+            return {
+                "success": False,
+                "error": f"API Error: {e.error_code}",
+                "details": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Failed to update file: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def search_files(self, 
+                         query: str,
+                         page_size: int = 100,
+                         page_token: Optional[str] = None,
+                         order_by: str = "relevance desc",
+                         fields: str = None) -> Dict[str, Any]:
+        """Search files in Google Drive"""
+        
+        try:
+            # Build search query
+            if query:
+                search_query = f"name contains '{query}' or fullText contains '{query}'"
+            else:
+                search_query = None
+            
+            return await self.list_files(
+                query=search_query,
+                page_size=page_size,
+                page_token=page_token,
+                order_by=order_by,
+                fields=fields
+            )
+        
+        except Exception as e:
+            logger.error(f"Failed to search files: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # ==================== UTILITY METHODS ====================
+    
+    async def _parse_file_data(self, file_data: Dict[str, Any]) -> Optional[GoogleDriveFile]:
+        """Parse file data from API response"""
+        
+        try:
+            # Handle both string and datetime for time fields
+            def parse_time(time_value):
+                if isinstance(time_value, str):
+                    return datetime.fromisoformat(time_value.replace('Z', '+00:00'))
+                elif isinstance(time_value, datetime):
+                    return time_value
                 return None
             
-            # Download file content
-            params = {"alt": "media"}
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="GET",
-                endpoint=f"files/{file_id}",
-                params=params,
-                db_conn_pool=db_conn_pool
+            return GoogleDriveFile(
+                id=file_data.get('id', ''),
+                name=file_data.get('name', ''),
+                mime_type=file_data.get('mimeType', ''),
+                size=int(file_data.get('size', 0)),
+                created_time=parse_time(file_data.get('createdTime')),
+                modified_time=parse_time(file_data.get('modifiedTime')),
+                viewed_time=parse_time(file_data.get('viewedTime')),
+                description=file_data.get('description'),
+                checksum=file_data.get('checksum'),
+                version=file_data.get('version'),
+                web_view_link=file_data.get('webViewLink'),
+                web_content_link=file_data.get('webContentLink'),
+                thumbnail_link=file_data.get('thumbnailLink'),
+                file_extension=file_data.get('fileExtension'),
+                is_folder=file_data.get('mimeType') == 'application/vnd.google-apps.folder',
+                is_shared=file_data.get('shared', False),
+                is_starred=file_data.get('starred', False),
+                is_trashed=file_data.get('trashed', False),
+                parents=file_data.get('parents', []),
+                permissions=file_data.get('permissions', []),
+                owners=file_data.get('owners', []),
+                last_modified_by=file_data.get('lastModifyingUser', {}).get('emailAddress'),
+                quota_used=int(file_data.get('quotaBytesUsed', 0)),
+                checksum_md5=file_data.get('md5Checksum'),
+                checksum_sha1=file_data.get('sha1Checksum'),
+                checksum_sha256=file_data.get('sha256Checksum')
             )
-            
-            if isinstance(response, bytes):
-                content = response
-            else:
-                # For mock, return dummy content
-                content = b"Mock file content"
-            
-            # Save to file if output path provided
-            if output_path:
-                async with aiofiles.open(output_path, 'wb') as file:
-                    await file.write(content)
-            
-            return content
         
         except Exception as e:
-            logger.error(f"Error downloading file {file_id}: {e}")
-            raise
-    
-    async def copy_file(
-        self,
-        user_id: str,
-        file_id: str,
-        name: Optional[str] = None,
-        parents: Optional[List[str]] = None,
-        db_conn_pool=None
-    ) -> Optional[GoogleDriveFile]:
-        """Copy file in Google Drive"""
-        
-        try:
-            copy_data = {}
-            
-            if name:
-                copy_data["name"] = name
-            
-            if parents:
-                copy_data["parents"] = parents
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="POST",
-                endpoint=f"files/{file_id}/copy",
-                data=copy_data,
-                db_conn_pool=db_conn_pool
-            )
-            
-            if response and "id" in response:
-                return self._dict_to_file(response)
-            
+            logger.error(f"Failed to parse file data: {e}")
             return None
-        
-        except Exception as e:
-            logger.error(f"Error copying file {file_id}: {e}")
-            raise
     
-    async def move_file(
-        self,
-        user_id: str,
-        file_id: str,
-        add_parents: Optional[List[str]] = None,
-        remove_parents: Optional[List[str]] = None,
-        db_conn_pool=None
-    ) -> Optional[GoogleDriveFile]:
-        """Move file to different folder"""
-        
-        try:
-            move_data = {}
-            
-            if add_parents:
-                move_data["addParents"] = add_parents
-            
-            if remove_parents:
-                move_data["removeParents"] = remove_parents
-            
-            response = await self._make_request(
-                user_id=user_id,
-                method="PATCH",
-                endpoint=f"files/{file_id}",
-                data=move_data,
-                db_conn_pool=db_conn_pool
-            )
-            
-            if response and "id" in response:
-                return self._dict_to_file(response)
-            
-            return None
-        
-        except Exception as e:
-            logger.error(f"Error moving file {file_id}: {e}")
-            raise
+    def clear_cache(self):
+        """Clear file and user cache"""
+        self._files_cache.clear()
+        self._user_cache = None
+        logger.debug("Google Drive cache cleared")
     
-    async def close(self):
-        """Close HTTP client"""
-        if self._client and not self._client.closed:
-            await self._client.close()
-            self._client = None
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        return {
+            "files_cached": len(self._files_cache),
+            "user_cached": self._user_cache is not None
+        }
 
 # Global service instance
 _google_drive_service: Optional[GoogleDriveService] = None
 
-def get_google_drive_service(config: Optional[GoogleDriveConfig] = None) -> GoogleDriveService:
+async def get_google_drive_service() -> Optional[GoogleDriveService]:
     """Get global Google Drive service instance"""
+    
     global _google_drive_service
     
-    if _google_drive_service is None and config:
-        _google_drive_service = GoogleDriveService(config)
+    if _google_drive_service is None:
+        try:
+            config = get_config_instance()
+            _google_drive_service = GoogleDriveService(config)
+            logger.info("Google Drive service created")
+        except Exception as e:
+            logger.error(f"Failed to create Google Drive service: {e}")
+            _google_drive_service = None
     
     return _google_drive_service
 
-# Export service and classes
+def clear_google_drive_service():
+    """Clear global Google Drive service instance"""
+    
+    global _google_drive_service
+    _google_drive_service = None
+    logger.info("Google Drive service cleared")
+
+# Export classes and functions
 __all__ = [
-    "GoogleDriveService",
-    "GoogleDriveConfig",
-    "GoogleDriveFile",
-    "GoogleDriveFolder",
-    "GoogleDrivePermission",
-    "GoogleDriveChange",
-    "FileType",
-    "PermissionRole",
-    "PermissionType",
-    "get_google_drive_service"
+    'GoogleDriveService',
+    'GoogleDriveFile',
+    'GoogleDriveUser',
+    'get_google_drive_service',
+    'clear_google_drive_service'
 ]

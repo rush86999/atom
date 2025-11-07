@@ -1,539 +1,475 @@
 """
-ATOM Backend Application Entry Point
-Google Drive Integration with Search UI
+ATOM Google Drive Integration - Main Flask Application
+Production-ready Flask application with Google Drive integration
 """
 
 import os
-import asyncio
-from datetime import datetime
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from logging.config import dictConfig
-from contextlib import asynccontextmanager
 import sys
-import json
+import asyncio
+import logging
+from datetime import datetime
+from flask import Flask, jsonify, send_from_directory
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_redis import FlaskRedis
 
 # Add project root to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
 
-# Import configuration
-from config import config, Config
-
-# Import logging
+# Local imports
 from loguru import logger
+from config import get_config_instance, init_config
+from extensions import db, redis_client
+from health_check import init_health_checker, get_health_checker
+from google_drive_routes import register_google_drive_routes
 
-# Import extensions
-try:
-    from extensions import db, redis_client, migrate
-except ImportError:
-    logger.warning("Extensions not found, creating mock extensions")
+# Initialize Flask app
+def create_app(config_name: str = None):
+    """Create and configure Flask application"""
     
-    class MockExtension:
-        def __init__(self): pass
-        def init_app(self, app): pass
-        def get_app(self, app): pass
+    # Initialize configuration
+    config = init_config(config_name)
     
-    db = MockExtension()
-    redis_client = MockExtension()
-    migrate = None
+    # Create Flask app
+    app = Flask(__name__)
+    
+    # Configure app
+    app.config.update({
+        'SECRET_KEY': config.security.secret_key,
+        'DEBUG': config.debug,
+        'HOST': config.host,
+        'PORT': config.port,
+        'FLASK_ENV': config_name or os.getenv('FLASK_ENV', 'development'),
+        'SQLALCHEMY_DATABASE_URI': config.database.url,
+        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
+        'SQLALCHEMY_ENGINE_OPTIONS': {
+            'pool_size': config.database.pool_size,
+            'max_overflow': config.database.max_overflow,
+            'pool_timeout': config.database.pool_timeout,
+            'pool_recycle': config.database.pool_recycle,
+            'echo': config.database.echo
+        },
+        'REDIS_URL': config.redis.url,
+        'GOOGLE_DRIVE_CLIENT_ID': config.google_drive.client_id,
+        'GOOGLE_DRIVE_CLIENT_SECRET': config.google_drive.client_secret,
+        'LANCE_DB_PATH': config.lancedb.path,
+        'EMBEDDING_MODEL': config.lancedb.embedding_model,
+        'SEARCH_ENABLED': config.search.enabled,
+        'AUTOMATION_ENABLED': config.automation.enabled,
+        'SYNC_ENABLED': config.sync.enabled,
+        'INGESTION_ENABLED': config.ingestion.enabled
+    })
+    
+    # Configure CORS
+    cors_config = {
+        "origins": config.security.allowed_origins,
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Session-ID"],
+        "supports_credentials": True
+    }
+    
+    CORS(app, **cors_config)
+    
+    # Initialize extensions
+    init_extensions(app)
+    
+    # Register blueprints
+    register_blueprints(app)
+    
+    # Register error handlers
+    register_error_handlers(app)
+    
+    # Register middleware
+    register_middleware(app)
+    
+    # Initialize health checker
+    init_health_checker(app)
+    
+    logger.info(f"Flask application created for environment: {config_name or 'default'}")
+    logger.info(f"Debug mode: {config.debug}")
+    logger.info(f"Database: {config.database.url}")
+    logger.info(f"Redis: {config.redis.url}")
+    
+    return app
 
-# Import services
-try:
-    from google_drive_integration_register import register_google_drive_integration
-    from google_drive_search_integration import register_google_drive_search_routes
-except ImportError as e:
-    logger.error(f"Failed to import Google Drive integration: {e}")
-    register_google_drive_integration = None
-    register_google_drive_search_routes = None
-
-# Import health check
-try:
-    from health_check import HealthChecker
-except ImportError:
-    HealthChecker = None
-
-class ATOMFlaskApp:
-    """ATOM Flask Application Factory"""
-    
-    def __init__(self):
-        self.app = None
-        self.config_class = None
-        self.health_checker = None
-    
-    def create_app(self, config_name=None):
-        """Create Flask application"""
-        
-        # Determine config
-        config_name = config_name or os.getenv('FLASK_ENV', 'development')
-        self.config_class = config.get(config_name, config['default'])
-        
-        # Create Flask app
-        self.app = Flask(__name__)
-        self.app.config.from_object(self.config_class)
-        
-        # Setup logging
-        self._setup_logging()
-        
-        # Enable CORS
-        self._setup_cors()
-        
-        # Initialize extensions
-        self._init_extensions()
-        
-        # Register blueprints
-        self._register_blueprints()
-        
-        # Register error handlers
-        self._register_error_handlers()
-        
-        # Register middleware
-        self._register_middleware()
-        
-        # Initialize services
-        self._init_services()
-        
-        # Setup lifecycle
-        self._setup_lifecycle()
-        
-        # Initialize health checker
-        self._init_health_checker()
-        
-        logger.info(f"ATOM Flask app created with config: {config_name}")
-        return self.app
-    
-    def _setup_logging(self):
-        """Setup application logging"""
-        
-        # Configure standard logging
-        dictConfig({
-            'version': 1,
-            'formatters': {
-                'default': {
-                    'format': '[%(asctime)s] %(levelname)s: %(message)s',
-                    'datefmt': '%Y-%m-%d %H:%M:%S'
-                },
-                'detailed': {
-                    'format': '[%(asctime)s] %(levelname)s [%(name)s] [%(filename)s:%(lineno)d]: %(message)s',
-                    'datefmt': '%Y-%m-%d %H:%M:%S'
-                }
-            },
-            'handlers': {
-                'console': {
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'default',
-                    'level': 'DEBUG'
-                },
-                'file': {
-                    'class': 'logging.handlers.RotatingFileHandler',
-                    'filename': self.app.config.get('LOG_FILE_PATH', './logs/atom.log'),
-                    'maxBytes': 10485760,  # 10MB
-                    'backupCount': 5,
-                    'formatter': 'detailed',
-                    'level': self.app.config.get('LOG_LEVEL', 'INFO')
-                }
-            },
-            'root': {
-                'level': self.app.config.get('LOG_LEVEL', 'INFO'),
-                'handlers': ['console', 'file']
-            }
-        })
-        
-        # Configure loguru
-        logger.remove()
-        logger.add(
-            sys.stderr,
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-            level=self.app.config.get('LOG_LEVEL', 'INFO')
-        )
-        
-        if self.app.config.get('LOG_FILE_PATH'):
-            logger.add(
-                self.app.config['LOG_FILE_PATH'],
-                format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-                level=self.app.config.get('LOG_LEVEL', 'INFO'),
-                rotation="10 MB",
-                retention="30 days"
-            )
-        
-        logger.info("Logging configured")
-    
-    def _setup_cors(self):
-        """Setup CORS configuration"""
-        
-        # Get allowed origins
-        allowed_origins = self.app.config.get('ALLOWED_ORIGINS', [
-            'http://localhost:3000',
-            'http://localhost:8080',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:8080'
-        ])
-        
-        # Configure CORS
-        CORS(self.app, 
-             origins=allowed_origins,
-             methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-             allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
-             supports_credentials=True)
-        
-        logger.info(f"CORS configured for origins: {allowed_origins}")
-    
-    def _init_extensions(self):
-        """Initialize Flask extensions"""
-        
-        try:
-            # Initialize database
-            db.init_app(self.app)
-            logger.info("Database extension initialized")
-            
-            # Initialize Redis
-            redis_client.init_app(self.app)
-            logger.info("Redis extension initialized")
-            
-            # Initialize migrations
-            if migrate:
-                migrate.init_app(self.app, db)
-                logger.info("Migration extension initialized")
-        
-        except Exception as e:
-            logger.error(f"Error initializing extensions: {e}")
-    
-    def _register_blueprints(self):
-        """Register Flask blueprints"""
-        
-        # Register Google Drive integration
-        if register_google_drive_integration:
-            try:
-                # Get database pool
-                db_pool = None
-                if hasattr(db, 'get_engine'):
-                    db_pool = db.get_engine().raw_connection()
-                
-                success = register_google_drive_integration(self.app, db_pool)
-                if success:
-                    logger.info("Google Drive integration registered successfully")
-                else:
-                    logger.warning("Google Drive integration registration failed")
-            
-            except Exception as e:
-                logger.error(f"Error registering Google Drive integration: {e}")
-        
-        # Register search routes
-        if register_google_drive_search_routes:
-            try:
-                register_google_drive_search_routes(self.app)
-                logger.info("Google Drive search routes registered successfully")
-            
-            except Exception as e:
-                logger.error(f"Error registering Google Drive search routes: {e}")
-    
-    def _register_error_handlers(self):
-        """Register error handlers"""
-        
-        @self.app.errorhandler(400)
-        def bad_request(error):
-            return jsonify({
-                "ok": False,
-                "error": "Bad Request",
-                "message": str(error),
-                "status_code": 400
-            }), 400
-        
-        @self.app.errorhandler(401)
-        def unauthorized(error):
-            return jsonify({
-                "ok": False,
-                "error": "Unauthorized",
-                "message": "Authentication required",
-                "status_code": 401
-            }), 401
-        
-        @self.app.errorhandler(403)
-        def forbidden(error):
-            return jsonify({
-                "ok": False,
-                "error": "Forbidden",
-                "message": "Access denied",
-                "status_code": 403
-            }), 403
-        
-        @self.app.errorhandler(404)
-        def not_found(error):
-            return jsonify({
-                "ok": False,
-                "error": "Not Found",
-                "message": "Resource not found",
-                "status_code": 404
-            }), 404
-        
-        @self.app.errorhandler(405)
-        def method_not_allowed(error):
-            return jsonify({
-                "ok": False,
-                "error": "Method Not Allowed",
-                "message": "HTTP method not allowed",
-                "status_code": 405
-            }), 405
-        
-        @self.app.errorhandler(422)
-        def unprocessable_entity(error):
-            return jsonify({
-                "ok": False,
-                "error": "Unprocessable Entity",
-                "message": "Request could not be processed",
-                "status_code": 422
-            }), 422
-        
-        @self.app.errorhandler(429)
-        def rate_limit_exceeded(error):
-            return jsonify({
-                "ok": False,
-                "error": "Rate Limit Exceeded",
-                "message": "Too many requests",
-                "status_code": 429
-            }), 429
-        
-        @self.app.errorhandler(500)
-        def internal_server_error(error):
-            logger.error(f"Internal server error: {error}")
-            return jsonify({
-                "ok": False,
-                "error": "Internal Server Error",
-                "message": "An unexpected error occurred",
-                "status_code": 500
-            }), 500
-        
-        @self.app.errorhandler(502)
-        def bad_gateway(error):
-            return jsonify({
-                "ok": False,
-                "error": "Bad Gateway",
-                "message": "Service temporarily unavailable",
-                "status_code": 502
-            }), 502
-        
-        @self.app.errorhandler(503)
-        def service_unavailable(error):
-            return jsonify({
-                "ok": False,
-                "error": "Service Unavailable",
-                "message": "Service temporarily unavailable",
-                "status_code": 503
-            }), 503
-        
-        logger.info("Error handlers registered")
-    
-    def _register_middleware(self):
-        """Register request middleware"""
-        
-        @self.app.before_request
-        def before_request():
-            """Execute before each request"""
-            request.start_time = datetime.now()
-            
-            # Log request
-            logger.info(f"{request.method} {request.path} from {request.remote_addr}")
-        
-        @self.app.after_request
-        def after_request(response):
-            """Execute after each request"""
-            # Calculate duration
-            if hasattr(request, 'start_time'):
-                duration = (datetime.now() - request.start_time).total_seconds()
-                response.headers['X-Response-Time'] = f"{duration:.3f}s"
-                
-                # Log response
-                logger.info(f"{request.method} {request.path} - {response.status_code} ({duration:.3f}s)")
-            
-            # Add security headers
-            response.headers['X-Content-Type-Options'] = 'nosniff'
-            response.headers['X-Frame-Options'] = 'DENY'
-            response.headers['X-XSS-Protection'] = '1; mode=block'
-            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-            
-            return response
-        
-        logger.info("Middleware registered")
-    
-    def _init_services(self):
-        """Initialize application services"""
-        
-        try:
-            with self.app.app_context():
-                # Services will be initialized by blueprints
-                logger.info("Services initialization completed")
-        
-        except Exception as e:
-            logger.error(f"Error initializing services: {e}")
-    
-    def _setup_lifecycle(self):
-        """Setup application lifecycle"""
-        
-        @self.app.teardown_appcontext
-        def teardown_appcontext(error):
-            """Execute after each request"""
-            if error:
-                logger.error(f"Request teardown error: {error}")
-        
-        logger.info("Application lifecycle setup completed")
-    
-    def _init_health_checker(self):
-        """Initialize health checker"""
-        
-        try:
-            if HealthChecker:
-                self.health_checker = HealthChecker(self.app)
-                logger.info("Health checker initialized")
-            else:
-                logger.warning("Health checker not available")
-        
-        except Exception as e:
-            logger.error(f"Error initializing health checker: {e}")
-
-# Global app factory
-app_factory = ATOMFlaskApp()
-
-def create_app(config_name=None):
-    """Create Flask application"""
-    return app_factory.create_app(config_name)
-
-def get_app():
-    """Get current Flask app"""
-    return app_factory.app
-
-def get_config():
-    """Get current config"""
-    return app_factory.config_class
-
-# Create app instance
-app = create_app()
-
-# Health check endpoint
-@app.route('/health')
-def health_check():
-    """Application health check"""
+def init_extensions(app: Flask):
+    """Initialize Flask extensions"""
     
     try:
-        health_data = {
-            "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "version": "1.0.0",
-            "environment": os.getenv('FLASK_ENV', 'development'),
-            "services": {
-                "flask": "healthy",
-                "database": "unknown",
-                "redis": "unknown",
-                "google_drive": "unknown"
-            },
-            "performance": {
-                "response_time": "< 100ms",
-                "uptime": "unknown"
-            }
-        }
+        # Initialize SQLAlchemy
+        db.init_app(app)
         
-        # Check database health
-        try:
-            if hasattr(db, 'engine'):
-                db.engine.execute('SELECT 1')
-                health_data["services"]["database"] = "healthy"
-        except Exception as e:
-            health_data["services"]["database"] = f"unhealthy: {str(e)}"
+        # Initialize Redis
+        redis_client.init_app(app)
         
-        # Check Redis health
-        try:
-            if hasattr(redis_client, 'ping'):
-                redis_client.ping()
-                health_data["services"]["redis"] = "healthy"
-        except Exception as e:
-            health_data["services"]["redis"] = f"unhealthy: {str(e)}"
-        
-        # Check Google Drive service health
-        try:
-            if register_google_drive_integration:
-                health_data["services"]["google_drive"] = "healthy"
-        except Exception as e:
-            health_data["services"]["google_drive"] = f"unhealthy: {str(e)}"
-        
-        # Check if any service is unhealthy
-        unhealthy_services = [k for k, v in health_data["services"].items() if v != "healthy"]
-        if unhealthy_services:
-            health_data["status"] = "degraded"
-        
-        return jsonify(health_data), 200
+        logger.info("Flask extensions initialized")
     
     except Exception as e:
-        logger.error(f"Health check error: {e}")
+        logger.error(f"Failed to initialize extensions: {e}")
+        raise
+
+def register_blueprints(app: Flask):
+    """Register application blueprints"""
+    
+    try:
+        # Register Google Drive routes
+        register_google_drive_routes(app)
+        
+        # Register health check routes
+        @app.route('/health', methods=['GET'])
+        async def health_check():
+            """Health check endpoint"""
+            try:
+                health_checker = get_health_checker()
+                health_status = await health_checker.check_health(detailed=True)
+                
+                return jsonify({
+                    "status": health_status.status,
+                    "message": health_status.message,
+                    "timestamp": health_status.timestamp.isoformat(),
+                    "response_time": health_status.response_time,
+                    "uptime": health_status.uptime,
+                    "version": health_status.version,
+                    "details": health_status.details
+                }), 200 if health_status.status == "healthy" else 503
+            
+            except Exception as e:
+                logger.error(f"Health check failed: {e}")
+                return jsonify({
+                    "status": "error",
+                    "message": f"Health check failed: {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat()
+                }), 500
+        
+        # Application info endpoint
+        @app.route('/', methods=['GET'])
+        def app_info():
+            """Application information"""
+            return jsonify({
+                "name": "ATOM Google Drive Integration",
+                "version": "1.0.0",
+                "description": "Advanced Google Drive integration with semantic search and automation",
+                "environment": app.config.get('FLASK_ENV', 'unknown'),
+                "features": {
+                    "google_drive_integration": True,
+                    "semantic_search": app.config.get('SEARCH_ENABLED', False),
+                    "workflow_automation": app.config.get('AUTOMATION_ENABLED', False),
+                    "real_time_sync": app.config.get('SYNC_ENABLED', False),
+                    "content_processing": app.config.get('INGESTION_ENABLED', False)
+                },
+                "endpoints": {
+                    "health": "/health",
+                    "info": "/",
+                    "google_drive": "/api/google-drive",
+                    "search": "/api/search",
+                    "automation": "/api/google-drive/automation",
+                    "docs": "/docs"
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            })
+        
+        # Static files for docs
+        @app.route('/docs', methods=['GET'])
+        def docs():
+            """API documentation"""
+            return jsonify({
+                "message": "API Documentation",
+                "swagger_ui": "/api/docs/swagger",
+                "redoc": "/api/docs/redoc",
+                "openapi_spec": "/api/docs/openapi.json",
+                "endpoints": {
+                    "google_drive": "/api/google-drive/*",
+                    "health": "/health",
+                    "info": "/"
+                }
+            })
+        
+        logger.info("Application blueprints registered")
+    
+    except Exception as e:
+        logger.error(f"Failed to register blueprints: {e}")
+        raise
+
+def register_error_handlers(app: Flask):
+    """Register error handlers"""
+    
+    @app.errorhandler(400)
+    def bad_request(error):
+        """Handle 400 Bad Request"""
         return jsonify({
-            "status": "unhealthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e)
+            "success": False,
+            "error": "Bad Request",
+            "message": str(error),
+            "status_code": 400
+        }), 400
+    
+    @app.errorhandler(401)
+    def unauthorized(error):
+        """Handle 401 Unauthorized"""
+        return jsonify({
+            "success": False,
+            "error": "Unauthorized",
+            "message": "Authentication required",
+            "status_code": 401
+        }), 401
+    
+    @app.errorhandler(403)
+    def forbidden(error):
+        """Handle 403 Forbidden"""
+        return jsonify({
+            "success": False,
+            "error": "Forbidden",
+            "message": "Access denied",
+            "status_code": 403
+        }), 403
+    
+    @app.errorhandler(404)
+    def not_found(error):
+        """Handle 404 Not Found"""
+        return jsonify({
+            "success": False,
+            "error": "Not Found",
+            "message": "Resource not found",
+            "status_code": 404
+        }), 404
+    
+    @app.errorhandler(405)
+    def method_not_allowed(error):
+        """Handle 405 Method Not Allowed"""
+        return jsonify({
+            "success": False,
+            "error": "Method Not Allowed",
+            "message": "HTTP method not allowed",
+            "status_code": 405
+        }), 405
+    
+    @app.errorhandler(429)
+    def rate_limit_exceeded(error):
+        """Handle 429 Rate Limit Exceeded"""
+        return jsonify({
+            "success": False,
+            "error": "Rate Limit Exceeded",
+            "message": "Too many requests",
+            "status_code": 429
+        }), 429
+    
+    @app.errorhandler(500)
+    def internal_server_error(error):
+        """Handle 500 Internal Server Error"""
+        logger.error(f"Internal server error: {error}")
+        return jsonify({
+            "success": False,
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred",
+            "status_code": 500
         }), 500
-
-# Root endpoint
-@app.route('/')
-def root():
-    """Root endpoint"""
     
-    return jsonify({
-        "name": "ATOM Backend",
-        "description": "Google Drive Integration with Search UI",
-        "version": "1.0.0",
-        "status": "running",
-        "endpoints": {
-            "health": "/health",
-            "google_drive": "/api/google-drive",
-            "search": "/api/search",
-            "automation": "/api/google-drive/automation"
-        },
-        "documentation": "/docs",
-        "timestamp": datetime.utcnow().isoformat()
-    })
-
-# API info endpoint
-@app.route('/api/info')
-def api_info():
-    """API information"""
+    @app.errorhandler(502)
+    def bad_gateway(error):
+        """Handle 502 Bad Gateway"""
+        return jsonify({
+            "success": False,
+            "error": "Bad Gateway",
+            "message": "Invalid response from upstream server",
+            "status_code": 502
+        }), 502
     
-    return jsonify({
-        "name": "ATOM Backend API",
-        "version": "1.0.0",
-        "description": "Google Drive Integration with Search UI and Automation",
-        "endpoints": {
-            "google_drive": {
-                "base": "/api/google-drive",
-                "endpoints": [
-                    "/health",
-                    "/connect",
-                    "/files",
-                    "/sync/subscriptions",
-                    "/memory/search",
-                    "/automation/workflows"
-                ]
-            },
-            "search": {
-                "base": "/api/search",
-                "endpoints": [
-                    "/providers",
-                    "/google_drive",
-                    "/analytics"
-                ]
-            }
-        },
-        "features": {
-            "file_operations": "Complete CRUD operations for Google Drive files",
-            "real_time_sync": "Real-time synchronization with webhooks",
-            "semantic_search": "AI-powered semantic search with LanceDB",
-            "automation": "Powerful workflow automation engine",
-            "analytics": "Comprehensive search and usage analytics"
-        },
-        "status": "operational",
-        "timestamp": datetime.utcnow().isoformat()
-    })
+    @app.errorhandler(503)
+    def service_unavailable(error):
+        """Handle 503 Service Unavailable"""
+        return jsonify({
+            "success": False,
+            "error": "Service Unavailable",
+            "message": "Service temporarily unavailable",
+            "status_code": 503
+        }), 503
+    
+    logger.info("Error handlers registered")
 
+def register_middleware(app: Flask):
+    """Register request/response middleware"""
+    
+    @app.before_request
+    def before_request():
+        """Process before request"""
+        from flask import g
+        import time
+        
+        # Store request start time
+        g.start_time = time.time()
+        
+        # Log request
+        logger.debug(f"Request: {request.method} {request.path}")
+    
+    @app.after_request
+    def after_request(response):
+        """Process after request"""
+        from flask import g
+        
+        # Calculate response time
+        response_time = 0
+        if hasattr(g, 'start_time'):
+            response_time = time.time() - g.start_time
+        
+        # Add response headers
+        response.headers['X-Response-Time'] = f"{response_time:.3f}s"
+        response.headers['X-Application-Version'] = '1.0.0'
+        response.headers['X-Timestamp'] = datetime.utcnow().isoformat()
+        
+        # Log response
+        logger.debug(f"Response: {response.status_code} ({response_time:.3f}s)")
+        
+        return response
+    
+    logger.info("Middleware registered")
+
+async def initialize_app(app: Flask):
+    """Initialize application services"""
+    
+    try:
+        logger.info("Initializing application services...")
+        
+        # Initialize database
+        await initialize_database(app)
+        
+        # Initialize Redis
+        await initialize_redis(app)
+        
+        # Initialize background services
+        await initialize_background_services(app)
+        
+        logger.info("Application services initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize application services: {e}")
+        raise
+
+async def initialize_database(app: Flask):
+    """Initialize database"""
+    
+    try:
+        with app.app_context():
+            # Import database models if needed
+            # from models import *
+            
+            # Create all tables
+            db.create_all()
+            
+            logger.info("Database initialized")
+    
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
+async def initialize_redis(app: Flask):
+    """Initialize Redis"""
+    
+    try:
+        # Test Redis connection
+        if redis_client:
+            redis_client.ping()
+            logger.info("Redis connected")
+        else:
+            logger.warning("Redis not available")
+    
+    except Exception as e:
+        logger.error(f"Failed to initialize Redis: {e}")
+        raise
+
+async def initialize_background_services(app: Flask):
+    """Initialize background services"""
+    
+    try:
+        # Initialize Google Drive services
+        if app.config.get('GOOGLE_DRIVE_CLIENT_ID'):
+            from google_drive_service import get_google_drive_service
+            from google_drive_memory import get_google_drive_memory_service
+            from google_drive_search_integration import get_google_drive_search_provider
+            
+            # Pre-load services
+            logger.info("Initializing Google Drive services...")
+            # Services will be loaded on-demand
+        
+        logger.info("Background services initialized")
+    
+    except Exception as e:
+        logger.error(f"Failed to initialize background services: {e}")
+        logger.warning("Some services may not be available")
+
+def run_app(app: Flask, host: str = None, port: int = None, debug: bool = None):
+    """Run Flask application"""
+    
+    try:
+        # Get configuration
+        host = host or app.config.get('HOST', '0.0.0.0')
+        port = port or app.config.get('PORT', 8000)
+        debug = debug if debug is not None else app.config.get('DEBUG', False)
+        
+        # Initialize application
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(initialize_app(app))
+        finally:
+            loop.close()
+        
+        # Run application
+        logger.info(f"Starting application on {host}:{port}")
+        logger.info(f"Debug mode: {debug}")
+        logger.info(f"Health check: http://{host}:{port}/health")
+        logger.info(f"Application info: http://{host}:{port}/")
+        logger.info(f"Google Drive API: http://{host}:{port}/api/google-drive")
+        
+        app.run(
+            host=host,
+            port=port,
+            debug=debug,
+            threaded=True,
+            use_reloader=debug  # Don't use reloader in production
+        )
+    
+    except KeyboardInterrupt:
+        logger.info("Application stopped by user")
+    
+    except Exception as e:
+        logger.error(f"Failed to run application: {e}")
+        raise
+
+# Application factory
+def create_and_run_app(config_name: str = None, **kwargs):
+    """Create and run Flask application"""
+    
+    try:
+        # Create app
+        app = create_app(config_name)
+        
+        # Run app
+        run_app(app, **kwargs)
+    
+    except Exception as e:
+        logger.error(f"Failed to create and run application: {e}")
+        sys.exit(1)
+
+# Create default app
+app = create_app()
+
+# Export main functions
 if __name__ == '__main__':
-    # Run development server
-    logger.info("Starting ATOM Backend in development mode")
-    app.run(
-        host=app.config.get('HOST', '0.0.0.0'),
-        port=app.config.get('PORT', 8000),
-        debug=app.config.get('DEBUG', False)
+    # Get environment
+    env = os.getenv('FLASK_ENV', 'development')
+    
+    # Create and run app
+    create_and_run_app(
+        config_name=env,
+        host=os.getenv('FLASK_HOST', '0.0.0.0'),
+        port=int(os.getenv('FLASK_PORT', 8000)),
+        debug=os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
     )
+
+# Export app for other modules
+__all__ = [
+    'create_app',
+    'create_and_run_app',
+    'app'
+]

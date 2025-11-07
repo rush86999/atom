@@ -1,0 +1,174 @@
+# ATOM Google Drive Integration - Python Dependencies
+# Core Flask and Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+Flask-Redis==4.0.0
+Flask-JWT-Extended==4.5.3
+Werkzeug==3.0.1
+gunicorn==21.2.0
+uvicorn==0.24.0
+
+# Database and ORM
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+SQLAlchemy==2.0.23
+alembic==1.12.1
+redis==5.0.1
+redis-py-cluster==2.1.3
+
+# Google Drive API Integration
+google-api-python-client==2.108.0
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
+google-auth==2.23.4
+google-cloud-core==2.4.1
+google-api-core==2.15.0
+
+# Vector Database and Search
+lancedb==0.5.3
+sentence-transformers==2.2.2
+transformers==4.35.2
+torch==2.1.1
+torchvision==0.16.1
+torchaudio==2.1.1
+numpy==1.25.2
+scipy==1.11.4
+scikit-learn==1.3.2
+faiss-cpu==1.7.4
+
+# Text Processing and NLP
+nltk==3.8.1
+spacy==3.7.2
+textblob==0.17.1
+gensim==4.3.2
+openai==1.3.7
+tiktoken==0.5.2
+
+# Content Processing and Extraction
+PyPDF2==3.0.1
+PyMuPDF==1.23.8
+pdfplumber==0.10.3
+python-docx==1.1.0
+python-pptx==0.6.22
+openpyxl==3.1.2
+pillow==10.1.0
+opencv-python==4.8.1.78
+pytesseract==0.3.10
+pdfminer.six==20231128.1
+beautifulsoup4==4.12.2
+lxml==4.9.3
+html5lib==1.1
+chardet==5.2.0
+python-magic==0.4.27
+
+# Audio/Video Processing
+moviepy==1.0.3
+ffmpeg-python==0.2.0
+pydub==0.25.1
+librosa==0.10.1
+soundfile==0.12.1
+
+# Archive Processing
+patool==2.0.1
+py7zr==0.20.8
+rarfile==4.0
+
+# Workflow Automation
+APScheduler==3.10.4
+celery==5.3.4
+dramatiq==1.15.0
+watchdog==3.0.0
+schedule==1.2.0
+croniter==1.4.1
+
+# HTTP and API Clients
+httpx==0.25.2
+aiohttp==3.9.1
+aiofiles==23.2.1
+requests==2.31.0
+urllib3==2.1.0
+certifi==2023.11.17
+python-multipart==0.0.6
+
+# Data Validation and Serialization
+marshmallow==3.20.1
+jsonschema==4.20.0
+pydantic==2.5.0
+email-validator==2.1.0
+python-dateutil==2.8.2
+python-timezone==2023.3
+
+# Security and Authentication
+cryptography==41.0.8
+bcrypt==4.1.2
+passlib==1.7.4
+PyJWT==2.8.0
+authlib==1.3.0
+python-jose==3.3.0
+itsdangerous==2.1.2
+
+# Configuration Management
+python-dotenv==1.0.0
+configparser==6.0.0
+pyyaml==6.0.1
+toml==0.10.2
+click==8.1.7
+rich==13.7.0
+typer==0.9.0
+
+# Logging and Monitoring
+loguru==0.7.2
+structlog==23.2.0
+sentry-sdk==1.38.0
+prometheus-client==0.19.0
+psutil==5.9.6
+
+# Testing and Quality
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-flask==1.3.0
+pytest-mock==3.12.0
+pytest-cov==4.1.0
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+pre-commit==3.6.0
+
+# Development Tools
+ipython==8.17.2
+jupyter==1.0.0
+notebook==7.0.6
+jupyterlab==4.0.9
+debugpy==1.8.0
+watchdog==3.0.0
+autopep8==2.0.4
+
+# Performance and Profiling
+memory-profiler==0.61.0
+line-profiler==4.1.1
+
+# Data Export and Import
+pandas==2.1.4
+xlsxwriter==3.1.9
+
+# Type Checking and Code Quality
+types-requests==2.31.0.10
+types-redis==4.6.0.11
+types-setuptools==69.0.0
+
+# Additional required modules for existing code
+# (These will be installed automatically when imported)
+# psycopg2  # Already included above
+# redis  # Already included above
+# json  # Built-in
+# os  # Built-in
+# sys  # Built-in
+# datetime  # Built-in
+# pathlib  # Built-in
+# typing  # Built-in
+# asyncio  # Built-in
+# time  # Built-in
+# uuid  # Built-in

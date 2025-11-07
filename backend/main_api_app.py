@@ -67,6 +67,16 @@ except ImportError as e:
     STRIPE_AVAILABLE = False
     stripe_router = None
 
+# Import Salesforce integration
+try:
+    from integrations.salesforce_routes import router as salesforce_router
+
+    SALESFORCE_AVAILABLE = True
+except ImportError as e:
+    print(f"Salesforce integration not available: {e}")
+    SALESFORCE_AVAILABLE = False
+    salesforce_router = None
+
 # Initialize FastAPI app
 app = FastAPI(
     title="ATOM API",
@@ -129,6 +139,13 @@ if STRIPE_AVAILABLE and stripe_router:
     print("✅ Stripe integration routes loaded")
 else:
     print("⚠️  Stripe integration routes not available")
+
+# Include Salesforce integration routes if available
+if SALESFORCE_AVAILABLE and salesforce_router:
+    app.include_router(salesforce_router)
+    print("✅ Salesforce integration routes loaded")
+else:
+    print("⚠️  Salesforce integration routes not available")
 
 # Include GitHub integration routes if available
 try:

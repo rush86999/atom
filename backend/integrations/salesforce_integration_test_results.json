@@ -1,0 +1,88 @@
+{
+  "test_run": {
+    "timestamp": "2025-11-06T18:47:29.411956",
+    "total_tests": 13,
+    "passed_tests": 13,
+    "failed_tests": 0
+  },
+  "results": [
+    {
+      "test": "Health Check",
+      "status": "\u2705 PASS",
+      "details": "Salesforce available: True",
+      "timestamp": "2025-11-06T18:47:29.410763"
+    },
+    {
+      "test": "List Accounts",
+      "status": "\u2705 PASS",
+      "details": "Retrieved 1 accounts",
+      "timestamp": "2025-11-06T18:47:29.410818"
+    },
+    {
+      "test": "Get Account",
+      "status": "\u2705 PASS",
+      "details": "Account ID: 0011U00000XyZxY",
+      "timestamp": "2025-11-06T18:47:29.410853"
+    },
+    {
+      "test": "Create Account",
+      "status": "\u2705 PASS",
+      "details": "Account created: New Test Account",
+      "timestamp": "2025-11-06T18:47:29.410884"
+    },
+    {
+      "test": "List Contacts",
+      "status": "\u2705 PASS",
+      "details": "Retrieved 1 contacts",
+      "timestamp": "2025-11-06T18:47:29.410914"
+    },
+    {
+      "test": "List Opportunities",
+      "status": "\u2705 PASS",
+      "details": "Retrieved 1 opportunities",
+      "timestamp": "2025-11-06T18:47:29.410954"
+    },
+    {
+      "test": "List Leads",
+      "status": "\u2705 PASS",
+      "details": "Retrieved 1 leads",
+      "timestamp": "2025-11-06T18:47:29.410983"
+    },
+    {
+      "test": "Search Functionality",
+      "status": "\u2705 PASS",
+      "details": "Search completed with 1 results",
+      "timestamp": "2025-11-06T18:47:29.411019"
+    },
+    {
+      "test": "Pipeline Analytics",
+      "status": "\u2705 PASS",
+      "details": "Total opportunities: 25",
+      "timestamp": "2025-11-06T18:47:29.411055"
+    },
+    {
+      "test": "Leads Analytics",
+      "status": "\u2705 PASS",
+      "details": "Conversion rate: 25.0%",
+      "timestamp": "2025-11-06T18:47:29.411100"
+    },
+    {
+      "test": "User Profile",
+      "status": "\u2705 PASS",
+      "details": "User: Test User",
+      "timestamp": "2025-11-06T18:47:29.411131"
+    },
+    {
+      "test": "Core Service Methods",
+      "status": "\u2705 PASS",
+      "details": "Service available: True, Mock success: True",
+      "timestamp": "2025-11-06T18:47:29.411161"
+    },
+    {
+      "test": "Response Formatting",
+      "status": "\u2705 PASS",
+      "details": "Success format: True, Error format: True",
+      "timestamp": "2025-11-06T18:47:29.411851"
+    }
+  ]
+}
