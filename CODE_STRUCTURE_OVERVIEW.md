@@ -7,6 +7,7 @@ ATOM Agent Memory System
 ├── Frontend Web App (Next.js + TypeScript)
 │   ├── Uses shared src/services for business logic
 │   ├── Custom UI components
+│   ├── Integration components (Google Drive, OneDrive, etc.)
 │   └── Backend API integration
 ├── Desktop App (Tauri + React + TypeScript)
 │   ├── Uses shared src/services for business logic
@@ -19,13 +20,15 @@ ATOM Agent Memory System
 │   └── Utility Services
 ├── Backend API Service (Python/Flask)
 │   ├── Core API Endpoints
-│   ├── Integration Services
+│   ├── Integration Services (180+ services)
 │   ├── LanceDB Memory Pipeline
-│   └── OAuth Authentication
+│   ├── OAuth Authentication
+│   └── Document Processing Pipeline
 └── Storage & Memory
     ├── LanceDB (Vector Database)
     ├── Local File Storage (Desktop)
-    └── Database Storage (Web)
+    ├── Database Storage (Web)
+    └── Integration Memory (Google Drive, OneDrive, etc.)
 ```
 
 ## 📁 Shared Services Architecture (`src/`)
@@ -52,7 +55,9 @@ ai/
 integrations/
 ├── apiKeyService.ts                 # API key management
 ├── authService.ts                   # Authentication services
-└── connection-status-service.ts     # Service connectivity monitoring
+├── connection-status-service.ts     # Service connectivity monitoring
+├── googleDriveService.ts            # Google Drive integration
+└── oneDriveService.ts               # OneDrive integration
 ```
 
 ### 🔄 Workflow Services (`src/services/workflows/`)
@@ -96,6 +101,11 @@ frontend-nextjs/
 │   ├── config.js                    # App configuration
 │   └── constants.ts                 # App constants
 ├── pages/                           # Next.js pages
+│   ├── integrations/                # Integration-specific pages
+│   │   ├── gdrive.tsx              # Google Drive integration
+│   │   ├── onedrive.tsx            # OneDrive integration
+│   │   └── [other integrations]
+│   └── google-drive.tsx             # Google Drive main page
 ├── public/                          # Static assets
 └── package.json                     # Dependencies
 ```
@@ -127,7 +137,8 @@ desktop/tauri/
 │   ├── components/                  # Desktop-specific components
 │   ├── services/                    # Desktop-specific services
 │   ├── hooks/                       # Custom React hooks
-│   └── types/                       # TypeScript types
+│   ├── types/                       # TypeScript types
+│   └── integrations/                # Desktop integration components
 ├── src-tauri/
 │   ├── python-backend/              # Embedded Python backend
 │   ├── src/                         # Rust backend code
@@ -165,6 +176,13 @@ backend/python-api-service/
     ├── asana_service.py             # Asana integration
     ├── dropbox_service.py           # Dropbox integration
     ├── outlook_service.py           # Outlook integration
+    ├── google_drive_service.py      # Google Drive integration
+    ├── onedrive_service.py          # OneDrive integration
+    ├── onedrive_routes.py           # OneDrive API routes
+    ├── auth_handler_onedrive.py     # OneDrive OAuth authentication
+    ├── onedrive_health_handler.py   # OneDrive health monitoring
+    ├── onedrive_integration_register.py # OneDrive registration
+    ├── onedrive_document_processor.py   # OneDrive document processing
     └── [180+ other integrations]
 ```
 
@@ -180,7 +198,11 @@ backend/consolidated/
 │   ├── dropbox_service.py
 │   ├── dropbox_routes.py
 │   ├── outlook_service.py
-│   └── outlook_routes.py
+│   ├── outlook_routes.py
+│   ├── google_drive_service.py
+│   ├── google_drive_routes.py
+│   ├── onedrive_service.py
+│   └── onedrive_routes.py
 ├── workflows/                       # Workflow engine
 └── api/                             # API endpoints
 ```
@@ -189,8 +211,8 @@ backend/consolidated/
 
 ### 📄 Document Storage Integrations
 - **Dropbox**: ✅ Enhanced service with file operations
-- **Google Drive**: ✅ Full integration with OAuth
-- **OneDrive**: ✅ Microsoft Graph API integration
+- **Google Drive**: ✅ Full integration with OAuth & LanceDB memory
+- **OneDrive**: ✅ Complete Microsoft Graph API integration with LanceDB memory
 - **Box**: ✅ Enterprise file sharing
 
 ### 💬 Communication Integrations
@@ -214,17 +236,18 @@ backend/consolidated/
 ## 🔄 LanceDB Memory Pipeline Architecture
 
 ### Memory Storage Pipeline
-1. **Ingestion**: Documents, conversations, and user data
-2. **Processing**: Text extraction and chunking
+1. **Ingestion**: Documents, conversations, and user data from integrations
+2. **Processing**: Text extraction and chunking (Google Drive, OneDrive, etc.)
 3. **Embedding**: Vector generation using sentence-transformers
-4. **Storage**: LanceDB vector storage with metadata
-5. **Retrieval**: Semantic search and context retrieval
+4. **Storage**: LanceDB vector storage with metadata and source tracking
+5. **Retrieval**: Semantic search and context retrieval across all integrations
 
 ### Memory Categories
 - **Conversation Memory**: Chat history and context
-- **Document Memory**: Processed documents and files
+- **Document Memory**: Processed documents and files from integrations
 - **User Memory**: User preferences and behavior
 - **Workflow Memory**: Automated workflow history
+- **Integration Memory**: Service-specific data (Google Drive, OneDrive, etc.)
 
 ## 🛠️ Core Technologies & Libraries
 
@@ -234,6 +257,8 @@ backend/consolidated/
 - **SQLAlchemy**: Database ORM
 - **LanceDB**: Vector database for AI memory
 - **Pydantic**: Data validation and settings management
+- **Microsoft Graph API**: OneDrive integration
+- **Google Drive API**: Google Drive integration
 
 ### Frontend Technologies
 - **TypeScript**: Type-safe JavaScript
@@ -249,10 +274,12 @@ backend/consolidated/
 - **Local File System**: Desktop app storage
 
 ### Authentication & Security
-- **OAuth 2.0**: External service authentication
+- **OAuth 2.0**: External service authentication (Google, Microsoft, etc.)
 - **JWT**: Stateless authentication tokens
 - **AES Encryption**: Data encryption at rest
 - **CORS**: Cross-origin resource sharing
+- **Azure AD**: Microsoft OneDrive authentication
+- **Google Cloud**: Google Drive authentication
 
 ## 🧪 Testing Strategy
 
@@ -260,6 +287,7 @@ backend/consolidated/
 - **Unit Tests**: pytest for individual components
 - **Integration Tests**: API endpoint testing
 - **Mock Services**: External service simulation
+- **Integration Testing**: Google Drive, OneDrive, and other service testing
 
 ### Frontend Testing
 - **Unit Tests**: Jest + React Testing Library
@@ -294,11 +322,15 @@ backend/consolidated/
 - **OAuth Flow**: < 5 seconds for authentication
 - **File Upload**: Streaming for large files
 - **Search Performance**: Sub-second vector search
+- **Document Ingestion**: Parallel processing for Google Drive/OneDrive files
+- **Memory Search**: Cross-integration semantic search
 
 ### Scalability Metrics
 - **Horizontal Scaling**: Stateless API design
 - **Database Scaling**: Read replicas and caching
 - **CDN Integration**: Static asset delivery
+- **Integration Scaling**: Parallel service processing
+- **Memory Scaling**: Distributed vector search
 
 ## 🔒 Security & Compliance
 
@@ -323,16 +355,22 @@ backend/consolidated/
 - Enhanced mobile responsiveness
 - Additional integration services
 - Improved developer documentation
+- Advanced workflow automation
+- Real-time collaboration features
 
 ### Medium-term (3-6 months)
 - Microservices architecture
 - Advanced AI agent capabilities
 - Enterprise feature set
+- Performance optimization for 1000+ users
+- Advanced monitoring and analytics
 
 ### Long-term (6-12 months)
 - Mobile applications
 - Advanced analytics dashboard
 - Marketplace for custom integrations
+- AI-powered workflow recommendations
+- Enterprise-grade security enhancements
 
 ## 📚 Documentation & Resources
 
@@ -344,7 +382,10 @@ backend/consolidated/
 ### Developer Resources
 - **Setup Guides**: Local development environment
 - **API Reference**: Complete endpoint documentation
-- **Integration Guides**: Service-specific implementation
+### Integration Guides: Service-specific implementation
+- **Google Drive Integration Guide**: Complete setup and usage
+- **OneDrive Integration Guide**: Microsoft Graph API integration
+- **LanceDB Memory Integration**: Document processing and search
 
 ### User Documentation
 - **Getting Started**: Quick start guides
@@ -362,8 +403,11 @@ backend/consolidated/
 - **Core Maintainers**: Primary code contributors
 - **Integration Specialists**: Service integration experts
 - **Documentation Team**: User and developer docs
+- **Memory System Engineers**: LanceDB and vector search specialists
 
 ---
 
 *Last Updated: 2025*
-*Version: 2.0 - Shared Architecture*
+*Version: 2.1 - Enhanced Integration Architecture*
+*OneDrive Integration: Complete with LanceDB memory system*
+*Google Drive Integration: Enhanced with memory features*

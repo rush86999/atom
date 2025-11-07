@@ -2,7 +2,7 @@
 OneDrive Integration Service for ATOM Agent Memory System
 
 This service provides integration between OneDrive and ATOM agent memory
-through LanceDB ingestion pipeline.
+through LanceDB ingestion pipeline with full memory system integration.
 """
 
 import os
@@ -22,6 +22,20 @@ from .sync.source_change_detector import (
     SourceType,
 )
 
+# Import memory system components
+try:
+    from lancedb_handler import (
+        get_lancedb_connection,
+        search_documents,
+        get_document_stats,
+    )
+    from document_processor import process_document_and_store
+
+    MEMORY_SYSTEM_AVAILABLE = True
+except ImportError as e:
+    MEMORY_SYSTEM_AVAILABLE = False
+    logger.warning(f"Memory system components not available: {e}")
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,45 +43,44 @@ class OneDriveIntegrationService:
     """
     Service for OneDrive integration with ATOM agent memory system
     """
-    
+
     def __init__(self):
         self.processors: Dict[str, OneDriveDocumentProcessor] = {}
         self.orchestration_service: Optional[OrchestrationService] = None
         self.running = False
         self.health_check_task: Optional[asyncio.Task] = None
-        
+
         logger.info("Initialized OneDriveIntegrationService")
-    
+
     async def initialize(
-        self, 
-        orchestration_service: Optional[OrchestrationService] = None
+        self, orchestration_service: Optional[OrchestrationService] = None
     ) -> bool:
         """Initialize OneDrive integration service"""
         try:
             self.orchestration_service = orchestration_service
             self.running = True
             self.health_check_task = asyncio.create_task(self._health_monitoring_loop())
-            
+
             logger.info("OneDriveIntegrationService initialized successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to initialize OneDriveIntegrationService: {e}")
             return False
-    
+
     async def shutdown(self) -> None:
         """Shutdown OneDrive integration service gracefully"""
         try:
             self.running = False
-            
+
             # Stop all processors
             shutdown_tasks = []
             for user_id, processor in self.processors.items():
                 shutdown_tasks.append(processor.stop_processing())
-            
+
             if shutdown_tasks:
                 await asyncio.gather(*shutdown_tasks, return_exceptions=True)
-            
+
             # Stop health monitoring
             if self.health_check_task:
                 self.health_check_task.cancel()
@@ -75,22 +88,20 @@ class OneDriveIntegrationService:
                     await self.health_check_task
                 except asyncio.CancelledError:
                     pass
-            
+
             self.processors.clear()
             logger.info("OneDriveIntegrationService shutdown completed")
-            
+
         except Exception as e:
             logger.error(f"Error during OneDrive service shutdown: {e}")
-    
+
     async def add_user_onedrive_integration(
-        self, 
-        user_id: str, 
-        config_overrides: Dict[str, Any] = None
+        self, user_id: str, config_overrides: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Add OneDrive integration for a user"""
         try:
             logger.info(f"Adding OneDrive integration for user: {user_id}")
-            
+
             # Check if user already has integration
             if user_id in self.processors:
                 return {
@@ -98,28 +109,28 @@ class OneDriveIntegrationService:
                     "message": "User already has OneDrive integration",
                     "user_id": user_id,
                 }
-            
+
             # Initialize processor for user
             processor = await initialize_onedrive_processor_for_user(
                 user_id, config_overrides
             )
-            
+
             if not processor:
                 return {
                     "status": "failed",
                     "message": "Failed to initialize OneDrive processor",
                     "user_id": user_id,
                 }
-            
+
             # Store processor
             self.processors[user_id] = processor
-            
+
             # Add to orchestration service if available
             if self.orchestration_service:
                 await self._add_user_to_orchestration(user_id, processor)
-            
+
             logger.info(f"Successfully added OneDrive integration for user: {user_id}")
-            
+
             return {
                 "status": "success",
                 "message": "OneDrive integration added successfully",
@@ -128,9 +139,9 @@ class OneDriveIntegrationService:
                     "sync_interval": processor.config.sync_interval,
                     "max_files": processor.config.max_files,
                     "include_shared": processor.config.include_shared,
-                }
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Error adding OneDrive integration for user {user_id}: {e}")
             return {
@@ -138,14 +149,12 @@ class OneDriveIntegrationService:
                 "message": f"Error adding integration: {str(e)}",
                 "user_id": user_id,
             }
-    
-    async def remove_user_onedrive_integration(
-        self, user_id: str
-    ) -> Dict[str, Any]:
+
+    async def remove_user_onedrive_integration(self, user_id: str) -> Dict[str, Any]:
         """Remove OneDrive integration for a user"""
         try:
             logger.info(f"Removing OneDrive integration for user: {user_id}")
-            
+
             # Check if user has integration
             if user_id not in self.processors:
                 return {
@@ -153,24 +162,26 @@ class OneDriveIntegrationService:
                     "message": "User does not have OneDrive integration",
                     "user_id": user_id,
                 }
-            
+
             # Stop and remove processor
             processor = self.processors[user_id]
             await processor.stop_processing()
             del self.processors[user_id]
-            
+
             # Remove from orchestration service if available
             if self.orchestration_service:
                 await self._remove_user_from_orchestration(user_id)
-            
-            logger.info(f"Successfully removed OneDrive integration for user: {user_id}")
-            
+
+            logger.info(
+                f"Successfully removed OneDrive integration for user: {user_id}"
+            )
+
             return {
                 "status": "success",
                 "message": "OneDrive integration removed successfully",
                 "user_id": user_id,
             }
-            
+
         except Exception as e:
             logger.error(f"Error removing OneDrive integration for user {user_id}: {e}")
             return {
@@ -178,10 +189,8 @@ class OneDriveIntegrationService:
                 "message": f"Error removing integration: {str(e)}",
                 "user_id": user_id,
             }
-    
-    async def get_user_onedrive_status(
-        self, user_id: str
-    ) -> Dict[str, Any]:
+
+    async def get_user_onedrive_status(self, user_id: str) -> Dict[str, Any]:
         """Get OneDrive integration status for a user"""
         try:
             # Check if user has integration
@@ -191,9 +200,9 @@ class OneDriveIntegrationService:
                     "message": "User does not have OneDrive integration",
                     "user_id": user_id,
                 }
-            
+
             processor = self.processors[user_id]
-            
+
             # Get processor status
             status_info = {
                 "status": "active",
@@ -207,8 +216,20 @@ class OneDriveIntegrationService:
                     "exclude_recycle_bin": processor.config.exclude_recycle_bin,
                 },
                 "processed_documents": len(processor.processed_docs),
+                "memory_system_available": MEMORY_SYSTEM_AVAILABLE,
             }
-            
+
+            # Add memory system statistics if available
+            if MEMORY_SYSTEM_AVAILABLE:
+                try:
+                    memory_stats = await self._get_memory_stats(user_id)
+                    status_info["memory_stats"] = memory_stats
+                except Exception as e:
+                    logger.warning(
+                        f"Could not get memory stats for user {user_id}: {e}"
+                    )
+                    status_info["memory_stats"] = {"error": str(e)}
+
             # Check if Graph client is available
             if not processor.graph_client:
                 status_info["status"] = "client_error"
@@ -216,7 +237,9 @@ class OneDriveIntegrationService:
             else:
                 # Test OneDrive connection
                 try:
-                    response = processor.graph_client.get('https://graph.microsoft.com/v1.0/me')
+                    response = processor.graph_client.get(
+                        "https://graph.microsoft.com/v1.0/me"
+                    )
                     if response.status_code == 200:
                         user_data = response.json()
                         status_info["onedrive_connection"] = "active"
@@ -231,9 +254,9 @@ class OneDriveIntegrationService:
                 except Exception as e:
                     status_info["onedrive_connection"] = "error"
                     status_info["onedrive_error"] = str(e)
-            
+
             return status_info
-            
+
         except Exception as e:
             logger.error(f"Error getting OneDrive status for user {user_id}: {e}")
             return {
@@ -241,7 +264,113 @@ class OneDriveIntegrationService:
                 "message": f"Error getting status: {str(e)}",
                 "user_id": user_id,
             }
-    
+
+    async def search_onedrive_memory(
+        self, user_id: str, query: str, limit: int = 10
+    ) -> Dict[str, Any]:
+        """Search OneDrive documents in ATOM memory system"""
+        try:
+            if not MEMORY_SYSTEM_AVAILABLE:
+                return {
+                    "status": "error",
+                    "message": "Memory system not available",
+                    "user_id": user_id,
+                }
+
+            db_conn = await get_lancedb_connection()
+            if not db_conn:
+                return {
+                    "status": "error",
+                    "message": "Failed to connect to LanceDB",
+                    "user_id": user_id,
+                }
+
+            search_results = await search_documents(
+                db_conn=db_conn,
+                user_id=user_id,
+                query_text=query,
+                limit=limit,
+                source_filter="onedrive",
+            )
+
+            return {
+                "status": "success",
+                "user_id": user_id,
+                "query": query,
+                "results": search_results.get("results", []),
+                "total_matches": search_results.get("total_matches", 0),
+            }
+
+        except Exception as e:
+            logger.error(f"Error searching OneDrive memory for user {user_id}: {e}")
+            return {
+                "status": "error",
+                "message": f"Search failed: {str(e)}",
+                "user_id": user_id,
+            }
+
+    async def get_onedrive_memory_stats(self, user_id: str) -> Dict[str, Any]:
+        """Get statistics about OneDrive documents in memory system"""
+        try:
+            if not MEMORY_SYSTEM_AVAILABLE:
+                return {
+                    "status": "error",
+                    "message": "Memory system not available",
+                    "user_id": user_id,
+                }
+
+            db_conn = await get_lancedb_connection()
+            if not db_conn:
+                return {
+                    "status": "error",
+                    "message": "Failed to connect to LanceDB",
+                    "user_id": user_id,
+                }
+
+            stats = await get_document_stats(
+                db_conn=db_conn, user_id=user_id, source_filter="onedrive"
+            )
+
+            return {
+                "status": "success",
+                "user_id": user_id,
+                "stats": stats,
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting OneDrive memory stats for user {user_id}: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to get memory stats: {str(e)}",
+                "user_id": user_id,
+            }
+
+    async def _get_memory_stats(self, user_id: str) -> Dict[str, Any]:
+        """Internal method to get memory statistics"""
+        try:
+            if not MEMORY_SYSTEM_AVAILABLE:
+                return {"available": False, "message": "Memory system not available"}
+
+            db_conn = await get_lancedb_connection()
+            if not db_conn:
+                return {"available": False, "message": "LanceDB connection failed"}
+
+            stats = await get_document_stats(
+                db_conn=db_conn, user_id=user_id, source_filter="onedrive"
+            )
+
+            return {
+                "available": True,
+                "total_documents": stats.get("total_documents", 0),
+                "total_chunks": stats.get("total_chunks", 0),
+                "last_sync": stats.get("last_sync"),
+                "source_breakdown": stats.get("source_breakdown", {}),
+            }
+
+        except Exception as e:
+            logger.warning(f"Error getting memory stats for user {user_id}: {e}")
+            return {"available": False, "error": str(e)}
+
     async def _add_user_to_orchestration(
         self, user_id: str, processor: OneDriveDocumentProcessor
     ) -> None:
@@ -249,7 +378,7 @@ class OneDriveIntegrationService:
         try:
             if not self.orchestration_service:
                 return
-            
+
             # Create OneDrive source configuration
             source_config = SourceConfig(
                 source_type=SourceType.NOTION,  # Reusing NOTION enum for document sources
@@ -261,65 +390,79 @@ class OneDriveIntegrationService:
                 },
                 poll_interval=processor.config.sync_interval,
             )
-            
+
             # Add to orchestration service
             self.orchestration_service.change_detector.add_source(source_config)
-            
+
             logger.debug(f"Added user {user_id} to orchestration service")
-            
+
         except Exception as e:
             logger.error(f"Error adding user {user_id} to orchestration: {e}")
-    
+
     async def _remove_user_from_orchestration(self, user_id: str) -> None:
         """Remove user from orchestration service"""
         try:
             if not self.orchestration_service:
                 return
-            
+
             # Remove from orchestration service
             self.orchestration_service.change_detector.remove_source(
                 SourceType.NOTION,  # Reusing NOTION enum
-                f"onedrive_user_{user_id}"
+                f"onedrive_user_{user_id}",
             )
-            
+
             logger.debug(f"Removed user {user_id} from orchestration service")
-            
+
         except Exception as e:
             logger.error(f"Error removing user {user_id} from orchestration: {e}")
-    
+
     async def _health_monitoring_loop(self) -> None:
         """Health monitoring loop for integration service"""
         while self.running:
             try:
                 # Check health of all processors
                 unhealthy_users = []
-                
+
                 for user_id, processor in self.processors.items():
                     try:
                         # Check if processor is still healthy
                         if processor.running and processor.graph_client:
                             # Test connection
-                            response = processor.graph_client.get('https://graph.microsoft.com/v1.0/me')
+                            response = processor.graph_client.get(
+                                "https://graph.microsoft.com/v1.0/me"
+                            )
                             if response.status_code != 200:
                                 unhealthy_users.append(user_id)
                         else:
                             unhealthy_users.append(user_id)
-                            
+
                     except Exception as e:
                         logger.warning(f"User {user_id} processor unhealthy: {e}")
                         unhealthy_users.append(user_id)
-                
+
                 # Log health status
                 total_users = len(self.processors)
                 healthy_users = total_users - len(unhealthy_users)
-                
+
+                # Log memory system status if available
+                memory_status = "unavailable"
+                if MEMORY_SYSTEM_AVAILABLE:
+                    try:
+                        db_conn = await get_lancedb_connection()
+                        if db_conn:
+                            memory_status = "available"
+                        else:
+                            memory_status = "connection_failed"
+                    except Exception:
+                        memory_status = "error"
+
                 logger.info(
-                    f"OneDrive integration health: {healthy_users}/{total_users} users healthy"
+                    f"OneDrive integration health: {healthy_users}/{total_users} users healthy, Memory: {memory_status}"
                 )
-                
+
                 # Wait for next health check
                 await asyncio.sleep(300)  # 5 minutes
-                
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -334,15 +477,15 @@ _onedrive_integration_service: Optional[OneDriveIntegrationService] = None
 def get_onedrive_integration_service() -> OneDriveIntegrationService:
     """Get global OneDrive integration service instance"""
     global _onedrive_integration_service
-    
+
     if _onedrive_integration_service is None:
         _onedrive_integration_service = OneDriveIntegrationService()
-    
+
     return _onedrive_integration_service
 
 
 async def initialize_onedrive_integration_service(
-    orchestration_service: Optional[OrchestrationService] = None
+    orchestration_service: Optional[OrchestrationService] = None,
 ) -> bool:
     """Initialize global OneDrive integration service"""
     service = get_onedrive_integration_service()

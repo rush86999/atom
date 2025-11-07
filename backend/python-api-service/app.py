@@ -1,6 +1,6 @@
 """
-ATOM Google Drive Integration - Main Flask Application
-Production-ready Flask application with Google Drive integration
+ATOM Platform - Main Flask Application
+Production-ready Flask application with Google Drive and Zendesk integrations
 """
 
 import os
@@ -23,6 +23,7 @@ from config import get_config_instance, init_config
 from extensions import db, redis_client
 from health_check import init_health_checker, get_health_checker
 from google_drive_routes import register_google_drive_routes
+from google_drive_automation_routes import register_automation_routes
 
 # Initialize Flask app
 def create_app(config_name: str = None):
@@ -116,6 +117,31 @@ def register_blueprints(app: Flask):
         # Register Google Drive routes
         register_google_drive_routes(app)
         
+        # Register automation routes
+        register_automation_routes(app)
+        
+        # Register Zendesk integration
+        try:
+            from zendesk_integration_register import register_zendesk_integration
+            zendesk_success = register_zendesk_integration(app)
+            if zendesk_success:
+                logger.info("Zendesk integration registered successfully")
+        except ImportError as e:
+            logger.warning(f"Zendesk integration not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register Zendesk integration: {e}")
+        
+        # Register QuickBooks integration
+        try:
+            from quickbooks_integration_register import register_quickbooks_integration
+            quickbooks_success = register_quickbooks_integration(app)
+            if quickbooks_success:
+                logger.info("QuickBooks integration registered successfully")
+        except ImportError as e:
+            logger.warning(f"QuickBooks integration not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to register QuickBooks integration: {e}")
+        
         # Register health check routes
         @app.route('/health', methods=['GET'])
         async def health_check():
@@ -147,42 +173,70 @@ def register_blueprints(app: Flask):
         def app_info():
             """Application information"""
             return jsonify({
-                "name": "ATOM Google Drive Integration",
-                "version": "1.0.0",
-                "description": "Advanced Google Drive integration with semantic search and automation",
+                "name": "ATOM Platform",
+                "version": "2.0.0",
+                "description": "Advanced platform with Google Drive integration, comprehensive customer support via Zendesk, and complete accounting with QuickBooks",
                 "environment": app.config.get('FLASK_ENV', 'unknown'),
                 "features": {
                     "google_drive_integration": True,
+                    "zendesk_integration": True,
+                    "quickbooks_integration": True,
                     "semantic_search": app.config.get('SEARCH_ENABLED', False),
                     "workflow_automation": app.config.get('AUTOMATION_ENABLED', False),
                     "real_time_sync": app.config.get('SYNC_ENABLED', False),
                     "content_processing": app.config.get('INGESTION_ENABLED', False)
                 },
+                "integrations": {
+                    "google_drive": {"status": "production", "features": ["file_sync", "search", "automation"]},
+                    "zendesk": {"status": "production", "features": ["tickets", "users", "analytics", "oauth"]},
+                    "quickbooks": {"status": "production", "features": ["accounting", "invoicing", "reporting", "financial_management"]}
+                },
                 "endpoints": {
                     "health": "/health",
                     "info": "/",
                     "google_drive": "/api/google-drive",
-                    "search": "/api/search",
                     "automation": "/api/google-drive/automation",
                     "docs": "/docs"
                 },
                 "timestamp": datetime.utcnow().isoformat()
             })
         
-        # Static files for docs
+        # API documentation endpoint
         @app.route('/docs', methods=['GET'])
         def docs():
             """API documentation"""
             return jsonify({
-                "message": "API Documentation",
-                "swagger_ui": "/api/docs/swagger",
-                "redoc": "/api/docs/redoc",
-                "openapi_spec": "/api/docs/openapi.json",
-                "endpoints": {
-                    "google_drive": "/api/google-drive/*",
-                    "health": "/health",
-                    "info": "/"
-                }
+                "message": "ATOM Google Drive Integration API",
+                "version": "2.0.0",
+                "description": "Complete Google Drive integration with automation",
+                "main_endpoints": {
+                    "authentication": {
+                        "start_auth": "POST /api/google-drive/auth/start",
+                        "complete_auth": "POST /api/google-drive/auth/complete",
+                        "validate_session": "POST /api/google-drive/auth/validate",
+                        "invalidate_session": "POST /api/google-drive/auth/invalidate"
+                    },
+                    "files": {
+                        "list_files": "GET /api/google-drive/files",
+                        "get_file": "GET /api/google-drive/files/:id",
+                        "upload_file": "POST /api/google-drive/files/upload",
+                        "download_file": "GET /api/google-drive/files/:id/download",
+                        "delete_file": "DELETE /api/google-drive/files/:id"
+                    },
+                    "search": {
+                        "search": "GET /api/google-drive/search",
+                        "facets": "GET /api/google-drive/search/facets",
+                        "suggestions": "GET /api/google-drive/search/suggestions"
+                    },
+                    "automation": {
+                        "create_workflow": "POST /api/google-drive/automation/workflows",
+                        "execute_workflow": "POST /api/google-drive/automation/workflows/:id/execute",
+                        "list_workflows": "GET /api/google-drive/automation/workflows",
+                        "create_webhook": "POST /api/google-drive/automation/triggers/webhooks"
+                    }
+                },
+                "openapi_spec": "/docs/openapi.json",
+                "postman_collection": "/docs/postman.json"
             })
         
         logger.info("Application blueprints registered")
@@ -314,7 +368,7 @@ def register_middleware(app: Flask):
         
         # Add response headers
         response.headers['X-Response-Time'] = f"{response_time:.3f}s"
-        response.headers['X-Application-Version'] = '1.0.0'
+        response.headers['X-Application-Version'] = '2.0.0'
         response.headers['X-Timestamp'] = datetime.utcnow().isoformat()
         
         # Log response
@@ -386,10 +440,32 @@ async def initialize_background_services(app: Flask):
             from google_drive_service import get_google_drive_service
             from google_drive_memory import get_google_drive_memory_service
             from google_drive_search_integration import get_google_drive_search_provider
+            from google_drive_automation_engine import get_automation_engine
+            from google_drive_trigger_system import get_google_drive_trigger_system
+            from google_drive_action_system import get_google_drive_action_system
             
             # Pre-load services
             logger.info("Initializing Google Drive services...")
-            # Services will be loaded on-demand
+            
+            # Initialize services (they'll be loaded on-demand)
+            services = [
+                ("Google Drive Service", get_google_drive_service),
+                ("Memory Service", get_google_drive_memory_service),
+                ("Search Provider", get_google_drive_search_provider),
+                ("Automation Engine", get_automation_engine),
+                ("Trigger System", get_google_drive_trigger_system),
+                ("Action System", get_google_drive_action_system)
+            ]
+            
+            for service_name, service_getter in services:
+                try:
+                    service = await service_getter()
+                    if service:
+                        logger.info(f"{service_name} initialized")
+                    else:
+                        logger.warning(f"{service_name} not available")
+                except Exception as e:
+                    logger.error(f"{service_name} initialization failed: {e}")
         
         logger.info("Background services initialized")
     
@@ -417,9 +493,20 @@ def run_app(app: Flask, host: str = None, port: int = None, debug: bool = None):
         # Run application
         logger.info(f"Starting application on {host}:{port}")
         logger.info(f"Debug mode: {debug}")
-        logger.info(f"Health check: http://{host}:{port}/health")
-        logger.info(f"Application info: http://{host}:{port}/")
-        logger.info(f"Google Drive API: http://{host}:{port}/api/google-drive")
+        logger.info(f"Environment: {app.config.get('FLASK_ENV', 'unknown')}")
+        logger.info(f"Features enabled:")
+        logger.info(f"  - Google Drive Integration: ✓")
+        logger.info(f"  - Semantic Search: {'✓' if app.config.get('SEARCH_ENABLED') else '✗'}")
+        logger.info(f"  - Workflow Automation: {'✓' if app.config.get('AUTOMATION_ENABLED') else '✗'}")
+        logger.info(f"  - Real-time Sync: {'✓' if app.config.get('SYNC_ENABLED') else '✗'}")
+        logger.info(f"  - Content Processing: {'✓' if app.config.get('INGESTION_ENABLED') else '✗'}")
+        
+        logger.info(f"Key endpoints:")
+        logger.info(f"  - Health Check: http://{host}:{port}/health")
+        logger.info(f"  - Application Info: http://{host}:{port}/")
+        logger.info(f"  - API Documentation: http://{host}:{port}/docs")
+        logger.info(f"  - Google Drive API: http://{host}:{port}/api/google-drive")
+        logger.info(f"  - Automation API: http://{host}:{port}/api/google-drive/automation")
         
         app.run(
             host=host,

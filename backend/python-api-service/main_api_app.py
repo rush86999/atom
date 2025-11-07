@@ -52,6 +52,28 @@ from workflow_agent_api import workflow_agent_api_bp
 from workflow_automation_api import workflow_automation_api
 from voice_integration_api import voice_integration_api_bp
 
+# Import Google Drive handlers
+try:
+    from auth_handler_gdrive import gdrive_auth_bp
+    from gdrive_handler import gdrive_bp
+    from gdrive_health_handler import gdrive_bp as gdrive_health_bp
+
+    GOOGLE_DRIVE_AVAILABLE = True
+except ImportError as e:
+    GOOGLE_DRIVE_AVAILABLE = False
+    logging.warning(f"Google Drive handlers not available: {e}")
+
+# Import OneDrive handlers
+try:
+    from auth_handler_onedrive import onedrive_auth_bp
+    from onedrive_routes import onedrive_bp
+    from onedrive_health_handler import onedrive_health_bp
+
+    ONEDRIVE_AVAILABLE = True
+except ImportError as e:
+    ONEDRIVE_AVAILABLE = False
+    logging.warning(f"OneDrive handlers not available: {e}")
+
 # Import Jira OAuth handler
 try:
     from auth_handler_jira import jira_auth_bp
@@ -312,7 +334,7 @@ def create_app():
         workflow_bp, url_prefix="/api/v1/workflows", name="workflow_handler_v1"
     )
     app.register_blueprint(
-        workflow_api_bp, url_prefix="/api/v1/workflows", name="workflow_api"
+        workflow_api_bp, url_prefix="/api/v1/workflows", name="workflow_api_v1"
     )
     app.register_blueprint(
         workflow_agent_api_bp,
@@ -320,7 +342,9 @@ def create_app():
         name="workflow_agent_api_v1",
     )
     app.register_blueprint(
-        workflow_automation_api, url_prefix="/api/v1/workflows/automation"
+        workflow_automation_api,
+        url_prefix="/api/v1/workflows/automation",
+        name="workflow_automation_v1",
     )
     app.register_blueprint(
         voice_integration_api_bp,
@@ -357,6 +381,28 @@ def create_app():
     if SLACK_OAUTH_AVAILABLE:
         app.register_blueprint(auth_slack_bp, url_prefix="/api/auth", name="slack_auth")
         logging.info("Enhanced Slack OAuth handler registered successfully")
+
+    # Register Google Drive blueprints
+    if GOOGLE_DRIVE_AVAILABLE:
+        app.register_blueprint(
+            gdrive_auth_bp, url_prefix="/api/auth", name="gdrive_auth"
+        )
+        app.register_blueprint(gdrive_bp, url_prefix="/api", name="gdrive")
+        app.register_blueprint(
+            gdrive_health_bp, url_prefix="/api", name="gdrive_health"
+        )
+        logging.info("Google Drive handlers registered successfully")
+
+    # Register OneDrive blueprints
+    if ONEDRIVE_AVAILABLE:
+        app.register_blueprint(
+            onedrive_auth_bp, url_prefix="/api/auth", name="onedrive_auth"
+        )
+        app.register_blueprint(onedrive_bp, url_prefix="/api", name="onedrive")
+        app.register_blueprint(
+            onedrive_health_bp, url_prefix="/api", name="onedrive_health"
+        )
+        logging.info("OneDrive handlers registered successfully")
 
     # Register enhanced Slack API if available
     try:

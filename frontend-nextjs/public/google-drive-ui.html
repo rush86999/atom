@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATOM Google Drive Integration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.34/dist/codicon.min.css" rel="stylesheet">
+    <link href="css/atom-google-drive.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fab fa-google-drive me-2"></i>
+                ATOM Google Drive Integration
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard" data-section="dashboard">
+                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#files" data-section="files">
+                            <i class="fas fa-folder me-1"></i> Files
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#search" data-section="search">
+                            <i class="fas fa-search me-1"></i> Search
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#automation" data-section="automation">
+                            <i class="fas fa-robot me-1"></i> Automation
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#sync" data-section="sync">
+                            <i class="fas fa-sync me-1"></i> Sync
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <span id="userName">User</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="profileLink">
+                                <i class="fas fa-user me-2"></i> Profile
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" id="settingsLink">
+                                <i class="fas fa-cog me-2"></i> Settings
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="logoutLink">
+                                <i class="fas fa-sign-out-alt me-2"></i> Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Authentication Modal -->
+        <div class="modal fade" id="authModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fab fa-google me-2"></i>
+                            Connect Google Drive
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <div class="mb-3">
+                            <i class="fab fa-google-drive fa-4x text-primary"></i>
+                        </div>
+                        <p class="lead">Connect your Google Drive account to ATOM for enhanced automation and search capabilities.</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            ATOM will request permission to access your Google Drive files and manage workflows.
+                        </div>
+                        <button type="button" class="btn btn-primary btn-lg" id="connectGoogleBtn">
+                            <i class="fab fa-google me-2"></i>
+                            Connect Google Drive
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="content-section">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="totalFilesStat">-</h4>
+                                    <p class="card-text">Total Files</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-file fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="processedFilesStat">-</h4>
+                                    <p class="card-text">Processed Files</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-cogs fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="activeWorkflowsStat">-</h4>
+                                    <p class="card-text">Active Workflows</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-robot fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="syncStatusStat">-</h4>
+                                    <p class="card-text">Sync Status</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-sync fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-history me-2"></i>Recent Activity</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group" id="recentActivityList">
+                                <!-- Activity items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-pie me-2"></i>Quick Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" id="quickSearchBtn">
+                                    <i class="fas fa-search me-2"></i>Quick Search
+                                </button>
+                                <button class="btn btn-outline-success" id="quickUploadBtn">
+                                    <i class="fas fa-upload me-2"></i>Upload Files
+                                </button>
+                                <button class="btn btn-outline-info" id="quickWorkflowBtn">
+                                    <i class="fas fa-plus me-2"></i>Create Workflow
+                                </button>
+                                <button class="btn btn-outline-warning" id="quickSyncBtn">
+                                    <i class="fas fa-sync me-2"></i>Sync Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Status -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-heartbeat me-2"></i>System Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush" id="systemStatusList">
+                                <!-- Status items will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Files Section -->
+        <section id="files-section" class="content-section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2><i class="fas fa-folder me-2"></i>Files</h2>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-primary" id="uploadFilesBtn">
+                                <i class="fas fa-upload me-2"></i>Upload Files
+                            </button>
+                            <button type="button" class="btn btn-info" id="refreshFilesBtn">
+                                <i class="fas fa-sync me-2"></i>Refresh
+                            </button>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-filter me-2"></i>Filter
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" data-filter="all">All Files</a></li>
+                                    <li><a class="dropdown-item" href="#" data-filter="documents">Documents</a></li>
+                                    <li><a class="dropdown-item" href="#" data-filter="images">Images</a></li>
+                                    <li><a class="dropdown-item" href="#" data-filter="videos">Videos</a></li>
+                                    <li><a class="dropdown-item" href="#" data-filter="folders">Folders</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Browser -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <!-- Breadcrumb -->
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb" id="fileBreadcrumb">
+                                    <li class="breadcrumb-item">
+                                        <a href="#" data-folder-id="root">
+                                            <i class="fas fa-home me-1"></i>My Drive
+                                        </a>
+                                    </li>
+                                </ol>
+                            </nav>
+
+                            <!-- File List -->
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="filesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" id="selectAllFiles">
+                                            </th>
+                                            <th><i class="fas fa-sort me-1"></i>Name</th>
+                                            <th><i class="fas fa-sort me-1"></i>Size</th>
+                                            <th><i class="fas fa-sort me-1"></i>Modified</th>
+                                            <th><i class="fas fa-sort me-1"></i>Owner</th>
+                                            <th><i class="fas fa-sort me-1"></i>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="filesTableBody">
+                                        <!-- File rows will be inserted here -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            <nav aria-label="File pagination">
+                                <ul class="pagination justify-content-center" id="filesPagination">
+                                    <!-- Pagination items will be inserted here -->
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Section -->
+        <section id="search-section" class="content-section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="fas fa-search me-2"></i>Search</h2>
+                </div>
+            </div>
+
+            <!-- Search Interface -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="input-group input-group-lg">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search in your Google Drive...">
+                                <button class="btn btn-primary" type="button" id="searchBtn">
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog me-2"></i>Options
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">Search Type</h6></li>
+                                    <li><a class="dropdown-item search-type" href="#" data-type="semantic">
+                                        <i class="fas fa-brain me-2"></i>Semantic Search
+                                    </a></li>
+                                    <li><a class="dropdown-item search-type" href="#" data-type="text">
+                                        <i class="fas fa-font me-2"></i>Text Search
+                                    </a></li>
+                                    <li><a class="dropdown-item search-type" href="#" data-type="hybrid">
+                                        <i class="fas fa-layer-group me-2"></i>Hybrid Search
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Filters</h6></li>
+                                    <li><a class="dropdown-item" href="#" id="advancedSearchBtn">
+                                        <i class="fas fa-filter me-2"></i>Advanced Filters
+                                    </a></li>
+                                </ul>
+                            </div>
+                            
+                            <!-- Search Suggestions -->
+                            <div class="mt-2" id="searchSuggestions" style="display: none;">
+                                <div class="list-group" id="searchSuggestionsList">
+                                    <!-- Suggestions will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-filter me-2"></i>Search Filters</h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- File Type Filter -->
+                            <div class="mb-3">
+                                <label class="form-label">File Type</label>
+                                <select class="form-select" id="fileTypeFilter" multiple>
+                                    <option value="pdf">PDF Documents</option>
+                                    <option value="doc">Word Documents</option>
+                                    <option value="txt">Text Files</option>
+                                    <option value="image">Images</option>
+                                    <option value="video">Videos</option>
+                                    <option value="audio">Audio</option>
+                                </select>
+                            </div>
+
+                            <!-- Size Filter -->
+                            <div class="mb-3">
+                                <label class="form-label">File Size</label>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <input type="number" class="form-control" id="minSizeFilter" placeholder="Min (MB)">
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="number" class="form-control" id="maxSizeFilter" placeholder="Max (MB)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Date Filter -->
+                            <div class="mb-3">
+                                <label class="form-label">Date Range</label>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <input type="date" class="form-control" id="dateFromFilter">
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="date" class="form-control" id="dateToFilter">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-outline-primary w-100" id="applyFiltersBtn">
+                                <i class="fas fa-filter me-2"></i>Apply Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5><i class="fas fa-list me-2"></i>Search Results</h5>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary" id="searchViewList">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="searchViewGrid">
+                                    <i class="fas fa-th"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info" id="searchInfo" style="display: none;">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span id="searchInfoText"></span>
+                            </div>
+
+                            <!-- Results List View -->
+                            <div id="searchResultsList" class="search-results-view">
+                                <div class="list-group" id="searchResultsListContainer">
+                                    <!-- Search results will be inserted here -->
+                                </div>
+                            </div>
+
+                            <!-- Results Grid View -->
+                            <div id="searchResultsGrid" class="search-results-view" style="display: none;">
+                                <div class="row" id="searchResultsGridContainer">
+                                    <!-- Search results will be inserted here -->
+                                </div>
+                            </div>
+
+                            <!-- Pagination -->
+                            <nav aria-label="Search results pagination" id="searchPaginationNav" style="display: none;">
+                                <ul class="pagination justify-content-center" id="searchPagination">
+                                    <!-- Pagination items will be inserted here -->
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Automation Section -->
+        <section id="automation-section" class="content-section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2><i class="fas fa-robot me-2"></i>Automation</h2>
+                        <button class="btn btn-primary" id="createWorkflowBtn">
+                            <i class="fas fa-plus me-2"></i>Create Workflow
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow Tabs -->
+            <div class="row">
+                <div class="col-12">
+                    <ul class="nav nav-tabs" id="automationTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="workflows-tab" data-bs-toggle="tab" data-bs-target="#workflows" type="button" role="tab">
+                                <i class="fas fa-list me-2"></i>Workflows
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="executions-tab" data-bs-toggle="tab" data-bs-target="#executions" type="button" role="tab">
+                                <i class="fas fa-play me-2"></i>Executions
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="triggers-tab" data-bs-toggle="tab" data-bs-target="#triggers" type="button" role="tab">
+                                <i class="fas fa-bolt me-2"></i>Triggers
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="automationTabContent">
+                        <!-- Workflows Tab -->
+                        <div class="tab-pane fade show active" id="workflows" role="tabpanel">
+                            <div class="card">
+                                <div class="card-body">
+                                    <!-- Workflow Filters -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="workflowSearchInput" placeholder="Search workflows...">
+                                                <button class="btn btn-outline-secondary" type="button" id="workflowSearchBtn">
+                                                    <i class="fas fa-search"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="btn-group">
+                                                <button type="button" class="btn btn-outline-secondary" id="filterEnabledBtn">
+                                                    <i class="fas fa-toggle-on me-2"></i>Enabled Only
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                    <i class="fas fa-tag me-2"></i>Tags
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Workflow List -->
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="workflowsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Status</th>
+                                                    <th>Triggers</th>
+                                                    <th>Actions</th>
+                                                    <th>Last Run</th>
+                                                    <th>Success Rate</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="workflowsTableBody">
+                                                <!-- Workflow rows will be inserted here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Executions Tab -->
+                        <div class="tab-pane fade" id="executions" role="tabpanel">
+                            <div class="card">
+                                <div class="card-body">
+                                    <!-- Execution Filters -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <select class="form-select" id="executionWorkflowFilter">
+                                                <option value="">All Workflows</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <select class="form-select" id="executionStatusFilter">
+                                                <option value="">All Statuses</option>
+                                                <option value="completed">Completed</option>
+                                                <option value="failed">Failed</option>
+                                                <option value="running">Running</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="date" class="form-control" id="executionDateFilter" placeholder="Date">
+                                        </div>
+                                    </div>
+
+                                    <!-- Execution List -->
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="executionsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Execution ID</th>
+                                                    <th>Workflow</th>
+                                                    <th>Status</th>
+                                                    <th>Started</th>
+                                                    <th>Duration</th>
+                                                    <th>Trigger</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="executionsTableBody">
+                                                <!-- Execution rows will be inserted here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Triggers Tab -->
+                        <div class="tab-pane fade" id="triggers" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h6><i class="fas fa-bolt me-2"></i>Webhook Subscriptions</h6>
+                                            <button class="btn btn-sm btn-primary" id="createWebhookBtn">
+                                                <i class="fas fa-plus me-2"></i>Create Webhook
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover" id="webhooksTable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>URL</th>
+                                                            <th>Resource</th>
+                                                            <th>Status</th>
+                                                            <th>Expires</th>
+                                                            <th>Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="webhooksTableBody">
+                                                        <!-- Webhook rows will be inserted here -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6><i class="fas fa-history me-2"></i>Recent Events</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="list-group" id="recentEventsList">
+                                                <!-- Event items will be inserted here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sync Section -->
+        <section id="sync-section" class="content-section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="fas fa-sync me-2"></i>Sync & Real-time Updates</h2>
+                </div>
+            </div>
+
+            <!-- Sync Status -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-sync-alt me-2"></i>Sync Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="sync-indicator" id="syncIndicator">
+                                            <i class="fas fa-sync fa-3x text-primary"></i>
+                                        </div>
+                                        <h6 class="mt-2" id="syncStatusText">Synced</h6>
+                                        <small class="text-muted" id="lastSyncTime">Last sync: 2 minutes ago</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="stat-item">
+                                                <h6>Files Synced</h6>
+                                                <p class="stat-value" id="filesSyncedCount">1,234</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="stat-item">
+                                                <h6>Embeddings Generated</h6>
+                                                <p class="stat-value" id="embeddingsCount">892</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="stat-item">
+                                                <h6>Sync Queue</h6>
+                                                <p class="stat-value" id="syncQueueCount">0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <button class="btn btn-primary" id="manualSyncBtn">
+                                            <i class="fas fa-sync me-2"></i>Manual Sync
+                                        </button>
+                                        <button class="btn btn-outline-secondary" id="syncSettingsBtn">
+                                            <i class="fas fa-cog me-2"></i>Sync Settings
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Events -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-stream me-2"></i>Real-time Events</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="liveEventsToggle" checked>
+                                <label class="form-check-label" for="liveEventsToggle">
+                                    Live Updates
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="events-container" id="liveEventsContainer">
+                                <!-- Live events will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line me-2"></i>Sync Analytics</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="syncChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Workflow Editor Modal -->
+    <div class="modal fade" id="workflowEditorModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="workflowEditorTitle">
+                        <i class="fas fa-robot me-2"></i>Workflow Editor
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Workflow Properties -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Properties</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" id="workflowNameInput">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-control" id="workflowDescriptionInput" rows="3"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="workflowEnabledCheck" checked>
+                                            <label class="form-check-label" for="workflowEnabledCheck">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Tags</label>
+                                        <input type="text" class="form-control" id="workflowTagsInput" placeholder="tag1, tag2">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Workflow Builder -->
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6>Workflow Builder</h6>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary" id="addTriggerBtn">
+                                            <i class="fas fa-plus me-2"></i>Add Trigger
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success" id="addActionBtn">
+                                            <i class="fas fa-plus me-2"></i>Add Action
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info" id="testWorkflowBtn">
+                                            <i class="fas fa-play me-2"></i>Test
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="workflow-builder" id="workflowBuilder">
+                                        <!-- Workflow visual builder will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-primary" id="saveWorkflowDraftBtn">
+                        <i class="fas fa-save me-2"></i>Save Draft
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveWorkflowBtn">
+                        <i class="fas fa-save me-2"></i>Save Workflow
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div class="modal fade" id="fileUploadModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-upload me-2"></i>Upload Files
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="upload-area" id="fileUploadArea">
+                        <div class="text-center p-4">
+                            <i class="fas fa-cloud-upload-alt fa-4x text-muted mb-3"></i>
+                            <h5>Drop files here or click to browse</h5>
+                            <p class="text-muted">Maximum file size: 100MB</p>
+                            <input type="file" id="fileInput" multiple style="display: none;">
+                            <button class="btn btn-primary" id="browseFilesBtn">
+                                <i class="fas fa-folder-open me-2"></i>Browse Files
+                            </button>
+                        </div>
+                    </div>
+                    <div class="file-list mt-3" id="fileList" style="display: none;">
+                        <h6>Files to Upload:</h6>
+                        <div class="list-group" id="fileListGroup">
+                            <!-- File items will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="uploadFilesModalBtn" disabled>
+                        <i class="fas fa-upload me-2"></i>Upload Files
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
+        <!-- Toast notifications will be inserted here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="js/atom-google-drive.js"></script>
+</body>
+</html>

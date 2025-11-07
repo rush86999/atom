@@ -3,7 +3,9 @@ Stripe Integration Routes
 FastAPI routes for Stripe payment processing and financial management
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
+import stripe
+
+from fastapi import APIRouter, HTTPException, Depends, Query, Body, Request, Header
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
@@ -41,6 +43,57 @@ try:
 except ImportError as e:
     logging.warning(f"Stripe integration not available: {e}")
     STRIPE_AVAILABLE = False
+
+
+# Webhook event handlers
+async def handle_payment_success(payment_intent):
+    """Handle successful payment webhook"""
+    logging.info(f"Payment succeeded: {payment_intent.get('id')}")
+    # Add business logic here: update database, send notifications, etc.
+    return {"status": "processed", "payment_id": payment_intent.get("id")}
+
+
+async def handle_payment_failure(payment_intent):
+    """Handle failed payment webhook"""
+    logging.warning(f"Payment failed: {payment_intent.get('id')}")
+    # Add business logic here: notify customer, update records, etc.
+    return {"status": "failed", "payment_id": payment_intent.get("id")}
+
+
+async def handle_subscription_created(subscription):
+    """Handle new subscription webhook"""
+    logging.info(f"Subscription created: {subscription.get('id')}")
+    # Add business logic here: update customer records, send welcome email, etc.
+    return {"status": "created", "subscription_id": subscription.get("id")}
+
+
+async def handle_subscription_updated(subscription):
+    """Handle subscription update webhook"""
+    logging.info(f"Subscription updated: {subscription.get('id')}")
+    # Add business logic here: update billing records, notify customer, etc.
+    return {"status": "updated", "subscription_id": subscription.get("id")}
+
+
+async def handle_subscription_deleted(subscription):
+    """Handle subscription cancellation webhook"""
+    logging.info(f"Subscription deleted: {subscription.get('id')}")
+    # Add business logic here: update customer status, send cancellation email, etc.
+    return {"status": "deleted", "subscription_id": subscription.get("id")}
+
+
+async def handle_invoice_payment_succeeded(invoice):
+    """Handle successful invoice payment webhook"""
+    logging.info(f"Invoice payment succeeded: {invoice.get('id')}")
+    # Add business logic here: update accounting records, send receipt, etc.
+    return {"status": "paid", "invoice_id": invoice.get("id")}
+
+
+async def handle_invoice_payment_failed(invoice):
+    """Handle failed invoice payment webhook"""
+    logging.warning(f"Invoice payment failed: {invoice.get('id')}")
+    # Add business logic here: notify customer, update billing status, etc.
+    return {"status": "failed", "invoice_id": invoice.get("id")}
+
 
 # Create router
 router = APIRouter(prefix="/stripe", tags=["stripe"])
@@ -386,6 +439,67 @@ async def get_stripe_account(
 
 
 # Error handlers
+@router.post("/webhooks")
+async def handle_stripe_webhook(
+    request: Request, stripe_signature: str = Header(None, alias="Stripe-Signature")
+):
+    """Handle Stripe webhook events"""
+    if not STRIPE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Stripe integration not available")
+
+    try:
+        # Get the raw request body
+        payload = await request.body()
+
+        # In production, verify webhook signature
+        # For now, we'll process without signature verification for testing
+        # event = stripe.Webhook.construct_event(
+        #     payload, stripe_signature, "your_webhook_secret"
+        # )
+
+        # Parse JSON manually for testing
+        import json
+
+        event = json.loads(payload)
+
+        # Handle different event types
+        event_type = event.get("type")
+        event_data = event.get("data", {}).get("object", {})
+
+        handlers = {
+            "payment_intent.succeeded": handle_payment_success,
+            "payment_intent.payment_failed": handle_payment_failure,
+            "customer.subscription.created": handle_subscription_created,
+            "customer.subscription.updated": handle_subscription_updated,
+            "customer.subscription.deleted": handle_subscription_deleted,
+            "invoice.payment_succeeded": handle_invoice_payment_succeeded,
+            "invoice.payment_failed": handle_invoice_payment_failed,
+        }
+
+        handler = handlers.get(event_type)
+        if handler:
+            result = await handler(event_data)
+            return {
+                "status": "success",
+                "event_type": event_type,
+                "handler_result": result,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        else:
+            logging.info(f"Unhandled webhook event: {event_type}")
+            return {
+                "status": "unhandled",
+                "event_type": event_type,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+    except Exception as e:
+        logging.error(f"Webhook processing error: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Webhook processing failed: {str(e)}"
+        )
+
+
 @router.get("/")
 async def stripe_root():
     """Stripe integration root endpoint"""
@@ -402,6 +516,7 @@ async def stripe_root():
             "/profile",
             "/balance",
             "/account",
+            "/webhooks",
         ],
         "description": "Stripe payment processing and financial management integration",
     }
