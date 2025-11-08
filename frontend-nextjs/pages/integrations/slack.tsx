@@ -1,69 +1,163 @@
 /**
  * Slack Integration Page
- * Complete Slack integration with comprehensive messaging and collaboration features
+ * Complete Slack messaging and collaboration integration
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Loader2, 
-  MessageSquare, 
-  Hash, 
-  Users, 
-  Search, 
-  Settings, 
-  CheckCircle, 
-  AlertCircle, 
-  RefreshCw,
-  Send,
-  Paperclip,
-  Clock,
-  Eye,
-  User
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import {
+  Box,
+  VStack,
+  HStack,
+  Text,
+  Button,
+  Heading,
+  Card,
+  CardBody,
+  CardHeader,
+  Badge,
+  Icon,
+  useToast,
+  SimpleGrid,
+  Divider,
+  useColorModeValue,
+  Stack,
+  Spacer,
+  Progress,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatGroup,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  useDisclosure,
+  Tag,
+  TagLabel,
+  Flex,
+  Grid,
+  GridItem,
+  Alert,
+  AlertIcon,
+  Avatar,
+  Image,
+  IconButton,
+  Tooltip,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  CheckboxGroup,
+  Checkbox,
+} from "@chakra-ui/react";
+import {
+  ChatIcon,
+  Icon as ChakraIcon,
+  SearchIcon,
+  AddIcon,
+  EditIcon,
+  DeleteIcon,
+  ExternalLinkIcon,
+  ViewIcon,
+  RepeatIcon,
+  SettingsIcon,
+  CheckCircleIcon,
+  WarningIcon,
+  InfoIcon,
+  TimeIcon,
+  PhoneIcon,
+  UserIcon,
+  EmailIcon,
+  CalendarIcon,
+  AttachmentIcon,
+  HeartIcon,
+  ReplyIcon,
+  ForwardIcon,
+} from "@chakra-ui/icons";
 
 interface SlackChannel {
   id: string;
   name: string;
-  is_channel: boolean;
-  is_group: boolean;
-  is_im: boolean;
-  is_private: boolean;
-  is_archived: boolean;
-  name_normalized: string;
-  num_members: number;
+  type: string;
   topic: string;
   purpose: string;
   created: number;
+  creator: string;
+  is_archived: boolean;
+  is_general: boolean;
+  is_private: boolean;
+  member_count: number;
+  last_read: string;
+  latest: any;
+  unread_count: number;
+  team_id: string;
 }
 
 interface SlackMessage {
-  ts: string;
+  id: string;
+  user_id: string;
+  user_name: string;
   text: string;
-  user: string;
-  channel: string;
-  thread_ts: string;
-  username: string;
-  bot_id: string;
-  files: any[];
-  reactions: any[];
-  pinned_to: string[];
-  message_type: string;
+  type: string;
   subtype: string;
-  blocks: any[];
-  attachments: any[];
-  team: string;
-  edited: any;
-  last_read: string;
+  channel_id: string;
+  timestamp: string;
+  thread_ts: string;
+  reply_count: number;
+  has_files: boolean;
+  file_count: number;
+  reactions: any[];
+  is_edited: boolean;
+  edited_timestamp: string;
+}
+
+interface SlackFile {
+  id: string;
+  name: string;
+  title: string;
+  mimetype: string;
+  filetype: string;
+  size: number;
+  url_private: string;
+  url_private_download: string;
+  permalink: string;
+  user_id: string;
+  username: string;
+  channel_ids: string[];
+  is_public: boolean;
+  timestamp: number;
+  created: number;
+  has_expiration: boolean;
+  expires: number;
+  editable: boolean;
+  preview: string;
+  thumb_64: string;
+  thumb_80: string;
+  thumb_360: string;
+  thumb_360_w: number;
+  thumb_360_h: number;
+  original_w: number;
+  original_h: number;
 }
 
 interface SlackUser {
@@ -72,778 +166,825 @@ interface SlackUser {
   real_name: string;
   display_name: string;
   email: string;
-  image_24: string;
-  image_48: string;
-  image_72: string;
-  image_192: string;
-  title: string;
-  phone: string;
-  team_id: string;
-  deleted: boolean;
-  status: string;
-  is_bot: boolean;
+  avatar: string;
   is_admin: boolean;
   is_owner: boolean;
-  has_files: boolean;
-  timezone: string;
+  team_id: string;
+  presence: string;
 }
 
-interface SlackStatus {
-  service: string;
-  status: 'healthy' | 'degraded' | 'error' | 'unavailable';
-  timestamp: string;
-  components: {
-    service?: { status: string; message: string };
-    configuration?: { status: string; client_id_configured: boolean; client_secret_configured: boolean };
-    database?: { status: string; message: string };
-    api?: { status: string; rate_limit_remaining: number; rate_limit_reset: number };
-  };
+interface SlackWorkspace {
+  team_id: string;
+  team_name: string;
+  domain: string;
+  email_domain: string;
+  icon: string;
+  created: number;
+  enterprise_id: string;
+  enterprise_name: string;
 }
 
-export default function SlackIntegration() {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState('demo-user');
-  const [status, setStatus] = useState<SlackStatus | null>(null);
-  const [userInfo, setUserInfo] = useState<SlackUser | null>(null);
+const SlackIntegration: React.FC = () => {
   const [channels, setChannels] = useState<SlackChannel[]>([]);
   const [messages, setMessages] = useState<SlackMessage[]>([]);
-  const [users, setUsers] = useState<SlackUser[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState('');
-  const [messageText, setMessageText] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [files, setFiles] = useState<SlackFile[]>([]);
+  const [searchResults, setSearchResults] = useState<SlackMessage[]>([]);
+  const [workspace, setWorkspace] = useState<SlackWorkspace | null>(null);
+  const [user, setUser] = useState<SlackUser | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<"healthy" | "error" | "unknown">("unknown");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChannel, setSelectedChannel] = useState("");
+  const [selectedMessage, setSelectedMessage] = useState<SlackMessage | null>(null);
+  const [loading, setLoading] = useState({
+    channels: false,
+    messages: false,
+    files: false,
+    search: false,
+    send: false,
+  });
 
-  // API base URL
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5058';
-  const SLACK_ENHANCED_URL = `${API_BASE_URL}/api/slack/enhanced`;
-  const SLACK_OAUTH_URL = `${API_BASE_URL}/api/auth/slack`;
+  // Message composition states
+  const [messageText, setMessageText] = useState("");
+  const [replyText, setReplyText] = useState("");
+  const [channelFilter, setChannelFilter] = useState<string[]>(["public_channel", "private_channel", "mpim", "im"]);
 
-  // Load initial data
-  useEffect(() => {
-    loadStatus();
-    if (activeTab === 'channels') {
-      loadChannels();
-    } else if (activeTab === 'messages') {
-      loadMessages();
-    } else if (activeTab === 'users') {
-      loadUsers();
-    }
-  }, [activeTab, selectedChannel]);
+  const { isOpen: isMessageOpen, onOpen: onMessageOpen, onClose: onMessageClose } = useDisclosure();
+  const { isOpen: isReplyOpen, onOpen: onReplyOpen, onClose: onReplyClose } = useDisclosure();
+  const toast = useToast();
+  const bgColor = useColorModeValue("white", "gray.800");
+  const borderColor = useColorModeValue("gray.200", "gray.700");
 
-  const loadStatus = async () => {
+  // Check connection status
+  const checkConnection = async () => {
     try {
-      const response = await fetch(`${SLACK_ENHANCED_URL}/health`);
-      const data = await response.json();
-      setStatus(data);
+      const response = await fetch("/api/integrations/slack/health");
+      if (response.ok) {
+        setConnected(true);
+        setHealthStatus("healthy");
+        // Load workspace info
+        await loadWorkspaceInfo();
+        await loadUserInfo();
+      } else {
+        setConnected(false);
+        setHealthStatus("error");
+      }
     } catch (error) {
-      console.error('Failed to load status:', error);
-      setStatus({
-        service: 'slack_enhanced',
-        status: 'error',
-        timestamp: new Date().toISOString(),
-        components: {}
-      });
+      console.error("Health check failed:", error);
+      setConnected(false);
+      setHealthStatus("error");
     }
   };
 
+  // Load workspace info
+  const loadWorkspaceInfo = async () => {
+    try {
+      const response = await fetch("/api/integrations/slack/user/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "current",
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.team_id) {
+          setWorkspace({
+            team_id: data.data.team_id,
+            team_name: data.data.team_name || data.data.name,
+            domain: data.data.domain,
+            email_domain: data.data.email_domain,
+            icon: data.data.avatar,
+            created: data.data.created,
+            enterprise_id: data.data.enterprise_id,
+            enterprise_name: data.data.enterprise_name,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load workspace info:", error);
+    }
+  };
+
+  // Load user info
   const loadUserInfo = async () => {
-    setLoading(true);
     try {
-      const response = await fetch(`${SLACK_ENHANCED_URL}/users/profile`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/slack/user/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId
-        })
+          user_id: "me",
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setUserInfo(data.data.user);
-        toast({
-          title: "User info loaded",
-          description: `Successfully loaded profile for ${data.data.user.name}`,
-        });
-      } else {
-        toast({
-          title: "Failed to load user info",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setUser(data.data);
+        }
       }
     } catch (error) {
-      console.error('Failed to load user info:', error);
-      toast({
-        title: "Error loading user info",
-        description: "Could not connect to Slack service",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      console.error("Failed to load user info:", error);
     }
   };
 
+  // Load channels
   const loadChannels = async () => {
-    setLoading(true);
+    if (!connected) return;
+
+    setLoading((prev) => ({ ...prev, channels: true }));
     try {
-      const response = await fetch(`${SLACK_ENHANCED_URL}/channels/list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/slack/channels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          types: 'public_channel,private_channel',
-          exclude_archived: true,
-          limit: 100
-        })
+          user_id: "current",
+          types: channelFilter,
+          limit: 100,
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setChannels(data.data.channels);
-        toast({
-          title: "Channels loaded",
-          description: `Loaded ${data.data.channels.length} channels`,
-        });
-      } else {
-        toast({
-          title: "Failed to load channels",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChannels(data.data || []);
       }
     } catch (error) {
-      console.error('Failed to load channels:', error);
-      toast({
-        title: "Error loading channels",
-        description: "Could not connect to Slack service",
-        variant: "destructive",
-      });
+      console.error("Failed to load channels:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, channels: false }));
     }
   };
 
-  const loadMessages = async () => {
-    if (!selectedChannel) return;
-    
-    setLoading(true);
+  // Load messages
+  const loadMessages = async (channelId: string) => {
+    if (!connected || !channelId) return;
+
+    setLoading((prev) => ({ ...prev, messages: true }));
     try {
-      const response = await fetch(`${SLACK_ENHANCED_URL}/messages/history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/slack/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          channel: selectedChannel,
+          channel_id: channelId,
           limit: 50,
-          include_all_threads: true
-        })
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setMessages(data.data.messages);
-        toast({
-          title: "Messages loaded",
-          description: `Loaded ${data.data.messages.length} messages from ${selectedChannel}`,
-        });
-      } else {
-        toast({
-          title: "Failed to load messages",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.data || []);
       }
     } catch (error) {
-      console.error('Failed to load messages:', error);
-      toast({
-        title: "Error loading messages",
-        description: "Could not connect to Slack service",
-        variant: "destructive",
-      });
+      console.error("Failed to load messages:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, messages: false }));
     }
   };
 
-  const loadUsers = async () => {
-    setLoading(true);
+  // Load files
+  const loadFiles = async () => {
+    if (!connected) return;
+
+    setLoading((prev) => ({ ...prev, files: true }));
     try {
-      const response = await fetch(`${SLACK_ENHANCED_URL}/users/list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/slack/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          presence: true,
-          limit: 200
-        })
+          user_id: "current",
+          types: "all",
+          limit: 50,
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setUsers(data.data.users);
-        toast({
-          title: "Users loaded",
-          description: `Loaded ${data.data.users.length} users`,
-        });
-      } else {
-        toast({
-          title: "Failed to load users",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFiles(data.data || []);
       }
     } catch (error) {
-      console.error('Failed to load users:', error);
-      toast({
-        title: "Error loading users",
-        description: "Could not connect to Slack service",
-        variant: "destructive",
-      });
+      console.error("Failed to load files:", error);
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, files: false }));
     }
   };
 
+  // Send message
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedChannel) return;
-    
-    setLoading(true);
+
+    setLoading((prev) => ({ ...prev, send: true }));
     try {
-      const response = await fetch(`${SLACK_ENHANCED_URL}/messages/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/slack/messages/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId,
-          channel: selectedChannel,
-          text: messageText.trim(),
-          parse: 'full'
-        })
+          channel_id: selectedChannel,
+          text: messageText,
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.ok) {
-        setMessageText('');
-        toast({
-          title: "Message sent",
-          description: "Message sent successfully",
-        });
-        // Reload messages
-        setTimeout(() => loadMessages(), 1000);
-      } else {
-        toast({
-          title: "Failed to send message",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast({
+            title: "Message sent",
+            status: "success",
+            duration: 3000,
+          });
+          setMessageText("");
+          await loadMessages(selectedChannel);
+        }
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
       toast({
-        title: "Error sending message",
-        description: "Could not connect to Slack service",
-        variant: "destructive",
+        title: "Failed to send message",
+        status: "error",
+        duration: 3000,
       });
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, send: false }));
     }
   };
 
-  const initiateOAuth = async () => {
+  // Search messages
+  const searchMessages = async () => {
+    if (!searchQuery.trim() || !connected) return;
+
+    setLoading((prev) => ({ ...prev, search: true }));
     try {
-      const response = await fetch(`${SLACK_OAUTH_URL}/authorize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/integrations/slack/search/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userId
-        })
+          query: searchQuery,
+          count: 50,
+          sort: "timestamp_desc",
+          channel_id: selectedChannel || undefined,
+        }),
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Redirect to OAuth URL
-        window.location.href = data.oauth_url;
-      } else {
-        toast({
-          title: "OAuth failed",
-          description: data.error || "Could not initiate OAuth flow",
-          variant: "destructive",
-        });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.data || []);
       }
     } catch (error) {
-      console.error('OAuth initiation failed:', error);
-      toast({
-        title: "OAuth error",
-        description: "Could not initiate OAuth flow",
-        variant: "destructive",
-      });
+      console.error("Failed to search messages:", error);
+    } finally {
+      setLoading((prev) => ({ ...prev, search: false }));
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(parseFloat(timestamp) * 1000).toLocaleString();
-  };
+  // Filter data based on search
+  const filteredChannels = channels.filter((channel) =>
+    channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    channel.topic?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    channel.purpose?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy': return 'bg-green-500';
-      case 'degraded': return 'bg-yellow-500';
-      case 'error': return 'bg-red-500';
-      case 'unavailable': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+  // Stats calculations
+  const totalChannels = channels.length;
+  const publicChannels = channels.filter((c) => c.type === "public").length;
+  const privateChannels = channels.filter((c) => c.type === "private").length;
+  const totalMessages = messages.length;
+  const totalFiles = files.length;
+  const unreadMessages = channels.reduce((sum, channel) => sum + channel.unread_count, 0);
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  useEffect(() => {
+    if (connected) {
+      loadChannels();
+      loadFiles();
+    }
+  }, [connected, channelFilter]);
+
+  useEffect(() => {
+    if (selectedChannel) {
+      loadMessages(selectedChannel);
+    }
+  }, [selectedChannel]);
+
+  const getChannelTypeColor = (type: string): string => {
+    switch (type) {
+      case "public":
+        return "green";
+      case "private":
+        return "yellow";
+      case "dm":
+        return "blue";
+      case "group_dm":
+        return "purple";
+      default:
+        return "gray";
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'healthy': return <CheckCircle className="h-4 w-4" />;
-      case 'degraded': return <AlertCircle className="h-4 w-4" />;
-      case 'error': return <AlertCircle className="h-4 w-4" />;
-      case 'unavailable': return <AlertCircle className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+  const getStatusColor = (status: string): string => {
+    switch (status?.toLowerCase()) {
+      case "active":
+        return "green";
+      case "away":
+        return "yellow";
+      case "offline":
+        return "gray";
+      default:
+        return "gray";
     }
   };
 
-  const getChannelIcon = (channel: SlackChannel) => {
-    if (channel.is_private) return <Hash className="h-4 w-4 text-yellow-500" />;
-    if (channel.is_group) return <Users className="h-4 w-4 text-blue-500" />;
-    if (channel.is_im) return <MessageSquare className="h-4 w-4 text-green-500" />;
-    return <Hash className="h-4 w-4 text-purple-500" />;
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const formatDate = (timestamp: string | number): string => {
+    return new Date(typeof timestamp === 'number' ? timestamp * 1000 : timestamp).toLocaleString();
+  };
+
+  const formatTime = (timestamp: string | number): string => {
+    const date = new Date(typeof timestamp === 'number' ? timestamp * 1000 : timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Slack Integration</h1>
-        <div className="flex items-center space-x-2">
-          {status && (
-            <Badge variant="outline" className={`${getStatusColor(status.status)} text-white`}>
-              {getStatusIcon(status.status)}
-              <span className="ml-1">{status.status}</span>
-            </Badge>
-          )}
-          <Button onClick={loadStatus} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-        </div>
-      </div>
+    <Box minH="100vh" bg={bgColor} p={6}>
+      <VStack spacing={8} align="stretch" maxW="1400px" mx="auto">
+        {/* Header */}
+        <VStack align="start" spacing={4}>
+          <HStack spacing={4}>
+            <Icon as={ChatIcon} w={8} h={8} color="purple.500" />
+            <VStack align="start" spacing={1}>
+              <Heading size="2xl">Slack Integration</Heading>
+              <Text color="gray.600" fontSize="lg">
+                Team messaging and collaboration platform
+              </Text>
+            </VStack>
+          </HStack>
 
-      {/* Status Alert */}
-      {status && status.status !== 'healthy' && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Slack integration is {status.status}. 
-            {status.components.configuration?.status !== 'configured' && 
-              " OAuth configuration is incomplete. Please check environment variables."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center">
-            <Settings className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="channels" className="flex items-center">
-            <Hash className="h-4 w-4 mr-2" />
-            Channels
-          </TabsTrigger>
-          <TabsTrigger value="messages" className="flex items-center">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Messages
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center">
-            <Users className="h-4 w-4 mr-2" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="oauth" className="flex items-center">
-            <Search className="h-4 w-4 mr-2" />
-            OAuth
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Service Status */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Service Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Service</span>
-                      <Badge variant={status.components.service?.status === 'available' ? 'default' : 'destructive'}>
-                        {status.components.service?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Configuration</span>
-                      <Badge variant={status.components.configuration?.status === 'configured' ? 'default' : 'destructive'}>
-                        {status.components.configuration?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Database</span>
-                      <Badge variant={status.components.database?.status === 'connected' ? 'default' : 'destructive'}>
-                        {status.components.database?.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>API</span>
-                      <Badge variant={status.components.api?.status === 'connected' ? 'default' : 'destructive'}>
-                        {status.components.api?.status}
-                      </Badge>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    <p className="text-sm text-muted-foreground mt-2">Loading status...</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* User Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>User Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="userId">User ID</Label>
-                  <Input
-                    id="userId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID"
-                  />
-                </div>
-                <Button 
-                  onClick={loadUserInfo} 
-                  disabled={loading || !userId}
-                  className="w-full"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                  Load Profile
-                </Button>
-                
-                {userInfo && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <div className="flex items-center space-x-3">
-                      {userInfo.image_48 && (
-                        <img 
-                          src={userInfo.image_48} 
-                          alt={userInfo.name}
-                          className="w-12 h-12 rounded-full"
-                        />
-                      )}
-                      <div>
-                        <div className="font-medium">{userInfo.real_name || userInfo.name}</div>
-                        <div className="text-sm text-muted-foreground">@{userInfo.name}</div>
-                      </div>
-                    </div>
-                    {userInfo.email && (
-                      <div>
-                        <span className="font-medium">Email:</span> {userInfo.email}
-                      </div>
-                    )}
-                    {userInfo.title && (
-                      <div>
-                        <span className="font-medium">Title:</span> {userInfo.title}
-                      </div>
-                    )}
-                    {userInfo.status && (
-                      <div>
-                        <span className="font-medium">Status:</span> {userInfo.status}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="channels" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Hash className="h-5 w-5 mr-2" />
-                Slack Channels
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {channels.length > 0 ? (
-                  channels.map((channel) => (
-                    <div key={channel.id} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          {getChannelIcon(channel)}
-                          <h4 className="font-medium">{channel.name}</h4>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {channel.is_private && <Badge variant="outline" className="text-xs">Private</Badge>}
-                          {channel.is_archived && <Badge variant="destructive" className="text-xs">Archived</Badge>}
-                          <span className="text-sm text-muted-foreground">{channel.num_members} members</span>
-                        </div>
-                      </div>
-                      {channel.topic && (
-                        <div className="text-sm text-muted-foreground">
-                          <strong>Topic:</strong> {channel.topic}
-                        </div>
-                      )}
-                      {channel.purpose && (
-                        <div className="text-sm text-muted-foreground">
-                          <strong>Purpose:</strong> {channel.purpose}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No channels found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button 
-                onClick={loadChannels} 
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Refresh Channels
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="messages" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MessageSquare className="h-5 w-5 mr-2" />
-                Messages
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Channel Selection */}
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="channelSelect">Select Channel</Label>
-                <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a channel" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {channels.map((channel) => (
-                      <SelectItem key={channel.id} value={channel.id}>
-                        <div className="flex items-center space-x-2">
-                          {getChannelIcon(channel)}
-                          <span>{channel.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Message Input */}
-              {selectedChannel && (
-                <div className="space-y-2 mb-4">
-                  <Label htmlFor="messageInput">Message</Label>
-                  <div className="flex space-x-2">
-                    <Textarea
-                      id="messageInput"
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1"
-                      rows={3}
-                    />
-                    <Button 
-                      onClick={sendMessage} 
-                      disabled={loading || !messageText.trim()}
-                      className="mt-6"
-                    >
-                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
+          <HStack spacing={4}>
+            <Badge
+              colorScheme={healthStatus === "healthy" ? "green" : "red"}
+              display="flex"
+              alignItems="center"
+            >
+              {healthStatus === "healthy" ? (
+                <CheckCircleIcon mr={1} />
+              ) : (
+                <WarningIcon mr={1} />
               )}
+              {connected ? "Connected" : "Disconnected"}
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<RepeatIcon />}
+              onClick={checkConnection}
+            >
+              Refresh Status
+            </Button>
+          </HStack>
 
-              {/* Messages List */}
-              <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                {messages.length > 0 ? (
-                  messages.map((message) => (
-                    <div key={message.ts} className="mb-3">
-                      <div className="flex items-start space-x-2">
-                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm">
-                          {message.username ? message.username[0].toUpperCase() : '?'}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="font-medium text-sm">{message.username || 'Unknown'}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatTimestamp(message.ts)}
-                            </span>
-                          </div>
-                          <div className="text-sm">{message.text}</div>
-                          {message.files && message.files.length > 0 && (
-                            <div className="flex items-center space-x-2 mt-1">
-                              <Paperclip className="h-3 w-3" />
-                              <span className="text-xs text-muted-foreground">
-                                {message.files.length} file(s)
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No messages found. Select a channel to view messages."
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {/* Workspace Info */}
+          {workspace && user && (
+            <HStack spacing={4} p={4} borderWidth="1px" borderRadius="md" bg={bgColor}>
+              <Avatar size="sm" src={user.avatar} name={user.real_name} />
+              <VStack align="start" spacing={0}>
+                <Text fontWeight="medium">{workspace.team_name}</Text>
+                <Text fontSize="sm" color="gray.600">
+                  {user.real_name} • {user.display_name}
+                </Text>
+              </VStack>
+              <Spacer />
+              <Badge colorScheme={getStatusColor(user.presence)}>
+                {user.presence}
+              </Badge>
+            </HStack>
+          )}
+        </VStack>
 
-        <TabsContent value="users" className="space-y-4">
+        {!connected ? (
+          // Connection Required State
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                Slack Users
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {users.length > 0 ? (
-                  users.map((user) => (
-                    <div key={user.id} className="p-3 border rounded-lg space-y-2">
-                      <div className="flex items-center space-x-3">
-                        <img 
-                          src={user.image_48} 
-                          alt={user.name}
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium">{user.real_name || user.name}</h4>
-                            <span className="text-sm text-muted-foreground">@{user.name}</span>
-                            {user.is_bot && <Badge variant="outline" className="text-xs">Bot</Badge>}
-                            {user.is_admin && <Badge variant="default" className="text-xs">Admin</Badge>}
-                          </div>
-                          {user.email && (
-                            <div className="text-sm text-muted-foreground">{user.email}</div>
-                          )}
-                          {user.title && (
-                            <div className="text-sm text-muted-foreground">{user.title}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    {loading ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (
-                      "No users found"
-                    )}
-                  </div>
-                )}
-              </div>
-              <Button 
-                onClick={loadUsers} 
-                disabled={loading}
-                className="w-full mt-4"
-              >
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Refresh Users
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="oauth" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="oauthUserId">User ID</Label>
-                  <Input
-                    id="oauthUserId"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="Enter user ID for OAuth"
-                  />
-                </div>
-                <Button 
-                  onClick={initiateOAuth} 
-                  disabled={!userId}
-                  className="w-full"
+            <CardBody>
+              <VStack spacing={6} py={8}>
+                <Icon as={ChatIcon} w={16} h={16} color="gray.400" />
+                <VStack spacing={2}>
+                  <Heading size="lg">Connect Slack</Heading>
+                  <Text color="gray.600" textAlign="center">
+                    Connect your Slack workspace to start messaging and collaboration
+                  </Text>
+                </VStack>
+                <Button
+                  colorScheme="purple"
+                  size="lg"
+                  leftIcon={<ExternalLinkIcon />}
+                  onClick={() =>
+                    (window.location.href = "/api/integrations/slack/auth/start")
+                  }
                 >
-                  <Search className="h-4 w-4 mr-2" />
-                  Connect to Slack
+                  Connect Slack Workspace
                 </Button>
-                <p className="text-sm text-muted-foreground">
-                  This will redirect you to Slack OAuth to authorize ATOM access to your workspace.
-                </p>
-              </CardContent>
-            </Card>
+              </VStack>
+            </CardBody>
+          </Card>
+        ) : (
+          // Connected State
+          <>
+            {/* Services Overview */}
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Channels</StatLabel>
+                    <StatNumber>{totalChannels}</StatNumber>
+                    <StatHelpText>{publicChannels} public, {privateChannels} private</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Messages</StatLabel>
+                    <StatNumber>{totalMessages}</StatNumber>
+                    <StatHelpText>{unreadMessages} unread</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Files</StatLabel>
+                    <StatNumber>{totalFiles}</StatNumber>
+                    <StatHelpText>Shared documents</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+              <Card>
+                <CardBody>
+                  <Stat>
+                    <StatLabel>Workspace</StatLabel>
+                    <StatNumber>{workspace?.team_name || "Loading..."}</StatNumber>
+                    <StatHelpText>Active workspace</StatHelpText>
+                  </Stat>
+                </CardBody>
+              </Card>
+            </SimpleGrid>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>OAuth Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {status?.components.oauth ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Status</span>
-                      <Badge variant="outline">
-                        {status.components.oauth.status}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {status.components.oauth.message}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    OAuth status not available
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+            {/* Main Content Tabs */}
+            <Tabs variant="enclosed">
+              <TabList>
+                <Tab>Channels</Tab>
+                <Tab>Messages</Tab>
+                <Tab>Files</Tab>
+                <Tab>Search</Tab>
+              </TabList>
+
+              <TabPanels>
+                {/* Channels Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <CheckboxGroup value={channelFilter} onChange={setChannelFilter}>
+                        <HStack spacing={4}>
+                          <Checkbox value="public_channel">Public</Checkbox>
+                          <Checkbox value="private_channel">Private</Checkbox>
+                          <Checkbox value="mpim">Group DMs</Checkbox>
+                          <Checkbox value="im">DMs</Checkbox>
+                        </HStack>
+                      </CheckboxGroup>
+                      <Spacer />
+                      <Button
+                        colorScheme="purple"
+                        leftIcon={<RepeatIcon />}
+                        onClick={loadChannels}
+                        isLoading={loading.channels}
+                      >
+                        Refresh
+                      </Button>
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <TableContainer>
+                          <Table variant="simple">
+                            <Thead>
+                              <Tr>
+                                <Th>Channel</Th>
+                                <Th>Type</Th>
+                                <Th>Members</Th>
+                                <Th>Unread</Th>
+                                <Th>Actions</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {filteredChannels.map((channel) => (
+                                <Tr key={channel.id}>
+                                  <Td>
+                                    <HStack>
+                                      <Icon as={ChatIcon} color={getChannelTypeColor(channel.type) + ".500"} />
+                                      <VStack align="start" spacing={0}>
+                                        <Text fontWeight="medium">{channel.name}</Text>
+                                        {channel.topic && (
+                                          <Text fontSize="sm" color="gray.600" noOfLines={1}>
+                                            {channel.topic}
+                                          </Text>
+                                        )}
+                                      </VStack>
+                                    </HStack>
+                                  </Td>
+                                  <Td>
+                                    <Tag colorScheme={getChannelTypeColor(channel.type)} size="sm">
+                                      <TagLabel>{channel.type}</TagLabel>
+                                    </Tag>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">{channel.member_count}</Text>
+                                  </Td>
+                                  <Td>
+                                    {channel.unread_count > 0 && (
+                                      <Badge colorScheme="red">
+                                        {channel.unread_count}
+                                      </Badge>
+                                    )}
+                                  </Td>
+                                  <Td>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setSelectedChannel(channel.id)}
+                                      color={selectedChannel === channel.id ? "purple" : "gray"}
+                                    >
+                                      Open
+                                    </Button>
+                                  </Td>
+                                </Tr>
+                              ))}
+                            </Tbody>
+                          </Table>
+                        </TableContainer>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Messages Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    {selectedChannel && (
+                      <VStack spacing={4} p={4} borderWidth="1px" borderRadius="md">
+                        <Text fontWeight="medium">
+                          Channel: {channels.find((c) => c.id === selectedChannel)?.name}
+                        </Text>
+                        
+                        {/* Message Input */}
+                        <HStack spacing={2}>
+                          <Input
+                            placeholder="Type a message..."
+                            value={messageText}
+                            onChange={(e) => setMessageText(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                sendMessage();
+                              }
+                            }}
+                          />
+                          <Button
+                            colorScheme="purple"
+                            onClick={sendMessage}
+                            isLoading={loading.send}
+                            disabled={!messageText.trim()}
+                          >
+                            Send
+                          </Button>
+                        </HStack>
+                      </VStack>
+                    )}
+
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {messages.map((message) => (
+                            <Box key={message.id} p={4} borderWidth="1px" borderRadius="md">
+                              <HStack spacing={3} mb={2}>
+                                <Avatar size="sm" name={message.user_name} />
+                                <VStack align="start" spacing={0}>
+                                  <Text fontWeight="medium">{message.user_name}</Text>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {formatTime(message.timestamp)}
+                                  </Text>
+                                </VStack>
+                                <Spacer />
+                                {message.has_files && (
+                                  <Tooltip label="Has attachments">
+                                    <Icon as={AttachmentIcon} color="gray.500" />
+                                  </Tooltip>
+                                )}
+                                {message.reactions.length > 0 && (
+                                  <Tooltip label={`${message.reactions.length} reactions`}>
+                                    <Icon as={HeartIcon} color="gray.500" />
+                                  </Tooltip>
+                                )}
+                              </HStack>
+                              
+                              <Text mb={2}>{message.text}</Text>
+                              
+                              {message.thread_ts && message.reply_count > 0 && (
+                                <HStack>
+                                  <Button size="sm" variant="outline" leftIcon={<ReplyIcon />}>
+                                    View {message.reply_count} replies
+                                  </Button>
+                                </HStack>
+                              )}
+                              
+                              {message.is_edited && (
+                                <Text fontSize="sm" color="gray.500">
+                                  (edited {formatDate(message.edited_timestamp)})
+                                </Text>
+                              )}
+                            </Box>
+                          ))}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Files Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <Button
+                      colorScheme="purple"
+                      leftIcon={<RepeatIcon />}
+                      onClick={loadFiles}
+                      isLoading={loading.files}
+                      alignSelf="flex-end"
+                    >
+                      Refresh Files
+                    </Button>
+
+                    <Card>
+                      <CardBody>
+                        <TableContainer>
+                          <Table variant="simple">
+                            <Thead>
+                              <Tr>
+                                <Th>File</Th>
+                                <Th>Type</Th>
+                                <Th>Size</Th>
+                                <Th>Modified</Th>
+                                <Th>Actions</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {files.map((file) => (
+                                <Tr key={file.id}>
+                                  <Td>
+                                    <HStack>
+                                      {file.thumb_80 ? (
+                                        <Image
+                                          src={file.thumb_80}
+                                          alt={file.name}
+                                          boxSize="40px"
+                                          borderRadius="md"
+                                        />
+                                      ) : (
+                                        <Icon as={AttachmentIcon} boxSize="40px" color="gray.500" />
+                                      )}
+                                      <VStack align="start" spacing={0}>
+                                        <Text fontWeight="medium">{file.name}</Text>
+                                        {file.title && file.title !== file.name && (
+                                          <Text fontSize="sm" color="gray.600">
+                                            {file.title}
+                                          </Text>
+                                        )}
+                                      </VStack>
+                                    </HStack>
+                                  </Td>
+                                  <Td>
+                                    <Badge colorScheme="blue" size="sm">
+                                      {file.filetype || file.mimetype?.split('/')[0] || 'Unknown'}
+                                    </Badge>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">{formatFileSize(file.size)}</Text>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm">{formatDate(file.timestamp)}</Text>
+                                  </Td>
+                                  <Td>
+                                    <HStack>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<ViewIcon />}
+                                        onClick={() => window.open(file.url_private)}
+                                      >
+                                        View
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        leftIcon={<ExternalLinkIcon />}
+                                        onClick={() => window.open(file.permalink)}
+                                      >
+                                        Open
+                                      </Button>
+                                    </HStack>
+                                  </Td>
+                                </Tr>
+                              ))}
+                            </Tbody>
+                          </Table>
+                        </TableContainer>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+
+                {/* Search Tab */}
+                <TabPanel>
+                  <VStack spacing={6} align="stretch">
+                    <HStack spacing={4}>
+                      <Input
+                        placeholder="Search messages..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchMessages();
+                          }
+                        }}
+                        leftElement={<SearchIcon />}
+                      />
+                      <Button
+                        colorScheme="purple"
+                        onClick={searchMessages}
+                        isLoading={loading.search}
+                        disabled={!searchQuery.trim()}
+                      >
+                        Search
+                      </Button>
+                    </HStack>
+
+                    <Card>
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {searchResults.map((result) => (
+                            <Box key={result.id} p={4} borderWidth="1px" borderRadius="md">
+                              <HStack spacing={3} mb={2}>
+                                <Avatar size="sm" name={result.username} />
+                                <VStack align="start" spacing={0}>
+                                  <Text fontWeight="medium">{result.username}</Text>
+                                  <Text fontSize="sm" color="gray.600">
+                                    {result.channel_name} • {formatDate(result.timestamp)}
+                                  </Text>
+                                </VStack>
+                                <Spacer />
+                                <Tag colorScheme="blue" size="sm">
+                                  Score: {Math.round(result.score * 100)}
+                                </Tag>
+                              </HStack>
+                              
+                              <Text mb={2}>{result.text}</Text>
+                              
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                leftIcon={<ExternalLinkIcon />}
+                                onClick={() => window.open(result.permalink)}
+                              >
+                                View in Slack
+                              </Button>
+                            </Box>
+                          ))}
+                          
+                          {searchResults.length === 0 && searchQuery && (
+                            <VStack spacing={4} py={8}>
+                              <Icon as={SearchIcon} w={12} h={12} color="gray.400" />
+                              <Text color="gray.600">No search results found</Text>
+                            </VStack>
+                          )}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+          </>
+        )}
+      </VStack>
+    </Box>
   );
-}
+};
+
+export default SlackIntegration;

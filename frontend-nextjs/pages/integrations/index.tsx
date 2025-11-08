@@ -210,6 +210,16 @@ const IntegrationsPage: React.FC = () => {
       color: "blue",
     },
     {
+      id: "slack",
+      name: "Slack",
+      description: "Team messaging and collaboration platform",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: ChatIcon,
+      color: "purple",
+    },
+    {
       id: "azure",
       name: "Microsoft Azure",
       description: "Cloud computing platform for infrastructure and services",
@@ -345,6 +355,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/salesforce/health"),
         fetch("/api/integrations/microsoft365/health"),
         fetch("/api/integrations/azure/health"),
+        fetch("/api/integrations/slack/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {

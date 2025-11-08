@@ -293,6 +293,15 @@ except ImportError as e:
     ZOOM_OAUTH_AVAILABLE = False
     logging.warning(f"Zoom OAuth handler not available: {e}")
 
+# Import Slack handler
+try:
+    from slack_enhanced_handler import router as slack_enhanced_bp
+
+    SLACK_ENHANCED_AVAILABLE = True
+except ImportError as e:
+    SLACK_ENHANCED_AVAILABLE = False
+    logging.warning(f"Slack enhanced handler not available: {e}")
+
 # Import Salesforce handler
 try:
     from salesforce_handler import salesforce_bp
@@ -1271,6 +1280,23 @@ def create_app():
             logging.info("Azure integration registered successfully")
         except Exception as e:
             logging.error(f"Failed to register Azure integration: {e}")
+
+    # Register Slack integration if available
+    if SLACK_ENHANCED_AVAILABLE:
+        try:
+            # Initialize Slack database schema
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            from db_oauth_slack import create_slack_tokens_table
+            loop.run_until_complete(create_slack_tokens_table(db_pool))
+            loop.close()
+            
+            # Register Slack blueprints
+            app.register_blueprint(slack_enhanced_bp, url_prefix="")
+            logging.info("Slack integration registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register Slack integration: {e}")
 
     return app
 

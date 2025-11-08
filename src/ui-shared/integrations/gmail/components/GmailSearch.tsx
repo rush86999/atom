@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useToast } from "@chakra-ui/react";
 
 // Interfaces for Gmail data types
 interface GmailMessage {
