@@ -209,6 +209,16 @@ const IntegrationsPage: React.FC = () => {
       color: "blue",
     },
     {
+      id: "microsoft365",
+      name: "Microsoft 365",
+      description: "Complete productivity suite with Teams, Outlook, and OneDrive",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: SettingsIcon,
+      color: "blue",
+    },
+    {
       id: "outlook",
       name: "Outlook",
       description: "Email, calendar, and contact management",
@@ -322,6 +332,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/zendesk/health"),
         fetch("/api/integrations/xero/health"),
         fetch("/api/integrations/salesforce/health"),
+        fetch("/api/integrations/microsoft365/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {

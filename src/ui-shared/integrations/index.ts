@@ -223,7 +223,7 @@ export class AtomIntegrationFactory {
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'airtable', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
   }
 }
 
@@ -494,13 +494,13 @@ export const ATOM_INTEGRATION_TYPES = {
 // Integration Statistics
 // Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 15,
-  completedIntegrations: 15,
+  totalIntegrations: 16,
+  completedIntegrations: 16,
   templateIntegrations: 0,
   categories: {
     storage: 3,
     communication: 3,
-    productivity: 3,
+    productivity: 4,
     development: 4,
     marketing: 1,
     customer_service: 1,
@@ -524,11 +524,11 @@ export const ATOM_INTEGRATION_STATS = {
     page_discovery: 1,
     content_extraction: 1,
     block_processing: 1,
-    database_query: 1,
+    database_query: 2, // Airtable addition
     issue_discovery: 1,
     project_sync: 1,
-    comment_processing: 3,
-    workflow_extraction: 1,
+    comment_processing: 3, // Airtable addition
+    workflow_extraction: 1, // Airtable addition
     repository_discovery: 1,
     code_analysis: 1,
     issue_tracking: 1,
@@ -680,7 +680,37 @@ export const ATOM_INTEGRATION_STATS = {
     cloud_storage: 1,
     enterprise_policies: 1,
     access_controls: 1,
-    audit_logging_teams: 1
+    audit_logging_teams: 1,
+    // Airtable specific features
+    database_management: 1,
+    table_operations: 1,
+    record_processing: 1,
+    view_customization: 1,
+    formula_computation: 1,
+    api_integration_airtable: 1,
+    data_validation: 1,
+    relationship_linking: 1,
+    collaboration_tools_airtable: 1,
+    automation_workflows: 1,
+    import_export: 1,
+    search_filtering_airtable: 1,
+    sort_grouping: 1,
+    calculations_aggregations: 1,
+    data_visualization: 1,
+    form_creation: 1,
+    field_types: 1,
+    record_templates: 1,
+    revision_history: 1,
+    collaborative_editing: 1,
+    access_controls_airtable: 1,
+    api_rate_limiting: 1,
+    sync_integration: 1,
+    backup_restore: 1,
+    scripting_automation: 1,
+    webhook_triggers: 1,
+    custom_apis: 1,
+    enterprise_security_airtable: 1,
+    audit_logging_airtable: 1
   }
 } as const;
 
@@ -717,6 +747,9 @@ export default {
   
   // Asana Integration
   AsanaManager,
+  
+  // Airtable Integration
+  AirtableDataManagementUI,
   
   // Factory & Registry
   AtomIntegrationFactory,
