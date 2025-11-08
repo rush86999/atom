@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { GmailSearch } from "../../../src/ui-shared/integrations/gmail/components/GmailSearch";
 
 const GmailIntegrationPage: NextPage = () => {
   const router = useRouter();
@@ -9,11 +10,31 @@ const GmailIntegrationPage: NextPage = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [emails, setEmails] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [emailStats, setEmailStats] = useState({
     total: 0,
     unread: 0,
     important: 0,
     starred: 0,
+  });
+  const [calendarStats, setCalendarStats] = useState({
+    upcoming: 0,
+    today: 0,
+    thisWeek: 0,
+    completed: 0,
+  });
+  const [contactStats, setContactStats] = useState({
+    total: 0,
+    recent: 0,
+    starred: 0,
+  });
+  const [taskStats, setTaskStats] = useState({
+    total: 0,
+    completed: 0,
+    overdue: 0,
+    dueToday: 0,
   });
 
   useEffect(() => {
@@ -39,6 +60,9 @@ const GmailIntegrationPage: NextPage = () => {
   const tabs = [
     { id: "overview", name: "Overview", icon: "📊" },
     { id: "inbox", name: "Inbox", icon: "📥" },
+    { id: "calendar", name: "Calendar", icon: "📅" },
+    { id: "contacts", name: "Contacts", icon: "👥" },
+    { id: "tasks", name: "Tasks", icon: "✅" },
     { id: "compose", name: "Compose", icon: "✏️" },
     { id: "labels", name: "Labels", icon: "🏷️" },
     { id: "memory", name: "Memory", icon: "🧠" },
@@ -84,7 +108,7 @@ const GmailIntegrationPage: NextPage = () => {
 
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => setActiveTab("inbox")}
                   className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -98,10 +122,22 @@ const GmailIntegrationPage: NextPage = () => {
                   Compose Email
                 </button>
                 <button
-                  onClick={() => setActiveTab("labels")}
+                  onClick={() => setActiveTab("calendar")}
                   className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
                 >
-                  Manage Labels
+                  View Calendar
+                </button>
+                <button
+                  onClick={() => setActiveTab("contacts")}
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Manage Contacts
+                </button>
+                <button
+                  onClick={() => setActiveTab("tasks")}
+                  className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  View Tasks
                 </button>
                 <button
                   onClick={() =>
@@ -114,38 +150,76 @@ const GmailIntegrationPage: NextPage = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold mb-4">Recent Emails</h3>
-              <div className="space-y-3">
-                {emails.length > 0 ? (
-                  emails.slice(0, 5).map((email, index) => (
-                    <div
-                      key={index}
-                      className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900">
-                            {email.from}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">Recent Emails</h3>
+                <div className="space-y-3">
+                  {emails.length > 0 ? (
+                    emails.slice(0, 5).map((email, index) => (
+                      <div
+                        key={index}
+                        className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">
+                              {email.from}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {email.subject}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {email.preview}
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-600">
-                            {email.subject}
+                          <div className="text-xs text-gray-500">
+                            {email.time}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {email.preview}
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {email.time}
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      No emails found. Connect your Gmail account to get
+                      started.
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    No emails found. Connect your Gmail account to get started.
-                  </div>
-                )}
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold mb-4">Upcoming Events</h3>
+                <div className="space-y-3">
+                  {events.length > 0 ? (
+                    events.slice(0, 5).map((event, index) => (
+                      <div
+                        key={index}
+                        className="border rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">
+                              {event.title}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {event.location}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {event.time}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {event.date}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      No upcoming events found.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -160,23 +234,158 @@ const GmailIntegrationPage: NextPage = () => {
               search capabilities.
             </p>
             <div className="border rounded-lg p-4">
-              <div className="flex space-x-4 mb-4">
-                <input
-                  type="text"
-                  placeholder="Search emails..."
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                />
-                <select className="px-3 py-2 border rounded-lg">
-                  <option>All Mail</option>
-                  <option>Primary</option>
-                  <option>Social</option>
-                  <option>Promotions</option>
-                </select>
+              <GmailSearch
+                data={emails}
+                dataType="messages"
+                onSearch={(results, filters, sort) => {
+                  console.log("Search results:", results);
+                  console.log("Filters:", filters);
+                  console.log("Sort:", sort);
+                }}
+                loading={loading}
+                totalCount={emails.length}
+              />
+            </div>
+          </div>
+        );
+
+      case "calendar":
+        return (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Google Calendar</h2>
+            <p className="text-gray-600 mb-4">
+              Manage your calendar events and schedule.
+            </p>
+            <div className="border rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {calendarStats.upcoming}
+                  </div>
+                  <div className="text-sm text-blue-800">Upcoming</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {calendarStats.today}
+                  </div>
+                  <div className="text-sm text-green-800">Today</div>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {calendarStats.thisWeek}
+                  </div>
+                  <div className="text-sm text-purple-800">This Week</div>
+                </div>
+                <div className="bg-orange-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {calendarStats.completed}
+                  </div>
+                  <div className="text-sm text-orange-800">Completed</div>
+                </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-4">
+                <div className="flex space-x-4">
+                  <input
+                    type="text"
+                    placeholder="Search events..."
+                    className="flex-1 px-3 py-2 border rounded-lg"
+                  />
+                  <select className="px-3 py-2 border rounded-lg">
+                    <option>All Events</option>
+                    <option>Today</option>
+                    <option>This Week</option>
+                    <option>This Month</option>
+                  </select>
+                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    Create Event
+                  </button>
+                </div>
                 <div className="text-center text-gray-500 py-8">
-                  Gmail inbox integration coming soon. Connect your account to
-                  enable email management.
+                  Calendar integration coming soon. Connect your account to
+                  enable calendar management.
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "contacts":
+        return (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Google Contacts</h2>
+            <p className="text-gray-600 mb-4">
+              Manage your contacts and address book.
+            </p>
+            <div className="border rounded-lg p-4">
+              <GmailSearch
+                data={contacts}
+                dataType="contacts"
+                onSearch={(results, filters, sort) => {
+                  console.log("Contact search results:", results);
+                  console.log("Filters:", filters);
+                  console.log("Sort:", sort);
+                }}
+                loading={loading}
+                totalCount={contacts.length}
+              />
+            </div>
+          </div>
+        );
+
+      case "tasks":
+        return (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Google Tasks</h2>
+            <p className="text-gray-600 mb-4">
+              Manage your tasks and to-do lists.
+            </p>
+            <div className="border rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {taskStats.total}
+                  </div>
+                  <div className="text-sm text-blue-800">Total Tasks</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {taskStats.completed}
+                  </div>
+                  <div className="text-sm text-green-800">Completed</div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {taskStats.overdue}
+                  </div>
+                  <div className="text-sm text-red-800">Overdue</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {taskStats.dueToday}
+                  </div>
+                  <div className="text-sm text-yellow-800">Due Today</div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex space-x-4">
+                  <input
+                    type="text"
+                    placeholder="Search tasks..."
+                    className="flex-1 px-3 py-2 border rounded-lg"
+                  />
+                  <select className="px-3 py-2 border rounded-lg">
+                    <option>All Tasks</option>
+                    <option>Completed</option>
+                    <option>Pending</option>
+                    <option>Overdue</option>
+                  </select>
+                  <button className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    Add Task
+                  </button>
+                </div>
+                <div className="text-center text-gray-500 py-8">
+                  Tasks integration coming soon. Connect your account to enable
+                  task management.
                 </div>
               </div>
             </div>

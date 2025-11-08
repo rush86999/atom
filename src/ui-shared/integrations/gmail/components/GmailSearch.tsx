@@ -1,63 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  Box,
-  VStack,
-  HStack,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  Button,
-  Select,
-  Checkbox,
-  CheckboxGroup,
-  Text,
-  Badge,
-  IconButton,
-  Tooltip,
-  useColorModeValue,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Switch,
-  Divider,
-  SimpleGrid,
-  Progress,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-  Flex,
-  Spacer,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  RangeSlider,
-  RangeSliderTrack,
-  RangeSliderFilledTrack,
-  RangeSliderThumb,
-} from '@chakra-ui/react';
-import {
-  SearchIcon,
-  FilterIcon,
-  CalendarIcon,
-  TimeIcon,
-  StarIcon,
-  AttachmentIcon,
-  DownloadIcon,
-  SettingsIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  AddIcon,
-  DeleteIcon,
-  RepeatIcon,
-} from '@chakra-ui/icons';
 
 // Interfaces for Gmail data types
 interface GmailMessage {
@@ -222,10 +163,8 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
 
-  const toast = useToast();
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const bgColor = 'white';
+  const borderColor = 'gray.200';
 
   // Get default sort field based on data type
   function getDefaultSortField(type: string): string {
@@ -247,7 +186,7 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
     const recipients = new Set<string>();
     const subjects = new Set<string>();
 
-    data.forEach(item => {
+    data.forEach((item: any) => {
       if ('payload' in item) {
         const message = item as GmailMessage;
         const headers = message.payload.headers || [];
@@ -579,19 +518,284 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   }, [performSearch]);
 
   return (
-    <Box bg={bgColor} border="1px" borderColor={borderColor} borderRadius="lg" p={4}>
+    <div style={{
+      backgroundColor: bgColor,
+      border: `1px solid ${borderColor}`,
+      borderRadius: '0.5rem',
+      padding: '1rem'
+    }}>
       {/* Main Search Bar */}
-      <VStack spacing={4} align="stretch">
-        <HStack spacing={3}>
-          <InputGroup flex={1}>
-            <InputLeftElement pointerEvents="none">
-              <SearchIcon color="gray.400" />
-            </InputLeftElement>
-            <Input
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <div style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              🔍
+            </div>
+            <input
               placeholder={`Search ${dataType}...`}
               value={searchTerm}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setSearchTerm(e.target.value);
                 handleFilterChange({ searchTerm: e.target.value });
               }}
-              onKeyPress={(e) => {
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter') {
+                  performSearch();
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.5rem 0.5rem 2rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem'
+              }}
+            />
+          </div>
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            style={{
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+          >
+            {showAdvancedFilters ? 'Hide Filters' : 'Show Filters'}
+          </button>
+          <button
+            onClick={performSearch}
+            style={{
+              backgroundColor: '#10b981',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.5rem',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+          >
+            Search
+          </button>
+        </div>
+
+        {showAdvancedFilters && (
+          <div style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            backgroundColor: '#f9fafb'
+          }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              {/* From Filter */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                  From
+                </label>
+                <input
+                  type="text"
+                  placeholder="Filter by sender..."
+                  value={filters.from}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleFilterChange({ from: e.target.value })
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+
+              {/* To Filter */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                  To
+                </label>
+                <input
+                  type="text"
+                  placeholder="Filter by recipient..."
+                  value={filters.to}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleFilterChange({ to: e.target.value })
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+
+              {/* Subject Filter */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  placeholder="Filter by subject..."
+                  value={filters.subject}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleFilterChange({ subject: e.target.value })
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.875rem'
+                  }}
+                />
+              </div>
+
+              {/* Read Status Filter */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                  Read Status
+                </label>
+                <select
+                  value={filters.readStatus}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    handleFilterChange({ readStatus: e.target.value as any })
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <option value="all">All</option>
+                  <option value="read">Read</option>
+                  <option value="unread">Unread</option>
+                </select>
+              </div>
+
+              {/* Starred Status Filter */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                  Starred
+                </label>
+                <select
+                  value={filters.starredStatus}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    handleFilterChange({ starredStatus: e.target.value as any })
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <option value="all">All</option>
+                  <option value="starred">Starred</option>
+                  <option value="not-starred">Not Starred</option>
+                </select>
+              </div>
+
+              {/* Attachment Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  id="has-attachment"
+                  checked={filters.hasAttachment}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleFilterChange({ hasAttachment: e.target.checked })
+                  }
+                />
+                <label htmlFor="has-attachment" style={{ fontSize: '0.875rem' }}>
+                  Has Attachment
+                </label>
+              </div>
+
+              {/* Semantic Search */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  id="semantic-search"
+                  checked={filters.semanticSearch}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleFilterChange({ semanticSearch: e.target.checked })
+                  }
+                />
+                <label htmlFor="semantic-search" style={{ fontSize: '0.875rem' }}>
+                  Semantic Search
+                </label>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button
+                onClick={clearAllFilters}
+                style={{
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.25rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Clear All
+              </button>
+              <button
+                onClick={saveCurrentSearch}
+                style={{
+                  backgroundColor: '#8b5cf6',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.25rem',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                Save Search
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Search Results Info */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+            {loading ? 'Searching...' : `Found ${totalCount} items`}
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Sort by:</span>
+            <select
+              value={`${sort.field}-${sort.direction}`}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                const [field, direction] = e.target.value.split('-');
+                handleSortChange({ field, direction: direction as 'asc' | 'desc' });
+              }}
+              style={{
+                padding: '0.25rem 0.5rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '0.25rem',
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="internalDate-desc">Newest First</option>
+              <option value="internalDate-asc">Oldest First</option>
+              <option value="sizeEstimate-desc">Largest First</option>
+              <option value="sizeEstimate-asc">Smallest First</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );

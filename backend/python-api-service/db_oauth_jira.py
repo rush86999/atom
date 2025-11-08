@@ -374,3 +374,22 @@ async def get_user_jira_tokens(db_pool, user_id: str) -> Optional[Dict[str, Any]
 async def delete_user_jira_tokens(db_pool, user_id: str) -> Dict[str, Any]:
     """Alias for delete_jira_tokens"""
     return await delete_jira_tokens(db_pool, user_id)
+
+async def get_jira_user(db_pool, user_id: str) -> Optional[Dict[str, Any]]:
+    """Get Jira user information including cloud_id"""
+    try:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT cloud_id, resources FROM oauth_jira_tokens WHERE user_id = $1",
+                user_id
+            )
+            
+            if row:
+                return {
+                    'cloud_id': row['cloud_id'],
+                    'resources': row['resources']
+                }
+            return None
+    except Exception as e:
+        logger.error(f"Failed to get Jira user for {user_id}: {e}")
+        return None

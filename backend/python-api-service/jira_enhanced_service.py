@@ -21,7 +21,7 @@ except ImportError:
 
 # Import database operations
 try:
-    from db_oauth_jira_complete import get_user_jira_tokens, get_jira_user
+    from db_oauth_jira import get_user_jira_tokens, get_jira_user
     JIRA_DB_AVAILABLE = True
 except ImportError as e:
     logging.getLogger(__name__).warning(f"Jira database operations not available: {e}")

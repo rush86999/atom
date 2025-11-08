@@ -192,8 +192,8 @@ export default function JiraIntegration() {
 
   // API base URL
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5058';
-  const JIRA_ENHANCED_URL = `${API_BASE_URL}/api/jira/enhanced`;
-  const JIRA_OAUTH_URL = `${API_BASE_URL}/api/auth/jira`;
+  const JIRA_ENHANCED_URL = `${API_BASE_URL}/api/integrations/jira`;
+  const JIRA_OAUTH_URL = `${API_BASE_URL}/api/integrations/jira/auth`;
 
   // Load initial data
   useEffect(() => {
@@ -266,7 +266,7 @@ export default function JiraIntegration() {
   const loadProjects = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/projects/list`, {
+      const response = await fetch(`${JIRA_ENHANCED_URL}/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -305,7 +305,7 @@ export default function JiraIntegration() {
   const loadIssues = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/issues/search`, {
+      const response = await fetch(`${JIRA_ENHANCED_URL}/issues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -346,7 +346,7 @@ export default function JiraIntegration() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/users/list`, {
+      const response = await fetch(`${JIRA_ENHANCED_URL}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -387,7 +387,7 @@ export default function JiraIntegration() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/sprints/list`, {
+      const response = await fetch(`${JIRA_ENHANCED_URL}/sprints`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -429,7 +429,7 @@ export default function JiraIntegration() {
     
     setLoading(true);
     try {
-      const response = await fetch(`${JIRA_ENHANCED_URL}/issues/create`, {
+      const response = await fetch(`${JIRA_ENHANCED_URL}/issues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -485,7 +485,7 @@ export default function JiraIntegration() {
       
       if (data.ok) {
         // Redirect to OAuth URL
-        window.location.href = data.auth_url;
+        window.location.href = `${JIRA_OAUTH_URL}/start`;
       } else {
         toast({
           title: "OAuth failed",
