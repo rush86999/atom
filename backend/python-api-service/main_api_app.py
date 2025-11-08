@@ -333,6 +333,17 @@ except ImportError as e:
     HUBSPOT_OAUTH_AVAILABLE = False
     logging.warning(f"HubSpot OAuth handler not available: {e}")
 
+# Import Slack handler
+try:
+    from slack_handler import router as slack_bp
+    from auth_handler_slack_new import get_slack_oauth_handler
+    from db_oauth_slack_new import init_slack_oauth_table, get_user_slack_tokens, is_slack_token_expired, refresh_slack_tokens
+
+    SLACK_OAUTH_AVAILABLE = True
+except ImportError as e:
+    SLACK_OAUTH_AVAILABLE = False
+    logging.warning(f"Slack OAuth handler not available: {e}")
+
 # Import Salesforce handler
 try:
     from salesforce_handler import salesforce_bp
@@ -1352,6 +1363,14 @@ def create_app():
             logging.info("HubSpot integration registered successfully")
         except Exception as e:
             logging.error(f"Failed to register HubSpot integration: {e}")
+
+    # Register Slack integration if available
+    if SLACK_OAUTH_AVAILABLE:
+        try:
+            app.register_blueprint(slack_bp, url_prefix="")
+            logging.info("Slack integration registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register Slack integration: {e}")
 
     return app
 

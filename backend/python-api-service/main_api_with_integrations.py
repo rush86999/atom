@@ -50,6 +50,14 @@ def create_app():
     if ENHANCED_SERVICES_AVAILABLE:
         app.register_blueprint(enhanced_service_bp, url_prefix="/api/v1/services")
 
+    # Register Microsoft 365 integration routes
+    try:
+        from microsoft365_routes import app as m365_app
+        app.register_blueprint(m365_app, url_prefix="/api/m365")
+        print("✅ Microsoft 365 routes registered")
+    except ImportError:
+        print("⚠️ Microsoft 365 routes not available")
+
     # Add OAuth and real service endpoints
     add_oauth_endpoints()
     add_real_service_endpoints()

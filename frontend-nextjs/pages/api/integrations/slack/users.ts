@@ -7,16 +7,14 @@ export default async function handler(
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
 
   try {
-    const { channelId, ...body } = req.body;
-    
-    const response = await fetch(`${backendUrl}/api/slack/channels/${channelId}/messages`, {
+    const response = await fetch(`${backendUrl}/api/slack/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': 'current',
       },
       body: JSON.stringify({
-        ...body,
+        ...req.body,
         user_id: 'current',
       }),
     });
@@ -25,9 +23,9 @@ export default async function handler(
 
     return res.status(response.status).json(data);
   } catch (error) {
-    console.error('Slack messages API error:', error);
+    console.error('Slack users API error:', error);
     return res.status(500).json({
-      error: 'Failed to fetch Slack messages',
+      error: 'Failed to fetch Slack users',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }

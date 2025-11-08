@@ -8,21 +8,23 @@ export default async function handler(
 
   try {
     // Check health of Slack services
-    const [oauthResponse, enhancedResponse] = await Promise.all([
-      fetch(`${backendUrl}/api/slack/oauth/start`, {
+    const [authResponse, apiResponse] = await Promise.all([
+      fetch(`${backendUrl}/api/slack/health`, {
         method: 'HEAD',
       }),
-      fetch(`${backendUrl}/api/slack/health`),
+      fetch(`${backendUrl}/api/slack/health`, {
+        method: 'GET',
+      }),
     ]);
 
     const services = {
-      oauth: {
-        status: oauthResponse.ok ? "healthy" : "unhealthy",
-        connected: oauthResponse.ok,
+      auth: {
+        status: authResponse.ok ? "healthy" : "unhealthy",
+        connected: authResponse.ok,
       },
-      enhanced: {
-        status: enhancedResponse.ok ? "healthy" : "unhealthy",
-        connected: enhancedResponse.ok,
+      messaging: {
+        status: apiResponse.ok ? "healthy" : "unhealthy",
+        connected: apiResponse.ok,
       },
     };
 

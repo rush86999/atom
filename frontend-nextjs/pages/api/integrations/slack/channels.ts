@@ -5,24 +5,18 @@ export default async function handler(
   res: NextApiResponse,
 ) {
   const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
-  const { id, ...queryParams } = req.query;
 
   try {
-    let url = `${backendUrl}/api/slack/channels`;
-    
-    // Add query parameters
-    const queryString = new URLSearchParams(queryParams as Record<string, string>).toString();
-    if (queryString) {
-      url += `?${queryString}`;
-    }
-
-    const response = await fetch(url, {
-      method: req.method,
+    const response = await fetch(`${backendUrl}/api/slack/channels`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': 'current',
       },
-      body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
+      body: JSON.stringify({
+        ...req.body,
+        user_id: 'current',
+      }),
     });
 
     const data = await response.json();

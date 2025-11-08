@@ -221,6 +221,26 @@ const IntegrationsPage: React.FC = () => {
       color: "purple",
     },
     {
+      id: "intercom",
+      name: "Intercom",
+      description: "Customer communication and support platform",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: ChatIcon,
+      color: "green",
+    },
+    {
+      id: "freshdesk",
+      name: "Freshdesk",
+      description: "Customer support and help desk platform",
+      category: "support",
+      status: "complete",
+      connected: false,
+      icon: ChatIcon,
+      color: "green",
+    },
+    {
       id: "google-workspace",
       name: "Google Workspace",
       description:

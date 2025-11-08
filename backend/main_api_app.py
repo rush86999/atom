@@ -212,6 +212,38 @@ if BOX_AVAILABLE and box_router:
 else:
     print("⚠️  Box integration routes not available")
 
+# Include Intercom integration routes if available
+try:
+    from integrations.intercom_routes import router as intercom_router
+
+    INTERCOM_AVAILABLE = True
+except ImportError as e:
+    print(f"Intercom integration not available: {e}")
+    INTERCOM_AVAILABLE = False
+    intercom_router = None
+
+if INTERCOM_AVAILABLE and intercom_router:
+    app.include_router(intercom_router)
+    print("✅ Intercom integration routes loaded")
+else:
+    print("⚠️  Intercom integration routes not available")
+
+# Include Freshdesk integration routes if available
+try:
+    from integrations.freshdesk_routes import router as freshdesk_router
+
+    FRESHDESK_AVAILABLE = True
+except ImportError as e:
+    print(f"Freshdesk integration not available: {e}")
+    FRESHDESK_AVAILABLE = False
+    freshdesk_router = None
+
+if FRESHDESK_AVAILABLE and freshdesk_router:
+    app.include_router(freshdesk_router)
+    print("✅ Freshdesk integration routes loaded")
+else:
+    print("⚠️  Freshdesk integration routes not available")
+
 
 @app.get("/")
 async def root():
