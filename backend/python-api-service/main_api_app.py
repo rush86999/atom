@@ -322,6 +322,17 @@ except ImportError as e:
     TABLEAU_OAUTH_AVAILABLE = False
     logging.warning(f"Tableau OAuth handler not available: {e}")
 
+# Import HubSpot handler
+try:
+    from hubspot_handler import router as hubspot_bp
+    from auth_handler_hubspot import get_hubspot_oauth_handler
+    from db_oauth_hubspot import init_hubspot_oauth_table, get_user_hubspot_tokens, is_hubspot_token_expired, refresh_hubspot_tokens
+
+    HUBSPOT_OAUTH_AVAILABLE = True
+except ImportError as e:
+    HUBSPOT_OAUTH_AVAILABLE = False
+    logging.warning(f"HubSpot OAuth handler not available: {e}")
+
 # Import Salesforce handler
 try:
     from salesforce_handler import salesforce_bp
@@ -1333,6 +1344,14 @@ def create_app():
             logging.info("Tableau integration registered successfully")
         except Exception as e:
             logging.error(f"Failed to register Tableau integration: {e}")
+
+    # Register HubSpot integration if available
+    if HUBSPOT_OAUTH_AVAILABLE:
+        try:
+            app.register_blueprint(hubspot_bp, url_prefix="")
+            logging.info("HubSpot integration registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register HubSpot integration: {e}")
 
     return app
 

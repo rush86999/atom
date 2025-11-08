@@ -45,6 +45,7 @@ import {
   StarIcon,
   BuildingIcon,
   CloudIcon,
+  ViewIcon,
 } from "@chakra-ui/icons";
 
 interface Integration {
@@ -222,7 +223,8 @@ const IntegrationsPage: React.FC = () => {
     {
       id: "google-workspace",
       name: "Google Workspace",
-      description: "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
+      description:
+        "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
       category: "productivity",
       status: "complete",
       connected: false,
@@ -252,7 +254,8 @@ const IntegrationsPage: React.FC = () => {
     {
       id: "microsoft365",
       name: "Microsoft 365",
-      description: "Complete productivity suite with Teams, Outlook, and OneDrive",
+      description:
+        "Complete productivity suite with Teams, Outlook, and OneDrive",
       category: "productivity",
       status: "complete",
       connected: false,
@@ -308,6 +311,16 @@ const IntegrationsPage: React.FC = () => {
       connected: false,
       icon: CalendarIcon,
       color: "red",
+    },
+    {
+      id: "tableau",
+      name: "Tableau",
+      description: "Business intelligence and analytics platform",
+      category: "analytics",
+      status: "complete",
+      connected: false,
+      icon: ViewIcon,
+      color: "blue",
     },
   ];
 

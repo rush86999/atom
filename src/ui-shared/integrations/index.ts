@@ -150,6 +150,8 @@ export class AtomIntegrationFactory {
         return AsanaManager(props);
       case 'airtable':
         return AirtableDataManagementUI(props);
+      case 'microsoft365':
+        return Microsoft365Manager(props);
       case 'linear':
         return LinearManager(props);
       case 'teams':

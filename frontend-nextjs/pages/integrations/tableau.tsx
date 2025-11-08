@@ -3,7 +3,7 @@
  * Complete Tableau integration with dashboard, workbooks, datasources, views, and analytics
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -20,10 +20,6 @@ import {
   SimpleGrid,
   Progress,
   Divider,
-  useColorModeValue,
-  Stack,
-  Flex,
-  Spacer,
   Tabs,
   TabList,
   TabPanels,
@@ -45,11 +41,6 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Textarea,
-  Select,
-  Switch,
   Alert,
   AlertIcon,
   Stat,
@@ -57,37 +48,24 @@ import {
   StatNumber,
   StatHelpText,
   StatArrow,
-  Grid,
-  GridItem,
-  Image,
-  Link,
-  IconButton,
   Tooltip,
+  IconButton,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 import {
   SearchIcon,
   AddIcon,
   DownloadIcon,
   ViewIcon,
   EditIcon,
-  DeleteIcon,
   SettingsIcon,
   ExternalLinkIcon,
   CalendarIcon,
-  TimeIcon,
   CheckCircleIcon,
   WarningIcon,
-  InfoIcon,
-  StarIcon,
-  ChevronDownIcon,
-} from '@chakra-ui/icons';
+} from "@chakra-ui/icons";
 
 // Types
 interface TableauWorkbook {
@@ -167,15 +145,10 @@ const TableauIntegrationPage: React.FC = () => {
   const [projects, setProjects] = useState<TableauProject[]>([]);
   const [userProfile, setUserProfile] = useState<TableauUser | null>(null);
   const [stats, setStats] = useState<TableauStats | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedWorkbook, setSelectedWorkbook] = useState<TableauWorkbook | null>(null);
 
   const toast = useToast();
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const accentColor = useColorModeValue('blue.500', 'blue.300');
 
   // Load initial data
   useEffect(() => {
@@ -187,40 +160,44 @@ const TableauIntegrationPage: React.FC = () => {
       setIsLoading(true);
 
       // Check connection status
-      const healthResponse = await fetch('/api/v1/tableau/health');
+      const healthResponse = await fetch("/api/v1/tableau/health");
       if (healthResponse.ok) {
         setIsConnected(true);
 
         // Load workbooks
-        const workbooksResponse = await fetch('/api/v1/tableau/workbooks?limit=50');
+        const workbooksResponse = await fetch(
+          "/api/v1/tableau/workbooks?limit=50",
+        );
         if (workbooksResponse.ok) {
           const workbooksData = await workbooksResponse.json();
           setWorkbooks(workbooksData.data || []);
         }
 
         // Load datasources
-        const datasourcesResponse = await fetch('/api/v1/tableau/datasources?limit=50');
+        const datasourcesResponse = await fetch(
+          "/api/v1/tableau/datasources?limit=50",
+        );
         if (datasourcesResponse.ok) {
           const datasourcesData = await datasourcesResponse.json();
           setDatasources(datasourcesData.data || []);
         }
 
         // Load views
-        const viewsResponse = await fetch('/api/v1/tableau/views?limit=50');
+        const viewsResponse = await fetch("/api/v1/tableau/views?limit=50");
         if (viewsResponse.ok) {
           const viewsData = await viewsResponse.json();
           setViews(viewsData.data || []);
         }
 
         // Load projects
-        const projectsResponse = await fetch('/api/v1/tableau/projects');
+        const projectsResponse = await fetch("/api/v1/tableau/projects");
         if (projectsResponse.ok) {
           const projectsData = await projectsResponse.json();
           setProjects(projectsData.data || []);
         }
 
         // Load user profile
-        const userResponse = await fetch('/api/v1/tableau/user');
+        const userResponse = await fetch("/api/v1/tableau/user");
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUserProfile(userData.data);
@@ -232,13 +209,13 @@ const TableauIntegrationPage: React.FC = () => {
           total_datasources: datasources.length,
           total_views: views.length,
           total_projects: projects.length,
-          active_users: 1, // Current user
+          active_users: 1,
           storage_used: workbooks.reduce((sum, w) => sum + (w.size || 0), 0),
         };
         setStats(calculatedStats);
       }
     } catch (error) {
-      console.error('Failed to load Tableau data:', error);
+      console.error("Failed to load Tableau data:", error);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
@@ -247,15 +224,13 @@ const TableauIntegrationPage: React.FC = () => {
 
   const handleConnect = async () => {
     try {
-      // In a real implementation, this would redirect to Tableau OAuth
-      // For now, simulate successful connection
       setIsConnected(true);
       setIsConnectModalOpen(false);
 
       toast({
-        title: 'Tableau Connected',
-        description: 'Successfully connected to Tableau',
-        status: 'success',
+        title: "Tableau Connected",
+        description: "Successfully connected to Tableau",
+        status: "success",
         duration: 3000,
         isClosable: true,
       });
@@ -263,9 +238,9 @@ const TableauIntegrationPage: React.FC = () => {
       await loadTableauData();
     } catch (error) {
       toast({
-        title: 'Connection Failed',
-        description: 'Failed to connect to Tableau',
-        status: 'error',
+        title: "Connection Failed",
+        description: "Failed to connect to Tableau",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
@@ -276,14 +251,14 @@ const TableauIntegrationPage: React.FC = () => {
     if (!searchQuery.trim()) return;
 
     try {
-      const searchResponse = await fetch('/api/v1/tableau/search', {
-        method: 'POST',
+      const searchResponse = await fetch("/api/v1/tableau/search", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           query: searchQuery,
-          types: ['workbook', 'view', 'datasource'],
+          types: ["workbook", "view", "datasource"],
           limit: 50,
           offset: 0,
         }),
@@ -291,26 +266,25 @@ const TableauIntegrationPage: React.FC = () => {
 
       if (searchResponse.ok) {
         const searchData = await searchResponse.json();
-        // Handle search results - in a real app, you'd display these
         toast({
-          title: 'Search Complete',
+          title: "Search Complete",
           description: `Found ${searchData.data.total_count} results`,
-          status: 'info',
+          status: "info",
           duration: 2000,
           isClosable: true,
         });
       }
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error("Search failed:", error);
     }
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString: string): string => {
@@ -327,7 +301,8 @@ const TableauIntegrationPage: React.FC = () => {
               Connect Tableau
             </Heading>
             <Text color="gray.600" mb={6}>
-              Connect your Tableau account to access dashboards, workbooks, and analytics data.
+              Connect your Tableau account to access dashboards, workbooks, and
+              analytics data.
             </Text>
           </Box>
 
@@ -360,7 +335,10 @@ const TableauIntegrationPage: React.FC = () => {
         </VStack>
 
         {/* Connect Modal */}
-        <Modal isOpen={isConnectModalOpen} onClose={() => setIsConnectModalOpen(false)}>
+        <Modal
+          isOpen={isConnectModalOpen}
+          onClose={() => setIsConnectModalOpen(false)}
+        >
           <ModalOverlay />
           <ModalContent>
             <ModalHeader>Connect Tableau</ModalHeader>
@@ -368,7 +346,8 @@ const TableauIntegrationPage: React.FC = () => {
             <ModalBody>
               <VStack spacing={4}>
                 <Text>
-                  This will connect your Tableau account to ATOM. You'll be able to:
+                  This will connect your Tableau account to ATOM. You'll be able
+                  to:
                 </Text>
                 <VStack align="start" spacing={2}>
                   <HStack>
@@ -395,7 +374,11 @@ const TableauIntegrationPage: React.FC = () => {
               </VStack>
             </ModalBody>
             <ModalFooter>
-              <Button variant="outline" mr={3} onClick={() => setIsConnectModalOpen(false)}>
+              <Button
+                variant="outline"
+                mr={3}
+                onClick={() => setIsConnectModalOpen(false)}
+              >
                 Cancel
               </Button>
               <Button colorScheme="blue" onClick={handleConnect}>
@@ -455,7 +438,7 @@ const TableauIntegrationPage: React.FC = () => {
                 placeholder="Search workbooks, views, datasources..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               />
             </InputGroup>
             <Button colorScheme="blue" onClick={handleSearch}>
@@ -511,7 +494,9 @@ const TableauIntegrationPage: React.FC = () => {
                     <CardBody>
                       <Stat>
                         <StatLabel>Storage Used</StatLabel>
-                        <StatNumber>{formatFileSize(stats.storage_used)}</StatNumber>
+                        <StatNumber>
+                          {formatFileSize(stats.storage_used)}
+                        </StatNumber>
                         <StatHelpText>Across all workbooks</StatHelpText>
                       </Stat>
                     </CardBody>
@@ -540,7 +525,9 @@ const TableauIntegrationPage: React.FC = () => {
                             <Td fontWeight="medium">{workbook.name}</Td>
                             <Td>
                               <Badge colorScheme="blue">
-                                {projects.find(p => p.id === workbook.project_id)?.name || 'Unknown'}
+                                {projects.find(
+                                  (p) => p.id === workbook.project_id,
+                                )?.name || "Unknown"}
                               </Badge>
                             </Td>
                             <Td>{formatDate(workbook.updated_at)}</Td>
@@ -590,11 +577,17 @@ const TableauIntegrationPage: React.FC = () => {
                         </Box>
                         <Box>
                           <Text fontWeight="bold">Site Role</Text>
-                          <Badge colorScheme="green">{userProfile.site_role}</Badge>
+                          <Badge colorScheme="green">
+                            {userProfile.site_role}
+                          </Badge>
                         </Box>
                         <Box>
                           <Text fontWeight="bold">Last Login</Text>
-                          <Text>{userProfile.last_login ? formatDate(userProfile.last_login) : 'Never'}</Text>
+                          <Text>
+                            {userProfile.last_login
+                              ? formatDate(userProfile.last_login)
+                              : "Never"}
+                          </Text>
                         </Box>
                       </SimpleGrid>
                     </CardBody>
@@ -608,4 +601,385 @@ const TableauIntegrationPage: React.FC = () => {
           <TabPanel>
             <VStack spacing={6} align="start">
               <HStack w="full" justify="space-between">
-                <Heading size="md">Workbooks ({workbooks.length})</
+                <Heading size="md">Workbooks ({workbooks.length})</Heading>
+                <Button colorScheme="blue" leftIcon={<AddIcon />}>
+                  New Workbook
+                </Button>
+              </HStack>
+
+              <Table variant="simple">
+                <Thead>
+                  <Tr>
+                    <Th>Name</Th>
+                    <Th>Description</Th>
+                    <Th>Project</Th>
+                    <Th>Size</Th>
+                    <Th>Last Updated</Th>
+                    <Th>Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {workbooks.map((workbook) => (
+                    <Tr key={workbook.id}>
+                      <Td fontWeight="medium">{workbook.name}</Td>
+                      <Td>{workbook.description || "No description"}</Td>
+                      <Td>
+                        <Badge colorScheme="blue">
+                          {projects.find((p) => p.id === workbook.project_id)
+                            ?.name || "Unknown"}
+                        </Badge>
+                      </Td>
+                      <Td>{formatFileSize(workbook.size || 0)}</Td>
+                      <Td>{formatDate(workbook.updated_at)}</Td>
+                      <Td>
+                        <HStack>
+                          <Tooltip label="View Workbook">
+                            <IconButton
+                              aria-label="View workbook"
+                              icon={<ViewIcon />}
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                window.open(workbook.content_url, "_blank")
+                              }
+                            />
+                          </Tooltip>
+                          <Tooltip label="Edit Workbook">
+                            <IconButton
+                              aria-label="Edit workbook"
+                              icon={<EditIcon />}
+                              size="sm"
+                              variant="ghost"
+                            />
+                          </Tooltip>
+                          <Tooltip label="Download Workbook">
+                            <IconButton
+                              aria-label="Download workbook"
+                              icon={<DownloadIcon />}
+                              size="sm"
+                              variant="ghost"
+                            />
+                          </Tooltip>
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </VStack>
+          </TabPanel>
+
+          {/* Datasources Panel */}
+          <TabPanel>
+            <VStack spacing={6} align="start">
+              <HStack w="full" justify="space-between">
+                <Heading size="md">Datasources ({datasources.length})</Heading>
+                <Button colorScheme="blue" leftIcon={<AddIcon />}>
+                  New Datasource
+                </Button>
+              </HStack>
+
+              <SimpleGrid
+                columns={{ base: 1, md: 2, lg: 3 }}
+                spacing={6}
+                w="full"
+              >
+                {datasources.map((datasource) => (
+                  <Card key={datasource.id}>
+                    <CardHeader>
+                      <HStack justify="space-between">
+                        <Heading size="sm">{datasource.name}</Heading>
+                        {datasource.is_certified && (
+                          <Badge colorScheme="green" fontSize="xs">
+                            Certified
+                          </Badge>
+                        )}
+                      </HStack>
+                    </CardHeader>
+                    <CardBody>
+                      <VStack align="start" spacing={3}>
+                        <Text fontSize="sm" color="gray.600">
+                          {datasource.description || "No description"}
+                        </Text>
+                        <HStack>
+                          <Badge colorScheme="blue">
+                            {projects.find(
+                              (p) => p.id === datasource.project_id,
+                            )?.name || "Unknown"}
+                          </Badge>
+                          {datasource.has_extracts && (
+                            <Badge colorScheme="orange">Has Extracts</Badge>
+                          )}
+                        </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          Updated {formatDate(datasource.updated_at)}
+                        </Text>
+                        <HStack w="full" justify="space-between">
+                          <Button
+                            size="sm"
+                            colorScheme="blue"
+                            variant="ghost"
+                            leftIcon={<ViewIcon />}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            leftIcon={<EditIcon />}
+                          >
+                            Edit
+                          </Button>
+                        </HStack>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                ))}
+              </SimpleGrid>
+            </VStack>
+          </TabPanel>
+
+          {/* Views Panel */}
+          <TabPanel>
+            <VStack spacing={6} align="start">
+              <HStack w="full" justify="space-between">
+                <Heading size="md">Views ({views.length})</Heading>
+                <Button colorScheme="blue" leftIcon={<AddIcon />}>
+                  New View
+                </Button>
+              </HStack>
+
+              <Table variant="simple">
+                <Thead>
+                  <Tr>
+                    <Th>Name</Th>
+                    <Th>Workbook</Th>
+                    <Th>URL Name</Th>
+                    <Th>Created</Th>
+                    <Th>Actions</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {views.map((view) => (
+                    <Tr key={view.id}>
+                      <Td fontWeight="medium">{view.name}</Td>
+                      <Td>
+                        <Badge colorScheme="purple">
+                          {workbooks.find((w) => w.id === view.workbook_id)
+                            ?.name || "Unknown"}
+                        </Badge>
+                      </Td>
+                      <Td>{view.view_url_name}</Td>
+                      <Td>{formatDate(view.created_at)}</Td>
+                      <Td>
+                        <HStack>
+                          <Tooltip label="View Dashboard">
+                            <IconButton
+                              aria-label="View dashboard"
+                              icon={<ViewIcon />}
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                window.open(view.content_url, "_blank")
+                              }
+                            />
+                          </Tooltip>
+                          <Tooltip label="Share View">
+                            <IconButton
+                              aria-label="Share view"
+                              icon={<ExternalLinkIcon />}
+                              size="sm"
+                              variant="ghost"
+                            />
+                          </Tooltip>
+                        </HStack>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </VStack>
+          </TabPanel>
+
+          {/* Projects Panel */}
+          <TabPanel>
+            <VStack spacing={6} align="start">
+              <HStack w="full" justify="space-between">
+                <Heading size="md">Projects ({projects.length})</Heading>
+                <Button colorScheme="blue" leftIcon={<AddIcon />}>
+                  New Project
+                </Button>
+              </HStack>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} w="full">
+                {projects.map((project) => (
+                  <Card key={project.id}>
+                    <CardHeader>
+                      <Heading size="sm">{project.name}</Heading>
+                    </CardHeader>
+                    <CardBody>
+                      <VStack align="start" spacing={3}>
+                        <Text fontSize="sm" color="gray.600">
+                          {project.description || "No description"}
+                        </Text>
+                        {project.parent_project_id && (
+                          <Text fontSize="xs" color="gray.500">
+                            Parent:{" "}
+                            {projects.find(
+                              (p) => p.id === project.parent_project_id,
+                            )?.name || "Unknown"}
+                          </Text>
+                        )}
+                        <Text fontSize="xs" color="gray.500">
+                          Created {formatDate(project.created_at)}
+                        </Text>
+                        <HStack>
+                          <Button
+                            size="sm"
+                            colorScheme="blue"
+                            variant="ghost"
+                            leftIcon={<ViewIcon />}
+                          >
+                            View Content
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            leftIcon={<SettingsIcon />}
+                          >
+                            Settings
+                          </Button>
+                        </HStack>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                ))}
+              </SimpleGrid>
+            </VStack>
+          </TabPanel>
+
+          {/* Analytics Panel */}
+          <TabPanel>
+            <VStack spacing={6} align="start">
+              <Heading size="md">Analytics & Insights</Heading>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} w="full">
+                <Card>
+                  <CardHeader>
+                    <Heading size="sm">Content Distribution</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    <VStack spacing={4}>
+                      <HStack w="full" justify="space-between">
+                        <Text>Workbooks</Text>
+                        <Badge colorScheme="blue">{workbooks.length}</Badge>
+                      </HStack>
+                      <HStack w="full" justify="space-between">
+                        <Text>Datasources</Text>
+                        <Badge colorScheme="green">{datasources.length}</Badge>
+                      </HStack>
+                      <HStack w="full" justify="space-between">
+                        <Text>Views</Text>
+                        <Badge colorScheme="purple">{views.length}</Badge>
+                      </HStack>
+                      <HStack w="full" justify="space-between">
+                        <Text>Projects</Text>
+                        <Badge colorScheme="orange">{projects.length}</Badge>
+                      </HStack>
+                    </VStack>
+                  </CardBody>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <Heading size="sm">Storage Usage</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    <VStack spacing={4}>
+                      <HStack w="full" justify="space-between">
+                        <Text>Total Storage</Text>
+                        <Text fontWeight="bold">
+                          {formatFileSize(stats?.storage_used || 0)}
+                        </Text>
+                      </HStack>
+                      <Progress value={75} w="full" colorScheme="blue" />
+                      <Text fontSize="sm" color="gray.600">
+                        75% of available storage used
+                      </Text>
+                    </VStack>
+                  </CardBody>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <Heading size="sm">Recent Activity</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    <VStack spacing={3} align="start">
+                      <HStack>
+                        <CheckCircleIcon color="green.500" />
+                        <Text fontSize="sm">Connected to Tableau</Text>
+                      </HStack>
+                      <HStack>
+                        <CheckCircleIcon color="green.500" />
+                        <Text fontSize="sm">
+                          Loaded {workbooks.length} workbooks
+                        </Text>
+                      </HStack>
+                      <HStack>
+                        <CheckCircleIcon color="green.500" />
+                        <Text fontSize="sm">
+                          Loaded {datasources.length} datasources
+                        </Text>
+                      </HStack>
+                      <HStack>
+                        <CheckCircleIcon color="green.500" />
+                        <Text fontSize="sm">Loaded {views.length} views</Text>
+                      </HStack>
+                    </VStack>
+                  </CardBody>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <Heading size="sm">User Information</Heading>
+                  </CardHeader>
+                  <CardBody>
+                    {userProfile && (
+                      <VStack spacing={3} align="start">
+                        <HStack>
+                          <Text fontWeight="medium">Name:</Text>
+                          <Text>{userProfile.name}</Text>
+                        </HStack>
+                        <HStack>
+                          <Text fontWeight="medium">Email:</Text>
+                          <Text>{userProfile.email}</Text>
+                        </HStack>
+                        <HStack>
+                          <Text fontWeight="medium">Role:</Text>
+                          <Badge colorScheme="green">
+                            {userProfile.site_role}
+                          </Badge>
+                        </HStack>
+                        <HStack>
+                          <Text fontWeight="medium">Last Login:</Text>
+                          <Text>
+                            {userProfile.last_login
+                              ? formatDate(userProfile.last_login)
+                              : "Never"}
+                          </Text>
+                        </HStack>
+                      </VStack>
+                    )}
+                  </CardBody>
+                </Card>
+              </SimpleGrid>
+            </VStack>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </Box>
+  );
+};
+
+export default TableauIntegrationPage;

@@ -196,6 +196,22 @@ if TABLEAU_AVAILABLE and tableau_router:
 else:
     print("⚠️  Tableau integration routes not available")
 
+# Include Box integration routes if available
+try:
+    from integrations.box_routes import router as box_router
+
+    BOX_AVAILABLE = True
+except ImportError as e:
+    print(f"Box integration not available: {e}")
+    BOX_AVAILABLE = False
+    box_router = None
+
+if BOX_AVAILABLE and box_router:
+    app.include_router(box_router)
+    print("✅ Box integration routes loaded")
+else:
+    print("⚠️  Box integration routes not available")
+
 
 @app.get("/")
 async def root():

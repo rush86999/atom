@@ -1,918 +1,990 @@
-"""
-ATOM HubSpot Integration Service
-Comprehensive HubSpot API integration for marketing automation and lead generation
-Following ATOM integration patterns and conventions
-"""
-
 import os
 import json
-import asyncio
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta, date
-from dataclasses import dataclass
-import aiohttp
 import logging
-from loguru import logger
+import httpx
+from typing import Dict, Any, Optional, List
+from datetime import datetime, timezone
+from asyncpg import Pool
 
-@dataclass
-class HubSpotConfig:
-    """HubSpot configuration class"""
-    access_token: str
-    api_base_url: str = "https://api.hubapi.com"
-    private_app_token: Optional[str] = None
-    environment: str = "production"
-    
-    def __post_init__(self):
-        if self.environment == "sandbox":
-            self.api_base_url = "https://api.hubspotqa.com"
+logger = logging.getLogger(__name__)
+
+# HubSpot API configuration
+HUBSPOT_API_BASE = "https://api.hubapi.com"
 
 class HubSpotService:
-    """Enhanced HubSpot service class for API interactions"""
+    """Comprehensive HubSpot API Service"""
     
-    def __init__(self, config: Optional[HubSpotConfig] = None):
-        self.config = config or self._get_config_from_env()
-        self.session: Optional[aiohttp.ClientSession] = None
-        self.timeout = aiohttp.ClientTimeout(total=60)
-        self.max_retries = 3
-        self.rate_limit_delay = 0.1  # 100ms between requests
-        
-    def _get_config_from_env(self) -> HubSpotConfig:
-        """Load configuration from environment variables"""
-        return HubSpotConfig(
-            access_token=os.getenv("HUBSPOT_ACCESS_TOKEN", ""),
-            private_app_token=os.getenv("HUBSPOT_PRIVATE_APP_TOKEN"),
-            environment=os.getenv("HUBSPOT_ENVIRONMENT", "production")
-        )
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+        self.access_token = None
+        self.refresh_token = None
+        self.db_pool = None
+        self._initialized = False
     
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create HTTP session"""
-        if not self.session or self.session.closed:
-            headers = {
-                "Authorization": f"Bearer {self.config.access_token}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "User-Agent": "ATOM-HubSpot-Integration/1.0"
-            }
-            if self.config.private_app_token:
-                headers["Authorization"] = f"Bearer {self.config.private_app_token}"
+    async def initialize(self, db_pool: Pool):
+        """Initialize HubSpot service with database pool"""
+        try:
+            from db_oauth_hubspot import get_user_hubspot_tokens
+            from main_api_app import get_db_pool
+            
+            self.db_pool = db_pool
+            tokens = await get_user_hubspot_tokens(db_pool, self.user_id)
+            
+            if tokens and tokens.get("access_token"):
+                self.access_token = tokens["access_token"]
+                self.refresh_token = tokens["refresh_token"]
+                self._initialized = True
+                logger.info(f"HubSpot service initialized for user {self.user_id}")
+                return True
+            else:
+                logger.warning(f"No HubSpot tokens found for user {self.user_id}")
+                return False
                 
-            self.session = aiohttp.ClientSession(
-                headers=headers,
-                timeout=self.timeout
-            )
-        return self.session
+        except Exception as e:
+            logger.error(f"Failed to initialize HubSpot service: {e}")
+            return False
     
-    async def _make_request(
-        self, 
-        method: str, 
-        endpoint: str, 
-        data: Optional[Dict] = None, 
-        params: Optional[Dict] = None,
-        use_pagination: bool = False
-    ) -> Dict[str, Any]:
-        """Make authenticated request to HubSpot API with retry logic and rate limiting"""
-        session = await self._get_session()
-        url = f"{self.config.api_base_url}{endpoint}"
-        
-        all_results = []
-        has_more = True
-        offset = 0
-        limit = params.get('limit', 100) if params else 100
-        
-        while has_more and (use_pagination or len(all_results) == 0):
-            # Apply rate limiting
-            if len(all_results) > 0:
-                await asyncio.sleep(self.rate_limit_delay)
+    async def _ensure_initialized(self):
+        """Ensure service is initialized"""
+        if not self._initialized:
+            raise Exception("HubSpot service not initialized. Call initialize() first.")
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Get API headers with authentication"""
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+    
+    async def _make_request(self, method: str, endpoint: str, 
+                           data: Dict[str, Any] = None, 
+                           params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Make authenticated API request with error handling"""
+        try:
+            url = f"{HUBSPOT_API_BASE}{endpoint}"
             
-            # Add pagination parameters
-            paginated_params = params.copy() if params else {}
-            if use_pagination:
-                paginated_params.update({
-                    'limit': limit,
-                    'after': offset if offset > 0 else None
-                })
-            
-            for attempt in range(self.max_retries):
-                try:
-                    async with session.request(
-                        method=method,
-                        url=url,
-                        json=data,
-                        params=paginated_params,
-                        headers=session.headers
-                    ) as response:
-                        if response.status == 401:
-                            raise Exception("Invalid or expired access token")
-                        elif response.status == 429:
-                            retry_after = int(response.headers.get('X-Retry-After', 5))
-                            await asyncio.sleep(retry_after)
-                            continue
-                        elif response.status >= 400:
-                            error_text = await response.text()
-                            raise Exception(f"HubSpot API error: {response.status} - {error_text}")
-                        
-                        if response.status == 204:  # No Content
-                            return {"success": True}
-                        
-                        result = await response.json()
-                        
-                        # Handle HubSpot API response structure
-                        if 'status' in result and result['status'] == 'error':
-                            raise Exception(f"HubSpot API error: {result}")
-                        
-                        # Handle pagination
-                        if use_pagination and 'paging' in result:
-                            paging = result.get('paging', {})
-                            if 'next' in paging:
-                                offset = paging['next'].get('after', 0)
-                                all_results.extend(result.get('results', []))
-                                continue
-                            else:
-                                all_results.extend(result.get('results', []))
-                                has_more = False
-                        else:
-                            return result
-                            
-                except aiohttp.ClientError as e:
-                    if attempt == self.max_retries - 1:
-                        raise Exception(f"Request failed after {self.max_retries} attempts: {str(e)}")
-                    await asyncio.sleep(2 ** attempt)
-        
-        if use_pagination:
+            async with httpx.AsyncClient() as client:
+                if method.upper() == "GET":
+                    response = await client.get(url, headers=self._get_headers(), params=params)
+                elif method.upper() == "POST":
+                    response = await client.post(url, headers=self._get_headers(), json=data, params=params)
+                elif method.upper() == "PUT":
+                    response = await client.put(url, headers=self._get_headers(), json=data, params=params)
+                elif method.upper() == "DELETE":
+                    response = await client.delete(url, headers=self._get_headers(), params=params)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                
+                if response.status_code == 401:
+                    # Token expired, try to refresh
+                    await self._refresh_token()
+                    # Retry request with new token
+                    return await self._make_request(method, endpoint, data, params)
+                elif response.status_code >= 400:
+                    error_data = response.text
+                    logger.error(f"HubSpot API error {response.status_code}: {error_data}")
+                    return {
+                        "success": False,
+                        "error": f"API error {response.status_code}",
+                        "details": error_data
+                    }
+                
+                response.raise_for_status()
+                return {
+                    "success": True,
+                    "data": response.json() if response.content else {}
+                }
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HubSpot API HTTP error: {e.response.status_code} - {e.response.text}")
             return {
-                "results": all_results,
-                "total": len(all_results)
+                "success": False,
+                "error": f"HTTP error {e.response.status_code}",
+                "details": e.response.text
             }
-        
-        raise Exception("Request failed after all retries")
-
-# Contact management
-    async def get_contacts(
-        self, 
-        limit: int = 30,
-        email: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        company: Optional[str] = None,
-        created_after: Optional[date] = None,
-        properties: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Get list of contacts with optional filtering"""
-        params = {
-            "limit": limit
-        }
-        
-        # Build search filters
-        filter_groups = []
-        if email:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "email",
-                    "operator": "EQ",
-                    "value": email
-                }]
-            })
-        if first_name:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "firstname",
-                    "operator": "CONTAINS_TOKEN",
-                    "value": first_name
-                }]
-            })
-        if last_name:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "lastname",
-                    "operator": "CONTAINS_TOKEN",
-                    "value": last_name
-                }]
-            })
-        if company:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "company",
-                    "operator": "CONTAINS_TOKEN",
-                    "value": company
-                }]
-            })
-        if created_after:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "createdate",
-                    "operator": "GTE",
-                    "value": int(created_after.timestamp() * 1000)
-                }]
-            })
-        
-        if filter_groups:
-            params["filterGroups"] = json.dumps(filter_groups)
-        
-        # Set properties to return
-        if properties:
-            params["properties"] = properties
-        else:
-            # Default properties to return
-            params["properties"] = [
-                "email", "firstname", "lastname", "phone", "company",
-                "lifecyclestage", "leadstatus", "hs_lead_status", "createdate", "lastmodifieddate"
-            ]
-        
-        return await self._make_request("POST", "/crm/v3/objects/contacts/search", params=params, use_pagination=True)
-    
-    async def get_contact(self, contact_id: str, properties: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Get specific contact by ID"""
-        params = {}
-        if properties:
-            params["properties"] = properties
-        else:
-            params["properties"] = [
-                "email", "firstname", "lastname", "phone", "company",
-                "lifecyclestage", "leadstatus", "hs_lead_status", "createdate", "lastmodifieddate"
-            ]
-        
-        return await self._make_request("GET", f"/crm/v3/objects/contacts/{contact_id}", params=params)
-    
-    async def create_contact(
-        self, 
-        email: str,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        phone: Optional[str] = None,
-        company: Optional[str] = None,
-        properties: Optional[Dict[str, Any]] = None,
-        lifecycle_stage: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Create a new contact"""
-        contact_data = {
-            "properties": {
-                "email": email
+        except Exception as e:
+            logger.error(f"HubSpot API request failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
             }
-        }
-        
-        if first_name:
-            contact_data["properties"]["firstname"] = first_name
-        if last_name:
-            contact_data["properties"]["lastname"] = last_name
-        if phone:
-            contact_data["properties"]["phone"] = phone
-        if company:
-            contact_data["properties"]["company"] = company
-        if lifecycle_stage:
-            contact_data["properties"]["lifecyclestage"] = lifecycle_stage
-        
-        # Add custom properties
-        if properties:
-            contact_data["properties"].update(properties)
-        
-        return await self._make_request("POST", "/crm/v3/objects/contacts", data=contact_data)
     
-    async def update_contact(
-        self, 
-        contact_id: str,
-        email: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-        phone: Optional[str] = None,
-        company: Optional[str] = None,
-        properties: Optional[Dict[str, Any]] = None,
-        lifecycle_stage: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Update existing contact"""
-        contact_data = {
-            "properties": {}
-        }
-        
-        if email:
-            contact_data["properties"]["email"] = email
-        if first_name:
-            contact_data["properties"]["firstname"] = first_name
-        if last_name:
-            contact_data["properties"]["lastname"] = last_name
-        if phone:
-            contact_data["properties"]["phone"] = phone
-        if company:
-            contact_data["properties"]["company"] = company
-        if lifecycle_stage:
-            contact_data["properties"]["lifecyclestage"] = lifecycle_stage
-        
-        # Add custom properties
-        if properties:
-            contact_data["properties"].update(properties)
-        
-        return await self._make_request("PATCH", f"/crm/v3/objects/contacts/{contact_id}", data=contact_data)
+    async def _refresh_token(self):
+        """Refresh access token"""
+        try:
+            refresh_url = "https://api.hubapi.com/oauth/v1/token"
+            
+            data = {
+                "grant_type": "refresh_token",
+                "client_id": os.getenv("HUBSPOT_CLIENT_ID"),
+                "client_secret": os.getenv("HUBSPOT_CLIENT_SECRET"),
+                "refresh_token": self.refresh_token
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(refresh_url, data=data)
+                response.raise_for_status()
+                
+                token_data = response.json()
+                
+                # Update tokens
+                self.access_token = token_data["access_token"]
+                if "refresh_token" in token_data:
+                    self.refresh_token = token_data["refresh_token"]
+                
+                # Update in database
+                from db_oauth_hubspot import refresh_hubspot_tokens
+                await refresh_hubspot_tokens(self.db_pool, self.user_id, token_data)
+                
+                logger.info("HubSpot token refreshed successfully")
+                
+        except Exception as e:
+            logger.error(f"Failed to refresh HubSpot token: {e}")
+            raise
+    
+    # Contacts Management
+    async def get_contacts(self, limit: int = 100, after: str = None, 
+                          properties: List[str] = None) -> Dict[str, Any]:
+        """Get HubSpot contacts"""
+        try:
+            await self._ensure_initialized()
+            
+            # Default properties to fetch
+            if not properties:
+                properties = ["firstname", "lastname", "email", "phone", "company", "jobtitle", 
+                            "website", "lifecyclestage", "createdate", "lastmodifieddate"]
+            
+            params = {
+                "limit": limit,
+                "properties": properties
+            }
+            
+            if after:
+                params["after"] = after
+            
+            result = await self._make_request("GET", "/crm/v3/objects/contacts", params=params)
+            
+            if result["success"]:
+                contacts = []
+                for contact in result["data"].get("results", []):
+                    contacts.append({
+                        "id": contact.get("id"),
+                        "properties": contact.get("properties", {}),
+                        "createdAt": contact.get("createdAt"),
+                        "updatedAt": contact.get("updatedAt"),
+                        "archived": contact.get("archived", False),
+                        "firstName": contact.get("properties", {}).get("firstname", ""),
+                        "lastName": contact.get("properties", {}).get("lastname", ""),
+                        "email": contact.get("properties", {}).get("email", ""),
+                        "phone": contact.get("properties", {}).get("phone", ""),
+                        "company": contact.get("properties", {}).get("company", ""),
+                        "jobTitle": contact.get("properties", {}).get("jobtitle", ""),
+                        "website": contact.get("properties", {}).get("website", ""),
+                        "lifecycleStage": contact.get("properties", {}).get("lifecyclestage", ""),
+                        "fullName": self._get_full_name(contact.get("properties", {})),
+                        "hasEmail": bool(contact.get("properties", {}).get("email")),
+                        "hasPhone": bool(contact.get("properties", {}).get("phone")),
+                        "isCustomer": contact.get("properties", {}).get("lifecyclestage") == "customer"
+                    })
+                
+                # Cache contacts
+                await self.cache_contacts(contacts)
+                
+                return {
+                    "success": True,
+                    "data": contacts,
+                    "total": len(contacts),
+                    "paging": result["data"].get("paging", {})
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot contacts: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def create_contact(self, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new HubSpot contact"""
+        try:
+            await self._ensure_initialized()
+            
+            contact_data = {
+                "properties": properties
+            }
+            
+            result = await self._make_request("POST", "/crm/v3/objects/contacts", data=contact_data)
+            
+            if result["success"]:
+                contact = result["data"]
+                
+                # Log activity
+                await self.log_activity("create_contact", {
+                    "contact_id": contact.get("id"),
+                    "email": properties.get("email"),
+                    "properties": properties
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "id": contact.get("id"),
+                        "properties": contact.get("properties", {}),
+                        "createdAt": contact.get("createdAt"),
+                        "updatedAt": contact.get("updatedAt")
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to create HubSpot contact: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def update_contact(self, contact_id: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Update HubSpot contact"""
+        try:
+            await self._ensure_initialized()
+            
+            contact_data = {
+                "properties": properties
+            }
+            
+            result = await self._make_request("PATCH", f"/crm/v3/objects/contacts/{contact_id}", 
+                                           data=contact_data)
+            
+            if result["success"]:
+                contact = result["data"]
+                
+                # Log activity
+                await self.log_activity("update_contact", {
+                    "contact_id": contact_id,
+                    "properties": properties
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "id": contact.get("id"),
+                        "properties": contact.get("properties", {}),
+                        "updatedAt": contact.get("updatedAt")
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to update HubSpot contact: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     async def delete_contact(self, contact_id: str) -> Dict[str, Any]:
-        """Delete contact"""
-        return await self._make_request("DELETE", f"/crm/v3/objects/contacts/{contact_id}")
-
-# Company management
-    async def get_companies(
-        self, 
-        limit: int = 30,
-        domain: Optional[str] = None,
-        name: Optional[str] = None,
-        industry: Optional[str] = None,
-        state: Optional[str] = None,
-        created_after: Optional[date] = None,
-        properties: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Get list of companies with optional filtering"""
-        params = {
-            "limit": limit
-        }
-        
-        # Build search filters
-        filter_groups = []
-        if domain:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "domain",
-                    "operator": "EQ",
-                    "value": domain
-                }]
-            })
-        if name:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "name",
-                    "operator": "CONTAINS_TOKEN",
-                    "value": name
-                }]
-            })
-        if industry:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "industry",
-                    "operator": "EQ",
-                    "value": industry
-                }]
-            })
-        if state:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "state",
-                    "operator": "EQ",
-                    "value": state
-                }]
-            })
-        if created_after:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "createdate",
-                    "operator": "GTE",
-                    "value": int(created_after.timestamp() * 1000)
-                }]
-            })
-        
-        if filter_groups:
-            params["filterGroups"] = json.dumps(filter_groups)
-        
-        # Set properties to return
-        if properties:
-            params["properties"] = properties
-        else:
-            # Default properties to return
-            params["properties"] = [
-                "domain", "name", "description", "industry", "state", "country",
-                "phone", "website", "employee_count", "annualrevenue", "createdate", "lastmodifieddate"
-            ]
-        
-        return await self._make_request("POST", "/crm/v3/objects/companies/search", params=params, use_pagination=True)
-    
-    async def get_company(self, company_id: str, properties: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Get specific company by ID"""
-        params = {}
-        if properties:
-            params["properties"] = properties
-        else:
-            params["properties"] = [
-                "domain", "name", "description", "industry", "state", "country",
-                "phone", "website", "employee_count", "annualrevenue", "createdate", "lastmodifieddate"
-            ]
-        
-        return await self._make_request("GET", f"/crm/v3/objects/companies/{company_id}", params=params)
-    
-    async def create_company(
-        self, 
-        name: str,
-        domain: Optional[str] = None,
-        description: Optional[str] = None,
-        industry: Optional[str] = None,
-        state: Optional[str] = None,
-        country: Optional[str] = None,
-        phone: Optional[str] = None,
-        website: Optional[str] = None,
-        employee_count: Optional[int] = None,
-        annual_revenue: Optional[float] = None,
-        properties: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Create a new company"""
-        company_data = {
-            "properties": {
-                "name": name
+        """Delete HubSpot contact"""
+        try:
+            await self._ensure_initialized()
+            
+            result = await self._make_request("DELETE", f"/crm/v3/objects/contacts/{contact_id}")
+            
+            if result["success"]:
+                # Log activity
+                await self.log_activity("delete_contact", {
+                    "contact_id": contact_id
+                })
+                
+                return {
+                    "success": True,
+                    "message": "Contact deleted successfully"
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to delete HubSpot contact: {e}")
+            return {
+                "success": False,
+                "error": str(e)
             }
-        }
-        
-        if domain:
-            company_data["properties"]["domain"] = domain
-        if description:
-            company_data["properties"]["description"] = description
-        if industry:
-            company_data["properties"]["industry"] = industry
-        if state:
-            company_data["properties"]["state"] = state
-        if country:
-            company_data["properties"]["country"] = country
-        if phone:
-            company_data["properties"]["phone"] = phone
-        if website:
-            company_data["properties"]["website"] = website
-        if employee_count:
-            company_data["properties"]["employee_count"] = str(employee_count)
-        if annual_revenue:
-            company_data["properties"]["annualrevenue"] = str(annual_revenue)
-        
-        # Add custom properties
-        if properties:
-            company_data["properties"].update(properties)
-        
-        return await self._make_request("POST", "/crm/v3/objects/companies", data=company_data)
     
-    async def update_company(
-        self, 
-        company_id: str,
-        name: Optional[str] = None,
-        domain: Optional[str] = None,
-        description: Optional[str] = None,
-        industry: Optional[str] = None,
-        state: Optional[str] = None,
-        country: Optional[str] = None,
-        phone: Optional[str] = None,
-        website: Optional[str] = None,
-        employee_count: Optional[int] = None,
-        annual_revenue: Optional[float] = None,
-        properties: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Update existing company"""
-        company_data = {
-            "properties": {}
-        }
-        
-        if name:
-            company_data["properties"]["name"] = name
-        if domain:
-            company_data["properties"]["domain"] = domain
-        if description:
-            company_data["properties"]["description"] = description
-        if industry:
-            company_data["properties"]["industry"] = industry
-        if state:
-            company_data["properties"]["state"] = state
-        if country:
-            company_data["properties"]["country"] = country
-        if phone:
-            company_data["properties"]["phone"] = phone
-        if website:
-            company_data["properties"]["website"] = website
-        if employee_count:
-            company_data["properties"]["employee_count"] = str(employee_count)
-        if annual_revenue:
-            company_data["properties"]["annualrevenue"] = str(annual_revenue)
-        
-        # Add custom properties
-        if properties:
-            company_data["properties"].update(properties)
-        
-        return await self._make_request("PATCH", f"/crm/v3/objects/companies/{company_id}", data=company_data)
-    
-    async def delete_company(self, company_id: str) -> Dict[str, Any]:
-        """Delete company"""
-        return await self._make_request("DELETE", f"/crm/v3/objects/companies/{company_id}")
-
-# Deal/Pipeline management
-    async def get_deals(
-        self, 
-        limit: int = 30,
-        deal_name: Optional[str] = None,
-        deal_stage: Optional[str] = None,
-        amount: Optional[float] = None,
-        closed_won: Optional[bool] = None,
-        created_after: Optional[date] = None,
-        properties: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Get list of deals with optional filtering"""
-        params = {
-            "limit": limit
-        }
-        
-        # Build search filters
-        filter_groups = []
-        if deal_name:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "dealname",
-                    "operator": "CONTAINS_TOKEN",
-                    "value": deal_name
-                }]
-            })
-        if deal_stage:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "dealstage",
-                    "operator": "EQ",
-                    "value": deal_stage
-                }]
-            })
-        if amount is not None:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "amount",
-                    "operator": "GTE",
-                    "value": amount
-                }]
-            })
-        if closed_won is not None:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "closedate",
-                    "operator": "HAS_PROPERTY" if closed_won else "NOT_HAS_PROPERTY"
-                }]
-            })
-        if created_after:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "createdate",
-                    "operator": "GTE",
-                    "value": int(created_after.timestamp() * 1000)
-                }]
-            })
-        
-        if filter_groups:
-            params["filterGroups"] = json.dumps(filter_groups)
-        
-        # Set properties to return
-        if properties:
-            params["properties"] = properties
-        else:
-            # Default properties to return
-            params["properties"] = [
-                "dealname", "dealstage", "pipeline", "amount", "closedate",
-                "createdate", "lastmodifieddate", "hs_forecast_amount"
-            ]
-        
-        return await self._make_request("POST", "/crm/v3/objects/deals/search", params=params, use_pagination=True)
-    
-    async def get_deal(self, deal_id: str, properties: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Get specific deal by ID"""
-        params = {}
-        if properties:
-            params["properties"] = properties
-        else:
-            params["properties"] = [
-                "dealname", "dealstage", "pipeline", "amount", "closedate",
-                "createdate", "lastmodifieddate", "hs_forecast_amount"
-            ]
-        
-        return await self._make_request("GET", f"/crm/v3/objects/deals/{deal_id}", params=params)
-    
-    async def create_deal(
-        self, 
-        deal_name: str,
-        amount: Optional[float] = None,
-        pipeline: Optional[str] = None,
-        deal_stage: Optional[str] = None,
-        close_date: Optional[date] = None,
-        contact_id: Optional[str] = None,
-        company_id: Optional[str] = None,
-        properties: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Create a new deal"""
-        deal_data = {
-            "properties": {
-                "dealname": deal_name
+    # Companies Management
+    async def get_companies(self, limit: int = 100, after: str = None, 
+                          properties: List[str] = None) -> Dict[str, Any]:
+        """Get HubSpot companies"""
+        try:
+            await self._ensure_initialized()
+            
+            # Default properties to fetch
+            if not properties:
+                properties = ["name", "domain", "industry", "description", "size", "revenue",
+                            "phone", "website", "city", "state", "country", "createdate", 
+                            "lastmodifieddate"]
+            
+            params = {
+                "limit": limit,
+                "properties": properties
             }
-        }
-        
-        if amount:
-            deal_data["properties"]["amount"] = str(amount)
-        if pipeline:
-            deal_data["properties"]["pipeline"] = pipeline
-        if deal_stage:
-            deal_data["properties"]["dealstage"] = deal_stage
-        if close_date:
-            deal_data["properties"]["closedate"] = int(close_date.timestamp() * 1000)
-        
-        # Add custom properties
-        if properties:
-            deal_data["properties"].update(properties)
-        
-        result = await self._make_request("POST", "/crm/v3/objects/deals", data=deal_data)
-        
-        # Associate with contact and company if provided
-        if contact_id:
-            await self._associate_deal_with_contact(result['id'], contact_id)
-        if company_id:
-            await self._associate_deal_with_company(result['id'], company_id)
-        
-        return result
-    
-    async def update_deal(
-        self, 
-        deal_id: str,
-        deal_name: Optional[str] = None,
-        amount: Optional[float] = None,
-        pipeline: Optional[str] = None,
-        deal_stage: Optional[str] = None,
-        close_date: Optional[date] = None,
-        properties: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Update existing deal"""
-        deal_data = {
-            "properties": {}
-        }
-        
-        if deal_name:
-            deal_data["properties"]["dealname"] = deal_name
-        if amount:
-            deal_data["properties"]["amount"] = str(amount)
-        if pipeline:
-            deal_data["properties"]["pipeline"] = pipeline
-        if deal_stage:
-            deal_data["properties"]["dealstage"] = deal_stage
-        if close_date:
-            deal_data["properties"]["closedate"] = int(close_date.timestamp() * 1000)
-        
-        # Add custom properties
-        if properties:
-            deal_data["properties"].update(properties)
-        
-        return await self._make_request("PATCH", f"/crm/v3/objects/deals/{deal_id}", data=deal_data)
-    
-    async def delete_deal(self, deal_id: str) -> Dict[str, Any]:
-        """Delete deal"""
-        return await self._make_request("DELETE", f"/crm/v3/objects/deals/{deal_id}")
-    
-    async def _associate_deal_with_contact(self, deal_id: str, contact_id: str) -> Dict[str, Any]:
-        """Associate deal with contact"""
-        association_data = {
-            "inputs": [{
-                "from": {
-                    "id": contact_id
-                },
-                "to": {
-                    "id": deal_id
-                },
-                "type": "deal_to_contact"
-            }]
-        }
-        return await self._make_request("POST", "/crm/v3/associations/deal/contact", data=association_data)
-    
-    async def _associate_deal_with_company(self, deal_id: str, company_id: str) -> Dict[str, Any]:
-        """Associate deal with company"""
-        association_data = {
-            "inputs": [{
-                "from": {
-                    "id": company_id
-                },
-                "to": {
-                    "id": deal_id
-                },
-                "type": "company_to_deal"
-            }]
-        }
-        return await self._make_request("POST", "/crm/v3/associations/company/deal", data=association_data)
-
-# Marketing campaigns
-    async def get_campaigns(
-        self, 
-        limit: int = 30,
-        campaign_name: Optional[str] = None,
-        status: Optional[str] = None,
-        created_after: Optional[date] = None
-    ) -> Dict[str, Any]:
-        """Get list of marketing campaigns"""
-        params = {
-            "limit": limit
-        }
-        
-        # Build search filters
-        filter_groups = []
-        if campaign_name:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "name",
-                    "operator": "CONTAINS_TOKEN",
-                    "value": campaign_name
-                }]
-            })
-        if status:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "status",
-                    "operator": "EQ",
-                    "value": status
-                }]
-            })
-        if created_after:
-            filter_groups.append({
-                "filters": [{
-                    "propertyName": "createdate",
-                    "operator": "GTE",
-                    "value": int(created_after.timestamp() * 1000)
-                }]
-            })
-        
-        if filter_groups:
-            params["filterGroups"] = json.dumps(filter_groups)
-        
-        return await self._make_request("POST", "/marketing/v3/campaigns/search", params=params, use_pagination=True)
-    
-    async def get_campaign(self, campaign_id: str) -> Dict[str, Any]:
-        """Get specific campaign by ID"""
-        return await self._make_request("GET", f"/marketing/v3/campaigns/{campaign_id}")
-    
-    async def create_campaign(
-        self, 
-        campaign_name: str,
-        subject: Optional[str] = None,
-        content: Optional[str] = None,
-        status: Optional[str] = "DRAFT",
-        campaign_type: Optional[str] = "EMAIL",
-        properties: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Create a new marketing campaign"""
-        campaign_data = {
-            "campaignName": campaign_name,
-            "campaignType": campaign_type,
-            "status": status
-        }
-        
-        if subject:
-            campaign_data["subject"] = subject
-        if content:
-            campaign_data["content"] = content
-        
-        # Add custom properties
-        if properties:
-            campaign_data.update(properties)
-        
-        return await self._make_request("POST", "/marketing/v3/campaigns", data=campaign_data)
-    
-    async def get_pipelines(self) -> Dict[str, Any]:
-        """Get all sales pipelines"""
-        return await self._make_request("GET", "/crm/v3/pipelines/deals")
-    
-    async def get_pipeline_stages(self, pipeline_id: str) -> Dict[str, Any]:
-        """Get stages for a specific pipeline"""
-        return await self._make_request("GET", f"/crm/v3/pipelines/deals/{pipeline_id}/stages")
-    
-    # Analytics and reporting
-    async def get_deal_analytics(
-        self, 
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        properties: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Get deal analytics and metrics"""
-        params = {}
-        if date_from:
-            params["dateFrom"] = date_from.isoformat()
-        if date_to:
-            params["dateTo"] = date_to.isoformat()
-        if properties:
-            params["properties"] = properties
-        
-        return await self._make_request("GET", "/crm/v3/objects/deals/analytics", params=params)
-    
-    async def get_contact_analytics(
-        self, 
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None,
-        properties: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
-        """Get contact analytics and metrics"""
-        params = {}
-        if date_from:
-            params["dateFrom"] = date_from.isoformat()
-        if date_to:
-            params["dateTo"] = date_to.isoformat()
-        if properties:
-            params["properties"] = properties
-        
-        return await self._make_request("GET", "/crm/v3/objects/contacts/analytics", params=params)
-    
-    async def get_campaign_analytics(
-        self, 
-        campaign_id: str,
-        date_from: Optional[date] = None,
-        date_to: Optional[date] = None
-    ) -> Dict[str, Any]:
-        """Get campaign analytics and metrics"""
-        params = {}
-        if date_from:
-            params["dateFrom"] = date_from.isoformat()
-        if date_to:
-            params["dateTo"] = date_to.isoformat()
-        
-        return await self._make_request("GET", f"/marketing/v3/campaigns/{campaign_id}/analytics", params=params)
-    
-    # Lead nurturing
-    async def get_lead_lists(self, limit: int = 30) -> Dict[str, Any]:
-        """Get all lead lists"""
-        params = {"limit": limit}
-        return await self._make_request("GET", "/marketing/v3/lead-lists", params=params, use_pagination=True)
-    
-    async def create_lead_list(
-        self, 
-        list_name: str,
-        description: Optional[str] = None,
-        processing_type: str = "MANUAL"
-    ) -> Dict[str, Any]:
-        """Create a new lead list"""
-        list_data = {
-            "name": list_name,
-            "processingType": processing_type
-        }
-        
-        if description:
-            list_data["description"] = description
-        
-        return await self._make_request("POST", "/marketing/v3/lead-lists", data=list_data)
-    
-    async def add_contacts_to_list(self, list_id: str, contact_ids: List[str]) -> Dict[str, Any]:
-        """Add contacts to a lead list"""
-        list_data = {
-            "inputs": [
-                {"id": contact_id} for contact_id in contact_ids
-            ]
-        }
-        
-        return await self._make_request("POST", f"/marketing/v3/lead-lists/{list_id}/memberships", data=list_data)
-    
-    async def remove_contacts_from_list(self, list_id: str, contact_ids: List[str]) -> Dict[str, Any]:
-        """Remove contacts from a lead list"""
-        list_data = {
-            "inputs": [
-                {"id": contact_id} for contact_id in contact_ids
-            ]
-        }
-        
-        return await self._make_request("DELETE", f"/marketing/v3/lead-lists/{list_id}/memberships", data=list_data)
-    
-    # Email marketing
-    async def send_email_to_contacts(
-        self, 
-        template_id: str,
-        contact_ids: List[str],
-        send_at: Optional[datetime] = None
-    ) -> Dict[str, Any]:
-        """Send email to specific contacts"""
-        email_data = {
-            "templateId": template_id,
-            "message": {
-                "to": contact_ids
+            
+            if after:
+                params["after"] = after
+            
+            result = await self._make_request("GET", "/crm/v3/objects/companies", params=params)
+            
+            if result["success"]:
+                companies = []
+                for company in result["data"].get("results", []):
+                    companies.append({
+                        "id": company.get("id"),
+                        "properties": company.get("properties", {}),
+                        "createdAt": company.get("createdAt"),
+                        "updatedAt": company.get("updatedAt"),
+                        "archived": company.get("archived", False),
+                        "name": company.get("properties", {}).get("name", ""),
+                        "domain": company.get("properties", {}).get("domain", ""),
+                        "industry": company.get("properties", {}).get("industry", ""),
+                        "description": company.get("properties", {}).get("description", ""),
+                        "size": company.get("properties", {}).get("size", ""),
+                        "revenue": company.get("properties", {}).get("revenue", ""),
+                        "phone": company.get("properties", {}).get("phone", ""),
+                        "website": company.get("properties", {}).get("website", ""),
+                        "city": company.get("properties", {}).get("city", ""),
+                        "state": company.get("properties", {}).get("state", ""),
+                        "country": company.get("properties", {}).get("country", ""),
+                        "hasWebsite": bool(company.get("properties", {}).get("website")),
+                        "hasPhone": bool(company.get("properties", {}).get("phone")),
+                        "employeeCount": self._parse_employee_count(company.get("properties", {}).get("size", ""))
+                    })
+                
+                # Cache companies
+                await self.cache_companies(companies)
+                
+                return {
+                    "success": True,
+                    "data": companies,
+                    "total": len(companies),
+                    "paging": result["data"].get("paging", {})
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot companies: {e}")
+            return {
+                "success": False,
+                "error": str(e)
             }
+    
+    async def create_company(self, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new HubSpot company"""
+        try:
+            await self._ensure_initialized()
+            
+            company_data = {
+                "properties": properties
+            }
+            
+            result = await self._make_request("POST", "/crm/v3/objects/companies", data=company_data)
+            
+            if result["success"]:
+                company = result["data"]
+                
+                # Log activity
+                await self.log_activity("create_company", {
+                    "company_id": company.get("id"),
+                    "name": properties.get("name"),
+                    "domain": properties.get("domain"),
+                    "properties": properties
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "id": company.get("id"),
+                        "properties": company.get("properties", {}),
+                        "createdAt": company.get("createdAt"),
+                        "updatedAt": company.get("updatedAt")
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to create HubSpot company: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Deals Management
+    async def get_deals(self, limit: int = 100, after: str = None, 
+                       properties: List[str] = None) -> Dict[str, Any]:
+        """Get HubSpot deals"""
+        try:
+            await self._ensure_initialized()
+            
+            # Default properties to fetch
+            if not properties:
+                properties = ["dealname", "pipeline", "dealstage", "amount", "closedate",
+                            "createdate", "lastmodifieddate", "hs_forecast_amount", 
+                            "probability", "dealtype"]
+            
+            params = {
+                "limit": limit,
+                "properties": properties
+            }
+            
+            if after:
+                params["after"] = after
+            
+            result = await self._make_request("GET", "/crm/v3/objects/deals", params=params)
+            
+            if result["success"]:
+                deals = []
+                for deal in result["data"].get("results", []):
+                    deals.append({
+                        "id": deal.get("id"),
+                        "properties": deal.get("properties", {}),
+                        "createdAt": deal.get("createdAt"),
+                        "updatedAt": deal.get("updatedAt"),
+                        "archived": deal.get("archived", False),
+                        "dealName": deal.get("properties", {}).get("dealname", ""),
+                        "pipeline": deal.get("properties", {}).get("pipeline", ""),
+                        "dealStage": deal.get("properties", {}).get("dealstage", ""),
+                        "amount": self._parse_amount(deal.get("properties", {}).get("amount", "0")),
+                        "forecastAmount": self._parse_amount(deal.get("properties", {}).get("hs_forecast_amount", "0")),
+                        "probability": self._parse_probability(deal.get("properties", {}).get("probability", "0")),
+                        "dealType": deal.get("properties", {}).get("dealtype", ""),
+                        "closeDate": deal.get("properties", {}).get("closedate", ""),
+                        "isClosed": bool(deal.get("properties", {}).get("closedate")),
+                        "isWon": self._is_deal_won(deal.get("properties", {}).get("dealstage", "")),
+                        "hasAmount": bool(deal.get("properties", {}).get("amount", "0") != "0")
+                    })
+                
+                # Cache deals
+                await self.cache_deals(deals)
+                
+                return {
+                    "success": True,
+                    "data": deals,
+                    "total": len(deals),
+                    "paging": result["data"].get("paging", {})
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot deals: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def create_deal(self, properties: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new HubSpot deal"""
+        try:
+            await self._ensure_initialized()
+            
+            deal_data = {
+                "properties": properties
+            }
+            
+            result = await self._make_request("POST", "/crm/v3/objects/deals", data=deal_data)
+            
+            if result["success"]:
+                deal = result["data"]
+                
+                # Log activity
+                await self.log_activity("create_deal", {
+                    "deal_id": deal.get("id"),
+                    "deal_name": properties.get("dealname"),
+                    "amount": properties.get("amount"),
+                    "properties": properties
+                })
+                
+                return {
+                    "success": True,
+                    "data": {
+                        "id": deal.get("id"),
+                        "properties": deal.get("properties", {}),
+                        "createdAt": deal.get("createdAt"),
+                        "updatedAt": deal.get("updatedAt")
+                    }
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to create HubSpot deal: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Tickets Management
+    async def get_tickets(self, limit: int = 100, after: str = None, 
+                         properties: List[str] = None) -> Dict[str, Any]:
+        """Get HubSpot tickets"""
+        try:
+            await self._ensure_initialized()
+            
+            # Default properties to fetch
+            if not properties:
+                properties = ["subject", "content", "hs_pipeline", "hs_pipeline_stage",
+                            "hs_ticket_category", "hs_ticket_priority", "createdate", 
+                            "lastmodifieddate", "closed_date"]
+            
+            params = {
+                "limit": limit,
+                "properties": properties
+            }
+            
+            if after:
+                params["after"] = after
+            
+            result = await self._make_request("GET", "/crm/v3/objects/tickets", params=params)
+            
+            if result["success"]:
+                tickets = []
+                for ticket in result["data"].get("results", []):
+                    tickets.append({
+                        "id": ticket.get("id"),
+                        "properties": ticket.get("properties", {}),
+                        "createdAt": ticket.get("createdAt"),
+                        "updatedAt": ticket.get("updatedAt"),
+                        "archived": ticket.get("archived", False),
+                        "subject": ticket.get("properties", {}).get("subject", ""),
+                        "content": ticket.get("properties", {}).get("content", ""),
+                        "pipeline": ticket.get("properties", {}).get("hs_pipeline", ""),
+                        "pipelineStage": ticket.get("properties", {}).get("hs_pipeline_stage", ""),
+                        "category": ticket.get("properties", {}).get("hs_ticket_category", ""),
+                        "priority": ticket.get("properties", {}).get("hs_ticket_priority", ""),
+                        "closedDate": ticket.get("properties", {}).get("closed_date", ""),
+                        "isClosed": bool(ticket.get("properties", {}).get("closed_date")),
+                        "priorityLevel": self._get_priority_level(ticket.get("properties", {}).get("hs_ticket_priority", ""))
+                    })
+                
+                # Cache tickets
+                await self.cache_tickets(tickets)
+                
+                return {
+                    "success": True,
+                    "data": tickets,
+                    "total": len(tickets),
+                    "paging": result["data"].get("paging", {})
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot tickets: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Pipelines Management
+    async def get_pipelines(self, object_type: str = "deals") -> Dict[str, Any]:
+        """Get HubSpot pipelines"""
+        try:
+            await self._ensure_initialized()
+            
+            result = await self._make_request("GET", f"/crm/v3/pipelines/{object_type}")
+            
+            if result["success"]:
+                pipelines = []
+                for pipeline in result["data"].get("results", []):
+                    stages = []
+                    for stage in pipeline.get("stages", []):
+                        stages.append({
+                            "id": stage.get("id"),
+                            "label": stage.get("label"),
+                            "displayOrder": stage.get("displayOrder", 0),
+                            "metadata": stage.get("metadata", {}),
+                            "isWon": stage.get("metadata", {}).get("isWon", False),
+                            "isLost": stage.get("metadata", {}).get("isLost", False)
+                        })
+                    
+                    pipelines.append({
+                        "id": pipeline.get("id"),
+                        "label": pipeline.get("label"),
+                        "displayOrder": pipeline.get("displayOrder", 0),
+                        "objectType": object_type,
+                        "stages": stages,
+                        "active": pipeline.get("active", True),
+                        "stageCount": len(stages),
+                        "wonStages": len([s for s in stages if s.get("isWon", False)]),
+                        "lostStages": len([s for s in stages if s.get("isLost", False)])
+                    })
+                
+                return {
+                    "success": True,
+                    "data": pipelines,
+                    "total": len(pipelines)
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot pipelines: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Search and Analytics
+    async def search_objects(self, object_type: str, query: str, 
+                           limit: int = 50) -> Dict[str, Any]:
+        """Search HubSpot objects"""
+        try:
+            await self._ensure_initialized()
+            
+            search_data = {
+                "filters": [
+                    {
+                        "propertyName": "searchable_properties",
+                        "operator": "CONTAINS_TOKEN",
+                        "value": query
+                    }
+                ],
+                "limit": limit
+            }
+            
+            result = await self._make_request("POST", f"/crm/v3/objects/{object_type}/search", 
+                                           data=search_data)
+            
+            if result["success"]:
+                objects = result["data"].get("results", [])
+                
+                # Log search activity
+                await self.log_activity("search_objects", {
+                    "object_type": object_type,
+                    "query": query,
+                    "results_count": len(objects)
+                })
+                
+                return {
+                    "success": True,
+                    "data": objects,
+                    "total": len(objects)
+                }
+            else:
+                return result
+                
+        except Exception as e:
+            logger.error(f"Failed to search HubSpot objects: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def get_engagement_stats(self, start_date: str = None, 
+                                end_date: str = None) -> Dict[str, Any]:
+        """Get engagement statistics"""
+        try:
+            await self._ensure_initialized()
+            
+            # Get basic stats
+            contacts_result = await self.get_contacts(limit=1)
+            companies_result = await self.get_companies(limit=1)
+            deals_result = await self.get_deals(limit=1)
+            tickets_result = await self.get_tickets(limit=1)
+            
+            # Calculate stats
+            total_contacts = contacts_result.get("success", False) and len(contacts_result.get("data", [])) > 0
+            total_companies = companies_result.get("success", False) and len(companies_result.get("data", [])) > 0
+            total_deals = deals_result.get("success", False) and len(deals_result.get("data", [])) > 0
+            total_tickets = tickets_result.get("success", False) and len(tickets_result.get("data", [])) > 0
+            
+            # Get more detailed data for actual counts
+            if total_contacts:
+                contacts_full = await self.get_contacts(limit=100)
+                total_contacts = len(contacts_full.get("data", []))
+            
+            if total_companies:
+                companies_full = await self.get_companies(limit=100)
+                total_companies = len(companies_full.get("data", []))
+            
+            if total_deals:
+                deals_full = await self.get_deals(limit=100)
+                total_deals = len(deals_full.get("data", []))
+                # Calculate deal value
+                total_deal_value = sum(deal.get("amount", 0) for deal in deals_full.get("data", []))
+                won_deals = len([d for d in deals_full.get("data", []) if d.get("isWon", False)])
+            
+            if total_tickets:
+                tickets_full = await self.get_tickets(limit=100)
+                total_tickets = len(tickets_full.get("data", []))
+                open_tickets = len([t for t in tickets_full.get("data", []) if not t.get("isClosed", False)])
+            
+            return {
+                "success": True,
+                "data": {
+                    "contacts": {
+                        "total": total_contacts,
+                        "customers": 0  # Would need additional calculation
+                    },
+                    "companies": {
+                        "total": total_companies,
+                        "industries": set()  # Would need additional calculation
+                    },
+                    "deals": {
+                        "total": total_deals,
+                        "won": total_deals > 0 and won_deals or 0,
+                        "totalValue": total_deal_value if total_deals > 0 else 0
+                    },
+                    "tickets": {
+                        "total": total_tickets,
+                        "open": total_tickets > 0 and open_tickets or 0,
+                        "closed": total_tickets > 0 and (total_tickets - open_tickets) or 0
+                    },
+                    "dateRange": {
+                        "startDate": start_date,
+                        "endDate": end_date
+                    }
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get HubSpot engagement stats: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Helper methods
+    def _get_full_name(self, properties: Dict[str, Any]) -> str:
+        """Get full name from properties"""
+        first = properties.get("firstname", "")
+        last = properties.get("lastname", "")
+        return f"{first} {last}".strip()
+    
+    def _parse_amount(self, amount_str: str) -> float:
+        """Parse amount string to float"""
+        try:
+            return float(amount_str.replace("$", "").replace(",", "").strip() or "0")
+        except:
+            return 0.0
+    
+    def _parse_probability(self, probability_str: str) -> float:
+        """Parse probability string to float"""
+        try:
+            return float(probability_str.replace("%", "").strip() or "0") / 100
+        except:
+            return 0.0
+    
+    def _parse_employee_count(self, size_str: str) -> int:
+        """Parse employee count string to int"""
+        try:
+            if not size_str:
+                return 0
+            # Extract numeric value from strings like "51-200", "501-1000"
+            import re
+            numbers = re.findall(r'\d+', size_str)
+            if numbers:
+                return max(int(n) for n in numbers)
+            return 0
+        except:
+            return 0
+    
+    def _is_deal_won(self, deal_stage: str) -> bool:
+        """Check if deal is won"""
+        # Common won stage patterns
+        won_patterns = ["closed won", "won", "closed", "signed", "contract"]
+        return any(pattern in deal_stage.lower() for pattern in won_patterns)
+    
+    def _get_priority_level(self, priority_str: str) -> int:
+        """Get priority level from priority string"""
+        priority_map = {
+            "high": 3,
+            "medium": 2,
+            "low": 1,
+            "urgent": 4
         }
-        
-        if send_at:
-            email_data["sendAt"] = int(send_at.timestamp() * 1000)
-        
-        return await self._make_request("POST", "/marketing/v3/transactional/single-email/send", data=email_data)
+        return priority_map.get(priority_str.lower(), 2)
     
-    async def get_email_templates(self, limit: int = 30) -> Dict[str, Any]:
-        """Get all email templates"""
-        params = {"limit": limit}
-        return await self._make_request("GET", "/marketing/v3/marketing-emails/templates", params=params, use_pagination=True)
+    # Caching methods
+    async def cache_contacts(self, contacts: List[Dict[str, Any]]) -> bool:
+        """Cache HubSpot contact data"""
+        try:
+            async with self.db_pool.acquire() as conn:
+                # Create cache table if it doesn't exist
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS hubspot_contacts_cache (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(255) NOT NULL,
+                        contact_id VARCHAR(255) NOT NULL,
+                        contact_data JSONB,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(user_id, contact_id)
+                    );
+                    
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_user_id ON hubspot_contacts_cache(user_id);
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_contact_id ON hubspot_contacts_cache(contact_id);
+                """)
+                
+                # Update cache
+                for contact in contacts:
+                    await conn.execute("""
+                        INSERT INTO hubspot_contacts_cache 
+                        (user_id, contact_id, contact_data)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (user_id, contact_id)
+                        DO UPDATE SET 
+                            contact_data = EXCLUDED.contact_data,
+                            updated_at = CURRENT_TIMESTAMP
+                    """, self.user_id, contact["id"], json.dumps(contact))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cache HubSpot contacts: {e}")
+            return False
     
-    async def close_session(self):
-        """Close HTTP session"""
-        if self.session and not self.session.closed:
-            await self.session.close()
-
-# Utility functions for response formatting
-def format_hubspot_response(data: Any, service: str = "hubspot") -> Dict[str, Any]:
-    """Format successful HubSpot response"""
-    return {
-        "ok": True,
-        "data": data,
-        "service": service,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-def format_hubspot_error_response(error_msg: str, service: str = "hubspot") -> Dict[str, Any]:
-    """Format error response"""
-    return {
-        "ok": False,
-        "error": {
-            "code": "HUBSPOT_ERROR",
-            "message": error_msg,
-            "service": service
-        },
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-# HubSpot service factory
-def create_hubspot_service(config: Optional[HubSpotConfig] = None) -> HubSpotService:
-    """Factory function to create HubSpot service instance"""
-    return HubSpotService(config)
+    async def cache_companies(self, companies: List[Dict[str, Any]]) -> bool:
+        """Cache HubSpot company data"""
+        try:
+            async with self.db_pool.acquire() as conn:
+                # Create cache table if it doesn't exist
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS hubspot_companies_cache (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(255) NOT NULL,
+                        company_id VARCHAR(255) NOT NULL,
+                        company_data JSONB,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(user_id, company_id)
+                    );
+                    
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_companies_user_id ON hubspot_companies_cache(user_id);
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_companies_company_id ON hubspot_companies_cache(company_id);
+                """)
+                
+                # Update cache
+                for company in companies:
+                    await conn.execute("""
+                        INSERT INTO hubspot_companies_cache 
+                        (user_id, company_id, company_data)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (user_id, company_id)
+                        DO UPDATE SET 
+                            company_data = EXCLUDED.company_data,
+                            updated_at = CURRENT_TIMESTAMP
+                    """, self.user_id, company["id"], json.dumps(company))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cache HubSpot companies: {e}")
+            return False
+    
+    async def cache_deals(self, deals: List[Dict[str, Any]]) -> bool:
+        """Cache HubSpot deal data"""
+        try:
+            async with self.db_pool.acquire() as conn:
+                # Create cache table if it doesn't exist
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS hubspot_deals_cache (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(255) NOT NULL,
+                        deal_id VARCHAR(255) NOT NULL,
+                        deal_data JSONB,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(user_id, deal_id)
+                    );
+                    
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_deals_user_id ON hubspot_deals_cache(user_id);
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_deals_deal_id ON hubspot_deals_cache(deal_id);
+                """)
+                
+                # Update cache
+                for deal in deals:
+                    await conn.execute("""
+                        INSERT INTO hubspot_deals_cache 
+                        (user_id, deal_id, deal_data)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (user_id, deal_id)
+                        DO UPDATE SET 
+                            deal_data = EXCLUDED.deal_data,
+                            updated_at = CURRENT_TIMESTAMP
+                    """, self.user_id, deal["id"], json.dumps(deal))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cache HubSpot deals: {e}")
+            return False
+    
+    async def cache_tickets(self, tickets: List[Dict[str, Any]]) -> bool:
+        """Cache HubSpot ticket data"""
+        try:
+            async with self.db_pool.acquire() as conn:
+                # Create cache table if it doesn't exist
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS hubspot_tickets_cache (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(255) NOT NULL,
+                        ticket_id VARCHAR(255) NOT NULL,
+                        ticket_data JSONB,
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(user_id, ticket_id)
+                    );
+                    
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_user_id ON hubspot_tickets_cache(user_id);
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_ticket_id ON hubspot_tickets_cache(ticket_id);
+                """)
+                
+                # Update cache
+                for ticket in tickets:
+                    await conn.execute("""
+                        INSERT INTO hubspot_tickets_cache 
+                        (user_id, ticket_id, ticket_data)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (user_id, ticket_id)
+                        DO UPDATE SET 
+                            ticket_data = EXCLUDED.ticket_data,
+                            updated_at = CURRENT_TIMESTAMP
+                    """, self.user_id, ticket["id"], json.dumps(ticket))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cache HubSpot tickets: {e}")
+            return False
+    
+    async def log_activity(self, action: str, details: Dict[str, Any] = None, 
+                         status: str = "success", error_message: str = None):
+        """Log HubSpot activity"""
+        try:
+            async with self.db_pool.acquire() as conn:
+                # Create activity log table if it doesn't exist
+                await conn.execute("""
+                    CREATE TABLE IF NOT EXISTS hubspot_activity_logs (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(255) NOT NULL,
+                        action VARCHAR(255) NOT NULL,
+                        action_details JSONB,
+                        status VARCHAR(50),
+                        error_message TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    );
+                    
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_activity_user_id ON hubspot_activity_logs(user_id);
+                    CREATE INDEX IF NOT EXISTS idx_hubspot_activity_action ON hubspot_activity_logs(action);
+                """)
+                
+                await conn.execute("""
+                    INSERT INTO hubspot_activity_logs 
+                    (user_id, action, action_details, status, error_message)
+                    VALUES ($1, $2, $3, $4, $5)
+                """, self.user_id, action, json.dumps(details or {}), status, error_message)
+        
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to log HubSpot activity: {e}")
+            return False

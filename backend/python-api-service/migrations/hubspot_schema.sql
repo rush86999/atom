@@ -1,311 +1,456 @@
--- HubSpot Integration Database Schema
--- PostgreSQL schema for HubSpot OAuth tokens and user/company data
+-- HubSpot OAuth Integration Database Schema
+-- Complete schema for HubSpot CRM authentication and data caching
 
--- OAuth tokens table for storing authentication credentials
+-- Create encryption extension if not exists
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- HubSpot OAuth tokens table
 CREATE TABLE IF NOT EXISTS hubspot_oauth_tokens (
-    user_id TEXT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    hub_id VARCHAR(255),
     access_token TEXT NOT NULL,
     refresh_token TEXT,
-    token_type TEXT DEFAULT 'Bearer',
-    expires_in INTEGER DEFAULT 3600,
-    hub_id TEXT,
-    hub_domain TEXT,
-    app_id TEXT,
-    scopes TEXT[] DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    token_type VARCHAR(50) DEFAULT 'Bearer',
+    expires_at TIMESTAMP WITH TIME ZONE,
+    scope TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    encrypted_tokens TEXT NOT NULL,
+    UNIQUE(user_id)
 );
 
--- User/account data table for storing HubSpot user information
-CREATE TABLE IF NOT EXISTS hubspot_user_data (
-    user_id TEXT PRIMARY KEY,
-    hub_id TEXT NOT NULL,
-    user_email TEXT,
-    user_name TEXT,
+-- HubSpot contacts cache
+CREATE TABLE IF NOT EXISTS hubspot_contacts_cache (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    contact_id VARCHAR(255) NOT NULL,
+    contact_data JSONB,
     first_name TEXT,
     last_name TEXT,
-    portal_id TEXT,
-    account_type TEXT,
-    time_zone TEXT,
-    currency TEXT,
-    super_admin BOOLEAN,
-    is_super_admin BOOLEAN,
-    is_primary_user BOOLEAN,
-    role_id INTEGER,
-    role_name TEXT,
-    user_teams JSONB DEFAULT '[]',
-    permissions JSONB DEFAULT '{}',
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    email TEXT,
+    phone TEXT,
+    company TEXT,
+    job_title TEXT,
+    lifecycle_stage TEXT,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    is_customer BOOLEAN DEFAULT FALSE,
+    has_email BOOLEAN DEFAULT FALSE,
+    has_phone BOOLEAN DEFAULT FALSE,
+    UNIQUE(user_id, contact_id)
 );
 
--- Portal/company data table for storing HubSpot portal information
-CREATE TABLE IF NOT EXISTS hubspot_portal_data (
-    user_id TEXT PRIMARY KEY,
-    portal_id TEXT NOT NULL,
-    company_name TEXT,
+-- HubSpot companies cache
+CREATE TABLE IF NOT EXISTS hubspot_companies_cache (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    company_id VARCHAR(255) NOT NULL,
+    company_data JSONB,
+    name TEXT,
     domain TEXT,
-    currency TEXT,
-    time_zone TEXT,
-    portal_type TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    industry TEXT,
+    description TEXT,
+    size TEXT,
+    revenue TEXT,
+    phone TEXT,
+    website TEXT,
+    city TEXT,
+    state TEXT,
+    country TEXT,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    has_website BOOLEAN DEFAULT FALSE,
+    has_phone BOOLEAN DEFAULT FALSE,
+    employee_count INTEGER DEFAULT 0,
+    UNIQUE(user_id, company_id)
 );
 
--- Indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_tokens_updated_at ON hubspot_oauth_tokens(updated_at);
-CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_tokens_user_id ON hubspot_oauth_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_tokens_hub_id ON hubspot_oauth_tokens(hub_id);
-CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_tokens_scopes ON hubspot_oauth_tokens USING GIN(scopes);
-CREATE INDEX IF NOT EXISTS idx_hubspot_user_data_hub_id ON hubspot_user_data(hub_id);
-CREATE INDEX IF NOT EXISTS idx_hubspot_user_data_portal_id ON hubspot_user_data(portal_id);
-CREATE INDEX IF NOT EXISTS idx_hubspot_user_data_user_email ON hubspot_user_data(user_email);
-CREATE INDEX IF NOT EXISTS idx_hubspot_user_data_is_super_admin ON hubspot_user_data(is_super_admin);
-CREATE INDEX IF NOT EXISTS idx_hubspot_user_data_updated_at ON hubspot_user_data(updated_at);
-CREATE INDEX IF NOT EXISTS idx_hubspot_portal_data_portal_id ON hubspot_portal_data(portal_id);
-CREATE INDEX IF NOT EXISTS idx_hubspot_portal_data_company_name ON hubspot_portal_data(company_name);
-CREATE INDEX IF NOT EXISTS idx_hubspot_portal_data_domain ON hubspot_portal_data(domain);
-CREATE INDEX IF NOT EXISTS idx_hubspot_portal_data_updated_at ON hubspot_portal_data(updated_at);
+-- HubSpot deals cache
+CREATE TABLE IF NOT EXISTS hubspot_deals_cache (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    deal_id VARCHAR(255) NOT NULL,
+    deal_data JSONB,
+    deal_name TEXT,
+    pipeline TEXT,
+    deal_stage TEXT,
+    amount NUMERIC DEFAULT 0,
+    forecast_amount NUMERIC DEFAULT 0,
+    probability DECIMAL(3,2) DEFAULT 0,
+    deal_type TEXT,
+    close_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    is_closed BOOLEAN DEFAULT FALSE,
+    is_won BOOLEAN DEFAULT FALSE,
+    has_amount BOOLEAN DEFAULT FALSE,
+    UNIQUE(user_id, deal_id)
+);
 
--- Triggers to automatically update updated_at timestamps
-CREATE OR REPLACE FUNCTION update_hubspot_oauth_tokens_updated_at()
+-- HubSpot tickets cache
+CREATE TABLE IF NOT EXISTS hubspot_tickets_cache (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    ticket_id VARCHAR(255) NOT NULL,
+    ticket_data JSONB,
+    subject TEXT,
+    content TEXT,
+    pipeline TEXT,
+    pipeline_stage TEXT,
+    category TEXT,
+    priority TEXT,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    closed_date TIMESTAMP WITH TIME ZONE,
+    is_closed BOOLEAN DEFAULT FALSE,
+    priority_level INTEGER DEFAULT 2,
+    UNIQUE(user_id, ticket_id)
+);
+
+-- HubSpot pipelines cache
+CREATE TABLE IF NOT EXISTS hubspot_pipelines_cache (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    pipeline_id VARCHAR(255) NOT NULL,
+    pipeline_data JSONB,
+    label TEXT,
+    object_type TEXT,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    active BOOLEAN DEFAULT TRUE,
+    stage_count INTEGER DEFAULT 0,
+    won_stages INTEGER DEFAULT 0,
+    lost_stages INTEGER DEFAULT 0,
+    UNIQUE(user_id, pipeline_id, object_type)
+);
+
+-- HubSpot engagement metrics
+CREATE TABLE IF NOT EXISTS hubspot_engagement_metrics (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    object_type VARCHAR(50) NOT NULL, -- 'contacts', 'companies', 'deals', 'tickets'
+    object_id VARCHAR(255),
+    metric_type VARCHAR(50) NOT NULL, -- 'created', 'updated', 'deleted', 'engagement'
+    metric_value NUMERIC,
+    metric_date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- HubSpot activity logs
+CREATE TABLE IF NOT EXISTS hubspot_activity_logs (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    action VARCHAR(255) NOT NULL,
+    action_details JSONB,
+    status VARCHAR(50) DEFAULT 'success',
+    error_message TEXT,
+    contact_id VARCHAR(255),
+    company_id VARCHAR(255),
+    deal_id VARCHAR(255),
+    ticket_id VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- HubSpot sync schedules
+CREATE TABLE IF NOT EXISTS hubspot_sync_schedules (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    sync_type VARCHAR(50) NOT NULL, -- 'contacts', 'companies', 'deals', 'tickets'
+    schedule_name TEXT NOT NULL,
+    frequency VARCHAR(50), -- 'hourly', 'daily', 'weekly'
+    last_sync TIMESTAMP WITH TIME ZONE,
+    next_sync TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_user_id ON hubspot_oauth_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_email ON hubspot_oauth_tokens(email);
+CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_hub_id ON hubspot_oauth_tokens(hub_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_oauth_updated_at ON hubspot_oauth_tokens(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_user_id ON hubspot_contacts_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_contact_id ON hubspot_contacts_cache(contact_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_email ON hubspot_contacts_cache(email);
+CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_company ON hubspot_contacts_cache(company);
+CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_lifecycle_stage ON hubspot_contacts_cache(lifecycle_stage);
+CREATE INDEX IF NOT EXISTS idx_hubspot_contacts_updated_at ON hubspot_contacts_cache(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_companies_user_id ON hubspot_companies_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_companies_company_id ON hubspot_companies_cache(company_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_companies_name ON hubspot_companies_cache(name);
+CREATE INDEX IF NOT EXISTS idx_hubspot_companies_domain ON hubspot_companies_cache(domain);
+CREATE INDEX IF NOT EXISTS idx_hubspot_companies_industry ON hubspot_companies_cache(industry);
+CREATE INDEX IF NOT EXISTS idx_hubspot_companies_updated_at ON hubspot_companies_cache(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_user_id ON hubspot_deals_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_deal_id ON hubspot_deals_cache(deal_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_pipeline ON hubspot_deals_cache(pipeline);
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_stage ON hubspot_deals_cache(deal_stage);
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_amount ON hubspot_deals_cache(amount);
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_close_date ON hubspot_deals_cache(close_date);
+CREATE INDEX IF NOT EXISTS idx_hubspot_deals_updated_at ON hubspot_deals_cache(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_user_id ON hubspot_tickets_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_ticket_id ON hubspot_tickets_cache(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_pipeline ON hubspot_tickets_cache(pipeline);
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_stage ON hubspot_tickets_cache(pipeline_stage);
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_priority ON hubspot_tickets_cache(priority);
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_closed_date ON hubspot_tickets_cache(closed_date);
+CREATE INDEX IF NOT EXISTS idx_hubspot_tickets_updated_at ON hubspot_tickets_cache(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_pipelines_user_id ON hubspot_pipelines_cache(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_pipelines_pipeline_id ON hubspot_pipelines_cache(pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_pipelines_object_type ON hubspot_pipelines_cache(object_type);
+CREATE INDEX IF NOT EXISTS idx_hubspot_pipelines_updated_at ON hubspot_pipelines_cache(updated_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_engagement_user_id ON hubspot_engagement_metrics(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_engagement_object_id ON hubspot_engagement_metrics(object_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_engagement_type_date ON hubspot_engagement_metrics(metric_type, metric_date);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_activity_user_id ON hubspot_activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_activity_action ON hubspot_activity_logs(action);
+CREATE INDEX IF NOT EXISTS idx_hubspot_activity_contact_id ON hubspot_activity_logs(contact_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_activity_created_at ON hubspot_activity_logs(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_hubspot_sync_user_id ON hubspot_sync_schedules(user_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_sync_type ON hubspot_sync_schedules(sync_type);
+CREATE INDEX IF NOT EXISTS idx_hubspot_sync_next_sync ON hubspot_sync_schedules(next_sync);
+
+-- Functions for token management
+CREATE OR REPLACE FUNCTION refresh_hubspot_tokens(
+    p_user_id VARCHAR(255),
+    p_new_access_token TEXT,
+    p_new_refresh_token TEXT,
+    p_expires_at TIMESTAMP WITH TIME ZONE
+) RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE hubspot_oauth_tokens
+    SET 
+        access_token = p_new_access_token,
+        refresh_token = COALESCE(p_new_refresh_token, refresh_token),
+        expires_at = p_expires_at,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = p_user_id;
+    
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION is_hubspot_token_expired(
+    p_user_id VARCHAR(255)
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_expires_at TIMESTAMP WITH TIME ZONE;
+BEGIN
+    SELECT expires_at INTO v_expires_at
+    FROM hubspot_oauth_tokens
+    WHERE user_id = p_user_id AND is_active = TRUE;
+    
+    RETURN v_expires_at IS NULL OR v_expires_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Functions for analytics
+CREATE OR REPLACE FUNCTION get_hubspot_stats(
+    p_user_id VARCHAR(255)
+) RETURNS JSONB AS $$
+DECLARE
+    v_result JSONB;
+    v_contacts_count INTEGER;
+    v_companies_count INTEGER;
+    v_deals_count INTEGER;
+    v_won_deals_count INTEGER;
+    v_total_deal_value NUMERIC;
+    v_tickets_count INTEGER;
+    v_open_tickets_count INTEGER;
+BEGIN
+    -- Get counts
+    SELECT COUNT(*) INTO v_contacts_count
+    FROM hubspot_contacts_cache
+    WHERE user_id = p_user_id;
+    
+    SELECT COUNT(*) INTO v_companies_count
+    FROM hubspot_companies_cache
+    WHERE user_id = p_user_id;
+    
+    SELECT COUNT(*) INTO v_deals_count
+    FROM hubspot_deals_cache
+    WHERE user_id = p_user_id;
+    
+    SELECT COUNT(*) INTO v_won_deals_count
+    FROM hubspot_deals_cache
+    WHERE user_id = p_user_id AND is_won = TRUE;
+    
+    SELECT COALESCE(SUM(amount), 0) INTO v_total_deal_value
+    FROM hubspot_deals_cache
+    WHERE user_id = p_user_id AND is_won = TRUE;
+    
+    SELECT COUNT(*) INTO v_tickets_count
+    FROM hubspot_tickets_cache
+    WHERE user_id = p_user_id;
+    
+    SELECT COUNT(*) INTO v_open_tickets_count
+    FROM hubspot_tickets_cache
+    WHERE user_id = p_user_id AND is_closed = FALSE;
+    
+    -- Build result
+    v_result := jsonb_build_object(
+        'contacts', jsonb_build_object(
+            'total', v_contacts_count,
+            'customers', (SELECT COUNT(*) FROM hubspot_contacts_cache WHERE user_id = p_user_id AND is_customer = TRUE)
+        ),
+        'companies', jsonb_build_object(
+            'total', v_companies_count,
+            'industries', (SELECT COUNT(DISTINCT industry) FROM hubspot_companies_cache WHERE user_id = p_user_id AND industry IS NOT NULL)
+        ),
+        'deals', jsonb_build_object(
+            'total', v_deals_count,
+            'won', v_won_deals_count,
+            'totalValue', v_total_deal_value,
+            'conversionRate', CASE WHEN v_deals_count > 0 THEN (v_won_deals_count::NUMERIC / v_deals_count::NUMERIC) ELSE 0 END
+        ),
+        'tickets', jsonb_build_object(
+            'total', v_tickets_count,
+            'open', v_open_tickets_count,
+            'closed', v_tickets_count - v_open_tickets_count
+        )
+    );
+    
+    RETURN v_result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Functions for cache management
+CREATE OR REPLACE FUNCTION cleanup_hubspot_cache(
+    p_user_id VARCHAR(255),
+    p_days_old INTEGER DEFAULT 30
+) RETURNS INTEGER AS $$
+DECLARE
+    v_deleted_count INTEGER;
+BEGIN
+    -- Clean up old activity logs
+    DELETE FROM hubspot_activity_logs
+    WHERE user_id = p_user_id
+    AND created_at < CURRENT_TIMESTAMP - INTERVAL '30 days';
+    
+    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+    
+    -- Clean up old engagement metrics
+    DELETE FROM hubspot_engagement_metrics
+    WHERE user_id = p_user_id
+    AND metric_date < CURRENT_TIMESTAMP - INTERVAL '90 days';
+    
+    RETURN v_deleted_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for updated_at timestamp
+CREATE OR REPLACE FUNCTION update_hubspot_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
-
-CREATE OR REPLACE FUNCTION update_hubspot_user_data_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE OR REPLACE FUNCTION update_hubspot_portal_data_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 -- Apply triggers
-DROP TRIGGER IF EXISTS trigger_update_hubspot_oauth_tokens_updated_at ON hubspot_oauth_tokens;
-CREATE TRIGGER trigger_update_hubspot_oauth_tokens_updated_at
+CREATE TRIGGER tr_hubspot_oauth_tokens_updated
     BEFORE UPDATE ON hubspot_oauth_tokens
     FOR EACH ROW
-    EXECUTE FUNCTION update_hubspot_oauth_tokens_updated_at();
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
-DROP TRIGGER IF EXISTS trigger_update_hubspot_user_data_updated_at ON hubspot_user_data;
-CREATE TRIGGER trigger_update_hubspot_user_data_updated_at
-    BEFORE UPDATE ON hubspot_user_data
+CREATE TRIGGER tr_hubspot_contacts_updated
+    BEFORE UPDATE ON hubspot_contacts_cache
     FOR EACH ROW
-    EXECUTE FUNCTION update_hubspot_user_data_updated_at();
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
-DROP TRIGGER IF EXISTS trigger_update_hubspot_portal_data_updated_at ON hubspot_portal_data;
-CREATE TRIGGER trigger_update_hubspot_portal_data_updated_at
-    BEFORE UPDATE ON hubspot_portal_data
+CREATE TRIGGER tr_hubspot_companies_updated
+    BEFORE UPDATE ON hubspot_companies_cache
     FOR EACH ROW
-    EXECUTE FUNCTION update_hubspot_portal_data_updated_at();
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
--- Row Level Security (RLS) for multi-tenant applications
--- Uncomment if using RLS in your PostgreSQL setup
+CREATE TRIGGER tr_hubspot_deals_updated
+    BEFORE UPDATE ON hubspot_deals_cache
+    FOR EACH ROW
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
--- ALTER TABLE hubspot_oauth_tokens ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE hubspot_user_data ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE hubspot_portal_data ENABLE ROW LEVEL SECURITY;
+CREATE TRIGGER tr_hubspot_tickets_updated
+    BEFORE UPDATE ON hubspot_tickets_cache
+    FOR EACH ROW
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
--- Policy examples (adjust based on your authentication system)
--- CREATE POLICY hubspot_oauth_tokens_user_policy ON hubspot_oauth_tokens
---     FOR ALL TO authenticated_users
---     USING (user_id = current_user_id());
+CREATE TRIGGER tr_hubspot_pipelines_updated
+    BEFORE UPDATE ON hubspot_pipelines_cache
+    FOR EACH ROW
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
--- CREATE POLICY hubspot_user_data_user_policy ON hubspot_user_data
---     FOR ALL TO authenticated_users
---     USING (user_id = current_user_id());
+CREATE TRIGGER tr_hubspot_sync_updated
+    BEFORE UPDATE ON hubspot_sync_schedules
+    FOR EACH ROW
+    EXECUTE FUNCTION update_hubspot_updated_at();
 
--- CREATE POLICY hubspot_portal_data_user_policy ON hubspot_portal_data
---     FOR ALL TO authenticated_users
---     USING (user_id = current_user_id());
+-- Row Level Security (RLS)
+ALTER TABLE hubspot_oauth_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_contacts_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_companies_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_deals_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_tickets_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_pipelines_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_engagement_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hubspot_sync_schedules ENABLE ROW LEVEL SECURITY;
 
--- Comments for documentation
-COMMENT ON TABLE hubspot_oauth_tokens IS 'Stores OAuth tokens for HubSpot API authentication';
-COMMENT ON TABLE hubspot_user_data IS 'Stores HubSpot user and account data';
-COMMENT ON TABLE hubspot_portal_data IS 'Stores HubSpot portal/company data';
+-- RLS Policies
+CREATE POLICY hubspot_oauth_tokens_user_policy ON hubspot_oauth_tokens
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
-COMMENT ON COLUMN hubspot_oauth_tokens.user_id IS 'ATOM user identifier';
-COMMENT ON COLUMN hubspot_oauth_tokens.access_token IS 'HubSpot OAuth access token';
-COMMENT ON COLUMN hubspot_oauth_tokens.refresh_token IS 'HubSpot OAuth refresh token (optional)';
-COMMENT ON COLUMN hubspot_oauth_tokens.token_type IS 'Token type, usually Bearer';
-COMMENT ON COLUMN hubspot_oauth_tokens.expires_in IS 'Token expiration time in seconds';
-COMMENT ON COLUMN hubspot_oauth_tokens.hub_id IS 'HubSpot portal/hub identifier';
-COMMENT ON COLUMN hubspot_oauth_tokens.hub_domain IS 'HubSpot portal domain';
-COMMENT ON COLUMN hubspot_oauth_tokens.app_id IS 'HubSpot application identifier';
-COMMENT ON COLUMN hubspot_oauth_tokens.scopes IS 'OAuth scopes granted to the token';
-COMMENT ON COLUMN hubspot_oauth_tokens.created_at IS 'Token creation timestamp';
-COMMENT ON COLUMN hubspot_oauth_tokens.updated_at IS 'Token last update timestamp';
+CREATE POLICY hubspot_contacts_user_policy ON hubspot_contacts_cache
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
-COMMENT ON COLUMN hubspot_user_data.user_id IS 'ATOM user identifier';
-COMMENT ON COLUMN hubspot_user_data.hub_id IS 'HubSpot portal/hub identifier';
-COMMENT ON COLUMN hubspot_user_data.user_email IS 'HubSpot user email address';
-COMMENT ON COLUMN hubspot_user_data.user_name IS 'HubSpot user full name';
-COMMENT ON COLUMN hubspot_user_data.first_name IS 'HubSpot user first name';
-COMMENT ON COLUMN hubspot_user_data.last_name IS 'HubSpot user last name';
-COMMENT ON COLUMN hubspot_user_data.portal_id IS 'HubSpot portal identifier';
-COMMENT ON COLUMN hubspot_user_data.account_type IS 'HubSpot account type';
-COMMENT ON COLUMN hubspot_user_data.time_zone IS 'User time zone';
-COMMENT ON COLUMN hubspot_user_data.currency IS 'Portal currency';
-COMMENT ON COLUMN hubspot_user_data.super_admin IS 'Legacy super admin flag';
-COMMENT ON COLUMN hubspot_user_data.is_super_admin IS 'Super admin status';
-COMMENT ON COLUMN hubspot_user_data.is_primary_user IS 'Primary user status';
-COMMENT ON COLUMN hubspot_user_data.role_id IS 'HubSpot role identifier';
-COMMENT ON COLUMN hubspot_user_data.role_name IS 'HubSpot role name';
-COMMENT ON COLUMN hubspot_user_data.user_teams IS 'HubSpot user teams';
-COMMENT ON COLUMN hubspot_user_data.permissions IS 'User permissions in JSON format';
-COMMENT ON COLUMN hubspot_user_data.metadata IS 'Additional user metadata in JSON format';
-COMMENT ON COLUMN hubspot_user_data.created_at IS 'User data creation timestamp';
-COMMENT ON COLUMN hubspot_user_data.updated_at IS 'User data last update timestamp';
+CREATE POLICY hubspot_companies_user_policy ON hubspot_companies_cache
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
-COMMENT ON COLUMN hubspot_portal_data.user_id IS 'ATOM user identifier';
-COMMENT ON COLUMN hubspot_portal_data.portal_id IS 'HubSpot portal identifier';
-COMMENT ON COLUMN hubspot_portal_data.company_name IS 'Company name';
-COMMENT ON COLUMN hubspot_portal_data.domain IS 'Company domain';
-COMMENT ON COLUMN hubspot_portal_data.currency IS 'Portal currency';
-COMMENT ON COLUMN hubspot_portal_data.time_zone IS 'Portal time zone';
-COMMENT ON COLUMN hubspot_portal_data.portal_type IS 'Portal type or category';
-COMMENT ON COLUMN hubspot_portal_data.created_at IS 'Portal data creation timestamp';
-COMMENT ON COLUMN hubspot_portal_data.updated_at IS 'Portal data last update timestamp';
+CREATE POLICY hubspot_deals_user_policy ON hubspot_deals_cache
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
--- HubSpot marketing data tracking tables (optional for advanced features)
--- Uncomment if you want to track marketing data locally
+CREATE POLICY hubspot_tickets_user_policy ON hubspot_tickets_cache
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
--- Contact sync cache table
--- CREATE TABLE IF NOT EXISTS hubspot_contact_cache (
---     id SERIAL PRIMARY KEY,
---     user_id TEXT NOT NULL REFERENCES hubspot_user_data(user_id),
---     hub_id TEXT NOT NULL,
---     contact_id TEXT NOT NULL,
---     contact_data JSONB,
---     sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     UNIQUE(hub_id, contact_id)
--- );
+CREATE POLICY hubspot_pipelines_user_policy ON hubspot_pipelines_cache
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
--- Company sync cache table
--- CREATE TABLE IF NOT EXISTS hubspot_company_cache (
---     id SERIAL PRIMARY KEY,
---     user_id TEXT NOT NULL REFERENCES hubspot_user_data(user_id),
---     hub_id TEXT NOT NULL,
---     company_id TEXT NOT NULL,
---     company_data JSONB,
---     sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     UNIQUE(hub_id, company_id)
--- );
+CREATE POLICY hubspot_engagement_user_policy ON hubspot_engagement_metrics
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
--- Deal sync cache table
--- CREATE TABLE IF NOT EXISTS hubspot_deal_cache (
---     id SERIAL PRIMARY KEY,
---     user_id TEXT NOT NULL REFERENCES hubspot_user_data(user_id),
---     hub_id TEXT NOT NULL,
---     deal_id TEXT NOT NULL,
---     deal_data JSONB,
---     sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     UNIQUE(hub_id, deal_id)
--- );
+CREATE POLICY hubspot_activity_user_policy ON hubspot_activity_logs
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
--- Campaign sync cache table
--- CREATE TABLE IF NOT EXISTS hubspot_campaign_cache (
---     id SERIAL PRIMARY KEY,
---     user_id TEXT NOT NULL REFERENCES hubspot_user_data(user_id),
---     hub_id TEXT NOT NULL,
---     campaign_id TEXT NOT NULL,
---     campaign_data JSONB,
---     sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     UNIQUE(hub_id, campaign_id)
--- );
+CREATE POLICY hubspot_sync_user_policy ON hubspot_sync_schedules
+    FOR ALL
+    TO authenticated_users
+    USING (user_id = current_setting('app.current_user_id')::TEXT);
 
--- Analytics cache table for performance
--- CREATE TABLE IF NOT EXISTS hubspot_analytics_cache (
---     id SERIAL PRIMARY KEY,
---     user_id TEXT NOT NULL REFERENCES hubspot_user_data(user_id),
---     hub_id TEXT NOT NULL,
---     analytics_type TEXT NOT NULL,
---     analytics_parameters JSONB,
---     analytics_data JSONB,
---     sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     expires_at TIMESTAMP,
---     UNIQUE(hub_id, analytics_type, md5(analytics_parameters::text))
--- );
-
--- Lead list membership cache table
--- CREATE TABLE IF NOT EXISTS hubspot_list_membership_cache (
---     id SERIAL PRIMARY KEY,
---     user_id TEXT NOT NULL REFERENCES hubspot_user_data(user_id),
---     hub_id TEXT NOT NULL,
---     list_id TEXT NOT NULL,
---     contact_id TEXT NOT NULL,
---     membership_data JSONB,
---     sync_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     UNIQUE(hub_id, list_id, contact_id)
--- );
-
--- Indexes for cache tables
--- CREATE INDEX IF NOT EXISTS idx_hubspot_contact_cache_hub_contact ON hubspot_contact_cache(hub_id, contact_id);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_contact_cache_sync_time ON hubspot_contact_cache(sync_time);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_company_cache_hub_company ON hubspot_company_cache(hub_id, company_id);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_company_cache_sync_time ON hubspot_company_cache(sync_time);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_deal_cache_hub_deal ON hubspot_deal_cache(hub_id, deal_id);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_deal_cache_sync_time ON hubspot_deal_cache(sync_time);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_campaign_cache_hub_campaign ON hubspot_campaign_cache(hub_id, campaign_id);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_campaign_cache_sync_time ON hubspot_campaign_cache(sync_time);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_analytics_cache_type ON hubspot_analytics_cache(analytics_type);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_analytics_cache_expires ON hubspot_analytics_cache(expires_at);
--- CREATE INDEX IF NOT EXISTS idx_hubspot_list_membership_cache_list_contact ON hubspot_list_membership_cache(list_id, contact_id);
-
--- Partitioning for large datasets (uncomment if needed)
--- CREATE TABLE hubspot_contact_cache_partitioned (
---     LIKE hubspot_contact_cache INCLUDING ALL
--- ) PARTITION BY RANGE (sync_time);
-
--- CREATE TABLE hubspot_contact_cache_2024 PARTITION OF hubspot_contact_cache_partitioned
---     FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
-
--- Functions for data cleanup
-CREATE OR REPLACE FUNCTION cleanup_expired_tokens()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM hubspot_oauth_tokens 
-    WHERE updated_at < NOW() - INTERVAL '90 days'
-    AND user_id NOT IN (
-        SELECT DISTINCT user_id FROM hubspot_user_data 
-        WHERE updated_at > NOW() - INTERVAL '90 days'
-    );
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION cleanup_old_cache_data()
-RETURNS void AS $$
-BEGIN
-    -- Clean up expired analytics cache data
-    DELETE FROM hubspot_analytics_cache 
-    WHERE expires_at < NOW();
-    
-    -- Clean up old sync data (if cache tables exist)
-    -- DELETE FROM hubspot_contact_cache WHERE sync_time < NOW() - INTERVAL '30 days';
-    -- DELETE FROM hubspot_company_cache WHERE sync_time < NOW() - INTERVAL '30 days';
-    -- DELETE FROM hubspot_deal_cache WHERE sync_time < NOW() - INTERVAL '30 days';
-    -- DELETE FROM hubspot_campaign_cache WHERE sync_time < NOW() - INTERVAL '30 days';
-    -- DELETE FROM hubspot_list_membership_cache WHERE sync_time < NOW() - INTERVAL '30 days';
-END;
-$$ LANGUAGE plpgsql;
-
--- Schedule cleanup jobs (requires pg_cron extension)
--- Uncomment if you have pg_cron installed
--- SELECT cron.schedule('cleanup-hubspot-data', '0 2 * * *', 'SELECT cleanup_expired_tokens(); SELECT cleanup_old_cache_data();');
+COMMIT;
