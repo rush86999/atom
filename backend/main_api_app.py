@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 import uvicorn
 
 # Import our modules
 from api_routes import router
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 # Import Asana integration
 try:
@@ -179,6 +179,22 @@ if ZOOM_AVAILABLE and zoom_router:
     print("✅ Zoom integration routes loaded")
 else:
     print("⚠️  Zoom integration routes not available")
+
+# Include Tableau integration routes if available
+try:
+    from integrations.tableau_routes import router as tableau_router
+
+    TABLEAU_AVAILABLE = True
+except ImportError as e:
+    print(f"Tableau integration not available: {e}")
+    TABLEAU_AVAILABLE = False
+    tableau_router = None
+
+if TABLEAU_AVAILABLE and tableau_router:
+    app.include_router(tableau_router)
+    print("✅ Tableau integration routes loaded")
+else:
+    print("⚠️  Tableau integration routes not available")
 
 
 @app.get("/")

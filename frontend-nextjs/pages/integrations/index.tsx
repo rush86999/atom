@@ -230,6 +230,16 @@ const IntegrationsPage: React.FC = () => {
       color: "orange",
     },
     {
+      id: "tableau",
+      name: "Tableau",
+      description: "Business intelligence and analytics platform",
+      category: "analytics",
+      status: "complete",
+      connected: false,
+      icon: BarChartIcon,
+      color: "purple",
+    },
+    {
       id: "azure",
       name: "Microsoft Azure",
       description: "Cloud computing platform for infrastructure and services",

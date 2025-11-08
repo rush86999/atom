@@ -311,6 +311,17 @@ except ImportError as e:
     GOOGLE_WORKSPACE_AVAILABLE = False
     logging.warning(f"Google Workspace handler not available: {e}")
 
+# Import Tableau handler
+try:
+    from tableau_handler import router as tableau_bp
+    from auth_handler_tableau import get_tableau_oauth_handler
+    from db_oauth_tableau import init_tableau_oauth_table, get_user_tableau_tokens, is_tableau_token_expired, refresh_tableau_tokens
+
+    TABLEAU_OAUTH_AVAILABLE = True
+except ImportError as e:
+    TABLEAU_OAUTH_AVAILABLE = False
+    logging.warning(f"Tableau OAuth handler not available: {e}")
+
 # Import Salesforce handler
 try:
     from salesforce_handler import salesforce_bp
@@ -1314,6 +1325,14 @@ def create_app():
             logging.info("Google Workspace integration registered successfully")
         except Exception as e:
             logging.error(f"Failed to register Google Workspace integration: {e}")
+
+    # Register Tableau integration if available
+    if TABLEAU_OAUTH_AVAILABLE:
+        try:
+            app.register_blueprint(tableau_bp, url_prefix="")
+            logging.info("Tableau integration registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register Tableau integration: {e}")
 
     return app
 
