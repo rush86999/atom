@@ -302,6 +302,15 @@ except ImportError as e:
     SLACK_ENHANCED_AVAILABLE = False
     logging.warning(f"Slack enhanced handler not available: {e}")
 
+# Import Google Workspace handler
+try:
+    from google_workspace_handler import router as google_workspace_bp
+
+    GOOGLE_WORKSPACE_AVAILABLE = True
+except ImportError as e:
+    GOOGLE_WORKSPACE_AVAILABLE = False
+    logging.warning(f"Google Workspace handler not available: {e}")
+
 # Import Salesforce handler
 try:
     from salesforce_handler import salesforce_bp
@@ -1297,6 +1306,14 @@ def create_app():
             logging.info("Slack integration registered successfully")
         except Exception as e:
             logging.error(f"Failed to register Slack integration: {e}")
+
+    # Register Google Workspace integration if available
+    if GOOGLE_WORKSPACE_AVAILABLE:
+        try:
+            app.register_blueprint(google_workspace_bp, url_prefix="")
+            logging.info("Google Workspace integration registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register Google Workspace integration: {e}")
 
     return app
 

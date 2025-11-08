@@ -220,6 +220,16 @@ const IntegrationsPage: React.FC = () => {
       color: "purple",
     },
     {
+      id: "google-workspace",
+      name: "Google Workspace",
+      description: "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
+      category: "productivity",
+      status: "complete",
+      connected: false,
+      icon: DocumentIcon,
+      color: "orange",
+    },
+    {
       id: "azure",
       name: "Microsoft Azure",
       description: "Cloud computing platform for infrastructure and services",
