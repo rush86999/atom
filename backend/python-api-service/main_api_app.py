@@ -264,6 +264,17 @@ except ImportError as e:
     GITLAB_ENHANCED_AVAILABLE = False
     logging.warning(f"GitLab enhanced API not available: {e}")
 
+# Import Xero OAuth handler
+try:
+    from auth_handler_xero import xero_auth_bp
+    from db_oauth_xero import create_xero_tokens_table
+    from xero_integration_register import register_xero_integration
+
+    XERO_OAUTH_AVAILABLE = True
+except ImportError as e:
+    XERO_OAUTH_AVAILABLE = False
+    logging.warning(f"Xero OAuth handler not available: {e}")
+
 # Import Zoom OAuth handler
 try:
     from auth_handler_zoom import init_zoom_oauth_handler, zoom_auth_bp
@@ -1212,6 +1223,29 @@ def create_app():
     except ImportError as e:
         STRIPE_HEALTH_AVAILABLE = False
         logging.warning(f"Stripe health handler not available: {e}")
+
+    # Register Xero OAuth handler if available
+    if XERO_OAUTH_AVAILABLE:
+        try:
+            # Initialize Xero database schema
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(create_xero_tokens_table(db_pool))
+            loop.close()
+            
+            app.register_blueprint(xero_auth_bp, url_prefix="/api/auth", name="xero_auth")
+            logging.info("Xero OAuth handler registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register Xero OAuth handler: {e}")
+
+    # Register Xero service endpoints if available
+    try:
+        from xero_service import xero_bp
+        app.register_blueprint(xero_bp, url_prefix="/api", name="xero_handler")
+        logging.info("Xero service handler registered successfully")
+    except ImportError as e:
+        logging.warning(f"Xero service handler not available: {e}")
 
     return app
 

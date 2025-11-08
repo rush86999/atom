@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 // Interfaces for Gmail data types
 interface GmailMessage {
@@ -89,22 +89,26 @@ interface GmailSearchFilters {
   semanticSearch: boolean;
   includeSpam: boolean;
   includeTrash: boolean;
-  importance: 'all' | 'high' | 'normal' | 'low';
-  readStatus: 'all' | 'read' | 'unread';
-  starredStatus: 'all' | 'starred' | 'not-starred';
+  importance: "all" | "high" | "normal" | "low";
+  readStatus: "all" | "read" | "unread";
+  starredStatus: "all" | "starred" | "not-starred";
 }
 
 // Search sort interface
 interface GmailSearchSort {
   field: string;
-  direction: 'asc' | 'desc';
+  direction: "asc" | "desc";
 }
 
 // Component props
 interface GmailSearchProps {
   data: GmailMessage[] | GmailThread[] | GmailContact[];
-  dataType: 'messages' | 'threads' | 'contacts';
-  onSearch: (results: any[], filters: GmailSearchFilters, sort: GmailSearchSort) => void;
+  dataType: "messages" | "threads" | "contacts";
+  onSearch: (
+    results: any[],
+    filters: GmailSearchFilters,
+    sort: GmailSearchSort,
+  ) => void;
   onFiltersChange?: (filters: GmailSearchFilters) => void;
   onSortChange?: (sort: GmailSearchSort) => void;
   loading?: boolean;
@@ -122,38 +126,38 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   loading = false,
   totalCount = 0,
   availableLabels = [],
-  availableContacts = []
+  availableContacts = [],
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState<GmailSearchFilters>({
-    searchTerm: '',
+    searchTerm: "",
     labels: [],
-    from: '',
-    to: '',
-    subject: '',
+    from: "",
+    to: "",
+    subject: "",
     hasAttachment: false,
     isStarred: false,
     isUnread: false,
     isImportant: false,
     dateRange: {
-      from: '',
-      to: ''
+      from: "",
+      to: "",
     },
     sizeRange: {
       min: 0,
-      max: 50000000 // 50MB
+      max: 50000000, // 50MB
     },
     semanticSearch: false,
     includeSpam: false,
     includeTrash: false,
-    importance: 'all',
-    readStatus: 'all',
-    starredStatus: 'all'
+    importance: "all",
+    readStatus: "all",
+    starredStatus: "all",
   });
 
   const [sort, setSort] = useState<GmailSearchSort>({
     field: getDefaultSortField(dataType),
-    direction: 'desc'
+    direction: "desc",
   });
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -163,20 +167,20 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
 
-  const bgColor = 'white';
-  const borderColor = 'gray.200';
+  const bgColor = "white";
+  const borderColor = "gray.200";
 
   // Get default sort field based on data type
   function getDefaultSortField(type: string): string {
     switch (type) {
-      case 'messages':
-        return 'internalDate';
-      case 'threads':
-        return 'internalDate';
-      case 'contacts':
-        return 'displayName';
+      case "messages":
+        return "internalDate";
+      case "threads":
+        return "internalDate";
+      case "contacts":
+        return "displayName";
       default:
-        return 'internalDate';
+        return "internalDate";
     }
   }
 
@@ -187,26 +191,28 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
     const subjects = new Set<string>();
 
     data.forEach((item: any) => {
-      if ('payload' in item) {
+      if ("payload" in item) {
         const message = item as GmailMessage;
         const headers = message.payload.headers || [];
 
         // Extract senders
-        const fromHeader = headers.find(h => h.name.toLowerCase() === 'from');
+        const fromHeader = headers.find((h) => h.name.toLowerCase() === "from");
         if (fromHeader) {
           senders.add(fromHeader.value);
         }
 
         // Extract recipients
-        const toHeader = headers.find(h => h.name.toLowerCase() === 'to');
+        const toHeader = headers.find((h) => h.name.toLowerCase() === "to");
         if (toHeader) {
-          toHeader.value.split(',').forEach(email => {
+          toHeader.value.split(",").forEach((email) => {
             recipients.add(email.trim());
           });
         }
 
         // Extract subjects
-        const subjectHeader = headers.find(h => h.name.toLowerCase() === 'subject');
+        const subjectHeader = headers.find(
+          (h) => h.name.toLowerCase() === "subject",
+        );
         if (subjectHeader) {
           subjects.add(subjectHeader.value);
         }
@@ -216,7 +222,7 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
     return {
       senders: Array.from(senders).slice(0, 50), // Limit to 50
       recipients: Array.from(recipients).slice(0, 50),
-      subjects: Array.from(subjects).slice(0, 50)
+      subjects: Array.from(subjects).slice(0, 50),
     };
   }, [data]);
 
@@ -226,30 +232,39 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
 
     // Apply search term
     if (searchTerm.trim()) {
-      results = results.filter(item => {
+      results = results.filter((item) => {
         const searchText = searchTerm.toLowerCase();
 
-        if ('payload' in item) {
+        if ("payload" in item) {
           const message = item as GmailMessage;
           const headers = message.payload.headers || [];
 
           // Search in from, to, subject, and snippet
-          const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || '';
-          const to = headers.find(h => h.name.toLowerCase() === 'to')?.value || '';
-          const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || '';
+          const from =
+            headers.find((h) => h.name.toLowerCase() === "from")?.value || "";
+          const to =
+            headers.find((h) => h.name.toLowerCase() === "to")?.value || "";
+          const subject =
+            headers.find((h) => h.name.toLowerCase() === "subject")?.value ||
+            "";
 
-          return from.toLowerCase().includes(searchText) ||
-                 to.toLowerCase().includes(searchText) ||
-                 subject.toLowerCase().includes(searchText) ||
-                 message.snippet.toLowerCase().includes(searchText);
+          return (
+            from.toLowerCase().includes(searchText) ||
+            to.toLowerCase().includes(searchText) ||
+            subject.toLowerCase().includes(searchText) ||
+            message.snippet.toLowerCase().includes(searchText)
+          );
         }
 
-        if ('names' in item) {
+        if ("names" in item) {
           const contact = item as GmailContact;
-          return contact.names.some(name =>
-            name.displayName.toLowerCase().includes(searchText)
-          ) || contact.emailAddresses.some(email =>
-            email.value.toLowerCase().includes(searchText)
+          return (
+            contact.names.some((name) =>
+              name.displayName.toLowerCase().includes(searchText),
+            ) ||
+            contact.emailAddresses.some((email) =>
+              email.value.toLowerCase().includes(searchText),
+            )
           );
         }
 
@@ -258,11 +273,11 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
     }
 
     // Apply filters based on data type
-    if (dataType === 'messages') {
+    if (dataType === "messages") {
       results = filterMessages(results as GmailMessage[], filters);
-    } else if (dataType === 'threads') {
+    } else if (dataType === "threads") {
       results = filterThreads(results as GmailThread[], filters);
-    } else if (dataType === 'contacts') {
+    } else if (dataType === "contacts") {
       results = filterContacts(results as GmailContact[], filters);
     }
 
@@ -273,45 +288,64 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
     if (searchTerm.trim() && !recentSearches.includes(searchTerm)) {
       const newRecentSearches = [searchTerm, ...recentSearches.slice(0, 9)];
       setRecentSearches(newRecentSearches);
-      localStorage.setItem('gmail-recent-searches', JSON.stringify(newRecentSearches));
+      localStorage.setItem(
+        "gmail-recent-searches",
+        JSON.stringify(newRecentSearches),
+      );
     }
 
     onSearch(results, filters, sort);
   }, [data, searchTerm, filters, sort, dataType, recentSearches, onSearch]);
 
   // Filter messages
-  const filterMessages = (messages: GmailMessage[], filters: GmailSearchFilters) => {
-    return messages.filter(message => {
+  const filterMessages = (
+    messages: GmailMessage[],
+    filters: GmailSearchFilters,
+  ) => {
+    return messages.filter((message) => {
       const headers = message.payload.headers || [];
 
       // From filter
       if (filters.from) {
-        const fromHeader = headers.find(h => h.name.toLowerCase() === 'from');
-        if (!fromHeader || !fromHeader.value.toLowerCase().includes(filters.from.toLowerCase())) {
+        const fromHeader = headers.find((h) => h.name.toLowerCase() === "from");
+        if (
+          !fromHeader ||
+          !fromHeader.value.toLowerCase().includes(filters.from.toLowerCase())
+        ) {
           return false;
         }
       }
 
       // To filter
       if (filters.to) {
-        const toHeader = headers.find(h => h.name.toLowerCase() === 'to');
-        if (!toHeader || !toHeader.value.toLowerCase().includes(filters.to.toLowerCase())) {
+        const toHeader = headers.find((h) => h.name.toLowerCase() === "to");
+        if (
+          !toHeader ||
+          !toHeader.value.toLowerCase().includes(filters.to.toLowerCase())
+        ) {
           return false;
         }
       }
 
       // Subject filter
       if (filters.subject) {
-        const subjectHeader = headers.find(h => h.name.toLowerCase() === 'subject');
-        if (!subjectHeader || !subjectHeader.value.toLowerCase().includes(filters.subject.toLowerCase())) {
+        const subjectHeader = headers.find(
+          (h) => h.name.toLowerCase() === "subject",
+        );
+        if (
+          !subjectHeader ||
+          !subjectHeader.value
+            .toLowerCase()
+            .includes(filters.subject.toLowerCase())
+        ) {
           return false;
         }
       }
 
       // Labels filter
       if (filters.labels.length > 0) {
-        const hasAllLabels = filters.labels.every(label =>
-          message.labelIds.includes(label)
+        const hasAllLabels = filters.labels.every((label) =>
+          message.labelIds.includes(label),
         );
         if (!hasAllLabels) {
           return false;
@@ -320,39 +354,52 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
 
       // Attachment filter
       if (filters.hasAttachment) {
-        const hasAttachment = message.payload.parts?.some(part =>
-          part.mimeType !== 'text/plain' && part.mimeType !== 'text/html'
-        ) || false;
+        const hasAttachment =
+          message.payload.parts?.some(
+            (part) =>
+              part.mimeType !== "text/plain" && part.mimeType !== "text/html",
+          ) || false;
         if (!hasAttachment) {
           return false;
         }
       }
 
       // Size range filter
-      if (message.sizeEstimate < filters.sizeRange.min || message.sizeEstimate > filters.sizeRange.max) {
+      if (
+        message.sizeEstimate < filters.sizeRange.min ||
+        message.sizeEstimate > filters.sizeRange.max
+      ) {
         return false;
       }
 
       // Date range filter
-      if (filters.dateRange.from && new Date(parseInt(message.internalDate)) < new Date(filters.dateRange.from)) {
+      if (
+        filters.dateRange.from &&
+        new Date(parseInt(message.internalDate)) <
+          new Date(filters.dateRange.from)
+      ) {
         return false;
       }
-      if (filters.dateRange.to && new Date(parseInt(message.internalDate)) > new Date(filters.dateRange.to)) {
+      if (
+        filters.dateRange.to &&
+        new Date(parseInt(message.internalDate)) >
+          new Date(filters.dateRange.to)
+      ) {
         return false;
       }
 
       // Read status filter
-      if (filters.readStatus !== 'all') {
-        const isUnread = message.labelIds.includes('UNREAD');
-        if (filters.readStatus === 'read' && isUnread) return false;
-        if (filters.readStatus === 'unread' && !isUnread) return false;
+      if (filters.readStatus !== "all") {
+        const isUnread = message.labelIds.includes("UNREAD");
+        if (filters.readStatus === "read" && isUnread) return false;
+        if (filters.readStatus === "unread" && !isUnread) return false;
       }
 
       // Starred status filter
-      if (filters.starredStatus !== 'all') {
-        const isStarred = message.labelIds.includes('STARRED');
-        if (filters.starredStatus === 'starred' && !isStarred) return false;
-        if (filters.starredStatus === 'not-starred' && isStarred) return false;
+      if (filters.starredStatus !== "all") {
+        const isStarred = message.labelIds.includes("STARRED");
+        if (filters.starredStatus === "starred" && !isStarred) return false;
+        if (filters.starredStatus === "not-starred" && isStarred) return false;
       }
 
       return true;
@@ -360,8 +407,11 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   };
 
   // Filter threads
-  const filterThreads = (threads: GmailThread[], filters: GmailSearchFilters) => {
-    return threads.filter(thread => {
+  const filterThreads = (
+    threads: GmailThread[],
+    filters: GmailSearchFilters,
+  ) => {
+    return threads.filter((thread) => {
       // For threads, we check if any message in the thread matches the filters
       const matchingMessages = filterMessages(thread.messages, filters);
       return matchingMessages.length > 0;
@@ -369,14 +419,19 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   };
 
   // Filter contacts
-  const filterContacts = (contacts: GmailContact[], filters: GmailSearchFilters) => {
-    return contacts.filter(contact => {
+  const filterContacts = (
+    contacts: GmailContact[],
+    filters: GmailSearchFilters,
+  ) => {
+    return contacts.filter((contact) => {
       // Search in contact names and emails
-      const matchesName = contact.names.some(name =>
-        name.displayName.toLowerCase().includes(filters.searchTerm.toLowerCase())
+      const matchesName = contact.names.some((name) =>
+        name.displayName
+          .toLowerCase()
+          .includes(filters.searchTerm.toLowerCase()),
       );
-      const matchesEmail = contact.emailAddresses.some(email =>
-        email.value.toLowerCase().includes(filters.searchTerm.toLowerCase())
+      const matchesEmail = contact.emailAddresses.some((email) =>
+        email.value.toLowerCase().includes(filters.searchTerm.toLowerCase()),
       );
 
       return matchesName || matchesEmail;
@@ -384,35 +439,39 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   };
 
   // Sort results
-  const sortResults = (results: any[], field: string, direction: 'asc' | 'desc') => {
+  const sortResults = (
+    results: any[],
+    field: string,
+    direction: "asc" | "desc",
+  ) => {
     return [...results].sort((a, b) => {
       let aValue: any = a[field];
       let bValue: any = b[field];
 
       // Handle nested fields
-      if (field.includes('.')) {
-        const nestedFields = field.split('.');
+      if (field.includes(".")) {
+        const nestedFields = field.split(".");
         aValue = nestedFields.reduce((obj, key) => obj?.[key], a);
         bValue = nestedFields.reduce((obj, key) => obj?.[key], b);
       }
 
       // Handle date comparison
-      if (field === 'internalDate') {
+      if (field === "internalDate") {
         aValue = new Date(parseInt(aValue)).getTime();
         bValue = new Date(parseInt(bValue)).getTime();
       }
 
       // Handle string comparison
-      if (typeof aValue === 'string') {
+      if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
       if (aValue < bValue) {
-        return direction === 'asc' ? -1 : 1;
+        return direction === "asc" ? -1 : 1;
       }
       if (aValue > bValue) {
-        return direction === 'asc' ? 1 : -1;
+        return direction === "asc" ? 1 : -1;
       }
       return 0;
     });
@@ -435,32 +494,32 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   // Clear all filters
   const clearAllFilters = () => {
     const defaultFilters: GmailSearchFilters = {
-      searchTerm: '',
+      searchTerm: "",
       labels: [],
-      from: '',
-      to: '',
-      subject: '',
+      from: "",
+      to: "",
+      subject: "",
       hasAttachment: false,
       isStarred: false,
       isUnread: false,
       isImportant: false,
       dateRange: {
-        from: '',
-        to: ''
+        from: "",
+        to: "",
       },
       sizeRange: {
         min: 0,
-        max: 50000000
+        max: 50000000,
       },
       semanticSearch: false,
       includeSpam: false,
       includeTrash: false,
-      importance: 'all',
-      readStatus: 'all',
-      starredStatus: 'all'
+      importance: "all",
+      readStatus: "all",
+      starredStatus: "all",
     };
     setFilters(defaultFilters);
-    setSearchTerm('');
+    setSearchTerm("");
     onFiltersChange?.(defaultFilters);
   };
 
@@ -472,16 +531,19 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
       filters: { ...filters },
       sort: { ...sort },
       searchTerm,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     const updatedSavedSearches = [searchToSave, ...savedSearches.slice(0, 9)];
     setSavedSearches(updatedSavedSearches);
-    localStorage.setItem('gmail-saved-searches', JSON.stringify(updatedSavedSearches));
+    localStorage.setItem(
+      "gmail-saved-searches",
+      JSON.stringify(updatedSavedSearches),
+    );
 
     toast({
-      title: 'Search saved',
-      status: 'success',
+      title: "Search saved",
+      status: "success",
       duration: 2000,
     });
   };
@@ -497,12 +559,15 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   };
 
   // Available options from data
-  const availableOptions = useMemo(() => getAvailableOptions(), [getAvailableOptions]);
+  const availableOptions = useMemo(
+    () => getAvailableOptions(),
+    [getAvailableOptions],
+  );
 
   // Effect to load recent and saved searches
   useEffect(() => {
-    const storedRecent = localStorage.getItem('gmail-recent-searches');
-    const storedSaved = localStorage.getItem('gmail-saved-searches');
+    const storedRecent = localStorage.getItem("gmail-recent-searches");
+    const storedSaved = localStorage.getItem("gmail-saved-searches");
 
     if (storedRecent) {
       setRecentSearches(JSON.parse(storedRecent));
@@ -518,17 +583,34 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
   }, [performSearch]);
 
   return (
-    <div style={{
-      backgroundColor: bgColor,
-      border: `1px solid ${borderColor}`,
-      borderRadius: '0.5rem',
-      padding: '1rem'
-    }}>
+    <div
+      style={{
+        backgroundColor: bgColor,
+        border: `1px solid ${borderColor}`,
+        borderRadius: "0.5rem",
+        padding: "1rem",
+      }}
+    >
       {/* Main Search Bar */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'stretch' }}>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <div style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+          alignItems: "stretch",
+        }}
+      >
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <div style={{ flex: 1, position: "relative" }}>
+            <div
+              style={{
+                position: "absolute",
+                left: "0.5rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
+              }}
+            >
               🔍
             </div>
             <input
@@ -539,43 +621,43 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                 handleFilterChange({ searchTerm: e.target.value });
               }}
               onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   performSearch();
                 }
               }}
               style={{
-                width: '100%',
-                padding: '0.5rem 0.5rem 0.5rem 2rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.5rem',
-                fontSize: '0.875rem'
+                width: "100%",
+                padding: "0.5rem 0.5rem 0.5rem 2rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.5rem",
+                fontSize: "0.875rem",
               }}
             />
           </div>
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             style={{
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
+              backgroundColor: "#3b82f6",
+              color: "white",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.5rem",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "0.875rem",
             }}
           >
-            {showAdvancedFilters ? 'Hide Filters' : 'Show Filters'}
+            {showAdvancedFilters ? "Hide Filters" : "Show Filters"}
           </button>
           <button
             onClick={performSearch}
             style={{
-              backgroundColor: '#10b981',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '0.875rem'
+              backgroundColor: "#10b981",
+              color: "white",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.5rem",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "0.875rem",
             }}
           >
             Search
@@ -583,16 +665,31 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
         </div>
 
         {showAdvancedFilters && (
-          <div style={{
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            backgroundColor: '#f9fafb'
-          }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: "0.5rem",
+              padding: "1rem",
+              backgroundColor: "#f9fafb",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "1rem",
+              }}
+            >
               {/* From Filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.25rem",
+                  }}
+                >
                   From
                 </label>
                 <input
@@ -603,18 +700,25 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ from: e.target.value })
                   }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.875rem'
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.875rem",
                   }}
                 />
               </div>
 
               {/* To Filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.25rem",
+                  }}
+                >
                   To
                 </label>
                 <input
@@ -625,18 +729,25 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ to: e.target.value })
                   }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.875rem'
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.875rem",
                   }}
                 />
               </div>
 
               {/* Subject Filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.25rem",
+                  }}
+                >
                   Subject
                 </label>
                 <input
@@ -647,18 +758,25 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ subject: e.target.value })
                   }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.875rem'
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.875rem",
                   }}
                 />
               </div>
 
               {/* Read Status Filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.25rem",
+                  }}
+                >
                   Read Status
                 </label>
                 <select
@@ -667,11 +785,11 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ readStatus: e.target.value as any })
                   }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.875rem'
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.875rem",
                   }}
                 >
                   <option value="all">All</option>
@@ -682,7 +800,14 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
 
               {/* Starred Status Filter */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    marginBottom: "0.25rem",
+                  }}
+                >
                   Starred
                 </label>
                 <select
@@ -691,11 +816,11 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ starredStatus: e.target.value as any })
                   }
                   style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.875rem'
+                    width: "100%",
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.875rem",
                   }}
                 >
                   <option value="all">All</option>
@@ -705,7 +830,9 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
               </div>
 
               {/* Attachment Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
                 <input
                   type="checkbox"
                   id="has-attachment"
@@ -714,13 +841,18 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ hasAttachment: e.target.checked })
                   }
                 />
-                <label htmlFor="has-attachment" style={{ fontSize: '0.875rem' }}>
+                <label
+                  htmlFor="has-attachment"
+                  style={{ fontSize: "0.875rem" }}
+                >
                   Has Attachment
                 </label>
               </div>
 
               {/* Semantic Search */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
                 <input
                   type="checkbox"
                   id="semantic-search"
@@ -729,24 +861,27 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
                     handleFilterChange({ semanticSearch: e.target.checked })
                   }
                 />
-                <label htmlFor="semantic-search" style={{ fontSize: '0.875rem' }}>
+                <label
+                  htmlFor="semantic-search"
+                  style={{ fontSize: "0.875rem" }}
+                >
                   Semantic Search
                 </label>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
               <button
                 onClick={clearAllFilters}
                 style={{
-                  backgroundColor: '#6b7280',
-                  color: 'white',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '0.25rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
+                  backgroundColor: "#6b7280",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                  borderRadius: "0.25rem",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
                 }}
               >
                 Clear All
@@ -754,13 +889,13 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
               <button
                 onClick={saveCurrentSearch}
                 style={{
-                  backgroundColor: '#8b5cf6',
-                  color: 'white',
-                  padding: '0.5rem 1rem',
-                  borderRadius: '0.25rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem'
+                  backgroundColor: "#8b5cf6",
+                  color: "white",
+                  padding: "0.5rem 1rem",
+                  borderRadius: "0.25rem",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
                 }}
               >
                 Save Search
@@ -770,23 +905,34 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
         )}
 
         {/* Search Results Info */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            {loading ? 'Searching...' : `Found ${totalCount} items`}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+            {loading ? "Searching..." : `Found ${totalCount} items`}
           </span>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>Sort by:</span>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <span style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+              Sort by:
+            </span>
             <select
               value={`${sort.field}-${sort.direction}`}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                const [field, direction] = e.target.value.split('-');
-                handleSortChange({ field, direction: direction as 'asc' | 'desc' });
+                const [field, direction] = e.target.value.split("-");
+                handleSortChange({
+                  field,
+                  direction: direction as "asc" | "desc",
+                });
               }}
               style={{
-                padding: '0.25rem 0.5rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.25rem',
-                fontSize: '0.875rem'
+                padding: "0.25rem 0.5rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.25rem",
+                fontSize: "0.875rem",
               }}
             >
               <option value="internalDate-desc">Newest First</option>
@@ -799,3 +945,6 @@ const GmailSearch: React.FC<GmailSearchProps> = ({
       </div>
     </div>
   );
+};
+
+export default GmailSearch;

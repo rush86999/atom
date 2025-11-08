@@ -370,7 +370,7 @@ const GitLabIntegrationPage: NextPage = () => {
               <GitLabSearch
                 data={[...projects, ...issues, ...mergeRequests, ...pipelines]}
                 dataType="all"
-                onSearch={(results, filters, sort) => {
+                onSearch={(results: any[], filters: any, sort: any) => {
                   console.log("Search results:", results);
                   console.log("Filters:", filters);
                   console.log("Sort:", sort);

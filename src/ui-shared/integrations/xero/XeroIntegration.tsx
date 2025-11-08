@@ -460,7 +460,7 @@ const XeroIntegration: React.FC = () => {
   };
 
   const handleAuthentication = () => {
-    window.location.href = '/auth/xero';
+    window.location.href = '/api/integrations/xero/auth/start';
   };
 
   const handleCreateInvoice = async () => {

@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, VStack, Heading, Text } from "@chakra-ui/react";
-import HubSpotIntegration from "../../../src/ui-shared/integrations/hubspot/HubSpotIntegration";
+import HubSpotIntegration from "../../../components/integrations/hubspot/HubSpotIntegration";
 
 const HubSpotIntegrationPage: React.FC = () => {
   return (
@@ -9,7 +9,8 @@ const HubSpotIntegrationPage: React.FC = () => {
         <VStack align="start" spacing={2}>
           <Heading size="2xl">HubSpot Integration</Heading>
           <Text color="gray.600" fontSize="lg">
-            Complete CRM and marketing automation platform
+            Complete CRM and marketing automation platform with advanced search
+            capabilities
           </Text>
         </VStack>
 

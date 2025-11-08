@@ -5,6 +5,7 @@
 
 // Components
 export { default as TeamsManager } from './components/TeamsManager';
+export { default as EnhancedTeamsManager } from './components/EnhancedTeamsManager';
 export { default as TeamsCallback } from './components/TeamsCallback';
 export { default as TeamsDataSource } from './components/TeamsDataSource';
 

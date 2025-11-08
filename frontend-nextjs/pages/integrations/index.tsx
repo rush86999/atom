@@ -188,6 +188,16 @@ const IntegrationsPage: React.FC = () => {
       color: "blue",
     },
     {
+      id: "xero",
+      name: "Xero",
+      description: "Accounting and financial management",
+      category: "finance",
+      status: "complete",
+      connected: false,
+      icon: CalendarIcon,
+      color: "green",
+    },
+    {
       id: "outlook",
       name: "Outlook",
       description: "Email, calendar, and contact management",
@@ -299,6 +309,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/quickbooks/health"),
         fetch("/api/integrations/hubspot/health"),
         fetch("/api/integrations/zendesk/health"),
+        fetch("/api/integrations/xero/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {

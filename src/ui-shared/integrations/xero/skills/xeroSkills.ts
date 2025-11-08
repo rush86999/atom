@@ -358,7 +358,7 @@ export interface XeroListOptions {
 }
 
 class XeroSkills {
-  private readonly baseUrl = '/api/xero';
+  private readonly baseUrl = '/api/integrations/xero';
   private readonly authUrl = '/auth/xero';
 
   // Authentication methods

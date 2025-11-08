@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { GmailSearch } from "../../../src/ui-shared/integrations/gmail/components/GmailSearch";
+import GmailSearch from "../../../src/ui-shared/integrations/gmail/components/GmailSearch";
 
 const GmailIntegrationPage: NextPage = () => {
   const router = useRouter();
@@ -237,7 +237,7 @@ const GmailIntegrationPage: NextPage = () => {
               <GmailSearch
                 data={emails}
                 dataType="messages"
-                onSearch={(results, filters, sort) => {
+                onSearch={(results: any[], filters: any, sort: any) => {
                   console.log("Search results:", results);
                   console.log("Filters:", filters);
                   console.log("Sort:", sort);
@@ -320,7 +320,7 @@ const GmailIntegrationPage: NextPage = () => {
               <GmailSearch
                 data={contacts}
                 dataType="contacts"
-                onSearch={(results, filters, sort) => {
+                onSearch={(results: any[], filters: any, sort: any) => {
                   console.log("Contact search results:", results);
                   console.log("Filters:", filters);
                   console.log("Sort:", sort);

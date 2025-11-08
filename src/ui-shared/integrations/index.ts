@@ -23,8 +23,8 @@ export { default as ATOMOneDriveDataSource } from './onedrive/components/OneDriv
 export * as OneDriveTypes from './onedrive/types';
 
 // MS Teams Integration (Communication) - Complete
-export { default as ATOMTeamsDataSource } from './teams/components/TeamsDataSource';
-export * as TeamsTypes from './teams/types';
+export { TeamsManager, EnhancedTeamsManager, TeamsCallback, TeamsDataSource } from './teams';
+export { teamsSkills } from './teams/skills/teamsSkills';
 
 // Slack Integration (Messaging)
 export { default as ATOMSlackDataSource } from './slack/components/SlackDataSource';
@@ -70,6 +70,10 @@ export { NextjsSkills } from './nextjs/skills/nextjsSkills';
 export { default as GitLabManager } from './gitlab/components/GitLabManager';
 export { GitLabSkills } from './gitlab/skills/gitlabSkills';
 
+// Asana Integration (Project Management & Productivity)
+export { default as AsanaManager } from './asana/components/AsanaManager';
+export { asanaSkills } from './asana/skills/asanaSkills';
+
 // HubSpot Integration (Marketing & CRM)
 export { HubSpotIntegration } from './hubspot';
 export { hubspotSkills, hubspotSkillsEnhanced } from './hubspot/skills/hubspotSkills';
@@ -81,6 +85,10 @@ export { zendeskSkills, zendeskSkillsEnhanced } from './zendesk/skills/zendeskSk
 // Xero Integration (Financial)
 export { XeroIntegration } from './xero';
 export { xeroSkills } from './xero/skills/xeroSkills';
+
+// Asana Integration (Project Management & Productivity)
+export { AsanaManager } from './asana/components/AsanaManager';
+export { asanaSkills } from './asana/skills/asanaSkills';
 
 // Base Integration Template
 export * as BaseIntegration from './_template/baseIntegration';
@@ -134,8 +142,12 @@ export class AtomIntegrationFactory {
         return NextjsManager(props);
       case 'gitlab':
         return GitLabManager(props);
+      case 'asana':
+        return AsanaManager(props);
       case 'linear':
         return LinearManager(props);
+      case 'teams':
+        return EnhancedTeamsManager(props);
       case 'hubspot':
         return HubSpotIntegration(props);
       case 'zendesk':
@@ -148,7 +160,7 @@ export class AtomIntegrationFactory {
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'linear', 'hubspot', 'zendesk', 'xero'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -173,8 +185,12 @@ export class AtomIntegrationFactory {
         return { name: 'Next.js', type: 'development', category: 'development', status: 'complete' };
       case 'gitlab':
         return { name: 'GitLab', type: 'development', category: 'development', status: 'complete' };
+      case 'asana':
+        return { name: 'Asana', type: 'productivity', category: 'productivity', status: 'complete' };
       case 'linear':
         return { name: 'Linear', type: 'development', category: 'development', status: 'complete' };
+      case 'teams':
+        return { name: 'Microsoft Teams', type: 'communication', category: 'communication', status: 'complete' };
       case 'hubspot':
         return { name: 'HubSpot', type: 'marketing', category: 'marketing', status: 'complete' };
       case 'zendesk':
@@ -189,8 +205,8 @@ export class AtomIntegrationFactory {
   static getIntegrationsByCategory(): Record<string, string[]> {
     return {
       storage: ['box', 'dropbox', 'gdrive'],
-      communication: ['slack', 'gmail'],
-      productivity: ['notion', 'jira'],
+      communication: ['slack', 'gmail', 'teams'],
+      productivity: ['notion', 'jira', 'asana'],
       development: ['github', 'nextjs', 'gitlab', 'linear'],
       marketing: ['hubspot'],
       customer_service: ['zendesk'],
@@ -199,7 +215,7 @@ export class AtomIntegrationFactory {
   }
   
   static getCompletedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'notion', 'jira', 'github', 'nextjs', 'hubspot', 'zendesk', 'linear', 'xero'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
   }
 }
 
@@ -470,13 +486,13 @@ export const ATOM_INTEGRATION_TYPES = {
 // Integration Statistics
 // Stats
 export const ATOM_INTEGRATION_STATS = {
-  totalIntegrations: 13,
-  completedIntegrations: 13,
+  totalIntegrations: 15,
+  completedIntegrations: 15,
   templateIntegrations: 0,
   categories: {
     storage: 3,
-    communication: 2,
-    productivity: 2,
+    communication: 3,
+    productivity: 3,
     development: 4,
     marketing: 1,
     customer_service: 1,
@@ -600,7 +616,63 @@ export const ATOM_INTEGRATION_STATS = {
     quoting_management: 1,
     mobile_access: 1,
     audit_trails: 1,
-    compliance_reporting: 1
+    compliance_reporting: 1,
+    // Asana specific features
+    task_management: 1,
+    project_tracking: 1,
+    team_coordination: 1,
+    task_assignment: 1,
+    deadline_tracking: 1,
+    project_planning: 1,
+    workflow_management: 1,
+    collaboration_tools: 1,
+    progress_tracking: 1,
+    resource_allocation: 1,
+    project_boards: 1,
+    task_dependencies: 1,
+    team_communication: 1,
+    milestone_tracking: 1,
+    time_tracking: 1,
+    project_templates: 1,
+    custom_fields: 1,
+    project_reporting: 1,
+    portfolio_management: 1,
+    goal_tracking: 1,
+    automation_rules: 1,
+    // Microsoft Teams specific features
+    channel_management: 1,
+    team_management: 1,
+    meeting_management: 1,
+    file_sharing: 1,
+    voice_video_calling: 1,
+    screen_sharing: 1,
+    message_search: 1,
+    thread_conversations: 1,
+    presence_indicators: 1,
+    notification_management: 1,
+    governance_compliance: 1,
+    calling_policies: 1,
+    app_integration: 1,
+    bot_development: 1,
+    api_access: 1,
+    security_features: 1,
+    multi_device_sync: 1,
+    file_collaboration: 1,
+    calendar_integration: 1,
+    task_management_teams: 1,
+    third_party_apps: 1,
+    meeting_recording: 1,
+    transcription_services: 1,
+    live_events: 1,
+    breakout_rooms: 1,
+    background_effects: 1,
+    whiteboard_collaboration: 1,
+    polls_quizzes: 1,
+    presentations_sharing: 1,
+    cloud_storage: 1,
+    enterprise_policies: 1,
+    access_controls: 1,
+    audit_logging_teams: 1
   }
 } as const;
 
@@ -626,8 +698,17 @@ export default {
   // HubSpot Integration
   HubSpotIntegration,
   
+  // Microsoft Teams Integration
+  TeamsManager,
+  EnhancedTeamsManager,
+  TeamsCallback,
+  TeamsDataSource,
+  
   // Zendesk Integration
   ZendeskIntegration,
+  
+  // Asana Integration
+  AsanaManager,
   
   // Factory & Registry
   AtomIntegrationFactory,
