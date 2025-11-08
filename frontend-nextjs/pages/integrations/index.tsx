@@ -43,6 +43,7 @@ import {
   CalendarIcon,
   CreditCardIcon,
   StarIcon,
+  BuildingIcon,
 } from "@chakra-ui/icons";
 
 interface Integration {
@@ -198,6 +199,16 @@ const IntegrationsPage: React.FC = () => {
       color: "green",
     },
     {
+      id: "salesforce",
+      name: "Salesforce",
+      description: "Customer relationship management and sales platform",
+      category: "crm",
+      status: "complete",
+      connected: false,
+      icon: BuildingIcon,
+      color: "blue",
+    },
+    {
       id: "outlook",
       name: "Outlook",
       description: "Email, calendar, and contact management",
@@ -310,6 +321,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/hubspot/health"),
         fetch("/api/integrations/zendesk/health"),
         fetch("/api/integrations/xero/health"),
+        fetch("/api/integrations/salesforce/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {

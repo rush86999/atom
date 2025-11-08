@@ -556,6 +556,88 @@ export const ATOM_INTEGRATIONS = [
       max_attachments_per_issue: 100
     }
   },
+  // Data Management & Productivity Integrations
+  {
+    id: 'airtable',
+    name: 'Airtable',
+    description: 'Cloud-based database and spreadsheet platform with workflow automation capabilities',
+    category: INTEGRATION_CATEGORY_PRODUCTIVITY,
+    platform: 'web',
+    status: 'complete',
+    features: [
+      'database_management',
+      'table_operations',
+      'record_processing',
+      'view_customization',
+      'formula_computation',
+      'api_integration',
+      'data_validation',
+      'relationship_linking',
+      'collaboration_tools',
+      'automation_workflows',
+      'import_export',
+      'search_filtering',
+      'sort_grouping',
+      'calculations_aggregations',
+      'data_visualization',
+      'form_creation',
+      'field_types',
+      'record_templates',
+      'revision_history',
+      'collaborative_editing',
+      'access_controls',
+      'api_rate_limiting',
+      'sync_integration',
+      'backup_restore',
+      'scripting_automation',
+      'webhook_triggers',
+      'custom_apis',
+      'enterprise_security',
+      'audit_logging'
+    ],
+    oauth: {
+      provider: 'airtable',
+      scopes: [
+        'data.records:read',
+        'data.records:write',
+        'schema.bases:read',
+        'schema.tables:read',
+        'users:read',
+        'webhooks:manage'
+      ],
+      flow: 'oauth2'
+    },
+    webhooks: [
+      'table.records.created',
+      'table.records.updated',
+      'table.records.deleted',
+      'base.created',
+      'base.updated',
+      'table.created',
+      'base.shared',
+      'collaborator.added',
+      'collaborator.removed',
+      'webhook.test',
+      'automation.triggered',
+      'script.executed'
+    ],
+    limits: {
+      max_bases: 100,
+      max_tables_per_base: 1000,
+      max_records_per_table: 50000,
+      max_fields_per_table: 1000,
+      max_form_responses_per_form: 10000,
+      max_automations_per_base: 50,
+      max_scripts_per_base: 25,
+      api_calls_per_second: 5,
+      api_calls_per_minute: 100,
+      webhook_events_per_minute: 1000,
+      attachment_size_mb: 25,
+      max_views_per_table: 100,
+      max_form_fields: 1000,
+      max_collaborators_per_base: 1000
+    }
+  },
   // Project Management & Productivity Integrations
   {
     id: 'asana',
@@ -1147,6 +1229,19 @@ export const OAUTH_PROVIDERS = {
       'ChannelMessage.Send',
       'OnlineMeetings.Read.All'
     ]
+  },
+  airtable: {
+    name: 'Airtable',
+    auth_url: 'https://airtable.com/oauth2/v1/authorize',
+    token_url: 'https://airtable.com/oauth2/v1/token',
+    scopes: [
+      'data.records:read',
+      'data.records:write',
+      'schema.bases:read',
+      'schema.tables:read',
+      'users:read',
+      'webhooks:manage'
+    ]
   }
 } as const;
 
@@ -1342,6 +1437,30 @@ export const WEBHOOK_EVENTS = {
     'transcription.completed',
     'recording.started',
     'recording.ended'
+  ],
+  data_management: [
+    'table.records.created',
+    'table.records.updated',
+    'table.records.deleted',
+    'base.created',
+    'base.updated',
+    'table.created',
+    'base.shared',
+    'collaborator.added',
+    'collaborator.removed',
+    'webhook.test',
+    'automation.triggered',
+    'script.executed',
+    'form.response.created',
+    'import.completed',
+    'export.completed',
+    'schema.changed',
+    'field.updated',
+    'view.created',
+    'view.updated',
+    'record.linked',
+    'formula.computed',
+    'automation.completed'
   ]
 } as const;
 

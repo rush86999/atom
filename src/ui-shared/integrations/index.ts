@@ -86,6 +86,10 @@ export { zendeskSkills, zendeskSkillsEnhanced } from './zendesk/skills/zendeskSk
 export { XeroIntegration } from './xero';
 export { xeroSkills } from './xero/skills/xeroSkills';
 
+// Airtable Integration (Data Management & Productivity)
+export { AirtableDataManagementUI } from './airtable';
+export { airtableSkills } from './airtable/skills/airtableSkillsComplete';
+
 // Asana Integration (Project Management & Productivity)
 export { AsanaManager } from './asana/components/AsanaManager';
 export { asanaSkills } from './asana/skills/asanaSkills';
@@ -144,6 +148,8 @@ export class AtomIntegrationFactory {
         return GitLabManager(props);
       case 'asana':
         return AsanaManager(props);
+      case 'airtable':
+        return AirtableDataManagementUI(props);
       case 'linear':
         return LinearManager(props);
       case 'teams':
@@ -160,7 +166,7 @@ export class AtomIntegrationFactory {
   }
   
   static getSupportedIntegrations(): string[] {
-    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
+    return ['box', 'dropbox', 'gdrive', 'slack', 'gmail', 'teams', 'airtable', 'notion', 'jira', 'github', 'nextjs', 'gitlab', 'asana', 'linear', 'hubspot', 'zendesk', 'xero'];
   }
   
   static getIntegrationConfig(type: string): any {
@@ -187,6 +193,8 @@ export class AtomIntegrationFactory {
         return { name: 'GitLab', type: 'development', category: 'development', status: 'complete' };
       case 'asana':
         return { name: 'Asana', type: 'productivity', category: 'productivity', status: 'complete' };
+      case 'airtable':
+        return { name: 'Airtable', type: 'data-management', category: 'productivity', status: 'complete' };
       case 'linear':
         return { name: 'Linear', type: 'development', category: 'development', status: 'complete' };
       case 'teams':
@@ -206,7 +214,7 @@ export class AtomIntegrationFactory {
     return {
       storage: ['box', 'dropbox', 'gdrive'],
       communication: ['slack', 'gmail', 'teams'],
-      productivity: ['notion', 'jira', 'asana'],
+      productivity: ['notion', 'jira', 'asana', 'airtable'],
       development: ['github', 'nextjs', 'gitlab', 'linear'],
       marketing: ['hubspot'],
       customer_service: ['zendesk'],
