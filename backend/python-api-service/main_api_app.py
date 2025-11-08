@@ -275,6 +275,15 @@ except ImportError as e:
     XERO_OAUTH_AVAILABLE = False
     logging.warning(f"Xero OAuth handler not available: {e}")
 
+# Import Azure OAuth handler
+try:
+    from azure_integration_register import register_azure_integration, initialize_azure_schema
+
+    AZURE_OAUTH_AVAILABLE = True
+except ImportError as e:
+    AZURE_OAUTH_AVAILABLE = False
+    logging.warning(f"Azure OAuth handler not available: {e}")
+
 # Import Zoom OAuth handler
 try:
     from auth_handler_zoom import init_zoom_oauth_handler, zoom_auth_bp
@@ -1246,6 +1255,22 @@ def create_app():
         logging.info("Xero service handler registered successfully")
     except ImportError as e:
         logging.warning(f"Xero service handler not available: {e}")
+
+    # Register Azure integration if available
+    if AZURE_OAUTH_AVAILABLE:
+        try:
+            # Initialize Azure database schema
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(initialize_azure_schema(db_pool))
+            loop.close()
+            
+            # Register Azure blueprints
+            register_azure_integration(app)
+            logging.info("Azure integration registered successfully")
+        except Exception as e:
+            logging.error(f"Failed to register Azure integration: {e}")
 
     return app
 

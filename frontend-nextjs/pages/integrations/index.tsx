@@ -44,6 +44,7 @@ import {
   CreditCardIcon,
   StarIcon,
   BuildingIcon,
+  CloudIcon,
 } from "@chakra-ui/icons";
 
 interface Integration {
@@ -209,6 +210,16 @@ const IntegrationsPage: React.FC = () => {
       color: "blue",
     },
     {
+      id: "azure",
+      name: "Microsoft Azure",
+      description: "Cloud computing platform for infrastructure and services",
+      category: "cloud",
+      status: "complete",
+      connected: false,
+      icon: CloudIcon,
+      color: "blue",
+    },
+    {
       id: "microsoft365",
       name: "Microsoft 365",
       description: "Complete productivity suite with Teams, Outlook, and OneDrive",
@@ -333,6 +344,7 @@ const IntegrationsPage: React.FC = () => {
         fetch("/api/integrations/xero/health"),
         fetch("/api/integrations/salesforce/health"),
         fetch("/api/integrations/microsoft365/health"),
+        fetch("/api/integrations/azure/health"),
       ]);
 
       const updatedIntegrations = integrationList.map((integration, index) => {
